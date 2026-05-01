@@ -44,11 +44,9 @@ jobs:
         run: |
           go test -race -count=1 -timeout 5m \
             -coverpkg=./internal/... \
-            -coverprofile=coverage.out \
+            -coverprofile=coverage.txt \
             ./...
 
-      # For public repos, CODECOV_TOKEN is not required.
-      # For private repos, add CODECOV_TOKEN as a repository secret.
       - uses: codecov/codecov-action@v6
         with:
-          files: ./coverage.out
+          token: ${{ secrets.CODECOV_TOKEN }}
