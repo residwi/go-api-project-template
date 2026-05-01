@@ -88,6 +88,16 @@ vet: ## Run go vet
 	@echo "Vetting..."
 	go vet ./...
 
+.PHONY: vuln
+vuln: ## Run govulncheck
+	@if command -v govulncheck > /dev/null; then \
+		govulncheck ./...; \
+	else \
+		echo "Installing govulncheck..."; \
+		go install golang.org/x/vuln/cmd/govulncheck@latest; \
+		govulncheck ./...; \
+	fi
+
 .PHONY: tidy
 tidy: ## Tidy go modules
 	@echo "Tidying..."
