@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+	make test
+	exit 0
+fi
+
+TEST_NAME="$1"
+
+echo "Running tests matching: '$TEST_NAME'"
+
+# ignore SC2046: We want word splitting here to pass multiple env vars to `env`
+# shellcheck disable=SC2046
+env $(grep -v '^\(#\|$\)' .env) go test -count=1 -race -shuffle=on -failfast -v ./... -run "$TEST_NAME"
