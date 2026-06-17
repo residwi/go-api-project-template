@@ -157,7 +157,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen
 	inventory.RegisterRoutes(admin, inventory.RouteDeps{Validator: v, Service: inventorySvc})
 	cart.RegisterRoutes(authed, cart.RouteDeps{Validator: v, Service: cartSvc})
 	order.RegisterRoutes(authed, admin, order.RouteDeps{Validator: v, Service: orderSvc})
-	payment.RegisterRoutes(api, admin, payment.RouteDeps{Validator: v, Service: paymentSvc})
+	payment.RegisterRoutes(api, admin, payment.RouteDeps{Validator: v, Service: paymentSvc, WebhookSecret: cfg.Payment.WebhookSecret})
 	shipping.RegisterRoutes(authed, admin, shipping.RouteDeps{Validator: v, Service: shippingSvc, Orders: shippingOrderProvider})
 	review.RegisterRoutes(api, authed, admin, review.RouteDeps{Validator: v, Service: reviewSvc})
 	promotion.RegisterRoutes(authed, admin, promotion.RouteDeps{Validator: v, Service: promotionSvc})
@@ -167,7 +167,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen
 
 	// ── Mock payment routes (development only) ────────────────────────────
 	if deps.Config.App.Env == "development" {
-		mockgw.RegisterRoutes(mux)
+		mockgw.RegisterRoutes(mux, mockgw.WithWebhookSecret(cfg.Payment.WebhookSecret))
 	}
 
 	// Global middleware

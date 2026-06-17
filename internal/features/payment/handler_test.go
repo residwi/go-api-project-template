@@ -2,6 +2,9 @@ package payment_test
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -49,6 +52,81 @@ func setupPaymentMux(t *testing.T) (
 	payment.RegisterRoutes(api, admin, payment.RouteDeps{Validator: v, Service: svc})
 
 	return mux, repo, gw, orders, orderGet
+}
+
+func setupPaymentMuxWithSecret(t *testing.T, secret string) (*http.ServeMux, *mocks.MockRepository) {
+	repo := mocks.NewMockRepository(t)
+	gw := mocks.NewMockGateway(t)
+	orders := mocks.NewMockOrderUpdater(t)
+	orderGet := mocks.NewMockOrderGetter(t)
+	orderItems := mocks.NewMockOrderItemsGetter(t)
+	inv := mocks.NewMockInventoryDeductor(t)
+	invRel := mocks.NewMockInventoryReleaser(t)
+	invRestock := mocks.NewMockInventoryRestocker(t)
+	couponRel := mocks.NewMockCouponReleaser(t)
+
+	svc := payment.NewService(repo, nil, gw, orders, orderGet, orderItems, inv, invRel, invRestock, couponRel)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	api := middleware.NewRouteGroup(mux, "/api")
+	admin := middleware.NewRouteGroup(mux, "/api/admin")
+	payment.RegisterRoutes(api, admin, payment.RouteDeps{Validator: v, Service: svc, WebhookSecret: secret})
+
+	return mux, repo
+}
+
+func TestWebhookHandler_SignatureVerification(t *testing.T) {
+	const secret = "whsec_test"
+	sign := func(body []byte) string {
+		mac := hmac.New(sha256.New, []byte(secret))
+		mac.Write(body)
+		return hex.EncodeToString(mac.Sum(nil))
+	}
+
+	t.Run("valid signature is accepted", func(t *testing.T) {
+		mux, repo := setupPaymentMuxWithSecret(t, secret)
+		// Unknown payment id: service no-ops and returns 200, which is enough to
+		// prove the signature check passed and the body reached the service.
+		repo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, core.ErrNotFound)
+
+		body, _ := json.Marshal(map[string]any{
+			"event":    "success",
+			"metadata": map[string]any{"payment_id": uuid.New().String()},
+		})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader(body))
+		r.Header.Set("X-Webhook-Signature", sign(body))
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("missing signature is rejected", func(t *testing.T) {
+		mux, _ := setupPaymentMuxWithSecret(t, secret)
+
+		body, _ := json.Marshal(map[string]any{"event": "success"})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader(body))
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("wrong signature is rejected", func(t *testing.T) {
+		mux, _ := setupPaymentMuxWithSecret(t, secret)
+
+		body, _ := json.Marshal(map[string]any{"event": "success"})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader(body))
+		r.Header.Set("X-Webhook-Signature", "deadbeef")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 }
 
 func TestWebhookHandler_HandleWebhook(t *testing.T) {

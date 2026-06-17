@@ -3,6 +3,9 @@ package mock
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -20,13 +23,26 @@ type chargeRecord struct {
 }
 
 type mockServer struct {
-	mu      sync.Mutex
-	charges map[string]chargeRecord // idempotency_key -> record
+	mu            sync.Mutex
+	charges       map[string]chargeRecord // idempotency_key -> record
+	webhookSecret string
 }
 
-func RegisterRoutes(mux *http.ServeMux) {
+// Option configures the mock payment server.
+type Option func(*mockServer)
+
+// WithWebhookSecret makes the mock sign triggered webhooks with the same
+// HMAC-SHA256 scheme the real webhook handler verifies.
+func WithWebhookSecret(secret string) Option {
+	return func(s *mockServer) { s.webhookSecret = secret }
+}
+
+func RegisterRoutes(mux *http.ServeMux, opts ...Option) {
 	s := &mockServer{
 		charges: make(map[string]chargeRecord),
+	}
+	for _, opt := range opts {
+		opt(s)
 	}
 	mux.HandleFunc("POST /mock/payment/charge", s.handleCharge)
 	mux.HandleFunc("POST /mock/payment/refund", s.handleRefund)
@@ -140,6 +156,11 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
+		if s.webhookSecret != "" {
+			mac := hmac.New(sha256.New, []byte(s.webhookSecret))
+			mac.Write(body)
+			req.Header.Set("X-Webhook-Signature", hex.EncodeToString(mac.Sum(nil)))
+		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			slog.Error("webhook trigger failed", "error", err)
