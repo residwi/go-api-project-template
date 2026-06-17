@@ -295,9 +295,11 @@ func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) er
 			for i, item := range items {
 				releases[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
 			}
+			// Fail the cancellation if the reservation can't be released: returning
+			// the error rolls back the status change too, so we never commit a
+			// cancelled order while its stock stays reserved (a permanent leak).
 			if releaseErr := s.inventory.ReleaseBatch(txCtx, releases); releaseErr != nil {
-				slog.ErrorContext(txCtx, "failed to release inventory on cancel",
-					"order_id", orderID, "error", releaseErr)
+				return fmt.Errorf("releasing inventory on cancel: %w", releaseErr)
 			}
 		}
 

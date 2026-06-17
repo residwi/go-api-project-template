@@ -1264,8 +1264,8 @@ func TestService_CancelOrder(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("inventory release error is logged but swallowed", func(t *testing.T) {
-		svc, repo, _, inventory, _, paymentCancel, _, _ := newTestService(t)
+	t.Run("inventory release error fails the cancellation", func(t *testing.T) {
+		svc, repo, _, inventory, _, _, _, _ := newTestService(t)
 
 		productA := uuid.New()
 		existingOrder := &order.Order{
@@ -1283,11 +1283,13 @@ func TestService_CancelOrder(t *testing.T) {
 			{ID: uuid.New(), OrderID: orderID, ProductID: productA, ProductName: "Widget", Price: 5000, Quantity: 1, Subtotal: 5000},
 		}, nil)
 		inventory.EXPECT().ReleaseBatch(mock.Anything, mock.Anything).Return(errors.New("inventory error"))
-		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
+		// The release failure rolls back the cancellation (the tx returns the error),
+		// so payment-job cancellation is never reached.
 
 		err := svc.CancelOrder(txCtx, userID, orderID)
 
-		assert.NoError(t, err)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "inventory error")
 	})
 
 	t.Run("coupon release error is logged but swallowed", func(t *testing.T) {
