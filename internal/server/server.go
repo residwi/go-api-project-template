@@ -36,7 +36,7 @@ func Run() error {
 	}
 	defer pool.Close()
 
-	readerPool, err := database.NewReaderPostgres(ctx, cfg.Database.ReaderURL)
+	readerPool, err := database.NewReaderPostgres(ctx, cfg.Database)
 	if err != nil {
 		if !errors.Is(err, core.ErrReaderNotConfigured) {
 			slog.Warn("failed to connect reader database, using primary", "error", err)

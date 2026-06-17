@@ -94,28 +94,36 @@ func TestNewPostgres(t *testing.T) {
 
 func TestNewReaderPostgres(t *testing.T) {
 	t.Run("empty url returns ErrReaderNotConfigured", func(t *testing.T) {
-		pool, err := database.NewReaderPostgres(context.Background(), "")
+		pool, err := database.NewReaderPostgres(context.Background(), config.DatabaseConfig{ReaderURL: ""})
 		require.ErrorIs(t, err, core.ErrReaderNotConfigured)
 		assert.Nil(t, pool)
 	})
 
 	t.Run("success", func(t *testing.T) {
 		dsn := fmt.Sprintf("postgres://test:test@localhost:%s/testdb?sslmode=disable", testContainerPort)
-		pool, err := database.NewReaderPostgres(context.Background(), dsn)
+		pool, err := database.NewReaderPostgres(context.Background(), config.DatabaseConfig{
+			ReaderURL:       dsn,
+			MaxConns:        5,
+			MinConns:        1,
+			MaxConnLifetime: 5 * time.Minute,
+			MaxConnIdleTime: 1 * time.Minute,
+		})
 		require.NoError(t, err)
 		require.NotNil(t, pool)
 		defer pool.Close()
 	})
 
-	t.Run("invalid dsn returns connecting error", func(t *testing.T) {
-		pool, err := database.NewReaderPostgres(context.Background(), "not-a-valid-url")
+	t.Run("invalid dsn returns parsing error", func(t *testing.T) {
+		pool, err := database.NewReaderPostgres(context.Background(),
+			config.DatabaseConfig{ReaderURL: "not-a-valid-url", MaxConns: 5})
 		require.Error(t, err)
 		assert.Nil(t, pool)
-		assert.Contains(t, err.Error(), "connecting to reader database")
+		assert.Contains(t, err.Error(), "parsing reader database config")
 	})
 
 	t.Run("ping failure with unreachable host", func(t *testing.T) {
-		pool, err := database.NewReaderPostgres(context.Background(), "postgres://x:x@localhost:1/x")
+		pool, err := database.NewReaderPostgres(context.Background(),
+			config.DatabaseConfig{ReaderURL: "postgres://x:x@localhost:1/x", MaxConns: 5})
 		require.Error(t, err)
 		assert.Nil(t, pool)
 		assert.Contains(t, err.Error(), "pinging reader database")

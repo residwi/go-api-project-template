@@ -17,10 +17,7 @@ func NewPostgres(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool,
 		return nil, fmt.Errorf("parsing database config: %w", err)
 	}
 
-	poolCfg.MaxConns = int32(min(cfg.MaxConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32
-	poolCfg.MinConns = int32(min(cfg.MinConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32
-	poolCfg.MaxConnLifetime = cfg.MaxConnLifetime
-	poolCfg.MaxConnIdleTime = cfg.MaxConnIdleTime
+	applyPoolTuning(poolCfg, cfg)
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
@@ -35,12 +32,19 @@ func NewPostgres(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool,
 	return pool, nil
 }
 
-func NewReaderPostgres(ctx context.Context, readerURL string) (*pgxpool.Pool, error) {
-	if readerURL == "" {
+func NewReaderPostgres(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
+	if cfg.ReaderURL == "" {
 		return nil, core.ErrReaderNotConfigured
 	}
 
-	pool, err := pgxpool.New(ctx, readerURL)
+	poolCfg, err := pgxpool.ParseConfig(cfg.ReaderURL)
+	if err != nil {
+		return nil, fmt.Errorf("parsing reader database config: %w", err)
+	}
+
+	applyPoolTuning(poolCfg, cfg)
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to reader database: %w", err)
 	}
@@ -51,4 +55,14 @@ func NewReaderPostgres(ctx context.Context, readerURL string) (*pgxpool.Pool, er
 	}
 
 	return pool, nil
+}
+
+// applyPoolTuning applies the configured connection-pool limits so both the
+// primary and reader pools are bounded consistently instead of running on
+// pgx defaults.
+func applyPoolTuning(poolCfg *pgxpool.Config, cfg config.DatabaseConfig) {
+	poolCfg.MaxConns = int32(min(cfg.MaxConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32
+	poolCfg.MinConns = int32(min(cfg.MinConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32
+	poolCfg.MaxConnLifetime = cfg.MaxConnLifetime
+	poolCfg.MaxConnIdleTime = cfg.MaxConnIdleTime
 }

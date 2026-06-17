@@ -9,12 +9,19 @@ import (
 )
 
 func CORS(cfg config.CORSConfig) Middleware {
+	// Header values are derived from fixed config; compute them once at
+	// construction instead of on every request.
+	allowOrigins := strings.Join(cfg.AllowedOrigins, ",")
+	allowMethods := strings.Join(cfg.AllowedMethods, ",")
+	allowHeaders := strings.Join(cfg.AllowedHeaders, ",")
+	maxAge := strconv.Itoa(cfg.MaxAge)
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", strings.Join(cfg.AllowedOrigins, ","))
-			w.Header().Set("Access-Control-Allow-Methods", strings.Join(cfg.AllowedMethods, ","))
-			w.Header().Set("Access-Control-Allow-Headers", strings.Join(cfg.AllowedHeaders, ","))
-			w.Header().Set("Access-Control-Max-Age", strconv.Itoa(cfg.MaxAge))
+			w.Header().Set("Access-Control-Allow-Origin", allowOrigins)
+			w.Header().Set("Access-Control-Allow-Methods", allowMethods)
+			w.Header().Set("Access-Control-Allow-Headers", allowHeaders)
+			w.Header().Set("Access-Control-Max-Age", maxAge)
 
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
