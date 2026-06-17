@@ -788,6 +788,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		inventory.EXPECT().ReserveBatch(mock.Anything, []order.InventoryItem{{ProductID: productA, Quantity: 1}}).Return(nil)
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		coupons.EXPECT().Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).Return(int64(1000), nil)
+		repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(1000), int64(4000)).Return(nil)
 		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
 		payment.EXPECT().InitiatePayment(mock.Anything, mock.Anything).Return(order.PaymentResult{PaymentID: uuid.New()}, nil)
@@ -1016,6 +1017,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		inventory.EXPECT().ReserveBatch(mock.Anything, []order.InventoryItem{{ProductID: productA, Quantity: 1}}).Return(nil)
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		coupons.EXPECT().Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).Return(int64(5000), nil)
+		repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(5000), int64(0)).Return(nil)
 		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
 		// payment.InitiatePayment should NOT be called (total is 0)

@@ -30,6 +30,7 @@ type Repository interface {
 	ListAdmin(ctx context.Context, params AdminListParams) ([]Order, int, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, fromStatus, toStatus Status) error
 	UpdateStatusMulti(ctx context.Context, id uuid.UUID, toStatus Status, fromStatuses []Status) error
+	UpdateTotals(ctx context.Context, id uuid.UUID, discount, total int64) error
 	ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]Item, error)
 	GetExpiredOrders(ctx context.Context, limit int) ([]Order, error)
 	GetStaleProcessingOrders(ctx context.Context, threshold time.Duration, limit int) ([]Order, error)
@@ -252,6 +253,21 @@ func (r *PostgresRepository) UpdateStatus(ctx context.Context, id uuid.UUID, fro
 			return core.ErrConflict
 		}
 		return fmt.Errorf("updating order status: %w", err)
+	}
+	return nil
+}
+
+func (r *PostgresRepository) UpdateTotals(ctx context.Context, id uuid.UUID, discount, total int64) error {
+	db := database.DB(ctx, r.pool)
+	tag, err := db.Exec(ctx,
+		`UPDATE orders SET discount_amount = $1, total_amount = $2 WHERE id = $3`,
+		discount, total, id,
+	)
+	if err != nil {
+		return fmt.Errorf("updating order totals: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return core.ErrNotFound
 	}
 	return nil
 }

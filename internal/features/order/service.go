@@ -191,6 +191,12 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 			}
 			order.DiscountAmount = discount
 			order.TotalAmount = max(subtotal-discount, 0)
+			// The order row was inserted with the pre-discount total; persist the
+			// discounted amounts so the DB matches what we charge and what payment
+			// finalization verifies against.
+			if txErr := s.repo.UpdateTotals(txCtx, order.ID, order.DiscountAmount, order.TotalAmount); txErr != nil {
+				return txErr
+			}
 		}
 
 		if txErr := s.cart.Clear(txCtx, userID); txErr != nil {
