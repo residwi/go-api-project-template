@@ -61,7 +61,7 @@ func (r *PostgresRepository) Create(ctx context.Context, p *Product) error {
 		p.Currency, p.SKU, p.StockQuantity, p.Status,
 	).Scan(&p.ID, &p.ReservedQuantity, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if database.IsUniqueViolation(err) {
 			return core.ErrConflict
 		}
 		return fmt.Errorf("creating product: %w", err)
@@ -115,7 +115,7 @@ func (r *PostgresRepository) Update(ctx context.Context, p *Product) error {
 		p.Currency, p.SKU, p.StockQuantity, p.Status, p.ID,
 	)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if database.IsUniqueViolation(err) {
 			return core.ErrConflict
 		}
 		return fmt.Errorf("updating product: %w", err)
@@ -324,21 +324,4 @@ func (r *PostgresRepository) GetImagesByProductID(ctx context.Context, productID
 	}
 
 	return images, nil
-}
-
-func isUniqueViolation(err error) bool {
-	return err != nil && contains(err.Error(), "duplicate key value violates unique constraint")
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

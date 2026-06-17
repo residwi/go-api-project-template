@@ -461,8 +461,8 @@ func (_c *MockRepository_GetImagesByProductID_Call) Run(run func(ctx context.Con
 	return _c
 }
 
-func (_c *MockRepository_GetImagesByProductID_Call) Return(productImages []product.Image, err error) *MockRepository_GetImagesByProductID_Call {
-	_c.Call.Return(productImages, err)
+func (_c *MockRepository_GetImagesByProductID_Call) Return(images []product.Image, err error) *MockRepository_GetImagesByProductID_Call {
+	_c.Call.Return(images, err)
 	return _c
 }
 

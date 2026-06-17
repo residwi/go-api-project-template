@@ -278,8 +278,8 @@ func (_c *MockRepository_GetStats_Call) Run(run func(ctx context.Context, produc
 	return _c
 }
 
-func (_c *MockRepository_GetStats_Call) Return(reviewStats review.Stats, err error) *MockRepository_GetStats_Call {
-	_c.Call.Return(reviewStats, err)
+func (_c *MockRepository_GetStats_Call) Return(stats review.Stats, err error) *MockRepository_GetStats_Call {
+	_c.Call.Return(stats, err)
 	return _c
 }
 

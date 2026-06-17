@@ -39,7 +39,7 @@ func (r *PostgresRepository) Create(ctx context.Context, review *Review) error {
 		review.UserID, review.ProductID, review.OrderID, review.Rating, review.Title, review.Body, review.Status,
 	).Scan(&review.ID, &review.CreatedAt, &review.UpdatedAt)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if database.IsUniqueViolation(err) {
 			return core.ErrConflict
 		}
 		return fmt.Errorf("creating review: %w", err)
@@ -141,21 +141,4 @@ func (r *PostgresRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return core.ErrNotFound
 	}
 	return nil
-}
-
-func isUniqueViolation(err error) bool {
-	return err != nil && contains(err.Error(), "duplicate key value violates unique constraint")
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

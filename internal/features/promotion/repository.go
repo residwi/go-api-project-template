@@ -44,7 +44,7 @@ func (r *PostgresRepository) Create(ctx context.Context, promo *Promotion) error
 		promo.MaxDiscount, promo.MaxUses, promo.StartsAt, promo.ExpiresAt, promo.Active,
 	).Scan(&promo.ID, &promo.UsedCount, &promo.CreatedAt, &promo.UpdatedAt)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if database.IsUniqueViolation(err) {
 			return core.ErrConflict
 		}
 		return fmt.Errorf("creating promotion: %w", err)
@@ -97,7 +97,7 @@ func (r *PostgresRepository) Update(ctx context.Context, promo *Promotion) error
 		promo.MaxDiscount, promo.MaxUses, promo.StartsAt, promo.ExpiresAt, promo.Active, promo.ID,
 	)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if database.IsUniqueViolation(err) {
 			return core.ErrConflict
 		}
 		return fmt.Errorf("updating promotion: %w", err)
@@ -191,7 +191,7 @@ func (r *PostgresRepository) CreateUsage(ctx context.Context, usage *CouponUsage
 		usage.CouponID, usage.UserID, usage.OrderID, usage.Discount,
 	).Scan(&usage.ID, &usage.CreatedAt)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if database.IsUniqueViolation(err) {
 			return core.ErrConflict
 		}
 		return fmt.Errorf("creating coupon usage: %w", err)
@@ -213,21 +213,4 @@ func (r *PostgresRepository) DeleteUsageByOrderID(ctx context.Context, orderID u
 		return nil, fmt.Errorf("deleting coupon usage by order: %w", err)
 	}
 	return &usage, nil
-}
-
-func isUniqueViolation(err error) bool {
-	return err != nil && contains(err.Error(), "duplicate key value violates unique constraint")
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

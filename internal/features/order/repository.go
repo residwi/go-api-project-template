@@ -55,7 +55,7 @@ func (r *PostgresRepository) Create(ctx context.Context, order *Order) error {
 		order.ShippingAddress, order.BillingAddress, order.Notes,
 	).Scan(&order.ID, &order.CreatedAt, &order.UpdatedAt)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if database.IsUniqueViolation(err) {
 			return core.ErrConflict
 		}
 		return fmt.Errorf("creating order: %w", err)
@@ -353,21 +353,4 @@ func (r *PostgresRepository) GetStaleProcessingOrders(ctx context.Context, thres
 		orders = append(orders, o)
 	}
 	return orders, nil
-}
-
-func isUniqueViolation(err error) bool {
-	return err != nil && contains(err.Error(), "duplicate key value violates unique constraint")
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

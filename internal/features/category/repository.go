@@ -40,7 +40,7 @@ func (r *PostgresRepository) Create(ctx context.Context, cat *Category) error {
 		cat.Name, cat.Slug, cat.Description, cat.ParentID, cat.SortOrder, cat.Active,
 	).Scan(&cat.ID, &cat.CreatedAt, &cat.UpdatedAt)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if database.IsUniqueViolation(err) {
 			return core.ErrConflict
 		}
 		return fmt.Errorf("creating category: %w", err)
@@ -90,7 +90,7 @@ func (r *PostgresRepository) Update(ctx context.Context, cat *Category) error {
 		cat.Name, cat.Slug, cat.Description, cat.ParentID, cat.SortOrder, cat.Active, cat.ID,
 	)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if database.IsUniqueViolation(err) {
 			return core.ErrConflict
 		}
 		return fmt.Errorf("updating category: %w", err)
@@ -150,21 +150,4 @@ func (r *PostgresRepository) CountPublishedProducts(ctx context.Context, categor
 		return 0, fmt.Errorf("counting published products: %w", err)
 	}
 	return count, nil
-}
-
-func isUniqueViolation(err error) bool {
-	return err != nil && contains(err.Error(), "duplicate key value violates unique constraint")
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
