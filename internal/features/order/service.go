@@ -134,10 +134,14 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 	}
 
 	var subtotal int64
-	currency := "USD"
+	currency := snapshot.Items[0].Currency
 	for _, item := range snapshot.Items {
+		// All cart items must share one currency; summing across currencies would
+		// produce a meaningless total (and an arbitrary order currency).
+		if item.Currency != currency {
+			return nil, fmt.Errorf("%w: cart contains mixed currencies", core.ErrBadRequest)
+		}
 		subtotal += item.Price * int64(item.Quantity)
-		currency = item.Currency
 	}
 	totalAmount := subtotal
 

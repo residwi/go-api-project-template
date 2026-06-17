@@ -805,6 +805,26 @@ func TestService_PlaceOrder(t *testing.T) {
 		assert.Equal(t, &couponCode, resp.Order.CouponCode)
 	})
 
+	t.Run("mixed-currency cart is rejected", func(t *testing.T) {
+		svc, repo, cart, _, _, _, _, _ := newTestService(t)
+		idempotencyKey := "idem-mixed-ccy"
+
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
+			ID: uuid.New(),
+			Items: []order.CartSnapshotItem{
+				{ProductID: uuid.New(), Quantity: 1, Name: "USD item", Price: 5000, Currency: "USD", Status: "published"},
+				{ProductID: uuid.New(), Quantity: 1, Name: "EUR item", Price: 5000, Currency: "EUR", Status: "published"},
+			},
+		}, nil)
+
+		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
+
+		assert.Nil(t, resp)
+		assert.ErrorIs(t, err, core.ErrBadRequest)
+	})
+
 	t.Run("idempotent return ignores ListItemsByOrderID error", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
