@@ -7,21 +7,34 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/core"
 	"github.com/residwi/go-api-project-template/internal/features/shipping"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	mocks "github.com/residwi/go-api-project-template/mocks/shipping"
 )
+
+// noopDBTX satisfies database.DBTX so WithTestTx can seed a tx, letting
+// CreateShipment's WithTx run as a passthrough with a nil pool.
+type noopDBTX struct{}
+
+func (noopDBTX) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, nil
+}
+func (noopDBTX) Query(context.Context, string, ...any) (pgx.Rows, error) { return nil, nil } //nolint:nilnil // test stub
+func (noopDBTX) QueryRow(context.Context, string, ...any) pgx.Row        { return nil }
 
 func TestService_CreateShipment(t *testing.T) {
 	t.Run("success order in paid status", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		orderID := uuid.New()
 		userID := uuid.New()
@@ -33,46 +46,39 @@ func TestService_CreateShipment(t *testing.T) {
 				Status: "paid",
 			}, nil)
 
+		shippedID := uuid.New()
+		now := time.Now()
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*shipping.Shipment")).
 			Run(func(_ context.Context, s *shipping.Shipment) {
-				s.ID = uuid.New()
-				s.CreatedAt = time.Now()
-				s.UpdatedAt = time.Now()
+				s.ID = shippedID
+				s.ShippedAt = &now
+				s.CreatedAt = now
+				s.UpdatedAt = now
 			}).
 			Return(nil)
-
-		repo.EXPECT().MarkShipped(mock.Anything, mock.AnythingOfType("uuid.UUID")).Return(nil)
 
 		updater.EXPECT().UpdateStatus(mock.Anything, orderID, []string{"paid", "processing"}, "shipped").
 			Return(nil)
 
-		now := time.Now()
-		returnedShipment := &shipping.Shipment{
-			ID:             uuid.New(),
-			OrderID:        orderID,
-			Carrier:        "FedEx",
-			TrackingNumber: "TRACK123",
-			Status:         shipping.StatusShipped,
-			ShippedAt:      &now,
-			CreatedAt:      time.Now(),
-			UpdatedAt:      time.Now(),
-		}
-		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(returnedShipment, nil)
-
-		result, err := svc.CreateShipment(context.Background(), orderID, shipping.CreateShipmentRequest{
+		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateShipmentRequest{
 			Carrier:        "FedEx",
 			TrackingNumber: "TRACK123",
 		})
 		require.NoError(t, err)
-		assert.Equal(t, returnedShipment, result)
+		assert.Equal(t, shippedID, result.ID)
+		assert.Equal(t, orderID, result.OrderID)
+		assert.Equal(t, "FedEx", result.Carrier)
+		assert.Equal(t, "TRACK123", result.TrackingNumber)
+		assert.Equal(t, shipping.StatusShipped, result.Status)
+		assert.Equal(t, &now, result.ShippedAt)
 	})
 
 	t.Run("order wrong status", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		orderID := uuid.New()
 		orders.EXPECT().GetByID(mock.Anything, orderID).
@@ -92,7 +98,7 @@ func TestService_CreateShipment(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		orderID := uuid.New()
 		orders.EXPECT().GetByID(mock.Anything, orderID).
@@ -109,7 +115,7 @@ func TestService_CreateShipment(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		orderID := uuid.New()
 		orders.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{
@@ -121,7 +127,8 @@ func TestService_CreateShipment(t *testing.T) {
 		dbErr := errors.New("insert failed")
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*shipping.Shipment")).Return(dbErr)
 
-		result, err := svc.CreateShipment(context.Background(), orderID, shipping.CreateShipmentRequest{
+		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateShipmentRequest{
 			Carrier:        "FedEx",
 			TrackingNumber: "TRACK123",
 		})
@@ -129,40 +136,11 @@ func TestService_CreateShipment(t *testing.T) {
 		assert.ErrorIs(t, err, dbErr)
 	})
 
-	t.Run("mark shipped error", func(t *testing.T) {
+	t.Run("update order status error rolls back", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
-
-		orderID := uuid.New()
-		orders.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{
-			ID:     orderID,
-			UserID: uuid.New(),
-			Status: "processing",
-		}, nil)
-
-		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*shipping.Shipment")).
-			Run(func(_ context.Context, s *shipping.Shipment) {
-				s.ID = uuid.New()
-			}).Return(nil)
-
-		dbErr := errors.New("mark shipped failed")
-		repo.EXPECT().MarkShipped(mock.Anything, mock.AnythingOfType("uuid.UUID")).Return(dbErr)
-
-		result, err := svc.CreateShipment(context.Background(), orderID, shipping.CreateShipmentRequest{
-			Carrier:        "FedEx",
-			TrackingNumber: "TRACK123",
-		})
-		assert.Nil(t, result)
-		assert.ErrorIs(t, err, dbErr)
-	})
-
-	t.Run("update order status error", func(t *testing.T) {
-		repo := mocks.NewMockRepository(t)
-		orders := mocks.NewMockOrderProvider(t)
-		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		orderID := uuid.New()
 		orders.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{
@@ -175,12 +153,12 @@ func TestService_CreateShipment(t *testing.T) {
 			Run(func(_ context.Context, s *shipping.Shipment) {
 				s.ID = uuid.New()
 			}).Return(nil)
-		repo.EXPECT().MarkShipped(mock.Anything, mock.AnythingOfType("uuid.UUID")).Return(nil)
 
 		updateErr := errors.New("order status update failed")
 		updater.EXPECT().UpdateStatus(mock.Anything, orderID, []string{"paid", "processing"}, "shipped").Return(updateErr)
 
-		result, err := svc.CreateShipment(context.Background(), orderID, shipping.CreateShipmentRequest{
+		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateShipmentRequest{
 			Carrier:        "FedEx",
 			TrackingNumber: "TRACK123",
 		})
@@ -194,7 +172,7 @@ func TestService_GetByOrderID(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		orderID := uuid.New()
 		expected := &shipping.Shipment{
@@ -215,7 +193,7 @@ func TestService_GetByOrderID(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		orderID := uuid.New()
 		repo.EXPECT().GetByOrderID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
@@ -231,7 +209,7 @@ func TestService_UpdateTracking(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		shipmentID := uuid.New()
 		existing := &shipping.Shipment{
@@ -267,7 +245,7 @@ func TestService_UpdateTracking(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		shipmentID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, core.ErrNotFound)
@@ -283,7 +261,7 @@ func TestService_UpdateTracking(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		shipmentID := uuid.New()
 		existing := &shipping.Shipment{
@@ -309,7 +287,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		shipmentID := uuid.New()
 		orderID := uuid.New()
@@ -342,7 +320,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		shipmentID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, core.ErrNotFound)
@@ -356,7 +334,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		shipmentID := uuid.New()
 		existing := &shipping.Shipment{
@@ -377,7 +355,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, orders, updater)
+		svc := shipping.NewService(repo, nil, orders, updater)
 
 		shipmentID := uuid.New()
 		orderID := uuid.New()

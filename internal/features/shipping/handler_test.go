@@ -2,6 +2,7 @@ package shipping_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/core/response"
 	"github.com/residwi/go-api-project-template/internal/features/shipping"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	shipMocks "github.com/residwi/go-api-project-template/mocks/shipping"
 )
@@ -26,7 +28,7 @@ func setupShippingMux(t *testing.T) (*http.ServeMux, *shipMocks.MockRepository, 
 	repo := shipMocks.NewMockRepository(t)
 	orderProv := shipMocks.NewMockOrderProvider(t)
 	orderUpd := shipMocks.NewMockOrderUpdater(t)
-	svc := shipping.NewService(repo, orderProv, orderUpd)
+	svc := shipping.NewService(repo, nil, orderProv, orderUpd)
 	v := validator.New()
 
 	mux := http.NewServeMux()
@@ -214,18 +216,13 @@ func TestHandler_CreateShipment(t *testing.T) {
 			UserID: uuid.New(),
 			Status: "paid",
 		}, nil)
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		repo.EXPECT().MarkShipped(mock.Anything, mock.Anything).Return(nil)
+		repo.EXPECT().Create(mock.Anything, mock.Anything).
+			Run(func(_ context.Context, s *shipping.Shipment) {
+				s.ID = shipmentID
+				s.CreatedAt = now
+				s.UpdatedAt = now
+			}).Return(nil)
 		orderUpd.EXPECT().UpdateStatus(mock.Anything, orderID, []string{"paid", "processing"}, "shipped").Return(nil)
-		repo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(&shipping.Shipment{
-			ID:             shipmentID,
-			OrderID:        orderID,
-			Carrier:        "FedEx",
-			TrackingNumber: "TRACK123",
-			Status:         shipping.StatusShipped,
-			CreatedAt:      now,
-			UpdatedAt:      now,
-		}, nil)
 
 		body, _ := json.Marshal(shipping.CreateShipmentRequest{
 			Carrier:        "FedEx",
@@ -235,6 +232,7 @@ func TestHandler_CreateShipment(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/orders/"+orderID.String()+"/ship", bytes.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
+		r = r.WithContext(database.WithTestTx(r.Context(), noopDBTX{}))
 
 		mux.ServeHTTP(w, r)
 

@@ -5,8 +5,10 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
 type OrderProvider interface {
@@ -25,12 +27,13 @@ type OrderUpdater interface {
 
 type Service struct {
 	repo    Repository
+	pool    *pgxpool.Pool
 	orders  OrderProvider
 	updater OrderUpdater
 }
 
-func NewService(repo Repository, orders OrderProvider, updater OrderUpdater) *Service {
-	return &Service{repo: repo, orders: orders, updater: updater}
+func NewService(repo Repository, pool *pgxpool.Pool, orders OrderProvider, updater OrderUpdater) *Service {
+	return &Service{repo: repo, pool: pool, orders: orders, updater: updater}
 }
 
 func (s *Service) CreateShipment(ctx context.Context, orderID uuid.UUID, req CreateShipmentRequest) (*Shipment, error) {
@@ -50,19 +53,18 @@ func (s *Service) CreateShipment(ctx context.Context, orderID uuid.UUID, req Cre
 		Status:         StatusShipped,
 	}
 
-	if err := s.repo.Create(ctx, shipment); err != nil {
+	// Create the shipment and flip the order to shipped atomically — a failed
+	// order update rolls back the shipment instead of orphaning it.
+	if err := database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+		if err := s.repo.Create(txCtx, shipment); err != nil {
+			return err
+		}
+		return s.updater.UpdateStatus(txCtx, orderID, []string{"paid", "processing"}, "shipped")
+	}); err != nil {
 		return nil, err
 	}
 
-	if err := s.repo.MarkShipped(ctx, shipment.ID); err != nil {
-		return nil, err
-	}
-
-	if err := s.updater.UpdateStatus(ctx, orderID, []string{"paid", "processing"}, "shipped"); err != nil {
-		return nil, err
-	}
-
-	return s.repo.GetByID(ctx, shipment.ID)
+	return shipment, nil
 }
 
 func (s *Service) GetByOrderID(ctx context.Context, orderID uuid.UUID) (*Shipment, error) {

@@ -123,6 +123,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen
 	shippingOrderProvider := &shippingOrderProviderAdapter{svc: orderSvc}
 	shippingSvc := shipping.NewService(
 		shippingRepo,
+		deps.Pool,
 		shippingOrderProvider,
 		&shippingOrderUpdaterAdapter{svc: orderSvc},
 	)

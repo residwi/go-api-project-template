@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -32,12 +33,19 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 
 func (r *PostgresRepository) Create(ctx context.Context, shipment *Shipment) error {
 	db := database.DB(ctx, r.pool)
+
+	var shippedAt *time.Time
+	if shipment.Status == StatusShipped {
+		now := time.Now()
+		shippedAt = &now
+	}
+
 	err := db.QueryRow(ctx,
-		`INSERT INTO shipments (order_id, carrier, tracking_number, status)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, created_at, updated_at`,
-		shipment.OrderID, shipment.Carrier, shipment.TrackingNumber, shipment.Status,
-	).Scan(&shipment.ID, &shipment.CreatedAt, &shipment.UpdatedAt)
+		`INSERT INTO shipments (order_id, carrier, tracking_number, status, shipped_at)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, shipped_at, created_at, updated_at`,
+		shipment.OrderID, shipment.Carrier, shipment.TrackingNumber, shipment.Status, shippedAt,
+	).Scan(&shipment.ID, &shipment.ShippedAt, &shipment.CreatedAt, &shipment.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("creating shipment: %w", err)
 	}
