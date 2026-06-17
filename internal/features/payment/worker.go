@@ -6,7 +6,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
 type Worker struct {
@@ -119,23 +122,74 @@ func (w *Worker) processJobs(ctx context.Context) {
 }
 
 func (w *Worker) sweepExpiredOrders(ctx context.Context) {
-	// Expire stale awaiting_payment orders in a single UPDATE instead of a SELECT
-	// followed by one UPDATE per row. The LIMIT (via subselect) bounds the batch.
-	tag, err := w.pool.Exec(ctx,
-		`UPDATE orders SET status = 'expired'
-		 WHERE id IN (
-		     SELECT id FROM orders
-		     WHERE status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '30 minutes'
-		     ORDER BY created_at
-		     LIMIT 20
-		 )`)
-	if err != nil {
-		slog.ErrorContext(ctx, "sweep expired orders: update failed", "error", err)
-		return
-	}
+	// Expiring an order must also release the stock and coupon usage it reserved
+	// at checkout, otherwise that reserved inventory/coupon usage leaks forever.
+	// Done in one transaction so the expiry and the releases commit together.
+	err := database.WithTx(ctx, w.pool, func(txCtx context.Context) error {
+		db := database.DB(txCtx, w.pool)
 
-	if count := tag.RowsAffected(); count > 0 {
-		slog.InfoContext(ctx, "swept expired orders", "count", count)
+		// Expire a bounded batch of stale awaiting_payment orders, locking the rows
+		// so concurrent workers don't double-process them.
+		rows, err := db.Query(txCtx,
+			`UPDATE orders SET status = 'expired'
+			 WHERE id IN (
+			     SELECT id FROM orders
+			     WHERE status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '30 minutes'
+			     ORDER BY created_at
+			     LIMIT 20
+			     FOR UPDATE SKIP LOCKED
+			 )
+			 RETURNING id`)
+		if err != nil {
+			return err
+		}
+		var ids []uuid.UUID
+		for rows.Next() {
+			var id uuid.UUID
+			if scanErr := rows.Scan(&id); scanErr != nil {
+				rows.Close()
+				return scanErr
+			}
+			ids = append(ids, id)
+		}
+		rows.Close()
+		if rowsErr := rows.Err(); rowsErr != nil {
+			return rowsErr
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+
+		// Release reserved stock for the expired orders' items.
+		if _, err := db.Exec(txCtx,
+			`UPDATE products p
+			 SET reserved_quantity = GREATEST(p.reserved_quantity - agg.qty, 0)
+			 FROM (
+			     SELECT product_id, SUM(quantity) AS qty
+			     FROM order_items WHERE order_id = ANY($1)
+			     GROUP BY product_id
+			 ) agg
+			 WHERE p.id = agg.product_id`, ids); err != nil {
+			return err
+		}
+
+		// Release coupon reservations: drop the usage rows and decrement counts.
+		if _, err := db.Exec(txCtx,
+			`WITH freed AS (
+			     DELETE FROM coupon_usages WHERE order_id = ANY($1) RETURNING coupon_id
+			 )
+			 UPDATE promotions pr
+			 SET used_count = GREATEST(pr.used_count - cnt.n, 0)
+			 FROM (SELECT coupon_id, COUNT(*) AS n FROM freed GROUP BY coupon_id) cnt
+			 WHERE pr.id = cnt.coupon_id`, ids); err != nil {
+			return err
+		}
+
+		slog.InfoContext(ctx, "swept expired orders", "count", len(ids))
+		return nil
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "sweep expired orders failed", "error", err)
 	}
 }
 

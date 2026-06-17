@@ -101,6 +101,43 @@ func TestWorker_SweepExpiredOrders(t *testing.T) {
 
 		assert.Equal(t, "awaiting_payment", orderStatus(t, orderID))
 	})
+
+	t.Run("releases reserved inventory when expiring", func(t *testing.T) {
+		ctx := context.Background()
+		userID := seedUser(t)
+		orderID := seedOrder(t, userID)
+
+		productID := uuid.New()
+		_, err := testPool.Exec(ctx,
+			`INSERT INTO products (id, name, slug, price, currency, status, stock_quantity, reserved_quantity)
+			 VALUES ($1, 'Sweep Product', $2, 1000, 'USD', 'published', 10, 3)`,
+			productID, "sweep-"+productID.String()[:8])
+		require.NoError(t, err)
+		_, err = testPool.Exec(ctx,
+			`INSERT INTO order_items (order_id, product_id, product_name, price, quantity, subtotal)
+			 VALUES ($1, $2, 'Sweep Product', 1000, 3, 3000)`, orderID, productID)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id = $1`, orderID)
+			testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, productID)
+		})
+
+		_, err = testPool.Exec(ctx,
+			`UPDATE orders SET created_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, orderID)
+		require.NoError(t, err)
+
+		w := newSweepTestWorker(t)
+		wctx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+		defer cancel()
+		w.Start(wctx)
+
+		assert.Equal(t, "expired", orderStatus(t, orderID))
+
+		var reserved int
+		require.NoError(t, testPool.QueryRow(ctx,
+			`SELECT reserved_quantity FROM products WHERE id = $1`, productID).Scan(&reserved))
+		assert.Equal(t, 0, reserved)
+	})
 }
 
 func TestWorker_CleanupOldJobs(t *testing.T) {
