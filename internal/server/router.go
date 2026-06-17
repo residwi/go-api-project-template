@@ -78,6 +78,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen
 		deps.Config.JWT.AccessTokenTTL,
 		deps.Config.JWT.RefreshTokenTTL,
 	)
+	authSvc.SetBcryptCost(deps.Config.App.BcryptCost)
 	promotionSvc := promotion.NewService(promotionRepo, deps.Pool)
 	notificationSvc := notification.NewService(notificationRepo)
 	wishlistSvc := wishlist.NewService(wishlistRepo, deps.Pool)
@@ -143,8 +144,13 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen
 	authed := middleware.NewRouteGroup(mux, "/api", authMiddleware)
 	admin := middleware.NewRouteGroup(mux, "/api/admin", authMiddleware, adminMiddleware)
 
+	// Auth endpoints run synchronous bcrypt and are unauthenticated, so they get
+	// a dedicated per-IP rate limiter to blunt credential-stuffing / CPU exhaustion.
+	authLimiter := middleware.RateLimit(deps.Redis, deps.Config.App.AuthRateLimit, deps.Config.App.AuthRateWindow)
+	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
+
 	// ── Register feature routes ───────────────────────────────────────────
-	auth.RegisterRoutes(api, auth.RouteDeps{Validator: v, Service: authSvc})
+	auth.RegisterRoutes(authPublic, auth.RouteDeps{Validator: v, Service: authSvc})
 	user.RegisterRoutes(authed, admin, user.RouteDeps{Validator: v, Service: userSvc})
 	category.RegisterRoutes(api, admin, category.RouteDeps{Validator: v, Service: categorySvc})
 	product.RegisterRoutes(api, admin, product.RouteDeps{Validator: v, Service: productSvc})

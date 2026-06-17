@@ -32,6 +32,9 @@ type AppConfig struct {
 	ShutdownTimeout time.Duration `envconfig:"APP_SHUTDOWN_TIMEOUT" default:"30s"`
 	MaxCartItems    int           `envconfig:"MAX_CART_ITEMS" default:"50"`
 	OrderRateLimit  int           `envconfig:"ORDER_RATE_LIMIT" default:"5"`
+	AuthRateLimit   int           `envconfig:"AUTH_RATE_LIMIT" default:"10"`
+	AuthRateWindow  time.Duration `envconfig:"AUTH_RATE_WINDOW" default:"1m"`
+	BcryptCost      int           `envconfig:"BCRYPT_COST" default:"10"`
 }
 
 type DatabaseConfig struct {

@@ -52,6 +52,7 @@ type Service struct {
 	jwtIssuer  string
 	accessTTL  time.Duration
 	refreshTTL time.Duration
+	bcryptCost int
 }
 
 func NewService(users UserProvider, jwtSecret, jwtIssuer string, accessTTL, refreshTTL time.Duration) *Service {
@@ -61,11 +62,21 @@ func NewService(users UserProvider, jwtSecret, jwtIssuer string, accessTTL, refr
 		jwtIssuer:  jwtIssuer,
 		accessTTL:  accessTTL,
 		refreshTTL: refreshTTL,
+		bcryptCost: bcrypt.DefaultCost,
 	}
 }
 
+// SetBcryptCost overrides the password-hashing cost (set once at startup from
+// config). Values outside bcrypt's valid range are ignored, keeping the default.
+func (s *Service) SetBcryptCost(cost int) {
+	if cost < bcrypt.MinCost || cost > bcrypt.MaxCost {
+		return
+	}
+	s.bcryptCost = cost
+}
+
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (*TokenResponse, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), s.bcryptCost)
 	if err != nil {
 		return nil, fmt.Errorf("hashing password: %w", err)
 	}
