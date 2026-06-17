@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -12,6 +13,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/core"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
+
+// escapeLike escapes LIKE/ILIKE metacharacters so user-supplied search text is
+// matched literally rather than as wildcards (Postgres default escape is \).
+func escapeLike(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+}
 
 type Repository interface {
 	Create(ctx context.Context, user *User) error
@@ -161,7 +168,7 @@ func (r *PostgresRepository) List(ctx context.Context, params ListParams) ([]Use
 	}
 	if params.Search != "" {
 		where += fmt.Sprintf(" AND (first_name ILIKE $%d OR last_name ILIKE $%d OR email ILIKE $%d)", argIdx, argIdx, argIdx)
-		args = append(args, "%"+params.Search+"%")
+		args = append(args, "%"+escapeLike(params.Search)+"%")
 		argIdx++
 	}
 

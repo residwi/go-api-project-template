@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -12,6 +13,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/core"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
+
+// escapeLike escapes LIKE/ILIKE metacharacters so user-supplied search text is
+// matched literally rather than as wildcards. Postgres treats backslash as the
+// default escape character.
+func escapeLike(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+}
 
 type Repository interface {
 	Create(ctx context.Context, p *Product) error
@@ -164,14 +172,14 @@ func (r *PostgresRepository) ListPublished(ctx context.Context, params Published
 	}
 	if params.Search != "" {
 		where += fmt.Sprintf(" AND (name ILIKE $%d OR description ILIKE $%d)", argIdx, argIdx)
-		args = append(args, "%"+params.Search+"%")
+		args = append(args, "%"+escapeLike(params.Search)+"%")
 		argIdx++
 	}
 
 	if params.Cursor != "" {
 		createdAt, id, err := core.DecodeCursor(params.Cursor)
 		if err != nil {
-			return nil, "", false, fmt.Errorf("%w: %s", core.ErrBadRequest, err.Error())
+			return nil, "", false, fmt.Errorf("%w: invalid cursor", core.ErrBadRequest)
 		}
 		where += fmt.Sprintf(" AND (created_at, id) < ($%d, $%d)", argIdx, argIdx+1)
 		args = append(args, createdAt, id)
@@ -237,7 +245,7 @@ func (r *PostgresRepository) ListAdmin(ctx context.Context, params AdminListPara
 	}
 	if params.Search != "" {
 		where += fmt.Sprintf(" AND (name ILIKE $%d OR description ILIKE $%d OR sku ILIKE $%d)", argIdx, argIdx, argIdx)
-		args = append(args, "%"+params.Search+"%")
+		args = append(args, "%"+escapeLike(params.Search)+"%")
 		argIdx++
 	}
 
