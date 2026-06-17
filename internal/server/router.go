@@ -68,7 +68,6 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen
 		cartRepo,
 		deps.Pool,
 		&productLookupAdapter{svc: productSvc},
-		&stockCheckerAdapter{svc: inventorySvc},
 		deps.Config.App.MaxCartItems,
 	)
 	authSvc := auth.NewService(
@@ -241,24 +240,13 @@ func (a *productLookupAdapter) GetByID(ctx context.Context, id uuid.UUID) (*cart
 		return nil, err
 	}
 	return &cart.ProductInfo{
-		ID:       p.ID,
-		Name:     p.Name,
-		Price:    p.Price,
-		Currency: p.Currency,
-		Status:   p.Status,
+		ID:        p.ID,
+		Name:      p.Name,
+		Price:     p.Price,
+		Currency:  p.Currency,
+		Status:    p.Status,
+		Available: p.StockQuantity - p.ReservedQuantity,
 	}, nil
-}
-
-type stockCheckerAdapter struct {
-	svc *inventory.Service
-}
-
-func (a *stockCheckerAdapter) GetStock(ctx context.Context, productID uuid.UUID) (cart.StockInfo, error) {
-	stock, err := a.svc.GetStock(ctx, productID)
-	if err != nil {
-		return cart.StockInfo{}, err
-	}
-	return cart.StockInfo{Available: stock.Available}, nil
 }
 
 // ── order.CartProvider adapter ───────────────────────────────────────────

@@ -19,7 +19,7 @@ type Repository interface {
 	AddItem(ctx context.Context, cartID, productID uuid.UUID, qty int) error
 	UpdateItemQuantity(ctx context.Context, cartID, productID uuid.UUID, qty int) error
 	RemoveItem(ctx context.Context, cartID, productID uuid.UUID) error
-	Clear(ctx context.Context, cartID uuid.UUID) error
+	Clear(ctx context.Context, userID uuid.UUID) error
 	CountItems(ctx context.Context, cartID uuid.UUID) (int, error)
 	GetCartForLock(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
 }
@@ -136,11 +136,11 @@ func (r *PostgresRepository) RemoveItem(ctx context.Context, cartID, productID u
 	return nil
 }
 
-func (r *PostgresRepository) Clear(ctx context.Context, cartID uuid.UUID) error {
+func (r *PostgresRepository) Clear(ctx context.Context, userID uuid.UUID) error {
 	db := database.DB(ctx, r.pool)
 	_, err := db.Exec(ctx,
-		`DELETE FROM cart_items WHERE cart_id = $1`,
-		cartID,
+		`DELETE FROM cart_items WHERE cart_id = (SELECT id FROM carts WHERE user_id = $1)`,
+		userID,
 	)
 	if err != nil {
 		return fmt.Errorf("clearing cart: %w", err)

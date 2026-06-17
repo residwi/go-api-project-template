@@ -109,8 +109,8 @@ func (_c *MockRepository_AddItem_Call) RunAndReturn(run func(ctx context.Context
 }
 
 // Clear provides a mock function for the type MockRepository
-func (_mock *MockRepository) Clear(ctx context.Context, cartID uuid.UUID) error {
-	ret := _mock.Called(ctx, cartID)
+func (_mock *MockRepository) Clear(ctx context.Context, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Clear")
@@ -118,7 +118,7 @@ func (_mock *MockRepository) Clear(ctx context.Context, cartID uuid.UUID) error 
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, cartID)
+		r0 = returnFunc(ctx, userID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -132,12 +132,12 @@ type MockRepository_Clear_Call struct {
 
 // Clear is a helper method to define mock.On call
 //   - ctx context.Context
-//   - cartID uuid.UUID
-func (_e *MockRepository_Expecter) Clear(ctx interface{}, cartID interface{}) *MockRepository_Clear_Call {
-	return &MockRepository_Clear_Call{Call: _e.mock.On("Clear", ctx, cartID)}
+//   - userID uuid.UUID
+func (_e *MockRepository_Expecter) Clear(ctx interface{}, userID interface{}) *MockRepository_Clear_Call {
+	return &MockRepository_Clear_Call{Call: _e.mock.On("Clear", ctx, userID)}
 }
 
-func (_c *MockRepository_Clear_Call) Run(run func(ctx context.Context, cartID uuid.UUID)) *MockRepository_Clear_Call {
+func (_c *MockRepository_Clear_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockRepository_Clear_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -160,7 +160,7 @@ func (_c *MockRepository_Clear_Call) Return(err error) *MockRepository_Clear_Cal
 	return _c
 }
 
-func (_c *MockRepository_Clear_Call) RunAndReturn(run func(ctx context.Context, cartID uuid.UUID) error) *MockRepository_Clear_Call {
+func (_c *MockRepository_Clear_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockRepository_Clear_Call {
 	_c.Call.Return(run)
 	return _c
 }

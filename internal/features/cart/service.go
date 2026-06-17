@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
 const productStatusPublished = "published"
@@ -17,18 +18,11 @@ type ProductLookup interface {
 }
 
 type ProductInfo struct {
-	ID       uuid.UUID
-	Name     string
-	Price    int64
-	Currency string
-	Status   string
-}
-
-type StockChecker interface {
-	GetStock(ctx context.Context, productID uuid.UUID) (StockInfo, error)
-}
-
-type StockInfo struct {
+	ID        uuid.UUID
+	Name      string
+	Price     int64
+	Currency  string
+	Status    string
 	Available int
 }
 
@@ -36,16 +30,14 @@ type Service struct {
 	repo         Repository
 	pool         *pgxpool.Pool
 	products     ProductLookup
-	stock        StockChecker
 	maxCartItems int
 }
 
-func NewService(repo Repository, pool *pgxpool.Pool, products ProductLookup, stock StockChecker, maxCartItems int) *Service {
+func NewService(repo Repository, pool *pgxpool.Pool, products ProductLookup, maxCartItems int) *Service {
 	return &Service{
 		repo:         repo,
 		pool:         pool,
 		products:     products,
-		stock:        stock,
 		maxCartItems: maxCartItems,
 	}
 }
@@ -59,29 +51,26 @@ func (s *Service) AddItem(ctx context.Context, userID uuid.UUID, req AddItemRequ
 	if p.Status != productStatusPublished {
 		return fmt.Errorf("%w: product is not available", core.ErrBadRequest)
 	}
-
-	stockInfo, err := s.stock.GetStock(ctx, req.ProductID)
-	if err != nil {
-		return err
-	}
-	if stockInfo.Available < req.Quantity {
+	if p.Available < req.Quantity {
 		return core.ErrInsufficientStock
 	}
 
-	cartID, err := s.repo.GetOrCreate(ctx, userID)
-	if err != nil {
-		return err
-	}
+	return database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+		cartID, err := s.repo.GetOrCreate(txCtx, userID)
+		if err != nil {
+			return err
+		}
 
-	count, err := s.repo.CountItems(ctx, cartID)
-	if err != nil {
-		return err
-	}
-	if count >= s.maxCartItems {
-		return fmt.Errorf("%w: cart cannot have more than %d items", core.ErrBadRequest, s.maxCartItems)
-	}
+		count, err := s.repo.CountItems(txCtx, cartID)
+		if err != nil {
+			return err
+		}
+		if count >= s.maxCartItems {
+			return fmt.Errorf("%w: cart cannot have more than %d items", core.ErrBadRequest, s.maxCartItems)
+		}
 
-	return s.repo.AddItem(ctx, cartID, req.ProductID, req.Quantity)
+		return s.repo.AddItem(txCtx, cartID, req.ProductID, req.Quantity)
+	})
 }
 
 func (s *Service) RemoveItem(ctx context.Context, userID, productID uuid.UUID) error {
@@ -107,10 +96,5 @@ func (s *Service) GetCart(ctx context.Context, userID uuid.UUID) (*Cart, error) 
 }
 
 func (s *Service) Clear(ctx context.Context, userID uuid.UUID) error {
-	cartID, err := s.repo.GetOrCreate(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	return s.repo.Clear(ctx, cartID)
+	return s.repo.Clear(ctx, userID)
 }

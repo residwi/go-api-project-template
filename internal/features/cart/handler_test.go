@@ -10,12 +10,25 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 )
+
+// noopDBTX satisfies database.DBTX so WithTestTx can seed a tx, letting the
+// AddItem handler's WithTx run as a passthrough with a nil pool.
+type noopDBTX struct{}
+
+func (noopDBTX) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, nil
+}
+func (noopDBTX) Query(context.Context, string, ...any) (pgx.Rows, error) { return nil, nil } //nolint:nilnil // test stub
+func (noopDBTX) QueryRow(context.Context, string, ...any) pgx.Row        { return nil }
 
 type stubRepo struct {
 	getOrCreateID uuid.UUID
@@ -42,13 +55,7 @@ func (s *stubRepo) GetCartForLock(context.Context, uuid.UUID) (uuid.UUID, error)
 type stubProducts struct{}
 
 func (s *stubProducts) GetByID(_ context.Context, id uuid.UUID) (*ProductInfo, error) {
-	return &ProductInfo{ID: id, Name: "Widget", Price: 1000, Currency: "USD", Status: "published"}, nil
-}
-
-type stubStock struct{}
-
-func (s *stubStock) GetStock(context.Context, uuid.UUID) (StockInfo, error) {
-	return StockInfo{Available: 10}, nil
+	return &ProductInfo{ID: id, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil
 }
 
 func newTestHandler() *handler {
@@ -127,7 +134,7 @@ func TestHandler_AddItem(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		repo := &stubRepo{getOrCreateID: uuid.New()}
-		svc := NewService(repo, nil, &stubProducts{}, &stubStock{}, 50)
+		svc := NewService(repo, nil, &stubProducts{}, 50)
 		h := &handler{service: svc, validator: validator.New()}
 
 		userID := uuid.New()
@@ -135,7 +142,7 @@ func TestHandler_AddItem(t *testing.T) {
 
 		body := fmt.Sprintf(`{"product_id":"%s","quantity":2}`, productID)
 		r := httptest.NewRequest(http.MethodPost, "/cart/items", strings.NewReader(body))
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetUserContext(database.WithTestTx(r.Context(), noopDBTX{}), middleware.UserContext{
 			UserID: userID, Email: "test@example.com", Role: "user",
 		})
 		r = r.WithContext(ctx)
@@ -202,7 +209,7 @@ func TestHandler_UpdateItem(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		repo := &stubRepo{getOrCreateID: uuid.New()}
-		svc := NewService(repo, nil, nil, nil, 50)
+		svc := NewService(repo, nil, nil, 50)
 		h := &handler{service: svc, validator: validator.New()}
 
 		userID := uuid.New()

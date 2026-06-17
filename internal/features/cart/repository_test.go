@@ -185,7 +185,7 @@ func TestPostgresRepository_Clear(t *testing.T) {
 
 		cartID, _ := repo.GetOrCreate(ctx, userID)
 		require.NoError(t, repo.AddItem(ctx, cartID, productID, 3))
-		require.NoError(t, repo.Clear(ctx, cartID))
+		require.NoError(t, repo.Clear(ctx, userID))
 
 		count, _ := repo.CountItems(ctx, cartID)
 		assert.Equal(t, 0, count)

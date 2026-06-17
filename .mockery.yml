@@ -26,7 +26,6 @@ packages:
     interfaces:
       Repository:
       ProductLookup:
-      StockChecker:
   github.com/residwi/go-api-project-template/internal/features/order:
     interfaces:
       Repository:

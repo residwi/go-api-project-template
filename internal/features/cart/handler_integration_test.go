@@ -22,11 +22,10 @@ import (
 	cartMocks "github.com/residwi/go-api-project-template/mocks/cart"
 )
 
-func setupCartMux(t *testing.T) (*http.ServeMux, *cartMocks.MockRepository, *cartMocks.MockProductLookup, *cartMocks.MockStockChecker) {
+func setupCartMux(t *testing.T) (*http.ServeMux, *cartMocks.MockRepository, *cartMocks.MockProductLookup) {
 	repo := cartMocks.NewMockRepository(t)
 	products := cartMocks.NewMockProductLookup(t)
-	stock := cartMocks.NewMockStockChecker(t)
-	svc := cart.NewService(repo, nil, products, stock, 50)
+	svc := cart.NewService(repo, nil, products, 50)
 	v := validator.New()
 
 	mux := http.NewServeMux()
@@ -37,7 +36,7 @@ func setupCartMux(t *testing.T) (*http.ServeMux, *cartMocks.MockRepository, *car
 		Service:   svc,
 	})
 
-	return mux, repo, products, stock
+	return mux, repo, products
 }
 
 func authRequest(r *http.Request, userID uuid.UUID) *http.Request {
@@ -51,7 +50,7 @@ func authRequest(r *http.Request, userID uuid.UUID) *http.Request {
 
 func TestCartHandler_GetCart(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo, _, _ := setupCartMux(t)
+		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
 		cartID := uuid.New()
@@ -74,7 +73,7 @@ func TestCartHandler_GetCart(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
-		mux, repo, _, _ := setupCartMux(t)
+		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
 		repo.EXPECT().GetCart(mock.Anything, userID).Return(nil, core.ErrNotFound)
@@ -94,7 +93,7 @@ func TestCartHandler_GetCart(t *testing.T) {
 
 func TestCartHandler_AddItem(t *testing.T) {
 	t.Run("service error product not found", func(t *testing.T) {
-		mux, _, products, _ := setupCartMux(t)
+		mux, _, products := setupCartMux(t)
 
 		userID := uuid.New()
 		productID := uuid.New()
@@ -114,7 +113,7 @@ func TestCartHandler_AddItem(t *testing.T) {
 
 func TestCartHandler_UpdateItem(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
-		mux, repo, _, _ := setupCartMux(t)
+		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
 		productID := uuid.New()
@@ -134,7 +133,7 @@ func TestCartHandler_UpdateItem(t *testing.T) {
 
 func TestCartHandler_RemoveItem(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo, _, _ := setupCartMux(t)
+		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
 		productID := uuid.New()
@@ -153,7 +152,7 @@ func TestCartHandler_RemoveItem(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
-		mux, repo, _, _ := setupCartMux(t)
+		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
 		productID := uuid.New()
@@ -172,13 +171,11 @@ func TestCartHandler_RemoveItem(t *testing.T) {
 
 func TestCartHandler_Clear(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo, _, _ := setupCartMux(t)
+		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
-		cartID := uuid.New()
 
-		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
-		repo.EXPECT().Clear(mock.Anything, cartID).Return(nil)
+		repo.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/cart", nil)
 		r = authRequest(r, userID)
@@ -190,10 +187,10 @@ func TestCartHandler_Clear(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
-		mux, repo, _, _ := setupCartMux(t)
+		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
-		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, errors.New("db down"))
+		repo.EXPECT().Clear(mock.Anything, userID).Return(errors.New("db down"))
 
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/cart", nil)
 		r = authRequest(r, userID)
