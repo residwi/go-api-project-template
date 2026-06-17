@@ -158,25 +158,21 @@ func TestService_CheckStatus(t *testing.T) {
 		svc := user.NewService(repo, nil, nil)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).
-			Return(&user.User{
-				ID:           id,
-				Active:       true,
-				TokenVersion: 5,
-			}, nil)
+		repo.EXPECT().GetStatusByID(mock.Anything, id).
+			Return(true, 5, nil)
 
 		result, err := svc.CheckStatus(context.Background(), id)
 		require.NoError(t, err)
 		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 5}, result)
 	})
 
-	t.Run("repo GetByID error propagates", func(t *testing.T) {
+	t.Run("repo GetStatusByID error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, nil, nil)
 
 		dbErr := errors.New("database timeout")
-		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, dbErr)
+		repo.EXPECT().GetStatusByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
+			Return(false, 0, dbErr)
 
 		_, err := svc.CheckStatus(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, dbErr)

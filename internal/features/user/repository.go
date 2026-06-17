@@ -16,6 +16,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, user *User) error
 	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
+	GetStatusByID(ctx context.Context, id uuid.UUID) (active bool, tokenVersion int, err error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -74,6 +75,24 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, 
 		return nil, fmt.Errorf("getting user by id: %w", err)
 	}
 	return &u, nil
+}
+
+// GetStatusByID fetches only the fields the auth middleware needs on every
+// authenticated request, avoiding the full-row read (incl. password_hash) of GetByID.
+func (r *PostgresRepository) GetStatusByID(ctx context.Context, id uuid.UUID) (bool, int, error) {
+	db := database.DB(ctx, r.pool)
+	var active bool
+	var tokenVersion int
+	err := db.QueryRow(ctx,
+		`SELECT active, token_version FROM users WHERE id = $1 AND deleted_at IS NULL`, id,
+	).Scan(&active, &tokenVersion)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, 0, core.ErrNotFound
+		}
+		return false, 0, fmt.Errorf("getting user status by id: %w", err)
+	}
+	return active, tokenVersion, nil
 }
 
 func (r *PostgresRepository) GetByEmail(ctx context.Context, email string) (*User, error) {

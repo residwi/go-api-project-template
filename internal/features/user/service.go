@@ -96,27 +96,26 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware
 			slog.WarnContext(ctx, "user status cache read failed, falling back to DB", "error", err)
 		} else if len(cached) > 0 {
 			active := cached["active"] == "1"
-			var tokenVersion int
-			_, _ = fmt.Sscanf(cached["token_version"], "%d", &tokenVersion)
+			tokenVersion, _ := strconv.Atoi(cached["token_version"])
 			return middleware.UserStatusResult{Active: active, TokenVersion: tokenVersion}, nil
 		}
 	}
 
-	u, err := s.repo.GetByID(ctx, userID)
+	active, tokenVersion, err := s.repo.GetStatusByID(ctx, userID)
 	if err != nil {
 		return middleware.UserStatusResult{}, err
 	}
 
-	result := middleware.UserStatusResult{Active: u.Active, TokenVersion: u.TokenVersion}
+	result := middleware.UserStatusResult{Active: active, TokenVersion: tokenVersion}
 
 	if s.rdb != nil {
 		key := fmt.Sprintf("user:status:%s", userID.String())
 		activeStr := "0"
-		if u.Active {
+		if active {
 			activeStr = "1"
 		}
 		pipe := s.rdb.Pipeline()
-		pipe.HSet(ctx, key, "active", activeStr, "token_version", strconv.Itoa(u.TokenVersion))
+		pipe.HSet(ctx, key, "active", activeStr, "token_version", strconv.Itoa(tokenVersion))
 		pipe.Expire(ctx, key, 30*time.Second)
 		if _, err := pipe.Exec(ctx); err != nil {
 			slog.WarnContext(ctx, "user status cache write failed", "error", err)
