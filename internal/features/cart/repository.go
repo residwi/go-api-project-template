@@ -89,6 +89,9 @@ func (r *PostgresRepository) GetCart(ctx context.Context, userID uuid.UUID) (*Ca
 		item.Product = &cp
 		c.Items = append(c.Items, item)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating cart items: %w", err)
+	}
 
 	return &c, nil
 }

@@ -211,6 +211,9 @@ func (r *PostgresRepository) ListPublished(ctx context.Context, params Published
 		}
 		products = append(products, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, "", false, fmt.Errorf("iterating published products: %w", err)
+	}
 
 	hasMore := len(products) > params.Limit
 	if hasMore {
@@ -279,6 +282,9 @@ func (r *PostgresRepository) ListAdmin(ctx context.Context, params AdminListPara
 		}
 		products = append(products, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating products: %w", err)
+	}
 
 	return products, total, nil
 }
@@ -329,6 +335,9 @@ func (r *PostgresRepository) GetImagesByProductID(ctx context.Context, productID
 			return nil, fmt.Errorf("scanning product image: %w", err)
 		}
 		images = append(images, img)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating product images: %w", err)
 	}
 
 	return images, nil

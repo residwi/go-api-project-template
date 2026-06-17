@@ -188,6 +188,9 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, c
 		}
 		orders = append(orders, o)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating user orders: %w", err)
+	}
 
 	return orders, nil
 }
@@ -236,6 +239,9 @@ func (r *PostgresRepository) ListAdmin(ctx context.Context, params AdminListPara
 			return nil, 0, fmt.Errorf("scanning order: %w", err)
 		}
 		orders = append(orders, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating orders: %w", err)
 	}
 
 	return orders, total, nil
@@ -308,6 +314,9 @@ func (r *PostgresRepository) ListItemsByOrderID(ctx context.Context, orderID uui
 		}
 		items = append(items, item)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating order items: %w", err)
+	}
 	return items, nil
 }
 
@@ -338,6 +347,9 @@ func (r *PostgresRepository) GetExpiredOrders(ctx context.Context, limit int) ([
 		}
 		orders = append(orders, o)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating expired orders: %w", err)
+	}
 	return orders, nil
 }
 
@@ -367,6 +379,9 @@ func (r *PostgresRepository) GetStaleProcessingOrders(ctx context.Context, thres
 			o.IdempotencyKey = *idempotencyKey
 		}
 		orders = append(orders, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating stale orders: %w", err)
 	}
 	return orders, nil
 }

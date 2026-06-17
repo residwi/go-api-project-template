@@ -65,6 +65,9 @@ func (r *PostgresRepository) GetTopProducts(ctx context.Context, limit int, from
 		}
 		products = append(products, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating top products: %w", err)
+	}
 
 	return products, nil
 }
@@ -92,6 +95,9 @@ func (r *PostgresRepository) GetRevenueByDay(ctx context.Context, from, to time.
 		}
 		data = append(data, d)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating revenue data: %w", err)
+	}
 
 	return data, nil
 }
@@ -116,6 +122,9 @@ func (r *PostgresRepository) GetOrderStatusBreakdown(ctx context.Context, from, 
 			return nil, fmt.Errorf("scanning status breakdown: %w", err)
 		}
 		breakdowns = append(breakdowns, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating status breakdown: %w", err)
 	}
 
 	return breakdowns, nil

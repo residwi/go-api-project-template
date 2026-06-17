@@ -200,6 +200,9 @@ func (r *PostgresRepository) List(ctx context.Context, params ListParams) ([]Use
 		}
 		users = append(users, u)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating users: %w", err)
+	}
 
 	return users, total, nil
 }

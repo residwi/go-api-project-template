@@ -253,6 +253,9 @@ func (r *PostgresRepository) ListByOrderID(ctx context.Context, orderID uuid.UUI
 		}
 		payments = append(payments, p)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating payments by order: %w", err)
+	}
 	return payments, nil
 }
 
@@ -311,6 +314,9 @@ func (r *PostgresRepository) ListAdmin(ctx context.Context, params AdminListPara
 			p.GatewayTxnID = *gatewayTxnID
 		}
 		payments = append(payments, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterating payments: %w", err)
 	}
 	return payments, total, nil
 }
@@ -376,6 +382,9 @@ func (r *PostgresRepository) ClaimPendingJobs(ctx context.Context, batchSize int
 			j.InventoryAction = *inventoryAction
 		}
 		jobs = append(jobs, j)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating payment jobs: %w", err)
 	}
 	return jobs, nil
 }

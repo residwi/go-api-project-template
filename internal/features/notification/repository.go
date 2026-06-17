@@ -84,6 +84,9 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, c
 		}
 		notifications = append(notifications, n)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating notifications: %w", err)
+	}
 
 	return notifications, nil
 }
@@ -181,6 +184,9 @@ func (r *PostgresRepository) ClaimPendingJobs(ctx context.Context, batchSize int
 			j.LastError = *lastError
 		}
 		jobs = append(jobs, j)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating notification jobs: %w", err)
 	}
 
 	return jobs, nil
