@@ -131,9 +131,7 @@ func TestHandler_RemoveItem_Success(t *testing.T) {
 		mux, repo, uc := setupWishlistMux(t)
 
 		productID := uuid.New()
-		wishlistID := uuid.New()
-		repo.EXPECT().GetOrCreate(mock.Anything, uc.UserID).Return(wishlistID, nil)
-		repo.EXPECT().RemoveItem(mock.Anything, wishlistID, productID).Return(nil)
+		repo.EXPECT().RemoveItem(mock.Anything, uc.UserID, productID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlist/items/"+productID.String(), nil)
@@ -150,9 +148,7 @@ func TestHandler_RemoveItem_ServiceError(t *testing.T) {
 		mux, repo, uc := setupWishlistMux(t)
 
 		productID := uuid.New()
-		wishlistID := uuid.New()
-		repo.EXPECT().GetOrCreate(mock.Anything, uc.UserID).Return(wishlistID, nil)
-		repo.EXPECT().RemoveItem(mock.Anything, wishlistID, productID).Return(core.ErrNotFound)
+		repo.EXPECT().RemoveItem(mock.Anything, uc.UserID, productID).Return(core.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlist/items/"+productID.String(), nil)

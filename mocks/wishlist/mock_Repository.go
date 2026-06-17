@@ -167,8 +167,8 @@ func (_c *MockRepository_GetItems_Call) Run(run func(ctx context.Context, userID
 	return _c
 }
 
-func (_c *MockRepository_GetItems_Call) Return(wishlistItems []wishlist.Item, err error) *MockRepository_GetItems_Call {
-	_c.Call.Return(wishlistItems, err)
+func (_c *MockRepository_GetItems_Call) Return(items []wishlist.Item, err error) *MockRepository_GetItems_Call {
+	_c.Call.Return(items, err)
 	return _c
 }
 
@@ -318,8 +318,8 @@ func (_c *MockRepository_HasItem_Call) RunAndReturn(run func(ctx context.Context
 }
 
 // RemoveItem provides a mock function for the type MockRepository
-func (_mock *MockRepository) RemoveItem(ctx context.Context, wishlistID uuid.UUID, productID uuid.UUID) error {
-	ret := _mock.Called(ctx, wishlistID, productID)
+func (_mock *MockRepository) RemoveItem(ctx context.Context, userID uuid.UUID, productID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID, productID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RemoveItem")
@@ -327,7 +327,7 @@ func (_mock *MockRepository) RemoveItem(ctx context.Context, wishlistID uuid.UUI
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, wishlistID, productID)
+		r0 = returnFunc(ctx, userID, productID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -341,13 +341,13 @@ type MockRepository_RemoveItem_Call struct {
 
 // RemoveItem is a helper method to define mock.On call
 //   - ctx context.Context
-//   - wishlistID uuid.UUID
+//   - userID uuid.UUID
 //   - productID uuid.UUID
-func (_e *MockRepository_Expecter) RemoveItem(ctx interface{}, wishlistID interface{}, productID interface{}) *MockRepository_RemoveItem_Call {
-	return &MockRepository_RemoveItem_Call{Call: _e.mock.On("RemoveItem", ctx, wishlistID, productID)}
+func (_e *MockRepository_Expecter) RemoveItem(ctx interface{}, userID interface{}, productID interface{}) *MockRepository_RemoveItem_Call {
+	return &MockRepository_RemoveItem_Call{Call: _e.mock.On("RemoveItem", ctx, userID, productID)}
 }
 
-func (_c *MockRepository_RemoveItem_Call) Run(run func(ctx context.Context, wishlistID uuid.UUID, productID uuid.UUID)) *MockRepository_RemoveItem_Call {
+func (_c *MockRepository_RemoveItem_Call) Run(run func(ctx context.Context, userID uuid.UUID, productID uuid.UUID)) *MockRepository_RemoveItem_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -375,7 +375,7 @@ func (_c *MockRepository_RemoveItem_Call) Return(err error) *MockRepository_Remo
 	return _c
 }
 
-func (_c *MockRepository_RemoveItem_Call) RunAndReturn(run func(ctx context.Context, wishlistID uuid.UUID, productID uuid.UUID) error) *MockRepository_RemoveItem_Call {
+func (_c *MockRepository_RemoveItem_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, productID uuid.UUID) error) *MockRepository_RemoveItem_Call {
 	_c.Call.Return(run)
 	return _c
 }

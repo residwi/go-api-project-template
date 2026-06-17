@@ -119,7 +119,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 
 		wishlistID, _ := repo.GetOrCreate(ctx, userID)
 		require.NoError(t, repo.AddItem(ctx, wishlistID, productID))
-		require.NoError(t, repo.RemoveItem(ctx, wishlistID, productID))
+		require.NoError(t, repo.RemoveItem(ctx, userID, productID))
 
 		has, err := repo.HasItem(ctx, wishlistID, productID)
 		require.NoError(t, err)

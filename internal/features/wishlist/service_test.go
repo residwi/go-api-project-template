@@ -91,10 +91,8 @@ func TestService_RemoveItem(t *testing.T) {
 		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
-		wishlistID := uuid.New()
 
-		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(wishlistID, nil)
-		repo.EXPECT().RemoveItem(mock.Anything, wishlistID, productID).Return(nil)
+		repo.EXPECT().RemoveItem(mock.Anything, userID, productID).Return(nil)
 
 		err := svc.RemoveItem(ctx, userID, productID)
 		require.NoError(t, err)
@@ -107,17 +105,15 @@ func TestService_RemoveItem(t *testing.T) {
 		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
-		wishlistID := uuid.New()
 
-		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(wishlistID, nil)
-		repo.EXPECT().RemoveItem(mock.Anything, wishlistID, productID).Return(core.ErrNotFound)
+		repo.EXPECT().RemoveItem(mock.Anything, userID, productID).Return(core.ErrNotFound)
 
 		err := svc.RemoveItem(ctx, userID, productID)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, core.ErrNotFound)
 	})
 
-	t.Run("get or create fails", func(t *testing.T) {
+	t.Run("repo error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		svc := wishlist.NewService(repo, nil)
 
@@ -125,7 +121,7 @@ func TestService_RemoveItem(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, assert.AnError)
+		repo.EXPECT().RemoveItem(mock.Anything, userID, productID).Return(assert.AnError)
 
 		err := svc.RemoveItem(ctx, userID, productID)
 		require.Error(t, err)

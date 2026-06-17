@@ -2,11 +2,9 @@ package wishlist
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/core"
@@ -16,7 +14,7 @@ import (
 type Repository interface {
 	GetOrCreate(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
 	AddItem(ctx context.Context, wishlistID, productID uuid.UUID) error
-	RemoveItem(ctx context.Context, wishlistID, productID uuid.UUID) error
+	RemoveItem(ctx context.Context, userID, productID uuid.UUID) error
 	GetItems(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Item, error)
 	HasItem(ctx context.Context, wishlistID, productID uuid.UUID) (bool, error)
 }
@@ -57,11 +55,13 @@ func (r *PostgresRepository) AddItem(ctx context.Context, wishlistID, productID 
 	return nil
 }
 
-func (r *PostgresRepository) RemoveItem(ctx context.Context, wishlistID, productID uuid.UUID) error {
+func (r *PostgresRepository) RemoveItem(ctx context.Context, userID, productID uuid.UUID) error {
 	db := database.DB(ctx, r.pool)
 	tag, err := db.Exec(ctx,
-		`DELETE FROM wishlist_items WHERE wishlist_id = $1 AND product_id = $2`,
-		wishlistID, productID,
+		`DELETE FROM wishlist_items wi
+		USING wishlists w
+		WHERE wi.wishlist_id = w.id AND w.user_id = $1 AND wi.product_id = $2`,
+		userID, productID,
 	)
 	if err != nil {
 		return fmt.Errorf("removing wishlist item: %w", err)
@@ -75,19 +75,8 @@ func (r *PostgresRepository) RemoveItem(ctx context.Context, wishlistID, product
 func (r *PostgresRepository) GetItems(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Item, error) {
 	db := database.DB(ctx, r.pool)
 
-	var wishlistID uuid.UUID
-	err := db.QueryRow(ctx,
-		`SELECT id FROM wishlists WHERE user_id = $1`, userID,
-	).Scan(&wishlistID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return []Item{}, nil
-		}
-		return nil, fmt.Errorf("getting wishlist: %w", err)
-	}
-
-	args := []any{wishlistID}
-	where := "wi.wishlist_id = $1"
+	args := []any{userID}
+	where := "w.user_id = $1"
 	argIdx := 2
 
 	if cursor.Cursor != "" {
@@ -103,6 +92,7 @@ func (r *PostgresRepository) GetItems(ctx context.Context, userID uuid.UUID, cur
 	query := fmt.Sprintf(
 		`SELECT wi.id, wi.wishlist_id, wi.product_id, wi.created_at
 		FROM wishlist_items wi
+		JOIN wishlists w ON w.id = wi.wishlist_id
 		WHERE %s
 		ORDER BY wi.created_at DESC, wi.id DESC
 		LIMIT $%d`,

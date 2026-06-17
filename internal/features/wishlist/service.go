@@ -32,10 +32,5 @@ func (s *Service) AddItem(ctx context.Context, userID, productID uuid.UUID) erro
 }
 
 func (s *Service) RemoveItem(ctx context.Context, userID, productID uuid.UUID) error {
-	wishlistID, err := s.repo.GetOrCreate(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	return s.repo.RemoveItem(ctx, wishlistID, productID)
+	return s.repo.RemoveItem(ctx, userID, productID)
 }
