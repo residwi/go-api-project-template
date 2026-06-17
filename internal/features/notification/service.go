@@ -33,8 +33,8 @@ func (s *Service) ListByUser(ctx context.Context, userID uuid.UUID, cursor core.
 	return s.repo.ListByUser(ctx, userID, cursor)
 }
 
-func (s *Service) MarkRead(ctx context.Context, id uuid.UUID) error {
-	return s.repo.MarkRead(ctx, id)
+func (s *Service) MarkRead(ctx context.Context, userID, id uuid.UUID) error {
+	return s.repo.MarkRead(ctx, userID, id)
 }
 
 func (s *Service) MarkAllRead(ctx context.Context, userID uuid.UUID) error {

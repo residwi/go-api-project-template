@@ -142,10 +142,21 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		n := seedNotification(t, userID)
 		repo := notification.NewPostgresRepository(testPool)
 
-		require.NoError(t, repo.MarkRead(context.Background(), n.ID))
+		require.NoError(t, repo.MarkRead(context.Background(), userID, n.ID))
 
 		count, _ := repo.CountUnread(context.Background(), userID)
 		assert.Equal(t, 0, count)
+	})
+
+	t.Run("returns not found for another user's notification", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		otherUserID := seedUser(t)
+		n := seedNotification(t, userID)
+		repo := notification.NewPostgresRepository(testPool)
+
+		err := repo.MarkRead(context.Background(), otherUserID, n.ID)
+		assert.ErrorIs(t, err, core.ErrNotFound)
 	})
 
 	t.Run("returns not found when already read", func(t *testing.T) {
@@ -155,8 +166,8 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		repo := notification.NewPostgresRepository(testPool)
 		ctx := context.Background()
 
-		require.NoError(t, repo.MarkRead(ctx, n.ID))
-		err := repo.MarkRead(ctx, n.ID)
+		require.NoError(t, repo.MarkRead(ctx, userID, n.ID))
+		err := repo.MarkRead(ctx, userID, n.ID)
 		assert.ErrorIs(t, err, core.ErrNotFound)
 	})
 }
@@ -225,7 +236,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEqual(t, uuid.Nil, job.ID)
 
-		jobs, err := repo.ClaimPendingJobs(ctx, 10)
+		jobs, err := repo.ClaimPendingJobs(ctx, 10, 2*time.Minute)
 		require.NoError(t, err)
 		assert.NotEmpty(t, jobs)
 
@@ -242,7 +253,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		setup(t)
 		repo := notification.NewPostgresRepository(testPool)
 		// Use a fresh context — no pending jobs for a brand-new user
-		jobs, err := repo.ClaimPendingJobs(context.Background(), 1)
+		jobs, err := repo.ClaimPendingJobs(context.Background(), 1, 2*time.Minute)
 		require.NoError(t, err)
 		_ = jobs // may or may not be empty depending on prior test state; just verify no error
 	})
@@ -343,7 +354,7 @@ func TestPostgresRepository_MarkRead_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		err := repo.MarkRead(ctx, uuid.New())
+		err := repo.MarkRead(ctx, uuid.New(), uuid.New())
 		assert.Error(t, err)
 	})
 }
@@ -395,7 +406,7 @@ func TestPostgresRepository_ClaimPendingJobs_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.ClaimPendingJobs(ctx, 10)
+		_, err := repo.ClaimPendingJobs(ctx, 10, 2*time.Minute)
 		assert.Error(t, err)
 	})
 }

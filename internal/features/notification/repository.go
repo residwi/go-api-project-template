@@ -15,11 +15,11 @@ import (
 type Repository interface {
 	Create(ctx context.Context, n *Notification) error
 	ListByUser(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Notification, error)
-	MarkRead(ctx context.Context, id uuid.UUID) error
+	MarkRead(ctx context.Context, userID, id uuid.UUID) error
 	MarkAllRead(ctx context.Context, userID uuid.UUID) error
 	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
 	CreateJob(ctx context.Context, job *Job) error
-	ClaimPendingJobs(ctx context.Context, batchSize int) ([]Job, error)
+	ClaimPendingJobs(ctx context.Context, batchSize int, lease time.Duration) ([]Job, error)
 	UpdateJob(ctx context.Context, job *Job) error
 	DeleteOldCompletedJobs(ctx context.Context, olderThan time.Duration, limit int) (int, error)
 }
@@ -88,10 +88,11 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, c
 	return notifications, nil
 }
 
-func (r *PostgresRepository) MarkRead(ctx context.Context, id uuid.UUID) error {
+func (r *PostgresRepository) MarkRead(ctx context.Context, userID, id uuid.UUID) error {
 	db := database.DB(ctx, r.pool)
+	// Scope by user_id so a user can only mark their own notifications read (IDOR).
 	tag, err := db.Exec(ctx,
-		`UPDATE notifications SET is_read = true WHERE id = $1 AND is_read = false`, id,
+		`UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2 AND is_read = false`, id, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("marking notification read: %w", err)
@@ -139,25 +140,29 @@ func (r *PostgresRepository) CreateJob(ctx context.Context, job *Job) error {
 	return nil
 }
 
-func (r *PostgresRepository) ClaimPendingJobs(ctx context.Context, batchSize int) ([]Job, error) {
+func (r *PostgresRepository) ClaimPendingJobs(ctx context.Context, batchSize int, lease time.Duration) ([]Job, error) {
 	db := database.DB(ctx, r.pool)
 
+	// Claim pending jobs AND reclaim 'processing' jobs whose lease has expired
+	// (their worker died mid-processing), setting a fresh lease on each claim so
+	// nothing can stay stuck in 'processing' indefinitely.
 	rows, err := db.Query(ctx,
 		`WITH picked AS (
 			SELECT id
 			FROM notification_jobs
-			WHERE status = 'pending' AND attempts < max_attempts
+			WHERE (status = 'pending' OR (status = 'processing' AND locked_until <= NOW()))
+			  AND attempts < max_attempts
 			ORDER BY created_at
 			LIMIT $1
 			FOR UPDATE SKIP LOCKED
 		)
 		UPDATE notification_jobs j
-		SET status = 'processing'
+		SET status = 'processing', locked_until = NOW() + $2::interval
 		FROM picked
 		WHERE j.id = picked.id
 		RETURNING j.id, j.user_id, j.type, j.title, j.body, j.data, j.status,
 		          j.attempts, j.max_attempts, j.last_error, j.created_at`,
-		batchSize,
+		batchSize, lease.String(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("claiming pending jobs: %w", err)

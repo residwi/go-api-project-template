@@ -88,7 +88,7 @@ func TestHandler_MarkRead_Success(t *testing.T) {
 		mux, repo, uc := setupNotificationMux(t)
 
 		id := uuid.New()
-		repo.EXPECT().MarkRead(mock.Anything, id).Return(nil)
+		repo.EXPECT().MarkRead(mock.Anything, uc.UserID, id).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/"+id.String()+"/read", nil)
@@ -105,7 +105,7 @@ func TestHandler_MarkRead_ServiceError(t *testing.T) {
 		mux, repo, uc := setupNotificationMux(t)
 
 		id := uuid.New()
-		repo.EXPECT().MarkRead(mock.Anything, id).Return(core.ErrNotFound)
+		repo.EXPECT().MarkRead(mock.Anything, uc.UserID, id).Return(core.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/"+id.String()+"/read", nil)

@@ -42,8 +42,8 @@ func (_m *MockRepository) EXPECT() *MockRepository_Expecter {
 }
 
 // ClaimPendingJobs provides a mock function for the type MockRepository
-func (_mock *MockRepository) ClaimPendingJobs(ctx context.Context, batchSize int) ([]notification.Job, error) {
-	ret := _mock.Called(ctx, batchSize)
+func (_mock *MockRepository) ClaimPendingJobs(ctx context.Context, batchSize int, lease time.Duration) ([]notification.Job, error) {
+	ret := _mock.Called(ctx, batchSize, lease)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ClaimPendingJobs")
@@ -51,18 +51,18 @@ func (_mock *MockRepository) ClaimPendingJobs(ctx context.Context, batchSize int
 
 	var r0 []notification.Job
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) ([]notification.Job, error)); ok {
-		return returnFunc(ctx, batchSize)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, time.Duration) ([]notification.Job, error)); ok {
+		return returnFunc(ctx, batchSize, lease)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) []notification.Job); ok {
-		r0 = returnFunc(ctx, batchSize)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, time.Duration) []notification.Job); ok {
+		r0 = returnFunc(ctx, batchSize, lease)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]notification.Job)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int) error); ok {
-		r1 = returnFunc(ctx, batchSize)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, time.Duration) error); ok {
+		r1 = returnFunc(ctx, batchSize, lease)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -77,11 +77,12 @@ type MockRepository_ClaimPendingJobs_Call struct {
 // ClaimPendingJobs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - batchSize int
-func (_e *MockRepository_Expecter) ClaimPendingJobs(ctx interface{}, batchSize interface{}) *MockRepository_ClaimPendingJobs_Call {
-	return &MockRepository_ClaimPendingJobs_Call{Call: _e.mock.On("ClaimPendingJobs", ctx, batchSize)}
+//   - lease time.Duration
+func (_e *MockRepository_Expecter) ClaimPendingJobs(ctx interface{}, batchSize interface{}, lease interface{}) *MockRepository_ClaimPendingJobs_Call {
+	return &MockRepository_ClaimPendingJobs_Call{Call: _e.mock.On("ClaimPendingJobs", ctx, batchSize, lease)}
 }
 
-func (_c *MockRepository_ClaimPendingJobs_Call) Run(run func(ctx context.Context, batchSize int)) *MockRepository_ClaimPendingJobs_Call {
+func (_c *MockRepository_ClaimPendingJobs_Call) Run(run func(ctx context.Context, batchSize int, lease time.Duration)) *MockRepository_ClaimPendingJobs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -91,20 +92,25 @@ func (_c *MockRepository_ClaimPendingJobs_Call) Run(run func(ctx context.Context
 		if args[1] != nil {
 			arg1 = args[1].(int)
 		}
+		var arg2 time.Duration
+		if args[2] != nil {
+			arg2 = args[2].(time.Duration)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
 }
 
-func (_c *MockRepository_ClaimPendingJobs_Call) Return(notificationJobs []notification.Job, err error) *MockRepository_ClaimPendingJobs_Call {
-	_c.Call.Return(notificationJobs, err)
+func (_c *MockRepository_ClaimPendingJobs_Call) Return(jobs []notification.Job, err error) *MockRepository_ClaimPendingJobs_Call {
+	_c.Call.Return(jobs, err)
 	return _c
 }
 
-func (_c *MockRepository_ClaimPendingJobs_Call) RunAndReturn(run func(ctx context.Context, batchSize int) ([]notification.Job, error)) *MockRepository_ClaimPendingJobs_Call {
+func (_c *MockRepository_ClaimPendingJobs_Call) RunAndReturn(run func(ctx context.Context, batchSize int, lease time.Duration) ([]notification.Job, error)) *MockRepository_ClaimPendingJobs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -493,16 +499,16 @@ func (_c *MockRepository_MarkAllRead_Call) RunAndReturn(run func(ctx context.Con
 }
 
 // MarkRead provides a mock function for the type MockRepository
-func (_mock *MockRepository) MarkRead(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockRepository) MarkRead(ctx context.Context, userID uuid.UUID, id uuid.UUID) error {
+	ret := _mock.Called(ctx, userID, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkRead")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID, id)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -516,12 +522,13 @@ type MockRepository_MarkRead_Call struct {
 
 // MarkRead is a helper method to define mock.On call
 //   - ctx context.Context
+//   - userID uuid.UUID
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) MarkRead(ctx interface{}, id interface{}) *MockRepository_MarkRead_Call {
-	return &MockRepository_MarkRead_Call{Call: _e.mock.On("MarkRead", ctx, id)}
+func (_e *MockRepository_Expecter) MarkRead(ctx interface{}, userID interface{}, id interface{}) *MockRepository_MarkRead_Call {
+	return &MockRepository_MarkRead_Call{Call: _e.mock.On("MarkRead", ctx, userID, id)}
 }
 
-func (_c *MockRepository_MarkRead_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockRepository_MarkRead_Call {
+func (_c *MockRepository_MarkRead_Call) Run(run func(ctx context.Context, userID uuid.UUID, id uuid.UUID)) *MockRepository_MarkRead_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -531,9 +538,14 @@ func (_c *MockRepository_MarkRead_Call) Run(run func(ctx context.Context, id uui
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -544,7 +556,7 @@ func (_c *MockRepository_MarkRead_Call) Return(err error) *MockRepository_MarkRe
 	return _c
 }
 
-func (_c *MockRepository_MarkRead_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockRepository_MarkRead_Call {
+func (_c *MockRepository_MarkRead_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, id uuid.UUID) error) *MockRepository_MarkRead_Call {
 	_c.Call.Return(run)
 	return _c
 }

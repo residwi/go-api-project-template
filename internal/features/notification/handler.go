@@ -42,12 +42,18 @@ func (h *handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) MarkRead(w http.ResponseWriter, r *http.Request) {
+	uc, ok := middleware.GetUserContext(r.Context())
+	if !ok {
+		response.Unauthorized(w, "authentication required")
+		return
+	}
+
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
 
-	if err := h.service.MarkRead(r.Context(), id); err != nil {
+	if err := h.service.MarkRead(r.Context(), uc.UserID, id); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

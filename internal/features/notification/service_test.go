@@ -90,11 +90,12 @@ func TestService_MarkRead(t *testing.T) {
 		svc := notification.NewService(repo)
 
 		ctx := context.Background()
+		userID := uuid.New()
 		id := uuid.New()
 
-		repo.EXPECT().MarkRead(mock.Anything, id).Return(nil)
+		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(nil)
 
-		err := svc.MarkRead(ctx, id)
+		err := svc.MarkRead(ctx, userID, id)
 		require.NoError(t, err)
 	})
 
@@ -103,11 +104,12 @@ func TestService_MarkRead(t *testing.T) {
 		svc := notification.NewService(repo)
 
 		ctx := context.Background()
+		userID := uuid.New()
 		id := uuid.New()
 
-		repo.EXPECT().MarkRead(mock.Anything, id).Return(core.ErrNotFound)
+		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(core.ErrNotFound)
 
-		err := svc.MarkRead(ctx, id)
+		err := svc.MarkRead(ctx, userID, id)
 		assert.ErrorIs(t, err, core.ErrNotFound)
 	})
 }

@@ -6,8 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/middleware"
 )
 
 func newTestHandler() *handler {
@@ -37,8 +40,19 @@ func TestHandler_List(t *testing.T) {
 func TestHandler_MarkRead(t *testing.T) {
 	h := newTestHandler()
 
+	t.Run("missing auth", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPut, "/notifications/"+uuid.NewString()+"/read", nil)
+		w := httptest.NewRecorder()
+
+		h.MarkRead(w, r)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("invalid UUID", func(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPut, "/notifications/bad/read", nil)
+		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{UserID: uuid.New(), Role: "user"})
+		r = r.WithContext(ctx)
 		r.SetPathValue("id", "bad")
 		w := httptest.NewRecorder()
 
