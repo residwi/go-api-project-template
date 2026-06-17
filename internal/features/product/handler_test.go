@@ -380,17 +380,6 @@ func TestAdminHandler_DeleteProduct(t *testing.T) {
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
-		now := time.Now()
-		repo.EXPECT().GetByID(mock.Anything, prodID).Return(&product.Product{
-			ID:        prodID,
-			Name:      "Widget",
-			Slug:      "widget",
-			Price:     1999,
-			Currency:  "USD",
-			Status:    "draft",
-			CreatedAt: now,
-			UpdatedAt: now,
-		}, nil)
 		repo.EXPECT().Delete(mock.Anything, prodID).Return(nil)
 
 		w := httptest.NewRecorder()
@@ -421,7 +410,7 @@ func TestAdminHandler_DeleteProduct(t *testing.T) {
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, prodID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().Delete(mock.Anything, prodID).Return(core.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/products/"+prodID.String(), nil)

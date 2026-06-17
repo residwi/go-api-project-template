@@ -300,7 +300,6 @@ func TestService_Delete(t *testing.T) {
 		svc := category.NewService(repo, nil)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(&category.Category{ID: id}, nil)
 		repo.EXPECT().CountPublishedProducts(mock.Anything, id).Return(0, nil)
 		repo.EXPECT().Delete(mock.Anything, id).Return(nil)
 
@@ -314,7 +313,8 @@ func TestService_Delete(t *testing.T) {
 		svc := category.NewService(repo, nil)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, core.ErrNotFound)
+		repo.EXPECT().CountPublishedProducts(mock.Anything, id).Return(0, nil)
+		repo.EXPECT().Delete(mock.Anything, id).Return(core.ErrNotFound)
 
 		err := svc.Delete(context.Background(), id)
 
@@ -326,7 +326,6 @@ func TestService_Delete(t *testing.T) {
 		svc := category.NewService(repo, nil)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(&category.Category{ID: id}, nil)
 		repo.EXPECT().CountPublishedProducts(mock.Anything, id).Return(3, nil)
 
 		err := svc.Delete(context.Background(), id)
@@ -339,7 +338,6 @@ func TestService_Delete(t *testing.T) {
 		svc := category.NewService(repo, nil)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(&category.Category{ID: id}, nil)
 		repo.EXPECT().CountPublishedProducts(mock.Anything, id).Return(0, errors.New("db error"))
 
 		err := svc.Delete(context.Background(), id)
@@ -352,7 +350,6 @@ func TestService_Delete(t *testing.T) {
 		svc := category.NewService(repo, nil)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(&category.Category{ID: id}, nil)
 		repo.EXPECT().CountPublishedProducts(mock.Anything, id).Return(0, nil)
 
 		deleteErr := errors.New("database delete failed")

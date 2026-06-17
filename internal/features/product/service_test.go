@@ -386,8 +386,6 @@ func TestService_Delete(t *testing.T) {
 		svc := product.NewService(repo, nil)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).
-			Return(&product.Product{ID: id}, nil)
 		repo.EXPECT().Delete(mock.Anything, id).Return(nil)
 
 		err := svc.Delete(context.Background(), id)
@@ -398,8 +396,8 @@ func TestService_Delete(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		svc := product.NewService(repo, nil)
 
-		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, core.ErrNotFound)
+		repo.EXPECT().Delete(mock.Anything, mock.AnythingOfType("uuid.UUID")).
+			Return(core.ErrNotFound)
 
 		err := svc.Delete(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, core.ErrNotFound)

@@ -134,10 +134,6 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateProductReq
 }
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
-	if _, err := s.repo.GetByID(ctx, id); err != nil {
-		return err
-	}
-
 	return s.repo.Delete(ctx, id)
 }
 

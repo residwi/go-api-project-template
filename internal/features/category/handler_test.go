@@ -359,15 +359,6 @@ func TestAdminHandler_DeleteCategory(t *testing.T) {
 		mux, repo := setupCategoryMux(t)
 
 		catID := uuid.New()
-		now := time.Now()
-		repo.EXPECT().GetByID(mock.Anything, catID).Return(&category.Category{
-			ID:        catID,
-			Name:      "To Delete",
-			Slug:      "to-delete",
-			Active:    true,
-			CreatedAt: now,
-			UpdatedAt: now,
-		}, nil)
 		repo.EXPECT().CountPublishedProducts(mock.Anything, catID).Return(0, nil)
 		repo.EXPECT().Delete(mock.Anything, catID).Return(nil)
 
@@ -399,7 +390,8 @@ func TestAdminHandler_DeleteCategory(t *testing.T) {
 		mux, repo := setupCategoryMux(t)
 
 		catID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, catID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().CountPublishedProducts(mock.Anything, catID).Return(0, nil)
+		repo.EXPECT().Delete(mock.Anything, catID).Return(core.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/categories/"+catID.String(), nil)
