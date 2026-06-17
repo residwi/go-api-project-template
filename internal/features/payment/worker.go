@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -74,9 +73,12 @@ func (w *Worker) Start(ctx context.Context) {
 }
 
 func (w *Worker) tick(ctx context.Context) {
-	w.processJobs(ctx)
+	// Sweep and cleanup are fast single-statement maintenance queries; run them
+	// before the (potentially slow, gateway-bound) job processing so order expiry
+	// and job cleanup are never starved by a slow batch of charge jobs.
 	w.sweepExpiredOrders(ctx)
 	w.cleanupOldJobs(ctx)
+	w.processJobs(ctx)
 }
 
 func (w *Worker) processJobs(ctx context.Context) {
@@ -101,7 +103,15 @@ func (w *Worker) processJobs(ctx context.Context) {
 		go func(j Job) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			w.service.ProcessJob(ctx, j)
+			// Bound each job to the lease duration so a hung gateway call can't
+			// pin a goroutine (and its pooled connection) past the point where
+			// the job's claim would expire and be re-claimed anyway.
+			jobCtx, cancel := context.WithTimeout(ctx, w.cfg.LeaseDuration)
+			defer cancel()
+			if ok := w.service.ProcessJob(jobCtx, j); !ok {
+				slog.WarnContext(ctx, "payment job did not complete successfully",
+					"job_id", j.ID, "order_id", j.OrderID)
+			}
 		}(job)
 	}
 
@@ -109,33 +119,22 @@ func (w *Worker) processJobs(ctx context.Context) {
 }
 
 func (w *Worker) sweepExpiredOrders(ctx context.Context) {
-	rows, err := w.pool.Query(ctx,
-		`SELECT id FROM orders
-		 WHERE status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '30 minutes'
-		 ORDER BY created_at LIMIT 20`)
+	// Expire stale awaiting_payment orders in a single UPDATE instead of a SELECT
+	// followed by one UPDATE per row. The LIMIT (via subselect) bounds the batch.
+	tag, err := w.pool.Exec(ctx,
+		`UPDATE orders SET status = 'expired'
+		 WHERE id IN (
+		     SELECT id FROM orders
+		     WHERE status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '30 minutes'
+		     ORDER BY created_at
+		     LIMIT 20
+		 )`)
 	if err != nil {
-		slog.ErrorContext(ctx, "sweep expired orders: query failed", "error", err)
+		slog.ErrorContext(ctx, "sweep expired orders: update failed", "error", err)
 		return
 	}
-	defer rows.Close()
 
-	var count int
-	for rows.Next() {
-		var orderID uuid.UUID
-		if err := rows.Scan(&orderID); err != nil {
-			continue
-		}
-		err := w.orderUpdater.UpdateStatus(ctx, orderID,
-			[]string{"awaiting_payment"}, "expired")
-		if err != nil {
-			slog.WarnContext(ctx, "sweep expired: failed to expire order",
-				"order_id", orderID, "error", err)
-			continue
-		}
-		count++
-	}
-
-	if count > 0 {
+	if count := tag.RowsAffected(); count > 0 {
 		slog.InfoContext(ctx, "swept expired orders", "count", count)
 	}
 }

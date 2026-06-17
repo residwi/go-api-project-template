@@ -161,8 +161,8 @@ func (_c *MockRepository_ClaimPendingJobs_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *MockRepository_ClaimPendingJobs_Call) Return(paymentJobs []payment.Job, err error) *MockRepository_ClaimPendingJobs_Call {
-	_c.Call.Return(paymentJobs, err)
+func (_c *MockRepository_ClaimPendingJobs_Call) Return(jobs []payment.Job, err error) *MockRepository_ClaimPendingJobs_Call {
+	_c.Call.Return(jobs, err)
 	return _c
 }
 

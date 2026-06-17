@@ -7,7 +7,7 @@ package mocks
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/features/payment"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -38,65 +38,59 @@ func (_m *MockInventoryDeductor) EXPECT() *MockInventoryDeductor_Expecter {
 	return &MockInventoryDeductor_Expecter{mock: &_m.Mock}
 }
 
-// Deduct provides a mock function for the type MockInventoryDeductor
-func (_mock *MockInventoryDeductor) Deduct(ctx context.Context, productID uuid.UUID, qty int) error {
-	ret := _mock.Called(ctx, productID, qty)
+// DeductBatch provides a mock function for the type MockInventoryDeductor
+func (_mock *MockInventoryDeductor) DeductBatch(ctx context.Context, items []payment.InventoryChange) error {
+	ret := _mock.Called(ctx, items)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Deduct")
+		panic("no return value specified for DeductBatch")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, productID, qty)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []payment.InventoryChange) error); ok {
+		r0 = returnFunc(ctx, items)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockInventoryDeductor_Deduct_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Deduct'
-type MockInventoryDeductor_Deduct_Call struct {
+// MockInventoryDeductor_DeductBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeductBatch'
+type MockInventoryDeductor_DeductBatch_Call struct {
 	*mock.Call
 }
 
-// Deduct is a helper method to define mock.On call
+// DeductBatch is a helper method to define mock.On call
 //   - ctx context.Context
-//   - productID uuid.UUID
-//   - qty int
-func (_e *MockInventoryDeductor_Expecter) Deduct(ctx interface{}, productID interface{}, qty interface{}) *MockInventoryDeductor_Deduct_Call {
-	return &MockInventoryDeductor_Deduct_Call{Call: _e.mock.On("Deduct", ctx, productID, qty)}
+//   - items []payment.InventoryChange
+func (_e *MockInventoryDeductor_Expecter) DeductBatch(ctx interface{}, items interface{}) *MockInventoryDeductor_DeductBatch_Call {
+	return &MockInventoryDeductor_DeductBatch_Call{Call: _e.mock.On("DeductBatch", ctx, items)}
 }
 
-func (_c *MockInventoryDeductor_Deduct_Call) Run(run func(ctx context.Context, productID uuid.UUID, qty int)) *MockInventoryDeductor_Deduct_Call {
+func (_c *MockInventoryDeductor_DeductBatch_Call) Run(run func(ctx context.Context, items []payment.InventoryChange)) *MockInventoryDeductor_DeductBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 []payment.InventoryChange
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg1 = args[1].([]payment.InventoryChange)
 		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
 }
 
-func (_c *MockInventoryDeductor_Deduct_Call) Return(err error) *MockInventoryDeductor_Deduct_Call {
+func (_c *MockInventoryDeductor_DeductBatch_Call) Return(err error) *MockInventoryDeductor_DeductBatch_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockInventoryDeductor_Deduct_Call) RunAndReturn(run func(ctx context.Context, productID uuid.UUID, qty int) error) *MockInventoryDeductor_Deduct_Call {
+func (_c *MockInventoryDeductor_DeductBatch_Call) RunAndReturn(run func(ctx context.Context, items []payment.InventoryChange) error) *MockInventoryDeductor_DeductBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }

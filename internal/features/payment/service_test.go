@@ -466,7 +466,7 @@ func TestService_ProcessJob(t *testing.T) {
 				{ProductID: productID, Quantity: 2},
 			}, nil)
 
-		inventory.EXPECT().Deduct(mock.Anything, productID, 2).
+		inventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).
 			Return(nil)
 
 		repo.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -786,8 +786,8 @@ func TestService_FinalizePaymentSuccess_MultipleItems(t *testing.T) {
 				{ProductID: productID1, Quantity: 2},
 			}, nil)
 
-		inventory.EXPECT().Deduct(mock.Anything, mock.Anything, mock.Anything).
-			Return(nil).Times(2)
+		inventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).
+			Return(nil)
 
 		repo.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
 			Return(nil)
@@ -1054,7 +1054,7 @@ func TestService_HandleWebhook(t *testing.T) {
 				{ProductID: productID, Quantity: 2},
 			}, nil)
 
-		inv.EXPECT().Deduct(mock.Anything, productID, 2).Return(nil)
+		inv.EXPECT().DeductBatch(mock.Anything, mock.Anything).Return(nil)
 
 		repo.EXPECT().MarkJobCompleted(mock.Anything, mock.AnythingOfType("uuid.UUID")).Return(nil)
 		repo.EXPECT().MarkJobCompletedByPaymentID(mock.Anything, paymentID, payment.ActionCharge).Return(nil)
@@ -1354,7 +1354,7 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 				{ProductID: productID, Quantity: 3},
 			}, nil)
 
-		inventory.EXPECT().Deduct(mock.Anything, productID, 3).
+		inventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).
 			Return(nil)
 
 		repo.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -1561,7 +1561,7 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 				{ProductID: productID, Quantity: 1},
 			}, nil)
 
-		inventory.EXPECT().Deduct(mock.Anything, productID, 1).
+		inventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).
 			Return(errors.New("out of stock"))
 
 		err := svc.FinalizePaymentSuccess(ctx, job)
@@ -1753,7 +1753,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 				{ProductID: productID, Quantity: 2},
 			}, nil)
 
-		inventoryRel.EXPECT().Release(mock.Anything, productID, 2).
+		inventoryRel.EXPECT().ReleaseBatch(mock.Anything, mock.Anything).
 			Return(nil)
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
@@ -1814,7 +1814,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 				{ProductID: productID, Quantity: 5},
 			}, nil)
 
-		inventoryRestock.EXPECT().Restock(mock.Anything, productID, 5).
+		inventoryRestock.EXPECT().RestockBatch(mock.Anything, mock.Anything).
 			Return(nil)
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
@@ -2028,8 +2028,8 @@ func TestService_ProcessRefundJob(t *testing.T) {
 				{ProductID: productID1, Quantity: 2},
 			}, nil)
 
-		inventoryRel.EXPECT().Release(mock.Anything, mock.Anything, mock.Anything).
-			Return(nil).Times(2)
+		inventoryRel.EXPECT().ReleaseBatch(mock.Anything, mock.Anything).
+			Return(nil)
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{}, nil)
@@ -2083,7 +2083,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 				{ProductID: productID, Quantity: 1},
 			}, nil)
 
-		inventoryRel.EXPECT().Release(mock.Anything, productID, 1).
+		inventoryRel.EXPECT().ReleaseBatch(mock.Anything, mock.Anything).
 			Return(errors.New("release failed"))
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
@@ -2138,7 +2138,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 				{ProductID: productID, Quantity: 1},
 			}, nil)
 
-		inventoryRestock.EXPECT().Restock(mock.Anything, productID, 1).
+		inventoryRestock.EXPECT().RestockBatch(mock.Anything, mock.Anything).
 			Return(errors.New("restock failed"))
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
@@ -2193,7 +2193,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 				{ProductID: productID, Quantity: 1},
 			}, nil)
 
-		inventoryRel.EXPECT().Release(mock.Anything, productID, 1).
+		inventoryRel.EXPECT().ReleaseBatch(mock.Anything, mock.Anything).
 			Return(nil)
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).

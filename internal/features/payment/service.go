@@ -59,20 +59,34 @@ type OrderGetter interface {
 	GetByID(ctx context.Context, orderID uuid.UUID) (OrderSnapshot, error)
 }
 
+// InventoryChange is one product/quantity pair for a batched inventory op.
+type InventoryChange struct {
+	ProductID uuid.UUID
+	Quantity  int
+}
+
 type InventoryDeductor interface {
-	Deduct(ctx context.Context, productID uuid.UUID, qty int) error
+	DeductBatch(ctx context.Context, items []InventoryChange) error
 }
 
 type InventoryReleaser interface {
-	Release(ctx context.Context, productID uuid.UUID, qty int) error
+	ReleaseBatch(ctx context.Context, items []InventoryChange) error
 }
 
 type InventoryRestocker interface {
-	Restock(ctx context.Context, productID uuid.UUID, qty int) error
+	RestockBatch(ctx context.Context, items []InventoryChange) error
 }
 
 type CouponReleaser interface {
 	Release(ctx context.Context, orderID uuid.UUID) error
+}
+
+func toInventoryChanges(items []OrderItemDTO) []InventoryChange {
+	changes := make([]InventoryChange, len(items))
+	for i, it := range items {
+		changes[i] = InventoryChange(it)
+	}
+	return changes
 }
 
 type Service struct {
@@ -374,10 +388,8 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 			return items[i].ProductID.String() < items[j].ProductID.String()
 		})
 
-		for _, item := range items {
-			if err := s.inventory.Deduct(txCtx, item.ProductID, item.Quantity); err != nil {
-				return fmt.Errorf("deducting inventory: %w", err)
-			}
+		if err := s.inventory.DeductBatch(txCtx, toInventoryChanges(items)); err != nil {
+			return fmt.Errorf("deducting inventory: %w", err)
 		}
 
 		if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
@@ -486,17 +498,18 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) bool {
 		sort.Slice(items, func(i, j int) bool {
 			return items[i].ProductID.String() < items[j].ProductID.String()
 		})
-		for _, item := range items {
+		if len(items) > 0 {
+			changes := toInventoryChanges(items)
 			switch job.InventoryAction {
 			case inventoryActionRelease:
-				if releaseErr := s.inventoryReleaser.Release(txCtx, item.ProductID, item.Quantity); releaseErr != nil {
+				if releaseErr := s.inventoryReleaser.ReleaseBatch(txCtx, changes); releaseErr != nil {
 					slog.ErrorContext(txCtx, "failed to release inventory on refund",
-						"product_id", item.ProductID, "error", releaseErr)
+						"order_id", job.OrderID, "error", releaseErr)
 				}
 			case inventoryActionRestock:
-				if restockErr := s.inventoryRestocker.Restock(txCtx, item.ProductID, item.Quantity); restockErr != nil {
+				if restockErr := s.inventoryRestocker.RestockBatch(txCtx, changes); restockErr != nil {
 					slog.ErrorContext(txCtx, "failed to restock inventory on refund",
-						"product_id", item.ProductID, "error", restockErr)
+						"order_id", job.OrderID, "error", restockErr)
 				}
 			}
 		}

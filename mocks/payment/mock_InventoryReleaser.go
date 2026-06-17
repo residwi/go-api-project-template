@@ -7,7 +7,7 @@ package mocks
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/features/payment"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -38,65 +38,59 @@ func (_m *MockInventoryReleaser) EXPECT() *MockInventoryReleaser_Expecter {
 	return &MockInventoryReleaser_Expecter{mock: &_m.Mock}
 }
 
-// Release provides a mock function for the type MockInventoryReleaser
-func (_mock *MockInventoryReleaser) Release(ctx context.Context, productID uuid.UUID, qty int) error {
-	ret := _mock.Called(ctx, productID, qty)
+// ReleaseBatch provides a mock function for the type MockInventoryReleaser
+func (_mock *MockInventoryReleaser) ReleaseBatch(ctx context.Context, items []payment.InventoryChange) error {
+	ret := _mock.Called(ctx, items)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Release")
+		panic("no return value specified for ReleaseBatch")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, productID, qty)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []payment.InventoryChange) error); ok {
+		r0 = returnFunc(ctx, items)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockInventoryReleaser_Release_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Release'
-type MockInventoryReleaser_Release_Call struct {
+// MockInventoryReleaser_ReleaseBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReleaseBatch'
+type MockInventoryReleaser_ReleaseBatch_Call struct {
 	*mock.Call
 }
 
-// Release is a helper method to define mock.On call
+// ReleaseBatch is a helper method to define mock.On call
 //   - ctx context.Context
-//   - productID uuid.UUID
-//   - qty int
-func (_e *MockInventoryReleaser_Expecter) Release(ctx interface{}, productID interface{}, qty interface{}) *MockInventoryReleaser_Release_Call {
-	return &MockInventoryReleaser_Release_Call{Call: _e.mock.On("Release", ctx, productID, qty)}
+//   - items []payment.InventoryChange
+func (_e *MockInventoryReleaser_Expecter) ReleaseBatch(ctx interface{}, items interface{}) *MockInventoryReleaser_ReleaseBatch_Call {
+	return &MockInventoryReleaser_ReleaseBatch_Call{Call: _e.mock.On("ReleaseBatch", ctx, items)}
 }
 
-func (_c *MockInventoryReleaser_Release_Call) Run(run func(ctx context.Context, productID uuid.UUID, qty int)) *MockInventoryReleaser_Release_Call {
+func (_c *MockInventoryReleaser_ReleaseBatch_Call) Run(run func(ctx context.Context, items []payment.InventoryChange)) *MockInventoryReleaser_ReleaseBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 []payment.InventoryChange
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg1 = args[1].([]payment.InventoryChange)
 		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
 }
 
-func (_c *MockInventoryReleaser_Release_Call) Return(err error) *MockInventoryReleaser_Release_Call {
+func (_c *MockInventoryReleaser_ReleaseBatch_Call) Return(err error) *MockInventoryReleaser_ReleaseBatch_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockInventoryReleaser_Release_Call) RunAndReturn(run func(ctx context.Context, productID uuid.UUID, qty int) error) *MockInventoryReleaser_Release_Call {
+func (_c *MockInventoryReleaser_ReleaseBatch_Call) RunAndReturn(run func(ctx context.Context, items []payment.InventoryChange) error) *MockInventoryReleaser_ReleaseBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }

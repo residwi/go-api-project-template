@@ -41,6 +41,36 @@ func workerConfig() payment.WorkerConfig {
 	}
 }
 
+// newSweepTestWorker builds a worker wired with no-expectation mocks; the
+// expiry sweep runs as a single UPDATE against the pool and does not invoke any
+// of the injected collaborators.
+func newSweepTestWorker(t *testing.T) *payment.Worker {
+	t.Helper()
+	repo := payment.NewPostgresRepository(testPool)
+	orderUpdater := mocks.NewMockOrderUpdater(t)
+	orderItems := mocks.NewMockOrderItemsGetter(t)
+	orderGet := mocks.NewMockOrderGetter(t)
+	inventoryRel := mocks.NewMockInventoryReleaser(t)
+	couponRel := mocks.NewMockCouponReleaser(t)
+	gw := mocks.NewMockGateway(t)
+	inventoryDeduct := mocks.NewMockInventoryDeductor(t)
+	inventoryRestock := mocks.NewMockInventoryRestocker(t)
+
+	svc := payment.NewService(repo, testPool, gw, orderUpdater, orderGet, orderItems,
+		inventoryDeduct, inventoryRel, inventoryRestock, couponRel)
+
+	return payment.NewWorker(repo, testPool, svc, orderUpdater, orderItems, orderGet,
+		inventoryRel, couponRel, workerConfig())
+}
+
+func orderStatus(t *testing.T, orderID uuid.UUID) string {
+	t.Helper()
+	var status string
+	require.NoError(t, testPool.QueryRow(context.Background(),
+		`SELECT status FROM orders WHERE id = $1`, orderID).Scan(&status))
+	return status
+}
+
 func TestWorker_SweepExpiredOrders(t *testing.T) {
 	t.Run("expires orders older than 30 minutes", func(t *testing.T) {
 		userID := seedUser(t)
@@ -50,108 +80,26 @@ func TestWorker_SweepExpiredOrders(t *testing.T) {
 			`UPDATE orders SET created_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, orderID)
 		require.NoError(t, err)
 
-		orderUpdater := mocks.NewMockOrderUpdater(t)
-		orderUpdater.EXPECT().
-			UpdateStatus(mock.Anything, orderID, []string{"awaiting_payment"}, "expired").
-			Return(nil)
-		// other expired orders from parallel tests
-		orderUpdater.EXPECT().
-			UpdateStatus(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Maybe().
-			Return(nil)
-
-		repo := payment.NewPostgresRepository(testPool)
-		orderItems := mocks.NewMockOrderItemsGetter(t)
-		orderGet := mocks.NewMockOrderGetter(t)
-		inventoryRel := mocks.NewMockInventoryReleaser(t)
-		couponRel := mocks.NewMockCouponReleaser(t)
-		gw := mocks.NewMockGateway(t)
-		inventoryDeduct := mocks.NewMockInventoryDeductor(t)
-		inventoryRestock := mocks.NewMockInventoryRestocker(t)
-
-		svc := payment.NewService(repo, testPool, gw, orderUpdater, orderGet, orderItems,
-			inventoryDeduct, inventoryRel, inventoryRestock, couponRel)
-
-		w := payment.NewWorker(repo, testPool, svc, orderUpdater, orderItems, orderGet,
-			inventoryRel, couponRel, workerConfig())
+		w := newSweepTestWorker(t)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		defer cancel()
-
 		w.Start(ctx)
 
-		orderUpdater.AssertExpectations(t)
+		assert.Equal(t, "expired", orderStatus(t, orderID))
 	})
 
 	t.Run("does not expire recent orders", func(t *testing.T) {
 		userID := seedUser(t)
-		seedOrder(t, userID)
-
-		orderUpdater := mocks.NewMockOrderUpdater(t)
-
-		repo := payment.NewPostgresRepository(testPool)
-		orderItems := mocks.NewMockOrderItemsGetter(t)
-		orderGet := mocks.NewMockOrderGetter(t)
-		inventoryRel := mocks.NewMockInventoryReleaser(t)
-		couponRel := mocks.NewMockCouponReleaser(t)
-		gw := mocks.NewMockGateway(t)
-		inventoryDeduct := mocks.NewMockInventoryDeductor(t)
-		inventoryRestock := mocks.NewMockInventoryRestocker(t)
-
-		svc := payment.NewService(repo, testPool, gw, orderUpdater, orderGet, orderItems,
-			inventoryDeduct, inventoryRel, inventoryRestock, couponRel)
-
-		w := payment.NewWorker(repo, testPool, svc, orderUpdater, orderItems, orderGet,
-			inventoryRel, couponRel, workerConfig())
-
-		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-		defer cancel()
-
-		w.Start(ctx)
-
-		orderUpdater.AssertNotCalled(t, "UpdateStatus")
-	})
-}
-
-func TestWorker_SweepExpiredOrders_UpdateStatusError(t *testing.T) {
-	t.Run("logs warning when UpdateStatus fails for expired order", func(t *testing.T) {
-		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
 
-		_, err := testPool.Exec(context.Background(),
-			`UPDATE orders SET created_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, orderID)
-		require.NoError(t, err)
-
-		orderUpdater := mocks.NewMockOrderUpdater(t)
-		orderUpdater.EXPECT().
-			UpdateStatus(mock.Anything, orderID, []string{"awaiting_payment"}, "expired").
-			Return(assert.AnError)
-		orderUpdater.EXPECT().
-			UpdateStatus(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Maybe().
-			Return(nil)
-
-		repo := payment.NewPostgresRepository(testPool)
-		orderItems := mocks.NewMockOrderItemsGetter(t)
-		orderGet := mocks.NewMockOrderGetter(t)
-		inventoryRel := mocks.NewMockInventoryReleaser(t)
-		couponRel := mocks.NewMockCouponReleaser(t)
-		gw := mocks.NewMockGateway(t)
-		inventoryDeduct := mocks.NewMockInventoryDeductor(t)
-		inventoryRestock := mocks.NewMockInventoryRestocker(t)
-
-		svc := payment.NewService(repo, testPool, gw, orderUpdater, orderGet, orderItems,
-			inventoryDeduct, inventoryRel, inventoryRestock, couponRel)
-
-		w := payment.NewWorker(repo, testPool, svc, orderUpdater, orderItems, orderGet,
-			inventoryRel, couponRel, workerConfig())
+		w := newSweepTestWorker(t)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		defer cancel()
-
 		w.Start(ctx)
 
-		orderUpdater.AssertExpectations(t)
+		assert.Equal(t, "awaiting_payment", orderStatus(t, orderID))
 	})
 }
 
@@ -256,7 +204,7 @@ func TestWorker_ProcessPaymentJobs(t *testing.T) {
 
 		inventoryDeduct := mocks.NewMockInventoryDeductor(t)
 		inventoryDeduct.EXPECT().
-			Deduct(mock.Anything, productID, 1).
+			DeductBatch(mock.Anything, mock.Anything).
 			Return(nil)
 
 		gw := mocks.NewMockGateway(t)

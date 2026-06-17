@@ -125,7 +125,7 @@ type workerOrderGetterAdapter struct {
 }
 
 func (a *workerOrderGetterAdapter) GetByID(ctx context.Context, orderID uuid.UUID) (payment.OrderSnapshot, error) {
-	o, err := a.svc.AdminGetByID(ctx, orderID)
+	o, err := a.svc.GetOrderByID(ctx, orderID)
 	if err != nil {
 		return payment.OrderSnapshot{}, err
 	}
@@ -161,27 +161,32 @@ type workerInventoryDeductorAdapter struct {
 	svc *inventory.Service
 }
 
-func (a *workerInventoryDeductorAdapter) Deduct(ctx context.Context, productID uuid.UUID, qty int) error {
-	_, err := a.svc.Deduct(ctx, productID, qty)
-	return err
+func (a *workerInventoryDeductorAdapter) DeductBatch(ctx context.Context, items []payment.InventoryChange) error {
+	return a.svc.DeductBatch(ctx, toStockChanges(items))
 }
 
 type workerInventoryReleaserAdapter struct {
 	svc *inventory.Service
 }
 
-func (a *workerInventoryReleaserAdapter) Release(ctx context.Context, productID uuid.UUID, qty int) error {
-	_, err := a.svc.Release(ctx, productID, qty)
-	return err
+func (a *workerInventoryReleaserAdapter) ReleaseBatch(ctx context.Context, items []payment.InventoryChange) error {
+	return a.svc.ReleaseBatch(ctx, toStockChanges(items))
 }
 
 type workerInventoryRestockerAdapter struct {
 	svc *inventory.Service
 }
 
-func (a *workerInventoryRestockerAdapter) Restock(ctx context.Context, productID uuid.UUID, qty int) error {
-	_, err := a.svc.Restock(ctx, productID, qty)
-	return err
+func (a *workerInventoryRestockerAdapter) RestockBatch(ctx context.Context, items []payment.InventoryChange) error {
+	return a.svc.RestockBatch(ctx, toStockChanges(items))
+}
+
+func toStockChanges(items []payment.InventoryChange) []inventory.StockChange {
+	changes := make([]inventory.StockChange, len(items))
+	for i, it := range items {
+		changes[i] = inventory.StockChange{ProductID: it.ProductID, Quantity: it.Quantity}
+	}
+	return changes
 }
 
 type workerCouponReleaserAdapter struct {

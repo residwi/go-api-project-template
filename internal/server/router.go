@@ -397,9 +397,8 @@ type inventoryDeductorAdapter struct {
 	svc *inventory.Service
 }
 
-func (a *inventoryDeductorAdapter) Deduct(ctx context.Context, productID uuid.UUID, qty int) error {
-	_, err := a.svc.Deduct(ctx, productID, qty)
-	return err
+func (a *inventoryDeductorAdapter) DeductBatch(ctx context.Context, items []payment.InventoryChange) error {
+	return a.svc.DeductBatch(ctx, toPaymentStockChanges(items))
 }
 
 // ── payment.InventoryReleaser adapter ────────────────────────────────────
@@ -408,9 +407,8 @@ type inventoryReleaserAdapter struct {
 	svc *inventory.Service
 }
 
-func (a *inventoryReleaserAdapter) Release(ctx context.Context, productID uuid.UUID, qty int) error {
-	_, err := a.svc.Release(ctx, productID, qty)
-	return err
+func (a *inventoryReleaserAdapter) ReleaseBatch(ctx context.Context, items []payment.InventoryChange) error {
+	return a.svc.ReleaseBatch(ctx, toPaymentStockChanges(items))
 }
 
 // ── payment.InventoryRestocker adapter ───────────────────────────────────
@@ -419,9 +417,16 @@ type inventoryRestockerAdapter struct {
 	svc *inventory.Service
 }
 
-func (a *inventoryRestockerAdapter) Restock(ctx context.Context, productID uuid.UUID, qty int) error {
-	_, err := a.svc.Restock(ctx, productID, qty)
-	return err
+func (a *inventoryRestockerAdapter) RestockBatch(ctx context.Context, items []payment.InventoryChange) error {
+	return a.svc.RestockBatch(ctx, toPaymentStockChanges(items))
+}
+
+func toPaymentStockChanges(items []payment.InventoryChange) []inventory.StockChange {
+	changes := make([]inventory.StockChange, len(items))
+	for i, it := range items {
+		changes[i] = inventory.StockChange{ProductID: it.ProductID, Quantity: it.Quantity}
+	}
+	return changes
 }
 
 // ── payment.CouponReleaser adapter ───────────────────────────────────────

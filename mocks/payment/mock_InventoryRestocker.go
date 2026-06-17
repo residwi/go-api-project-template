@@ -7,7 +7,7 @@ package mocks
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/features/payment"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -38,65 +38,59 @@ func (_m *MockInventoryRestocker) EXPECT() *MockInventoryRestocker_Expecter {
 	return &MockInventoryRestocker_Expecter{mock: &_m.Mock}
 }
 
-// Restock provides a mock function for the type MockInventoryRestocker
-func (_mock *MockInventoryRestocker) Restock(ctx context.Context, productID uuid.UUID, qty int) error {
-	ret := _mock.Called(ctx, productID, qty)
+// RestockBatch provides a mock function for the type MockInventoryRestocker
+func (_mock *MockInventoryRestocker) RestockBatch(ctx context.Context, items []payment.InventoryChange) error {
+	ret := _mock.Called(ctx, items)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Restock")
+		panic("no return value specified for RestockBatch")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, productID, qty)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []payment.InventoryChange) error); ok {
+		r0 = returnFunc(ctx, items)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockInventoryRestocker_Restock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Restock'
-type MockInventoryRestocker_Restock_Call struct {
+// MockInventoryRestocker_RestockBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RestockBatch'
+type MockInventoryRestocker_RestockBatch_Call struct {
 	*mock.Call
 }
 
-// Restock is a helper method to define mock.On call
+// RestockBatch is a helper method to define mock.On call
 //   - ctx context.Context
-//   - productID uuid.UUID
-//   - qty int
-func (_e *MockInventoryRestocker_Expecter) Restock(ctx interface{}, productID interface{}, qty interface{}) *MockInventoryRestocker_Restock_Call {
-	return &MockInventoryRestocker_Restock_Call{Call: _e.mock.On("Restock", ctx, productID, qty)}
+//   - items []payment.InventoryChange
+func (_e *MockInventoryRestocker_Expecter) RestockBatch(ctx interface{}, items interface{}) *MockInventoryRestocker_RestockBatch_Call {
+	return &MockInventoryRestocker_RestockBatch_Call{Call: _e.mock.On("RestockBatch", ctx, items)}
 }
 
-func (_c *MockInventoryRestocker_Restock_Call) Run(run func(ctx context.Context, productID uuid.UUID, qty int)) *MockInventoryRestocker_Restock_Call {
+func (_c *MockInventoryRestocker_RestockBatch_Call) Run(run func(ctx context.Context, items []payment.InventoryChange)) *MockInventoryRestocker_RestockBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 []payment.InventoryChange
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg1 = args[1].([]payment.InventoryChange)
 		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
 }
 
-func (_c *MockInventoryRestocker_Restock_Call) Return(err error) *MockInventoryRestocker_Restock_Call {
+func (_c *MockInventoryRestocker_RestockBatch_Call) Return(err error) *MockInventoryRestocker_RestockBatch_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockInventoryRestocker_Restock_Call) RunAndReturn(run func(ctx context.Context, productID uuid.UUID, qty int) error) *MockInventoryRestocker_Restock_Call {
+func (_c *MockInventoryRestocker_RestockBatch_Call) RunAndReturn(run func(ctx context.Context, items []payment.InventoryChange) error) *MockInventoryRestocker_RestockBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
