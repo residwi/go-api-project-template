@@ -287,14 +287,20 @@ type inventoryReserverAdapter struct {
 	svc *inventory.Service
 }
 
-func (a *inventoryReserverAdapter) Reserve(ctx context.Context, productID uuid.UUID, qty int) error {
-	_, err := a.svc.Reserve(ctx, productID, qty)
-	return err
+func (a *inventoryReserverAdapter) ReserveBatch(ctx context.Context, items []order.InventoryItem) error {
+	return a.svc.ReserveBatch(ctx, toStockChanges(items))
 }
 
-func (a *inventoryReserverAdapter) Release(ctx context.Context, productID uuid.UUID, qty int) error {
-	_, err := a.svc.Release(ctx, productID, qty)
-	return err
+func (a *inventoryReserverAdapter) ReleaseBatch(ctx context.Context, items []order.InventoryItem) error {
+	return a.svc.ReleaseBatch(ctx, toStockChanges(items))
+}
+
+func toStockChanges(items []order.InventoryItem) []inventory.StockChange {
+	changes := make([]inventory.StockChange, len(items))
+	for i, it := range items {
+		changes[i] = inventory.StockChange{ProductID: it.ProductID, Quantity: it.Quantity}
+	}
+	return changes
 }
 
 // ── order.PaymentInitiator adapter ───────────────────────────────────────
@@ -351,7 +357,7 @@ type orderGetterAdapter struct {
 }
 
 func (a *orderGetterAdapter) GetByID(ctx context.Context, orderID uuid.UUID) (payment.OrderSnapshot, error) {
-	o, err := a.svc.AdminGetByID(ctx, orderID)
+	o, err := a.svc.GetOrderByID(ctx, orderID)
 	if err != nil {
 		return payment.OrderSnapshot{}, err
 	}
@@ -459,7 +465,7 @@ type shippingOrderProviderAdapter struct {
 }
 
 func (a *shippingOrderProviderAdapter) GetByID(ctx context.Context, orderID uuid.UUID) (shipping.OrderInfo, error) {
-	o, err := a.svc.AdminGetByID(ctx, orderID)
+	o, err := a.svc.GetOrderByID(ctx, orderID)
 	if err != nil {
 		return shipping.OrderInfo{}, err
 	}

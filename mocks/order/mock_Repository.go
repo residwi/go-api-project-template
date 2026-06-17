@@ -645,8 +645,8 @@ func (_c *MockRepository_ListItemsByOrderID_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockRepository_ListItemsByOrderID_Call) Return(orderItems []order.Item, err error) *MockRepository_ListItemsByOrderID_Call {
-	_c.Call.Return(orderItems, err)
+func (_c *MockRepository_ListItemsByOrderID_Call) Return(items []order.Item, err error) *MockRepository_ListItemsByOrderID_Call {
+	_c.Call.Return(items, err)
 	return _c
 }
 

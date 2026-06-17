@@ -34,9 +34,15 @@ type CartSnapshotItem struct {
 	Status    string
 }
 
+// InventoryItem is one product/quantity pair for a batched reserve/release.
+type InventoryItem struct {
+	ProductID uuid.UUID
+	Quantity  int
+}
+
 type InventoryReserver interface {
-	Reserve(ctx context.Context, productID uuid.UUID, qty int) error
-	Release(ctx context.Context, productID uuid.UUID, qty int) error
+	ReserveBatch(ctx context.Context, items []InventoryItem) error
+	ReleaseBatch(ctx context.Context, items []InventoryItem) error
 }
 
 type PaymentInitiator interface {
@@ -156,10 +162,12 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 			return txErr
 		}
 
-		for _, item := range snapshot.Items {
-			if txErr := s.inventory.Reserve(txCtx, item.ProductID, item.Quantity); txErr != nil {
-				return fmt.Errorf("reserving stock for %s: %w", item.Name, txErr)
-			}
+		reservations := make([]InventoryItem, len(snapshot.Items))
+		for i, item := range snapshot.Items {
+			reservations[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
+		}
+		if txErr := s.inventory.ReserveBatch(txCtx, reservations); txErr != nil {
+			return fmt.Errorf("reserving stock: %w", txErr)
 		}
 
 		for _, item := range snapshot.Items {
@@ -272,10 +280,14 @@ func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) er
 		if txErr != nil {
 			return txErr
 		}
-		for _, item := range items {
-			if releaseErr := s.inventory.Release(txCtx, item.ProductID, item.Quantity); releaseErr != nil {
+		if len(items) > 0 {
+			releases := make([]InventoryItem, len(items))
+			for i, item := range items {
+				releases[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
+			}
+			if releaseErr := s.inventory.ReleaseBatch(txCtx, releases); releaseErr != nil {
 				slog.ErrorContext(txCtx, "failed to release inventory on cancel",
-					"product_id", item.ProductID, "error", releaseErr)
+					"order_id", orderID, "error", releaseErr)
 			}
 		}
 
@@ -324,6 +336,13 @@ func (s *Service) ListByUser(ctx context.Context, userID uuid.UUID, cursor core.
 
 func (s *Service) AdminListAll(ctx context.Context, params AdminListParams) ([]Order, int, error) {
 	return s.repo.ListAdmin(ctx, params)
+}
+
+// GetOrderByID returns the order WITHOUT its line items. Adapters that only need
+// order-level fields (payment, shipping) use this to avoid the extra order_items
+// query that GetByID/AdminGetByID issue.
+func (s *Service) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*Order, error) {
+	return s.repo.GetByID(ctx, orderID)
 }
 
 func (s *Service) AdminGetByID(ctx context.Context, orderID uuid.UUID) (*Order, error) {

@@ -7,7 +7,7 @@ package mocks
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/features/order"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -38,128 +38,116 @@ func (_m *MockInventoryReserver) EXPECT() *MockInventoryReserver_Expecter {
 	return &MockInventoryReserver_Expecter{mock: &_m.Mock}
 }
 
-// Release provides a mock function for the type MockInventoryReserver
-func (_mock *MockInventoryReserver) Release(ctx context.Context, productID uuid.UUID, qty int) error {
-	ret := _mock.Called(ctx, productID, qty)
+// ReleaseBatch provides a mock function for the type MockInventoryReserver
+func (_mock *MockInventoryReserver) ReleaseBatch(ctx context.Context, items []order.InventoryItem) error {
+	ret := _mock.Called(ctx, items)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Release")
+		panic("no return value specified for ReleaseBatch")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, productID, qty)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []order.InventoryItem) error); ok {
+		r0 = returnFunc(ctx, items)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockInventoryReserver_Release_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Release'
-type MockInventoryReserver_Release_Call struct {
+// MockInventoryReserver_ReleaseBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReleaseBatch'
+type MockInventoryReserver_ReleaseBatch_Call struct {
 	*mock.Call
 }
 
-// Release is a helper method to define mock.On call
+// ReleaseBatch is a helper method to define mock.On call
 //   - ctx context.Context
-//   - productID uuid.UUID
-//   - qty int
-func (_e *MockInventoryReserver_Expecter) Release(ctx interface{}, productID interface{}, qty interface{}) *MockInventoryReserver_Release_Call {
-	return &MockInventoryReserver_Release_Call{Call: _e.mock.On("Release", ctx, productID, qty)}
+//   - items []order.InventoryItem
+func (_e *MockInventoryReserver_Expecter) ReleaseBatch(ctx interface{}, items interface{}) *MockInventoryReserver_ReleaseBatch_Call {
+	return &MockInventoryReserver_ReleaseBatch_Call{Call: _e.mock.On("ReleaseBatch", ctx, items)}
 }
 
-func (_c *MockInventoryReserver_Release_Call) Run(run func(ctx context.Context, productID uuid.UUID, qty int)) *MockInventoryReserver_Release_Call {
+func (_c *MockInventoryReserver_ReleaseBatch_Call) Run(run func(ctx context.Context, items []order.InventoryItem)) *MockInventoryReserver_ReleaseBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 []order.InventoryItem
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg1 = args[1].([]order.InventoryItem)
 		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
 }
 
-func (_c *MockInventoryReserver_Release_Call) Return(err error) *MockInventoryReserver_Release_Call {
+func (_c *MockInventoryReserver_ReleaseBatch_Call) Return(err error) *MockInventoryReserver_ReleaseBatch_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockInventoryReserver_Release_Call) RunAndReturn(run func(ctx context.Context, productID uuid.UUID, qty int) error) *MockInventoryReserver_Release_Call {
+func (_c *MockInventoryReserver_ReleaseBatch_Call) RunAndReturn(run func(ctx context.Context, items []order.InventoryItem) error) *MockInventoryReserver_ReleaseBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// Reserve provides a mock function for the type MockInventoryReserver
-func (_mock *MockInventoryReserver) Reserve(ctx context.Context, productID uuid.UUID, qty int) error {
-	ret := _mock.Called(ctx, productID, qty)
+// ReserveBatch provides a mock function for the type MockInventoryReserver
+func (_mock *MockInventoryReserver) ReserveBatch(ctx context.Context, items []order.InventoryItem) error {
+	ret := _mock.Called(ctx, items)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Reserve")
+		panic("no return value specified for ReserveBatch")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, productID, qty)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []order.InventoryItem) error); ok {
+		r0 = returnFunc(ctx, items)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockInventoryReserver_Reserve_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Reserve'
-type MockInventoryReserver_Reserve_Call struct {
+// MockInventoryReserver_ReserveBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReserveBatch'
+type MockInventoryReserver_ReserveBatch_Call struct {
 	*mock.Call
 }
 
-// Reserve is a helper method to define mock.On call
+// ReserveBatch is a helper method to define mock.On call
 //   - ctx context.Context
-//   - productID uuid.UUID
-//   - qty int
-func (_e *MockInventoryReserver_Expecter) Reserve(ctx interface{}, productID interface{}, qty interface{}) *MockInventoryReserver_Reserve_Call {
-	return &MockInventoryReserver_Reserve_Call{Call: _e.mock.On("Reserve", ctx, productID, qty)}
+//   - items []order.InventoryItem
+func (_e *MockInventoryReserver_Expecter) ReserveBatch(ctx interface{}, items interface{}) *MockInventoryReserver_ReserveBatch_Call {
+	return &MockInventoryReserver_ReserveBatch_Call{Call: _e.mock.On("ReserveBatch", ctx, items)}
 }
 
-func (_c *MockInventoryReserver_Reserve_Call) Run(run func(ctx context.Context, productID uuid.UUID, qty int)) *MockInventoryReserver_Reserve_Call {
+func (_c *MockInventoryReserver_ReserveBatch_Call) Run(run func(ctx context.Context, items []order.InventoryItem)) *MockInventoryReserver_ReserveBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 []order.InventoryItem
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg1 = args[1].([]order.InventoryItem)
 		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
 }
 
-func (_c *MockInventoryReserver_Reserve_Call) Return(err error) *MockInventoryReserver_Reserve_Call {
+func (_c *MockInventoryReserver_ReserveBatch_Call) Return(err error) *MockInventoryReserver_ReserveBatch_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockInventoryReserver_Reserve_Call) RunAndReturn(run func(ctx context.Context, productID uuid.UUID, qty int) error) *MockInventoryReserver_Reserve_Call {
+func (_c *MockInventoryReserver_ReserveBatch_Call) RunAndReturn(run func(ctx context.Context, items []order.InventoryItem) error) *MockInventoryReserver_ReserveBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
