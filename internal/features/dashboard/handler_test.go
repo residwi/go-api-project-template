@@ -39,7 +39,7 @@ func TestAdminHandler_Summary(t *testing.T) {
 		breakdown := []dashboard.StatusBreakdown{{Status: "paid", Count: 7}, {Status: "shipped", Count: 3}}
 
 		repo.EXPECT().GetSalesSummary(mock.Anything, from, toEnd).Return(summary, nil)
-		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything).Return(breakdown, nil)
+		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything, mock.Anything, mock.Anything).Return(breakdown, nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/summary?from=2025-01-01&to=2025-01-31", nil)
 		w := httptest.NewRecorder()
@@ -149,6 +149,10 @@ func TestAdminHandler_Summary(t *testing.T) {
 
 		repo.EXPECT().GetSalesSummary(mock.Anything, mock.Anything, mock.Anything).
 			Return(dashboard.SalesSummary{}, errors.New("db connection failed"))
+		// GetSummary runs both aggregates concurrently, so the breakdown query may
+		// also fire before the sales error is observed.
+		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything, mock.Anything, mock.Anything).
+			Return(nil, nil).Maybe()
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/summary?from=2025-01-01&to=2025-01-31", nil)
 		w := httptest.NewRecorder()
@@ -163,7 +167,7 @@ func TestAdminHandler_Summary(t *testing.T) {
 
 		summary := dashboard.SalesSummary{TotalOrders: 5, TotalRevenue: 25000, AverageOrderValue: 5000}
 		repo.EXPECT().GetSalesSummary(mock.Anything, mock.Anything, mock.Anything).Return(summary, nil)
-		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything).
+		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything, mock.Anything, mock.Anything).
 			Return(nil, errors.New("db error"))
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/summary?from=2025-01-01&to=2025-01-31", nil)

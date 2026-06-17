@@ -183,7 +183,8 @@ func TestPostgresRepository_GetOrderStatusBreakdown(t *testing.T) {
 		seedPaidOrder(t, userID)
 		repo := dashboard.NewPostgresRepository(testPool)
 
-		breakdowns, err := repo.GetOrderStatusBreakdown(context.Background())
+		breakdowns, err := repo.GetOrderStatusBreakdown(context.Background(),
+			time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour))
 		require.NoError(t, err)
 		assert.NotEmpty(t, breakdowns)
 
@@ -242,7 +243,7 @@ func TestPostgresRepository_GetOrderStatusBreakdown_CancelledContext(t *testing.
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.GetOrderStatusBreakdown(ctx)
+		_, err := repo.GetOrderStatusBreakdown(ctx, time.Now().Add(-24*time.Hour), time.Now())
 		assert.Error(t, err)
 	})
 }

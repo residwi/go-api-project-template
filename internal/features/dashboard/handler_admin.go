@@ -18,13 +18,7 @@ func (h *adminHandler) Summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sales, err := h.service.GetSalesSummary(r.Context(), from, to)
-	if err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	breakdown, err := h.service.GetOrderStatusBreakdown(r.Context())
+	sales, breakdown, err := h.service.GetSummary(r.Context(), from, to)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

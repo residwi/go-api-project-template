@@ -40,8 +40,8 @@ func (_m *MockRepository) EXPECT() *MockRepository_Expecter {
 }
 
 // GetOrderStatusBreakdown provides a mock function for the type MockRepository
-func (_mock *MockRepository) GetOrderStatusBreakdown(ctx context.Context) ([]dashboard.StatusBreakdown, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockRepository) GetOrderStatusBreakdown(ctx context.Context, from time.Time, to time.Time) ([]dashboard.StatusBreakdown, error) {
+	ret := _mock.Called(ctx, from, to)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetOrderStatusBreakdown")
@@ -49,18 +49,18 @@ func (_mock *MockRepository) GetOrderStatusBreakdown(ctx context.Context) ([]das
 
 	var r0 []dashboard.StatusBreakdown
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]dashboard.StatusBreakdown, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) ([]dashboard.StatusBreakdown, error)); ok {
+		return returnFunc(ctx, from, to)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []dashboard.StatusBreakdown); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) []dashboard.StatusBreakdown); ok {
+		r0 = returnFunc(ctx, from, to)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dashboard.StatusBreakdown)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) error); ok {
+		r1 = returnFunc(ctx, from, to)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -74,18 +74,30 @@ type MockRepository_GetOrderStatusBreakdown_Call struct {
 
 // GetOrderStatusBreakdown is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockRepository_Expecter) GetOrderStatusBreakdown(ctx interface{}) *MockRepository_GetOrderStatusBreakdown_Call {
-	return &MockRepository_GetOrderStatusBreakdown_Call{Call: _e.mock.On("GetOrderStatusBreakdown", ctx)}
+//   - from time.Time
+//   - to time.Time
+func (_e *MockRepository_Expecter) GetOrderStatusBreakdown(ctx interface{}, from interface{}, to interface{}) *MockRepository_GetOrderStatusBreakdown_Call {
+	return &MockRepository_GetOrderStatusBreakdown_Call{Call: _e.mock.On("GetOrderStatusBreakdown", ctx, from, to)}
 }
 
-func (_c *MockRepository_GetOrderStatusBreakdown_Call) Run(run func(ctx context.Context)) *MockRepository_GetOrderStatusBreakdown_Call {
+func (_c *MockRepository_GetOrderStatusBreakdown_Call) Run(run func(ctx context.Context, from time.Time, to time.Time)) *MockRepository_GetOrderStatusBreakdown_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
 		run(
 			arg0,
+			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -96,7 +108,7 @@ func (_c *MockRepository_GetOrderStatusBreakdown_Call) Return(statusBreakdowns [
 	return _c
 }
 
-func (_c *MockRepository_GetOrderStatusBreakdown_Call) RunAndReturn(run func(ctx context.Context) ([]dashboard.StatusBreakdown, error)) *MockRepository_GetOrderStatusBreakdown_Call {
+func (_c *MockRepository_GetOrderStatusBreakdown_Call) RunAndReturn(run func(ctx context.Context, from time.Time, to time.Time) ([]dashboard.StatusBreakdown, error)) *MockRepository_GetOrderStatusBreakdown_Call {
 	_c.Call.Return(run)
 	return _c
 }

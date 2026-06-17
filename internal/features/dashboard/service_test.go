@@ -140,9 +140,9 @@ func TestService_GetOrderStatusBreakdown(t *testing.T) {
 			{Status: "shipped", Count: 30},
 			{Status: "delivered", Count: 20},
 		}
-		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything).Return(expected, nil)
+		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything, mock.Anything, mock.Anything).Return(expected, nil)
 
-		result, err := svc.GetOrderStatusBreakdown(context.Background())
+		result, err := svc.GetOrderStatusBreakdown(context.Background(), time.Time{}, time.Time{})
 
 		require.NoError(t, err)
 		assert.Len(t, result, 3)
@@ -154,9 +154,9 @@ func TestService_GetOrderStatusBreakdown(t *testing.T) {
 		svc := dashboard.NewService(repo)
 
 		dbErr := errors.New("query failed")
-		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything).Return(nil, dbErr)
+		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything, mock.Anything, mock.Anything).Return(nil, dbErr)
 
-		result, err := svc.GetOrderStatusBreakdown(context.Background())
+		result, err := svc.GetOrderStatusBreakdown(context.Background(), time.Time{}, time.Time{})
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, dbErr)

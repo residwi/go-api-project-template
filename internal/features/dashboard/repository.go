@@ -14,7 +14,7 @@ type Repository interface {
 	GetSalesSummary(ctx context.Context, from, to time.Time) (SalesSummary, error)
 	GetTopProducts(ctx context.Context, limit int, from, to time.Time) ([]TopProduct, error)
 	GetRevenueByDay(ctx context.Context, from, to time.Time) ([]RevenueData, error)
-	GetOrderStatusBreakdown(ctx context.Context) ([]StatusBreakdown, error)
+	GetOrderStatusBreakdown(ctx context.Context, from, to time.Time) ([]StatusBreakdown, error)
 }
 
 type PostgresRepository struct {
@@ -96,10 +96,13 @@ func (r *PostgresRepository) GetRevenueByDay(ctx context.Context, from, to time.
 	return data, nil
 }
 
-func (r *PostgresRepository) GetOrderStatusBreakdown(ctx context.Context) ([]StatusBreakdown, error) {
+func (r *PostgresRepository) GetOrderStatusBreakdown(ctx context.Context, from, to time.Time) ([]StatusBreakdown, error) {
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
-		`SELECT status, COUNT(*) FROM orders GROUP BY status ORDER BY count DESC`,
+		`SELECT status, COUNT(*) FROM orders
+		WHERE created_at BETWEEN $1 AND $2
+		GROUP BY status ORDER BY COUNT(*) DESC`,
+		from, to,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("getting order status breakdown: %w", err)
