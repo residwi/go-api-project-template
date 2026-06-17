@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -103,6 +104,11 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware
 
 	active, tokenVersion, err := s.repo.GetStatusByID(ctx, userID)
 	if err != nil {
+		// A deleted/non-existent user is a definitive "deny", not an infra error:
+		// report inactive so middleware returns 401 instead of 500.
+		if errors.Is(err, core.ErrNotFound) {
+			return middleware.UserStatusResult{Active: false}, nil
+		}
 		return middleware.UserStatusResult{}, err
 	}
 
