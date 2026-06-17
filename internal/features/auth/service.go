@@ -46,6 +46,14 @@ type UserProvider interface {
 	GetByID(ctx context.Context, id uuid.UUID) (UserResult, error)
 }
 
+// maxPasswordBytes is bcrypt's hard input limit; inputs longer than this error
+// in GenerateFromPassword. validator's max=72 counts runes, so we re-check bytes.
+const maxPasswordBytes = 72
+
+// dummyPassword is hashed once per cost to give the unknown-email login path
+// roughly the same latency as a real bcrypt comparison.
+const dummyPassword = "invalid-user-timing-equalizer"
+
 type Service struct {
 	users      UserProvider
 	jwtSecret  string
@@ -53,10 +61,11 @@ type Service struct {
 	accessTTL  time.Duration
 	refreshTTL time.Duration
 	bcryptCost int
+	dummyHash  []byte
 }
 
 func NewService(users UserProvider, jwtSecret, jwtIssuer string, accessTTL, refreshTTL time.Duration) *Service {
-	return &Service{
+	s := &Service{
 		users:      users,
 		jwtSecret:  jwtSecret,
 		jwtIssuer:  jwtIssuer,
@@ -64,6 +73,8 @@ func NewService(users UserProvider, jwtSecret, jwtIssuer string, accessTTL, refr
 		refreshTTL: refreshTTL,
 		bcryptCost: bcrypt.DefaultCost,
 	}
+	s.dummyHash, _ = bcrypt.GenerateFromPassword([]byte(dummyPassword), s.bcryptCost)
+	return s
 }
 
 // SetBcryptCost overrides the password-hashing cost (set once at startup from
@@ -73,9 +84,17 @@ func (s *Service) SetBcryptCost(cost int) {
 		return
 	}
 	s.bcryptCost = cost
+	s.dummyHash, _ = bcrypt.GenerateFromPassword([]byte(dummyPassword), cost)
 }
 
 func (s *Service) Register(ctx context.Context, req RegisterRequest) (*TokenResponse, error) {
+	// bcrypt only consumes the first 72 bytes and errors beyond that; validator's
+	// max=72 counts runes, so reject overlong multibyte passwords as a 400 here
+	// rather than letting bcrypt surface a 500.
+	if len(req.Password) > maxPasswordBytes {
+		return nil, fmt.Errorf("%w: password must not exceed %d bytes", core.ErrBadRequest, maxPasswordBytes)
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), s.bcryptCost)
 	if err != nil {
 		return nil, fmt.Errorf("hashing password: %w", err)
@@ -97,6 +116,9 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*TokenResp
 func (s *Service) Login(ctx context.Context, req LoginRequest) (*TokenResponse, error) {
 	creds, err := s.users.GetByEmail(ctx, req.Email)
 	if err != nil {
+		// Run a dummy comparison so an unknown email takes about as long as a
+		// wrong password, removing the timing oracle for account enumeration.
+		_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(req.Password))
 		return nil, core.ErrInvalidCredentials
 	}
 
@@ -120,7 +142,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*TokenResponse, 
 }
 
 func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error) {
-	claims, err := ValidateToken(refreshToken, s.jwtSecret)
+	claims, err := ValidateToken(refreshToken, s.jwtSecret, s.jwtIssuer)
 	if err != nil {
 		return nil, core.ErrInvalidToken
 	}
@@ -147,7 +169,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*Token
 
 // ValidateAccessToken validates an access token and returns the claims.
 func (s *Service) ValidateAccessToken(tokenString string) (*Claims, error) {
-	return ValidateToken(tokenString, s.jwtSecret)
+	return ValidateToken(tokenString, s.jwtSecret, s.jwtIssuer)
 }
 
 // TokenValidatorAdapter adapts auth.Service to middleware.TokenValidator

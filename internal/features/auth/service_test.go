@@ -78,7 +78,7 @@ func TestService_Register(t *testing.T) {
 		assert.ErrorIs(t, err, core.ErrConflict)
 	})
 
-	t.Run("bcrypt error with password exceeding 72 bytes", func(t *testing.T) {
+	t.Run("password exceeding 72 bytes is a bad request, not a 500", func(t *testing.T) {
 		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		longPassword := strings.Repeat("a", 73)
@@ -91,7 +91,7 @@ func TestService_Register(t *testing.T) {
 
 		assert.Nil(t, resp)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "hashing password")
+		assert.ErrorIs(t, err, core.ErrBadRequest)
 	})
 }
 

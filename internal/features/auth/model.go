@@ -72,13 +72,16 @@ func generateToken(secret, issuer string, ttl time.Duration, claims Claims) (str
 	return token.SignedString([]byte(secret))
 }
 
-func ValidateToken(tokenString, secret string) (*Claims, error) {
+func ValidateToken(tokenString, secret, issuer string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &jwtClaims{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(secret), nil
-	})
+	},
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuer(issuer),
+	)
 	if err != nil {
 		return nil, err
 	}

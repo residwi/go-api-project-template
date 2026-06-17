@@ -32,7 +32,7 @@ func TestGenerateTokenPair(t *testing.T) {
 		assert.NotEmpty(t, accessToken)
 		assert.NotEmpty(t, refreshToken)
 
-		accessClaims, err := auth.ValidateToken(accessToken, secret)
+		accessClaims, err := auth.ValidateToken(accessToken, secret, issuer)
 		require.NoError(t, err)
 		assert.Equal(t, &auth.Claims{
 			UserID:       userID,
@@ -42,7 +42,7 @@ func TestGenerateTokenPair(t *testing.T) {
 			TokenVersion: 1,
 		}, accessClaims)
 
-		refreshClaims, err := auth.ValidateToken(refreshToken, secret)
+		refreshClaims, err := auth.ValidateToken(refreshToken, secret, issuer)
 		require.NoError(t, err)
 		assert.Equal(t, &auth.Claims{
 			UserID:       userID,
@@ -57,7 +57,7 @@ func TestGenerateTokenPair(t *testing.T) {
 		accessToken, _, err := auth.GenerateTokenPair(secret, issuer, accessTTL, refreshTTL, claims)
 		require.NoError(t, err)
 
-		got, err := auth.ValidateToken(accessToken, secret)
+		got, err := auth.ValidateToken(accessToken, secret, issuer)
 		require.NoError(t, err)
 
 		expected := &auth.Claims{
@@ -86,7 +86,7 @@ func TestValidateToken(t *testing.T) {
 		accessToken, _, err := auth.GenerateTokenPair(secret, issuer, ttl, ttl, claims)
 		require.NoError(t, err)
 
-		got, err := auth.ValidateToken(accessToken, "wrong-secret")
+		got, err := auth.ValidateToken(accessToken, "wrong-secret", issuer)
 		assert.Nil(t, got)
 		assert.Error(t, err)
 	})
@@ -95,7 +95,7 @@ func TestValidateToken(t *testing.T) {
 		accessToken, _, err := auth.GenerateTokenPair(secret, issuer, -1*time.Second, ttl, claims)
 		require.NoError(t, err)
 
-		got, err := auth.ValidateToken(accessToken, secret)
+		got, err := auth.ValidateToken(accessToken, secret, issuer)
 		assert.Nil(t, got)
 		assert.Error(t, err)
 	})
@@ -107,13 +107,13 @@ func TestValidateToken(t *testing.T) {
 		// Flip multiple characters in the signature to ensure invalidation
 		tampered := accessToken[:len(accessToken)-5] + "XXXXX"
 
-		got, err := auth.ValidateToken(tampered, secret)
+		got, err := auth.ValidateToken(tampered, secret, issuer)
 		assert.Nil(t, got)
 		assert.Error(t, err)
 	})
 
 	t.Run("completely invalid token string", func(t *testing.T) {
-		got, err := auth.ValidateToken("not-a-token", secret)
+		got, err := auth.ValidateToken("not-a-token", secret, issuer)
 		assert.Nil(t, got)
 		assert.Error(t, err)
 	})
@@ -130,7 +130,7 @@ func TestValidateToken(t *testing.T) {
 		tokenString, err := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
 		require.NoError(t, err)
 
-		got, err := auth.ValidateToken(tokenString, secret)
+		got, err := auth.ValidateToken(tokenString, secret, issuer)
 		assert.Nil(t, got)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "unexpected signing method")
