@@ -79,6 +79,16 @@ func TestHandler_ListByProduct(t *testing.T) {
 		items, ok := data["items"].([]any)
 		require.True(t, ok)
 		assert.Len(t, items, 1)
+
+		item := items[0].(map[string]any)
+		assert.Equal(t, float64(5), item["rating"])
+		assert.Equal(t, "Great product", item["title"])
+		assert.Equal(t, "Love it", item["body"])
+		assert.Equal(t, "published", item["status"])
+
+		pagination, ok := data["pagination"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, false, pagination["has_more"])
 	})
 
 	t.Run("invalid product_id", func(t *testing.T) {

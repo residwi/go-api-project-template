@@ -73,7 +73,19 @@ func TestPublicHandler_ListProducts(t *testing.T) {
 		items, ok := data["items"].([]any)
 		require.True(t, ok)
 		assert.Len(t, items, 1)
-		assert.NotNil(t, data["pagination"])
+
+		item, ok := items[0].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "Widget", item["name"])
+		assert.Equal(t, "widget", item["slug"])
+		assert.Equal(t, float64(1999), item["price"])
+		assert.Equal(t, "USD", item["currency"])
+		assert.Equal(t, "published", item["status"])
+
+		pagination, ok := data["pagination"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, false, pagination["has_more"])
+		assert.NotContains(t, pagination, "next_cursor")
 	})
 
 	t.Run("service error", func(t *testing.T) {
@@ -449,6 +461,29 @@ func TestAdminHandler_ListProducts(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.True(t, resp.Success)
+
+		data, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		items, ok := data["items"].([]any)
+		require.True(t, ok)
+		assert.Len(t, items, 1)
+
+		item, ok := items[0].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "Widget", item["name"])
+		assert.Equal(t, "widget", item["slug"])
+		assert.Equal(t, float64(1999), item["price"])
+		assert.Equal(t, "USD", item["currency"])
+		assert.Equal(t, "draft", item["status"])
+
+		pagination, ok := data["pagination"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, float64(1), pagination["current_page"])
+		assert.Equal(t, float64(20), pagination["page_size"])
+		assert.Equal(t, float64(1), pagination["total_items"])
+		assert.Equal(t, float64(1), pagination["total_pages"])
+		assert.Equal(t, false, pagination["has_previous"])
+		assert.Equal(t, false, pagination["has_next"])
 	})
 
 	t.Run("invalid category_id", func(t *testing.T) {

@@ -58,15 +58,26 @@ func TestAdminHandler_Summary(t *testing.T) {
 		require.NoError(t, err)
 		var got struct {
 			Sales struct {
-				TotalOrders  float64 `json:"total_orders"`
-				TotalRevenue float64 `json:"total_revenue"`
+				TotalOrders       float64 `json:"total_orders"`
+				TotalRevenue      float64 `json:"total_revenue"`
+				AverageOrderValue float64 `json:"average_order_value"`
 			} `json:"sales"`
 			StatusBreakdown []any `json:"status_breakdown"`
 		}
 		require.NoError(t, json.Unmarshal(dataJSON, &got))
 		assert.InDelta(t, float64(10), got.Sales.TotalOrders, 0.001)
 		assert.InDelta(t, float64(50000), got.Sales.TotalRevenue, 0.001)
+		assert.InDelta(t, float64(5000), got.Sales.AverageOrderValue, 0.001)
 		assert.Len(t, got.StatusBreakdown, 2)
+
+		sb0, ok := got.StatusBreakdown[0].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "paid", sb0["status"])
+		assert.InDelta(t, float64(7), sb0["count"].(float64), 0.001)
+		sb1, ok := got.StatusBreakdown[1].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "shipped", sb1["status"])
+		assert.InDelta(t, float64(3), sb1["count"].(float64), 0.001)
 	})
 
 	t.Run("missing from and to params", func(t *testing.T) {
@@ -209,6 +220,17 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 		data, ok := resp["data"].([]any)
 		require.True(t, ok)
 		assert.Len(t, data, 2)
+
+		p0, ok := data[0].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "Widget", p0["name"])
+		assert.InDelta(t, float64(100), p0["total_sold"].(float64), 0.001)
+		assert.InDelta(t, float64(50000), p0["revenue"].(float64), 0.001)
+		p1, ok := data[1].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "Gadget", p1["name"])
+		assert.InDelta(t, float64(80), p1["total_sold"].(float64), 0.001)
+		assert.InDelta(t, float64(40000), p1["revenue"].(float64), 0.001)
 	})
 
 	t.Run("success with default limit when not provided", func(t *testing.T) {
@@ -367,6 +389,15 @@ func TestAdminHandler_Revenue(t *testing.T) {
 		respData, ok := resp["data"].([]any)
 		require.True(t, ok)
 		assert.Len(t, respData, 2)
+
+		d0, ok := respData[0].(map[string]any)
+		require.True(t, ok)
+		assert.InDelta(t, float64(10000), d0["revenue"].(float64), 0.001)
+		assert.InDelta(t, float64(5), d0["order_count"].(float64), 0.001)
+		d1, ok := respData[1].(map[string]any)
+		require.True(t, ok)
+		assert.InDelta(t, float64(15000), d1["revenue"].(float64), 0.001)
+		assert.InDelta(t, float64(8), d1["order_count"].(float64), 0.001)
 	})
 
 	t.Run("missing date range", func(t *testing.T) {

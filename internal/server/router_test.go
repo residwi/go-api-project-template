@@ -246,7 +246,15 @@ func TestAuthEndpoints(t *testing.T) {
 
 		var resp map[string]any
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.NotEmpty(t, resp["data"])
+		data, ok := resp["data"].(map[string]any)
+		require.True(t, ok)
+		assert.NotEmpty(t, data["access_token"])
+		assert.NotEmpty(t, data["refresh_token"])
+		user, ok := data["user"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "test-router@example.com", user["email"])
+		assert.Equal(t, "Test User", user["name"])
+		assert.Equal(t, "user", user["role"])
 
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = 'test-router@example.com'`)
 	})
@@ -285,6 +293,11 @@ func TestAuthEndpoints(t *testing.T) {
 		require.True(t, ok)
 		assert.NotEmpty(t, data["access_token"])
 		assert.NotEmpty(t, data["refresh_token"])
+		user, ok := data["user"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "test-login@example.com", user["email"])
+		assert.Equal(t, "Login User", user["name"])
+		assert.Equal(t, "user", user["role"])
 
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = 'test-login@example.com'`)
 	})

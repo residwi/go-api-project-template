@@ -70,6 +70,15 @@ func TestPublicHandler_ListCategories(t *testing.T) {
 		data, ok := resp.Data.([]any)
 		require.True(t, ok)
 		assert.Len(t, data, 1)
+
+		item, ok := data[0].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "Electronics", item["name"])
+		assert.Equal(t, "electronics", item["slug"])
+		assert.Equal(t, true, item["active"])
+		assert.Equal(t, float64(0), item["sort_order"])
+		assert.NotContains(t, item, "parent_id")
+		assert.NotContains(t, item, "description")
 	})
 
 	t.Run("service error", func(t *testing.T) {
@@ -115,14 +124,18 @@ func TestPublicHandler_GetBySlug(t *testing.T) {
 		dataJSON, err := json.Marshal(resp.Data)
 		require.NoError(t, err)
 		var got struct {
-			Name string `json:"name"`
-			Slug string `json:"slug"`
+			Name      string `json:"name"`
+			Slug      string `json:"slug"`
+			Active    bool   `json:"active"`
+			SortOrder int    `json:"sort_order"`
 		}
 		require.NoError(t, json.Unmarshal(dataJSON, &got))
 		assert.Equal(t, struct {
-			Name string `json:"name"`
-			Slug string `json:"slug"`
-		}{Name: "Electronics", Slug: "electronics"}, got)
+			Name      string `json:"name"`
+			Slug      string `json:"slug"`
+			Active    bool   `json:"active"`
+			SortOrder int    `json:"sort_order"`
+		}{Name: "Electronics", Slug: "electronics", Active: true, SortOrder: 0}, got)
 	})
 
 	t.Run("not found", func(t *testing.T) {

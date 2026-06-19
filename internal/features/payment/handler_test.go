@@ -253,7 +253,24 @@ func TestAdminHandler_List(t *testing.T) {
 		items, ok := data["items"].([]any)
 		require.True(t, ok)
 		assert.Len(t, items, 1)
-		assert.NotNil(t, data["pagination"])
+
+		item := items[0].(map[string]any)
+		assert.Equal(t, float64(5000), item["amount"])
+		assert.Equal(t, "USD", item["currency"])
+		assert.Equal(t, "success", item["status"])
+		assert.NotEmpty(t, item["id"])
+		assert.NotEmpty(t, item["order_id"])
+		assert.NotEmpty(t, item["created_at"])
+		assert.NotEmpty(t, item["updated_at"])
+
+		pagination, ok := data["pagination"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, float64(1), pagination["current_page"])
+		assert.Equal(t, float64(20), pagination["page_size"])
+		assert.Equal(t, float64(1), pagination["total_items"])
+		assert.Equal(t, float64(1), pagination["total_pages"])
+		assert.Equal(t, false, pagination["has_previous"])
+		assert.Equal(t, false, pagination["has_next"])
 	})
 
 	t.Run("service error", func(t *testing.T) {
@@ -304,17 +321,16 @@ func TestAdminHandler_Get(t *testing.T) {
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.True(t, resp.Success)
 
-		dataJSON, err := json.Marshal(resp.Data)
-		require.NoError(t, err)
-		var got struct {
-			ID       string `json:"id"`
-			Currency string `json:"currency"`
-		}
-		require.NoError(t, json.Unmarshal(dataJSON, &got))
-		assert.Equal(t, struct {
-			ID       string `json:"id"`
-			Currency string `json:"currency"`
-		}{ID: paymentID.String(), Currency: "USD"}, got)
+		obj, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		// id is echoed back from the request, so it is deterministic.
+		assert.Equal(t, paymentID.String(), obj["id"])
+		assert.Equal(t, float64(10000), obj["amount"])
+		assert.Equal(t, "USD", obj["currency"])
+		assert.Equal(t, "success", obj["status"])
+		assert.NotEmpty(t, obj["order_id"])
+		assert.NotEmpty(t, obj["created_at"])
+		assert.NotEmpty(t, obj["updated_at"])
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {

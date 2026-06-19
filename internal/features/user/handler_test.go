@@ -275,7 +275,23 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 		items, ok := data["items"].([]any)
 		require.True(t, ok)
 		assert.Len(t, items, 1)
-		assert.NotNil(t, data["pagination"])
+
+		item := items[0].(map[string]any)
+		assert.Equal(t, "alice@example.com", item["email"])
+		assert.Equal(t, "Alice", item["first_name"])
+		assert.Equal(t, "Smith", item["last_name"])
+		assert.Equal(t, "user", item["role"])
+		assert.Equal(t, true, item["active"])
+		assert.NotEmpty(t, item["id"])
+
+		pagination, ok := data["pagination"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, float64(1), pagination["current_page"])
+		assert.Equal(t, float64(20), pagination["page_size"])
+		assert.Equal(t, float64(1), pagination["total_items"])
+		assert.Equal(t, float64(1), pagination["total_pages"])
+		assert.Equal(t, false, pagination["has_previous"])
+		assert.Equal(t, false, pagination["has_next"])
 	})
 
 	t.Run("service error", func(t *testing.T) {
@@ -772,6 +788,23 @@ func TestAdminHandler_ListUsers_WithActiveFilter(t *testing.T) {
 		items, ok := data["items"].([]any)
 		require.True(t, ok)
 		assert.Len(t, items, 1)
+
+		item := items[0].(map[string]any)
+		assert.Equal(t, "active@example.com", item["email"])
+		assert.Equal(t, "Active", item["first_name"])
+		assert.Equal(t, "User", item["last_name"])
+		assert.Equal(t, "user", item["role"])
+		assert.Equal(t, true, item["active"])
+		assert.NotEmpty(t, item["id"])
+
+		pagination, ok := data["pagination"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, float64(1), pagination["current_page"])
+		assert.Equal(t, float64(20), pagination["page_size"])
+		assert.Equal(t, float64(1), pagination["total_items"])
+		assert.Equal(t, float64(1), pagination["total_pages"])
+		assert.Equal(t, false, pagination["has_previous"])
+		assert.Equal(t, false, pagination["has_next"])
 	})
 
 	t.Run("success with role filter", func(t *testing.T) {
@@ -808,11 +841,33 @@ func TestAdminHandler_ListUsers_WithActiveFilter(t *testing.T) {
 		require.NoError(t, err)
 		var got struct {
 			Items []struct {
-				Role string `json:"role"`
+				Email     string `json:"email"`
+				FirstName string `json:"first_name"`
+				LastName  string `json:"last_name"`
+				Role      string `json:"role"`
+				Active    bool   `json:"active"`
 			} `json:"items"`
+			Pagination struct {
+				CurrentPage int  `json:"current_page"`
+				PageSize    int  `json:"page_size"`
+				TotalItems  int  `json:"total_items"`
+				TotalPages  int  `json:"total_pages"`
+				HasPrevious bool `json:"has_previous"`
+				HasNext     bool `json:"has_next"`
+			} `json:"pagination"`
 		}
 		require.NoError(t, json.Unmarshal(dataJSON, &got))
 		assert.Len(t, got.Items, 1)
+		assert.Equal(t, "admin@example.com", got.Items[0].Email)
+		assert.Equal(t, "Admin", got.Items[0].FirstName)
+		assert.Equal(t, "User", got.Items[0].LastName)
 		assert.Equal(t, "admin", got.Items[0].Role)
+		assert.Equal(t, true, got.Items[0].Active)
+		assert.Equal(t, 1, got.Pagination.CurrentPage)
+		assert.Equal(t, 20, got.Pagination.PageSize)
+		assert.Equal(t, 1, got.Pagination.TotalItems)
+		assert.Equal(t, 1, got.Pagination.TotalPages)
+		assert.Equal(t, false, got.Pagination.HasPrevious)
+		assert.Equal(t, false, got.Pagination.HasNext)
 	})
 }
