@@ -13,6 +13,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
+func scanCategory(row pgx.CollectableRow) (Category, error) {
+	var c Category
+	err := row.Scan(&c.ID, &c.Name, &c.Slug, &c.Description, &c.ParentID,
+		&c.SortOrder, &c.Active, &c.CreatedAt, &c.UpdatedAt)
+	return c, err
+}
+
 type Repository interface {
 	Create(ctx context.Context, cat *Category) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Category, error)
@@ -124,16 +131,9 @@ func (r *PostgresRepository) List(ctx context.Context) ([]Category, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listing categories: %w", err)
 	}
-	defer rows.Close()
-
-	var categories []Category
-	for rows.Next() {
-		var c Category
-		if err := rows.Scan(&c.ID, &c.Name, &c.Slug, &c.Description, &c.ParentID,
-			&c.SortOrder, &c.Active, &c.CreatedAt, &c.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scanning category: %w", err)
-		}
-		categories = append(categories, c)
+	categories, err := pgx.CollectRows(rows, scanCategory)
+	if err != nil {
+		return nil, fmt.Errorf("listing categories: %w", err)
 	}
 
 	return categories, nil

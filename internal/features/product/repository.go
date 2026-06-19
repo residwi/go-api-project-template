@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -14,11 +13,17 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-// escapeLike escapes LIKE/ILIKE metacharacters so user-supplied search text is
-// matched literally rather than as wildcards. Postgres treats backslash as the
-// default escape character.
-func escapeLike(s string) string {
-	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+func scanProduct(row pgx.CollectableRow) (Product, error) {
+	var p Product
+	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &p.Price, &p.CompareAtPrice,
+		&p.Currency, &p.SKU, &p.StockQuantity, &p.ReservedQuantity, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+	return p, err
+}
+
+func scanImage(row pgx.CollectableRow) (Image, error) {
+	var img Image
+	err := row.Scan(&img.ID, &img.ProductID, &img.URL, &img.AltText, &img.SortOrder, &img.CreatedAt)
+	return img, err
 }
 
 type Repository interface {
@@ -172,18 +177,16 @@ func (r *PostgresRepository) ListPublished(ctx context.Context, params Published
 	}
 	if params.Search != "" {
 		where += fmt.Sprintf(" AND (name ILIKE $%d OR description ILIKE $%d)", argIdx, argIdx)
-		args = append(args, "%"+escapeLike(params.Search)+"%")
+		args = append(args, "%"+database.EscapeLike(params.Search)+"%")
 		argIdx++
 	}
 
 	if params.Cursor != "" {
-		createdAt, id, err := core.DecodeCursor(params.Cursor)
+		var err error
+		where, args, argIdx, err = database.KeysetCursor(where, args, argIdx, "created_at, id", params.Cursor)
 		if err != nil {
-			return nil, "", false, fmt.Errorf("%w: invalid cursor", core.ErrBadRequest)
+			return nil, "", false, err
 		}
-		where += fmt.Sprintf(" AND (created_at, id) < ($%d, $%d)", argIdx, argIdx+1)
-		args = append(args, createdAt, id)
-		argIdx += 2
 	}
 
 	// Fetch one extra to determine hasMore
@@ -200,19 +203,9 @@ func (r *PostgresRepository) ListPublished(ctx context.Context, params Published
 	if err != nil {
 		return nil, "", false, fmt.Errorf("listing published products: %w", err)
 	}
-	defer rows.Close()
-
-	var products []Product
-	for rows.Next() {
-		var p Product
-		if err := rows.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &p.Price, &p.CompareAtPrice,
-			&p.Currency, &p.SKU, &p.StockQuantity, &p.ReservedQuantity, &p.Status, &p.CreatedAt, &p.UpdatedAt); err != nil {
-			return nil, "", false, fmt.Errorf("scanning product: %w", err)
-		}
-		products = append(products, p)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, "", false, fmt.Errorf("iterating published products: %w", err)
+	products, err := pgx.CollectRows(rows, scanProduct)
+	if err != nil {
+		return nil, "", false, fmt.Errorf("listing published products: %w", err)
 	}
 
 	hasMore := len(products) > params.Limit
@@ -248,7 +241,7 @@ func (r *PostgresRepository) ListAdmin(ctx context.Context, params AdminListPara
 	}
 	if params.Search != "" {
 		where += fmt.Sprintf(" AND (name ILIKE $%d OR description ILIKE $%d OR sku ILIKE $%d)", argIdx, argIdx, argIdx)
-		args = append(args, "%"+escapeLike(params.Search)+"%")
+		args = append(args, "%"+database.EscapeLike(params.Search)+"%")
 		argIdx++
 	}
 
@@ -271,19 +264,9 @@ func (r *PostgresRepository) ListAdmin(ctx context.Context, params AdminListPara
 	if err != nil {
 		return nil, 0, fmt.Errorf("listing products: %w", err)
 	}
-	defer rows.Close()
-
-	var products []Product
-	for rows.Next() {
-		var p Product
-		if err := rows.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &p.Price, &p.CompareAtPrice,
-			&p.Currency, &p.SKU, &p.StockQuantity, &p.ReservedQuantity, &p.Status, &p.CreatedAt, &p.UpdatedAt); err != nil {
-			return nil, 0, fmt.Errorf("scanning product: %w", err)
-		}
-		products = append(products, p)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("iterating products: %w", err)
+	products, err := pgx.CollectRows(rows, scanProduct)
+	if err != nil {
+		return nil, 0, fmt.Errorf("listing products: %w", err)
 	}
 
 	return products, total, nil
@@ -326,18 +309,9 @@ func (r *PostgresRepository) GetImagesByProductID(ctx context.Context, productID
 	if err != nil {
 		return nil, fmt.Errorf("getting product images: %w", err)
 	}
-	defer rows.Close()
-
-	var images []Image
-	for rows.Next() {
-		var img Image
-		if err := rows.Scan(&img.ID, &img.ProductID, &img.URL, &img.AltText, &img.SortOrder, &img.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scanning product image: %w", err)
-		}
-		images = append(images, img)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating product images: %w", err)
+	images, err := pgx.CollectRows(rows, scanImage)
+	if err != nil {
+		return nil, fmt.Errorf("getting product images: %w", err)
 	}
 
 	return images, nil

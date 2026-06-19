@@ -13,6 +13,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
+func scanReview(row pgx.CollectableRow) (Review, error) {
+	var rv Review
+	err := row.Scan(&rv.ID, &rv.UserID, &rv.ProductID, &rv.OrderID, &rv.Rating, &rv.Title, &rv.Body, &rv.Status, &rv.CreatedAt, &rv.UpdatedAt)
+	return rv, err
+}
+
 type Repository interface {
 	Create(ctx context.Context, review *Review) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Review, error)
@@ -71,13 +77,11 @@ func (r *PostgresRepository) ListByProduct(ctx context.Context, productID uuid.U
 	argIdx := 2
 
 	if cursor.Cursor != "" {
-		cursorTime, cursorID, err := core.DecodeCursor(cursor.Cursor)
+		var err error
+		where, args, argIdx, err = database.KeysetCursor(where, args, argIdx, "created_at, id", cursor.Cursor)
 		if err != nil {
-			return nil, fmt.Errorf("%w: invalid cursor", core.ErrBadRequest)
+			return nil, err
 		}
-		where += fmt.Sprintf(" AND (created_at, id) < ($%d, $%d)", argIdx, argIdx+1)
-		args = append(args, cursorTime, cursorID)
-		argIdx += 2
 	}
 
 	query := fmt.Sprintf(
@@ -91,15 +95,9 @@ func (r *PostgresRepository) ListByProduct(ctx context.Context, productID uuid.U
 	if err != nil {
 		return nil, fmt.Errorf("listing product reviews: %w", err)
 	}
-	defer rows.Close()
-
-	var reviews []Review
-	for rows.Next() {
-		var rv Review
-		if err := rows.Scan(&rv.ID, &rv.UserID, &rv.ProductID, &rv.OrderID, &rv.Rating, &rv.Title, &rv.Body, &rv.Status, &rv.CreatedAt, &rv.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scanning review: %w", err)
-		}
-		reviews = append(reviews, rv)
+	reviews, err := pgx.CollectRows(rows, scanReview)
+	if err != nil {
+		return nil, fmt.Errorf("listing product reviews: %w", err)
 	}
 
 	return reviews, nil

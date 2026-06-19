@@ -5,10 +5,29 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
+
+func scanTopProduct(row pgx.CollectableRow) (TopProduct, error) {
+	var p TopProduct
+	err := row.Scan(&p.ProductID, &p.Name, &p.TotalSold, &p.Revenue)
+	return p, err
+}
+
+func scanRevenueData(row pgx.CollectableRow) (RevenueData, error) {
+	var d RevenueData
+	err := row.Scan(&d.Date, &d.Revenue, &d.OrderCount)
+	return d, err
+}
+
+func scanStatusBreakdown(row pgx.CollectableRow) (StatusBreakdown, error) {
+	var b StatusBreakdown
+	err := row.Scan(&b.Status, &b.Count)
+	return b, err
+}
 
 type Repository interface {
 	GetSalesSummary(ctx context.Context, from, to time.Time) (SalesSummary, error)
@@ -55,18 +74,9 @@ func (r *PostgresRepository) GetTopProducts(ctx context.Context, limit int, from
 	if err != nil {
 		return nil, fmt.Errorf("getting top products: %w", err)
 	}
-	defer rows.Close()
-
-	var products []TopProduct
-	for rows.Next() {
-		var p TopProduct
-		if err := rows.Scan(&p.ProductID, &p.Name, &p.TotalSold, &p.Revenue); err != nil {
-			return nil, fmt.Errorf("scanning top product: %w", err)
-		}
-		products = append(products, p)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating top products: %w", err)
+	products, err := pgx.CollectRows(rows, scanTopProduct)
+	if err != nil {
+		return nil, fmt.Errorf("getting top products: %w", err)
 	}
 
 	return products, nil
@@ -85,18 +95,9 @@ func (r *PostgresRepository) GetRevenueByDay(ctx context.Context, from, to time.
 	if err != nil {
 		return nil, fmt.Errorf("getting revenue by day: %w", err)
 	}
-	defer rows.Close()
-
-	var data []RevenueData
-	for rows.Next() {
-		var d RevenueData
-		if err := rows.Scan(&d.Date, &d.Revenue, &d.OrderCount); err != nil {
-			return nil, fmt.Errorf("scanning revenue data: %w", err)
-		}
-		data = append(data, d)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating revenue data: %w", err)
+	data, err := pgx.CollectRows(rows, scanRevenueData)
+	if err != nil {
+		return nil, fmt.Errorf("getting revenue by day: %w", err)
 	}
 
 	return data, nil
@@ -113,18 +114,9 @@ func (r *PostgresRepository) GetOrderStatusBreakdown(ctx context.Context, from, 
 	if err != nil {
 		return nil, fmt.Errorf("getting order status breakdown: %w", err)
 	}
-	defer rows.Close()
-
-	var breakdowns []StatusBreakdown
-	for rows.Next() {
-		var b StatusBreakdown
-		if err := rows.Scan(&b.Status, &b.Count); err != nil {
-			return nil, fmt.Errorf("scanning status breakdown: %w", err)
-		}
-		breakdowns = append(breakdowns, b)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating status breakdown: %w", err)
+	breakdowns, err := pgx.CollectRows(rows, scanStatusBreakdown)
+	if err != nil {
+		return nil, fmt.Errorf("getting order status breakdown: %w", err)
 	}
 
 	return breakdowns, nil

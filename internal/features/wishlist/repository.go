@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/core"
@@ -80,13 +81,11 @@ func (r *PostgresRepository) GetItems(ctx context.Context, userID uuid.UUID, cur
 	argIdx := 2
 
 	if cursor.Cursor != "" {
-		cursorCreatedAt, cursorID, cursorErr := core.DecodeCursor(cursor.Cursor)
-		if cursorErr != nil {
-			return nil, fmt.Errorf("%w: invalid cursor", core.ErrBadRequest)
+		var err error
+		where, args, argIdx, err = database.KeysetCursor(where, args, argIdx, "wi.created_at, wi.id", cursor.Cursor)
+		if err != nil {
+			return nil, err
 		}
-		where += fmt.Sprintf(" AND (wi.created_at, wi.id) < ($%d, $%d)", argIdx, argIdx+1)
-		args = append(args, cursorCreatedAt, cursorID)
-		argIdx += 2
 	}
 
 	query := fmt.Sprintf(
@@ -104,18 +103,21 @@ func (r *PostgresRepository) GetItems(ctx context.Context, userID uuid.UUID, cur
 	if err != nil {
 		return nil, fmt.Errorf("listing wishlist items: %w", err)
 	}
-	defer rows.Close()
 
-	var items []Item
-	for rows.Next() {
-		var item Item
-		if err := rows.Scan(&item.ID, &item.WishlistID, &item.ProductID, &item.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scanning wishlist item: %w", err)
-		}
-		items = append(items, item)
+	items, err := pgx.CollectRows(rows, scanItem)
+	if err != nil {
+		return nil, err
 	}
 
 	return items, nil
+}
+
+func scanItem(row pgx.CollectableRow) (Item, error) {
+	var item Item
+	if err := row.Scan(&item.ID, &item.WishlistID, &item.ProductID, &item.CreatedAt); err != nil {
+		return Item{}, fmt.Errorf("scanning wishlist item: %w", err)
+	}
+	return item, nil
 }
 
 func (r *PostgresRepository) HasItem(ctx context.Context, wishlistID, productID uuid.UUID) (bool, error) {

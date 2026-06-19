@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -14,10 +13,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-// escapeLike escapes LIKE/ILIKE metacharacters so user-supplied search text is
-// matched literally rather than as wildcards (Postgres default escape is \).
-func escapeLike(s string) string {
-	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+func scanUser(row pgx.CollectableRow) (User, error) {
+	var u User
+	err := row.Scan(&u.ID, &u.Email, &u.FirstName, &u.LastName,
+		&u.Phone, &u.Role, &u.Active, &u.CreatedAt, &u.UpdatedAt)
+	return u, err
 }
 
 type Repository interface {
@@ -168,7 +168,7 @@ func (r *PostgresRepository) List(ctx context.Context, params ListParams) ([]Use
 	}
 	if params.Search != "" {
 		where += fmt.Sprintf(" AND (first_name ILIKE $%d OR last_name ILIKE $%d OR email ILIKE $%d)", argIdx, argIdx, argIdx)
-		args = append(args, "%"+escapeLike(params.Search)+"%")
+		args = append(args, "%"+database.EscapeLike(params.Search)+"%")
 		argIdx++
 	}
 
@@ -189,19 +189,9 @@ func (r *PostgresRepository) List(ctx context.Context, params ListParams) ([]Use
 	if err != nil {
 		return nil, 0, fmt.Errorf("listing users: %w", err)
 	}
-	defer rows.Close()
-
-	var users []User
-	for rows.Next() {
-		var u User
-		if err := rows.Scan(&u.ID, &u.Email, &u.FirstName, &u.LastName,
-			&u.Phone, &u.Role, &u.Active, &u.CreatedAt, &u.UpdatedAt); err != nil {
-			return nil, 0, fmt.Errorf("scanning user: %w", err)
-		}
-		users = append(users, u)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("iterating users: %w", err)
+	users, err := pgx.CollectRows(rows, scanUser)
+	if err != nil {
+		return nil, 0, fmt.Errorf("listing users: %w", err)
 	}
 
 	return users, total, nil

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -143,18 +144,9 @@ func (w *Worker) sweepExpiredOrders(ctx context.Context) {
 		if err != nil {
 			return err
 		}
-		var ids []uuid.UUID
-		for rows.Next() {
-			var id uuid.UUID
-			if scanErr := rows.Scan(&id); scanErr != nil {
-				rows.Close()
-				return scanErr
-			}
-			ids = append(ids, id)
-		}
-		rows.Close()
-		if rowsErr := rows.Err(); rowsErr != nil {
-			return rowsErr
+		ids, err := pgx.CollectRows(rows, scanOrderID)
+		if err != nil {
+			return err
 		}
 		if len(ids) == 0 {
 			return nil
@@ -202,4 +194,10 @@ func (w *Worker) cleanupOldJobs(ctx context.Context) {
 	if deleted > 0 {
 		slog.InfoContext(ctx, "cleaned up old payment jobs", "deleted", deleted)
 	}
+}
+
+func scanOrderID(row pgx.CollectableRow) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }

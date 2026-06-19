@@ -13,6 +13,20 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
+func scanCartItem(row pgx.CollectableRow) (Item, error) {
+	var item Item
+	var cp Product
+	err := row.Scan(
+		&item.ID, &item.CartID, &item.ProductID, &item.Quantity, &item.CreatedAt, &item.UpdatedAt,
+		&cp.Name, &cp.Price, &cp.Currency, &cp.Stock, &cp.Status,
+	)
+	if err != nil {
+		return Item{}, err
+	}
+	item.Product = &cp
+	return item, nil
+}
+
 type Repository interface {
 	GetOrCreate(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
 	GetCart(ctx context.Context, userID uuid.UUID) (*Cart, error)
@@ -74,23 +88,9 @@ func (r *PostgresRepository) GetCart(ctx context.Context, userID uuid.UUID) (*Ca
 	if err != nil {
 		return nil, fmt.Errorf("getting cart items: %w", err)
 	}
-	defer rows.Close()
-
-	c.Items = []Item{}
-	for rows.Next() {
-		var item Item
-		var cp Product
-		if err := rows.Scan(
-			&item.ID, &item.CartID, &item.ProductID, &item.Quantity, &item.CreatedAt, &item.UpdatedAt,
-			&cp.Name, &cp.Price, &cp.Currency, &cp.Stock, &cp.Status,
-		); err != nil {
-			return nil, fmt.Errorf("scanning cart item: %w", err)
-		}
-		item.Product = &cp
-		c.Items = append(c.Items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating cart items: %w", err)
+	c.Items, err = pgx.CollectRows(rows, scanCartItem)
+	if err != nil {
+		return nil, fmt.Errorf("scanning cart item: %w", err)
 	}
 
 	return &c, nil

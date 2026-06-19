@@ -6,11 +6,31 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/core"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
+
+func scanNotification(row pgx.CollectableRow) (Notification, error) {
+	var n Notification
+	err := row.Scan(&n.ID, &n.UserID, &n.Type, &n.Title, &n.Body, &n.IsRead, &n.CreatedAt)
+	return n, err
+}
+
+func scanJob(row pgx.CollectableRow) (Job, error) {
+	var j Job
+	var lastError *string
+	if err := row.Scan(&j.ID, &j.UserID, &j.Type, &j.Title, &j.Body, &j.Data,
+		&j.Status, &j.Attempts, &j.MaxAttempts, &lastError, &j.CreatedAt); err != nil {
+		return Job{}, err
+	}
+	if lastError != nil {
+		j.LastError = *lastError
+	}
+	return j, nil
+}
 
 type Repository interface {
 	Create(ctx context.Context, n *Notification) error
@@ -54,13 +74,11 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, c
 	argIdx := 2
 
 	if cursor.Cursor != "" {
-		cursorTime, cursorID, err := core.DecodeCursor(cursor.Cursor)
+		var err error
+		where, args, argIdx, err = database.KeysetCursor(where, args, argIdx, "created_at, id", cursor.Cursor)
 		if err != nil {
-			return nil, fmt.Errorf("%w: invalid cursor", core.ErrBadRequest)
+			return nil, err
 		}
-		where += fmt.Sprintf(" AND (created_at, id) < ($%d, $%d)", argIdx, argIdx+1)
-		args = append(args, cursorTime, cursorID)
-		argIdx += 2
 	}
 
 	query := fmt.Sprintf(
@@ -74,18 +92,9 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, c
 	if err != nil {
 		return nil, fmt.Errorf("listing notifications: %w", err)
 	}
-	defer rows.Close()
-
-	var notifications []Notification
-	for rows.Next() {
-		var n Notification
-		if err := rows.Scan(&n.ID, &n.UserID, &n.Type, &n.Title, &n.Body, &n.IsRead, &n.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scanning notification: %w", err)
-		}
-		notifications = append(notifications, n)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating notifications: %w", err)
+	notifications, err := pgx.CollectRows(rows, scanNotification)
+	if err != nil {
+		return nil, fmt.Errorf("listing notifications: %w", err)
 	}
 
 	return notifications, nil
@@ -170,23 +179,9 @@ func (r *PostgresRepository) ClaimPendingJobs(ctx context.Context, batchSize int
 	if err != nil {
 		return nil, fmt.Errorf("claiming pending jobs: %w", err)
 	}
-	defer rows.Close()
-
-	var jobs []Job
-	for rows.Next() {
-		var j Job
-		var lastError *string
-		if err := rows.Scan(&j.ID, &j.UserID, &j.Type, &j.Title, &j.Body, &j.Data,
-			&j.Status, &j.Attempts, &j.MaxAttempts, &lastError, &j.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scanning notification job: %w", err)
-		}
-		if lastError != nil {
-			j.LastError = *lastError
-		}
-		jobs = append(jobs, j)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating notification jobs: %w", err)
+	jobs, err := pgx.CollectRows(rows, scanJob)
+	if err != nil {
+		return nil, fmt.Errorf("claiming pending jobs: %w", err)
 	}
 
 	return jobs, nil

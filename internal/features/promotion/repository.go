@@ -13,6 +13,14 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
+func scanPromotion(row pgx.CollectableRow) (Promotion, error) {
+	var p Promotion
+	err := row.Scan(&p.ID, &p.Code, &p.Type, &p.Value, &p.MinOrderAmount,
+		&p.MaxDiscount, &p.MaxUses, &p.UsedCount, &p.StartsAt, &p.ExpiresAt,
+		&p.Active, &p.CreatedAt, &p.UpdatedAt)
+	return p, err
+}
+
 type Repository interface {
 	Create(ctx context.Context, promo *Promotion) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Promotion, error)
@@ -137,17 +145,9 @@ func (r *PostgresRepository) ListAdmin(ctx context.Context, params ListParams) (
 	if err != nil {
 		return nil, 0, fmt.Errorf("listing promotions: %w", err)
 	}
-	defer rows.Close()
-
-	var promotions []Promotion
-	for rows.Next() {
-		var p Promotion
-		if err := rows.Scan(&p.ID, &p.Code, &p.Type, &p.Value, &p.MinOrderAmount,
-			&p.MaxDiscount, &p.MaxUses, &p.UsedCount, &p.StartsAt, &p.ExpiresAt,
-			&p.Active, &p.CreatedAt, &p.UpdatedAt); err != nil {
-			return nil, 0, fmt.Errorf("scanning promotion: %w", err)
-		}
-		promotions = append(promotions, p)
+	promotions, err := pgx.CollectRows(rows, scanPromotion)
+	if err != nil {
+		return nil, 0, fmt.Errorf("listing promotions: %w", err)
 	}
 
 	return promotions, total, nil

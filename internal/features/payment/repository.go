@@ -222,6 +222,25 @@ func (r *PostgresRepository) MarkPaid(ctx context.Context, id uuid.UUID, fromSta
 	return nil
 }
 
+func scanPaymentByOrder(row pgx.CollectableRow) (Payment, error) {
+	var p Payment
+	var paymentMethodID, paymentURL, gatewayTxnID *string
+	if err := row.Scan(&p.ID, &p.OrderID, &p.Amount, &p.Currency, &p.Status, &p.Method,
+		&paymentMethodID, &paymentURL, &gatewayTxnID, &p.PaidAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		return Payment{}, fmt.Errorf("scanning payment: %w", err)
+	}
+	if paymentMethodID != nil {
+		p.PaymentMethodID = *paymentMethodID
+	}
+	if paymentURL != nil {
+		p.PaymentURL = *paymentURL
+	}
+	if gatewayTxnID != nil {
+		p.GatewayTxnID = *gatewayTxnID
+	}
+	return p, nil
+}
+
 func (r *PostgresRepository) ListByOrderID(ctx context.Context, orderID uuid.UUID) ([]Payment, error) {
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
@@ -232,28 +251,9 @@ func (r *PostgresRepository) ListByOrderID(ctx context.Context, orderID uuid.UUI
 	if err != nil {
 		return nil, fmt.Errorf("listing payments by order: %w", err)
 	}
-	defer rows.Close()
 
-	var payments []Payment
-	for rows.Next() {
-		var p Payment
-		var paymentMethodID, paymentURL, gatewayTxnID *string
-		if err := rows.Scan(&p.ID, &p.OrderID, &p.Amount, &p.Currency, &p.Status, &p.Method,
-			&paymentMethodID, &paymentURL, &gatewayTxnID, &p.PaidAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scanning payment: %w", err)
-		}
-		if paymentMethodID != nil {
-			p.PaymentMethodID = *paymentMethodID
-		}
-		if paymentURL != nil {
-			p.PaymentURL = *paymentURL
-		}
-		if gatewayTxnID != nil {
-			p.GatewayTxnID = *gatewayTxnID
-		}
-		payments = append(payments, p)
-	}
-	if err := rows.Err(); err != nil {
+	payments, err := pgx.CollectRows(rows, scanPaymentByOrder)
+	if err != nil {
 		return nil, fmt.Errorf("iterating payments by order: %w", err)
 	}
 	return payments, nil
@@ -297,28 +297,28 @@ func (r *PostgresRepository) ListAdmin(ctx context.Context, params AdminListPara
 	if err != nil {
 		return nil, 0, fmt.Errorf("listing payments: %w", err)
 	}
-	defer rows.Close()
 
-	var payments []Payment
-	for rows.Next() {
-		var p Payment
-		var paymentMethodID, gatewayTxnID *string
-		if err := rows.Scan(&p.ID, &p.OrderID, &p.Amount, &p.Currency, &p.Status, &p.Method,
-			&paymentMethodID, &gatewayTxnID, &p.PaidAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
-			return nil, 0, fmt.Errorf("scanning payment: %w", err)
-		}
-		if paymentMethodID != nil {
-			p.PaymentMethodID = *paymentMethodID
-		}
-		if gatewayTxnID != nil {
-			p.GatewayTxnID = *gatewayTxnID
-		}
-		payments = append(payments, p)
-	}
-	if err := rows.Err(); err != nil {
+	payments, err := pgx.CollectRows(rows, scanPaymentAdmin)
+	if err != nil {
 		return nil, 0, fmt.Errorf("iterating payments: %w", err)
 	}
 	return payments, total, nil
+}
+
+func scanPaymentAdmin(row pgx.CollectableRow) (Payment, error) {
+	var p Payment
+	var paymentMethodID, gatewayTxnID *string
+	if err := row.Scan(&p.ID, &p.OrderID, &p.Amount, &p.Currency, &p.Status, &p.Method,
+		&paymentMethodID, &gatewayTxnID, &p.PaidAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		return Payment{}, fmt.Errorf("scanning payment: %w", err)
+	}
+	if paymentMethodID != nil {
+		p.PaymentMethodID = *paymentMethodID
+	}
+	if gatewayTxnID != nil {
+		p.GatewayTxnID = *gatewayTxnID
+	}
+	return p, nil
 }
 
 func (r *PostgresRepository) CreateJob(ctx context.Context, job *Job) error {
@@ -364,29 +364,29 @@ func (r *PostgresRepository) ClaimPendingJobs(ctx context.Context, batchSize int
 	if err != nil {
 		return nil, fmt.Errorf("claiming pending jobs: %w", err)
 	}
-	defer rows.Close()
 
-	var jobs []Job
-	for rows.Next() {
-		var j Job
-		var lastError, inventoryAction *string
-		if err := rows.Scan(&j.ID, &j.PaymentID, &j.OrderID, &j.Action, &j.Status,
-			&j.Attempts, &j.MaxAttempts, &lastError, &j.LockedUntil, &j.NextRetryAt,
-			&inventoryAction, &j.CreatedAt, &j.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scanning payment job: %w", err)
-		}
-		if lastError != nil {
-			j.LastError = *lastError
-		}
-		if inventoryAction != nil {
-			j.InventoryAction = *inventoryAction
-		}
-		jobs = append(jobs, j)
-	}
-	if err := rows.Err(); err != nil {
+	jobs, err := pgx.CollectRows(rows, scanJob)
+	if err != nil {
 		return nil, fmt.Errorf("iterating payment jobs: %w", err)
 	}
 	return jobs, nil
+}
+
+func scanJob(row pgx.CollectableRow) (Job, error) {
+	var j Job
+	var lastError, inventoryAction *string
+	if err := row.Scan(&j.ID, &j.PaymentID, &j.OrderID, &j.Action, &j.Status,
+		&j.Attempts, &j.MaxAttempts, &lastError, &j.LockedUntil, &j.NextRetryAt,
+		&inventoryAction, &j.CreatedAt, &j.UpdatedAt); err != nil {
+		return Job{}, fmt.Errorf("scanning payment job: %w", err)
+	}
+	if lastError != nil {
+		j.LastError = *lastError
+	}
+	if inventoryAction != nil {
+		j.InventoryAction = *inventoryAction
+	}
+	return j, nil
 }
 
 func (r *PostgresRepository) UpdateJob(ctx context.Context, job *Job) error {
