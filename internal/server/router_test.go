@@ -1494,9 +1494,11 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	orderID := orderData["id"].(string)
 
 	t.Run("order has coupon applied with discount", func(t *testing.T) {
+		// Product price 10000 x1, 10% coupon -> discount 1000, total 9000.
 		assert.Equal(t, couponCode, orderData["coupon_code"])
-		assert.Greater(t, orderData["discount_amount"].(float64), float64(0))
-		assert.Less(t, orderData["total_amount"].(float64), orderData["subtotal_amount"].(float64))
+		assert.Equal(t, float64(10000), orderData["subtotal_amount"])
+		assert.Equal(t, float64(1000), orderData["discount_amount"])
+		assert.Equal(t, float64(9000), orderData["total_amount"])
 	})
 
 	t.Run("cancel order releases coupon", func(t *testing.T) {
