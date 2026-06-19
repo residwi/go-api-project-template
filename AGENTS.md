@@ -32,7 +32,8 @@ Production-ready ecommerce API template built in Go 1.26. It exposes RESTful end
   - `logger/` — Structured logging setup
   - `email/` — Email service (future)
   - `storage/` — File storage (future)
-- `internal/server/` — HTTP server bootstrap, router, cross-feature adapter wiring
+- `internal/server/` — HTTP server bootstrap, router, service composition
+- `internal/wiring/` — Cross-feature adapters (concrete types satisfying other features' inline interfaces) and the constructors that build cross-dependent services, shared by the API server and worker so adapters are defined once, not per binary
 - `db/migrations/` — Timestamped SQL migration files (goose)
 - `mocks/` — Generated mocks (mockery v3); sub-dirs per feature
 - `bin/` — Build output
@@ -115,12 +116,14 @@ make ci    # deps → fmt → vet → lint → test
 - Naming: packages are short, singular nouns (`user`, `product`, `cart`). Files inside a feature: `handler.go`, `service.go`, `repository.go`, `model.go`, `dto.go`, `routes.go`. Tests: `*_test.go` in the same package.
 - Error handling: Application errors in `core/apperror.go`; use sentinel errors like `core.ErrNotFound`, `core.ErrBadRequest`, `core.ErrUnauthorized` for structured error responses. Wrap with `fmt.Errorf("%w: ...", core.ErrBadRequest)` for additional context.
 - Response helpers: Use `response.OK()`, `response.Created()`, `response.BadRequest()`, `response.NotFound()`, etc. from `internal/core/response/`.
+- Request decoding: handlers decode and validate a JSON body with `response.Bind[T](w, r, h.validator)` and read the authenticated user with `middleware.RequireUser(w, r)` — not hand-rolled decode/validate or auth-context blocks.
+- Repository reads: scan list/collection queries with `pgx.CollectRows` (never hand-rolled `for rows.Next()` loops). Escape ILIKE search terms with `database.EscapeLike()` and build keyset pagination predicates with `database.KeysetCursor()`.
 - Formatting: `gofmt -s`; enforced via `make fmt` and golangci-lint.
 - Imports: Group as stdlib, blank line, third-party, blank line, local (`go-api-project-template/...`).
 - Commit messages: imperative mood, e.g. "Add webhook signature validation". No conventional-commits prefix required.
 - Comments: Add only when necessary. Explain why, not how.
 - Duplication over wrong abstraction: Prefer duplicating code over introducing a shared abstraction that doesn't quite fit.
-- Cross-feature dependencies: Use inline interfaces at the top of the consumer's `service.go` (dependency inversion). No shared `port.go` files. Each feature defines only the methods it needs from other features.
+- Cross-feature dependencies: Use inline interfaces at the top of the consumer's `service.go` (dependency inversion). No shared `port.go` files. Each feature defines only the methods it needs from other features. The concrete adapters that satisfy those interfaces live in `internal/wiring` (not in `server/router.go`), exposed as service constructors both binaries reuse.
 
 ## Architecture Notes
 
@@ -343,12 +346,12 @@ Tests must stay fast. Follow these rules to avoid slow tests:
 - Do not suppress lint or vet errors with `//nolint` without a justification comment.
 - Preserve the vertical-slice structure: each feature module is self-contained with handler → service → repository interface. PostgreSQL repository implementations are embedded in each feature package.
 - Cross-feature dependencies must use inline interfaces at the top of the consumer's `service.go`. Never import another feature's concrete types directly.
-- When adding a new feature, create a package under `internal/features/`, register routes in `internal/server/router.go`, and add adapters for cross-feature deps.
+- When adding a new feature, create a package under `internal/features/`, register routes in `internal/server/router.go`, and place any cross-feature adapters in `internal/wiring`.
 
 ## Extensibility Hooks
 
 - Environment variables: All config is driven by env vars with sensible defaults (see `.env.example` and `internal/config/config.go`).
-- New feature modules: Add a package under `internal/features/`, define the repository interface there, implement the PostgreSQL repository in the same package, and register routes in `internal/server/router.go`.
+- New feature modules: Add a package under `internal/features/`, define the repository interface there, implement the PostgreSQL repository in the same package, register routes in `internal/server/router.go`, and place any cross-feature adapters in `internal/wiring`.
 - Worker tuning: `WORKER_INTERVAL`, `WORKER_BATCH_SIZE`, `WORKER_LEASE_DURATION`, `WORKER_CONCURRENCY` control the payment worker without code changes.
 - Middleware chain: Add new middleware in `internal/middleware/` and wire it in `internal/server/router.go`.
 - Payment gateways: Implement the `payment.Gateway` interface in `internal/platform/payment/` and swap via `PAYMENT_GATEWAY` env var.

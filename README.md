@@ -56,7 +56,8 @@ A production-ready Go API template with Feature-Based Clean Architecture (Vertic
 │   │   ├── /logger             # Structured logging
 │   │   ├── /email              # Email service
 │   │   └── /storage            # File storage
-│   └── /server                 # HTTP server bootstrap & router
+│   ├── /server                 # HTTP server bootstrap & router
+│   └── /wiring                 # Cross-feature adapters (shared by API & worker)
 ├── /db/migrations              # Database migration files (goose)
 ├── /mocks                      # Generated mocks (mockery v3)
 └── ...
@@ -509,7 +510,7 @@ This template follows **Feature-Based Clean Architecture** (Vertical Slicing):
 - Each feature (auth, user, product, order, etc.) is self-contained with its own handler, service, repository, and DTOs
 - Dependencies flow inward (handlers → services → repositories)
 - PostgreSQL repositories are embedded within each feature package
-- Cross-feature dependencies use inline interfaces (consumer-defined) to maintain loose coupling
+- Cross-feature dependencies use inline interfaces (consumer-defined) to maintain loose coupling; the concrete adapters that satisfy them live in `internal/wiring`, shared by the API server and worker so they are defined once
 - Shared value objects (`Money`, `Address`, `Pagination`, `AppError`) live in `internal/core`
 
 ### Layer Responsibilities
@@ -523,6 +524,7 @@ This template follows **Feature-Based Clean Architecture** (Vertical Slicing):
 | `middleware` | HTTP middleware (auth, RBAC, logging, recovery)           |
 | `platform`   | Infrastructure (database, cache, payment, email, storage) |
 | `server`     | HTTP server bootstrap & router                            |
+| `wiring`     | Cross-feature adapters + service constructors (shared by API & worker) |
 
 ## Security
 
