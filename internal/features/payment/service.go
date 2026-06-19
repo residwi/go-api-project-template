@@ -53,6 +53,19 @@ type OrderSnapshot struct {
 	Currency    string
 	Status      string
 	CouponCode  string
+	// StockDeducted reports whether the order's inventory was deducted from
+	// stock (vs only reserved). The order module owns this rule; payment is
+	// told the answer rather than re-deriving it from Status.
+	StockDeducted bool
+}
+
+// inventoryActionFor returns the inventory compensation a reversal requires:
+// restock when stock was deducted, release when it was only reserved.
+func inventoryActionFor(snap OrderSnapshot) string {
+	if snap.StockDeducted {
+		return inventoryActionRestock
+	}
+	return inventoryActionRelease
 }
 
 type OrderGetter interface {
@@ -345,7 +358,7 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 			return core.ErrAlreadyFinalized
 		}
 
-		if orderErr != nil { //nolint:nestif // complex error recovery logic
+		if orderErr != nil {
 			slog.ErrorContext(txCtx, "late payment success on terminal order, auto-refund enqueued",
 				"order_id", job.OrderID, "payment_id", job.PaymentID,
 				"order_status", orderSnap.Status)
@@ -358,10 +371,7 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 				slog.ErrorContext(txCtx, "failed to update order status to fulfillment_failed", "order_id", job.OrderID, "error", orderStatusErr)
 			}
 
-			inventoryAction := inventoryActionRelease
-			if orderSnap.Status == orderStatusPaid || orderSnap.Status == orderStatusDelivered {
-				inventoryAction = inventoryActionRestock
-			}
+			inventoryAction := inventoryActionFor(orderSnap)
 			refundJob := &Job{
 				PaymentID:       job.PaymentID,
 				OrderID:         job.OrderID,
@@ -626,10 +636,7 @@ func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
 		return err
 	}
 
-	inventoryAction := inventoryActionRelease
-	if orderSnap.Status == orderStatusPaid || orderSnap.Status == orderStatusDelivered {
-		inventoryAction = inventoryActionRestock
-	}
+	inventoryAction := inventoryActionFor(orderSnap)
 
 	job := &Job{
 		PaymentID:       paymentID,

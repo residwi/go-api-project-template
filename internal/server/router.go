@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
@@ -25,9 +24,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/features/wishlist"
 	"github.com/residwi/go-api-project-template/internal/middleware"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
 	mockgw "github.com/residwi/go-api-project-template/internal/platform/payment/mock"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/wiring"
 )
 
 type Router struct {
@@ -38,13 +37,10 @@ type Router struct {
 func NewRouter(deps *Deps) *Router { //nolint:funlen
 	mux := http.NewServeMux()
 
-	// Health check
 	mux.HandleFunc("GET /health", healthHandler(deps.Pool, deps.Redis))
 
-	// Create validator
 	v := validator.New()
 
-	// ── Repositories ──────────────────────────────────────────────────────
 	userRepo := user.NewPostgresRepository(deps.Pool)
 	categoryRepo := category.NewPostgresRepository(deps.Pool)
 	productRepo := product.NewPostgresRepository(deps.Pool)
@@ -59,17 +55,11 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen
 	notificationRepo := notification.NewPostgresRepository(deps.Pool)
 	dashboardRepo := dashboard.NewPostgresRepository(deps.Pool)
 
-	// ── Services (no cross-feature deps) ──────────────────────────────────
 	userSvc := user.NewService(userRepo, deps.Pool, deps.Redis)
 	categorySvc := category.NewService(categoryRepo, deps.Pool)
 	productSvc := product.NewService(productRepo, deps.Pool)
 	inventorySvc := inventory.NewService(inventoryRepo, deps.Pool)
-	cartSvc := cart.NewService(
-		cartRepo,
-		deps.Pool,
-		&productLookupAdapter{svc: productSvc},
-		deps.Config.App.MaxCartItems,
-	)
+	cartSvc := wiring.NewCartService(cartRepo, deps.Pool, productSvc, deps.Config.App.MaxCartItems)
 	authSvc := auth.NewService(
 		userSvc,
 		deps.Config.JWT.Secret,
@@ -83,63 +73,22 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen
 	wishlistSvc := wishlist.NewService(wishlistRepo, deps.Pool)
 	dashboardSvc := dashboard.NewService(dashboardRepo)
 
-	// ── Order service (created with nil payment deps — set below) ─────────
-	orderSvc := order.NewService(
-		orderRepo,
-		deps.Pool,
-		&cartProviderAdapter{svc: cartSvc},
-		&inventoryReserverAdapter{svc: inventorySvc},
-		nil, // payment — set after paymentSvc is created
-		nil, // paymentCancel — set after paymentSvc is created
-		&couponReserverAdapter{svc: promotionSvc},
-		&notificationEnqueuerAdapter{svc: notificationSvc},
-	)
+	orderSvc := wiring.NewOrderService(orderRepo, deps.Pool, cartSvc, inventorySvc, promotionSvc, notificationSvc)
 
-	// ── Payment gateway ───────────────────────────────────────────────────
 	cfg := deps.Config
 	gw := mockgw.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 
-	// ── Payment service ───────────────────────────────────────────────────
-	paymentSvc := payment.NewService(
-		paymentRepo,
-		deps.Pool,
-		gw,
-		&orderUpdaterAdapter{svc: orderSvc},
-		&orderGetterAdapter{svc: orderSvc},
-		&orderItemsGetterAdapter{svc: orderSvc},
-		&inventoryDeductorAdapter{svc: inventorySvc},
-		&inventoryReleaserAdapter{svc: inventorySvc},
-		&inventoryRestockerAdapter{svc: inventorySvc},
-		&couponReleaserAdapter{svc: promotionSvc},
-	)
+	paymentSvc := wiring.NewPaymentService(paymentRepo, deps.Pool, gw, orderSvc, inventorySvc, promotionSvc)
+	wiring.SetOrderPaymentDeps(orderSvc, paymentSvc)
 
-	// ── Break circular dependency: set payment deps on order service ──────
-	orderSvc.SetPaymentDeps(
-		&paymentInitiatorAdapter{svc: paymentSvc},
-		&paymentJobCancellerAdapter{svc: paymentSvc},
-	)
+	shippingSvc, shippingOrderProvider := wiring.NewShippingService(shippingRepo, deps.Pool, orderSvc)
 
-	// ── Shipping service ──────────────────────────────────────────────────
-	shippingOrderProvider := &shippingOrderProviderAdapter{svc: orderSvc}
-	shippingSvc := shipping.NewService(
-		shippingRepo,
-		deps.Pool,
-		shippingOrderProvider,
-		&shippingOrderUpdaterAdapter{svc: orderSvc},
-	)
+	reviewSvc := review.NewService(reviewRepo, orderSvc)
 
-	// ── Review service ────────────────────────────────────────────────────
-	reviewSvc := review.NewService(
-		reviewRepo,
-		&purchaseVerifierAdapter{pool: deps.Pool},
-	)
-
-	// ── Middleware ─────────────────────────────────────────────────────────
 	tokenValidator := auth.NewTokenValidatorAdapter(authSvc)
 	authMiddleware := middleware.Auth(tokenValidator, userSvc)
 	adminMiddleware := middleware.RequireAdmin
 
-	// ── Route groups ──────────────────────────────────────────────────────
 	api := middleware.NewRouteGroup(mux, "/api")
 	authed := middleware.NewRouteGroup(mux, "/api", authMiddleware)
 	admin := middleware.NewRouteGroup(mux, "/api/admin", authMiddleware, adminMiddleware)
@@ -149,7 +98,6 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen
 	authLimiter := middleware.RateLimit(deps.Redis, deps.Config.App.AuthRateLimit, deps.Config.App.AuthRateWindow)
 	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
 
-	// ── Register feature routes ───────────────────────────────────────────
 	auth.RegisterRoutes(authPublic, auth.RouteDeps{Validator: v, Service: authSvc})
 	user.RegisterRoutes(authed, admin, user.RouteDeps{Validator: v, Service: userSvc})
 	category.RegisterRoutes(api, admin, category.RouteDeps{Validator: v, Service: categorySvc})
@@ -165,12 +113,10 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen
 	notification.RegisterRoutes(authed, notification.RouteDeps{Service: notificationSvc})
 	dashboard.RegisterRoutes(admin, dashboard.RouteDeps{Service: dashboardSvc})
 
-	// ── Mock payment routes (development only) ────────────────────────────
 	if deps.Config.App.Env == "development" {
 		mockgw.RegisterRoutes(mux, mockgw.WithWebhookSecret(cfg.Payment.WebhookSecret))
 	}
 
-	// Global middleware
 	return &Router{
 		Handler: middleware.Chain(
 			middleware.RequestID,
@@ -188,7 +134,6 @@ func healthHandler(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 		httpStatus := http.StatusOK
 		details := make(map[string]string)
 
-		// Check PostgreSQL
 		if err := pool.Ping(r.Context()); err != nil {
 			status = "unhealthy"
 			httpStatus = http.StatusServiceUnavailable
@@ -198,7 +143,6 @@ func healthHandler(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 			details["postgres"] = "up"
 		}
 
-		// Check Redis
 		checkRedis(r.Context(), rdb, &status, &httpStatus, details)
 
 		w.Header().Set("Content-Type", "application/json")
@@ -227,287 +171,4 @@ func checkRedis(ctx context.Context, rdb *redis.Client, status *string, httpStat
 	}
 
 	details["redis"] = "up"
-}
-
-// ── Existing adapters ────────────────────────────────────────────────────
-
-type productLookupAdapter struct {
-	svc *product.Service
-}
-
-func (a *productLookupAdapter) GetByID(ctx context.Context, id uuid.UUID) (*cart.ProductInfo, error) {
-	p, err := a.svc.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return &cart.ProductInfo{
-		ID:        p.ID,
-		Name:      p.Name,
-		Price:     p.Price,
-		Currency:  p.Currency,
-		Status:    p.Status,
-		Available: p.StockQuantity - p.ReservedQuantity,
-	}, nil
-}
-
-// ── order.CartProvider adapter ───────────────────────────────────────────
-
-type cartProviderAdapter struct {
-	svc *cart.Service
-}
-
-func (a *cartProviderAdapter) GetCart(ctx context.Context, userID uuid.UUID) (*order.CartSnapshot, error) {
-	c, err := a.svc.GetCart(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	snap := &order.CartSnapshot{ID: c.ID}
-	for _, item := range c.Items {
-		si := order.CartSnapshotItem{
-			ProductID: item.ProductID,
-			Quantity:  item.Quantity,
-		}
-		if item.Product != nil {
-			si.Name = item.Product.Name
-			si.Price = item.Product.Price
-			si.Currency = item.Product.Currency
-			si.Status = item.Product.Status
-		}
-		snap.Items = append(snap.Items, si)
-	}
-	return snap, nil
-}
-
-func (a *cartProviderAdapter) Clear(ctx context.Context, userID uuid.UUID) error {
-	return a.svc.Clear(ctx, userID)
-}
-
-// ── order.InventoryReserver adapter ──────────────────────────────────────
-
-type inventoryReserverAdapter struct {
-	svc *inventory.Service
-}
-
-func (a *inventoryReserverAdapter) ReserveBatch(ctx context.Context, items []order.InventoryItem) error {
-	return a.svc.ReserveBatch(ctx, toStockChanges(items))
-}
-
-func (a *inventoryReserverAdapter) ReleaseBatch(ctx context.Context, items []order.InventoryItem) error {
-	return a.svc.ReleaseBatch(ctx, toStockChanges(items))
-}
-
-func toStockChanges(items []order.InventoryItem) []inventory.StockChange {
-	changes := make([]inventory.StockChange, len(items))
-	for i, it := range items {
-		changes[i] = inventory.StockChange{ProductID: it.ProductID, Quantity: it.Quantity}
-	}
-	return changes
-}
-
-// ── order.PaymentInitiator adapter ───────────────────────────────────────
-
-type paymentInitiatorAdapter struct {
-	svc *payment.Service
-}
-
-func (a *paymentInitiatorAdapter) InitiatePayment(ctx context.Context, params order.InitiatePaymentParams) (order.PaymentResult, error) {
-	result, err := a.svc.InitiatePayment(ctx, payment.InitiatePaymentParams{
-		OrderID:         params.OrderID,
-		Amount:          params.Amount,
-		Currency:        params.Currency,
-		PaymentMethodID: params.PaymentMethodID,
-	})
-	if err != nil {
-		return order.PaymentResult{}, err
-	}
-	return order.PaymentResult{
-		PaymentID:  result.PaymentID,
-		PaymentURL: result.PaymentURL,
-		Charged:    result.Charged,
-	}, nil
-}
-
-// ── order.PaymentJobCanceller adapter ────────────────────────────────────
-
-type paymentJobCancellerAdapter struct {
-	svc *payment.Service
-}
-
-func (a *paymentJobCancellerAdapter) CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.CancelJobsByOrderID(ctx, orderID)
-}
-
-// ── payment.OrderUpdater adapter ─────────────────────────────────────────
-
-type orderUpdaterAdapter struct {
-	svc *order.Service
-}
-
-func (a *orderUpdaterAdapter) UpdateStatus(ctx context.Context, orderID uuid.UUID, fromStatuses []string, toStatus string) error {
-	from := make([]order.Status, len(fromStatuses))
-	for i, s := range fromStatuses {
-		from[i] = order.Status(s)
-	}
-	return a.svc.UpdateStatusMulti(ctx, orderID, from, order.Status(toStatus))
-}
-
-// ── payment.OrderGetter adapter ──────────────────────────────────────────
-
-type orderGetterAdapter struct {
-	svc *order.Service
-}
-
-func (a *orderGetterAdapter) GetByID(ctx context.Context, orderID uuid.UUID) (payment.OrderSnapshot, error) {
-	o, err := a.svc.GetOrderByID(ctx, orderID)
-	if err != nil {
-		return payment.OrderSnapshot{}, err
-	}
-	couponCode := ""
-	if o.CouponCode != nil {
-		couponCode = *o.CouponCode
-	}
-	return payment.OrderSnapshot{
-		TotalAmount: o.TotalAmount,
-		Currency:    o.Currency,
-		Status:      string(o.Status),
-		CouponCode:  couponCode,
-	}, nil
-}
-
-// ── payment.OrderItemsGetter adapter ─────────────────────────────────────
-
-type orderItemsGetterAdapter struct {
-	svc *order.Service
-}
-
-func (a *orderItemsGetterAdapter) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]payment.OrderItemDTO, error) {
-	items, err := a.svc.ListItemsByOrderID(ctx, orderID)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]payment.OrderItemDTO, len(items))
-	for i, item := range items {
-		result[i] = payment.OrderItemDTO{ProductID: item.ProductID, Quantity: item.Quantity}
-	}
-	return result, nil
-}
-
-// ── payment.InventoryDeductor adapter ────────────────────────────────────
-
-type inventoryDeductorAdapter struct {
-	svc *inventory.Service
-}
-
-func (a *inventoryDeductorAdapter) DeductBatch(ctx context.Context, items []payment.InventoryChange) error {
-	return a.svc.DeductBatch(ctx, toPaymentStockChanges(items))
-}
-
-// ── payment.InventoryReleaser adapter ────────────────────────────────────
-
-type inventoryReleaserAdapter struct {
-	svc *inventory.Service
-}
-
-func (a *inventoryReleaserAdapter) ReleaseBatch(ctx context.Context, items []payment.InventoryChange) error {
-	return a.svc.ReleaseBatch(ctx, toPaymentStockChanges(items))
-}
-
-// ── payment.InventoryRestocker adapter ───────────────────────────────────
-
-type inventoryRestockerAdapter struct {
-	svc *inventory.Service
-}
-
-func (a *inventoryRestockerAdapter) RestockBatch(ctx context.Context, items []payment.InventoryChange) error {
-	return a.svc.RestockBatch(ctx, toPaymentStockChanges(items))
-}
-
-func toPaymentStockChanges(items []payment.InventoryChange) []inventory.StockChange {
-	changes := make([]inventory.StockChange, len(items))
-	for i, it := range items {
-		changes[i] = inventory.StockChange{ProductID: it.ProductID, Quantity: it.Quantity}
-	}
-	return changes
-}
-
-// ── payment.CouponReleaser adapter ───────────────────────────────────────
-
-type couponReleaserAdapter struct {
-	svc *promotion.Service
-}
-
-func (a *couponReleaserAdapter) Release(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.Release(ctx, orderID)
-}
-
-// ── order.CouponReserver adapter ─────────────────────────────────────────
-
-type couponReserverAdapter struct {
-	svc *promotion.Service
-}
-
-func (a *couponReserverAdapter) Reserve(ctx context.Context, code string, userID, orderID uuid.UUID, orderSubtotal int64) (int64, error) {
-	return a.svc.Reserve(ctx, code, userID, orderID, orderSubtotal)
-}
-
-func (a *couponReserverAdapter) Release(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.Release(ctx, orderID)
-}
-
-// ── order.NotificationEnqueuer adapter ───────────────────────────────────
-
-type notificationEnqueuerAdapter struct {
-	svc *notification.Service
-}
-
-func (a *notificationEnqueuerAdapter) EnqueueOrderPlaced(ctx context.Context, userID, orderID uuid.UUID) error {
-	return a.svc.EnqueueOrderPlaced(ctx, userID, orderID)
-}
-
-// ── shipping.OrderProvider adapter ───────────────────────────────────────
-
-type shippingOrderProviderAdapter struct {
-	svc *order.Service
-}
-
-func (a *shippingOrderProviderAdapter) GetByID(ctx context.Context, orderID uuid.UUID) (shipping.OrderInfo, error) {
-	o, err := a.svc.GetOrderByID(ctx, orderID)
-	if err != nil {
-		return shipping.OrderInfo{}, err
-	}
-	return shipping.OrderInfo{ID: o.ID, UserID: o.UserID, Status: string(o.Status)}, nil
-}
-
-// ── shipping.OrderUpdater adapter ────────────────────────────────────────
-
-type shippingOrderUpdaterAdapter struct {
-	svc *order.Service
-}
-
-func (a *shippingOrderUpdaterAdapter) UpdateStatus(ctx context.Context, orderID uuid.UUID, fromStatuses []string, toStatus string) error {
-	from := make([]order.Status, len(fromStatuses))
-	for i, s := range fromStatuses {
-		from[i] = order.Status(s)
-	}
-	return a.svc.UpdateStatusMulti(ctx, orderID, from, order.Status(toStatus))
-}
-
-// ── review.PurchaseVerifier adapter ──────────────────────────────────────
-
-type purchaseVerifierAdapter struct {
-	pool *pgxpool.Pool
-}
-
-func (a *purchaseVerifierAdapter) HasDeliveredOrder(ctx context.Context, userID, productID uuid.UUID) (bool, error) {
-	db := database.DB(ctx, a.pool)
-	var exists bool
-	err := db.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM order_items oi JOIN orders o ON o.id = oi.order_id
-		 WHERE o.user_id = $1 AND oi.product_id = $2 AND o.status = 'delivered' LIMIT 1)`,
-		userID, productID,
-	).Scan(&exists)
-	if err != nil {
-		return false, err
-	}
-	return exists, nil
 }

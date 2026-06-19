@@ -1161,9 +1161,10 @@ func TestService_Refund(t *testing.T) {
 
 		orderGet.EXPECT().GetByID(mock.Anything, orderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
-				Status:      "paid",
+				TotalAmount:   10000,
+				Currency:      "USD",
+				Status:        "paid",
+				StockDeducted: true,
 			}, nil)
 
 		repo.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(func(job *payment.Job) bool {
@@ -1192,9 +1193,10 @@ func TestService_Refund(t *testing.T) {
 
 		orderGet.EXPECT().GetByID(mock.Anything, orderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
-				Status:      "delivered",
+				TotalAmount:   10000,
+				Currency:      "USD",
+				Status:        "delivered",
+				StockDeducted: true,
 			}, nil)
 
 		repo.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(func(job *payment.Job) bool {
@@ -1629,9 +1631,10 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
-				Status:      "paid",
+				TotalAmount:   10000,
+				Currency:      "USD",
+				Status:        "paid",
+				StockDeducted: true,
 			}, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).

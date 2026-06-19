@@ -45,6 +45,14 @@ func CanTransition(from, to Status) bool {
 	return slices.Contains(targets, to)
 }
 
+// StockDeducted reports whether the order has progressed far enough that its
+// inventory has been deducted from stock (paid onward) rather than merely
+// reserved. Reversing a deducted order must restock; reversing a reserved-only
+// order need only release the reservation.
+func (o Order) StockDeducted() bool {
+	return o.Status == StatusPaid || o.Status == StatusDelivered
+}
+
 type Order struct {
 	ID              uuid.UUID     `json:"id"`
 	UserID          uuid.UUID     `json:"user_id"`
