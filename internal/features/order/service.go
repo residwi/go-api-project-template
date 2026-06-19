@@ -395,6 +395,14 @@ func (s *Service) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]
 	return s.repo.ListItemsByOrderID(ctx, orderID)
 }
 
+// HasDeliveredOrder reports whether the user has a delivered order containing
+// the product. It satisfies review.PurchaseVerifier, letting review confirm a
+// purchase through the order module rather than querying the orders schema
+// directly from the wiring layer.
+func (s *Service) HasDeliveredOrder(ctx context.Context, userID, productID uuid.UUID) (bool, error) {
+	return s.repo.HasDeliveredOrder(ctx, userID, productID)
+}
+
 // SetPaymentDeps sets payment-related dependencies after construction.
 // This breaks the circular dependency between order and payment services.
 func (s *Service) SetPaymentDeps(payment PaymentInitiator, paymentCancel PaymentJobCanceller) {

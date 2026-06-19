@@ -15,6 +15,37 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
+func scanOrder(row pgx.CollectableRow) (Order, error) {
+	var o Order
+	err := row.Scan(&o.ID, &o.UserID, &o.IdempotencyKey, &o.Status,
+		&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
+		&o.CouponCode, &o.Currency, &o.ShippingAddress, &o.BillingAddress,
+		&o.Notes, &o.CreatedAt, &o.UpdatedAt)
+	return o, err
+}
+
+func scanOrderSummary(row pgx.CollectableRow) (Order, error) {
+	var o Order
+	var idempotencyKey *string
+	err := row.Scan(&o.ID, &o.UserID, &idempotencyKey, &o.Status,
+		&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
+		&o.CouponCode, &o.Currency, &o.CreatedAt, &o.UpdatedAt)
+	if err != nil {
+		return o, err
+	}
+	if idempotencyKey != nil {
+		o.IdempotencyKey = *idempotencyKey
+	}
+	return o, nil
+}
+
+func scanItem(row pgx.CollectableRow) (Item, error) {
+	var item Item
+	err := row.Scan(&item.ID, &item.OrderID, &item.ProductID, &item.ProductName,
+		&item.Price, &item.Quantity, &item.Subtotal, &item.CreatedAt)
+	return item, err
+}
+
 type AdminListParams struct {
 	Page     int
 	PageSize int
@@ -34,6 +65,7 @@ type Repository interface {
 	ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]Item, error)
 	GetExpiredOrders(ctx context.Context, limit int) ([]Order, error)
 	GetStaleProcessingOrders(ctx context.Context, threshold time.Duration, limit int) ([]Order, error)
+	HasDeliveredOrder(ctx context.Context, userID, productID uuid.UUID) (bool, error)
 }
 
 type PostgresRepository struct {
@@ -154,13 +186,11 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, c
 	argIdx := 2
 
 	if cursor.Cursor != "" {
-		cursorTime, cursorID, err := core.DecodeCursor(cursor.Cursor)
+		var err error
+		where, args, argIdx, err = database.KeysetCursor(where, args, argIdx, "created_at, id", cursor.Cursor)
 		if err != nil {
-			return nil, fmt.Errorf("%w: invalid cursor", core.ErrBadRequest)
+			return nil, err
 		}
-		where += fmt.Sprintf(" AND (created_at, id) < ($%d, $%d)", argIdx, argIdx+1)
-		args = append(args, cursorTime, cursorID)
-		argIdx += 2
 	}
 
 	query := fmt.Sprintf(
@@ -175,21 +205,9 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, c
 	if err != nil {
 		return nil, fmt.Errorf("listing user orders: %w", err)
 	}
-	defer rows.Close()
-
-	var orders []Order
-	for rows.Next() {
-		var o Order
-		if err := rows.Scan(&o.ID, &o.UserID, &o.IdempotencyKey, &o.Status,
-			&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
-			&o.CouponCode, &o.Currency, &o.ShippingAddress, &o.BillingAddress,
-			&o.Notes, &o.CreatedAt, &o.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scanning order: %w", err)
-		}
-		orders = append(orders, o)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating user orders: %w", err)
+	orders, err := pgx.CollectRows(rows, scanOrder)
+	if err != nil {
+		return nil, fmt.Errorf("listing user orders: %w", err)
 	}
 
 	return orders, nil
@@ -227,21 +245,9 @@ func (r *PostgresRepository) ListAdmin(ctx context.Context, params AdminListPara
 	if err != nil {
 		return nil, 0, fmt.Errorf("listing orders: %w", err)
 	}
-	defer rows.Close()
-
-	var orders []Order
-	for rows.Next() {
-		var o Order
-		if err := rows.Scan(&o.ID, &o.UserID, &o.IdempotencyKey, &o.Status,
-			&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
-			&o.CouponCode, &o.Currency, &o.ShippingAddress, &o.BillingAddress,
-			&o.Notes, &o.CreatedAt, &o.UpdatedAt); err != nil {
-			return nil, 0, fmt.Errorf("scanning order: %w", err)
-		}
-		orders = append(orders, o)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("iterating orders: %w", err)
+	orders, err := pgx.CollectRows(rows, scanOrder)
+	if err != nil {
+		return nil, 0, fmt.Errorf("listing orders: %w", err)
 	}
 
 	return orders, total, nil
@@ -303,19 +309,9 @@ func (r *PostgresRepository) ListItemsByOrderID(ctx context.Context, orderID uui
 	if err != nil {
 		return nil, fmt.Errorf("listing order items: %w", err)
 	}
-	defer rows.Close()
-
-	var items []Item
-	for rows.Next() {
-		var item Item
-		if err := rows.Scan(&item.ID, &item.OrderID, &item.ProductID, &item.ProductName,
-			&item.Price, &item.Quantity, &item.Subtotal, &item.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scanning order item: %w", err)
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating order items: %w", err)
+	items, err := pgx.CollectRows(rows, scanItem)
+	if err != nil {
+		return nil, fmt.Errorf("listing order items: %w", err)
 	}
 	return items, nil
 }
@@ -331,24 +327,9 @@ func (r *PostgresRepository) GetExpiredOrders(ctx context.Context, limit int) ([
 	if err != nil {
 		return nil, fmt.Errorf("getting expired orders: %w", err)
 	}
-	defer rows.Close()
-
-	var orders []Order
-	for rows.Next() {
-		var o Order
-		var idempotencyKey *string
-		if err := rows.Scan(&o.ID, &o.UserID, &idempotencyKey, &o.Status,
-			&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
-			&o.CouponCode, &o.Currency, &o.CreatedAt, &o.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scanning expired order: %w", err)
-		}
-		if idempotencyKey != nil {
-			o.IdempotencyKey = *idempotencyKey
-		}
-		orders = append(orders, o)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating expired orders: %w", err)
+	orders, err := pgx.CollectRows(rows, scanOrderSummary)
+	if err != nil {
+		return nil, fmt.Errorf("getting expired orders: %w", err)
 	}
 	return orders, nil
 }
@@ -364,24 +345,29 @@ func (r *PostgresRepository) GetStaleProcessingOrders(ctx context.Context, thres
 	if err != nil {
 		return nil, fmt.Errorf("getting stale processing orders: %w", err)
 	}
-	defer rows.Close()
-
-	var orders []Order
-	for rows.Next() {
-		var o Order
-		var idempotencyKey *string
-		if err := rows.Scan(&o.ID, &o.UserID, &idempotencyKey, &o.Status,
-			&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
-			&o.CouponCode, &o.Currency, &o.CreatedAt, &o.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scanning stale order: %w", err)
-		}
-		if idempotencyKey != nil {
-			o.IdempotencyKey = *idempotencyKey
-		}
-		orders = append(orders, o)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterating stale orders: %w", err)
+	orders, err := pgx.CollectRows(rows, scanOrderSummary)
+	if err != nil {
+		return nil, fmt.Errorf("getting stale processing orders: %w", err)
 	}
 	return orders, nil
+}
+
+// HasDeliveredOrder reports whether the user has a delivered order containing
+// the product. It backs review's purchase-verification check: the query lives
+// here because the orders and order_items tables belong to the order module.
+func (r *PostgresRepository) HasDeliveredOrder(ctx context.Context, userID, productID uuid.UUID) (bool, error) {
+	db := database.DB(ctx, r.pool)
+	var exists bool
+	err := db.QueryRow(ctx,
+		`SELECT EXISTS(
+			SELECT 1 FROM order_items oi
+			JOIN orders o ON o.id = oi.order_id
+			WHERE o.user_id = $1 AND oi.product_id = $2 AND o.status = 'delivered'
+		)`,
+		userID, productID,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("checking delivered order: %w", err)
+	}
+	return exists, nil
 }
