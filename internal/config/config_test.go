@@ -59,7 +59,7 @@ func TestConfig_Validate(t *testing.T) {
 	t.Run("error when WebhookSecret is default in non-dev environment", func(t *testing.T) {
 		cfg := Config{
 			App:     AppConfig{Env: "production"},
-			Payment: PaymentConfig{WebhookSecret: "webhook-secret", GatewayTimeout: 10 * time.Second},
+			Payment: PaymentConfig{WebhookSecret: defaultWebhookSecret, GatewayTimeout: 10 * time.Second},
 			Worker:  WorkerConfig{LeaseDuration: 2 * time.Minute, Interval: 10 * time.Second},
 		}
 
@@ -106,7 +106,7 @@ func TestConfig_Validate(t *testing.T) {
 	t.Run("passes in development with default webhook secret", func(t *testing.T) {
 		cfg := Config{
 			App:     AppConfig{Env: "development"},
-			Payment: PaymentConfig{WebhookSecret: "webhook-secret", GatewayTimeout: 10 * time.Second},
+			Payment: PaymentConfig{WebhookSecret: defaultWebhookSecret, GatewayTimeout: 10 * time.Second},
 			Worker:  WorkerConfig{LeaseDuration: 2 * time.Minute, Interval: 10 * time.Second},
 		}
 
@@ -144,7 +144,7 @@ func TestLoad(t *testing.T) {
 	t.Run("validation error propagates", func(t *testing.T) {
 		t.Setenv("JWT_SECRET", "test-jwt-secret")
 		t.Setenv("APP_ENV", "production")
-		t.Setenv("PAYMENT_WEBHOOK_SECRET", "webhook-secret")
+		t.Setenv("PAYMENT_WEBHOOK_SECRET", defaultWebhookSecret)
 		t.Setenv("WORKER_INTERVAL", "10s")
 		t.Setenv("WORKER_LEASE_DURATION", "2m")
 		t.Setenv("PAYMENT_GATEWAY_TIMEOUT", "10s")

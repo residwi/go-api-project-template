@@ -11,6 +11,10 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
+// defaultWebhookSecret is the placeholder PAYMENT_WEBHOOK_SECRET; it must be
+// overridden outside development.
+const defaultWebhookSecret = "webhook-secret"
+
 type Config struct {
 	App      AppConfig
 	Database DatabaseConfig
@@ -126,7 +130,7 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) validate() error {
-	if c.App.Env != "development" && c.Payment.WebhookSecret == "webhook-secret" {
+	if c.App.Env != "development" && c.Payment.WebhookSecret == defaultWebhookSecret {
 		return errors.New("PAYMENT_WEBHOOK_SECRET must be set in non-development environments")
 	}
 

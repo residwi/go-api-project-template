@@ -17,6 +17,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/payment"
 )
 
+const statusSuccess = "success"
+
 type chargeRecord struct {
 	Response payment.ChargeResponse
 	Metadata map[string]string
@@ -78,7 +80,7 @@ func (s *mockServer) handleCharge(w http.ResponseWriter, r *http.Request) {
 		} else {
 			resp = payment.ChargeResponse{
 				TransactionID: txnID,
-				Status:        "success",
+				Status:        statusSuccess,
 			}
 		}
 	} else {
@@ -107,7 +109,7 @@ func (s *mockServer) handleRefund(w http.ResponseWriter, r *http.Request) {
 
 	resp := payment.RefundResponse{
 		RefundID: uuid.New().String(),
-		Status:   "success",
+		Status:   statusSuccess,
 	}
 	writeJSONResponse(w, resp)
 }
@@ -134,7 +136,7 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 
 	event := triggerReq.Event
 	if event == "" {
-		event = "success"
+		event = statusSuccess
 	}
 
 	webhookPayload := map[string]any{
@@ -152,7 +154,7 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 	go func() {
 		req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodPost, webhookURL, bytes.NewReader(body))
 		if reqErr != nil {
-			slog.Error("webhook request creation failed", "error", reqErr)
+			slog.ErrorContext(r.Context(), "webhook request creation failed", "error", reqErr)
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -163,11 +165,11 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
-			slog.Error("webhook trigger failed", "error", err)
+			slog.ErrorContext(r.Context(), "webhook trigger failed", "error", err)
 			return
 		}
 		_ = resp.Body.Close()
-		slog.Info("webhook triggered", "status", resp.StatusCode, "event", event)
+		slog.InfoContext(r.Context(), "webhook triggered", "status", resp.StatusCode, "event", event)
 	}()
 
 	w.WriteHeader(http.StatusAccepted)

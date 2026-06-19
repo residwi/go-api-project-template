@@ -81,7 +81,7 @@ func TestHandler_ListByProduct(t *testing.T) {
 		assert.Len(t, items, 1)
 
 		item := items[0].(map[string]any)
-		assert.Equal(t, float64(5), item["rating"])
+		assert.InDelta(t, float64(5), item["rating"], 0.0001)
 		assert.Equal(t, "Great product", item["title"])
 		assert.Equal(t, "Love it", item["body"])
 		assert.Equal(t, "published", item["status"])

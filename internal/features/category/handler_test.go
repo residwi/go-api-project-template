@@ -76,7 +76,7 @@ func TestPublicHandler_ListCategories(t *testing.T) {
 		assert.Equal(t, "Electronics", item["name"])
 		assert.Equal(t, "electronics", item["slug"])
 		assert.Equal(t, true, item["active"])
-		assert.Equal(t, float64(0), item["sort_order"])
+		assert.InDelta(t, float64(0), item["sort_order"], 0.0001)
 		assert.NotContains(t, item, "parent_id")
 		assert.NotContains(t, item, "description")
 	})

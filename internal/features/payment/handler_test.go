@@ -255,7 +255,7 @@ func TestAdminHandler_List(t *testing.T) {
 		assert.Len(t, items, 1)
 
 		item := items[0].(map[string]any)
-		assert.Equal(t, float64(5000), item["amount"])
+		assert.InDelta(t, float64(5000), item["amount"], 0.0001)
 		assert.Equal(t, "USD", item["currency"])
 		assert.Equal(t, "success", item["status"])
 		assert.NotEmpty(t, item["id"])
@@ -265,10 +265,10 @@ func TestAdminHandler_List(t *testing.T) {
 
 		pagination, ok := data["pagination"].(map[string]any)
 		require.True(t, ok)
-		assert.Equal(t, float64(1), pagination["current_page"])
-		assert.Equal(t, float64(20), pagination["page_size"])
-		assert.Equal(t, float64(1), pagination["total_items"])
-		assert.Equal(t, float64(1), pagination["total_pages"])
+		assert.InDelta(t, float64(1), pagination["current_page"], 0.0001)
+		assert.InDelta(t, float64(20), pagination["page_size"], 0.0001)
+		assert.InDelta(t, float64(1), pagination["total_items"], 0.0001)
+		assert.InDelta(t, float64(1), pagination["total_pages"], 0.0001)
 		assert.Equal(t, false, pagination["has_previous"])
 		assert.Equal(t, false, pagination["has_next"])
 	})
@@ -325,7 +325,7 @@ func TestAdminHandler_Get(t *testing.T) {
 		require.True(t, ok)
 		// id is echoed back from the request, so it is deterministic.
 		assert.Equal(t, paymentID.String(), obj["id"])
-		assert.Equal(t, float64(10000), obj["amount"])
+		assert.InDelta(t, float64(10000), obj["amount"], 0.0001)
 		assert.Equal(t, "USD", obj["currency"])
 		assert.Equal(t, "success", obj["status"])
 		assert.NotEmpty(t, obj["order_id"])
