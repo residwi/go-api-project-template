@@ -15,9 +15,8 @@ type publicHandler struct {
 }
 
 func (h *publicHandler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -27,14 +26,8 @@ func (h *publicHandler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req PlaceOrderRequest
-	if err := response.DecodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[PlaceOrderRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 
@@ -48,9 +41,8 @@ func (h *publicHandler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *publicHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -77,9 +69,8 @@ func (h *publicHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *publicHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -98,9 +89,8 @@ func (h *publicHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *publicHandler) RetryPayment(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -109,14 +99,8 @@ func (h *publicHandler) RetryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req PayRequest
-	if decodeErr := response.DecodeJSON(w, r, &req); decodeErr != nil {
-		response.HandleErr(w, decodeErr)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[PayRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 
@@ -130,9 +114,8 @@ func (h *publicHandler) RetryPayment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *publicHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 

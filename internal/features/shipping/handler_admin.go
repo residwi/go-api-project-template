@@ -18,14 +18,8 @@ func (h *adminHandler) CreateShipment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req CreateShipmentRequest
-	if decodeErr := response.DecodeJSON(w, r, &req); decodeErr != nil {
-		response.HandleErr(w, decodeErr)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[CreateShipmentRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 
@@ -44,14 +38,8 @@ func (h *adminHandler) UpdateTracking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req UpdateTrackingRequest
-	if decodeErr := response.DecodeJSON(w, r, &req); decodeErr != nil {
-		response.HandleErr(w, decodeErr)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[UpdateTrackingRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 

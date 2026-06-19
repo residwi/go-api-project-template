@@ -13,9 +13,8 @@ type handler struct {
 }
 
 func (h *handler) List(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -42,9 +41,8 @@ func (h *handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) MarkRead(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -62,9 +60,8 @@ func (h *handler) MarkRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -77,9 +74,8 @@ func (h *handler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) UnreadCount(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 

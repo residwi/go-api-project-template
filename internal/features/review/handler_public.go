@@ -43,9 +43,8 @@ func (h *publicHandler) ListByProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *publicHandler) Create(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -54,14 +53,8 @@ func (h *publicHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req CreateReviewRequest
-	if decodeErr := response.DecodeJSON(w, r, &req); decodeErr != nil {
-		response.HandleErr(w, decodeErr)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[CreateReviewRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 

@@ -14,9 +14,8 @@ type publicHandler struct {
 }
 
 func (h *publicHandler) GetShipping(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 

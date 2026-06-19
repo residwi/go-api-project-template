@@ -17,14 +17,8 @@ func NewHandler(service *Service, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	var req RegisterRequest
-	if err := response.DecodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[RegisterRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 
@@ -38,14 +32,8 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	var req LoginRequest
-	if err := response.DecodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[LoginRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 
@@ -59,14 +47,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	var req RefreshRequest
-	if err := response.DecodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[RefreshRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 

@@ -33,14 +33,8 @@ func (h *adminHandler) Restock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req RestockRequest
-	if decodeErr := response.DecodeJSON(w, r, &req); decodeErr != nil {
-		response.HandleErr(w, decodeErr)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[RestockRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 
@@ -59,14 +53,8 @@ func (h *adminHandler) Adjust(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req AdjustRequest
-	if decodeErr := response.DecodeJSON(w, r, &req); decodeErr != nil {
-		response.HandleErr(w, decodeErr)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[AdjustRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 

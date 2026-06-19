@@ -58,14 +58,8 @@ func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req AdminUpdateUserRequest
-	if decodeErr := response.DecodeJSON(w, r, &req); decodeErr != nil {
-		response.HandleErr(w, decodeErr)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[AdminUpdateUserRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 
@@ -84,20 +78,13 @@ func (h *adminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
-	var req UpdateRoleRequest
-	if err := response.DecodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[UpdateRoleRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 
@@ -115,9 +102,8 @@ func (h *adminHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 

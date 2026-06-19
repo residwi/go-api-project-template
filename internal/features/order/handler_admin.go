@@ -51,14 +51,8 @@ func (h *adminHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req AdminUpdateStatusRequest
-	if err := response.DecodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[AdminUpdateStatusRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 

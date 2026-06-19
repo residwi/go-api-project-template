@@ -14,20 +14,13 @@ type publicHandler struct {
 }
 
 func (h *publicHandler) Apply(w http.ResponseWriter, r *http.Request) {
-	_, ok := middleware.GetUserContext(r.Context())
+	_, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
-	var req ApplyRequest
-	if err := response.DecodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[ApplyRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 

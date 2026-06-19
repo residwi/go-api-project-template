@@ -14,9 +14,8 @@ type publicHandler struct {
 }
 
 func (h *publicHandler) Me(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -30,20 +29,13 @@ func (h *publicHandler) Me(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *publicHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
-	var req UpdateProfileRequest
-	if err := response.DecodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[UpdateProfileRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 

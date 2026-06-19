@@ -13,14 +13,8 @@ type adminHandler struct {
 }
 
 func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var req CreateCategoryRequest
-	if err := response.DecodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[CreateCategoryRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 
@@ -39,14 +33,8 @@ func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req UpdateCategoryRequest
-	if decodeErr := response.DecodeJSON(w, r, &req); decodeErr != nil {
-		response.HandleErr(w, decodeErr)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[UpdateCategoryRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 

@@ -14,9 +14,8 @@ type handler struct {
 }
 
 func (h *handler) GetCart(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -30,20 +29,13 @@ func (h *handler) GetCart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) AddItem(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
-	var req AddItemRequest
-	if err := response.DecodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[AddItemRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 
@@ -56,9 +48,8 @@ func (h *handler) AddItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -67,14 +58,8 @@ func (h *handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req UpdateItemRequest
-	if err := response.DecodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if errors := h.validator.Validate(req); errors != nil {
-		response.ValidationErr(w, errors)
+	req, ok := response.Bind[UpdateItemRequest](w, r, h.validator)
+	if !ok {
 		return
 	}
 
@@ -87,9 +72,8 @@ func (h *handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) RemoveItem(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
@@ -107,9 +91,8 @@ func (h *handler) RemoveItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) Clear(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.GetUserContext(r.Context())
+	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
-		response.Unauthorized(w, "authentication required")
 		return
 	}
 
