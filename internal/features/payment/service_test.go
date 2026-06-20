@@ -1747,7 +1747,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(nil)
 
 		orders.EXPECT().UpdateStatus(mock.Anything, job.OrderID,
-			[]string{"fulfillment_failed", "paid", "delivered"}, "refunded").
+			[]string{"fulfillment_failed", "paid", "processing", "shipped", "delivered"}, "refunded").
 			Return(nil)
 
 		productID := uuid.New()
@@ -1808,7 +1808,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(nil)
 
 		orders.EXPECT().UpdateStatus(mock.Anything, job.OrderID,
-			[]string{"fulfillment_failed", "paid", "delivered"}, "refunded").
+			[]string{"fulfillment_failed", "paid", "processing", "shipped", "delivered"}, "refunded").
 			Return(nil)
 
 		productID := uuid.New()
@@ -1977,7 +1977,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(nil)
 
 		orders.EXPECT().UpdateStatus(mock.Anything, job.OrderID,
-			[]string{"fulfillment_failed", "paid", "delivered"}, "refunded").
+			[]string{"fulfillment_failed", "paid", "processing", "shipped", "delivered"}, "refunded").
 			Return(nil)
 
 		orderItems.EXPECT().ListItemsByOrderID(mock.Anything, job.OrderID).
@@ -2020,7 +2020,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(nil)
 
 		orders.EXPECT().UpdateStatus(mock.Anything, job.OrderID,
-			[]string{"fulfillment_failed", "paid", "delivered"}, "refunded").
+			[]string{"fulfillment_failed", "paid", "processing", "shipped", "delivered"}, "refunded").
 			Return(nil)
 
 		productID1 := uuid.New()
@@ -2077,7 +2077,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(nil)
 
 		orders.EXPECT().UpdateStatus(mock.Anything, job.OrderID,
-			[]string{"fulfillment_failed", "paid", "delivered"}, "refunded").
+			[]string{"fulfillment_failed", "paid", "processing", "shipped", "delivered"}, "refunded").
 			Return(nil)
 
 		productID := uuid.New()
@@ -2132,7 +2132,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(nil)
 
 		orders.EXPECT().UpdateStatus(mock.Anything, job.OrderID,
-			[]string{"fulfillment_failed", "paid", "delivered"}, "refunded").
+			[]string{"fulfillment_failed", "paid", "processing", "shipped", "delivered"}, "refunded").
 			Return(nil)
 
 		productID := uuid.New()
@@ -2187,7 +2187,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(nil)
 
 		orders.EXPECT().UpdateStatus(mock.Anything, job.OrderID,
-			[]string{"fulfillment_failed", "paid", "delivered"}, "refunded").
+			[]string{"fulfillment_failed", "paid", "processing", "shipped", "delivered"}, "refunded").
 			Return(nil)
 
 		productID := uuid.New()

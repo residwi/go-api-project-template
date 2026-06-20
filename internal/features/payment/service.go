@@ -27,6 +27,8 @@ const (
 	orderStatusAwaitingPayment   = "awaiting_payment"
 	orderStatusPaymentProcessing = "payment_processing"
 	orderStatusPaid              = "paid"
+	orderStatusProcessing        = "processing"
+	orderStatusShipped           = "shipped"
 	orderStatusCancelled         = "cancelled"
 	orderStatusExpired           = "expired"
 	orderStatusFulfillmentFailed = "fulfillment_failed"
@@ -492,7 +494,10 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) bool {
 			slog.ErrorContext(txCtx, "failed to update payment status to refunded", "payment_id", job.PaymentID, "error", statusErr)
 		}
 		if orderStatusErr := s.orders.UpdateStatus(txCtx, job.OrderID,
-			[]string{orderStatusFulfillmentFailed, orderStatusPaid, orderStatusDelivered}, orderStatusRefunded); orderStatusErr != nil {
+			[]string{
+				orderStatusFulfillmentFailed, orderStatusPaid,
+				orderStatusProcessing, orderStatusShipped, orderStatusDelivered,
+			}, orderStatusRefunded); orderStatusErr != nil {
 			slog.ErrorContext(txCtx, "failed to update order status to refunded", "order_id", job.OrderID, "error", orderStatusErr)
 		}
 
