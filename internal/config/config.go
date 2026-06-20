@@ -146,5 +146,9 @@ func (c *Config) validate() error {
 		return errors.New("AUTH_RATE_WINDOW must be at least 1s (sub-second windows divide by zero in the limiter)")
 	}
 
+	if c.Worker.Concurrency < 1 {
+		return errors.New("WORKER_CONCURRENCY must be at least 1 (0 deadlocks the worker on its unbuffered semaphore)")
+	}
+
 	return nil
 }
