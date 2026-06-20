@@ -97,11 +97,14 @@ func (s *Service) MarkDelivered(ctx context.Context, shipmentID uuid.UUID) (*Shi
 		return nil, err
 	}
 
-	if err := s.repo.MarkDelivered(ctx, shipmentID); err != nil {
-		return nil, err
-	}
-
-	if err := s.updater.UpdateStatus(ctx, shipment.OrderID, []string{"shipped"}, "delivered"); err != nil {
+	// Mark the shipment delivered and flip the order to delivered atomically — a
+	// failed order update rolls back the shipment instead of diverging from it.
+	if err := database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+		if err := s.repo.MarkDelivered(txCtx, shipmentID); err != nil {
+			return err
+		}
+		return s.updater.UpdateStatus(txCtx, shipment.OrderID, []string{"shipped"}, "delivered")
+	}); err != nil {
 		return nil, err
 	}
 

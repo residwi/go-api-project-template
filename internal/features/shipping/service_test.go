@@ -310,7 +310,8 @@ func TestService_MarkDelivered(t *testing.T) {
 		}
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(delivered, nil).Once()
 
-		result, err := svc.MarkDelivered(context.Background(), shipmentID)
+		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		result, err := svc.MarkDelivered(ctx, shipmentID)
 		require.NoError(t, err)
 		assert.Equal(t, shipping.StatusDelivered, result.Status)
 		assert.NotNil(t, result.DeliveredAt)
@@ -346,7 +347,8 @@ func TestService_MarkDelivered(t *testing.T) {
 		dbErr := errors.New("database error")
 		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(dbErr)
 
-		result, err := svc.MarkDelivered(context.Background(), shipmentID)
+		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		result, err := svc.MarkDelivered(ctx, shipmentID)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, dbErr)
 	})
@@ -369,7 +371,8 @@ func TestService_MarkDelivered(t *testing.T) {
 		updateErr := errors.New("order update failed")
 		updater.EXPECT().UpdateStatus(mock.Anything, orderID, []string{"shipped"}, "delivered").Return(updateErr)
 
-		result, err := svc.MarkDelivered(context.Background(), shipmentID)
+		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		result, err := svc.MarkDelivered(ctx, shipmentID)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, updateErr)
 	})
