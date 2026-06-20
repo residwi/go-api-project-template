@@ -45,12 +45,18 @@ func CanTransition(from, to Status) bool {
 	return slices.Contains(targets, to)
 }
 
-// StockDeducted reports whether the order has progressed far enough that its
-// inventory has been deducted from stock (paid onward) rather than merely
-// reserved. Reversing a deducted order must restock; reversing a reserved-only
-// order need only release the reservation.
+// StockDeducted reports whether the order's inventory has been deducted from
+// stock (rather than merely reserved). Reversing a deducted order must restock;
+// reversing a reserved-only order need only release the reservation.
+//
+// Stock is deducted when the order becomes paid, so every status reachable only
+// after that — paid, processing, shipped, delivered — counts as deducted.
+// StatusFulfillmentFailed is intentionally excluded: it is reachable from both
+// pre-paid (reserved-only) and post-paid (deducted) states, so it cannot be
+// classified from the current status alone.
 func (o Order) StockDeducted() bool {
-	return o.Status == StatusPaid || o.Status == StatusDelivered
+	return o.Status == StatusPaid || o.Status == StatusProcessing ||
+		o.Status == StatusShipped || o.Status == StatusDelivered
 }
 
 type Order struct {
