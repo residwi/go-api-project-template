@@ -159,7 +159,16 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		assert.ErrorIs(t, err, core.ErrNotFound)
 	})
 
-	t.Run("returns not found when already read", func(t *testing.T) {
+	t.Run("returns not found for a missing notification id", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		repo := notification.NewPostgresRepository(testPool)
+
+		err := repo.MarkRead(context.Background(), userID, uuid.New())
+		assert.ErrorIs(t, err, core.ErrNotFound)
+	})
+
+	t.Run("is idempotent: re-marking an already-read notification succeeds", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		n := seedNotification(t, userID)
@@ -167,8 +176,13 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		ctx := context.Background()
 
 		require.NoError(t, repo.MarkRead(ctx, userID, n.ID))
-		err := repo.MarkRead(ctx, userID, n.ID)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		// Marking the same owned notification read again must succeed (no 404),
+		// because the notification demonstrably exists and belongs to the user.
+		require.NoError(t, repo.MarkRead(ctx, userID, n.ID))
+
+		count, err := repo.CountUnread(ctx, userID)
+		require.NoError(t, err)
+		assert.Equal(t, 0, count)
 	})
 }
 

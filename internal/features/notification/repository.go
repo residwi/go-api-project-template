@@ -103,8 +103,11 @@ func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, c
 func (r *PostgresRepository) MarkRead(ctx context.Context, userID, id uuid.UUID) error {
 	db := database.DB(ctx, r.pool)
 	// Scope by user_id so a user can only mark their own notifications read (IDOR).
+	// No is_read guard: mark-read is idempotent, so re-marking an already-read
+	// notification still matches the owned row and succeeds. RowsAffected()==0
+	// therefore means the notification is genuinely missing or not owned (404).
 	tag, err := db.Exec(ctx,
-		`UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2 AND is_read = false`, id, userID,
+		`UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2`, id, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("marking notification read: %w", err)
