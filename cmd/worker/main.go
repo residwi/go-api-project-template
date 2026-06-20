@@ -60,7 +60,12 @@ func run() error {
 
 	paymentSvc := wiring.NewPaymentService(paymentRepo, pool, gw, orderSvc, inventorySvc, promotionSvc)
 
-	_ = notificationSvc // available for future notification job processing
+	// TODO: nothing drains notification_jobs. PlaceOrder enqueues "order placed"
+	// jobs (notification.EnqueueOrderPlaced → pending row), but no worker calls
+	// ClaimPendingJobs/ProcessJob, so notifications are never sent and pending
+	// rows accumulate unbounded (cleanup only removes completed). Run a
+	// notification-processing loop here (mirroring the payment worker).
+	_ = notificationSvc
 
 	w := wiring.NewPaymentWorker(
 		paymentRepo, pool, paymentSvc,
