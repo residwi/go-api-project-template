@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -36,13 +37,28 @@ type Repository interface {
 // stockValueCols is the number of columns per (product_id, qty) VALUES tuple.
 const stockValueCols = 2
 
-// buildStockValues renders the VALUES placeholder list and flat args for a
-// batched stock UPDATE joined against (product_id, qty) tuples.
-func buildStockValues(items []StockChange) (string, []any) {
-	placeholders := make([]string, len(items))
-	args := make([]any, 0, len(items)*stockValueCols)
+// buildStockValues aggregates items by product_id (summing quantities) and
+// renders the VALUES placeholder list and flat args for a batched stock UPDATE
+// joined against (product_id, qty) tuples. Aggregation is required for
+// correctness: a duplicate product_id would otherwise join the product row to
+// two VALUES tuples and apply only one of the quantities. The returned ids are
+// sorted, so callers can acquire row locks in a deterministic order; len(ids)
+// is the number of distinct products updated.
+func buildStockValues(items []StockChange) (placeholderList string, args []any, ids []uuid.UUID) {
+	sums := make(map[uuid.UUID]int, len(items))
+	ids = make([]uuid.UUID, 0, len(items))
+	for _, it := range items {
+		if _, seen := sums[it.ProductID]; !seen {
+			ids = append(ids, it.ProductID)
+		}
+		sums[it.ProductID] += it.Quantity
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i].String() < ids[j].String() })
+
+	placeholders := make([]string, len(ids))
+	args = make([]any, 0, len(ids)*stockValueCols)
 	param := 1
-	for i, it := range items {
+	for i, id := range ids {
 		idCol, qtyCol := param, param+1
 		param += stockValueCols
 		if i == 0 {
@@ -51,9 +67,9 @@ func buildStockValues(items []StockChange) (string, []any) {
 		} else {
 			placeholders[i] = fmt.Sprintf("($%d, $%d)", idCol, qtyCol)
 		}
-		args = append(args, it.ProductID, it.Quantity)
+		args = append(args, id, sums[id])
 	}
-	return strings.Join(placeholders, ","), args
+	return strings.Join(placeholders, ","), args, ids
 }
 
 type PostgresRepository struct {
@@ -120,7 +136,7 @@ func (r *PostgresRepository) ReserveBatch(ctx context.Context, items []StockChan
 		return nil
 	}
 	db := database.DB(ctx, r.pool)
-	values, args := buildStockValues(items)
+	values, args, ids := buildStockValues(items)
 	tag, err := db.Exec(ctx,
 		`UPDATE products AS p SET reserved_quantity = reserved_quantity + v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
@@ -130,7 +146,7 @@ func (r *PostgresRepository) ReserveBatch(ctx context.Context, items []StockChan
 	if err != nil {
 		return fmt.Errorf("reserving stock batch: %w", err)
 	}
-	if int(tag.RowsAffected()) != len(items) {
+	if int(tag.RowsAffected()) != len(ids) {
 		return core.ErrInsufficientStock
 	}
 	return nil
@@ -144,7 +160,7 @@ func (r *PostgresRepository) ReleaseBatch(ctx context.Context, items []StockChan
 		return nil
 	}
 	db := database.DB(ctx, r.pool)
-	values, args := buildStockValues(items)
+	values, args, _ := buildStockValues(items)
 	_, err := db.Exec(ctx,
 		`UPDATE products AS p SET reserved_quantity = reserved_quantity - v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
@@ -166,7 +182,7 @@ func (r *PostgresRepository) DeductBatch(ctx context.Context, items []StockChang
 		return nil
 	}
 	db := database.DB(ctx, r.pool)
-	values, args := buildStockValues(items)
+	values, args, ids := buildStockValues(items)
 	tag, err := db.Exec(ctx,
 		`UPDATE products AS p SET stock_quantity = stock_quantity - v.qty, reserved_quantity = reserved_quantity - v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
@@ -176,7 +192,7 @@ func (r *PostgresRepository) DeductBatch(ctx context.Context, items []StockChang
 	if err != nil {
 		return fmt.Errorf("deducting stock batch: %w", err)
 	}
-	if int(tag.RowsAffected()) != len(items) {
+	if int(tag.RowsAffected()) != len(ids) {
 		return fmt.Errorf("%w: cannot deduct stock", core.ErrBadRequest)
 	}
 	return nil
@@ -189,7 +205,7 @@ func (r *PostgresRepository) RestockBatch(ctx context.Context, items []StockChan
 		return nil
 	}
 	db := database.DB(ctx, r.pool)
-	values, args := buildStockValues(items)
+	values, args, _ := buildStockValues(items)
 	_, err := db.Exec(ctx,
 		`UPDATE products AS p SET stock_quantity = stock_quantity + v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
