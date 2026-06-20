@@ -72,6 +72,20 @@ func buildStockValues(items []StockChange) (placeholderList string, args []any, 
 	return strings.Join(placeholders, ","), args, ids
 }
 
+// lockProducts locks the given product rows in a single, id-ordered statement
+// so that concurrent batch operations acquire row locks in a consistent order
+// and cannot deadlock. The batched UPDATE that follows does not control its own
+// lock-acquisition order, so this runs first. It must execute inside the
+// caller's transaction (the locks are held until commit).
+func lockProducts(ctx context.Context, db database.DBTX, ids []uuid.UUID) error {
+	if _, err := db.Exec(ctx,
+		`SELECT 1 FROM products WHERE id = ANY($1) ORDER BY id FOR UPDATE`, ids,
+	); err != nil {
+		return fmt.Errorf("locking products: %w", err)
+	}
+	return nil
+}
+
 type PostgresRepository struct {
 	pool *pgxpool.Pool
 }
@@ -137,6 +151,9 @@ func (r *PostgresRepository) ReserveBatch(ctx context.Context, items []StockChan
 	}
 	db := database.DB(ctx, r.pool)
 	values, args, ids := buildStockValues(items)
+	if err := lockProducts(ctx, db, ids); err != nil {
+		return err
+	}
 	tag, err := db.Exec(ctx,
 		`UPDATE products AS p SET reserved_quantity = reserved_quantity + v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
@@ -160,7 +177,10 @@ func (r *PostgresRepository) ReleaseBatch(ctx context.Context, items []StockChan
 		return nil
 	}
 	db := database.DB(ctx, r.pool)
-	values, args, _ := buildStockValues(items)
+	values, args, ids := buildStockValues(items)
+	if err := lockProducts(ctx, db, ids); err != nil {
+		return err
+	}
 	_, err := db.Exec(ctx,
 		`UPDATE products AS p SET reserved_quantity = reserved_quantity - v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
@@ -183,6 +203,9 @@ func (r *PostgresRepository) DeductBatch(ctx context.Context, items []StockChang
 	}
 	db := database.DB(ctx, r.pool)
 	values, args, ids := buildStockValues(items)
+	if err := lockProducts(ctx, db, ids); err != nil {
+		return err
+	}
 	tag, err := db.Exec(ctx,
 		`UPDATE products AS p SET stock_quantity = stock_quantity - v.qty, reserved_quantity = reserved_quantity - v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
@@ -205,7 +228,10 @@ func (r *PostgresRepository) RestockBatch(ctx context.Context, items []StockChan
 		return nil
 	}
 	db := database.DB(ctx, r.pool)
-	values, args, _ := buildStockValues(items)
+	values, args, ids := buildStockValues(items)
+	if err := lockProducts(ctx, db, ids); err != nil {
+		return err
+	}
 	_, err := db.Exec(ctx,
 		`UPDATE products AS p SET stock_quantity = stock_quantity + v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)

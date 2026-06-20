@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
-	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -394,10 +393,6 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 			return fmt.Errorf("listing order items: %w", err)
 		}
 
-		sort.Slice(items, func(i, j int) bool {
-			return items[i].ProductID.String() < items[j].ProductID.String()
-		})
-
 		if err := s.inventory.DeductBatch(txCtx, toInventoryChanges(items)); err != nil {
 			return fmt.Errorf("deducting inventory: %w", err)
 		}
@@ -505,9 +500,6 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) bool {
 		if listErr != nil {
 			return listErr
 		}
-		sort.Slice(items, func(i, j int) bool {
-			return items[i].ProductID.String() < items[j].ProductID.String()
-		})
 		if len(items) > 0 {
 			changes := toInventoryChanges(items)
 			switch job.InventoryAction {
