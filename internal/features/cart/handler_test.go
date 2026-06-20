@@ -51,6 +51,7 @@ func (s *stubRepo) CountItems(context.Context, uuid.UUID) (int, error)     { ret
 func (s *stubRepo) HasItem(context.Context, uuid.UUID, uuid.UUID) (bool, error) {
 	return false, nil
 }
+
 func (s *stubRepo) GetCartForLock(context.Context, uuid.UUID) (uuid.UUID, error) {
 	return uuid.Nil, nil
 }

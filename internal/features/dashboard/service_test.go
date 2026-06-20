@@ -94,7 +94,7 @@ func TestService_GetSummary(t *testing.T) {
 
 		sales, breakdown, err := svc.GetSummary(context.Background(), from, to)
 
-		assert.ErrorIs(t, err, dbErr)
+		require.ErrorIs(t, err, dbErr)
 		assert.Equal(t, dashboard.SalesSummary{}, sales)
 		assert.Nil(t, breakdown)
 	})
@@ -110,7 +110,7 @@ func TestService_GetSummary(t *testing.T) {
 
 		sales, breakdown, err := svc.GetSummary(context.Background(), from, to)
 
-		assert.ErrorIs(t, err, dbErr)
+		require.ErrorIs(t, err, dbErr)
 		assert.Equal(t, dashboard.SalesSummary{}, sales)
 		assert.Nil(t, breakdown)
 	})

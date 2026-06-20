@@ -27,6 +27,11 @@ type WorkerConfig struct {
 	Concurrency   int
 }
 
+// leaseSafetyDivisor bounds a job's processing timeout to
+// lease - lease/leaseSafetyDivisor (4/5 of the lease), leaving a margin before
+// the job's claim expires and it becomes reclaimable by another worker.
+const leaseSafetyDivisor = 5
+
 func NewWorker(repo Repository, pool *pgxpool.Pool, service *Service, cfg WorkerConfig) *Worker {
 	return &Worker{repo: repo, pool: pool, service: service, cfg: cfg}
 }
@@ -86,7 +91,7 @@ func (w *Worker) processJobs(ctx context.Context) {
 			// the lease expires and the job becomes reclaimable — otherwise the
 			// cancellation and the reclaim window coincide, letting two workers
 			// run the same job at the boundary.
-			jobCtx, cancel := context.WithTimeout(ctx, w.cfg.LeaseDuration*4/5)
+			jobCtx, cancel := context.WithTimeout(ctx, w.cfg.LeaseDuration-w.cfg.LeaseDuration/leaseSafetyDivisor)
 			defer cancel()
 			if ok := w.service.ProcessJob(jobCtx, j); !ok {
 				slog.WarnContext(ctx, "payment job did not complete successfully",
