@@ -53,6 +53,69 @@ func TestService_GetSalesSummary(t *testing.T) {
 	})
 }
 
+func TestService_GetSummary(t *testing.T) {
+	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
+
+	t.Run("returns both results on success", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		svc := dashboard.NewService(repo)
+
+		expectedSales := dashboard.SalesSummary{
+			TotalOrders:       150,
+			TotalRevenue:      5000000,
+			AverageOrderValue: 33333.33,
+		}
+		expectedBreakdown := []dashboard.StatusBreakdown{
+			{Status: "paid", Count: 50},
+			{Status: "shipped", Count: 30},
+			{Status: "delivered", Count: 20},
+		}
+		repo.EXPECT().GetSalesSummary(mock.Anything, from, to).Return(expectedSales, nil)
+		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything, from, to).Return(expectedBreakdown, nil)
+
+		sales, breakdown, err := svc.GetSummary(context.Background(), from, to)
+
+		require.NoError(t, err)
+		assert.Equal(t, expectedSales, sales)
+		assert.Equal(t, expectedBreakdown, breakdown)
+	})
+
+	t.Run("sales summary error propagates", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		svc := dashboard.NewService(repo)
+
+		dbErr := errors.New("sales summary failed")
+		repo.EXPECT().GetSalesSummary(mock.Anything, from, to).Return(dashboard.SalesSummary{}, dbErr)
+		// The sibling query may or may not run before cancellation kicks in; make
+		// it optional so the test asserts error handling, not goroutine timing.
+		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything, from, to).
+			Return(nil, nil).Maybe()
+
+		sales, breakdown, err := svc.GetSummary(context.Background(), from, to)
+
+		assert.ErrorIs(t, err, dbErr)
+		assert.Equal(t, dashboard.SalesSummary{}, sales)
+		assert.Nil(t, breakdown)
+	})
+
+	t.Run("breakdown error propagates", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		svc := dashboard.NewService(repo)
+
+		dbErr := errors.New("breakdown failed")
+		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything, from, to).Return(nil, dbErr)
+		repo.EXPECT().GetSalesSummary(mock.Anything, from, to).
+			Return(dashboard.SalesSummary{}, nil).Maybe()
+
+		sales, breakdown, err := svc.GetSummary(context.Background(), from, to)
+
+		assert.ErrorIs(t, err, dbErr)
+		assert.Equal(t, dashboard.SalesSummary{}, sales)
+		assert.Nil(t, breakdown)
+	})
+}
+
 func TestService_GetTopProducts(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)

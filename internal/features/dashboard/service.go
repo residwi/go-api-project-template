@@ -2,8 +2,9 @@ package dashboard
 
 import (
 	"context"
-	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type Service struct {
@@ -21,28 +22,25 @@ func (s *Service) GetSummary(ctx context.Context, from, to time.Time) (SalesSumm
 	var (
 		sales     SalesSummary
 		breakdown []StatusBreakdown
-		salesErr  error
-		breakErr  error
 	)
 
-	const aggregateQueries = 2
-	var wg sync.WaitGroup
-	wg.Add(aggregateQueries)
-	go func() {
-		defer wg.Done()
-		sales, salesErr = s.repo.GetSalesSummary(ctx, from, to)
-	}()
-	go func() {
-		defer wg.Done()
-		breakdown, breakErr = s.repo.GetOrderStatusBreakdown(ctx, from, to)
-	}()
-	wg.Wait()
-
-	if salesErr != nil {
-		return SalesSummary{}, nil, salesErr
-	}
-	if breakErr != nil {
-		return SalesSummary{}, nil, breakErr
+	// errgroup derives a context that is cancelled the moment either query
+	// returns an error, so the sibling query is signalled to stop instead of
+	// running to completion against a context (or pgx.Tx) that's already
+	// doomed. Pass gctx — not the raw ctx — to the repo calls.
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		var err error
+		sales, err = s.repo.GetSalesSummary(gctx, from, to)
+		return err
+	})
+	g.Go(func() error {
+		var err error
+		breakdown, err = s.repo.GetOrderStatusBreakdown(gctx, from, to)
+		return err
+	})
+	if err := g.Wait(); err != nil {
+		return SalesSummary{}, nil, err
 	}
 	return sales, breakdown, nil
 }
