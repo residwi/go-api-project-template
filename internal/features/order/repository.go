@@ -17,11 +17,18 @@ import (
 
 func scanOrder(row pgx.CollectableRow) (Order, error) {
 	var o Order
-	err := row.Scan(&o.ID, &o.UserID, &o.IdempotencyKey, &o.Status,
+	var idempotencyKey *string
+	err := row.Scan(&o.ID, &o.UserID, &idempotencyKey, &o.Status,
 		&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
 		&o.CouponCode, &o.Currency, &o.ShippingAddress, &o.BillingAddress,
 		&o.Notes, &o.CreatedAt, &o.UpdatedAt)
-	return o, err
+	if err != nil {
+		return o, err
+	}
+	if idempotencyKey != nil {
+		o.IdempotencyKey = *idempotencyKey
+	}
+	return o, nil
 }
 
 func scanOrderSummary(row pgx.CollectableRow) (Order, error) {

@@ -19,7 +19,7 @@ func Bind[T any](w http.ResponseWriter, r *http.Request, v Validator) (T, bool) 
 		HandleErr(w, err)
 		return req, false
 	}
-	if errs := v.Validate(req); errs != nil {
+	if errs := v.Validate(req); len(errs) > 0 {
 		ValidationErr(w, errs)
 		return req, false
 	}

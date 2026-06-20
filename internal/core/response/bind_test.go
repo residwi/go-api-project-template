@@ -55,4 +55,15 @@ func TestBind(t *testing.T) {
 		assert.False(t, ok)
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 	})
+
+	t.Run("treats an empty (non-nil) validation map as success", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"widget"}`))
+		w := httptest.NewRecorder()
+
+		got, ok := response.Bind[sampleReq](w, r, fakeValidator{errs: map[string]any{}})
+
+		require.True(t, ok)
+		assert.Equal(t, sampleReq{Name: "widget"}, got)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }

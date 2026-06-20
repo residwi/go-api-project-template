@@ -23,7 +23,9 @@ func EscapeLike(s string) string {
 // pages backwards over (createdAt, id) to the given WHERE clause and args.
 //
 // columns is the keyset tuple expression — "created_at, id" for a single table,
-// or a qualified form like "wi.created_at, wi.id" when the query joins. The
+// or a qualified form like "wi.created_at, wi.id" when the query joins. It is
+// interpolated into the SQL verbatim (not a bind parameter), so it MUST be a
+// trusted compile-time literal — never pass user- or request-derived text. The
 // returned argIdx is advanced past the two placeholders that were appended. A
 // malformed cursor yields core.ErrBadRequest and leaves the inputs unchanged.
 func KeysetCursor(where string, args []any, argIdx int, columns, cursor string) (string, []any, int, error) {
