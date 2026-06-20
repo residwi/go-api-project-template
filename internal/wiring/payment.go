@@ -13,9 +13,12 @@ import (
 	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
 )
 
-type orderUpdaterAdapter struct{ svc *order.Service }
+// orderStatusUpdaterAdapter satisfies both payment.OrderUpdater and
+// shipping.OrderUpdater (identical signatures) by forwarding to the order
+// service's optimistic multi-from status update.
+type orderStatusUpdaterAdapter struct{ svc *order.Service }
 
-func (a *orderUpdaterAdapter) UpdateStatus(ctx context.Context, orderID uuid.UUID, fromStatuses []string, toStatus string) error {
+func (a *orderStatusUpdaterAdapter) UpdateStatus(ctx context.Context, orderID uuid.UUID, fromStatuses []string, toStatus string) error {
 	from := make([]order.Status, len(fromStatuses))
 	for i, s := range fromStatuses {
 		from[i] = order.Status(s)
@@ -99,7 +102,7 @@ func NewPaymentService(
 ) *payment.Service {
 	return payment.NewService(
 		repo, pool, gw,
-		&orderUpdaterAdapter{svc: orderSvc},
+		&orderStatusUpdaterAdapter{svc: orderSvc},
 		&orderGetterAdapter{svc: orderSvc},
 		&orderItemsGetterAdapter{svc: orderSvc},
 		&inventoryDeductorAdapter{svc: inventorySvc},
@@ -120,7 +123,7 @@ func NewPaymentWorker(
 ) *payment.Worker {
 	return payment.NewWorker(
 		repo, pool, service,
-		&orderUpdaterAdapter{svc: orderSvc},
+		&orderStatusUpdaterAdapter{svc: orderSvc},
 		&orderItemsGetterAdapter{svc: orderSvc},
 		&orderGetterAdapter{svc: orderSvc},
 		&inventoryReleaserAdapter{svc: inventorySvc},

@@ -106,7 +106,7 @@ func (r *PostgresRepository) GetItems(ctx context.Context, userID uuid.UUID, cur
 
 	items, err := pgx.CollectRows(rows, scanItem)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listing wishlist items: %w", err)
 	}
 
 	return items, nil
@@ -114,10 +114,8 @@ func (r *PostgresRepository) GetItems(ctx context.Context, userID uuid.UUID, cur
 
 func scanItem(row pgx.CollectableRow) (Item, error) {
 	var item Item
-	if err := row.Scan(&item.ID, &item.WishlistID, &item.ProductID, &item.CreatedAt); err != nil {
-		return Item{}, fmt.Errorf("scanning wishlist item: %w", err)
-	}
-	return item, nil
+	err := row.Scan(&item.ID, &item.WishlistID, &item.ProductID, &item.CreatedAt)
+	return item, err
 }
 
 func (r *PostgresRepository) HasItem(ctx context.Context, wishlistID, productID uuid.UUID) (bool, error) {

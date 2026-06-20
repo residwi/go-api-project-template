@@ -14,7 +14,7 @@ import (
 // for order-ownership checks, so the same adapter instance is reused.
 func NewShippingService(repo shipping.Repository, pool *pgxpool.Pool, orderSvc *order.Service) (*shipping.Service, shipping.OrderProvider) {
 	provider := &shippingOrderProviderAdapter{svc: orderSvc}
-	svc := shipping.NewService(repo, pool, provider, &shippingOrderUpdaterAdapter{svc: orderSvc})
+	svc := shipping.NewService(repo, pool, provider, &orderStatusUpdaterAdapter{svc: orderSvc})
 	return svc, provider
 }
 
@@ -26,14 +26,4 @@ func (a *shippingOrderProviderAdapter) GetByID(ctx context.Context, orderID uuid
 		return shipping.OrderInfo{}, err
 	}
 	return shipping.OrderInfo{ID: o.ID, UserID: o.UserID, Status: string(o.Status)}, nil
-}
-
-type shippingOrderUpdaterAdapter struct{ svc *order.Service }
-
-func (a *shippingOrderUpdaterAdapter) UpdateStatus(ctx context.Context, orderID uuid.UUID, fromStatuses []string, toStatus string) error {
-	from := make([]order.Status, len(fromStatuses))
-	for i, s := range fromStatuses {
-		from[i] = order.Status(s)
-	}
-	return a.svc.UpdateStatusMulti(ctx, orderID, from, order.Status(toStatus))
 }
