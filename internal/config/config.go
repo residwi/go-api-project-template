@@ -142,5 +142,9 @@ func (c *Config) validate() error {
 		return errors.New("WORKER_INTERVAL must be at least 5s to avoid database polling overhead")
 	}
 
+	if c.App.AuthRateWindow < time.Second {
+		return errors.New("AUTH_RATE_WINDOW must be at least 1s (sub-second windows divide by zero in the limiter)")
+	}
+
 	return nil
 }

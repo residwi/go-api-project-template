@@ -92,9 +92,21 @@ func TestConfig_Validate(t *testing.T) {
 		assert.Contains(t, err.Error(), "WORKER_INTERVAL must be at least 5s")
 	})
 
+	t.Run("error when AuthRateWindow is sub-second", func(t *testing.T) {
+		cfg := Config{
+			App:     AppConfig{Env: "production", AuthRateWindow: 500 * time.Millisecond},
+			Payment: PaymentConfig{WebhookSecret: "real-secret", GatewayTimeout: 10 * time.Second},
+			Worker:  WorkerConfig{LeaseDuration: 2 * time.Minute, Interval: 10 * time.Second},
+		}
+
+		err := cfg.validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "AUTH_RATE_WINDOW must be at least 1s")
+	})
+
 	t.Run("passes with valid production config", func(t *testing.T) {
 		cfg := Config{
-			App:     AppConfig{Env: "production"},
+			App:     AppConfig{Env: "production", AuthRateWindow: time.Minute},
 			Payment: PaymentConfig{WebhookSecret: "real-secret", GatewayTimeout: 10 * time.Second},
 			Worker:  WorkerConfig{LeaseDuration: 2 * time.Minute, Interval: 10 * time.Second},
 		}
@@ -105,7 +117,7 @@ func TestConfig_Validate(t *testing.T) {
 
 	t.Run("passes in development with default webhook secret", func(t *testing.T) {
 		cfg := Config{
-			App:     AppConfig{Env: "development"},
+			App:     AppConfig{Env: "development", AuthRateWindow: time.Minute},
 			Payment: PaymentConfig{WebhookSecret: defaultWebhookSecret, GatewayTimeout: 10 * time.Second},
 			Worker:  WorkerConfig{LeaseDuration: 2 * time.Minute, Interval: 10 * time.Second},
 		}
