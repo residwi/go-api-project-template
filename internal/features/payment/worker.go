@@ -107,10 +107,11 @@ func (w *Worker) processJobs(ctx context.Context) {
 		go func(j Job) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			// Bound each job to the lease duration so a hung gateway call can't
-			// pin a goroutine (and its pooled connection) past the point where
-			// the job's claim would expire and be re-claimed anyway.
-			jobCtx, cancel := context.WithTimeout(ctx, w.cfg.LeaseDuration)
+			// Bound each job to a fraction of the lease (80%) so it aborts BEFORE
+			// the lease expires and the job becomes reclaimable — otherwise the
+			// cancellation and the reclaim window coincide, letting two workers
+			// run the same job at the boundary.
+			jobCtx, cancel := context.WithTimeout(ctx, w.cfg.LeaseDuration*4/5)
 			defer cancel()
 			if ok := w.service.ProcessJob(jobCtx, j); !ok {
 				slog.WarnContext(ctx, "payment job did not complete successfully",
