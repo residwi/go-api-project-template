@@ -277,11 +277,24 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 		assert.Len(t, items, 1)
 
 		item := items[0].(map[string]any)
-		assert.Equal(t, "alice@example.com", item["email"])
-		assert.Equal(t, "Alice", item["first_name"])
-		assert.Equal(t, "Smith", item["last_name"])
-		assert.Equal(t, "user", item["role"])
-		assert.Equal(t, true, item["active"])
+		itemJSON, err := json.Marshal(item)
+		require.NoError(t, err)
+		type userItem struct {
+			Email     string `json:"email"`
+			FirstName string `json:"first_name"`
+			LastName  string `json:"last_name"`
+			Role      string `json:"role"`
+			Active    bool   `json:"active"`
+		}
+		var gotItem userItem
+		require.NoError(t, json.Unmarshal(itemJSON, &gotItem))
+		assert.Equal(t, userItem{
+			Email:     "alice@example.com",
+			FirstName: "Alice",
+			LastName:  "Smith",
+			Role:      "user",
+			Active:    true,
+		}, gotItem)
 		assert.NotEmpty(t, item["id"])
 
 		pagination, ok := data["pagination"].(map[string]any)
@@ -790,11 +803,24 @@ func TestAdminHandler_ListUsers_WithActiveFilter(t *testing.T) {
 		assert.Len(t, items, 1)
 
 		item := items[0].(map[string]any)
-		assert.Equal(t, "active@example.com", item["email"])
-		assert.Equal(t, "Active", item["first_name"])
-		assert.Equal(t, "User", item["last_name"])
-		assert.Equal(t, "user", item["role"])
-		assert.Equal(t, true, item["active"])
+		itemJSON, err := json.Marshal(item)
+		require.NoError(t, err)
+		type userItem struct {
+			Email     string `json:"email"`
+			FirstName string `json:"first_name"`
+			LastName  string `json:"last_name"`
+			Role      string `json:"role"`
+			Active    bool   `json:"active"`
+		}
+		var gotItem userItem
+		require.NoError(t, json.Unmarshal(itemJSON, &gotItem))
+		assert.Equal(t, userItem{
+			Email:     "active@example.com",
+			FirstName: "Active",
+			LastName:  "User",
+			Role:      "user",
+			Active:    true,
+		}, gotItem)
 		assert.NotEmpty(t, item["id"])
 
 		pagination, ok := data["pagination"].(map[string]any)

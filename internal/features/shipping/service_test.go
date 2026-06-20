@@ -66,12 +66,17 @@ func TestService_CreateShipment(t *testing.T) {
 			TrackingNumber: "TRACK123",
 		})
 		require.NoError(t, err)
-		assert.Equal(t, shippedID, result.ID)
-		assert.Equal(t, orderID, result.OrderID)
-		assert.Equal(t, "FedEx", result.Carrier)
-		assert.Equal(t, "TRACK123", result.TrackingNumber)
-		assert.Equal(t, shipping.StatusShipped, result.Status)
-		assert.Equal(t, &now, result.ShippedAt)
+		expected := &shipping.Shipment{
+			ID:             shippedID,
+			OrderID:        orderID,
+			Carrier:        "FedEx",
+			TrackingNumber: "TRACK123",
+			Status:         shipping.StatusShipped,
+			ShippedAt:      &now,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		}
+		assert.Equal(t, expected, result)
 	})
 
 	t.Run("order wrong status", func(t *testing.T) {
