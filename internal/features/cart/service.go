@@ -61,9 +61,6 @@ func (s *Service) AddItem(ctx context.Context, userID uuid.UUID, req AddItemRequ
 			return err
 		}
 
-		// The cap counts DISTINCT products. Adding more of a product already in
-		// the cart only bumps its quantity (no new row), so it must not be
-		// blocked by the cap; only a genuinely new product is subject to it.
 		exists, err := s.repo.HasItem(txCtx, cartID, req.ProductID)
 		if err != nil {
 			return err
