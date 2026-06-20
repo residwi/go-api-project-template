@@ -67,7 +67,7 @@ type Repository interface {
 	ListByUser(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Order, error)
 	ListAdmin(ctx context.Context, params AdminListParams) ([]Order, int, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, fromStatus, toStatus Status) error
-	UpdateStatusMulti(ctx context.Context, id uuid.UUID, toStatus Status, fromStatuses []Status) error
+	Apply(ctx context.Context, id uuid.UUID, t Transition) error
 	UpdateTotals(ctx context.Context, id uuid.UUID, discount, total int64) error
 	ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]Item, error)
 	GetExpiredOrders(ctx context.Context, limit int) ([]Order, error)
@@ -291,18 +291,21 @@ func (r *PostgresRepository) UpdateTotals(ctx context.Context, id uuid.UUID, dis
 	return nil
 }
 
-func (r *PostgresRepository) UpdateStatusMulti(ctx context.Context, id uuid.UUID, toStatus Status, fromStatuses []Status) error {
+// Apply runs the guarded compare-and-set for a Transition: it moves the order to
+// t.To only if its current status is one of t.From, returning core.ErrConflict
+// if nothing matched.
+func (r *PostgresRepository) Apply(ctx context.Context, id uuid.UUID, t Transition) error {
 	db := database.DB(ctx, r.pool)
 	var returnedID uuid.UUID
 	err := db.QueryRow(ctx,
 		`UPDATE orders SET status = $1 WHERE id = $2 AND status = ANY($3) RETURNING id`,
-		toStatus, id, fromStatuses,
+		t.To, id, t.From,
 	).Scan(&returnedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return core.ErrConflict
 		}
-		return fmt.Errorf("updating order status multi: %w", err)
+		return fmt.Errorf("applying order transition: %w", err)
 	}
 	return nil
 }

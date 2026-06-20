@@ -41,6 +41,69 @@ func (_m *MockRepository) EXPECT() *MockRepository_Expecter {
 	return &MockRepository_Expecter{mock: &_m.Mock}
 }
 
+// Apply provides a mock function for the type MockRepository
+func (_mock *MockRepository) Apply(ctx context.Context, id uuid.UUID, t order.Transition) error {
+	ret := _mock.Called(ctx, id, t)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Apply")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, order.Transition) error); ok {
+		r0 = returnFunc(ctx, id, t)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockRepository_Apply_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Apply'
+type MockRepository_Apply_Call struct {
+	*mock.Call
+}
+
+// Apply is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - t order.Transition
+func (_e *MockRepository_Expecter) Apply(ctx interface{}, id interface{}, t interface{}) *MockRepository_Apply_Call {
+	return &MockRepository_Apply_Call{Call: _e.mock.On("Apply", ctx, id, t)}
+}
+
+func (_c *MockRepository_Apply_Call) Run(run func(ctx context.Context, id uuid.UUID, t order.Transition)) *MockRepository_Apply_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 order.Transition
+		if args[2] != nil {
+			arg2 = args[2].(order.Transition)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_Apply_Call) Return(err error) *MockRepository_Apply_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockRepository_Apply_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, t order.Transition) error) *MockRepository_Apply_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Create provides a mock function for the type MockRepository
 func (_mock *MockRepository) Create(ctx context.Context, order1 *order.Order) error {
 	ret := _mock.Called(ctx, order1)
@@ -792,75 +855,6 @@ func (_c *MockRepository_UpdateStatus_Call) Return(err error) *MockRepository_Up
 }
 
 func (_c *MockRepository_UpdateStatus_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, fromStatus order.Status, toStatus order.Status) error) *MockRepository_UpdateStatus_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateStatusMulti provides a mock function for the type MockRepository
-func (_mock *MockRepository) UpdateStatusMulti(ctx context.Context, id uuid.UUID, toStatus order.Status, fromStatuses []order.Status) error {
-	ret := _mock.Called(ctx, id, toStatus, fromStatuses)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateStatusMulti")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, order.Status, []order.Status) error); ok {
-		r0 = returnFunc(ctx, id, toStatus, fromStatuses)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockRepository_UpdateStatusMulti_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateStatusMulti'
-type MockRepository_UpdateStatusMulti_Call struct {
-	*mock.Call
-}
-
-// UpdateStatusMulti is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - toStatus order.Status
-//   - fromStatuses []order.Status
-func (_e *MockRepository_Expecter) UpdateStatusMulti(ctx interface{}, id interface{}, toStatus interface{}, fromStatuses interface{}) *MockRepository_UpdateStatusMulti_Call {
-	return &MockRepository_UpdateStatusMulti_Call{Call: _e.mock.On("UpdateStatusMulti", ctx, id, toStatus, fromStatuses)}
-}
-
-func (_c *MockRepository_UpdateStatusMulti_Call) Run(run func(ctx context.Context, id uuid.UUID, toStatus order.Status, fromStatuses []order.Status)) *MockRepository_UpdateStatusMulti_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 order.Status
-		if args[2] != nil {
-			arg2 = args[2].(order.Status)
-		}
-		var arg3 []order.Status
-		if args[3] != nil {
-			arg3 = args[3].([]order.Status)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *MockRepository_UpdateStatusMulti_Call) Return(err error) *MockRepository_UpdateStatusMulti_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockRepository_UpdateStatusMulti_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, toStatus order.Status, fromStatuses []order.Status) error) *MockRepository_UpdateStatusMulti_Call {
 	_c.Call.Return(run)
 	return _c
 }

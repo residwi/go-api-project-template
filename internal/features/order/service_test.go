@@ -562,9 +562,7 @@ func TestService_Apply(t *testing.T) {
 	t.Run("forwards the transition's to/from to the compare-and-set primitive", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		repo.EXPECT().
-			UpdateStatusMulti(mock.Anything, orderID, order.PaidTransition.To, order.PaidTransition.From).
-			Return(nil)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.PaidTransition).Return(nil)
 
 		err := svc.Apply(ctx, orderID, order.PaidTransition)
 
@@ -574,9 +572,7 @@ func TestService_Apply(t *testing.T) {
 	t.Run("conflict error propagates", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		repo.EXPECT().
-			UpdateStatusMulti(mock.Anything, orderID, order.RefundTransition.To, order.RefundTransition.From).
-			Return(core.ErrConflict)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.RefundTransition).Return(core.ErrConflict)
 
 		err := svc.Apply(ctx, orderID, order.RefundTransition)
 

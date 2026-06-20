@@ -391,7 +391,7 @@ func (s *Service) AdminUpdateStatus(ctx context.Context, orderID uuid.UUID, toSt
 // cross-feature wiring adapters call — each names its transition in
 // transition.go rather than passing ad-hoc from/to status lists.
 func (s *Service) Apply(ctx context.Context, orderID uuid.UUID, t Transition) error {
-	return s.repo.UpdateStatusMulti(ctx, orderID, t.To, t.From)
+	return s.repo.Apply(ctx, orderID, t)
 }
 
 // ListItemsByOrderID is used by payment service adapter

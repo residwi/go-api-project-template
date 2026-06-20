@@ -280,15 +280,17 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_UpdateStatusMulti(t *testing.T) {
+func TestPostgresRepository_Apply(t *testing.T) {
 	t.Run("updates order matching any of the from-statuses", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		o := seedOrder(t, userID)
 		repo := order.NewPostgresRepository(testPool)
 
-		err := repo.UpdateStatusMulti(context.Background(), o.ID, order.StatusExpired,
-			[]order.Status{order.StatusAwaitingPayment, order.StatusCancelled})
+		err := repo.Apply(context.Background(), o.ID, order.Transition{
+			To:   order.StatusExpired,
+			From: []order.Status{order.StatusAwaitingPayment, order.StatusCancelled},
+		})
 		require.NoError(t, err)
 
 		got, _ := repo.GetByID(context.Background(), o.ID)
@@ -464,15 +466,17 @@ func TestPostgresRepository_UpdateStatus_CancelledContext(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_UpdateStatusMulti_CancelledContext(t *testing.T) {
+func TestPostgresRepository_Apply_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
 		repo := order.NewPostgresRepository(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		err := repo.UpdateStatusMulti(ctx, uuid.New(), order.StatusPaid,
-			[]order.Status{order.StatusAwaitingPayment})
+		err := repo.Apply(ctx, uuid.New(), order.Transition{
+			To:   order.StatusPaid,
+			From: []order.Status{order.StatusAwaitingPayment},
+		})
 		assert.Error(t, err)
 	})
 }
