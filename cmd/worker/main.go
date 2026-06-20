@@ -64,7 +64,6 @@ func run() error {
 
 	w := wiring.NewPaymentWorker(
 		paymentRepo, pool, paymentSvc,
-		orderSvc, inventorySvc, promotionSvc,
 		payment.WorkerConfig{
 			Interval:      cfg.Worker.Interval,
 			BatchSize:     cfg.Worker.BatchSize,

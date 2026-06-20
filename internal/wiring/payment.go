@@ -112,22 +112,6 @@ func NewPaymentService(
 	)
 }
 
-func NewPaymentWorker(
-	repo payment.Repository,
-	pool *pgxpool.Pool,
-	service *payment.Service,
-	orderSvc *order.Service,
-	inventorySvc *inventory.Service,
-	promotionSvc *promotion.Service,
-	cfg payment.WorkerConfig,
-) *payment.Worker {
-	return payment.NewWorker(
-		repo, pool, service,
-		&orderStatusUpdaterAdapter{svc: orderSvc},
-		&orderItemsGetterAdapter{svc: orderSvc},
-		&orderGetterAdapter{svc: orderSvc},
-		&inventoryReleaserAdapter{svc: inventorySvc},
-		&couponReleaserAdapter{svc: promotionSvc},
-		cfg,
-	)
+func NewPaymentWorker(repo payment.Repository, pool *pgxpool.Pool, service *payment.Service, cfg payment.WorkerConfig) *payment.Worker {
+	return payment.NewWorker(repo, pool, service, cfg)
 }

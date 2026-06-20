@@ -9,8 +9,8 @@ import (
 )
 
 func TestNewWorker(t *testing.T) {
-	t.Run("constructs worker with all dependencies", func(t *testing.T) {
-		w := payment.NewWorker(nil, nil, nil, nil, nil, nil, nil, nil, payment.WorkerConfig{})
+	t.Run("constructs worker", func(t *testing.T) {
+		w := payment.NewWorker(nil, nil, nil, payment.WorkerConfig{})
 		assert.NotNil(t, w)
 	})
 }

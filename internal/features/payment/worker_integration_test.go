@@ -59,8 +59,7 @@ func newSweepTestWorker(t *testing.T) *payment.Worker {
 	svc := payment.NewService(repo, testPool, gw, orderUpdater, orderGet, orderItems,
 		inventoryDeduct, inventoryRel, inventoryRestock, couponRel)
 
-	return payment.NewWorker(repo, testPool, svc, orderUpdater, orderItems, orderGet,
-		inventoryRel, couponRel, workerConfig())
+	return payment.NewWorker(repo, testPool, svc, workerConfig())
 }
 
 func orderStatus(t *testing.T, orderID uuid.UUID) string {
@@ -189,8 +188,7 @@ func TestWorker_CleanupOldJobs(t *testing.T) {
 		svc := payment.NewService(repo, testPool, gw, orderUpdater, orderGet, orderItems,
 			inventoryDeduct, inventoryRel, inventoryRestock, couponRel)
 
-		w := payment.NewWorker(repo, testPool, svc, orderUpdater, orderItems, orderGet,
-			inventoryRel, couponRel, workerConfig())
+		w := payment.NewWorker(repo, testPool, svc, workerConfig())
 
 		wCtx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()
@@ -260,8 +258,7 @@ func TestWorker_ProcessPaymentJobs(t *testing.T) {
 		svc := payment.NewService(repo, testPool, gw, orderUpdater, orderGet, orderItems,
 			inventoryDeduct, inventoryRel, inventoryRestock, couponRel)
 
-		w := payment.NewWorker(repo, testPool, svc, orderUpdater, orderItems, orderGet,
-			inventoryRel, couponRel, workerConfig())
+		w := payment.NewWorker(repo, testPool, svc, workerConfig())
 
 		wCtx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		defer cancel()
@@ -333,8 +330,7 @@ func TestWorker_ProcessPaymentJobs(t *testing.T) {
 		svc := payment.NewService(repo, testPool, gw, orderUpdater, orderGet, orderItems,
 			inventoryDeduct, inventoryRel, inventoryRestock, couponRel)
 
-		w := payment.NewWorker(repo, testPool, svc, orderUpdater, orderItems, orderGet,
-			inventoryRel, couponRel, workerConfig())
+		w := payment.NewWorker(repo, testPool, svc, workerConfig())
 
 		wCtx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		defer cancel()

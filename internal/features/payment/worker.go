@@ -14,15 +14,10 @@ import (
 )
 
 type Worker struct {
-	repo           Repository
-	pool           *pgxpool.Pool
-	service        *Service
-	orderUpdater   OrderUpdater
-	orderItems     OrderItemsGetter
-	orderGet       OrderGetter
-	inventoryRel   InventoryReleaser
-	couponReleaser CouponReleaser
-	cfg            WorkerConfig
+	repo    Repository
+	pool    *pgxpool.Pool
+	service *Service
+	cfg     WorkerConfig
 }
 
 type WorkerConfig struct {
@@ -32,28 +27,8 @@ type WorkerConfig struct {
 	Concurrency   int
 }
 
-func NewWorker(
-	repo Repository,
-	pool *pgxpool.Pool,
-	service *Service,
-	orderUpdater OrderUpdater,
-	orderItems OrderItemsGetter,
-	orderGet OrderGetter,
-	inventoryRel InventoryReleaser,
-	couponReleaser CouponReleaser,
-	cfg WorkerConfig,
-) *Worker {
-	return &Worker{
-		repo:           repo,
-		pool:           pool,
-		service:        service,
-		orderUpdater:   orderUpdater,
-		orderItems:     orderItems,
-		orderGet:       orderGet,
-		inventoryRel:   inventoryRel,
-		couponReleaser: couponReleaser,
-		cfg:            cfg,
-	}
+func NewWorker(repo Repository, pool *pgxpool.Pool, service *Service, cfg WorkerConfig) *Worker {
+	return &Worker{repo: repo, pool: pool, service: service, cfg: cfg}
 }
 
 func (w *Worker) Start(ctx context.Context) {
