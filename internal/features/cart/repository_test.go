@@ -220,6 +220,37 @@ func TestPostgresRepository_CountItems(t *testing.T) {
 	})
 }
 
+func TestPostgresRepository_HasItem(t *testing.T) {
+	t.Run("returns false when item is not in cart", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		productID := seedProduct(t)
+		repo := cart.NewPostgresRepository(testPool)
+		ctx := context.Background()
+
+		cartID, _ := repo.GetOrCreate(ctx, userID)
+
+		exists, err := repo.HasItem(ctx, cartID, productID)
+		require.NoError(t, err)
+		assert.False(t, exists)
+	})
+
+	t.Run("returns true when item is in cart", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		productID := seedProduct(t)
+		repo := cart.NewPostgresRepository(testPool)
+		ctx := context.Background()
+
+		cartID, _ := repo.GetOrCreate(ctx, userID)
+		require.NoError(t, repo.AddItem(ctx, cartID, productID, 1))
+
+		exists, err := repo.HasItem(ctx, cartID, productID)
+		require.NoError(t, err)
+		assert.True(t, exists)
+	})
+}
+
 func TestPostgresRepository_GetCartForLock(t *testing.T) {
 	t.Run("returns not found when cart does not exist", func(t *testing.T) {
 		setup(t)
@@ -288,6 +319,12 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	t.Run("CountItems", func(t *testing.T) {
 		setup(t)
 		_, err := repo.CountItems(cancelledCtx, uuid.New())
+		assert.Error(t, err)
+	})
+
+	t.Run("HasItem", func(t *testing.T) {
+		setup(t)
+		_, err := repo.HasItem(cancelledCtx, uuid.New(), uuid.New())
 		assert.Error(t, err)
 	})
 

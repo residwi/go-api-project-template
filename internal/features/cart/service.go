@@ -61,12 +61,21 @@ func (s *Service) AddItem(ctx context.Context, userID uuid.UUID, req AddItemRequ
 			return err
 		}
 
-		count, err := s.repo.CountItems(txCtx, cartID)
+		// The cap counts DISTINCT products. Adding more of a product already in
+		// the cart only bumps its quantity (no new row), so it must not be
+		// blocked by the cap; only a genuinely new product is subject to it.
+		exists, err := s.repo.HasItem(txCtx, cartID, req.ProductID)
 		if err != nil {
 			return err
 		}
-		if count >= s.maxCartItems {
-			return fmt.Errorf("%w: cart cannot have more than %d items", core.ErrBadRequest, s.maxCartItems)
+		if !exists {
+			count, err := s.repo.CountItems(txCtx, cartID)
+			if err != nil {
+				return err
+			}
+			if count >= s.maxCartItems {
+				return fmt.Errorf("%w: cart cannot have more than %d items", core.ErrBadRequest, s.maxCartItems)
+			}
 		}
 
 		return s.repo.AddItem(txCtx, cartID, req.ProductID, req.Quantity)

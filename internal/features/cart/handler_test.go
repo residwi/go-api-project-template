@@ -48,6 +48,9 @@ func (s *stubRepo) UpdateItemQuantity(_ context.Context, _, _ uuid.UUID, _ int) 
 func (s *stubRepo) RemoveItem(context.Context, uuid.UUID, uuid.UUID) error { return nil }
 func (s *stubRepo) Clear(context.Context, uuid.UUID) error                 { return nil }
 func (s *stubRepo) CountItems(context.Context, uuid.UUID) (int, error)     { return 0, nil }
+func (s *stubRepo) HasItem(context.Context, uuid.UUID, uuid.UUID) (bool, error) {
+	return false, nil
+}
 func (s *stubRepo) GetCartForLock(context.Context, uuid.UUID) (uuid.UUID, error) {
 	return uuid.Nil, nil
 }

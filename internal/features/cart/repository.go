@@ -35,6 +35,7 @@ type Repository interface {
 	RemoveItem(ctx context.Context, cartID, productID uuid.UUID) error
 	Clear(ctx context.Context, userID uuid.UUID) error
 	CountItems(ctx context.Context, cartID uuid.UUID) (int, error)
+	HasItem(ctx context.Context, cartID, productID uuid.UUID) (bool, error)
 	GetCartForLock(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
 }
 
@@ -162,6 +163,19 @@ func (r *PostgresRepository) CountItems(ctx context.Context, cartID uuid.UUID) (
 		return 0, fmt.Errorf("counting cart items: %w", err)
 	}
 	return count, nil
+}
+
+func (r *PostgresRepository) HasItem(ctx context.Context, cartID, productID uuid.UUID) (bool, error) {
+	db := database.DB(ctx, r.pool)
+	var exists bool
+	err := db.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM cart_items WHERE cart_id = $1 AND product_id = $2)`,
+		cartID, productID,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("checking cart item: %w", err)
+	}
+	return exists, nil
 }
 
 func (r *PostgresRepository) GetCartForLock(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {

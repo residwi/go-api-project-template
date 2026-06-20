@@ -43,6 +43,8 @@ func TestService_AddItem(t *testing.T) {
 			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
+		repo.EXPECT().HasItem(mock.Anything, cartID, productID).
+			Return(false, nil)
 		repo.EXPECT().CountItems(mock.Anything, cartID).
 			Return(5, nil)
 		repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).
@@ -101,12 +103,40 @@ func TestService_AddItem(t *testing.T) {
 			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
+		repo.EXPECT().HasItem(mock.Anything, cartID, productID).
+			Return(false, nil)
 		repo.EXPECT().CountItems(mock.Anything, cartID).
 			Return(3, nil)
 
 		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, core.ErrBadRequest)
+	})
+
+	t.Run("cart full but bumping quantity of existing product succeeds", func(t *testing.T) {
+		repo := cartMocks.NewMockRepository(t)
+		products := cartMocks.NewMockProductLookup(t)
+		maxItems := 3
+		svc := cart.NewService(repo, nil, products, maxItems)
+
+		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		userID := uuid.New()
+		productID := uuid.New()
+		cartID := uuid.New()
+
+		products.EXPECT().GetByID(mock.Anything, productID).
+			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
+		repo.EXPECT().GetOrCreate(mock.Anything, userID).
+			Return(cartID, nil)
+		// Product is already in the cart, so the cap check must be skipped:
+		// CountItems must not be consulted and AddItem must be called.
+		repo.EXPECT().HasItem(mock.Anything, cartID, productID).
+			Return(true, nil)
+		repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).
+			Return(nil)
+
+		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 2})
+		require.NoError(t, err)
 	})
 
 	t.Run("product not found", func(t *testing.T) {
@@ -157,6 +187,8 @@ func TestService_AddItem(t *testing.T) {
 			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
+		repo.EXPECT().HasItem(mock.Anything, cartID, productID).
+			Return(false, nil)
 		repo.EXPECT().CountItems(mock.Anything, cartID).
 			Return(0, errors.New("db error"))
 
