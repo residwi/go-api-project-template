@@ -21,23 +21,19 @@ const (
 	inventoryActionRelease = "release"
 	inventoryActionRestock = "restock"
 	jitterDivisor          = 2
-
-	// order status strings for cross-domain calls (payment package defines its own
-	// OrderUpdater interface with string params to avoid importing the order package)
-	orderStatusAwaitingPayment   = "awaiting_payment"
-	orderStatusPaymentProcessing = "payment_processing"
-	orderStatusPaid              = "paid"
-	orderStatusProcessing        = "processing"
-	orderStatusShipped           = "shipped"
-	orderStatusCancelled         = "cancelled"
-	orderStatusExpired           = "expired"
-	orderStatusFulfillmentFailed = "fulfillment_failed"
-	orderStatusDelivered         = "delivered"
-	orderStatusRefunded          = "refunded"
 )
 
+// OrderUpdater drives order-status changes from the payment domain via intent
+// methods, so payment never imports the order package; the wiring adapter maps
+// each method to the corresponding order.Transition (which owns the allowed-from
+// set).
 type OrderUpdater interface {
-	UpdateStatus(ctx context.Context, orderID uuid.UUID, fromStatuses []string, toStatus string) error
+	MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error
+	MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error
+	MarkPaid(ctx context.Context, orderID uuid.UUID) error
+	MarkFulfillmentFailedAfterCharge(ctx context.Context, orderID uuid.UUID) error
+	MarkFulfillmentFailedCompensating(ctx context.Context, orderID uuid.UUID) error
+	MarkRefunded(ctx context.Context, orderID uuid.UUID) error
 }
 
 type OrderItemDTO struct {
@@ -228,8 +224,7 @@ func (s *Service) ProcessJob(ctx context.Context, job Job) bool {
 }
 
 func (s *Service) processChargeJob(ctx context.Context, job Job) bool {
-	err := s.orders.UpdateStatus(ctx, job.OrderID,
-		[]string{orderStatusAwaitingPayment, orderStatusPaymentProcessing}, orderStatusPaymentProcessing)
+	err := s.orders.MarkPaymentProcessing(ctx, job.OrderID)
 	if err != nil {
 		slog.WarnContext(ctx, "charge job cancelled: order not in expected state",
 			"job_id", job.ID, "order_id", job.OrderID, "payment_id", job.PaymentID)
@@ -303,8 +298,7 @@ func (s *Service) processChargeJob(ctx context.Context, job Job) bool {
 func (s *Service) handleChargeFailure(ctx context.Context, job *Job, lastError string) {
 	job.LastError = lastError
 
-	if err := s.orders.UpdateStatus(ctx, job.OrderID,
-		[]string{orderStatusPaymentProcessing}, orderStatusAwaitingPayment); err != nil {
+	if err := s.orders.MarkAwaitingPayment(ctx, job.OrderID); err != nil {
 		slog.ErrorContext(ctx, "failed to CAS order back to awaiting_payment",
 			"job_id", job.ID, "order_id", job.OrderID, "error", err)
 	}
@@ -347,8 +341,7 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 		paymentErr := s.repo.MarkPaid(txCtx, job.PaymentID,
 			[]Status{StatusPending, StatusProcessing, StatusRequiresReview, StatusCancelled})
 
-		orderErr := s.orders.UpdateStatus(txCtx, job.OrderID,
-			[]string{orderStatusPaymentProcessing, orderStatusAwaitingPayment}, orderStatusPaid)
+		orderErr := s.orders.MarkPaid(txCtx, job.OrderID)
 
 		if paymentErr != nil && orderErr != nil {
 			slog.InfoContext(txCtx, "job completed: already finalized by external actor (webhook)",
@@ -367,8 +360,7 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 				[]Status{StatusSuccess}); statusErr != nil {
 				slog.ErrorContext(txCtx, "failed to update payment status to requires_review", "payment_id", job.PaymentID, "error", statusErr)
 			}
-			if orderStatusErr := s.orders.UpdateStatus(txCtx, job.OrderID,
-				[]string{orderStatusCancelled, orderStatusExpired, orderStatusPaid}, orderStatusFulfillmentFailed); orderStatusErr != nil {
+			if orderStatusErr := s.orders.MarkFulfillmentFailedAfterCharge(txCtx, job.OrderID); orderStatusErr != nil {
 				slog.ErrorContext(txCtx, "failed to update order status to fulfillment_failed", "order_id", job.OrderID, "error", orderStatusErr)
 			}
 
@@ -412,9 +404,7 @@ func (s *Service) runCompensatingRefund(ctx context.Context, job Job) {
 			[]Status{StatusPending, StatusProcessing, StatusSuccess}); statusErr != nil {
 			slog.ErrorContext(txCtx, "failed to update payment status in compensating refund", "payment_id", job.PaymentID, "error", statusErr)
 		}
-		if orderErr := s.orders.UpdateStatus(txCtx, job.OrderID,
-			[]string{orderStatusPaymentProcessing, orderStatusAwaitingPayment, orderStatusCancelled, orderStatusExpired, orderStatusPaid},
-			orderStatusFulfillmentFailed); orderErr != nil {
+		if orderErr := s.orders.MarkFulfillmentFailedCompensating(txCtx, job.OrderID); orderErr != nil {
 			slog.ErrorContext(txCtx, "failed to update order status in compensating refund", "order_id", job.OrderID, "error", orderErr)
 		}
 
@@ -493,11 +483,7 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) bool {
 			[]Status{StatusSuccess, StatusRequiresReview}); statusErr != nil {
 			slog.ErrorContext(txCtx, "failed to update payment status to refunded", "payment_id", job.PaymentID, "error", statusErr)
 		}
-		if orderStatusErr := s.orders.UpdateStatus(txCtx, job.OrderID,
-			[]string{
-				orderStatusFulfillmentFailed, orderStatusPaid,
-				orderStatusProcessing, orderStatusShipped, orderStatusDelivered,
-			}, orderStatusRefunded); orderStatusErr != nil {
+		if orderStatusErr := s.orders.MarkRefunded(txCtx, job.OrderID); orderStatusErr != nil {
 			slog.ErrorContext(txCtx, "failed to update order status to refunded", "order_id", job.OrderID, "error", orderStatusErr)
 		}
 

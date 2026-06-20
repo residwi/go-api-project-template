@@ -38,38 +38,36 @@ func (_m *MockOrderUpdater) EXPECT() *MockOrderUpdater_Expecter {
 	return &MockOrderUpdater_Expecter{mock: &_m.Mock}
 }
 
-// UpdateStatus provides a mock function for the type MockOrderUpdater
-func (_mock *MockOrderUpdater) UpdateStatus(ctx context.Context, orderID uuid.UUID, fromStatuses []string, toStatus string) error {
-	ret := _mock.Called(ctx, orderID, fromStatuses, toStatus)
+// MarkAwaitingPayment provides a mock function for the type MockOrderUpdater
+func (_mock *MockOrderUpdater) MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error {
+	ret := _mock.Called(ctx, orderID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateStatus")
+		panic("no return value specified for MarkAwaitingPayment")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []string, string) error); ok {
-		r0 = returnFunc(ctx, orderID, fromStatuses, toStatus)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, orderID)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockOrderUpdater_UpdateStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateStatus'
-type MockOrderUpdater_UpdateStatus_Call struct {
+// MockOrderUpdater_MarkAwaitingPayment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkAwaitingPayment'
+type MockOrderUpdater_MarkAwaitingPayment_Call struct {
 	*mock.Call
 }
 
-// UpdateStatus is a helper method to define mock.On call
+// MarkAwaitingPayment is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-//   - fromStatuses []string
-//   - toStatus string
-func (_e *MockOrderUpdater_Expecter) UpdateStatus(ctx interface{}, orderID interface{}, fromStatuses interface{}, toStatus interface{}) *MockOrderUpdater_UpdateStatus_Call {
-	return &MockOrderUpdater_UpdateStatus_Call{Call: _e.mock.On("UpdateStatus", ctx, orderID, fromStatuses, toStatus)}
+func (_e *MockOrderUpdater_Expecter) MarkAwaitingPayment(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkAwaitingPayment_Call {
+	return &MockOrderUpdater_MarkAwaitingPayment_Call{Call: _e.mock.On("MarkAwaitingPayment", ctx, orderID)}
 }
 
-func (_c *MockOrderUpdater_UpdateStatus_Call) Run(run func(ctx context.Context, orderID uuid.UUID, fromStatuses []string, toStatus string)) *MockOrderUpdater_UpdateStatus_Call {
+func (_c *MockOrderUpdater_MarkAwaitingPayment_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderUpdater_MarkAwaitingPayment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -79,30 +77,305 @@ func (_c *MockOrderUpdater_UpdateStatus_Call) Run(run func(ctx context.Context, 
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 []string
-		if args[2] != nil {
-			arg2 = args[2].([]string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
 		)
 	})
 	return _c
 }
 
-func (_c *MockOrderUpdater_UpdateStatus_Call) Return(err error) *MockOrderUpdater_UpdateStatus_Call {
+func (_c *MockOrderUpdater_MarkAwaitingPayment_Call) Return(err error) *MockOrderUpdater_MarkAwaitingPayment_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockOrderUpdater_UpdateStatus_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID, fromStatuses []string, toStatus string) error) *MockOrderUpdater_UpdateStatus_Call {
+func (_c *MockOrderUpdater_MarkAwaitingPayment_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) error) *MockOrderUpdater_MarkAwaitingPayment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkFulfillmentFailedAfterCharge provides a mock function for the type MockOrderUpdater
+func (_mock *MockOrderUpdater) MarkFulfillmentFailedAfterCharge(ctx context.Context, orderID uuid.UUID) error {
+	ret := _mock.Called(ctx, orderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkFulfillmentFailedAfterCharge")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, orderID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkFulfillmentFailedAfterCharge'
+type MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call struct {
+	*mock.Call
+}
+
+// MarkFulfillmentFailedAfterCharge is a helper method to define mock.On call
+//   - ctx context.Context
+//   - orderID uuid.UUID
+func (_e *MockOrderUpdater_Expecter) MarkFulfillmentFailedAfterCharge(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call {
+	return &MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call{Call: _e.mock.On("MarkFulfillmentFailedAfterCharge", ctx, orderID)}
+}
+
+func (_c *MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call) Return(err error) *MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) error) *MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkFulfillmentFailedCompensating provides a mock function for the type MockOrderUpdater
+func (_mock *MockOrderUpdater) MarkFulfillmentFailedCompensating(ctx context.Context, orderID uuid.UUID) error {
+	ret := _mock.Called(ctx, orderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkFulfillmentFailedCompensating")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, orderID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockOrderUpdater_MarkFulfillmentFailedCompensating_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkFulfillmentFailedCompensating'
+type MockOrderUpdater_MarkFulfillmentFailedCompensating_Call struct {
+	*mock.Call
+}
+
+// MarkFulfillmentFailedCompensating is a helper method to define mock.On call
+//   - ctx context.Context
+//   - orderID uuid.UUID
+func (_e *MockOrderUpdater_Expecter) MarkFulfillmentFailedCompensating(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkFulfillmentFailedCompensating_Call {
+	return &MockOrderUpdater_MarkFulfillmentFailedCompensating_Call{Call: _e.mock.On("MarkFulfillmentFailedCompensating", ctx, orderID)}
+}
+
+func (_c *MockOrderUpdater_MarkFulfillmentFailedCompensating_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderUpdater_MarkFulfillmentFailedCompensating_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOrderUpdater_MarkFulfillmentFailedCompensating_Call) Return(err error) *MockOrderUpdater_MarkFulfillmentFailedCompensating_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockOrderUpdater_MarkFulfillmentFailedCompensating_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) error) *MockOrderUpdater_MarkFulfillmentFailedCompensating_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkPaid provides a mock function for the type MockOrderUpdater
+func (_mock *MockOrderUpdater) MarkPaid(ctx context.Context, orderID uuid.UUID) error {
+	ret := _mock.Called(ctx, orderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkPaid")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, orderID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockOrderUpdater_MarkPaid_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkPaid'
+type MockOrderUpdater_MarkPaid_Call struct {
+	*mock.Call
+}
+
+// MarkPaid is a helper method to define mock.On call
+//   - ctx context.Context
+//   - orderID uuid.UUID
+func (_e *MockOrderUpdater_Expecter) MarkPaid(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkPaid_Call {
+	return &MockOrderUpdater_MarkPaid_Call{Call: _e.mock.On("MarkPaid", ctx, orderID)}
+}
+
+func (_c *MockOrderUpdater_MarkPaid_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderUpdater_MarkPaid_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOrderUpdater_MarkPaid_Call) Return(err error) *MockOrderUpdater_MarkPaid_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockOrderUpdater_MarkPaid_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) error) *MockOrderUpdater_MarkPaid_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkPaymentProcessing provides a mock function for the type MockOrderUpdater
+func (_mock *MockOrderUpdater) MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error {
+	ret := _mock.Called(ctx, orderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkPaymentProcessing")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, orderID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockOrderUpdater_MarkPaymentProcessing_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkPaymentProcessing'
+type MockOrderUpdater_MarkPaymentProcessing_Call struct {
+	*mock.Call
+}
+
+// MarkPaymentProcessing is a helper method to define mock.On call
+//   - ctx context.Context
+//   - orderID uuid.UUID
+func (_e *MockOrderUpdater_Expecter) MarkPaymentProcessing(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkPaymentProcessing_Call {
+	return &MockOrderUpdater_MarkPaymentProcessing_Call{Call: _e.mock.On("MarkPaymentProcessing", ctx, orderID)}
+}
+
+func (_c *MockOrderUpdater_MarkPaymentProcessing_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderUpdater_MarkPaymentProcessing_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOrderUpdater_MarkPaymentProcessing_Call) Return(err error) *MockOrderUpdater_MarkPaymentProcessing_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockOrderUpdater_MarkPaymentProcessing_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) error) *MockOrderUpdater_MarkPaymentProcessing_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkRefunded provides a mock function for the type MockOrderUpdater
+func (_mock *MockOrderUpdater) MarkRefunded(ctx context.Context, orderID uuid.UUID) error {
+	ret := _mock.Called(ctx, orderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkRefunded")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, orderID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockOrderUpdater_MarkRefunded_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkRefunded'
+type MockOrderUpdater_MarkRefunded_Call struct {
+	*mock.Call
+}
+
+// MarkRefunded is a helper method to define mock.On call
+//   - ctx context.Context
+//   - orderID uuid.UUID
+func (_e *MockOrderUpdater_Expecter) MarkRefunded(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkRefunded_Call {
+	return &MockOrderUpdater_MarkRefunded_Call{Call: _e.mock.On("MarkRefunded", ctx, orderID)}
+}
+
+func (_c *MockOrderUpdater_MarkRefunded_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderUpdater_MarkRefunded_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOrderUpdater_MarkRefunded_Call) Return(err error) *MockOrderUpdater_MarkRefunded_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockOrderUpdater_MarkRefunded_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) error) *MockOrderUpdater_MarkRefunded_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -385,9 +385,13 @@ func (s *Service) AdminUpdateStatus(ctx context.Context, orderID uuid.UUID, toSt
 	return s.repo.UpdateStatus(ctx, orderID, order.Status, toStatus)
 }
 
-// UpdateStatusMulti is used by payment service adapter
-func (s *Service) UpdateStatusMulti(ctx context.Context, orderID uuid.UUID, fromStatuses []Status, toStatus Status) error {
-	return s.repo.UpdateStatusMulti(ctx, orderID, toStatus, fromStatuses)
+// Apply performs the guarded status transition t (a compare-and-set): it moves
+// the order to t.To only if its current status is one of t.From, returning
+// core.ErrConflict if nothing matched. It is the single entry point the
+// cross-feature wiring adapters call — each names its transition in
+// transition.go rather than passing ad-hoc from/to status lists.
+func (s *Service) Apply(ctx context.Context, orderID uuid.UUID, t Transition) error {
+	return s.repo.UpdateStatusMulti(ctx, orderID, t.To, t.From)
 }
 
 // ListItemsByOrderID is used by payment service adapter

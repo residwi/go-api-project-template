@@ -41,6 +41,18 @@ func workerConfig() payment.WorkerConfig {
 	}
 }
 
+// expectAnyOrderUpdate tolerates any order-status transition the worker may
+// trigger asynchronously (e.g. the expiry sweep touching unrelated orders)
+// without asserting which one fires.
+func expectAnyOrderUpdate(u *mocks.MockOrderUpdater) {
+	u.EXPECT().MarkPaymentProcessing(mock.Anything, mock.Anything).Maybe().Return(nil)
+	u.EXPECT().MarkAwaitingPayment(mock.Anything, mock.Anything).Maybe().Return(nil)
+	u.EXPECT().MarkPaid(mock.Anything, mock.Anything).Maybe().Return(nil)
+	u.EXPECT().MarkFulfillmentFailedAfterCharge(mock.Anything, mock.Anything).Maybe().Return(nil)
+	u.EXPECT().MarkFulfillmentFailedCompensating(mock.Anything, mock.Anything).Maybe().Return(nil)
+	u.EXPECT().MarkRefunded(mock.Anything, mock.Anything).Maybe().Return(nil)
+}
+
 // newSweepTestWorker builds a worker wired with no-expectation mocks; the
 // expiry sweep runs as a single UPDATE against the pool and does not invoke any
 // of the injected collaborators.
@@ -173,10 +185,7 @@ func TestWorker_CleanupOldJobs(t *testing.T) {
 		require.NoError(t, err)
 
 		orderUpdater := mocks.NewMockOrderUpdater(t)
-		orderUpdater.EXPECT().
-			UpdateStatus(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Maybe().
-			Return(nil)
+		expectAnyOrderUpdate(orderUpdater)
 		orderItems := mocks.NewMockOrderItemsGetter(t)
 		orderGet := mocks.NewMockOrderGetter(t)
 		inventoryRel := mocks.NewMockInventoryReleaser(t)
@@ -214,10 +223,10 @@ func TestWorker_ProcessPaymentJobs(t *testing.T) {
 
 		orderUpdater := mocks.NewMockOrderUpdater(t)
 		orderUpdater.EXPECT().
-			UpdateStatus(mock.Anything, orderID, []string{"awaiting_payment", "payment_processing"}, "payment_processing").
+			MarkPaymentProcessing(mock.Anything, orderID).
 			Return(nil)
 		orderUpdater.EXPECT().
-			UpdateStatus(mock.Anything, orderID, []string{"payment_processing", "awaiting_payment"}, "paid").
+			MarkPaid(mock.Anything, orderID).
 			Return(nil)
 
 		orderGet := mocks.NewMockOrderGetter(t)
@@ -304,16 +313,13 @@ func TestWorker_ProcessPaymentJobs(t *testing.T) {
 
 		orderUpdater := mocks.NewMockOrderUpdater(t)
 		orderUpdater.EXPECT().
-			UpdateStatus(mock.Anything, orderID, []string{"awaiting_payment", "payment_processing"}, "payment_processing").
+			MarkPaymentProcessing(mock.Anything, orderID).
 			Return(nil)
 		orderUpdater.EXPECT().
-			UpdateStatus(mock.Anything, orderID, []string{"payment_processing"}, "awaiting_payment").
+			MarkAwaitingPayment(mock.Anything, orderID).
 			Return(nil)
 		// sweepExpiredOrders may find other orders
-		orderUpdater.EXPECT().
-			UpdateStatus(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Maybe().
-			Return(nil)
+		expectAnyOrderUpdate(orderUpdater)
 
 		gw := mocks.NewMockGateway(t)
 		gw.EXPECT().

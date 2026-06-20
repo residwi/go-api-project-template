@@ -553,34 +553,32 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 	})
 }
 
-// --- TestService_UpdateStatusMulti ---
+// --- TestService_Apply ---
 
-func TestService_UpdateStatusMulti(t *testing.T) {
+func TestService_Apply(t *testing.T) {
 	ctx := context.Background()
 	orderID := uuid.New()
 
-	t.Run("success", func(t *testing.T) {
+	t.Run("forwards the transition's to/from to the compare-and-set primitive", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		fromStatuses := []order.Status{order.StatusAwaitingPayment, order.StatusPaymentProcessing}
-		toStatus := order.StatusPaid
+		repo.EXPECT().
+			UpdateStatusMulti(mock.Anything, orderID, order.PaidTransition.To, order.PaidTransition.From).
+			Return(nil)
 
-		repo.EXPECT().UpdateStatusMulti(mock.Anything, orderID, toStatus, fromStatuses).Return(nil)
-
-		err := svc.UpdateStatusMulti(ctx, orderID, fromStatuses, toStatus)
+		err := svc.Apply(ctx, orderID, order.PaidTransition)
 
 		assert.NoError(t, err)
 	})
 
-	t.Run("conflict error", func(t *testing.T) {
+	t.Run("conflict error propagates", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		fromStatuses := []order.Status{order.StatusAwaitingPayment}
-		toStatus := order.StatusPaid
+		repo.EXPECT().
+			UpdateStatusMulti(mock.Anything, orderID, order.RefundTransition.To, order.RefundTransition.From).
+			Return(core.ErrConflict)
 
-		repo.EXPECT().UpdateStatusMulti(mock.Anything, orderID, toStatus, fromStatuses).Return(core.ErrConflict)
-
-		err := svc.UpdateStatusMulti(ctx, orderID, fromStatuses, toStatus)
+		err := svc.Apply(ctx, orderID, order.RefundTransition)
 
 		assert.ErrorIs(t, err, core.ErrConflict)
 	})

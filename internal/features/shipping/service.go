@@ -21,8 +21,11 @@ type OrderInfo struct {
 	Status string
 }
 
+// OrderUpdater flips the order status from the shipping domain via intent
+// methods; the wiring adapter maps each to the matching order.Transition.
 type OrderUpdater interface {
-	UpdateStatus(ctx context.Context, orderID uuid.UUID, fromStatuses []string, toStatus string) error
+	MarkShipped(ctx context.Context, orderID uuid.UUID) error
+	MarkDelivered(ctx context.Context, orderID uuid.UUID) error
 }
 
 type Service struct {
@@ -59,7 +62,7 @@ func (s *Service) CreateShipment(ctx context.Context, orderID uuid.UUID, req Cre
 		if err := s.repo.Create(txCtx, shipment); err != nil {
 			return err
 		}
-		return s.updater.UpdateStatus(txCtx, orderID, []string{"paid", "processing"}, "shipped")
+		return s.updater.MarkShipped(txCtx, orderID)
 	}); err != nil {
 		return nil, err
 	}
@@ -103,7 +106,7 @@ func (s *Service) MarkDelivered(ctx context.Context, shipmentID uuid.UUID) (*Shi
 		if err := s.repo.MarkDelivered(txCtx, shipmentID); err != nil {
 			return err
 		}
-		return s.updater.UpdateStatus(txCtx, shipment.OrderID, []string{"shipped"}, "delivered")
+		return s.updater.MarkDelivered(txCtx, shipment.OrderID)
 	}); err != nil {
 		return nil, err
 	}

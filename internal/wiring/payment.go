@@ -13,17 +13,32 @@ import (
 	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
 )
 
-// orderStatusUpdaterAdapter satisfies both payment.OrderUpdater and
-// shipping.OrderUpdater (identical signatures) by forwarding to the order
-// service's optimistic multi-from status update.
-type orderStatusUpdaterAdapter struct{ svc *order.Service }
+// paymentOrderUpdaterAdapter maps payment.OrderUpdater's intent methods to the
+// matching named order.Transition, applied via order.Service.Apply.
+type paymentOrderUpdaterAdapter struct{ svc *order.Service }
 
-func (a *orderStatusUpdaterAdapter) UpdateStatus(ctx context.Context, orderID uuid.UUID, fromStatuses []string, toStatus string) error {
-	from := make([]order.Status, len(fromStatuses))
-	for i, s := range fromStatuses {
-		from[i] = order.Status(s)
-	}
-	return a.svc.UpdateStatusMulti(ctx, orderID, from, order.Status(toStatus))
+func (a *paymentOrderUpdaterAdapter) MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error {
+	return a.svc.Apply(ctx, orderID, order.PaymentProcessingTransition)
+}
+
+func (a *paymentOrderUpdaterAdapter) MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error {
+	return a.svc.Apply(ctx, orderID, order.AwaitingPaymentTransition)
+}
+
+func (a *paymentOrderUpdaterAdapter) MarkPaid(ctx context.Context, orderID uuid.UUID) error {
+	return a.svc.Apply(ctx, orderID, order.PaidTransition)
+}
+
+func (a *paymentOrderUpdaterAdapter) MarkFulfillmentFailedAfterCharge(ctx context.Context, orderID uuid.UUID) error {
+	return a.svc.Apply(ctx, orderID, order.FulfillmentFailedAfterChargeTransition)
+}
+
+func (a *paymentOrderUpdaterAdapter) MarkFulfillmentFailedCompensating(ctx context.Context, orderID uuid.UUID) error {
+	return a.svc.Apply(ctx, orderID, order.FulfillmentFailedCompensatingTransition)
+}
+
+func (a *paymentOrderUpdaterAdapter) MarkRefunded(ctx context.Context, orderID uuid.UUID) error {
+	return a.svc.Apply(ctx, orderID, order.RefundTransition)
 }
 
 type orderGetterAdapter struct{ svc *order.Service }
@@ -102,7 +117,7 @@ func NewPaymentService(
 ) *payment.Service {
 	return payment.NewService(
 		repo, pool, gw,
-		&orderStatusUpdaterAdapter{svc: orderSvc},
+		&paymentOrderUpdaterAdapter{svc: orderSvc},
 		&orderGetterAdapter{svc: orderSvc},
 		&orderItemsGetterAdapter{svc: orderSvc},
 		&inventoryDeductorAdapter{svc: inventorySvc},

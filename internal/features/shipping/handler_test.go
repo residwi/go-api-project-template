@@ -222,7 +222,7 @@ func TestHandler_CreateShipment(t *testing.T) {
 				s.CreatedAt = now
 				s.UpdatedAt = now
 			}).Return(nil)
-		orderUpd.EXPECT().UpdateStatus(mock.Anything, orderID, []string{"paid", "processing"}, "shipped").Return(nil)
+		orderUpd.EXPECT().MarkShipped(mock.Anything, orderID).Return(nil)
 
 		body, _ := json.Marshal(shipping.CreateShipmentRequest{
 			Carrier:        "FedEx",
@@ -471,7 +471,7 @@ func TestHandler_MarkDelivered(t *testing.T) {
 			UpdatedAt:      now,
 		}, nil).Once()
 		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(nil)
-		orderUpd.EXPECT().UpdateStatus(mock.Anything, orderID, []string{"shipped"}, "delivered").Return(nil)
+		orderUpd.EXPECT().MarkDelivered(mock.Anything, orderID).Return(nil)
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(&shipping.Shipment{
 			ID:             shipmentID,
 			OrderID:        orderID,

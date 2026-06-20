@@ -57,7 +57,7 @@ func TestService_CreateShipment(t *testing.T) {
 			}).
 			Return(nil)
 
-		updater.EXPECT().UpdateStatus(mock.Anything, orderID, []string{"paid", "processing"}, "shipped").
+		updater.EXPECT().MarkShipped(mock.Anything, orderID).
 			Return(nil)
 
 		ctx := database.WithTestTx(context.Background(), noopDBTX{})
@@ -160,7 +160,7 @@ func TestService_CreateShipment(t *testing.T) {
 			}).Return(nil)
 
 		updateErr := errors.New("order status update failed")
-		updater.EXPECT().UpdateStatus(mock.Anything, orderID, []string{"paid", "processing"}, "shipped").Return(updateErr)
+		updater.EXPECT().MarkShipped(mock.Anything, orderID).Return(updateErr)
 
 		ctx := database.WithTestTx(context.Background(), noopDBTX{})
 		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateShipmentRequest{
@@ -304,7 +304,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		}
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(existing, nil).Once()
 		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(nil)
-		updater.EXPECT().UpdateStatus(mock.Anything, orderID, []string{"shipped"}, "delivered").Return(nil)
+		updater.EXPECT().MarkDelivered(mock.Anything, orderID).Return(nil)
 
 		now := time.Now()
 		delivered := &shipping.Shipment{
@@ -374,7 +374,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(existing, nil)
 		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(nil)
 		updateErr := errors.New("order update failed")
-		updater.EXPECT().UpdateStatus(mock.Anything, orderID, []string{"shipped"}, "delivered").Return(updateErr)
+		updater.EXPECT().MarkDelivered(mock.Anything, orderID).Return(updateErr)
 
 		ctx := database.WithTestTx(context.Background(), noopDBTX{})
 		result, err := svc.MarkDelivered(ctx, shipmentID)
