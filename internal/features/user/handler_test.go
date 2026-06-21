@@ -22,6 +22,16 @@ import (
 	userMocks "github.com/residwi/go-api-project-template/mocks/user"
 )
 
+// listedUserItem is the subset of the admin user-list JSON shape the list tests
+// assert on (the fields the endpoint serializes from user.User).
+type listedUserItem struct {
+	Email     string `json:"email"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Role      string `json:"role"`
+	Active    bool   `json:"active"`
+}
+
 func setupUserMux(t *testing.T) (*http.ServeMux, *userMocks.MockRepository) {
 	repo := userMocks.NewMockRepository(t)
 	svc := user.NewService(repo, nil, nil)
@@ -279,16 +289,9 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 		item := items[0].(map[string]any)
 		itemJSON, err := json.Marshal(item)
 		require.NoError(t, err)
-		type userItem struct {
-			Email     string `json:"email"`
-			FirstName string `json:"first_name"`
-			LastName  string `json:"last_name"`
-			Role      string `json:"role"`
-			Active    bool   `json:"active"`
-		}
-		var gotItem userItem
+		var gotItem listedUserItem
 		require.NoError(t, json.Unmarshal(itemJSON, &gotItem))
-		assert.Equal(t, userItem{
+		assert.Equal(t, listedUserItem{
 			Email:     "alice@example.com",
 			FirstName: "Alice",
 			LastName:  "Smith",
@@ -805,16 +808,9 @@ func TestAdminHandler_ListUsers_WithActiveFilter(t *testing.T) {
 		item := items[0].(map[string]any)
 		itemJSON, err := json.Marshal(item)
 		require.NoError(t, err)
-		type userItem struct {
-			Email     string `json:"email"`
-			FirstName string `json:"first_name"`
-			LastName  string `json:"last_name"`
-			Role      string `json:"role"`
-			Active    bool   `json:"active"`
-		}
-		var gotItem userItem
+		var gotItem listedUserItem
 		require.NoError(t, json.Unmarshal(itemJSON, &gotItem))
-		assert.Equal(t, userItem{
+		assert.Equal(t, listedUserItem{
 			Email:     "active@example.com",
 			FirstName: "Active",
 			LastName:  "User",
