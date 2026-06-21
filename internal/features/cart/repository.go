@@ -35,7 +35,7 @@ type Repository interface {
 	RemoveItem(ctx context.Context, cartID, productID uuid.UUID) error
 	Clear(ctx context.Context, userID uuid.UUID) error
 	CountItems(ctx context.Context, cartID uuid.UUID) (int, error)
-	HasItem(ctx context.Context, cartID, productID uuid.UUID) (bool, error)
+	CountAndHasItem(ctx context.Context, cartID, productID uuid.UUID) (count int, hasProduct bool, err error)
 	GetCartForLock(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
 }
 
@@ -165,17 +165,23 @@ func (r *PostgresRepository) CountItems(ctx context.Context, cartID uuid.UUID) (
 	return count, nil
 }
 
-func (r *PostgresRepository) HasItem(ctx context.Context, cartID, productID uuid.UUID) (bool, error) {
+// CountAndHasItem returns, in a single round-trip, how many distinct items the
+// cart holds and whether productID is already one of them — the two facts
+// AddItem needs to enforce the distinct-item cap without a second query.
+func (r *PostgresRepository) CountAndHasItem(ctx context.Context, cartID, productID uuid.UUID) (int, bool, error) {
 	db := database.DB(ctx, r.pool)
-	var exists bool
+	var (
+		count      int
+		hasProduct bool
+	)
 	err := db.QueryRow(ctx,
-		`SELECT EXISTS (SELECT 1 FROM cart_items WHERE cart_id = $1 AND product_id = $2)`,
+		`SELECT COUNT(*), COUNT(*) FILTER (WHERE product_id = $2) > 0 FROM cart_items WHERE cart_id = $1`,
 		cartID, productID,
-	).Scan(&exists)
+	).Scan(&count, &hasProduct)
 	if err != nil {
-		return false, fmt.Errorf("checking cart item: %w", err)
+		return 0, false, fmt.Errorf("counting cart items: %w", err)
 	}
-	return exists, nil
+	return count, hasProduct, nil
 }
 
 func (r *PostgresRepository) GetCartForLock(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {

@@ -43,10 +43,8 @@ func TestService_AddItem(t *testing.T) {
 			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
-		repo.EXPECT().HasItem(mock.Anything, cartID, productID).
-			Return(false, nil)
-		repo.EXPECT().CountItems(mock.Anything, cartID).
-			Return(5, nil)
+		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
+			Return(5, false, nil)
 		repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).
 			Return(nil)
 
@@ -103,10 +101,8 @@ func TestService_AddItem(t *testing.T) {
 			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
-		repo.EXPECT().HasItem(mock.Anything, cartID, productID).
-			Return(false, nil)
-		repo.EXPECT().CountItems(mock.Anything, cartID).
-			Return(3, nil)
+		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
+			Return(3, false, nil)
 
 		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
@@ -128,10 +124,10 @@ func TestService_AddItem(t *testing.T) {
 			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
-		// Product is already in the cart, so the cap check must be skipped:
-		// CountItems must not be consulted and AddItem must be called.
-		repo.EXPECT().HasItem(mock.Anything, cartID, productID).
-			Return(true, nil)
+		// Product is already in the cart (hasProduct=true), so even though the
+		// cart is at the cap the add is allowed and AddItem must be called.
+		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
+			Return(maxItems, true, nil)
 		repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).
 			Return(nil)
 
@@ -173,7 +169,7 @@ func TestService_AddItem(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("count items error", func(t *testing.T) {
+	t.Run("cap check query error", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, nil, products, 50)
@@ -187,10 +183,8 @@ func TestService_AddItem(t *testing.T) {
 			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
-		repo.EXPECT().HasItem(mock.Anything, cartID, productID).
-			Return(false, nil)
-		repo.EXPECT().CountItems(mock.Anything, cartID).
-			Return(0, errors.New("db error"))
+		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
+			Return(0, false, errors.New("db error"))
 
 		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 1})
 		require.Error(t, err)

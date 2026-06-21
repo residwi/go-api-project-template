@@ -220,8 +220,8 @@ func TestPostgresRepository_CountItems(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_HasItem(t *testing.T) {
-	t.Run("returns false when item is not in cart", func(t *testing.T) {
+func TestPostgresRepository_CountAndHasItem(t *testing.T) {
+	t.Run("returns zero count and false when the product is not in the cart", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		productID := seedProduct(t)
@@ -230,24 +230,28 @@ func TestPostgresRepository_HasItem(t *testing.T) {
 
 		cartID, _ := repo.GetOrCreate(ctx, userID)
 
-		exists, err := repo.HasItem(ctx, cartID, productID)
+		count, hasProduct, err := repo.CountAndHasItem(ctx, cartID, productID)
 		require.NoError(t, err)
-		assert.False(t, exists)
+		assert.Equal(t, 0, count)
+		assert.False(t, hasProduct)
 	})
 
-	t.Run("returns true when item is in cart", func(t *testing.T) {
+	t.Run("returns the distinct count and true when the product is in the cart", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		productID := seedProduct(t)
+		otherID := seedProduct(t)
 		repo := cart.NewPostgresRepository(testPool)
 		ctx := context.Background()
 
 		cartID, _ := repo.GetOrCreate(ctx, userID)
 		require.NoError(t, repo.AddItem(ctx, cartID, productID, 1))
+		require.NoError(t, repo.AddItem(ctx, cartID, otherID, 1))
 
-		exists, err := repo.HasItem(ctx, cartID, productID)
+		count, hasProduct, err := repo.CountAndHasItem(ctx, cartID, productID)
 		require.NoError(t, err)
-		assert.True(t, exists)
+		assert.Equal(t, 2, count)
+		assert.True(t, hasProduct)
 	})
 }
 
@@ -322,9 +326,9 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("HasItem", func(t *testing.T) {
+	t.Run("CountAndHasItem", func(t *testing.T) {
 		setup(t)
-		_, err := repo.HasItem(cancelledCtx, uuid.New(), uuid.New())
+		_, _, err := repo.CountAndHasItem(cancelledCtx, uuid.New(), uuid.New())
 		assert.Error(t, err)
 	})
 
