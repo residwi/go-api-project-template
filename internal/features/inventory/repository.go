@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -41,22 +40,22 @@ const stockValueCols = 2
 // renders the VALUES placeholder list and flat args for a batched stock UPDATE
 // joined against (product_id, qty) tuples. Aggregation is required for
 // correctness: a duplicate product_id would otherwise join the product row to
-// two VALUES tuples and apply only one of the quantities. The returned ids are
-// sorted, so callers can acquire row locks in a deterministic order; len(ids)
-// is the number of distinct products updated.
-func buildStockValues(items []StockChange) (placeholderList string, args []any, ids []uuid.UUID) {
+// two VALUES tuples and apply only one of the quantities. ids holds the distinct
+// product ids in first-seen order; len(ids) is the number of distinct products
+// updated. Lock ordering is owned by lockProducts' SQL `ORDER BY id`, not the
+// order of this slice (which only feeds the VALUES join, where order is moot).
+func buildStockValues(items []StockChange) (string, []any, []uuid.UUID) {
 	sums := make(map[uuid.UUID]int, len(items))
-	ids = make([]uuid.UUID, 0, len(items))
+	ids := make([]uuid.UUID, 0, len(items))
 	for _, it := range items {
 		if _, seen := sums[it.ProductID]; !seen {
 			ids = append(ids, it.ProductID)
 		}
 		sums[it.ProductID] += it.Quantity
 	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i].String() < ids[j].String() })
 
 	placeholders := make([]string, len(ids))
-	args = make([]any, 0, len(ids)*stockValueCols)
+	args := make([]any, 0, len(ids)*stockValueCols)
 	param := 1
 	for i, id := range ids {
 		idCol, qtyCol := param, param+1
