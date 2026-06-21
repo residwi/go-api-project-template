@@ -20,7 +20,7 @@ type Repository interface {
 	GetByOrderID(ctx context.Context, orderID uuid.UUID) (*Shipment, error)
 	Update(ctx context.Context, shipment *Shipment) error
 	MarkShipped(ctx context.Context, id uuid.UUID) error
-	MarkDelivered(ctx context.Context, id uuid.UUID) error
+	MarkDelivered(ctx context.Context, id uuid.UUID) (*Shipment, error)
 }
 
 type PostgresRepository struct {
@@ -117,17 +117,23 @@ func (r *PostgresRepository) MarkShipped(ctx context.Context, id uuid.UUID) erro
 	return nil
 }
 
-func (r *PostgresRepository) MarkDelivered(ctx context.Context, id uuid.UUID) error {
+// MarkDelivered flips the shipment to delivered and returns the updated row in
+// the same round-trip (RETURNING), so callers don't need a follow-up GetByID.
+func (r *PostgresRepository) MarkDelivered(ctx context.Context, id uuid.UUID) (*Shipment, error) {
 	db := database.DB(ctx, r.pool)
-	tag, err := db.Exec(ctx,
+	var s Shipment
+	err := db.QueryRow(ctx,
 		`UPDATE shipments SET status = 'delivered', delivered_at = NOW()
-		WHERE id = $1`, id,
-	)
+		WHERE id = $1
+		RETURNING id, order_id, carrier, tracking_number, status, shipped_at, delivered_at, created_at, updated_at`,
+		id,
+	).Scan(&s.ID, &s.OrderID, &s.Carrier, &s.TrackingNumber, &s.Status,
+		&s.ShippedAt, &s.DeliveredAt, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
-		return fmt.Errorf("marking shipment as delivered: %w", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, core.ErrNotFound
+		}
+		return nil, fmt.Errorf("marking shipment as delivered: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
-	}
-	return nil
+	return &s, nil
 }

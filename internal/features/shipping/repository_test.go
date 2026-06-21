@@ -240,10 +240,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM shipments WHERE id = $1`, s.ID) })
 
-		err = repo.MarkDelivered(ctx, s.ID)
-		require.NoError(t, err)
-
-		got, err := repo.GetByID(ctx, s.ID)
+		got, err := repo.MarkDelivered(ctx, s.ID)
 		require.NoError(t, err)
 		assert.Equal(t, shipping.StatusDelivered, got.Status)
 		assert.NotNil(t, got.DeliveredAt)
@@ -253,7 +250,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 		setup(t)
 		repo := shipping.NewPostgresRepository(testPool)
 
-		err := repo.MarkDelivered(context.Background(), uuid.New())
+		_, err := repo.MarkDelivered(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, core.ErrNotFound)
 	})
 }
@@ -302,7 +299,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("MarkDelivered", func(t *testing.T) {
 		setup(t)
-		err := repo.MarkDelivered(cancelledCtx, uuid.New())
+		_, err := repo.MarkDelivered(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
 }

@@ -102,14 +102,18 @@ func (s *Service) MarkDelivered(ctx context.Context, shipmentID uuid.UUID) (*Shi
 
 	// Mark the shipment delivered and flip the order to delivered atomically — a
 	// failed order update rolls back the shipment instead of diverging from it.
+	// MarkDelivered returns the updated row, so no follow-up read is needed.
+	var delivered *Shipment
 	if err := database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
-		if err := s.repo.MarkDelivered(txCtx, shipmentID); err != nil {
-			return err
+		var markErr error
+		delivered, markErr = s.repo.MarkDelivered(txCtx, shipmentID)
+		if markErr != nil {
+			return markErr
 		}
 		return s.updater.MarkDelivered(txCtx, shipment.OrderID)
 	}); err != nil {
 		return nil, err
 	}
 
-	return s.repo.GetByID(ctx, shipmentID)
+	return delivered, nil
 }

@@ -470,9 +470,7 @@ func TestHandler_MarkDelivered(t *testing.T) {
 			CreatedAt:      now,
 			UpdatedAt:      now,
 		}, nil).Once()
-		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(nil)
-		orderUpd.EXPECT().MarkDelivered(mock.Anything, orderID).Return(nil)
-		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(&shipping.Shipment{
+		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(&shipping.Shipment{
 			ID:             shipmentID,
 			OrderID:        orderID,
 			Carrier:        "FedEx",
@@ -481,7 +479,8 @@ func TestHandler_MarkDelivered(t *testing.T) {
 			DeliveredAt:    &now,
 			CreatedAt:      now,
 			UpdatedAt:      now,
-		}, nil).Once()
+		}, nil)
+		orderUpd.EXPECT().MarkDelivered(mock.Anything, orderID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/shipments/"+shipmentID.String()+"/deliver", nil)

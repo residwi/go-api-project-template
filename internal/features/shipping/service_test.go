@@ -302,10 +302,6 @@ func TestService_MarkDelivered(t *testing.T) {
 			OrderID: orderID,
 			Status:  shipping.StatusShipped,
 		}
-		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(existing, nil).Once()
-		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(nil)
-		updater.EXPECT().MarkDelivered(mock.Anything, orderID).Return(nil)
-
 		now := time.Now()
 		delivered := &shipping.Shipment{
 			ID:          shipmentID,
@@ -313,13 +309,14 @@ func TestService_MarkDelivered(t *testing.T) {
 			Status:      shipping.StatusDelivered,
 			DeliveredAt: &now,
 		}
-		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(delivered, nil).Once()
+		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(existing, nil).Once()
+		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(delivered, nil)
+		updater.EXPECT().MarkDelivered(mock.Anything, orderID).Return(nil)
 
 		ctx := database.WithTestTx(context.Background(), noopDBTX{})
 		result, err := svc.MarkDelivered(ctx, shipmentID)
 		require.NoError(t, err)
-		assert.Equal(t, shipping.StatusDelivered, result.Status)
-		assert.NotNil(t, result.DeliveredAt)
+		assert.Equal(t, delivered, result)
 	})
 
 	t.Run("shipment not found", func(t *testing.T) {
@@ -350,7 +347,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		}
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(existing, nil)
 		dbErr := errors.New("database error")
-		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(dbErr)
+		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(nil, dbErr)
 
 		ctx := database.WithTestTx(context.Background(), noopDBTX{})
 		result, err := svc.MarkDelivered(ctx, shipmentID)
@@ -372,7 +369,7 @@ func TestService_MarkDelivered(t *testing.T) {
 			Status:  shipping.StatusShipped,
 		}
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(existing, nil)
-		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(nil)
+		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(existing, nil)
 		updateErr := errors.New("order update failed")
 		updater.EXPECT().MarkDelivered(mock.Anything, orderID).Return(updateErr)
 

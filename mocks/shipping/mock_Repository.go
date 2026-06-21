@@ -233,20 +233,31 @@ func (_c *MockRepository_GetByOrderID_Call) RunAndReturn(run func(ctx context.Co
 }
 
 // MarkDelivered provides a mock function for the type MockRepository
-func (_mock *MockRepository) MarkDelivered(ctx context.Context, id uuid.UUID) error {
+func (_mock *MockRepository) MarkDelivered(ctx context.Context, id uuid.UUID) (*shipping.Shipment, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkDelivered")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+	var r0 *shipping.Shipment
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*shipping.Shipment, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *shipping.Shipment); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*shipping.Shipment)
+		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockRepository_MarkDelivered_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkDelivered'
@@ -279,12 +290,12 @@ func (_c *MockRepository_MarkDelivered_Call) Run(run func(ctx context.Context, i
 	return _c
 }
 
-func (_c *MockRepository_MarkDelivered_Call) Return(err error) *MockRepository_MarkDelivered_Call {
-	_c.Call.Return(err)
+func (_c *MockRepository_MarkDelivered_Call) Return(shipment *shipping.Shipment, err error) *MockRepository_MarkDelivered_Call {
+	_c.Call.Return(shipment, err)
 	return _c
 }
 
-func (_c *MockRepository_MarkDelivered_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockRepository_MarkDelivered_Call {
+func (_c *MockRepository_MarkDelivered_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*shipping.Shipment, error)) *MockRepository_MarkDelivered_Call {
 	_c.Call.Return(run)
 	return _c
 }
