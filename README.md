@@ -511,6 +511,8 @@ This template follows **Feature-Based Clean Architecture** (Vertical Slicing):
 - Dependencies flow inward (handlers → services → repositories)
 - PostgreSQL repositories are embedded within each feature package
 - Cross-feature dependencies use inline interfaces (consumer-defined) to maintain loose coupling; the concrete adapters that satisfy them live in `internal/wiring`, shared by the API server and worker so they are defined once
+- Order status changes from other features go through named `order.Transition` values applied via `order.Service.Apply` — payment and shipping express intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) and the `wiring` adapters map each intent to its transition, keeping the order state machine's allowed transitions defined in one place (`order/transition.go`)
+- Configuration is validated at startup (`config.Config.validate()`); invalid settings (e.g. a sub-second `AUTH_RATE_WINDOW` or `WORKER_CONCURRENCY < 1`) fail fast on boot
 - Shared value objects (`Money`, `Address`, `Pagination`, `AppError`) live in `internal/core`
 
 ### Layer Responsibilities

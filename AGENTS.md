@@ -111,7 +111,7 @@ make ci    # deps → fmt → vet → lint → test
 - Language: Go 1.26; use `net/http` ServeMux (no third-party routers).
 - JSON: `encoding/json` — never `github.com/bytedance/sonic`.
 - Validation: `go-playground/validator/v10`.
-- Config: `godotenv` + `kelseyhightower/envconfig`; struct tags define env var names and defaults.
+- Config: `godotenv` + `kelseyhightower/envconfig`; struct tags define env var names and defaults. `Config.validate()` runs at load time and fails fast on invalid combinations (e.g. a sub-second `AUTH_RATE_WINDOW`, `WORKER_CONCURRENCY < 1`, or a too-short `WORKER_LEASE_DURATION`) so misconfiguration aborts boot instead of surfacing as a runtime error later — add new invariants there rather than guarding per use site.
 - Logging: `log/slog` only (structured, JSON format in production).
 - Naming: packages are short, singular nouns (`user`, `product`, `cart`). Files inside a feature: `handler.go`, `service.go`, `repository.go`, `model.go`, `dto.go`, `routes.go`. Tests: `*_test.go` in the same package.
 - Error handling: Application errors in `core/apperror.go`; use sentinel errors like `core.ErrNotFound`, `core.ErrBadRequest`, `core.ErrUnauthorized` for structured error responses. Wrap with `fmt.Errorf("%w: ...", core.ErrBadRequest)` for additional context.
@@ -124,6 +124,7 @@ make ci    # deps → fmt → vet → lint → test
 - Comments: Add only when necessary. Explain why, not how.
 - Duplication over wrong abstraction: Prefer duplicating code over introducing a shared abstraction that doesn't quite fit.
 - Cross-feature dependencies: Use inline interfaces at the top of the consumer's `service.go` (dependency inversion). No shared `port.go` files. Each feature defines only the methods it needs from other features. The concrete adapters that satisfy those interfaces live in `internal/wiring` (not in `server/router.go`), exposed as service constructors both binaries reuse.
+- Order status transitions: the `order` package owns its state machine — never set an order's status from another feature with ad-hoc from/to lists. Every guarded transition (a compare-and-set that moves the order to a target status only if its current status is in an allowed-from set) is a named `order.Transition` value in `order/transition.go` (e.g. `order.PaidTransition`, `order.RefundTransition`), applied through the single `order.Service.Apply(ctx, id, transition)` entry point. Other features depend on *intent* methods on their inline interface (`payment.OrderUpdater.MarkPaid`, `shipping.OrderUpdater.MarkShipped`, …); the `internal/wiring` adapters map each intent to its named transition. This keeps every allowed-from set in one file so it cannot drift per call site.
 
 ## Architecture Notes
 
@@ -172,7 +173,7 @@ make ci    # deps → fmt → vet → lint → test
 1. User sends POST to `/api/orders` with cart + payment method.
 2. `order.Handler` validates request → `order.Service.PlaceOrder()` locks cart, snapshots items, reserves inventory, applies coupon (if any), creates order + items in a transaction.
 3. `payment.Service.InitiatePayment()` creates a payment record, calls the payment gateway to get a payment URL or charge.
-4. `payment.Worker` (in `cmd/worker`) polls `payment_jobs` on an interval, processes pending payments, updates order status on success/failure, deducts/releases inventory accordingly.
+4. `payment.Worker` (in `cmd/worker`) polls `payment_jobs` on an interval, processes pending payments, transitions order status on success/failure via named `order.Transition` values (`order.Service.Apply`), deducts/releases inventory accordingly.
 
 ## Testing Strategy
 
@@ -346,6 +347,7 @@ Tests must stay fast. Follow these rules to avoid slow tests:
 - Do not suppress lint or vet errors with `//nolint` without a justification comment.
 - Preserve the vertical-slice structure: each feature module is self-contained with handler → service → repository interface. PostgreSQL repository implementations are embedded in each feature package.
 - Cross-feature dependencies must use inline interfaces at the top of the consumer's `service.go`. Never import another feature's concrete types directly.
+- Never drive an order's status from another feature with raw from/to status lists. Add or reuse a named `order.Transition` in `order/transition.go`, expose an intent method on the consumer's inline `OrderUpdater` interface, and map it in the `internal/wiring` adapter — all status changes funnel through `order.Service.Apply`.
 - When adding a new feature, create a package under `internal/features/`, register routes in `internal/server/router.go`, and place any cross-feature adapters in `internal/wiring`.
 
 ## Extensibility Hooks
