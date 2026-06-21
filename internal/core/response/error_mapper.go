@@ -34,8 +34,7 @@ func (e *AppError) Unwrap() error {
 }
 
 func HandleErr(w http.ResponseWriter, err error) {
-	var appErr *AppError
-	if errors.As(err, &appErr) {
+	if appErr, ok := errors.AsType[*AppError](err); ok {
 		Err(w, appErr.Status, appErr.Message, appErr.Details)
 		return
 	}

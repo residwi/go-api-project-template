@@ -94,8 +94,7 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dst); err != nil {
-		var maxBytesError *http.MaxBytesError
-		if errors.As(err, &maxBytesError) {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			return fmt.Errorf("%w: request body too large", core.ErrBadRequest)
 		}
 		return fmt.Errorf("%w: %s", core.ErrBadRequest, err.Error())
