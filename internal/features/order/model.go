@@ -1,7 +1,6 @@
 package order
 
 import (
-	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,27 +22,6 @@ const (
 	StatusRefunded          Status = "refunded"
 	StatusFulfillmentFailed Status = "fulfillment_failed"
 )
-
-var validTransitions = map[Status][]Status{ //nolint:gochecknoglobals // package-level lookup table for state machine
-	StatusAwaitingPayment:   {StatusPaymentProcessing, StatusCancelled, StatusExpired},
-	StatusPaymentProcessing: {StatusPaid, StatusAwaitingPayment, StatusCancelled, StatusFulfillmentFailed},
-	StatusPaid:              {StatusProcessing, StatusRefunded, StatusFulfillmentFailed},
-	StatusProcessing:        {StatusShipped, StatusRefunded},
-	StatusShipped:           {StatusDelivered, StatusRefunded},
-	StatusDelivered:         {StatusRefunded},
-	StatusFulfillmentFailed: {StatusRefunded, StatusCancelled},
-	StatusCancelled:         {},
-	StatusExpired:           {},
-	StatusRefunded:          {},
-}
-
-func CanTransition(from, to Status) bool {
-	targets, ok := validTransitions[from]
-	if !ok {
-		return false
-	}
-	return slices.Contains(targets, to)
-}
 
 // StockDeducted reports whether the order's inventory has been deducted from
 // stock (rather than merely reserved). Reversing a deducted order must restock;

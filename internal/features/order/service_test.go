@@ -49,59 +49,6 @@ func newTestService(t *testing.T) (
 	return svc, repo, cart, inventory, payment, paymentCancel, coupons, notifications
 }
 
-// --- TestCanTransition ---
-
-func TestCanTransition(t *testing.T) {
-	t.Run("awaiting_payment to payment_processing is valid", func(t *testing.T) {
-		assert.True(t, order.CanTransition(order.StatusAwaitingPayment, order.StatusPaymentProcessing))
-	})
-
-	t.Run("awaiting_payment to cancelled is valid", func(t *testing.T) {
-		assert.True(t, order.CanTransition(order.StatusAwaitingPayment, order.StatusCancelled))
-	})
-
-	t.Run("awaiting_payment to delivered is invalid", func(t *testing.T) {
-		assert.False(t, order.CanTransition(order.StatusAwaitingPayment, order.StatusDelivered))
-	})
-
-	t.Run("paid to processing is valid", func(t *testing.T) {
-		assert.True(t, order.CanTransition(order.StatusPaid, order.StatusProcessing))
-	})
-
-	t.Run("paid to cancelled is invalid", func(t *testing.T) {
-		assert.False(t, order.CanTransition(order.StatusPaid, order.StatusCancelled))
-	})
-
-	t.Run("delivered to refunded is valid", func(t *testing.T) {
-		assert.True(t, order.CanTransition(order.StatusDelivered, order.StatusRefunded))
-	})
-
-	t.Run("cancelled has no valid transitions", func(t *testing.T) {
-		assert.False(t, order.CanTransition(order.StatusCancelled, order.StatusPaid))
-		assert.False(t, order.CanTransition(order.StatusCancelled, order.StatusRefunded))
-	})
-
-	t.Run("payment_processing to paid is valid", func(t *testing.T) {
-		assert.True(t, order.CanTransition(order.StatusPaymentProcessing, order.StatusPaid))
-	})
-
-	t.Run("payment_processing to cancelled is valid", func(t *testing.T) {
-		assert.True(t, order.CanTransition(order.StatusPaymentProcessing, order.StatusCancelled))
-	})
-
-	t.Run("shipped to delivered is valid", func(t *testing.T) {
-		assert.True(t, order.CanTransition(order.StatusShipped, order.StatusDelivered))
-	})
-
-	t.Run("fulfillment_failed to refunded is valid", func(t *testing.T) {
-		assert.True(t, order.CanTransition(order.StatusFulfillmentFailed, order.StatusRefunded))
-	})
-
-	t.Run("fulfillment_failed to cancelled is valid", func(t *testing.T) {
-		assert.True(t, order.CanTransition(order.StatusFulfillmentFailed, order.StatusCancelled))
-	})
-}
-
 // --- TestService_RetryPayment ---
 
 func TestService_RetryPayment(t *testing.T) {

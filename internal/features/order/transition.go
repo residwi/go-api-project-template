@@ -1,19 +1,23 @@
 package order
 
+import "slices"
+
 // Transition is a guarded order-status change: an atomic compare-and-set that
-// moves an order to To only if its current status is one of From. The From set
-// is the operation's guard and may intentionally differ from validTransitions —
-// payment relies on race-recovery and idempotent edges the ideal state machine
-// does not list — so each operation's allowed-from set is named once here,
-// rather than scattered as ad-hoc string lists at call sites (which is what let
-// the refund transition drift and miss processing/shipped).
+// moves an order to To only if its current status is one of From.
+//
+// The named transitions below are the single source of truth for the order
+// state machine. Every legal status change is one of these values: cross-feature
+// callers apply one through Service.Apply, and the admin/cancel paths validate
+// against them via CanTransition — so each allowed-from set lives in exactly one
+// place and cannot drift between call sites (which is what let the refund
+// transition drift and miss processing/shipped). Some From sets are
+// intentionally broad to cover payment's race-recovery and idempotent edges
+// (e.g. a gateway confirming before the local flip to payment_processing).
 type Transition struct {
 	To   Status
 	From []Status
 }
 
-// Cross-feature status transitions, applied via Service.Apply.
-//
 //nolint:gochecknoglobals // immutable named transitions; struct/slice values cannot be const
 var (
 	// PaymentProcessingTransition claims an order for charge processing
@@ -45,4 +49,46 @@ var (
 
 	// DeliveredTransition marks an order delivered.
 	DeliveredTransition = Transition{To: StatusDelivered, From: []Status{StatusShipped}}
+
+	// CancelledTransition cancels an order that has not yet been paid for, or one
+	// whose fulfillment failed (user- or admin-initiated).
+	CancelledTransition = Transition{To: StatusCancelled, From: []Status{StatusAwaitingPayment, StatusPaymentProcessing, StatusFulfillmentFailed}}
+
+	// ExpiredTransition expires an order whose payment window lapsed (applied by
+	// the worker's expiry sweep).
+	ExpiredTransition = Transition{To: StatusExpired, From: []Status{StatusAwaitingPayment}}
+
+	// ProcessingTransition moves a paid order into fulfillment processing.
+	ProcessingTransition = Transition{To: StatusProcessing, From: []Status{StatusPaid}}
 )
+
+// allTransitions is the registry CanTransition is derived from: the complete set
+// of legal edges in the state machine. Every named Transition above must appear
+// here.
+//
+//nolint:gochecknoglobals // immutable registry of the named transitions above
+var allTransitions = []Transition{
+	PaymentProcessingTransition,
+	AwaitingPaymentTransition,
+	PaidTransition,
+	FulfillmentFailedAfterChargeTransition,
+	FulfillmentFailedCompensatingTransition,
+	RefundTransition,
+	ShippedTransition,
+	DeliveredTransition,
+	CancelledTransition,
+	ExpiredTransition,
+	ProcessingTransition,
+}
+
+// CanTransition reports whether moving an order from `from` to `to` is a legal
+// edge of the state machine — i.e. some named Transition targets `to` and lists
+// `from` in its allowed-from set.
+func CanTransition(from, to Status) bool {
+	for _, t := range allTransitions {
+		if t.To == to && slices.Contains(t.From, from) {
+			return true
+		}
+	}
+	return false
+}
