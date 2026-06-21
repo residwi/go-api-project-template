@@ -86,8 +86,7 @@ func TestPostgresRepository_ReserveBatch_DuplicateProduct(t *testing.T) {
 
 		stock, err := repo.GetStock(ctx, productID)
 		require.NoError(t, err)
-		assert.Equal(t, 5, stock.Reserved)
-		assert.Equal(t, 5, stock.Available)
+		assert.Equal(t, &inventory.Stock{ProductID: productID, Quantity: 10, Reserved: 5, Available: 5}, stock)
 	})
 }
 
