@@ -85,12 +85,34 @@ func (s *Service) RemoveItem(ctx context.Context, userID, productID uuid.UUID) e
 }
 
 func (s *Service) UpdateQuantity(ctx context.Context, userID, productID uuid.UUID, req UpdateItemRequest) error {
+	// Mirror AddItem's guards: setting a quantity must respect product
+	// availability and published status, otherwise AddItem's stock check is
+	// trivially bypassed by following it with an UpdateQuantity.
+	p, err := s.products.GetByID(ctx, productID)
+	if err != nil {
+		return err
+	}
+	if p.Status != productStatusPublished {
+		return fmt.Errorf("%w: product is not available", core.ErrBadRequest)
+	}
+	if p.Available < req.Quantity {
+		return core.ErrInsufficientStock
+	}
+
 	cartID, err := s.repo.GetOrCreate(ctx, userID)
 	if err != nil {
 		return err
 	}
 
 	return s.repo.UpdateItemQuantity(ctx, cartID, productID, req.Quantity)
+}
+
+// LockCart takes a row lock on the user's cart for the current transaction so
+// concurrent checkouts of the same cart serialize. It is used by the order
+// service inside its PlaceOrder transaction.
+func (s *Service) LockCart(ctx context.Context, userID uuid.UUID) error {
+	_, err := s.repo.GetCartForLock(ctx, userID)
+	return err
 }
 
 func (s *Service) GetCart(ctx context.Context, userID uuid.UUID) (*Cart, error) {

@@ -22,6 +22,10 @@ func (a expireInventory) ReserveBatch(ctx context.Context, items []order.Invento
 	return a.svc.ReserveBatch(ctx, toStockChanges(items))
 }
 
+func (a expireInventory) DeductBatch(ctx context.Context, items []order.InventoryItem) error {
+	return a.svc.DeductBatch(ctx, toStockChanges(items))
+}
+
 func (a expireInventory) Restore(ctx context.Context, items []order.InventoryItem, wasDeducted bool) error {
 	state := inventory.Reserved
 	if wasDeducted {

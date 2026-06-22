@@ -113,11 +113,15 @@ func TestCartHandler_AddItem(t *testing.T) {
 
 func TestCartHandler_UpdateItem(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
-		mux, repo, _ := setupCartMux(t)
+		mux, repo, products := setupCartMux(t)
 
 		userID := uuid.New()
 		productID := uuid.New()
 
+		// UpdateQuantity now validates the product (published + in stock) before
+		// touching the cart; let that pass so GetOrCreate is what fails here.
+		products.EXPECT().GetByID(mock.Anything, productID).
+			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, core.ErrNotFound)
 
 		body := `{"quantity":3}`

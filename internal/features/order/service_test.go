@@ -497,17 +497,21 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 		assert.ErrorIs(t, err, core.ErrBadRequest)
 	})
 
-	t.Run("invalid transition paid to cancelled", func(t *testing.T) {
-		svc, repo, _, _, _, _, _, _ := newTestService(t)
-
-		existingOrder := &order.Order{
-			ID:     orderID,
-			Status: order.StatusPaid,
-		}
-
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
+	t.Run("rejects managed status cancelled without a direct write", func(t *testing.T) {
+		// cancelled/expired/refunded/paid unwind inventory or money and must go
+		// through their owning flow; AdminUpdateStatus rejects them before any
+		// lookup rather than writing the status bare.
+		svc, _, _, _, _, _, _, _ := newTestService(t)
 
 		err := svc.AdminUpdateStatus(ctx, orderID, order.StatusCancelled)
+
+		assert.ErrorIs(t, err, core.ErrBadRequest)
+	})
+
+	t.Run("rejects managed status refunded without a direct write", func(t *testing.T) {
+		svc, _, _, _, _, _, _, _ := newTestService(t)
+
+		err := svc.AdminUpdateStatus(ctx, orderID, order.StatusRefunded)
 
 		assert.ErrorIs(t, err, core.ErrBadRequest)
 	})
@@ -653,13 +657,14 @@ func TestService_PlaceOrder(t *testing.T) {
 		idempotencyKey := "idem-empty-cart"
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID:    uuid.New(),
 			Items: []order.CartSnapshotItem{},
 		}, nil)
 
 		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
-		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
+		resp, err := svc.PlaceOrder(database.WithTestTx(ctx, noopDBTX{}), userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, core.ErrCartEmpty)
@@ -670,6 +675,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		idempotencyKey := "idem-unavailable"
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -685,7 +691,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		}, nil)
 
 		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
-		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
+		resp, err := svc.PlaceOrder(database.WithTestTx(ctx, noopDBTX{}), userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, core.ErrBadRequest)
@@ -697,10 +703,11 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
 		cartErr := errors.New("cart service error")
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(nil, cartErr)
 
 		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
-		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
+		resp, err := svc.PlaceOrder(database.WithTestTx(ctx, noopDBTX{}), userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, cartErr)
@@ -714,6 +721,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		productB := uuid.New()
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -755,6 +763,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		couponCode := "SAVE20"
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -790,6 +799,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		idempotencyKey := "idem-mixed-ccy"
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -799,13 +809,13 @@ func TestService_PlaceOrder(t *testing.T) {
 		}, nil)
 
 		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
-		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
+		resp, err := svc.PlaceOrder(database.WithTestTx(ctx, noopDBTX{}), userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, core.ErrBadRequest)
 	})
 
-	t.Run("idempotent return ignores ListItemsByOrderID error", func(t *testing.T) {
+	t.Run("idempotent replay propagates ListItemsByOrderID error", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		idempotencyKey := "idem-key-123"
@@ -818,15 +828,16 @@ func TestService_PlaceOrder(t *testing.T) {
 			Currency:       "USD",
 		}
 
+		dbErr := errors.New("db error")
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(existingOrder, nil)
-		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(nil, errors.New("db error"))
+		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(nil, dbErr)
 
 		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
-		require.NoError(t, err)
-		assert.Equal(t, orderID, resp.Order.ID)
-		assert.Nil(t, resp.Order.Items)
+		// A failed items read must surface, not be swallowed into a 201 with no items.
+		assert.Nil(t, resp)
+		assert.ErrorIs(t, err, dbErr)
 	})
 
 	t.Run("coupon reserve error propagates", func(t *testing.T) {
@@ -837,6 +848,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		productA := uuid.New()
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -865,6 +877,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		productA := uuid.New()
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -897,6 +910,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		productA := uuid.New()
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -922,6 +936,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		productA := uuid.New()
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -948,6 +963,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		productA := uuid.New()
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -975,6 +991,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		productA := uuid.New()
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -996,14 +1013,15 @@ func TestService_PlaceOrder(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("zero total skips payment initiation", func(t *testing.T) {
-		svc, repo, cart, inventory, _, _, coupons, notifications := newTestService(t)
+	t.Run("zero total finalizes order without payment", func(t *testing.T) {
+		svc, repo, cart, inventory, payment, _, coupons, notifications := newTestService(t)
 		idempotencyKey := "idem-zero-total"
 		couponCode := "FREE100"
 
 		productA := uuid.New()
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -1020,8 +1038,13 @@ func TestService_PlaceOrder(t *testing.T) {
 		repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(5000), int64(0)).Return(nil)
 		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
-		// payment.InitiatePayment should NOT be called (total is 0)
+		// A fully-discounted order is finalized directly — marked paid and its
+		// reserved stock deducted — instead of being left to expire. Payment is
+		// never initiated (there is nothing to charge).
+		repo.EXPECT().Apply(mock.Anything, mock.Anything, order.PaidTransition).Return(nil)
+		inventory.EXPECT().DeductBatch(mock.Anything, []order.InventoryItem{{ProductID: productA, Quantity: 1}}).Return(nil)
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
+		_ = payment // InitiatePayment must not be called for a zero-total order
 
 		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test", CouponCode: &couponCode}
 		resp, err := svc.PlaceOrder(txCtx, userID, req, idempotencyKey)
@@ -1038,6 +1061,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		productA := uuid.New()
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
@@ -1125,8 +1149,9 @@ func TestService_CancelOrder(t *testing.T) {
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(core.ErrConflict)
 
-		err := svc.CancelOrder(ctx, userID, orderID)
+		err := svc.CancelOrder(database.WithTestTx(ctx, noopDBTX{}), userID, orderID)
 
 		assert.ErrorIs(t, err, core.ErrBadRequest)
 	})
@@ -1141,8 +1166,9 @@ func TestService_CancelOrder(t *testing.T) {
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(core.ErrConflict)
 
-		err := svc.CancelOrder(ctx, userID, orderID)
+		err := svc.CancelOrder(database.WithTestTx(ctx, noopDBTX{}), userID, orderID)
 
 		assert.ErrorIs(t, err, core.ErrBadRequest)
 	})
@@ -1157,8 +1183,9 @@ func TestService_CancelOrder(t *testing.T) {
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(core.ErrConflict)
 
-		err := svc.CancelOrder(ctx, userID, orderID)
+		err := svc.CancelOrder(database.WithTestTx(ctx, noopDBTX{}), userID, orderID)
 
 		assert.ErrorIs(t, err, core.ErrBadRequest)
 	})
@@ -1178,7 +1205,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		txCtx := database.WithTestTx(ctx, noopDBTX{})
 
-		repo.EXPECT().UpdateStatus(mock.Anything, orderID, order.StatusAwaitingPayment, order.StatusCancelled).Return(nil)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{
 			{ID: uuid.New(), OrderID: orderID, ProductID: productA, ProductName: "Widget A", Price: 3000, Quantity: 2, Subtotal: 6000},
 			{ID: uuid.New(), OrderID: orderID, ProductID: productB, ProductName: "Widget B", Price: 4000, Quantity: 1, Subtotal: 4000},
@@ -1209,7 +1236,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		txCtx := database.WithTestTx(ctx, noopDBTX{})
 
-		repo.EXPECT().UpdateStatus(mock.Anything, orderID, order.StatusAwaitingPayment, order.StatusCancelled).Return(nil)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{
 			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: 5000, Quantity: 1, Subtotal: 5000},
 		}, nil)
@@ -1235,7 +1262,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		txCtx := database.WithTestTx(ctx, noopDBTX{})
 
-		repo.EXPECT().UpdateStatus(mock.Anything, orderID, order.StatusAwaitingPayment, order.StatusCancelled).Return(nil)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{}, nil)
 		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(errors.New("redis down"))
 
@@ -1258,7 +1285,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		txCtx := database.WithTestTx(ctx, noopDBTX{})
 
-		repo.EXPECT().UpdateStatus(mock.Anything, orderID, order.StatusAwaitingPayment, order.StatusCancelled).Return(nil)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{
 			{ID: uuid.New(), OrderID: orderID, ProductID: productA, ProductName: "Widget", Price: 5000, Quantity: 1, Subtotal: 5000},
 		}, nil)
@@ -1287,7 +1314,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		txCtx := database.WithTestTx(ctx, noopDBTX{})
 
-		repo.EXPECT().UpdateStatus(mock.Anything, orderID, order.StatusAwaitingPayment, order.StatusCancelled).Return(nil)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{
 			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: 5000, Quantity: 1, Subtotal: 5000},
 		}, nil)
@@ -1319,7 +1346,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		txCtx := database.WithTestTx(ctx, noopDBTX{})
 
-		repo.EXPECT().UpdateStatus(mock.Anything, orderID, order.StatusAwaitingPayment, order.StatusCancelled).Return(nil)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{}, nil)
 
 		err := svc.CancelOrder(txCtx, userID, orderID)
@@ -1327,7 +1354,7 @@ func TestService_CancelOrder(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("UpdateStatus error propagates from transaction", func(t *testing.T) {
+	t.Run("Apply error propagates from transaction", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -1340,7 +1367,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		txCtx := database.WithTestTx(ctx, noopDBTX{})
 
-		repo.EXPECT().UpdateStatus(mock.Anything, orderID, order.StatusAwaitingPayment, order.StatusCancelled).Return(errors.New("db error"))
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(errors.New("db error"))
 
 		err := svc.CancelOrder(txCtx, userID, orderID)
 
@@ -1360,7 +1387,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		txCtx := database.WithTestTx(ctx, noopDBTX{})
 
-		repo.EXPECT().UpdateStatus(mock.Anything, orderID, order.StatusAwaitingPayment, order.StatusCancelled).Return(nil)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(nil, errors.New("db error"))
 
 		err := svc.CancelOrder(txCtx, userID, orderID)

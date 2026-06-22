@@ -3,12 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
+	"os"
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
@@ -25,7 +24,8 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		log.Fatal(err)
+		slog.Error("worker failed to start", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -67,11 +67,11 @@ func run() error {
 		BatchSize:     cfg.Worker.BatchSize,
 		LeaseDuration: cfg.Worker.LeaseDuration,
 		Concurrency:   cfg.Worker.Concurrency,
-		PruneAge:      7 * 24 * time.Hour,
-		PruneLimit:    100,
+		PruneAge:      cfg.Worker.PruneAge,
+		PruneLimit:    cfg.Worker.PruneLimit,
 	}
 
-	paymentProcessor := payment.NewJobProcessor(paymentSvc, wiring.NewOrderExpirer(orderSvc))
+	paymentProcessor := payment.NewJobProcessor(paymentSvc, wiring.NewOrderHousekeeper(orderSvc))
 	paymentRunner := jobs.NewRunner("payment", paymentRepo, paymentProcessor, jobCfg)
 	notificationRunner := jobs.NewRunner("notification", notificationRepo, notificationSvc, jobCfg)
 

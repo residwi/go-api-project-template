@@ -30,6 +30,10 @@ type OrderUpdater interface {
 	MarkFulfillmentFailedAfterCharge(ctx context.Context, orderID uuid.UUID) error
 	MarkFulfillmentFailedCompensating(ctx context.Context, orderID uuid.UUID) error
 	MarkRefunded(ctx context.Context, orderID uuid.UUID) error
+	// CancelUnpaid cancels an order whose payment terminally failed and releases
+	// its reserved stock and coupon. Returns a wrapped core.ErrBadRequest when the
+	// order is no longer cancellable (e.g. already paid by a concurrent charge).
+	CancelUnpaid(ctx context.Context, orderID uuid.UUID) error
 }
 
 type OrderItemDTO struct {
@@ -47,9 +51,12 @@ type OrderSnapshot struct {
 	Status      string
 	CouponCode  string
 	// StockDeducted reports whether the order's inventory was deducted from
-	// stock (vs only reserved). The order module owns this rule; payment is
-	// told the answer rather than re-deriving it from Status.
+	// stock (vs only reserved); StockReversed reports whether the hold was
+	// already released/restocked. The order module owns these facts (persisted,
+	// not re-derived from Status); payment uses them to choose restock vs release
+	// and to skip a reversal that already happened (avoiding a double release).
 	StockDeducted bool
+	StockReversed bool
 }
 
 type OrderGetter interface {
@@ -182,6 +189,16 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 	switch resp.Status {
 	case string(StatusSuccess):
 		result.Charged = true
+		// The gateway captured funds synchronously (e.g. a card charge with a
+		// PaymentMethodID), so finalize the order NOW — mark payment+order paid and
+		// deduct inventory — instead of leaving it in awaiting_payment for a webhook
+		// or job that never comes. Mirrors the webhook success path.
+		finalizeJob := Job{PaymentID: p.ID, OrderID: params.OrderID, Action: ActionCharge}
+		if finalizeErr := s.FinalizePaymentSuccess(ctx, finalizeJob); finalizeErr != nil && !errors.Is(finalizeErr, core.ErrAlreadyFinalized) {
+			slog.ErrorContext(ctx, "synchronous charge succeeded but finalization failed, running compensating refund",
+				"payment_id", p.ID, "order_id", params.OrderID, "error", finalizeErr)
+			s.runCompensatingRefund(ctx, finalizeJob)
+		}
 	case string(StatusPending):
 		if resp.PaymentURL != "" {
 			if err := s.repo.UpdatePaymentURL(ctx, p.ID, resp.PaymentURL); err != nil {
@@ -308,7 +325,7 @@ func (s *Service) handleChargeFailure(ctx context.Context, job *Job, lastError s
 	}
 }
 
-//nolint:gocognit
+//nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches
 func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 	return database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
 		orderSnap, err := s.orderGet.GetByID(txCtx, job.OrderID)
@@ -408,7 +425,7 @@ func (s *Service) runCompensatingRefund(ctx context.Context, job Job) {
 	}
 }
 
-//nolint:gocognit
+//nolint:gocognit // refund retry/backoff bookkeeping plus the gateway-call-then-commit finalization
 func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 	p, err := s.repo.GetByID(ctx, job.PaymentID)
 	if err != nil {
@@ -431,9 +448,13 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		"gateway_txn_id", p.GatewayTxnID, "amount", p.Amount)
 
 	resp, gwErr := s.gateway.Refund(ctx, gateway.RefundRequest{
-		TransactionID: p.GatewayTxnID,
-		Amount:        p.Amount,
-		Reason:        "auto-refund",
+		// Key on the payment id: a payment is refunded once, so a job re-claimed
+		// after a crash between this call and the commit reuses the same key and
+		// the gateway dedupes it instead of refunding twice.
+		IdempotencyKey: p.ID.String(),
+		TransactionID:  p.GatewayTxnID,
+		Amount:         p.Amount,
+		Reason:         "auto-refund",
 	})
 
 	job.Attempts++
@@ -463,9 +484,11 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		"refund_id", resp.RefundID)
 
 	txErr := database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
-		// Capture the order's stock state BEFORE flipping it to refunded: once the
-		// status is refunded, StockDeducted() reports false, which would wrongly
-		// release instead of restock a paid order's already-deducted stock.
+		// Capture the order's persisted stock state BEFORE flipping it to refunded:
+		// StockDeducted chooses restock vs release, and StockReversed tells us the
+		// hold was already unwound (e.g. the order was cancelled/expired before a
+		// late charge landed), so reversing again would double-release and steal
+		// another order's reservation.
 		orderSnap, snapErr := s.orderGet.GetByID(txCtx, job.OrderID)
 		if snapErr != nil {
 			return fmt.Errorf("getting order for refund: %w", snapErr)
@@ -483,9 +506,8 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		if listErr != nil {
 			return listErr
 		}
-		if len(items) > 0 {
-			// Recompute the prior stock state from the order now rather than trust a
-			// value frozen onto the job at enqueue; inventory owns release-vs-restock.
+		if len(items) > 0 && !orderSnap.StockReversed {
+			// Inventory owns release-vs-restock; we pass the order's persisted fact.
 			if restoreErr := s.inventoryRestorer.Restore(txCtx, toInventoryChanges(items), orderSnap.StockDeducted); restoreErr != nil {
 				slog.ErrorContext(txCtx, "failed to restore inventory on refund",
 					"order_id", job.OrderID, "error", restoreErr)
@@ -510,7 +532,7 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 	return nil
 }
 
-func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) error { //nolint:gocognit
+func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) error { //nolint:gocognit // resolves the payment then dispatches success/failed/cancelled/expired event branches
 	event, _ := payload["event"].(string)
 	metadata, _ := payload["metadata"].(map[string]any)
 	txnID, _ := payload["transaction_id"].(string)
@@ -559,9 +581,19 @@ func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) err
 			Action:    ActionCharge,
 		}
 		if err := s.FinalizePaymentSuccess(ctx, job); err != nil {
-			if !errors.Is(err, core.ErrAlreadyFinalized) {
-				return err
+			if errors.Is(err, core.ErrAlreadyFinalized) {
+				break
 			}
+			// The gateway has already captured funds, so a finalization failure
+			// (e.g. inventory deduction failed) must not just 5xx and leave money
+			// captured with the order unpaid forever. Compensate the same way the
+			// worker charge path does: flag the order fulfillment_failed and enqueue
+			// a refund. Ack the webhook so the gateway stops retrying into a failure
+			// we've already handled.
+			slog.ErrorContext(ctx, "webhook finalization failed, running compensating refund",
+				"payment_id", p.ID, "order_id", p.OrderID, "error", err)
+			s.runCompensatingRefund(ctx, job)
+			return nil
 		}
 		if err := s.repo.MarkJobCompletedByPaymentID(ctx, p.ID, ActionCharge); err != nil {
 			slog.ErrorContext(ctx, "webhook: failed to mark job completed by payment id", "payment_id", p.ID, "error", err)
@@ -577,6 +609,13 @@ func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) err
 		}
 		if err := s.repo.CancelJobsByOrderID(ctx, p.OrderID); err != nil {
 			slog.ErrorContext(ctx, "webhook: failed to cancel jobs", "order_id", p.OrderID, "error", err)
+		}
+		// Cancel the order and release its reserved stock now rather than leaving it
+		// reserved until the expiry sweep (which can't touch a payment_processing
+		// order at all). ErrBadRequest means the order is no longer cancellable
+		// (e.g. a concurrent charge already paid it) — leave it for that flow.
+		if err := s.orders.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, core.ErrBadRequest) {
+			slog.ErrorContext(ctx, "webhook: failed to cancel order after payment failure", "order_id", p.OrderID, "error", err)
 		}
 		slog.InfoContext(ctx, "webhook payment failed",
 			"payment_id", p.ID, "gateway_event", event)

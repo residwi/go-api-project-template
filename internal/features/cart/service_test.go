@@ -243,13 +243,16 @@ func TestService_RemoveItem(t *testing.T) {
 func TestService_UpdateQuantity(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, nil, nil, 50)
+		products := cartMocks.NewMockProductLookup(t)
+		svc := cart.NewService(repo, nil, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 		cartID := uuid.New()
 
+		products.EXPECT().GetByID(mock.Anything, productID).
+			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
 		repo.EXPECT().UpdateItemQuantity(mock.Anything, cartID, productID, 3).Return(nil)
 
@@ -257,14 +260,64 @@ func TestService_UpdateQuantity(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("get or create error", func(t *testing.T) {
+	t.Run("rejects quantity above available stock", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, nil, nil, 50)
+		products := cartMocks.NewMockProductLookup(t)
+		svc := cart.NewService(repo, nil, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
+		products.EXPECT().GetByID(mock.Anything, productID).
+			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 2}, nil)
+
+		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateItemRequest{Quantity: 5})
+		assert.ErrorIs(t, err, core.ErrInsufficientStock)
+	})
+
+	t.Run("rejects unpublished product", func(t *testing.T) {
+		repo := cartMocks.NewMockRepository(t)
+		products := cartMocks.NewMockProductLookup(t)
+		svc := cart.NewService(repo, nil, products, 50)
+
+		ctx := context.Background()
+		userID := uuid.New()
+		productID := uuid.New()
+
+		products.EXPECT().GetByID(mock.Anything, productID).
+			Return(&cart.ProductInfo{ID: productID, Status: "draft", Available: 100}, nil)
+
+		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateItemRequest{Quantity: 1})
+		assert.ErrorIs(t, err, core.ErrBadRequest)
+	})
+
+	t.Run("product lookup error", func(t *testing.T) {
+		repo := cartMocks.NewMockRepository(t)
+		products := cartMocks.NewMockProductLookup(t)
+		svc := cart.NewService(repo, nil, products, 50)
+
+		ctx := context.Background()
+		userID := uuid.New()
+		productID := uuid.New()
+
+		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, errors.New("db error"))
+
+		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateItemRequest{Quantity: 3})
+		require.Error(t, err)
+	})
+
+	t.Run("get or create error", func(t *testing.T) {
+		repo := cartMocks.NewMockRepository(t)
+		products := cartMocks.NewMockProductLookup(t)
+		svc := cart.NewService(repo, nil, products, 50)
+
+		ctx := context.Background()
+		userID := uuid.New()
+		productID := uuid.New()
+
+		products.EXPECT().GetByID(mock.Anything, productID).
+			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, errors.New("db error"))
 
 		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateItemRequest{Quantity: 3})

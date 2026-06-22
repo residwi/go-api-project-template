@@ -44,6 +44,10 @@ func SetOrderPaymentDeps(orderSvc *order.Service, paymentSvc *payment.Service) {
 
 type cartProviderAdapter struct{ svc *cart.Service }
 
+func (a *cartProviderAdapter) LockCart(ctx context.Context, userID uuid.UUID) error {
+	return a.svc.LockCart(ctx, userID)
+}
+
 func (a *cartProviderAdapter) GetCart(ctx context.Context, userID uuid.UUID) (*order.CartSnapshot, error) {
 	c, err := a.svc.GetCart(ctx, userID)
 	if err != nil {
@@ -74,6 +78,10 @@ type inventoryReserverAdapter struct{ svc *inventory.Service }
 
 func (a *inventoryReserverAdapter) ReserveBatch(ctx context.Context, items []order.InventoryItem) error {
 	return a.svc.ReserveBatch(ctx, orderToStockChanges(items))
+}
+
+func (a *inventoryReserverAdapter) DeductBatch(ctx context.Context, items []order.InventoryItem) error {
+	return a.svc.DeductBatch(ctx, orderToStockChanges(items))
 }
 
 func (a *inventoryReserverAdapter) Restore(ctx context.Context, items []order.InventoryItem, wasDeducted bool) error {

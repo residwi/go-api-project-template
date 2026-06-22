@@ -41,6 +41,10 @@ func (a *paymentOrderUpdaterAdapter) MarkRefunded(ctx context.Context, orderID u
 	return a.svc.Apply(ctx, orderID, order.RefundTransition)
 }
 
+func (a *paymentOrderUpdaterAdapter) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {
+	return a.svc.CancelUnpaidByID(ctx, orderID)
+}
+
 type orderGetterAdapter struct{ svc *order.Service }
 
 func (a *orderGetterAdapter) GetByID(ctx context.Context, orderID uuid.UUID) (payment.OrderSnapshot, error) {
@@ -57,7 +61,8 @@ func (a *orderGetterAdapter) GetByID(ctx context.Context, orderID uuid.UUID) (pa
 		Currency:      o.Currency,
 		Status:        string(o.Status),
 		CouponCode:    couponCode,
-		StockDeducted: o.StockDeducted(),
+		StockDeducted: o.StockDeducted,
+		StockReversed: o.StockReversed,
 	}, nil
 }
 
@@ -120,15 +125,16 @@ func NewPaymentService(
 	)
 }
 
-// orderExpirerAdapter satisfies payment.OrderExpirer so the payment job
-// processor's Sweep hook can delegate stale-order expiry to the order module.
-type orderExpirerAdapter struct{ svc *order.Service }
+type orderHousekeeperAdapter struct{ svc *order.Service }
 
-func (a *orderExpirerAdapter) ExpireStale(ctx context.Context) error {
+func (a *orderHousekeeperAdapter) ExpireStale(ctx context.Context) error {
 	return a.svc.ExpireStale(ctx)
 }
 
-// NewOrderExpirer adapts the order service to payment.OrderExpirer.
-func NewOrderExpirer(orderSvc *order.Service) payment.OrderExpirer {
-	return &orderExpirerAdapter{svc: orderSvc}
+func (a *orderHousekeeperAdapter) RecoverStaleProcessing(ctx context.Context) error {
+	return a.svc.RecoverStaleProcessing(ctx)
+}
+
+func NewOrderHousekeeper(orderSvc *order.Service) payment.OrderHousekeeper {
+	return &orderHousekeeperAdapter{svc: orderSvc}
 }

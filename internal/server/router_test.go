@@ -958,6 +958,19 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
 
+	// A second, cheap product priced 99 makes the GRAND total end in 99
+	// (2000*2 + 99 = 4099, 4099 % 100 == 99) so the mock gateway's synchronous
+	// charge FAILS and the order stays awaiting_payment with stock only RESERVED
+	// (a paid order's stock would be deducted, not reserved). Keeping prodID's
+	// quantity at 2 preserves the reserved_quantity == 2 assertion below.
+	prod2ID := uuid.New()
+	_, err = testPool.Exec(ctx,
+		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
+		 VALUES ($1, 'Fail Product 2', $2, 'desc', 99, 'USD', 50, 'published', $3)`,
+		prod2ID, "fail-prod2-"+prod2ID.String()[:8], catID)
+	require.NoError(t, err)
+	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prod2ID) })
+
 	email := "fail-flow@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"Fail","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
@@ -982,7 +995,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
 
-	// Add to cart
+	// Add both products to cart (prodID qty 2, prod2ID qty 1 -> total 4099)
 	cartBody := `{"product_id":"` + prodID.String() + `","quantity":2}`
 	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
 	cartReq.Header.Set("Content-Type", "application/json")
@@ -991,7 +1004,16 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	// Place order
+	cart2Body := `{"product_id":"` + prod2ID.String() + `","quantity":1}`
+	cart2Req := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cart2Body))
+	cart2Req.Header.Set("Content-Type", "application/json")
+	cart2Req.Header.Set("Authorization", "Bearer "+token)
+	cart2W := httptest.NewRecorder()
+	handler.ServeHTTP(cart2W, cart2Req)
+	require.Equal(t, http.StatusCreated, cart2W.Code)
+
+	// Place order. Total is 4099 (%100 == 99) so the synchronous charge fails and
+	// the order stays awaiting_payment with a pending payment.
 	orderBody := `{"payment_method_id":"pm_test_123"}`
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
@@ -1010,11 +1032,23 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("webhook failed cancels payment and jobs", func(t *testing.T) {
-		// Record reserved quantity before
+		// Before the webhook: the synchronous charge failed (total ended in 99),
+		// so the order is still awaiting_payment with a pending payment and the
+		// stock is only RESERVED (prodID's reserved_quantity == 2).
 		var reservedBefore int
 		err := testPool.QueryRow(ctx, `SELECT reserved_quantity FROM products WHERE id = $1`, prodID).Scan(&reservedBefore)
 		require.NoError(t, err)
 		assert.Equal(t, 2, reservedBefore)
+
+		var orderStatusBefore string
+		err = testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatusBefore)
+		require.NoError(t, err)
+		assert.Equal(t, "awaiting_payment", orderStatusBefore)
+
+		var paymentStatusBefore string
+		err = testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatusBefore)
+		require.NoError(t, err)
+		assert.Equal(t, "pending", paymentStatusBefore)
 
 		webhookBody := fmt.Sprintf(`{"event":"failed","metadata":{"payment_id":"%s"},"transaction_id":"txn_fail"}`, paymentID)
 		req := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", strings.NewReader(webhookBody))
@@ -1035,6 +1069,18 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 			`SELECT COUNT(*) FROM payment_jobs WHERE order_id = $1 AND status IN ('pending','processing')`, orderID).Scan(&pendingJobs)
 		require.NoError(t, err)
 		assert.Equal(t, 0, pendingJobs)
+
+		// New behavior: a failed webhook now also cancels the ORDER and releases
+		// its reservation (CancelUnpaid), not just the payment row.
+		var orderStatus string
+		err = testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatus)
+		require.NoError(t, err)
+		assert.Equal(t, "cancelled", orderStatus)
+
+		var reservedAfter int
+		err = testPool.QueryRow(ctx, `SELECT reserved_quantity FROM products WHERE id = $1`, prodID).Scan(&reservedAfter)
+		require.NoError(t, err)
+		assert.Equal(t, 0, reservedAfter)
 	})
 }
 
@@ -1435,9 +1481,13 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
 	prodID := uuid.New()
+	// Price chosen so the DISCOUNTED total ends in 99: 1110 x1 with 10% off gives
+	// a 111 discount and a 999 total. 999 % 100 == 99 makes the mock gateway's
+	// synchronous charge FAIL, leaving the order awaiting_payment so it can be
+	// cancelled (a paid order can't be cancelled).
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-		 VALUES ($1, 'Coupon Product', $2, 'desc', 10000, 'USD', 50, 'published', $3)`,
+		 VALUES ($1, 'Coupon Product', $2, 'desc', 1110, 'USD', 50, 'published', $3)`,
 		prodID, "coupon-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
@@ -1506,11 +1556,11 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	orderID := orderData["id"].(string)
 
 	t.Run("order has coupon applied with discount", func(t *testing.T) {
-		// Product price 10000 x1, 10% coupon -> discount 1000, total 9000.
+		// Product price 1110 x1, 10% coupon -> discount 111, total 999.
 		assert.Equal(t, couponCode, orderData["coupon_code"])
-		assert.InDelta(t, float64(10000), orderData["subtotal_amount"], 0.0001)
-		assert.InDelta(t, float64(1000), orderData["discount_amount"], 0.0001)
-		assert.InDelta(t, float64(9000), orderData["total_amount"], 0.0001)
+		assert.InDelta(t, float64(1110), orderData["subtotal_amount"], 0.0001)
+		assert.InDelta(t, float64(111), orderData["discount_amount"], 0.0001)
+		assert.InDelta(t, float64(999), orderData["total_amount"], 0.0001)
 	})
 
 	t.Run("cancel order releases coupon", func(t *testing.T) {
@@ -1663,12 +1713,18 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		refundJobID, paymentID, orderID)
 	require.NoError(t, err)
 
-	t.Run("processing refund job releases inventory and coupon", func(t *testing.T) {
-		// Record reserved quantity before
-		var reservedBefore int
+	t.Run("processing refund job restocks inventory and releases coupon", func(t *testing.T) {
+		// The synchronous charge finalized this order at placement: stock was
+		// DEDUCTED (stock_quantity 100 -> 99, reserved_quantity 1 -> 0) and the
+		// order's stock_deducted flag was set. Record stock/reserved before the
+		// refund so we can assert the refund RESTOCKS (adds back to
+		// stock_quantity) rather than releasing a reservation.
+		var stockBefore, reservedBefore int
 		err := testPool.QueryRow(ctx,
-			`SELECT reserved_quantity FROM products WHERE id = $1`, prodID).Scan(&reservedBefore)
+			`SELECT stock_quantity, reserved_quantity FROM products WHERE id = $1`, prodID).Scan(&stockBefore, &reservedBefore)
 		require.NoError(t, err)
+		assert.Equal(t, 99, stockBefore)
+		assert.Equal(t, 0, reservedBefore)
 
 		// Record coupon usage before
 		var usageBefore int
@@ -1693,12 +1749,14 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		processErr := router.PaymentSvc.Process(ctx, job)
 		require.NoError(t, processErr)
 
-		// Verify inventory was released (reserved_quantity decreased)
-		var reservedAfter int
+		// Verify inventory was RESTOCKED: stock_quantity returns to its original
+		// seeded value (100) and reserved_quantity stays at 0.
+		var stockAfter, reservedAfter int
 		err = testPool.QueryRow(ctx,
-			`SELECT reserved_quantity FROM products WHERE id = $1`, prodID).Scan(&reservedAfter)
+			`SELECT stock_quantity, reserved_quantity FROM products WHERE id = $1`, prodID).Scan(&stockAfter, &reservedAfter)
 		require.NoError(t, err)
-		assert.Equal(t, reservedBefore-1, reservedAfter)
+		assert.Equal(t, 100, stockAfter)
+		assert.Equal(t, 0, reservedAfter)
 
 		// Verify coupon usage was released
 		var usageAfter int

@@ -129,7 +129,7 @@ func TestWebhookHandler_SignatureVerification(t *testing.T) {
 
 func TestWebhookHandler_HandleWebhook(t *testing.T) {
 	t.Run("success with valid JSON payload", func(t *testing.T) {
-		mux, repo, _, _, _ := setupPaymentMux(t)
+		mux, repo, _, orders, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
 		orderID := uuid.New()
@@ -144,6 +144,8 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 			[]payment.Status{payment.StatusPending, payment.StatusProcessing}).Return(nil)
 		repo.EXPECT().ClearPaymentURL(mock.Anything, paymentID).Return(nil)
 		repo.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
+		// Failed payment now also cancels the order and releases its reserved stock.
+		orders.EXPECT().CancelUnpaid(mock.Anything, orderID).Return(nil)
 
 		payload := map[string]any{
 			"event":          "failed",
@@ -175,8 +177,12 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
-	t.Run("service HandleWebhook error returns 500", func(t *testing.T) {
-		mux, repo, _, _, orderGet := setupPaymentMux(t)
+	t.Run("finalize failure runs compensating refund and returns 200", func(t *testing.T) {
+		// The gateway has already captured funds, so a finalize failure (here an
+		// amount mismatch) must not 5xx and leave money captured with the order
+		// unpaid. HandleWebhook now runs a compensating refund and acks the webhook
+		// with 200 so the gateway stops retrying into an already-handled failure.
+		mux, repo, _, orders, orderGet := setupPaymentMux(t)
 
 		paymentID := uuid.New()
 		orderID := uuid.New()
@@ -192,6 +198,17 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 			TotalAmount: 9999,
 			Currency:    "USD",
 		}, nil)
+
+		// Compensating refund: flag payment requires_review, mark the order
+		// fulfillment-failed, and enqueue a refund job.
+		repo.EXPECT().UpdateStatus(mock.Anything, paymentID, payment.StatusRequiresReview,
+			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusSuccess}).Return(nil)
+		orders.EXPECT().MarkFulfillmentFailedCompensating(mock.Anything, orderID).Return(nil)
+		repo.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(func(job *payment.Job) bool {
+			return job.PaymentID == paymentID &&
+				job.OrderID == orderID &&
+				job.Action == payment.ActionRefund
+		})).Return(nil)
 
 		payload := map[string]any{
 			"event": "success",
@@ -210,7 +227,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 
 		mux.ServeHTTP(w, r)
 
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
 

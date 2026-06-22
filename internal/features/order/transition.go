@@ -16,6 +16,16 @@ import "slices"
 type Transition struct {
 	To   Status
 	From []Status
+	// SetsStockDeducted marks the order's stock as deducted (sold) when the
+	// transition is applied — true only for PaidTransition, the point at which a
+	// reservation is converted to a deduction. It rides along in the same
+	// compare-and-set so the flag can never disagree with the status.
+	SetsStockDeducted bool
+	// SetsStockReversed marks the order's inventory hold as released/restocked
+	// when applied, so a subsequent reversal (e.g. refunding an order that was
+	// already cancelled-and-released) is a no-op instead of double-releasing
+	// another order's reservation.
+	SetsStockReversed bool
 }
 
 //nolint:gochecknoglobals // immutable named transitions; struct/slice values cannot be const
@@ -30,8 +40,9 @@ var (
 
 	// PaidTransition marks an order paid. awaiting_payment is allowed to cover
 	// the race where the gateway confirms before the local flip to
-	// payment_processing.
-	PaidTransition = Transition{To: StatusPaid, From: []Status{StatusPaymentProcessing, StatusAwaitingPayment}}
+	// payment_processing. Paying an order deducts its reserved stock (in the same
+	// transaction), so this is where stock_deducted becomes true.
+	PaidTransition = Transition{To: StatusPaid, From: []Status{StatusPaymentProcessing, StatusAwaitingPayment}, SetsStockDeducted: true}
 
 	// FulfillmentFailedAfterChargeTransition marks an order fulfillment_failed
 	// when a charge succeeds on an already-terminal order.
@@ -41,8 +52,9 @@ var (
 	// from the compensating-refund path (a broader set of prior states).
 	FulfillmentFailedCompensatingTransition = Transition{To: StatusFulfillmentFailed, From: []Status{StatusPaymentProcessing, StatusAwaitingPayment, StatusCancelled, StatusExpired, StatusPaid}}
 
-	// RefundTransition marks an order refunded from any post-paid state.
-	RefundTransition = Transition{To: StatusRefunded, From: []Status{StatusFulfillmentFailed, StatusPaid, StatusProcessing, StatusShipped, StatusDelivered}}
+	// RefundTransition marks an order refunded from any post-paid state. The
+	// refund reverses the order's inventory hold, so this marks it reversed.
+	RefundTransition = Transition{To: StatusRefunded, From: []Status{StatusFulfillmentFailed, StatusPaid, StatusProcessing, StatusShipped, StatusDelivered}, SetsStockReversed: true}
 
 	// ShippedTransition marks an order shipped.
 	ShippedTransition = Transition{To: StatusShipped, From: []Status{StatusPaid, StatusProcessing}}
@@ -51,12 +63,14 @@ var (
 	DeliveredTransition = Transition{To: StatusDelivered, From: []Status{StatusShipped}}
 
 	// CancelledTransition cancels an order that has not yet been paid for, or one
-	// whose fulfillment failed (user- or admin-initiated).
-	CancelledTransition = Transition{To: StatusCancelled, From: []Status{StatusAwaitingPayment, StatusPaymentProcessing, StatusFulfillmentFailed}}
+	// whose fulfillment failed (user- or admin-initiated). Cancelling reverses the
+	// order's inventory hold in the same transaction, so it marks it reversed.
+	CancelledTransition = Transition{To: StatusCancelled, From: []Status{StatusAwaitingPayment, StatusPaymentProcessing, StatusFulfillmentFailed}, SetsStockReversed: true}
 
 	// ExpiredTransition expires an order whose payment window lapsed (applied by
-	// the worker's expiry sweep).
-	ExpiredTransition = Transition{To: StatusExpired, From: []Status{StatusAwaitingPayment}}
+	// the worker's expiry sweep). Expiry releases the reservation, so it marks the
+	// hold reversed.
+	ExpiredTransition = Transition{To: StatusExpired, From: []Status{StatusAwaitingPayment}, SetsStockReversed: true}
 
 	// ProcessingTransition moves a paid order into fulfillment processing.
 	ProcessingTransition = Transition{To: StatusProcessing, From: []Status{StatusPaid}}

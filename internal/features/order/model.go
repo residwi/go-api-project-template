@@ -23,20 +23,6 @@ const (
 	StatusFulfillmentFailed Status = "fulfillment_failed"
 )
 
-// StockDeducted reports whether the order's inventory has been deducted from
-// stock (rather than merely reserved). Reversing a deducted order must restock;
-// reversing a reserved-only order need only release the reservation.
-//
-// Stock is deducted when the order becomes paid, so every status reachable only
-// after that — paid, processing, shipped, delivered — counts as deducted.
-// StatusFulfillmentFailed is intentionally excluded: it is reachable from both
-// pre-paid (reserved-only) and post-paid (deducted) states, so it cannot be
-// classified from the current status alone.
-func (o Order) StockDeducted() bool {
-	return o.Status == StatusPaid || o.Status == StatusProcessing ||
-		o.Status == StatusShipped || o.Status == StatusDelivered
-}
-
 type Order struct {
 	ID              uuid.UUID     `json:"id"`
 	UserID          uuid.UUID     `json:"user_id"`
@@ -51,9 +37,17 @@ type Order struct {
 	ShippingAddress *core.Address `json:"shipping_address,omitempty"`
 	BillingAddress  *core.Address `json:"billing_address,omitempty"`
 	Notes           string        `json:"notes,omitempty"`
-	Items           []Item        `json:"items,omitempty"`
-	CreatedAt       time.Time     `json:"created_at"`
-	UpdatedAt       time.Time     `json:"updated_at"`
+	// StockDeducted reports whether the order's reserved stock has been deducted
+	// (sold); StockReversed reports whether its inventory hold has already been
+	// released or restocked. Both are persisted and set atomically with the
+	// transition that changes them, because fulfillment_failed is reachable from
+	// both reserved-only and deducted states and so cannot be classified from
+	// Status alone. A reversal reads these to choose release vs restock vs no-op.
+	StockDeducted bool      `json:"-"`
+	StockReversed bool      `json:"-"`
+	Items         []Item    `json:"items,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type Item struct {

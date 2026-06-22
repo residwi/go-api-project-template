@@ -213,7 +213,7 @@ func TestHandler_UpdateItem(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		repo := &stubRepo{getOrCreateID: uuid.New()}
-		svc := NewService(repo, nil, nil, 50)
+		svc := NewService(repo, nil, &stubProducts{}, 50)
 		h := &handler{service: svc, validator: validator.New()}
 
 		userID := uuid.New()

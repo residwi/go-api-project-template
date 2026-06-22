@@ -38,6 +38,63 @@ func (_m *MockInventoryReserver) EXPECT() *MockInventoryReserver_Expecter {
 	return &MockInventoryReserver_Expecter{mock: &_m.Mock}
 }
 
+// DeductBatch provides a mock function for the type MockInventoryReserver
+func (_mock *MockInventoryReserver) DeductBatch(ctx context.Context, items []order.InventoryItem) error {
+	ret := _mock.Called(ctx, items)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeductBatch")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []order.InventoryItem) error); ok {
+		r0 = returnFunc(ctx, items)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockInventoryReserver_DeductBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeductBatch'
+type MockInventoryReserver_DeductBatch_Call struct {
+	*mock.Call
+}
+
+// DeductBatch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - items []order.InventoryItem
+func (_e *MockInventoryReserver_Expecter) DeductBatch(ctx interface{}, items interface{}) *MockInventoryReserver_DeductBatch_Call {
+	return &MockInventoryReserver_DeductBatch_Call{Call: _e.mock.On("DeductBatch", ctx, items)}
+}
+
+func (_c *MockInventoryReserver_DeductBatch_Call) Run(run func(ctx context.Context, items []order.InventoryItem)) *MockInventoryReserver_DeductBatch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []order.InventoryItem
+		if args[1] != nil {
+			arg1 = args[1].([]order.InventoryItem)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockInventoryReserver_DeductBatch_Call) Return(err error) *MockInventoryReserver_DeductBatch_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockInventoryReserver_DeductBatch_Call) RunAndReturn(run func(ctx context.Context, items []order.InventoryItem) error) *MockInventoryReserver_DeductBatch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReserveBatch provides a mock function for the type MockInventoryReserver
 func (_mock *MockInventoryReserver) ReserveBatch(ctx context.Context, items []order.InventoryItem) error {
 	ret := _mock.Called(ctx, items)

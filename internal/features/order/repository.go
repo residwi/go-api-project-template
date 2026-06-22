@@ -133,16 +133,28 @@ func (r *PostgresRepository) CreateItems(ctx context.Context, items []Item) erro
 	if err != nil {
 		return fmt.Errorf("creating order items: %w", err)
 	}
-	defer rows.Close()
 
-	i := 0
-	for rows.Next() {
-		if err := rows.Scan(&items[i].ID, &items[i].CreatedAt); err != nil {
-			return fmt.Errorf("scanning order item: %w", err)
-		}
-		i++
+	// RETURNING yields one row per inserted item in insertion order; collect the
+	// generated id/created_at and write them back onto the input items.
+	type generated struct {
+		ID        uuid.UUID
+		CreatedAt time.Time
 	}
-	return rows.Err()
+	gen, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (generated, error) {
+		var g generated
+		return g, row.Scan(&g.ID, &g.CreatedAt)
+	})
+	if err != nil {
+		return fmt.Errorf("scanning created order items: %w", err)
+	}
+	if len(gen) != len(items) {
+		return fmt.Errorf("creating order items: expected %d rows, got %d", len(items), len(gen))
+	}
+	for i := range gen {
+		items[i].ID = gen[i].ID
+		items[i].CreatedAt = gen[i].CreatedAt
+	}
+	return nil
 }
 
 func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Order, error) {
@@ -150,12 +162,12 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Order,
 	var o Order
 	err := db.QueryRow(ctx,
 		`SELECT id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount,
-		        coupon_code, currency, shipping_address, billing_address, notes, created_at, updated_at
+		        coupon_code, currency, shipping_address, billing_address, notes, stock_deducted, stock_reversed, created_at, updated_at
 		FROM orders WHERE id = $1`, id,
 	).Scan(&o.ID, &o.UserID, &o.IdempotencyKey, &o.RequestHash, &o.Status,
 		&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
 		&o.CouponCode, &o.Currency, &o.ShippingAddress, &o.BillingAddress,
-		&o.Notes, &o.CreatedAt, &o.UpdatedAt)
+		&o.Notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, core.ErrNotFound
@@ -170,12 +182,12 @@ func (r *PostgresRepository) GetByUserIDAndIdempotencyKey(ctx context.Context, u
 	var o Order
 	err := db.QueryRow(ctx,
 		`SELECT id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount,
-		        coupon_code, currency, shipping_address, billing_address, notes, created_at, updated_at
+		        coupon_code, currency, shipping_address, billing_address, notes, stock_deducted, stock_reversed, created_at, updated_at
 		FROM orders WHERE user_id = $1 AND idempotency_key = $2`, userID, key,
 	).Scan(&o.ID, &o.UserID, &o.IdempotencyKey, &o.RequestHash, &o.Status,
 		&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
 		&o.CouponCode, &o.Currency, &o.ShippingAddress, &o.BillingAddress,
-		&o.Notes, &o.CreatedAt, &o.UpdatedAt)
+		&o.Notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, core.ErrNotFound
@@ -297,9 +309,15 @@ func (r *PostgresRepository) UpdateTotals(ctx context.Context, id uuid.UUID, dis
 func (r *PostgresRepository) Apply(ctx context.Context, id uuid.UUID, t Transition) error {
 	db := database.DB(ctx, r.pool)
 	var returnedID uuid.UUID
+	// The stock flags ride along in the same CAS so they can never disagree with
+	// the status. OR keeps them monotonic: once deducted/reversed, applying a
+	// transition that does not set the flag leaves it unchanged.
 	err := db.QueryRow(ctx,
-		`UPDATE orders SET status = $1 WHERE id = $2 AND status = ANY($3) RETURNING id`,
-		t.To, id, t.From,
+		`UPDATE orders SET status = $1,
+		        stock_deducted = stock_deducted OR $4,
+		        stock_reversed = stock_reversed OR $5
+		WHERE id = $2 AND status = ANY($3) RETURNING id`,
+		t.To, id, t.From, t.SetsStockDeducted, t.SetsStockReversed,
 	).Scan(&returnedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
