@@ -31,11 +31,3 @@ type AddImageRequest struct {
 	AltText   *string `json:"alt_text" validate:"omitempty,max=255"`
 	SortOrder *int    `json:"sort_order" validate:"omitempty,min=0"`
 }
-
-type Response struct {
-	Product *Product `json:"product"`
-}
-
-type ListResponse struct {
-	Products []Product `json:"products"`
-}

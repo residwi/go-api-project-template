@@ -34,7 +34,7 @@ type Router struct {
 	PaymentSvc *payment.Service
 }
 
-func NewRouter(deps *Deps) *Router { //nolint:funlen
+func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: length is inherent to registering every feature's routes in one place
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", healthHandler(deps.Pool, deps.Redis))
