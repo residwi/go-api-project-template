@@ -2,6 +2,9 @@ package review
 
 import (
 	"net/http"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/core"
 	"github.com/residwi/go-api-project-template/internal/core/response"
@@ -28,18 +31,9 @@ func (h *publicHandler) ListByProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hasMore := len(reviews) > cursor.Limit
-	if hasMore {
-		reviews = reviews[:cursor.Limit]
-	}
-
-	var nextCursor string
-	if hasMore && len(reviews) > 0 {
-		last := reviews[len(reviews)-1]
-		nextCursor = core.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
-	}
-
-	response.Paginated(w, core.NewCursorPageResult(reviews, nextCursor, hasMore))
+	response.CursorPage(w, reviews, cursor.Limit, func(rv Review) (time.Time, uuid.UUID) {
+		return rv.CreatedAt, rv.ID
+	})
 }
 
 func (h *publicHandler) Create(w http.ResponseWriter, r *http.Request) {

@@ -2,6 +2,9 @@ package order
 
 import (
 	"net/http"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/core"
 	"github.com/residwi/go-api-project-template/internal/core/response"
@@ -54,18 +57,9 @@ func (h *publicHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hasMore := len(orders) > cursor.Limit
-	if hasMore {
-		orders = orders[:cursor.Limit]
-	}
-
-	var nextCursor string
-	if hasMore && len(orders) > 0 {
-		last := orders[len(orders)-1]
-		nextCursor = core.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
-	}
-
-	response.Paginated(w, core.NewCursorPageResult(orders, nextCursor, hasMore))
+	response.CursorPage(w, orders, cursor.Limit, func(o Order) (time.Time, uuid.UUID) {
+		return o.CreatedAt, o.ID
+	})
 }
 
 func (h *publicHandler) GetOrder(w http.ResponseWriter, r *http.Request) {

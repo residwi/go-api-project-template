@@ -2,6 +2,9 @@ package wishlist
 
 import (
 	"net/http"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/core"
 	"github.com/residwi/go-api-project-template/internal/core/response"
@@ -28,18 +31,9 @@ func (h *handler) GetWishlist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hasMore := len(items) > cursor.Limit
-	if hasMore {
-		items = items[:cursor.Limit]
-	}
-
-	var nextCursor string
-	if hasMore && len(items) > 0 {
-		last := items[len(items)-1]
-		nextCursor = core.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z"), last.ID.String())
-	}
-
-	response.OK(w, core.NewCursorPageResult(items, nextCursor, hasMore))
+	response.CursorPage(w, items, cursor.Limit, func(it Item) (time.Time, uuid.UUID) {
+		return it.CreatedAt, it.ID
+	})
 }
 
 func (h *handler) AddItem(w http.ResponseWriter, r *http.Request) {

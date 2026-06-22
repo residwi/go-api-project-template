@@ -2,6 +2,9 @@ package notification
 
 import (
 	"net/http"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/core"
 	"github.com/residwi/go-api-project-template/internal/core/response"
@@ -26,18 +29,9 @@ func (h *handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hasMore := len(notifications) > cursor.Limit
-	if hasMore {
-		notifications = notifications[:cursor.Limit]
-	}
-
-	var nextCursor string
-	if hasMore && len(notifications) > 0 {
-		last := notifications[len(notifications)-1]
-		nextCursor = core.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
-	}
-
-	response.Paginated(w, core.NewCursorPageResult(notifications, nextCursor, hasMore))
+	response.CursorPage(w, notifications, cursor.Limit, func(n Notification) (time.Time, uuid.UUID) {
+		return n.CreatedAt, n.ID
+	})
 }
 
 func (h *handler) MarkRead(w http.ResponseWriter, r *http.Request) {
