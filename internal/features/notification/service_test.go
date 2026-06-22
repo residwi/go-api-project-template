@@ -236,6 +236,11 @@ func TestService_Process(t *testing.T) {
 				n.IsRead == false &&
 				string(n.Data) == `{"order_id":"abc"}`
 		})).Return(nil)
+		// On success the job is marked completed so it isn't re-claimed and
+		// re-processed (which would create duplicate notifications).
+		repo.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *notification.Job) bool {
+			return j.Status == notification.JobStatusCompleted
+		})).Return(nil)
 
 		err := svc.Process(ctx, job)
 		require.NoError(t, err)
@@ -247,14 +252,20 @@ func TestService_Process(t *testing.T) {
 
 		ctx := context.Background()
 		job := notification.Job{
-			ID:     uuid.New(),
-			UserID: uuid.New(),
-			Type:   string(notification.TypeOrderPlaced),
-			Title:  "Order Placed",
-			Body:   "Your order has been placed.",
+			ID:          uuid.New(),
+			UserID:      uuid.New(),
+			Type:        string(notification.TypeOrderPlaced),
+			Title:       "Order Placed",
+			Body:        "Your order has been placed.",
+			MaxAttempts: 3,
 		}
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*notification.Notification")).Return(assert.AnError)
+		// On failure the attempt is recorded so the job can reach a terminal state
+		// instead of being re-claimed forever; here attempts<max, so it's requeued.
+		repo.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *notification.Job) bool {
+			return j.Attempts == 1 && j.Status == notification.JobStatusPending && j.LastError != ""
+		})).Return(nil)
 
 		err := svc.Process(ctx, job)
 		assert.ErrorIs(t, err, assert.AnError)
