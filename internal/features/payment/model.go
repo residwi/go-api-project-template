@@ -52,17 +52,16 @@ type Payment struct {
 }
 
 type Job struct {
-	ID              uuid.UUID  `json:"id"`
-	PaymentID       uuid.UUID  `json:"payment_id"`
-	OrderID         uuid.UUID  `json:"order_id"`
-	Action          JobAction  `json:"action"`
-	Status          JobStatus  `json:"status"`
-	Attempts        int        `json:"attempts"`
-	MaxAttempts     int        `json:"max_attempts"`
-	LastError       string     `json:"last_error,omitempty"`
-	LockedUntil     *time.Time `json:"locked_until,omitempty"`
-	NextRetryAt     time.Time  `json:"next_retry_at"`
-	InventoryAction string     `json:"inventory_action,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID          uuid.UUID  `json:"id"`
+	PaymentID   uuid.UUID  `json:"payment_id"`
+	OrderID     uuid.UUID  `json:"order_id"`
+	Action      JobAction  `json:"action"`
+	Status      JobStatus  `json:"status"`
+	Attempts    int        `json:"attempts"`
+	MaxAttempts int        `json:"max_attempts"`
+	LastError   string     `json:"last_error,omitempty"`
+	LockedUntil *time.Time `json:"locked_until,omitempty"`
+	NextRetryAt time.Time  `json:"next_retry_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }

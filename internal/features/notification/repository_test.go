@@ -250,7 +250,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEqual(t, uuid.Nil, job.ID)
 
-		jobs, err := repo.ClaimPendingJobs(ctx, 10, 2*time.Minute)
+		jobs, err := repo.Claim(ctx, 10, 2*time.Minute)
 		require.NoError(t, err)
 		assert.NotEmpty(t, jobs)
 
@@ -258,7 +258,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		job.Attempts = 1
 		require.NoError(t, repo.UpdateJob(ctx, job))
 
-		deleted, err := repo.DeleteOldCompletedJobs(ctx, 0, 100)
+		deleted, err := repo.Prune(ctx, 0, 100)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, deleted, 1)
 	})
@@ -267,7 +267,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		setup(t)
 		repo := notification.NewPostgresRepository(testPool)
 		// Use a fresh context — no pending jobs for a brand-new user
-		jobs, err := repo.ClaimPendingJobs(context.Background(), 1, 2*time.Minute)
+		jobs, err := repo.Claim(context.Background(), 1, 2*time.Minute)
 		require.NoError(t, err)
 		_ = jobs // may or may not be empty depending on prior test state; just verify no error
 	})
@@ -285,7 +285,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_DeleteOldCompletedJobs(t *testing.T) {
+func TestPostgresRepository_Prune(t *testing.T) {
 	t.Run("deletes completed jobs older than threshold", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
@@ -306,9 +306,38 @@ func TestPostgresRepository_DeleteOldCompletedJobs(t *testing.T) {
 		require.NoError(t, repo.UpdateJob(ctx, job))
 
 		// olderThan=0 means anything older than 0 duration (all completed jobs)
-		deleted, err := repo.DeleteOldCompletedJobs(ctx, 0, 100)
+		deleted, err := repo.Prune(ctx, 0, 100)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, deleted, 1)
+	})
+
+	t.Run("deletes failed jobs older than threshold", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		repo := notification.NewPostgresRepository(testPool)
+		ctx := context.Background()
+
+		job := &notification.Job{
+			UserID:      userID,
+			Type:        "email",
+			Title:       "Failed",
+			Body:        "body",
+			Status:      "pending",
+			MaxAttempts: 3,
+		}
+		require.NoError(t, repo.CreateJob(ctx, job))
+		job.Status = "failed"
+		job.Attempts = 3
+		require.NoError(t, repo.UpdateJob(ctx, job))
+
+		deleted, err := repo.Prune(ctx, 0, 100)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, deleted, 1)
+
+		var count int
+		require.NoError(t, testPool.QueryRow(ctx,
+			`SELECT COUNT(*) FROM notification_jobs WHERE id = $1`, job.ID).Scan(&count))
+		assert.Equal(t, 0, count, "failed jobs should be pruned, not left to accumulate")
 	})
 
 	t.Run("does not delete pending jobs", func(t *testing.T) {
@@ -327,7 +356,7 @@ func TestPostgresRepository_DeleteOldCompletedJobs(t *testing.T) {
 		}
 		require.NoError(t, repo.CreateJob(ctx, job))
 
-		deleted, err := repo.DeleteOldCompletedJobs(ctx, 1*time.Hour, 100)
+		deleted, err := repo.Prune(ctx, 1*time.Hour, 100)
 		require.NoError(t, err)
 		// pending jobs should not be deleted
 		_ = deleted
@@ -413,14 +442,14 @@ func TestPostgresRepository_CreateJob_CancelledContext(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_ClaimPendingJobs_CancelledContext(t *testing.T) {
+func TestPostgresRepository_Claim_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
 		repo := notification.NewPostgresRepository(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.ClaimPendingJobs(ctx, 10, 2*time.Minute)
+		_, err := repo.Claim(ctx, 10, 2*time.Minute)
 		assert.Error(t, err)
 	})
 }
@@ -440,14 +469,14 @@ func TestPostgresRepository_UpdateJob_CancelledContext(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_DeleteOldCompletedJobs_CancelledContext(t *testing.T) {
+func TestPostgresRepository_Prune_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
 		repo := notification.NewPostgresRepository(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.DeleteOldCompletedJobs(ctx, 1*time.Hour, 100)
+		_, err := repo.Prune(ctx, 1*time.Hour, 100)
 		assert.Error(t, err)
 	})
 }

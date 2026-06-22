@@ -59,8 +59,8 @@ func (s *Service) EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, orde
 	return s.repo.CreateJob(ctx, job)
 }
 
-// ProcessJob creates a notification record from a job.
-func (s *Service) ProcessJob(ctx context.Context, job Job) error {
+// Process creates a notification record from a job.
+func (s *Service) Process(ctx context.Context, job Job) error {
 	n := &Notification{
 		UserID: job.UserID,
 		Type:   Type(job.Type),

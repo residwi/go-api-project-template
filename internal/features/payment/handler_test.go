@@ -39,11 +39,10 @@ func setupPaymentMux(t *testing.T) (
 	orderGet := mocks.NewMockOrderGetter(t)
 	orderItems := mocks.NewMockOrderItemsGetter(t)
 	inv := mocks.NewMockInventoryDeductor(t)
-	invRel := mocks.NewMockInventoryReleaser(t)
-	invRestock := mocks.NewMockInventoryRestocker(t)
+	invRestore := mocks.NewMockInventoryRestorer(t)
 	couponRel := mocks.NewMockCouponReleaser(t)
 
-	svc := payment.NewService(repo, nil, gw, orders, orderGet, orderItems, inv, invRel, invRestock, couponRel)
+	svc := payment.NewService(repo, nil, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
 	v := validator.New()
 
 	mux := http.NewServeMux()
@@ -61,11 +60,10 @@ func setupPaymentMuxWithSecret(t *testing.T, secret string) (*http.ServeMux, *mo
 	orderGet := mocks.NewMockOrderGetter(t)
 	orderItems := mocks.NewMockOrderItemsGetter(t)
 	inv := mocks.NewMockInventoryDeductor(t)
-	invRel := mocks.NewMockInventoryReleaser(t)
-	invRestock := mocks.NewMockInventoryRestocker(t)
+	invRestore := mocks.NewMockInventoryRestorer(t)
 	couponRel := mocks.NewMockCouponReleaser(t)
 
-	svc := payment.NewService(repo, nil, gw, orders, orderGet, orderItems, inv, invRel, invRestock, couponRel)
+	svc := payment.NewService(repo, nil, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
 	v := validator.New()
 
 	mux := http.NewServeMux()
@@ -370,7 +368,7 @@ func TestAdminHandler_Get(t *testing.T) {
 
 func TestAdminHandler_Refund(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo, _, _, orderGet := setupPaymentMux(t)
+		mux, repo, _, _, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
 		orderID := uuid.New()
@@ -381,9 +379,6 @@ func TestAdminHandler_Refund(t *testing.T) {
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil)
-		orderGet.EXPECT().GetByID(mock.Anything, orderID).Return(payment.OrderSnapshot{
-			Status: "awaiting_payment",
-		}, nil)
 		repo.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(func(job *payment.Job) bool {
 			return job.PaymentID == paymentID &&
 				job.OrderID == orderID &&

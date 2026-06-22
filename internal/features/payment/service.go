@@ -17,11 +17,7 @@ import (
 	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
 )
 
-const (
-	inventoryActionRelease = "release"
-	inventoryActionRestock = "restock"
-	jitterDivisor          = 2
-)
+const jitterDivisor = 2
 
 // OrderUpdater drives order-status changes from the payment domain via intent
 // methods, so payment never imports the order package; the wiring adapter maps
@@ -56,15 +52,6 @@ type OrderSnapshot struct {
 	StockDeducted bool
 }
 
-// inventoryActionFor returns the inventory compensation a reversal requires:
-// restock when stock was deducted, release when it was only reserved.
-func inventoryActionFor(snap OrderSnapshot) string {
-	if snap.StockDeducted {
-		return inventoryActionRestock
-	}
-	return inventoryActionRelease
-}
-
 type OrderGetter interface {
 	GetByID(ctx context.Context, orderID uuid.UUID) (OrderSnapshot, error)
 }
@@ -79,12 +66,11 @@ type InventoryDeductor interface {
 	DeductBatch(ctx context.Context, items []InventoryChange) error
 }
 
-type InventoryReleaser interface {
-	ReleaseBatch(ctx context.Context, items []InventoryChange) error
-}
-
-type InventoryRestocker interface {
-	RestockBatch(ctx context.Context, items []InventoryChange) error
+type InventoryRestorer interface {
+	// Restore reverses an order's inventory effect; wasDeducted selects release
+	// vs restock. Inventory owns that choice — payment only supplies the order's
+	// fact (computed from its snapshot), not the mechanics.
+	Restore(ctx context.Context, items []InventoryChange, wasDeducted bool) error
 }
 
 type CouponReleaser interface {
@@ -100,16 +86,15 @@ func toInventoryChanges(items []OrderItemDTO) []InventoryChange {
 }
 
 type Service struct {
-	repo               Repository
-	pool               *pgxpool.Pool
-	gateway            gateway.Gateway
-	orders             OrderUpdater
-	orderGet           OrderGetter
-	orderItems         OrderItemsGetter
-	inventory          InventoryDeductor
-	inventoryReleaser  InventoryReleaser
-	inventoryRestocker InventoryRestocker
-	couponReleaser     CouponReleaser
+	repo              Repository
+	pool              *pgxpool.Pool
+	gateway           gateway.Gateway
+	orders            OrderUpdater
+	orderGet          OrderGetter
+	orderItems        OrderItemsGetter
+	inventory         InventoryDeductor
+	inventoryRestorer InventoryRestorer
+	couponReleaser    CouponReleaser
 }
 
 func NewService(
@@ -120,21 +105,19 @@ func NewService(
 	orderGet OrderGetter,
 	orderItems OrderItemsGetter,
 	inventory InventoryDeductor,
-	inventoryReleaser InventoryReleaser,
-	inventoryRestocker InventoryRestocker,
+	inventoryRestorer InventoryRestorer,
 	couponReleaser CouponReleaser,
 ) *Service {
 	return &Service{
-		repo:               repo,
-		pool:               pool,
-		gateway:            gw,
-		orders:             orders,
-		orderGet:           orderGet,
-		orderItems:         orderItems,
-		inventory:          inventory,
-		inventoryReleaser:  inventoryReleaser,
-		inventoryRestocker: inventoryRestocker,
-		couponReleaser:     couponReleaser,
+		repo:              repo,
+		pool:              pool,
+		gateway:           gw,
+		orders:            orders,
+		orderGet:          orderGet,
+		orderItems:        orderItems,
+		inventory:         inventory,
+		inventoryRestorer: inventoryRestorer,
+		couponReleaser:    couponReleaser,
 	}
 }
 
@@ -211,7 +194,11 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 	return result, nil
 }
 
-func (s *Service) ProcessJob(ctx context.Context, job Job) bool {
+// Process runs one payment job to a settled state, owning its own retry and
+// status bookkeeping. It returns nil when the job is done (succeeded or already
+// finalized) and a descriptive error when this attempt did not complete, purely
+// so the runner can log it — the retry/backoff is already persisted here.
+func (s *Service) Process(ctx context.Context, job Job) error {
 	switch job.Action {
 	case ActionCharge:
 		return s.processChargeJob(ctx, job)
@@ -219,11 +206,11 @@ func (s *Service) ProcessJob(ctx context.Context, job Job) bool {
 		return s.processRefundJob(ctx, job)
 	default:
 		slog.ErrorContext(ctx, "unknown job action", "job_id", job.ID, "action", job.Action)
-		return false
+		return fmt.Errorf("unknown job action: %s", job.Action)
 	}
 }
 
-func (s *Service) processChargeJob(ctx context.Context, job Job) bool {
+func (s *Service) processChargeJob(ctx context.Context, job Job) error {
 	err := s.orders.MarkPaymentProcessing(ctx, job.OrderID)
 	if err != nil {
 		slog.WarnContext(ctx, "charge job cancelled: order not in expected state",
@@ -232,13 +219,13 @@ func (s *Service) processChargeJob(ctx context.Context, job Job) bool {
 		if updateErr := s.repo.UpdateJob(ctx, &job); updateErr != nil {
 			slog.ErrorContext(ctx, "failed to update cancelled job", "job_id", job.ID, "error", updateErr)
 		}
-		return false
+		return fmt.Errorf("charge job cancelled: order %s not in expected state", job.OrderID)
 	}
 
 	p, err := s.repo.GetByID(ctx, job.PaymentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get payment for job", "job_id", job.ID, "error", err)
-		return false
+		return fmt.Errorf("getting payment for job: %w", err)
 	}
 
 	chargeReq := gateway.ChargeRequest{
@@ -260,7 +247,7 @@ func (s *Service) processChargeJob(ctx context.Context, job Job) bool {
 			"attempt", job.Attempts, "max_attempts", job.MaxAttempts, "error", gwErr)
 
 		s.handleChargeFailure(ctx, &job, gwErr.Error())
-		return false
+		return fmt.Errorf("charge failed: %w", gwErr)
 	}
 
 	respJSON, _ := json.Marshal(resp)
@@ -278,20 +265,20 @@ func (s *Service) processChargeJob(ctx context.Context, job Job) bool {
 			if errors.Is(finalizeErr, core.ErrAlreadyFinalized) {
 				slog.InfoContext(ctx, "charge job: payment already finalized externally",
 					"job_id", job.ID, "order_id", job.OrderID)
-				return true
+				return nil
 			}
 			slog.ErrorContext(ctx, "finalization failed, running compensating flow",
 				"job_id", job.ID, "order_id", job.OrderID, "error", finalizeErr)
 			s.runCompensatingRefund(ctx, job)
 		}
-		return true
+		return nil
 
 	default:
 		slog.WarnContext(ctx, "charge returned non-success",
 			"job_id", job.ID, "order_id", job.OrderID, "status", resp.Status,
 			"attempt", job.Attempts)
 		s.handleChargeFailure(ctx, &job, fmt.Sprintf("gateway returned status: %s", resp.Status))
-		return false
+		return fmt.Errorf("charge returned non-success status: %s", resp.Status)
 	}
 }
 
@@ -364,14 +351,12 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 				slog.ErrorContext(txCtx, "failed to update order status to fulfillment_failed", "order_id", job.OrderID, "error", orderStatusErr)
 			}
 
-			inventoryAction := inventoryActionFor(orderSnap)
 			refundJob := &Job{
-				PaymentID:       job.PaymentID,
-				OrderID:         job.OrderID,
-				Action:          ActionRefund,
-				Status:          JobStatusPending,
-				NextRetryAt:     time.Now(),
-				InventoryAction: inventoryAction,
+				PaymentID:   job.PaymentID,
+				OrderID:     job.OrderID,
+				Action:      ActionRefund,
+				Status:      JobStatusPending,
+				NextRetryAt: time.Now(),
 			}
 			if createErr := s.repo.CreateJob(txCtx, refundJob); createErr != nil {
 				slog.ErrorContext(txCtx, "failed to create refund job", "order_id", job.OrderID, "error", createErr)
@@ -409,12 +394,11 @@ func (s *Service) runCompensatingRefund(ctx context.Context, job Job) {
 		}
 
 		refundJob := &Job{
-			PaymentID:       job.PaymentID,
-			OrderID:         job.OrderID,
-			Action:          ActionRefund,
-			Status:          JobStatusPending,
-			NextRetryAt:     time.Now(),
-			InventoryAction: inventoryActionRelease,
+			PaymentID:   job.PaymentID,
+			OrderID:     job.OrderID,
+			Action:      ActionRefund,
+			Status:      JobStatusPending,
+			NextRetryAt: time.Now(),
 		}
 		return s.repo.CreateJob(txCtx, refundJob)
 	})
@@ -425,11 +409,11 @@ func (s *Service) runCompensatingRefund(ctx context.Context, job Job) {
 }
 
 //nolint:gocognit
-func (s *Service) processRefundJob(ctx context.Context, job Job) bool {
+func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 	p, err := s.repo.GetByID(ctx, job.PaymentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get payment for refund", "job_id", job.ID, "error", err)
-		return false
+		return fmt.Errorf("getting payment for refund: %w", err)
 	}
 
 	if p.Status != StatusSuccess && p.Status != StatusRequiresReview {
@@ -439,7 +423,7 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) bool {
 		if updateErr := s.repo.UpdateJob(ctx, &job); updateErr != nil {
 			slog.ErrorContext(ctx, "failed to update cancelled refund job", "job_id", job.ID, "error", updateErr)
 		}
-		return false
+		return fmt.Errorf("refund job cancelled: payment %s not refundable", job.PaymentID)
 	}
 
 	slog.InfoContext(ctx, "processing refund",
@@ -471,7 +455,7 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) bool {
 		if updateErr := s.repo.UpdateJob(ctx, &job); updateErr != nil {
 			slog.ErrorContext(ctx, "failed to update refund job after failure", "job_id", job.ID, "error", updateErr)
 		}
-		return false
+		return fmt.Errorf("refund failed: %w", gwErr)
 	}
 
 	slog.InfoContext(ctx, "refund completed",
@@ -479,6 +463,14 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) bool {
 		"refund_id", resp.RefundID)
 
 	txErr := database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+		// Capture the order's stock state BEFORE flipping it to refunded: once the
+		// status is refunded, StockDeducted() reports false, which would wrongly
+		// release instead of restock a paid order's already-deducted stock.
+		orderSnap, snapErr := s.orderGet.GetByID(txCtx, job.OrderID)
+		if snapErr != nil {
+			return fmt.Errorf("getting order for refund: %w", snapErr)
+		}
+
 		if statusErr := s.repo.UpdateStatus(txCtx, job.PaymentID, StatusRefunded,
 			[]Status{StatusSuccess, StatusRequiresReview}); statusErr != nil {
 			slog.ErrorContext(txCtx, "failed to update payment status to refunded", "payment_id", job.PaymentID, "error", statusErr)
@@ -492,27 +484,17 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) bool {
 			return listErr
 		}
 		if len(items) > 0 {
-			changes := toInventoryChanges(items)
-			switch job.InventoryAction {
-			case inventoryActionRelease:
-				if releaseErr := s.inventoryReleaser.ReleaseBatch(txCtx, changes); releaseErr != nil {
-					slog.ErrorContext(txCtx, "failed to release inventory on refund",
-						"order_id", job.OrderID, "error", releaseErr)
-				}
-			case inventoryActionRestock:
-				if restockErr := s.inventoryRestocker.RestockBatch(txCtx, changes); restockErr != nil {
-					slog.ErrorContext(txCtx, "failed to restock inventory on refund",
-						"order_id", job.OrderID, "error", restockErr)
-				}
+			// Recompute the prior stock state from the order now rather than trust a
+			// value frozen onto the job at enqueue; inventory owns release-vs-restock.
+			if restoreErr := s.inventoryRestorer.Restore(txCtx, toInventoryChanges(items), orderSnap.StockDeducted); restoreErr != nil {
+				slog.ErrorContext(txCtx, "failed to restore inventory on refund",
+					"order_id", job.OrderID, "error", restoreErr)
 			}
 		}
 
-		if s.couponReleaser != nil {
-			orderSnap, getErr := s.orderGet.GetByID(txCtx, job.OrderID)
-			if getErr == nil && orderSnap.CouponCode != "" {
-				if releaseErr := s.couponReleaser.Release(txCtx, job.OrderID); releaseErr != nil {
-					slog.WarnContext(txCtx, "failed to release coupon on refund", "error", releaseErr)
-				}
+		if s.couponReleaser != nil && orderSnap.CouponCode != "" {
+			if releaseErr := s.couponReleaser.Release(txCtx, job.OrderID); releaseErr != nil {
+				slog.WarnContext(txCtx, "failed to release coupon on refund", "error", releaseErr)
 			}
 		}
 
@@ -522,7 +504,10 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) bool {
 		return nil
 	})
 
-	return txErr == nil
+	if txErr != nil {
+		return fmt.Errorf("refund finalization failed: %w", txErr)
+	}
+	return nil
 }
 
 func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) error { //nolint:gocognit
@@ -614,20 +599,14 @@ func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
 		return fmt.Errorf("%w: payment is not refundable", core.ErrBadRequest)
 	}
 
-	orderSnap, err := s.orderGet.GetByID(ctx, p.OrderID)
-	if err != nil {
-		return err
-	}
-
-	inventoryAction := inventoryActionFor(orderSnap)
-
+	// The refund worker recomputes release-vs-restock from the order when it runs,
+	// so enqueue is just intent — no need to resolve the inventory action here.
 	job := &Job{
-		PaymentID:       paymentID,
-		OrderID:         p.OrderID,
-		Action:          ActionRefund,
-		Status:          JobStatusPending,
-		NextRetryAt:     time.Now(),
-		InventoryAction: inventoryAction,
+		PaymentID:   paymentID,
+		OrderID:     p.OrderID,
+		Action:      ActionRefund,
+		Status:      JobStatusPending,
+		NextRetryAt: time.Now(),
 	}
 
 	return s.repo.CreateJob(ctx, job)

@@ -212,7 +212,7 @@ func TestService_EnqueueOrderPlaced(t *testing.T) {
 	})
 }
 
-func TestService_ProcessJob(t *testing.T) {
+func TestService_Process(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
@@ -237,7 +237,7 @@ func TestService_ProcessJob(t *testing.T) {
 				string(n.Data) == `{"order_id":"abc"}`
 		})).Return(nil)
 
-		err := svc.ProcessJob(ctx, job)
+		err := svc.Process(ctx, job)
 		require.NoError(t, err)
 	})
 
@@ -256,7 +256,7 @@ func TestService_ProcessJob(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*notification.Notification")).Return(assert.AnError)
 
-		err := svc.ProcessJob(ctx, job)
+		err := svc.Process(ctx, job)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
 }

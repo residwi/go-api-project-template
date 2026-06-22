@@ -97,12 +97,12 @@ func (_c *MockRepository_CancelJobsByOrderID_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
-// ClaimPendingJobs provides a mock function for the type MockRepository
-func (_mock *MockRepository) ClaimPendingJobs(ctx context.Context, batchSize int, leaseDuration time.Duration) ([]payment.Job, error) {
+// Claim provides a mock function for the type MockRepository
+func (_mock *MockRepository) Claim(ctx context.Context, batchSize int, leaseDuration time.Duration) ([]payment.Job, error) {
 	ret := _mock.Called(ctx, batchSize, leaseDuration)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ClaimPendingJobs")
+		panic("no return value specified for Claim")
 	}
 
 	var r0 []payment.Job
@@ -125,20 +125,20 @@ func (_mock *MockRepository) ClaimPendingJobs(ctx context.Context, batchSize int
 	return r0, r1
 }
 
-// MockRepository_ClaimPendingJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClaimPendingJobs'
-type MockRepository_ClaimPendingJobs_Call struct {
+// MockRepository_Claim_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Claim'
+type MockRepository_Claim_Call struct {
 	*mock.Call
 }
 
-// ClaimPendingJobs is a helper method to define mock.On call
+// Claim is a helper method to define mock.On call
 //   - ctx context.Context
 //   - batchSize int
 //   - leaseDuration time.Duration
-func (_e *MockRepository_Expecter) ClaimPendingJobs(ctx interface{}, batchSize interface{}, leaseDuration interface{}) *MockRepository_ClaimPendingJobs_Call {
-	return &MockRepository_ClaimPendingJobs_Call{Call: _e.mock.On("ClaimPendingJobs", ctx, batchSize, leaseDuration)}
+func (_e *MockRepository_Expecter) Claim(ctx interface{}, batchSize interface{}, leaseDuration interface{}) *MockRepository_Claim_Call {
+	return &MockRepository_Claim_Call{Call: _e.mock.On("Claim", ctx, batchSize, leaseDuration)}
 }
 
-func (_c *MockRepository_ClaimPendingJobs_Call) Run(run func(ctx context.Context, batchSize int, leaseDuration time.Duration)) *MockRepository_ClaimPendingJobs_Call {
+func (_c *MockRepository_Claim_Call) Run(run func(ctx context.Context, batchSize int, leaseDuration time.Duration)) *MockRepository_Claim_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -161,12 +161,12 @@ func (_c *MockRepository_ClaimPendingJobs_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *MockRepository_ClaimPendingJobs_Call) Return(jobs []payment.Job, err error) *MockRepository_ClaimPendingJobs_Call {
+func (_c *MockRepository_Claim_Call) Return(jobs []payment.Job, err error) *MockRepository_Claim_Call {
 	_c.Call.Return(jobs, err)
 	return _c
 }
 
-func (_c *MockRepository_ClaimPendingJobs_Call) RunAndReturn(run func(ctx context.Context, batchSize int, leaseDuration time.Duration) ([]payment.Job, error)) *MockRepository_ClaimPendingJobs_Call {
+func (_c *MockRepository_Claim_Call) RunAndReturn(run func(ctx context.Context, batchSize int, leaseDuration time.Duration) ([]payment.Job, error)) *MockRepository_Claim_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -338,78 +338,6 @@ func (_c *MockRepository_CreateJob_Call) Return(err error) *MockRepository_Creat
 }
 
 func (_c *MockRepository_CreateJob_Call) RunAndReturn(run func(ctx context.Context, job *payment.Job) error) *MockRepository_CreateJob_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteOldCompletedJobs provides a mock function for the type MockRepository
-func (_mock *MockRepository) DeleteOldCompletedJobs(ctx context.Context, olderThan time.Duration, limit int) (int, error) {
-	ret := _mock.Called(ctx, olderThan, limit)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteOldCompletedJobs")
-	}
-
-	var r0 int
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Duration, int) (int, error)); ok {
-		return returnFunc(ctx, olderThan, limit)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Duration, int) int); ok {
-		r0 = returnFunc(ctx, olderThan, limit)
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Duration, int) error); ok {
-		r1 = returnFunc(ctx, olderThan, limit)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockRepository_DeleteOldCompletedJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteOldCompletedJobs'
-type MockRepository_DeleteOldCompletedJobs_Call struct {
-	*mock.Call
-}
-
-// DeleteOldCompletedJobs is a helper method to define mock.On call
-//   - ctx context.Context
-//   - olderThan time.Duration
-//   - limit int
-func (_e *MockRepository_Expecter) DeleteOldCompletedJobs(ctx interface{}, olderThan interface{}, limit interface{}) *MockRepository_DeleteOldCompletedJobs_Call {
-	return &MockRepository_DeleteOldCompletedJobs_Call{Call: _e.mock.On("DeleteOldCompletedJobs", ctx, olderThan, limit)}
-}
-
-func (_c *MockRepository_DeleteOldCompletedJobs_Call) Run(run func(ctx context.Context, olderThan time.Duration, limit int)) *MockRepository_DeleteOldCompletedJobs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 time.Duration
-		if args[1] != nil {
-			arg1 = args[1].(time.Duration)
-		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockRepository_DeleteOldCompletedJobs_Call) Return(n int, err error) *MockRepository_DeleteOldCompletedJobs_Call {
-	_c.Call.Return(n, err)
-	return _c
-}
-
-func (_c *MockRepository_DeleteOldCompletedJobs_Call) RunAndReturn(run func(ctx context.Context, olderThan time.Duration, limit int) (int, error)) *MockRepository_DeleteOldCompletedJobs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -939,6 +867,78 @@ func (_c *MockRepository_MarkPaid_Call) Return(err error) *MockRepository_MarkPa
 }
 
 func (_c *MockRepository_MarkPaid_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, fromStatuses []payment.Status) error) *MockRepository_MarkPaid_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Prune provides a mock function for the type MockRepository
+func (_mock *MockRepository) Prune(ctx context.Context, olderThan time.Duration, limit int) (int, error) {
+	ret := _mock.Called(ctx, olderThan, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Prune")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Duration, int) (int, error)); ok {
+		return returnFunc(ctx, olderThan, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Duration, int) int); ok {
+		r0 = returnFunc(ctx, olderThan, limit)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Duration, int) error); ok {
+		r1 = returnFunc(ctx, olderThan, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_Prune_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Prune'
+type MockRepository_Prune_Call struct {
+	*mock.Call
+}
+
+// Prune is a helper method to define mock.On call
+//   - ctx context.Context
+//   - olderThan time.Duration
+//   - limit int
+func (_e *MockRepository_Expecter) Prune(ctx interface{}, olderThan interface{}, limit interface{}) *MockRepository_Prune_Call {
+	return &MockRepository_Prune_Call{Call: _e.mock.On("Prune", ctx, olderThan, limit)}
+}
+
+func (_c *MockRepository_Prune_Call) Run(run func(ctx context.Context, olderThan time.Duration, limit int)) *MockRepository_Prune_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Duration
+		if args[1] != nil {
+			arg1 = args[1].(time.Duration)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_Prune_Call) Return(n int, err error) *MockRepository_Prune_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockRepository_Prune_Call) RunAndReturn(run func(ctx context.Context, olderThan time.Duration, limit int) (int, error)) *MockRepository_Prune_Call {
 	_c.Call.Return(run)
 	return _c
 }

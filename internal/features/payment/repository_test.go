@@ -343,8 +343,8 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		assert.NotEqual(t, uuid.Nil, job.ID)
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, job.ID) })
 
-		// ClaimPendingJobs — job moves to 'processing'
-		claimed, err := repo.ClaimPendingJobs(ctx, 10, 30*time.Second)
+		// Claim — job moves to 'processing'
+		claimed, err := repo.Claim(ctx, 10, 30*time.Second)
 		require.NoError(t, err)
 
 		var claimedJob *payment.Job
@@ -374,8 +374,8 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		err = repo.MarkJobCompleted(ctx, job.ID)
 		require.NoError(t, err)
 
-		// DeleteOldCompletedJobs with olderThan=0 so all completed/failed/cancelled qualify
-		deleted, err := repo.DeleteOldCompletedJobs(ctx, 0, 100)
+		// Prune with olderThan=0 so all completed/failed/cancelled qualify
+		deleted, err := repo.Prune(ctx, 0, 100)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, deleted, 1)
 	})
@@ -461,9 +461,9 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("ClaimPendingJobs", func(t *testing.T) {
+	t.Run("Claim", func(t *testing.T) {
 		setup(t)
-		_, err := repo.ClaimPendingJobs(cancelledCtx, 10, 30*time.Second)
+		_, err := repo.Claim(cancelledCtx, 10, 30*time.Second)
 		assert.Error(t, err)
 	})
 
@@ -492,9 +492,9 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("DeleteOldCompletedJobs", func(t *testing.T) {
+	t.Run("Prune", func(t *testing.T) {
 		setup(t)
-		_, err := repo.DeleteOldCompletedJobs(cancelledCtx, 0, 100)
+		_, err := repo.Prune(cancelledCtx, 0, 100)
 		assert.Error(t, err)
 	})
 }
@@ -557,8 +557,8 @@ func TestPostgresRepository_ListAdmin_WithNullableFields(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_ClaimPendingJobs_WithOptionalFields(t *testing.T) {
-	t.Run("claimed job with last_error and inventory_action", func(t *testing.T) {
+func TestPostgresRepository_Claim_WithOptionalFields(t *testing.T) {
+	t.Run("claimed job round-trips last_error", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
@@ -567,13 +567,12 @@ func TestPostgresRepository_ClaimPendingJobs_WithOptionalFields(t *testing.T) {
 		ctx := context.Background()
 
 		job := &payment.Job{
-			PaymentID:       p.ID,
-			OrderID:         orderID,
-			Action:          payment.ActionRefund,
-			Status:          payment.JobStatusPending,
-			MaxAttempts:     3,
-			NextRetryAt:     time.Now(),
-			InventoryAction: "release",
+			PaymentID:   p.ID,
+			OrderID:     orderID,
+			Action:      payment.ActionRefund,
+			Status:      payment.JobStatusPending,
+			MaxAttempts: 3,
+			NextRetryAt: time.Now(),
 		}
 		require.NoError(t, repo.CreateJob(ctx, job))
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, job.ID) })
@@ -586,7 +585,7 @@ func TestPostgresRepository_ClaimPendingJobs_WithOptionalFields(t *testing.T) {
 		require.NoError(t, err)
 
 		// Cancel all other pending/processing jobs to avoid interference
-		claimed, err := repo.ClaimPendingJobs(ctx, 1, 30*time.Second)
+		claimed, err := repo.Claim(ctx, 1, 30*time.Second)
 		require.NoError(t, err)
 
 		var claimedJob *payment.Job
@@ -601,7 +600,6 @@ func TestPostgresRepository_ClaimPendingJobs_WithOptionalFields(t *testing.T) {
 			return
 		}
 		assert.Equal(t, "some error", claimedJob.LastError)
-		assert.Equal(t, "release", claimedJob.InventoryAction)
 	})
 }
 
@@ -736,7 +734,7 @@ func TestPostgresRepository_MarkJobCompletedByPaymentID(t *testing.T) {
 		err = repo.MarkJobCompletedByPaymentID(ctx, p.ID, payment.ActionCharge)
 		require.NoError(t, err)
 
-		claimed, err := repo.ClaimPendingJobs(ctx, 10, 30*time.Second)
+		claimed, err := repo.Claim(ctx, 10, 30*time.Second)
 		require.NoError(t, err)
 		for _, j := range claimed {
 			assert.NotEqual(t, job.ID, j.ID, "completed job should not be claimable")
@@ -766,7 +764,7 @@ func TestPostgresRepository_MarkJobCompletedByPaymentID(t *testing.T) {
 		err = repo.MarkJobCompletedByPaymentID(ctx, p.ID, payment.ActionRefund)
 		require.NoError(t, err)
 
-		claimed, err := repo.ClaimPendingJobs(ctx, 10, 30*time.Second)
+		claimed, err := repo.Claim(ctx, 10, 30*time.Second)
 		require.NoError(t, err)
 
 		var found bool

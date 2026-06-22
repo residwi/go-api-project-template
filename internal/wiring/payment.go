@@ -81,16 +81,10 @@ func (a *inventoryDeductorAdapter) DeductBatch(ctx context.Context, items []paym
 	return a.svc.DeductBatch(ctx, paymentToStockChanges(items))
 }
 
-type inventoryReleaserAdapter struct{ svc *inventory.Service }
+type inventoryRestorerAdapter struct{ svc *inventory.Service }
 
-func (a *inventoryReleaserAdapter) ReleaseBatch(ctx context.Context, items []payment.InventoryChange) error {
-	return a.svc.ReleaseBatch(ctx, paymentToStockChanges(items))
-}
-
-type inventoryRestockerAdapter struct{ svc *inventory.Service }
-
-func (a *inventoryRestockerAdapter) RestockBatch(ctx context.Context, items []payment.InventoryChange) error {
-	return a.svc.RestockBatch(ctx, paymentToStockChanges(items))
+func (a *inventoryRestorerAdapter) Restore(ctx context.Context, items []payment.InventoryChange, wasDeducted bool) error {
+	return a.svc.Restore(ctx, paymentToStockChanges(items), inventoryStateFor(wasDeducted))
 }
 
 func paymentToStockChanges(items []payment.InventoryChange) []inventory.StockChange {
@@ -121,12 +115,20 @@ func NewPaymentService(
 		&orderGetterAdapter{svc: orderSvc},
 		&orderItemsGetterAdapter{svc: orderSvc},
 		&inventoryDeductorAdapter{svc: inventorySvc},
-		&inventoryReleaserAdapter{svc: inventorySvc},
-		&inventoryRestockerAdapter{svc: inventorySvc},
+		&inventoryRestorerAdapter{svc: inventorySvc},
 		&couponReleaserAdapter{svc: promotionSvc},
 	)
 }
 
-func NewPaymentWorker(repo payment.Repository, pool *pgxpool.Pool, service *payment.Service, cfg payment.WorkerConfig) *payment.Worker {
-	return payment.NewWorker(repo, pool, service, cfg)
+// orderExpirerAdapter satisfies payment.OrderExpirer so the payment job
+// processor's Sweep hook can delegate stale-order expiry to the order module.
+type orderExpirerAdapter struct{ svc *order.Service }
+
+func (a *orderExpirerAdapter) ExpireStale(ctx context.Context) error {
+	return a.svc.ExpireStale(ctx)
+}
+
+// NewOrderExpirer adapts the order service to payment.OrderExpirer.
+func NewOrderExpirer(orderSvc *order.Service) payment.OrderExpirer {
+	return &orderExpirerAdapter{svc: orderSvc}
 }

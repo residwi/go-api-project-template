@@ -27,12 +27,12 @@ type Repository interface {
 	ListByOrderID(ctx context.Context, orderID uuid.UUID) ([]Payment, error)
 	ListAdmin(ctx context.Context, params AdminListParams) ([]Payment, int, error)
 	CreateJob(ctx context.Context, job *Job) error
-	ClaimPendingJobs(ctx context.Context, batchSize int, leaseDuration time.Duration) ([]Job, error)
+	Claim(ctx context.Context, batchSize int, leaseDuration time.Duration) ([]Job, error)
 	UpdateJob(ctx context.Context, job *Job) error
 	CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID) error
 	MarkJobCompleted(ctx context.Context, jobID uuid.UUID) error
 	MarkJobCompletedByPaymentID(ctx context.Context, paymentID uuid.UUID, action JobAction) error
-	DeleteOldCompletedJobs(ctx context.Context, olderThan time.Duration, limit int) (int, error)
+	Prune(ctx context.Context, olderThan time.Duration, limit int) (int, error)
 }
 
 type AdminListParams struct {
@@ -324,11 +324,11 @@ func scanPaymentAdmin(row pgx.CollectableRow) (Payment, error) {
 func (r *PostgresRepository) CreateJob(ctx context.Context, job *Job) error {
 	db := database.DB(ctx, r.pool)
 	err := db.QueryRow(ctx,
-		`INSERT INTO payment_jobs (payment_id, order_id, action, status, locked_until, next_retry_at, inventory_action)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`INSERT INTO payment_jobs (payment_id, order_id, action, status, locked_until, next_retry_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at, updated_at`,
 		job.PaymentID, job.OrderID, job.Action, job.Status,
-		job.LockedUntil, job.NextRetryAt, nilIfEmpty(job.InventoryAction),
+		job.LockedUntil, job.NextRetryAt,
 	).Scan(&job.ID, &job.CreatedAt, &job.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("creating payment job: %w", err)
@@ -336,7 +336,7 @@ func (r *PostgresRepository) CreateJob(ctx context.Context, job *Job) error {
 	return nil
 }
 
-func (r *PostgresRepository) ClaimPendingJobs(ctx context.Context, batchSize int, leaseDuration time.Duration) ([]Job, error) {
+func (r *PostgresRepository) Claim(ctx context.Context, batchSize int, leaseDuration time.Duration) ([]Job, error) {
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
 		`WITH picked AS (
@@ -358,7 +358,7 @@ func (r *PostgresRepository) ClaimPendingJobs(ctx context.Context, batchSize int
 		WHERE j.id = picked.id
 		RETURNING j.id, j.payment_id, j.order_id, j.action, j.status, j.attempts,
 		          j.max_attempts, j.last_error, j.locked_until, j.next_retry_at,
-		          j.inventory_action, j.created_at, j.updated_at`,
+		          j.created_at, j.updated_at`,
 		batchSize, leaseDuration.String(),
 	)
 	if err != nil {
@@ -374,17 +374,14 @@ func (r *PostgresRepository) ClaimPendingJobs(ctx context.Context, batchSize int
 
 func scanJob(row pgx.CollectableRow) (Job, error) {
 	var j Job
-	var lastError, inventoryAction *string
+	var lastError *string
 	if err := row.Scan(&j.ID, &j.PaymentID, &j.OrderID, &j.Action, &j.Status,
 		&j.Attempts, &j.MaxAttempts, &lastError, &j.LockedUntil, &j.NextRetryAt,
-		&inventoryAction, &j.CreatedAt, &j.UpdatedAt); err != nil {
+		&j.CreatedAt, &j.UpdatedAt); err != nil {
 		return Job{}, fmt.Errorf("scanning payment job: %w", err)
 	}
 	if lastError != nil {
 		j.LastError = *lastError
-	}
-	if inventoryAction != nil {
-		j.InventoryAction = *inventoryAction
 	}
 	return j, nil
 }
@@ -441,7 +438,7 @@ func (r *PostgresRepository) MarkJobCompletedByPaymentID(ctx context.Context, pa
 	return nil
 }
 
-func (r *PostgresRepository) DeleteOldCompletedJobs(ctx context.Context, olderThan time.Duration, limit int) (int, error) {
+func (r *PostgresRepository) Prune(ctx context.Context, olderThan time.Duration, limit int) (int, error) {
 	db := database.DB(ctx, r.pool)
 	tag, err := db.Exec(ctx,
 		`DELETE FROM payment_jobs WHERE id IN (

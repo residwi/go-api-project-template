@@ -28,6 +28,7 @@ Production-ready ecommerce API template built in Go 1.26. It exposes RESTful end
   - `database/` — PostgreSQL connection + transaction helpers
   - `cache/` — Redis client
   - `payment/` — Payment gateway interface + implementations (mock, Stripe, Midtrans)
+  - `jobs/` — Generic background job runner: poll/claim/lease/concurrency/prune behind `Runner[T]`; features supply a `Queue` + `Processor`
   - `validator/` — Request validation
   - `logger/` — Structured logging setup
   - `email/` — Email service (future)
@@ -124,7 +125,9 @@ make ci    # deps → fmt → vet → lint → test
 - Comments: Add only when necessary. Explain why, not how.
 - Duplication over wrong abstraction: Prefer duplicating code over introducing a shared abstraction that doesn't quite fit.
 - Cross-feature dependencies: Use inline interfaces at the top of the consumer's `service.go` (dependency inversion). No shared `port.go` files. Each feature defines only the methods it needs from other features. The concrete adapters that satisfy those interfaces live in `internal/wiring` (not in `server/router.go`), exposed as service constructors both binaries reuse.
+- Background job workers: a feature that drains a job queue implements `jobs.Queue[T]` (`Claim` + `Prune`) on its repository and `jobs.Processor[T]` (`Process`) on its service — plus optional `jobs.Sweeper` (`Sweep`) for per-tick domain housekeeping. The binary builds a `jobs.Runner[T]` from `internal/platform/jobs`; never hand-roll a ticker/lease/poll loop. The runner owns polling, the leased compare-and-set claim, bounded concurrency, the per-job timeout (a fraction of the lease), and pruning of terminal jobs. `Process` does its own retry/backoff bookkeeping and returns an error only so the runner can log it.
 - Order status transitions: the `order` package owns its state machine — never set an order's status from another feature with ad-hoc from/to lists. Every guarded transition (a compare-and-set that moves the order to a target status only if its current status is in an allowed-from set) is a named `order.Transition` value in `order/transition.go` (e.g. `order.PaidTransition`, `order.RefundTransition`), applied through the single `order.Service.Apply(ctx, id, transition)` entry point. Other features depend on *intent* methods on their inline interface (`payment.OrderUpdater.MarkPaid`, `shipping.OrderUpdater.MarkShipped`, …); the `internal/wiring` adapters map each intent to its named transition. This keeps every allowed-from set in one file so it cannot drift per call site.
+- Inventory reversal: undoing an order's stock goes through `inventory.Restore(ctx, items, StockState)` — inventory owns whether that means releasing a reservation or restocking deducted goods. Callers supply the order's prior state (`Reserved`/`Deducted`, from `OrderSnapshot.StockDeducted()`), never the mechanics; the `internal/wiring` adapter maps each consumer's `wasDeducted bool` to the `StockState`. Stale `awaiting_payment` orders are expired by `order.Service.ExpireStale` (a time-triggered bulk-cancel that reuses the cancel path), not by ad-hoc SQL in the worker.
 
 ## Architecture Notes
 
@@ -173,7 +176,7 @@ make ci    # deps → fmt → vet → lint → test
 1. User sends POST to `/api/orders` with cart + payment method.
 2. `order.Handler` validates request → `order.Service.PlaceOrder()` locks cart, snapshots items, reserves inventory, applies coupon (if any), creates order + items in a transaction.
 3. `payment.Service.InitiatePayment()` creates a payment record, calls the payment gateway to get a payment URL or charge.
-4. `payment.Worker` (in `cmd/worker`) polls `payment_jobs` on an interval, processes pending payments, transitions order status on success/failure via named `order.Transition` values (`order.Service.Apply`), deducts/releases inventory accordingly.
+4. A `jobs.Runner[payment.Job]` (in `cmd/worker`) claims `payment_jobs` on an interval, processes pending payments, transitions order status on success/failure via named `order.Transition` values (`order.Service.Apply`), and deducts/releases inventory accordingly. A second `jobs.Runner[notification.Job]` drains `notification_jobs`. Both reuse the generic runner in `internal/platform/jobs`; the payment service's per-tick `Sweep` expires stale unpaid orders.
 
 ## Testing Strategy
 

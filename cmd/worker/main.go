@@ -6,7 +6,9 @@ import (
 	"log"
 	"log/slog"
 	"os/signal"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
@@ -15,6 +17,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/features/promotion"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	mockgw "github.com/residwi/go-api-project-template/internal/platform/payment/mock"
 	"github.com/residwi/go-api-project-template/internal/wiring"
@@ -53,32 +56,33 @@ func run() error {
 	promotionSvc := promotion.NewService(promotionRepo, pool)
 	notificationSvc := notification.NewService(notificationRepo)
 
-	// The worker only reads orders, so order's cross-feature deps are all nil.
-	orderSvc := order.NewService(orderRepo, pool, nil, nil, nil, nil, nil, nil)
+	orderSvc := wiring.NewOrderService(orderRepo, pool, nil, inventorySvc, promotionSvc, nil)
 
 	gw := mockgw.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 
 	paymentSvc := wiring.NewPaymentService(paymentRepo, pool, gw, orderSvc, inventorySvc, promotionSvc)
 
-	// TODO: nothing drains notification_jobs. PlaceOrder enqueues "order placed"
-	// jobs (notification.EnqueueOrderPlaced → pending row), but no worker calls
-	// ClaimPendingJobs/ProcessJob, so notifications are never sent and pending
-	// rows accumulate unbounded (cleanup only removes completed). Run a
-	// notification-processing loop here (mirroring the payment worker).
-	_ = notificationSvc
+	jobCfg := jobs.Config{
+		Interval:      cfg.Worker.Interval,
+		BatchSize:     cfg.Worker.BatchSize,
+		LeaseDuration: cfg.Worker.LeaseDuration,
+		Concurrency:   cfg.Worker.Concurrency,
+		PruneAge:      7 * 24 * time.Hour,
+		PruneLimit:    100,
+	}
 
-	w := wiring.NewPaymentWorker(
-		paymentRepo, pool, paymentSvc,
-		payment.WorkerConfig{
-			Interval:      cfg.Worker.Interval,
-			BatchSize:     cfg.Worker.BatchSize,
-			LeaseDuration: cfg.Worker.LeaseDuration,
-			Concurrency:   cfg.Worker.Concurrency,
-		},
-	)
+	paymentProcessor := payment.NewJobProcessor(paymentSvc, wiring.NewOrderExpirer(orderSvc))
+	paymentRunner := jobs.NewRunner("payment", paymentRepo, paymentProcessor, jobCfg)
+	notificationRunner := jobs.NewRunner("notification", notificationRepo, notificationSvc, jobCfg)
 
 	slog.Info("worker starting", "env", cfg.App.Env)
-	w.Start(ctx)
+	var wg sync.WaitGroup
+	for _, start := range []func(context.Context){paymentRunner.Start, notificationRunner.Start} {
+		wg.Go(func() {
+			start(ctx)
+		})
+	}
+	wg.Wait()
 	slog.Info("worker stopped")
 	return nil
 }

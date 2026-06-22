@@ -39,9 +39,9 @@ type Repository interface {
 	MarkAllRead(ctx context.Context, userID uuid.UUID) error
 	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
 	CreateJob(ctx context.Context, job *Job) error
-	ClaimPendingJobs(ctx context.Context, batchSize int, lease time.Duration) ([]Job, error)
+	Claim(ctx context.Context, batchSize int, lease time.Duration) ([]Job, error)
 	UpdateJob(ctx context.Context, job *Job) error
-	DeleteOldCompletedJobs(ctx context.Context, olderThan time.Duration, limit int) (int, error)
+	Prune(ctx context.Context, olderThan time.Duration, limit int) (int, error)
 }
 
 type PostgresRepository struct {
@@ -152,7 +152,7 @@ func (r *PostgresRepository) CreateJob(ctx context.Context, job *Job) error {
 	return nil
 }
 
-func (r *PostgresRepository) ClaimPendingJobs(ctx context.Context, batchSize int, lease time.Duration) ([]Job, error) {
+func (r *PostgresRepository) Claim(ctx context.Context, batchSize int, lease time.Duration) ([]Job, error) {
 	db := database.DB(ctx, r.pool)
 
 	// Claim pending jobs AND reclaim 'processing' jobs whose lease has expired
@@ -203,14 +203,14 @@ func (r *PostgresRepository) UpdateJob(ctx context.Context, job *Job) error {
 	return nil
 }
 
-func (r *PostgresRepository) DeleteOldCompletedJobs(ctx context.Context, olderThan time.Duration, limit int) (int, error) {
+func (r *PostgresRepository) Prune(ctx context.Context, olderThan time.Duration, limit int) (int, error) {
 	db := database.DB(ctx, r.pool)
 
 	tag, err := db.Exec(ctx,
 		`DELETE FROM notification_jobs
 		WHERE id IN (
 			SELECT id FROM notification_jobs
-			WHERE status = 'completed' AND created_at < NOW() - $1::interval
+			WHERE status IN ('completed', 'failed') AND created_at < NOW() - $1::interval
 			LIMIT $2
 		)`,
 		olderThan.String(), limit,

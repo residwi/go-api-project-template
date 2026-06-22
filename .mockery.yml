@@ -42,8 +42,7 @@ packages:
       OrderItemsGetter:
       OrderGetter:
       InventoryDeductor:
-      InventoryReleaser:
-      InventoryRestocker:
+      InventoryRestorer:
       CouponReleaser:
   github.com/residwi/go-api-project-template/internal/features/shipping:
     interfaces:

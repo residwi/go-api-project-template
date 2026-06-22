@@ -1183,17 +1183,16 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		err := testPool.QueryRow(ctx,
 			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
 			        COALESCE(last_error, ''), locked_until, next_retry_at,
-			        COALESCE(inventory_action, ''), created_at, updated_at
+			        created_at, updated_at
 			 FROM payment_jobs
 			 WHERE order_id = $1 AND action = 'refund' AND status = 'pending'
 			 LIMIT 1`, orderID).Scan(
 			&job.ID, &job.PaymentID, &job.OrderID, &job.Action, &job.Status,
 			&job.Attempts, &job.MaxAttempts, &job.LastError, &job.LockedUntil,
-			&job.NextRetryAt, &job.InventoryAction, &job.CreatedAt, &job.UpdatedAt,
+			&job.NextRetryAt, &job.CreatedAt, &job.UpdatedAt,
 		)
 		require.NoError(t, err)
 		assert.Equal(t, payment.ActionRefund, job.Action)
-		assert.Equal(t, "restock", job.InventoryAction)
 
 		// Record stock before refund
 		var stockBefore int
@@ -1202,8 +1201,8 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		require.NoError(t, err)
 
 		// Process the refund job via the router's payment service
-		ok := router.PaymentSvc.ProcessJob(ctx, job)
-		assert.True(t, ok)
+		processErr := router.PaymentSvc.Process(ctx, job)
+		require.NoError(t, processErr)
 
 		// Verify order status changed to "refunded"
 		var orderStatus string
@@ -1656,11 +1655,11 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		`UPDATE orders SET status = 'fulfillment_failed' WHERE id = $1`, orderID)
 	require.NoError(t, err)
 
-	// Create a refund job with inventory_action='release' directly
+	// Create a refund job directly
 	refundJobID := uuid.New()
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO payment_jobs (id, payment_id, order_id, action, status, max_attempts, next_retry_at, inventory_action)
-		 VALUES ($1, $2, $3, 'refund', 'pending', 3, NOW(), 'release')`,
+		`INSERT INTO payment_jobs (id, payment_id, order_id, action, status, max_attempts, next_retry_at)
+		 VALUES ($1, $2, $3, 'refund', 'pending', 3, NOW())`,
 		refundJobID, paymentID, orderID)
 	require.NoError(t, err)
 
@@ -1683,17 +1682,16 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		err = testPool.QueryRow(ctx,
 			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
 			        COALESCE(last_error, ''), locked_until, next_retry_at,
-			        COALESCE(inventory_action, ''), created_at, updated_at
+			        created_at, updated_at
 			 FROM payment_jobs WHERE id = $1`, refundJobID).Scan(
 			&job.ID, &job.PaymentID, &job.OrderID, &job.Action, &job.Status,
 			&job.Attempts, &job.MaxAttempts, &job.LastError, &job.LockedUntil,
-			&job.NextRetryAt, &job.InventoryAction, &job.CreatedAt, &job.UpdatedAt,
+			&job.NextRetryAt, &job.CreatedAt, &job.UpdatedAt,
 		)
 		require.NoError(t, err)
-		assert.Equal(t, "release", job.InventoryAction)
 
-		ok := router.PaymentSvc.ProcessJob(ctx, job)
-		assert.True(t, ok)
+		processErr := router.PaymentSvc.Process(ctx, job)
+		require.NoError(t, processErr)
 
 		// Verify inventory was released (reserved_quantity decreased)
 		var reservedAfter int
@@ -1864,8 +1862,8 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		// Create a refund job pointing to this order
 		refundJobID := uuid.New()
 		_, err = testPool.Exec(ctx,
-			`INSERT INTO payment_jobs (id, payment_id, order_id, action, status, max_attempts, next_retry_at, inventory_action)
-			 VALUES ($1, $2, $3, 'refund', 'pending', 3, NOW(), 'restock')`,
+			`INSERT INTO payment_jobs (id, payment_id, order_id, action, status, max_attempts, next_retry_at)
+			 VALUES ($1, $2, $3, 'refund', 'pending', 3, NOW())`,
 			refundJobID, paymentID, orderID)
 		require.NoError(t, err)
 
@@ -1877,20 +1875,20 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		err = testPool.QueryRow(ctx,
 			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
 			        COALESCE(last_error, ''), locked_until, next_retry_at,
-			        COALESCE(inventory_action, ''), created_at, updated_at
+			        created_at, updated_at
 			 FROM payment_jobs WHERE id = $1`, refundJobID).Scan(
 			&job.ID, &job.PaymentID, &job.OrderID, &job.Action, &job.Status,
 			&job.Attempts, &job.MaxAttempts, &job.LastError, &job.LockedUntil,
-			&job.NextRetryAt, &job.InventoryAction, &job.CreatedAt, &job.UpdatedAt,
+			&job.NextRetryAt, &job.CreatedAt, &job.UpdatedAt,
 		)
 		require.NoError(t, err)
 
 		// ProcessJob should fail because orderItemsGetter.ListItemsByOrderID returns
 		// empty (no items) — the refund tx still commits but the adapter was exercised
-		ok := router.PaymentSvc.ProcessJob(ctx, job)
+		processErr := router.PaymentSvc.Process(ctx, job)
 		// The job may succeed (empty items list) or fail depending on implementation;
 		// either way we exercised the adapter paths
-		_ = ok
+		_ = processErr
 
 		// Cleanup the job
 		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, refundJobID)
