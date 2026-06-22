@@ -28,6 +28,7 @@ type Repository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context) ([]Category, error)
 	CountPublishedProducts(ctx context.Context, categoryID uuid.UUID) (int, error)
+	AncestorDepthAndCycle(ctx context.Context, parentID, selfID uuid.UUID) (depth int, formsCycle bool, err error)
 }
 
 type PostgresRepository struct {
@@ -150,4 +151,34 @@ func (r *PostgresRepository) CountPublishedProducts(ctx context.Context, categor
 		return 0, fmt.Errorf("counting published products: %w", err)
 	}
 	return count, nil
+}
+
+// AncestorDepthAndCycle walks the parent chain upward from parentID via a
+// recursive CTE and reports the depth from parentID to the root (0 if parentID
+// does not exist) and whether selfID appears in that chain — selfID being an
+// ancestor of parentID means setting parentID as selfID's parent forms a cycle.
+// The walk is depth-bounded so a corrupt chain cannot recurse without limit.
+func (r *PostgresRepository) AncestorDepthAndCycle(ctx context.Context, parentID, selfID uuid.UUID) (int, bool, error) {
+	db := database.DB(ctx, r.pool)
+	var (
+		depth      int
+		formsCycle bool
+	)
+	err := db.QueryRow(ctx,
+		`WITH RECURSIVE ancestors AS (
+			SELECT id, parent_id, 1 AS depth
+			FROM categories WHERE id = $1
+			UNION ALL
+			SELECT c.id, c.parent_id, a.depth + 1
+			FROM categories c
+			JOIN ancestors a ON a.parent_id = c.id
+			WHERE a.depth < 6
+		)
+		SELECT COALESCE(MAX(depth), 0), COUNT(*) FILTER (WHERE id = $2) > 0 FROM ancestors`,
+		parentID, selfID,
+	).Scan(&depth, &formsCycle)
+	if err != nil {
+		return 0, false, fmt.Errorf("walking category ancestors: %w", err)
+	}
+	return depth, formsCycle, nil
 }

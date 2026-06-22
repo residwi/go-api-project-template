@@ -25,7 +25,7 @@ import (
 
 func setupCategoryMux(t *testing.T) (*http.ServeMux, *catMocks.MockRepository) {
 	repo := catMocks.NewMockRepository(t)
-	svc := category.NewService(repo, nil)
+	svc := category.NewService(repo)
 	v := validator.New()
 
 	mux := http.NewServeMux()

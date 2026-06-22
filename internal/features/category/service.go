@@ -5,21 +5,18 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
 const maxCategoryDepth = 5
 
 type Service struct {
 	repo Repository
-	pool *pgxpool.Pool
 }
 
-func NewService(repo Repository, pool *pgxpool.Pool) *Service {
-	return &Service{repo: repo, pool: pool}
+func NewService(repo Repository) *Service {
+	return &Service{repo: repo}
 }
 
 func (s *Service) Create(ctx context.Context, req CreateCategoryRequest) (*Category, error) {
@@ -117,36 +114,19 @@ func (s *Service) validateParent(ctx context.Context, parentID, selfID uuid.UUID
 		return fmt.Errorf("%w: category cannot be its own parent", core.ErrBadRequest)
 	}
 
-	db := database.DB(ctx, s.pool)
-
-	// Recursive CTE: walk ancestors from parentID up to root, detect cycle and depth.
-	query := `
-		WITH RECURSIVE ancestors AS (
-			SELECT id, parent_id, 1 AS depth
-			FROM categories WHERE id = $1
-			UNION ALL
-			SELECT c.id, c.parent_id, a.depth + 1
-			FROM categories c
-			JOIN ancestors a ON a.parent_id = c.id
-			WHERE a.depth < 6
-		)
-		SELECT COALESCE(MAX(depth), 0), COUNT(*) FILTER (WHERE id = $2) FROM ancestors`
-
-	var maxDepth int
-	var cycleCount int
-	err := db.QueryRow(ctx, query, parentID, selfID).Scan(&maxDepth, &cycleCount)
+	depth, formsCycle, err := s.repo.AncestorDepthAndCycle(ctx, parentID, selfID)
 	if err != nil {
 		return fmt.Errorf("validating parent: %w", err)
 	}
 
-	if maxDepth == 0 {
+	if depth == 0 {
 		return fmt.Errorf("%w: parent category not found", core.ErrBadRequest)
 	}
-	if cycleCount > 0 {
+	if formsCycle {
 		return fmt.Errorf("%w: circular parent reference", core.ErrBadRequest)
 	}
-	// maxDepth is the depth from parent to root. Adding this child makes it maxDepth+1.
-	if maxDepth+1 > maxCategoryDepth {
+	// depth is the distance from parent to root. Adding this child makes it depth+1.
+	if depth+1 > maxCategoryDepth {
 		return fmt.Errorf("%w: category depth exceeds maximum of %d", core.ErrBadRequest, maxCategoryDepth)
 	}
 

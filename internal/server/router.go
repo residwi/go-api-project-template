@@ -56,7 +56,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen
 	dashboardRepo := dashboard.NewPostgresRepository(deps.Pool)
 
 	userSvc := user.NewService(userRepo, deps.Pool, deps.Redis)
-	categorySvc := category.NewService(categoryRepo, deps.Pool)
+	categorySvc := category.NewService(categoryRepo)
 	productSvc := product.NewService(productRepo, deps.Pool)
 	inventorySvc := inventory.NewService(inventoryRepo, deps.Pool)
 	cartSvc := wiring.NewCartService(cartRepo, deps.Pool, productSvc, deps.Config.App.MaxCartItems)

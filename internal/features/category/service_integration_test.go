@@ -15,7 +15,7 @@ import (
 func newTestService(t *testing.T) *category.Service {
 	t.Helper()
 	repo := category.NewPostgresRepository(testPool)
-	return category.NewService(repo, testPool)
+	return category.NewService(repo)
 }
 
 func createCategory(t *testing.T, svc *category.Service, parentID *uuid.UUID) *category.Category {

@@ -39,6 +39,84 @@ func (_m *MockRepository) EXPECT() *MockRepository_Expecter {
 	return &MockRepository_Expecter{mock: &_m.Mock}
 }
 
+// AncestorDepthAndCycle provides a mock function for the type MockRepository
+func (_mock *MockRepository) AncestorDepthAndCycle(ctx context.Context, parentID uuid.UUID, selfID uuid.UUID) (int, bool, error) {
+	ret := _mock.Called(ctx, parentID, selfID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AncestorDepthAndCycle")
+	}
+
+	var r0 int
+	var r1 bool
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (int, bool, error)); ok {
+		return returnFunc(ctx, parentID, selfID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) int); ok {
+		r0 = returnFunc(ctx, parentID, selfID)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
+		r1 = returnFunc(ctx, parentID, selfID)
+	} else {
+		r1 = ret.Get(1).(bool)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r2 = returnFunc(ctx, parentID, selfID)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockRepository_AncestorDepthAndCycle_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AncestorDepthAndCycle'
+type MockRepository_AncestorDepthAndCycle_Call struct {
+	*mock.Call
+}
+
+// AncestorDepthAndCycle is a helper method to define mock.On call
+//   - ctx context.Context
+//   - parentID uuid.UUID
+//   - selfID uuid.UUID
+func (_e *MockRepository_Expecter) AncestorDepthAndCycle(ctx interface{}, parentID interface{}, selfID interface{}) *MockRepository_AncestorDepthAndCycle_Call {
+	return &MockRepository_AncestorDepthAndCycle_Call{Call: _e.mock.On("AncestorDepthAndCycle", ctx, parentID, selfID)}
+}
+
+func (_c *MockRepository_AncestorDepthAndCycle_Call) Run(run func(ctx context.Context, parentID uuid.UUID, selfID uuid.UUID)) *MockRepository_AncestorDepthAndCycle_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_AncestorDepthAndCycle_Call) Return(depth int, formsCycle bool, err error) *MockRepository_AncestorDepthAndCycle_Call {
+	_c.Call.Return(depth, formsCycle, err)
+	return _c
+}
+
+func (_c *MockRepository_AncestorDepthAndCycle_Call) RunAndReturn(run func(ctx context.Context, parentID uuid.UUID, selfID uuid.UUID) (int, bool, error)) *MockRepository_AncestorDepthAndCycle_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CountPublishedProducts provides a mock function for the type MockRepository
 func (_mock *MockRepository) CountPublishedProducts(ctx context.Context, categoryID uuid.UUID) (int, error) {
 	ret := _mock.Called(ctx, categoryID)
