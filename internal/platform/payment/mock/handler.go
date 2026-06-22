@@ -26,7 +26,8 @@ type chargeRecord struct {
 
 type mockServer struct {
 	mu            sync.Mutex
-	charges       map[string]chargeRecord // idempotency_key -> record
+	charges       map[string]chargeRecord           // idempotency_key -> record
+	refunds       map[string]payment.RefundResponse // idempotency_key -> response
 	webhookSecret string
 }
 
@@ -42,6 +43,7 @@ func WithWebhookSecret(secret string) Option {
 func RegisterRoutes(mux *http.ServeMux, opts ...Option) {
 	s := &mockServer{
 		charges: make(map[string]chargeRecord),
+		refunds: make(map[string]payment.RefundResponse),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -107,9 +109,24 @@ func (s *mockServer) handleRefund(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Dedupe on the idempotency key: a refund retried after a crash returns the
+	// original response instead of issuing a second refund.
+	if req.IdempotencyKey != "" {
+		if existing, ok := s.refunds[req.IdempotencyKey]; ok {
+			writeJSONResponse(w, existing)
+			return
+		}
+	}
+
 	resp := payment.RefundResponse{
 		RefundID: uuid.New().String(),
 		Status:   statusSuccess,
+	}
+	if req.IdempotencyKey != "" {
+		s.refunds[req.IdempotencyKey] = resp
 	}
 	writeJSONResponse(w, resp)
 }
