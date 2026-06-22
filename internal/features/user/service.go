@@ -88,10 +88,28 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (auth.UserResult, e
 	}, nil
 }
 
+func userStatusCacheKey(userID uuid.UUID) string {
+	return fmt.Sprintf("user:status:%s", userID.String())
+}
+
+// invalidateStatusCache drops the cached active/token_version for a user so a
+// status change (deactivation, deletion, role change, token revocation) takes
+// effect on the next request instead of only after the 30s TTL — otherwise a
+// revoked or deactivated user keeps access for up to 30s. Best-effort: a failure
+// is logged and the entry still expires on its own.
+func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
+	if s.rdb == nil {
+		return
+	}
+	if err := s.rdb.Del(ctx, userStatusCacheKey(userID)).Err(); err != nil {
+		slog.WarnContext(ctx, "failed to invalidate user status cache", "user_id", userID, "error", err)
+	}
+}
+
 // CheckStatus satisfies middleware.UserStatusChecker. Uses Redis cache (30s TTL), fails-open.
 func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware.UserStatusResult, error) {
 	if s.rdb != nil {
-		key := fmt.Sprintf("user:status:%s", userID.String())
+		key := userStatusCacheKey(userID)
 		cached, err := s.rdb.HGetAll(ctx, key).Result()
 		if err != nil {
 			slog.WarnContext(ctx, "user status cache read failed, falling back to DB", "error", err)
@@ -115,7 +133,7 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware
 	result := middleware.UserStatusResult{Active: active, TokenVersion: tokenVersion}
 
 	if s.rdb != nil {
-		key := fmt.Sprintf("user:status:%s", userID.String())
+		key := userStatusCacheKey(userID)
 		activeStr := "0"
 		if active {
 			activeStr = "1"
@@ -189,6 +207,10 @@ func (s *Service) AdminUpdate(ctx context.Context, id uuid.UUID, req AdminUpdate
 		return nil, err
 	}
 
+	// Active may have changed; drop the cached status so a deactivation isn't
+	// honored only after the cache TTL.
+	s.invalidateStatusCache(ctx, id)
+
 	return u, nil
 }
 
@@ -213,7 +235,11 @@ func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUI
 	}
 
 	u.Role = role
-	return s.repo.Update(ctx, u)
+	if err := s.repo.Update(ctx, u); err != nil {
+		return err
+	}
+	s.invalidateStatusCache(ctx, targetID)
+	return nil
 }
 
 func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) error {
@@ -236,5 +262,9 @@ func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) e
 		}
 	}
 
-	return s.repo.Delete(ctx, targetID)
+	if err := s.repo.Delete(ctx, targetID); err != nil {
+		return err
+	}
+	s.invalidateStatusCache(ctx, targetID)
+	return nil
 }
