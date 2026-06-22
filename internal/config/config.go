@@ -104,6 +104,8 @@ type WorkerConfig struct {
 	BatchSize     int           `envconfig:"WORKER_BATCH_SIZE" default:"10"`
 	LeaseDuration time.Duration `envconfig:"WORKER_LEASE_DURATION" default:"2m"`
 	Concurrency   int           `envconfig:"WORKER_CONCURRENCY" default:"5"`
+	PruneAge      time.Duration `envconfig:"WORKER_PRUNE_AGE" default:"168h"`
+	PruneLimit    int           `envconfig:"WORKER_PRUNE_LIMIT" default:"100"`
 }
 
 type PaymentConfig struct {
@@ -148,6 +150,10 @@ func (c *Config) validate() error {
 
 	if c.Worker.Concurrency < 1 {
 		return errors.New("WORKER_CONCURRENCY must be at least 1 (0 deadlocks the worker on its unbuffered semaphore)")
+	}
+
+	if c.Worker.PruneLimit < 1 {
+		return errors.New("WORKER_PRUNE_LIMIT must be at least 1")
 	}
 
 	return nil
