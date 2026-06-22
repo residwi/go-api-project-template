@@ -69,6 +69,15 @@ func (r *Runner[T]) Start(ctx context.Context) {
 }
 
 func (r *Runner[T]) tick(ctx context.Context) {
+	// Sweep and Prune run on the loop goroutine, so a panic here would otherwise
+	// kill the whole runner (and, in the worker binary, every other runner with
+	// it). Contain it to this tick.
+	defer func() {
+		if rec := recover(); rec != nil {
+			slog.ErrorContext(ctx, "tick panicked", "runner", r.name, "panic", rec)
+		}
+	}()
+
 	if sweeper, ok := r.proc.(Sweeper); ok {
 		if err := sweeper.Sweep(ctx); err != nil {
 			slog.ErrorContext(ctx, "sweep failed", "runner", r.name, "error", err)
@@ -85,6 +94,14 @@ func (r *Runner[T]) tick(ctx context.Context) {
 		return
 	}
 
+	// The lease starts at claim time for the whole batch, so bound every job to a
+	// deadline measured from now — not from when its goroutine happens to start.
+	// With BatchSize > Concurrency, jobs beyond the limit wait on the semaphore;
+	// timing each job from its own start would let a late starter run past the
+	// lease and be reclaimed (and re-processed) by another worker while it is
+	// still executing. The safety margin keeps the cancel ahead of the reclaim.
+	deadline := time.Now().Add(r.cfg.LeaseDuration - r.cfg.LeaseDuration/leaseSafetyDivisor)
+
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, r.cfg.Concurrency)
 	for _, job := range batch {
@@ -93,15 +110,20 @@ func (r *Runner[T]) tick(ctx context.Context) {
 		go func(job T) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			r.processOne(ctx, job)
+			r.processOne(ctx, job, deadline)
 		}(job)
 	}
 	wg.Wait()
 }
 
-func (r *Runner[T]) processOne(ctx context.Context, job T) {
-	timeout := r.cfg.LeaseDuration - r.cfg.LeaseDuration/leaseSafetyDivisor
-	jobCtx, cancel := context.WithTimeout(ctx, timeout)
+func (r *Runner[T]) processOne(ctx context.Context, job T, deadline time.Time) {
+	// A Process panic must not take down the worker; isolate it to this job.
+	defer func() {
+		if rec := recover(); rec != nil {
+			slog.ErrorContext(ctx, "job panicked", "runner", r.name, "panic", rec)
+		}
+	}()
+	jobCtx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	if err := r.proc.Process(jobCtx, job); err != nil {
 		slog.WarnContext(ctx, "job did not complete", "runner", r.name, "error", err)
