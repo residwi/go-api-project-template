@@ -114,7 +114,7 @@ func (s *Service) validateParent(ctx context.Context, parentID, selfID uuid.UUID
 		return fmt.Errorf("%w: category cannot be its own parent", core.ErrBadRequest)
 	}
 
-	depth, formsCycle, err := s.repo.AncestorDepthAndCycle(ctx, parentID, selfID)
+	depth, formsCycle, err := s.repo.AncestorDepthAndCycle(ctx, parentID, selfID, maxCategoryDepth)
 	if err != nil {
 		return fmt.Errorf("validating parent: %w", err)
 	}

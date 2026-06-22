@@ -40,8 +40,8 @@ func (_m *MockRepository) EXPECT() *MockRepository_Expecter {
 }
 
 // AncestorDepthAndCycle provides a mock function for the type MockRepository
-func (_mock *MockRepository) AncestorDepthAndCycle(ctx context.Context, parentID uuid.UUID, selfID uuid.UUID) (int, bool, error) {
-	ret := _mock.Called(ctx, parentID, selfID)
+func (_mock *MockRepository) AncestorDepthAndCycle(ctx context.Context, parentID uuid.UUID, selfID uuid.UUID, maxDepth int) (int, bool, error) {
+	ret := _mock.Called(ctx, parentID, selfID, maxDepth)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AncestorDepthAndCycle")
@@ -50,21 +50,21 @@ func (_mock *MockRepository) AncestorDepthAndCycle(ctx context.Context, parentID
 	var r0 int
 	var r1 bool
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (int, bool, error)); ok {
-		return returnFunc(ctx, parentID, selfID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) (int, bool, error)); ok {
+		return returnFunc(ctx, parentID, selfID, maxDepth)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, parentID, selfID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) int); ok {
+		r0 = returnFunc(ctx, parentID, selfID, maxDepth)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r1 = returnFunc(ctx, parentID, selfID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int) bool); ok {
+		r1 = returnFunc(ctx, parentID, selfID, maxDepth)
 	} else {
 		r1 = ret.Get(1).(bool)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r2 = returnFunc(ctx, parentID, selfID)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
+		r2 = returnFunc(ctx, parentID, selfID, maxDepth)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -80,11 +80,12 @@ type MockRepository_AncestorDepthAndCycle_Call struct {
 //   - ctx context.Context
 //   - parentID uuid.UUID
 //   - selfID uuid.UUID
-func (_e *MockRepository_Expecter) AncestorDepthAndCycle(ctx interface{}, parentID interface{}, selfID interface{}) *MockRepository_AncestorDepthAndCycle_Call {
-	return &MockRepository_AncestorDepthAndCycle_Call{Call: _e.mock.On("AncestorDepthAndCycle", ctx, parentID, selfID)}
+//   - maxDepth int
+func (_e *MockRepository_Expecter) AncestorDepthAndCycle(ctx interface{}, parentID interface{}, selfID interface{}, maxDepth interface{}) *MockRepository_AncestorDepthAndCycle_Call {
+	return &MockRepository_AncestorDepthAndCycle_Call{Call: _e.mock.On("AncestorDepthAndCycle", ctx, parentID, selfID, maxDepth)}
 }
 
-func (_c *MockRepository_AncestorDepthAndCycle_Call) Run(run func(ctx context.Context, parentID uuid.UUID, selfID uuid.UUID)) *MockRepository_AncestorDepthAndCycle_Call {
+func (_c *MockRepository_AncestorDepthAndCycle_Call) Run(run func(ctx context.Context, parentID uuid.UUID, selfID uuid.UUID, maxDepth int)) *MockRepository_AncestorDepthAndCycle_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -98,10 +99,15 @@ func (_c *MockRepository_AncestorDepthAndCycle_Call) Run(run func(ctx context.Co
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -112,7 +118,7 @@ func (_c *MockRepository_AncestorDepthAndCycle_Call) Return(depth int, formsCycl
 	return _c
 }
 
-func (_c *MockRepository_AncestorDepthAndCycle_Call) RunAndReturn(run func(ctx context.Context, parentID uuid.UUID, selfID uuid.UUID) (int, bool, error)) *MockRepository_AncestorDepthAndCycle_Call {
+func (_c *MockRepository_AncestorDepthAndCycle_Call) RunAndReturn(run func(ctx context.Context, parentID uuid.UUID, selfID uuid.UUID, maxDepth int) (int, bool, error)) *MockRepository_AncestorDepthAndCycle_Call {
 	_c.Call.Return(run)
 	return _c
 }
