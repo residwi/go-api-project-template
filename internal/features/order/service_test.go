@@ -49,6 +49,45 @@ func newTestService(t *testing.T) (
 	return svc, repo, cart, inventory, payment, paymentCancel, coupons, notifications
 }
 
+func TestService_ExpireStale(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("expires each stale order, releasing its reservation and coupon", func(t *testing.T) {
+		svc, repo, _, inventory, _, _, coupons, _ := newTestService(t)
+		txCtx := database.WithTestTx(ctx, noopDBTX{})
+
+		coupon := "SAVE10"
+		expired := order.Order{ID: uuid.New(), CouponCode: &coupon}
+		productID := uuid.New()
+
+		repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return([]order.Order{expired}, nil)
+		repo.EXPECT().Apply(mock.Anything, expired.ID, order.ExpiredTransition).Return(nil)
+		repo.EXPECT().ListItemsByOrderID(mock.Anything, expired.ID).
+			Return([]order.Item{{ProductID: productID, Quantity: 2}}, nil)
+		inventory.EXPECT().
+			Restore(mock.Anything, []order.InventoryItem{{ProductID: productID, Quantity: 2}}, false).
+			Return(nil)
+		coupons.EXPECT().Release(mock.Anything, expired.ID).Return(nil)
+
+		err := svc.ExpireStale(txCtx)
+		require.NoError(t, err)
+	})
+
+	t.Run("skips an order another worker already expired", func(t *testing.T) {
+		svc, repo, _, _, _, _, _, _ := newTestService(t)
+		txCtx := database.WithTestTx(ctx, noopDBTX{})
+
+		expired := order.Order{ID: uuid.New()}
+		repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return([]order.Order{expired}, nil)
+		repo.EXPECT().Apply(mock.Anything, expired.ID, order.ExpiredTransition).Return(core.ErrConflict)
+
+		// no ListItemsByOrderID / Restore / Release — the order is skipped
+
+		err := svc.ExpireStale(txCtx)
+		require.NoError(t, err)
+	})
+}
+
 // --- TestService_RetryPayment ---
 
 func TestService_RetryPayment(t *testing.T) {
@@ -1144,10 +1183,10 @@ func TestService_CancelOrder(t *testing.T) {
 			{ID: uuid.New(), OrderID: orderID, ProductID: productA, ProductName: "Widget A", Price: 3000, Quantity: 2, Subtotal: 6000},
 			{ID: uuid.New(), OrderID: orderID, ProductID: productB, ProductName: "Widget B", Price: 4000, Quantity: 1, Subtotal: 4000},
 		}, nil)
-		inventory.EXPECT().ReleaseBatch(mock.Anything, []order.InventoryItem{
+		inventory.EXPECT().Restore(mock.Anything, []order.InventoryItem{
 			{ProductID: productA, Quantity: 2},
 			{ProductID: productB, Quantity: 1},
-		}).Return(nil)
+		}, false).Return(nil)
 		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
 
 		err := svc.CancelOrder(txCtx, userID, orderID)
@@ -1174,7 +1213,7 @@ func TestService_CancelOrder(t *testing.T) {
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{
 			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: 5000, Quantity: 1, Subtotal: 5000},
 		}, nil)
-		inventory.EXPECT().ReleaseBatch(mock.Anything, mock.Anything).Return(nil)
+		inventory.EXPECT().Restore(mock.Anything, mock.Anything, false).Return(nil)
 		coupons.EXPECT().Release(mock.Anything, orderID).Return(nil)
 		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
 
@@ -1223,7 +1262,7 @@ func TestService_CancelOrder(t *testing.T) {
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{
 			{ID: uuid.New(), OrderID: orderID, ProductID: productA, ProductName: "Widget", Price: 5000, Quantity: 1, Subtotal: 5000},
 		}, nil)
-		inventory.EXPECT().ReleaseBatch(mock.Anything, mock.Anything).Return(errors.New("inventory error"))
+		inventory.EXPECT().Restore(mock.Anything, mock.Anything, false).Return(errors.New("inventory error"))
 		// The release failure rolls back the cancellation (the tx returns the error),
 		// so payment-job cancellation is never reached.
 
@@ -1252,7 +1291,7 @@ func TestService_CancelOrder(t *testing.T) {
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{
 			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: 5000, Quantity: 1, Subtotal: 5000},
 		}, nil)
-		inventory.EXPECT().ReleaseBatch(mock.Anything, mock.Anything).Return(nil)
+		inventory.EXPECT().Restore(mock.Anything, mock.Anything, false).Return(nil)
 		coupons.EXPECT().Release(mock.Anything, orderID).Return(errors.New("coupon service down"))
 		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
 

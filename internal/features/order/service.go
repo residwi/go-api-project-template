@@ -34,7 +34,7 @@ type CartSnapshotItem struct {
 	Status    string
 }
 
-// InventoryItem is one product/quantity pair for a batched reserve/release.
+// InventoryItem is one product/quantity pair for a batched reserve/restore.
 type InventoryItem struct {
 	ProductID uuid.UUID
 	Quantity  int
@@ -42,7 +42,7 @@ type InventoryItem struct {
 
 type InventoryReserver interface {
 	ReserveBatch(ctx context.Context, items []InventoryItem) error
-	ReleaseBatch(ctx context.Context, items []InventoryItem) error
+	Restore(ctx context.Context, items []InventoryItem, wasDeducted bool) error
 }
 
 type PaymentInitiator interface {
@@ -298,7 +298,8 @@ func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) er
 			// Fail the cancellation if the reservation can't be released: returning
 			// the error rolls back the status change too, so we never commit a
 			// cancelled order while its stock stays reserved (a permanent leak).
-			if releaseErr := s.inventory.ReleaseBatch(txCtx, releases); releaseErr != nil {
+			// A cancellable order was never paid, so its stock was only reserved.
+			if releaseErr := s.inventory.Restore(txCtx, releases, false); releaseErr != nil {
 				return fmt.Errorf("releasing inventory on cancel: %w", releaseErr)
 			}
 		}
@@ -321,6 +322,62 @@ func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) er
 		}
 	}
 
+	return nil
+}
+
+// ExpireStale expires awaiting_payment orders whose payment window has lapsed,
+// releasing the stock and coupon each reserved — the time-triggered sibling of
+// CancelOrder. It is the per-tick housekeeping the payment job runner invokes
+// via its Sweeper hook. Each order is handled in its own transaction so a
+// per-order failure is logged and the sweep continues.
+func (s *Service) ExpireStale(ctx context.Context) error {
+	expiryBatchLimit := 20
+	orders, err := s.repo.GetExpiredOrders(ctx, expiryBatchLimit)
+	if err != nil {
+		return fmt.Errorf("getting expired orders: %w", err)
+	}
+	for _, o := range orders {
+		if err := s.expireOne(ctx, o); err != nil {
+			slog.ErrorContext(ctx, "failed to expire order", "order_id", o.ID, "error", err)
+		}
+	}
+	return nil
+}
+
+func (s *Service) expireOne(ctx context.Context, o Order) error {
+	return database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+		if err := s.repo.Apply(txCtx, o.ID, ExpiredTransition); err != nil {
+			if errors.Is(err, core.ErrConflict) {
+				return nil // another worker already moved it out of awaiting_payment
+			}
+			return err
+		}
+		return s.releaseOrderHolds(txCtx, o)
+	})
+}
+
+// releaseOrderHolds returns an order's reserved stock and coupon usage. Shared
+// by the expire path; the order never paid, so its stock was only reserved.
+func (s *Service) releaseOrderHolds(ctx context.Context, o Order) error {
+	items, err := s.repo.ListItemsByOrderID(ctx, o.ID)
+	if err != nil {
+		return err
+	}
+	if len(items) > 0 {
+		releases := make([]InventoryItem, len(items))
+		for i, item := range items {
+			releases[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
+		}
+		if err := s.inventory.Restore(ctx, releases, false); err != nil {
+			return fmt.Errorf("releasing inventory on expire: %w", err)
+		}
+	}
+
+	if s.coupons != nil && o.CouponCode != nil && *o.CouponCode != "" {
+		if err := s.coupons.Release(ctx, o.ID); err != nil {
+			slog.WarnContext(ctx, "failed to release coupon on expire", "order_id", o.ID, "error", err)
+		}
+	}
 	return nil
 }
 

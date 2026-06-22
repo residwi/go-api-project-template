@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -42,6 +43,20 @@ func (s *Service) DeductBatch(ctx context.Context, items []StockChange) error {
 // RestockBatch restocks many products in one query (used on refund).
 func (s *Service) RestockBatch(ctx context.Context, items []StockChange) error {
 	return s.repo.RestockBatch(ctx, items)
+}
+
+// Restore reverses an order's inventory effect: reserved stock is released,
+// deducted stock is restocked. Inventory owns this choice so callers don't have
+// to know that a reservation and a deduction unwind differently.
+func (s *Service) Restore(ctx context.Context, items []StockChange, prior StockState) error {
+	switch prior {
+	case Deducted:
+		return s.repo.RestockBatch(ctx, items)
+	case Reserved:
+		return s.repo.ReleaseBatch(ctx, items)
+	default:
+		return fmt.Errorf("unknown stock state: %d", prior)
+	}
 }
 
 func (s *Service) Deduct(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error) {

@@ -76,8 +76,8 @@ func (a *inventoryReserverAdapter) ReserveBatch(ctx context.Context, items []ord
 	return a.svc.ReserveBatch(ctx, orderToStockChanges(items))
 }
 
-func (a *inventoryReserverAdapter) ReleaseBatch(ctx context.Context, items []order.InventoryItem) error {
-	return a.svc.ReleaseBatch(ctx, orderToStockChanges(items))
+func (a *inventoryReserverAdapter) Restore(ctx context.Context, items []order.InventoryItem, wasDeducted bool) error {
+	return a.svc.Restore(ctx, orderToStockChanges(items), inventoryStateFor(wasDeducted))
 }
 
 func orderToStockChanges(items []order.InventoryItem) []inventory.StockChange {
@@ -86,6 +86,16 @@ func orderToStockChanges(items []order.InventoryItem) []inventory.StockChange {
 		changes[i] = inventory.StockChange{ProductID: it.ProductID, Quantity: it.Quantity}
 	}
 	return changes
+}
+
+// inventoryStateFor maps a caller's "was the stock deducted?" fact to the
+// inventory module's StockState, keeping the enum inside inventory while the
+// cross-feature seam speaks in the bool each caller already has.
+func inventoryStateFor(wasDeducted bool) inventory.StockState {
+	if wasDeducted {
+		return inventory.Deducted
+	}
+	return inventory.Reserved
 }
 
 type paymentInitiatorAdapter struct{ svc *payment.Service }

@@ -14,6 +14,30 @@ import (
 	mocks "github.com/residwi/go-api-project-template/mocks/inventory"
 )
 
+func TestService_Restore(t *testing.T) {
+	t.Run("releases stock that was only reserved", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		svc := inventory.NewService(repo, nil)
+
+		items := []inventory.StockChange{{ProductID: uuid.New(), Quantity: 2}}
+		repo.EXPECT().ReleaseBatch(mock.Anything, items).Return(nil)
+
+		err := svc.Restore(context.Background(), items, inventory.Reserved)
+		require.NoError(t, err)
+	})
+
+	t.Run("restocks stock that was deducted", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		svc := inventory.NewService(repo, nil)
+
+		items := []inventory.StockChange{{ProductID: uuid.New(), Quantity: 3}}
+		repo.EXPECT().RestockBatch(mock.Anything, items).Return(nil)
+
+		err := svc.Restore(context.Background(), items, inventory.Deducted)
+		require.NoError(t, err)
+	})
+}
+
 func TestService_Reserve(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
