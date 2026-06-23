@@ -12,7 +12,7 @@ DB_USER ?= postgres
 DB_PASSWORD ?= postgres
 DB_NAME ?= ecommerce
 DB_SSLMODE ?= disable
-DATABASE_URL := postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
+DATABASE_URL ?= postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
 
 .PHONY: help
 help: ## Display this help
@@ -130,12 +130,12 @@ migrate-up: ## Run all pending migrations
 	@echo "Running migrations..."
 	$(GOOSE) -dir ./db/migrations postgres "$(DATABASE_URL)" up
 
-.PHONY: migrate-rollback
+.PHONY: migrate-down
 migrate-down: ## Rollback the last migration
 	@echo "Rolling back migration..."
 	$(GOOSE) -dir ./db/migrations postgres "$(DATABASE_URL)" down
 
-.PHONY: migrate-rollback-all
+.PHONY: migrate-down-all
 migrate-down-all: ## Rollback all migrations
 	@echo "Rolling back all migrations..."
 	$(GOOSE) -dir ./db/migrations postgres "$(DATABASE_URL)" reset
@@ -217,7 +217,7 @@ test-clean: ## Remove shared test containers (postgres + redis)
 	@docker rm -f go-api-test-postgres go-api-test-redis 2>/dev/null || true
 
 .PHONY: seed
-seed: ## Apply seed data to the database (DATABASE_URL must be set)
+seed: ## Apply seed data to the database (override DATABASE_URL or DB_* vars)
 	@if [ -z "$(DATABASE_URL)" ]; then echo "DATABASE_URL is not set"; exit 1; fi
 	@echo "Applying seed data..."
 	psql "$(DATABASE_URL)" -f db/seeds/data.sql
