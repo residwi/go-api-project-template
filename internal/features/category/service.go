@@ -22,7 +22,7 @@ func NewService(repo Repository) *Service {
 func (s *Service) Create(ctx context.Context, req CreateCategoryRequest) (*Category, error) {
 	cat := &Category{
 		Name:        req.Name,
-		Slug:        core.Slugify(req.Name),
+		Slug:        core.SlugifyOrFallback(req.Name, "category-"+uuid.New().String()[:8]),
 		Description: req.Description,
 		ParentID:    req.ParentID,
 		Active:      true,
@@ -68,7 +68,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateCategoryRe
 
 	if req.Name != nil {
 		cat.Name = *req.Name
-		cat.Slug = core.Slugify(cat.Name)
+		cat.Slug = core.SlugifyOrFallback(cat.Name, "category-"+cat.ID.String()[:8])
 	}
 	if req.Description != nil {
 		cat.Description = req.Description

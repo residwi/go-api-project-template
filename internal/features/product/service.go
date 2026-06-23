@@ -21,7 +21,7 @@ func (s *Service) Create(ctx context.Context, req CreateProductRequest) (*Produc
 	p := &Product{
 		CategoryID:     req.CategoryID,
 		Name:           req.Name,
-		Slug:           core.Slugify(req.Name),
+		Slug:           core.SlugifyOrFallback(req.Name, "product-"+uuid.New().String()[:8]),
 		Description:    req.Description,
 		Price:          req.Price,
 		CompareAtPrice: req.CompareAtPrice,
@@ -100,7 +100,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateProductReq
 	}
 	if req.Name != nil {
 		p.Name = *req.Name
-		p.Slug = core.Slugify(p.Name)
+		p.Slug = core.SlugifyOrFallback(p.Name, "product-"+p.ID.String()[:8])
 	}
 	if req.Description != nil {
 		p.Description = req.Description
