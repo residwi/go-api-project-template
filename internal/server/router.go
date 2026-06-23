@@ -55,7 +55,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	notificationRepo := notification.NewPostgresRepository(deps.Pool)
 	dashboardRepo := dashboard.NewPostgresRepository(deps.Pool)
 
-	userSvc := user.NewService(userRepo, deps.Pool, deps.Redis)
+	userSvc := user.NewService(userRepo, deps.Redis)
 	categorySvc := category.NewService(categoryRepo)
 	productSvc := product.NewService(productRepo, deps.Pool)
 	inventorySvc := inventory.NewService(inventoryRepo, deps.Pool)

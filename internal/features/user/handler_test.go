@@ -34,7 +34,7 @@ type listedUserItem struct {
 
 func setupUserMux(t *testing.T) (*http.ServeMux, *userMocks.MockRepository) {
 	repo := userMocks.NewMockRepository(t)
-	svc := user.NewService(repo, nil, nil)
+	svc := user.NewService(repo, nil)
 	v := validator.New()
 
 	mux := http.NewServeMux()

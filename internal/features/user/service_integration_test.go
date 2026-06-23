@@ -22,7 +22,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 		t.Cleanup(func() { testRedis.Del(ctx, key) })
 
 		repo := user.NewPostgresRepository(testPool)
-		svc := user.NewService(repo, testPool, testRedis)
+		svc := user.NewService(repo, testRedis)
 
 		result, err := svc.CheckStatus(ctx, u.ID)
 		require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 		testRedis.HSet(ctx, key, "active", "1", "token_version", "42")
 
 		repo := user.NewPostgresRepository(testPool)
-		svc := user.NewService(repo, testPool, testRedis)
+		svc := user.NewService(repo, testRedis)
 
 		result, err := svc.CheckStatus(ctx, u.ID)
 		require.NoError(t, err)
@@ -67,7 +67,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 		defer brokenRedis.Close()
 
 		repo := user.NewPostgresRepository(testPool)
-		svc := user.NewService(repo, testPool, brokenRedis)
+		svc := user.NewService(repo, brokenRedis)
 
 		result, err := svc.CheckStatus(ctx, u.ID)
 		require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 		require.NoError(t, err)
 
 		repo := user.NewPostgresRepository(testPool)
-		svc := user.NewService(repo, testPool, testRedis)
+		svc := user.NewService(repo, testRedis)
 
 		result, err := svc.CheckStatus(ctx, u.ID)
 		require.NoError(t, err)

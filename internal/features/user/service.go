@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/residwi/go-api-project-template/internal/core"
@@ -19,12 +18,11 @@ import (
 
 type Service struct {
 	repo Repository
-	pool *pgxpool.Pool
 	rdb  *redis.Client
 }
 
-func NewService(repo Repository, pool *pgxpool.Pool, rdb *redis.Client) *Service {
-	return &Service{repo: repo, pool: pool, rdb: rdb}
+func NewService(repo Repository, rdb *redis.Client) *Service {
+	return &Service{repo: repo, rdb: rdb}
 }
 
 // GetByEmail satisfies auth.UserProvider
@@ -207,8 +205,6 @@ func (s *Service) AdminUpdate(ctx context.Context, id uuid.UUID, req AdminUpdate
 		return nil, err
 	}
 
-	// Active may have changed; drop the cached status so a deactivation isn't
-	// honored only after the cache TTL.
 	s.invalidateStatusCache(ctx, id)
 
 	return u, nil

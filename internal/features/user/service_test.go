@@ -21,7 +21,7 @@ import (
 func TestService_GetByEmail(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		id := uuid.New()
 		repo.EXPECT().GetByEmail(mock.Anything, "alice@example.com").
@@ -52,7 +52,7 @@ func TestService_GetByEmail(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByEmail(mock.Anything, "nobody@example.com").
 			Return(nil, core.ErrNotFound)
@@ -65,7 +65,7 @@ func TestService_GetByEmail(t *testing.T) {
 func TestService_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*user.User")).
 			Run(func(_ context.Context, u *user.User) {
@@ -95,7 +95,7 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("conflict error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*user.User")).
 			Return(core.ErrConflict)
@@ -113,7 +113,7 @@ func TestService_Create(t *testing.T) {
 func TestService_GetByID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -142,7 +142,7 @@ func TestService_GetByID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, core.ErrNotFound)
@@ -155,7 +155,7 @@ func TestService_GetByID(t *testing.T) {
 func TestService_CheckStatus(t *testing.T) {
 	t.Run("success with no redis falls through to DB", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		id := uuid.New()
 		repo.EXPECT().GetStatusByID(mock.Anything, id).
@@ -168,7 +168,7 @@ func TestService_CheckStatus(t *testing.T) {
 
 	t.Run("repo GetStatusByID error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		dbErr := errors.New("database timeout")
 		repo.EXPECT().GetStatusByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
@@ -182,7 +182,7 @@ func TestService_CheckStatus(t *testing.T) {
 func TestService_GetProfile(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		id := uuid.New()
 		expected := &user.User{
@@ -203,7 +203,7 @@ func TestService_GetProfile(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, core.ErrNotFound)
@@ -216,7 +216,7 @@ func TestService_GetProfile(t *testing.T) {
 func TestService_UpdateProfile(t *testing.T) {
 	t.Run("success partial update", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		id := uuid.New()
 		existing := &user.User{
@@ -250,7 +250,7 @@ func TestService_UpdateProfile(t *testing.T) {
 
 	t.Run("updates last name", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		id := uuid.New()
 		existing := &user.User{
@@ -274,7 +274,7 @@ func TestService_UpdateProfile(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, core.ErrNotFound)
@@ -285,7 +285,7 @@ func TestService_UpdateProfile(t *testing.T) {
 
 	t.Run("repo Update error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		id := uuid.New()
 		existing := &user.User{
@@ -309,7 +309,7 @@ func TestService_UpdateProfile(t *testing.T) {
 func TestService_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		params := user.ListParams{Page: 1, PageSize: 10}
 		users := []user.User{
@@ -328,7 +328,7 @@ func TestService_List(t *testing.T) {
 func TestService_AdminUpdate(t *testing.T) {
 	t.Run("success updates active status", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		id := uuid.New()
 		existing := &user.User{
@@ -359,7 +359,7 @@ func TestService_AdminUpdate(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, core.ErrNotFound)
@@ -370,7 +370,7 @@ func TestService_AdminUpdate(t *testing.T) {
 
 	t.Run("repo Update error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		id := uuid.New()
 		existing := &user.User{
@@ -392,7 +392,7 @@ func TestService_AdminUpdate(t *testing.T) {
 
 	t.Run("partial update with all fields", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		id := uuid.New()
 		existing := &user.User{
@@ -431,7 +431,7 @@ func TestService_AdminUpdate(t *testing.T) {
 func TestService_UpdateRole(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -449,7 +449,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("self-demotion blocked", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		sameID := uuid.New()
 
@@ -459,7 +459,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("last admin blocked", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -477,7 +477,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("CountAdmins error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -497,7 +497,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("multiple admins allows demotion", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -516,7 +516,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, core.ErrNotFound)
@@ -527,7 +527,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("Update error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -549,7 +549,7 @@ func TestService_UpdateRole(t *testing.T) {
 func TestService_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -567,7 +567,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("self-deletion blocked", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		sameID := uuid.New()
 
@@ -577,7 +577,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("last admin blocked", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -595,7 +595,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, core.ErrNotFound)
@@ -606,7 +606,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("CountAdmins error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -626,7 +626,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("multiple admins allows delete", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -645,7 +645,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("Delete repo error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil, nil)
+		svc := user.NewService(repo, nil)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
