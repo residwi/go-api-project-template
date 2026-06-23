@@ -234,6 +234,15 @@ func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUI
 	if err := s.repo.Update(ctx, u); err != nil {
 		return err
 	}
+
+	// Revoke the target user's outstanding access tokens: the auth middleware
+	// rejects a token whose token_version differs from the DB, so bumping it
+	// forces a re-auth that reflects the new role.
+	if err := s.repo.IncrementTokenVersion(ctx, targetID); err != nil {
+		return fmt.Errorf("revoking tokens after role change: %w", err)
+	}
+
+	// Invalidate after the bump so the cache repopulates with the new token_version.
 	s.invalidateStatusCache(ctx, targetID)
 	return nil
 }

@@ -442,6 +442,7 @@ func TestService_UpdateRole(t *testing.T) {
 				Role: "user",
 			}, nil)
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
+		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(nil)
 
 		err := svc.UpdateRole(context.Background(), requesterID, targetID, "admin")
 		require.NoError(t, err)
@@ -509,6 +510,7 @@ func TestService_UpdateRole(t *testing.T) {
 			}, nil)
 		repo.EXPECT().CountAdmins(mock.Anything).Return(3, nil)
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
+		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(nil)
 
 		err := svc.UpdateRole(context.Background(), requesterID, targetID, "user")
 		require.NoError(t, err)

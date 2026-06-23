@@ -541,6 +541,7 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 			UpdatedAt: now,
 		}, nil)
 		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil)
+		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(nil)
 
 		body, _ := json.Marshal(user.UpdateRoleRequest{Role: "admin"})
 
