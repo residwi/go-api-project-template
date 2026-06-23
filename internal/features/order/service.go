@@ -394,8 +394,7 @@ func (s *Service) cancelWithReversal(ctx context.Context, order *Order) error {
 // via its Sweeper hook. Each order is handled in its own transaction so a
 // per-order failure is logged and the sweep continues.
 func (s *Service) ExpireStale(ctx context.Context) error {
-	expiryBatchLimit := 20
-	orders, err := s.repo.GetExpiredOrders(ctx, expiryBatchLimit)
+	orders, err := s.repo.GetExpiredOrders(ctx, housekeepingBatchLimit)
 	if err != nil {
 		return fmt.Errorf("getting expired orders: %w", err)
 	}
@@ -524,9 +523,13 @@ func (s *Service) AdminUpdateStatus(ctx context.Context, orderID uuid.UUID, toSt
 	// stock, or refunded without restocking it or returning money at the gateway.
 	// Only the side-effect-free fulfillment markers may be set directly.
 	switch toStatus {
-	case StatusPaid, StatusPaymentProcessing, StatusCancelled, StatusExpired, StatusRefunded:
+	case StatusPaid, StatusPaymentProcessing, StatusCancelled, StatusExpired, StatusRefunded, StatusFulfillmentFailed:
+		// fulfillment_failed is reachable from paid (FulfillmentFailedCompensatingTransition),
+		// i.e. from an order with money captured and stock deducted. A bare status
+		// write here would strand both — no refund, no restock — so it must go
+		// through the payment/refund compensating flow, not a direct admin update.
 		return fmt.Errorf("%w: status %s is managed by the payment, cancel, or refund flow and cannot be set with a direct status update", core.ErrBadRequest, toStatus)
-	case StatusAwaitingPayment, StatusProcessing, StatusShipped, StatusDelivered, StatusFulfillmentFailed:
+	case StatusAwaitingPayment, StatusProcessing, StatusShipped, StatusDelivered:
 		// Side-effect-free fulfillment markers — allowed to be set directly below
 		// (subject to CanTransition); none of these reverse inventory or payment.
 	}
@@ -557,12 +560,12 @@ func (s *Service) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]
 	return s.repo.ListItemsByOrderID(ctx, orderID)
 }
 
-// HasDeliveredOrder reports whether the user has a delivered order containing
-// the product. It satisfies review.PurchaseVerifier, letting review confirm a
-// purchase through the order module rather than querying the orders schema
-// directly from the wiring layer.
-func (s *Service) HasDeliveredOrder(ctx context.Context, userID, productID uuid.UUID) (bool, error) {
-	return s.repo.HasDeliveredOrder(ctx, userID, productID)
+// HasDeliveredOrder reports whether the given order is delivered, belongs to the
+// user, and contains the product. It satisfies review.PurchaseVerifier, letting
+// review confirm a specific purchase through the order module rather than
+// querying the orders schema directly from the wiring layer.
+func (s *Service) HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error) {
+	return s.repo.HasDeliveredOrder(ctx, userID, orderID, productID)
 }
 
 // SetPaymentDeps sets payment-related dependencies after construction.

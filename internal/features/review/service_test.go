@@ -26,7 +26,7 @@ func TestService_Create(t *testing.T) {
 		productID := uuid.New()
 		orderID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, productID).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, orderID, productID).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, nil)
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(rv *review.Review) bool {
 			return rv.UserID == userID &&
@@ -67,7 +67,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, productID).Return(false, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(false, nil)
 
 		req := review.CreateReviewRequest{
 			OrderID: uuid.New(),
@@ -91,7 +91,7 @@ func TestService_Create(t *testing.T) {
 		productID := uuid.New()
 
 		verifyErr := errors.New("purchase check failed")
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, productID).Return(false, verifyErr)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(false, verifyErr)
 
 		req := review.CreateReviewRequest{OrderID: uuid.New(), Rating: 5, Title: "Great"}
 		result, err := svc.Create(ctx, userID, productID, req)
@@ -108,7 +108,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, productID).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
 		dbErr := errors.New("database error")
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, dbErr)
 
@@ -127,7 +127,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, productID).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, nil)
 		createErr := errors.New("insert failed")
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*review.Review")).Return(createErr)
@@ -147,7 +147,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, productID).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(true, nil)
 
 		req := review.CreateReviewRequest{

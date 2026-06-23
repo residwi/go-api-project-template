@@ -39,8 +39,8 @@ func (_m *MockPurchaseVerifier) EXPECT() *MockPurchaseVerifier_Expecter {
 }
 
 // HasDeliveredOrder provides a mock function for the type MockPurchaseVerifier
-func (_mock *MockPurchaseVerifier) HasDeliveredOrder(ctx context.Context, userID uuid.UUID, productID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, userID, productID)
+func (_mock *MockPurchaseVerifier) HasDeliveredOrder(ctx context.Context, userID uuid.UUID, orderID uuid.UUID, productID uuid.UUID) (bool, error) {
+	ret := _mock.Called(ctx, userID, orderID, productID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for HasDeliveredOrder")
@@ -48,16 +48,16 @@ func (_mock *MockPurchaseVerifier) HasDeliveredOrder(ctx context.Context, userID
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, userID, productID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (bool, error)); ok {
+		return returnFunc(ctx, userID, orderID, productID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, userID, productID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) bool); ok {
+		r0 = returnFunc(ctx, userID, orderID, productID)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID, productID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userID, orderID, productID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -72,12 +72,13 @@ type MockPurchaseVerifier_HasDeliveredOrder_Call struct {
 // HasDeliveredOrder is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
+//   - orderID uuid.UUID
 //   - productID uuid.UUID
-func (_e *MockPurchaseVerifier_Expecter) HasDeliveredOrder(ctx interface{}, userID interface{}, productID interface{}) *MockPurchaseVerifier_HasDeliveredOrder_Call {
-	return &MockPurchaseVerifier_HasDeliveredOrder_Call{Call: _e.mock.On("HasDeliveredOrder", ctx, userID, productID)}
+func (_e *MockPurchaseVerifier_Expecter) HasDeliveredOrder(ctx interface{}, userID interface{}, orderID interface{}, productID interface{}) *MockPurchaseVerifier_HasDeliveredOrder_Call {
+	return &MockPurchaseVerifier_HasDeliveredOrder_Call{Call: _e.mock.On("HasDeliveredOrder", ctx, userID, orderID, productID)}
 }
 
-func (_c *MockPurchaseVerifier_HasDeliveredOrder_Call) Run(run func(ctx context.Context, userID uuid.UUID, productID uuid.UUID)) *MockPurchaseVerifier_HasDeliveredOrder_Call {
+func (_c *MockPurchaseVerifier_HasDeliveredOrder_Call) Run(run func(ctx context.Context, userID uuid.UUID, orderID uuid.UUID, productID uuid.UUID)) *MockPurchaseVerifier_HasDeliveredOrder_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -91,10 +92,15 @@ func (_c *MockPurchaseVerifier_HasDeliveredOrder_Call) Run(run func(ctx context.
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -105,7 +111,7 @@ func (_c *MockPurchaseVerifier_HasDeliveredOrder_Call) Return(b bool, err error)
 	return _c
 }
 
-func (_c *MockPurchaseVerifier_HasDeliveredOrder_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, productID uuid.UUID) (bool, error)) *MockPurchaseVerifier_HasDeliveredOrder_Call {
+func (_c *MockPurchaseVerifier_HasDeliveredOrder_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, orderID uuid.UUID, productID uuid.UUID) (bool, error)) *MockPurchaseVerifier_HasDeliveredOrder_Call {
 	_c.Call.Return(run)
 	return _c
 }

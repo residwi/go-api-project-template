@@ -10,7 +10,7 @@ import (
 )
 
 type PurchaseVerifier interface {
-	HasDeliveredOrder(ctx context.Context, userID, productID uuid.UUID) (bool, error)
+	HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error)
 }
 
 type Service struct {
@@ -26,12 +26,15 @@ func NewService(repo Repository, purchase PurchaseVerifier) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, userID, productID uuid.UUID, req CreateReviewRequest) (*Review, error) {
-	delivered, err := s.purchase.HasDeliveredOrder(ctx, userID, productID)
+	// Verify the SPECIFIC client-supplied order is delivered, owned by this user,
+	// and contains the product — otherwise req.OrderID could be any existing
+	// order, forging the review's provenance.
+	delivered, err := s.purchase.HasDeliveredOrder(ctx, userID, req.OrderID, productID)
 	if err != nil {
 		return nil, err
 	}
 	if !delivered {
-		return nil, fmt.Errorf("%w: must have a delivered order for this product", core.ErrBadRequest)
+		return nil, fmt.Errorf("%w: order must be a delivered order of yours containing this product", core.ErrBadRequest)
 	}
 
 	reviewed, err := s.repo.HasUserReviewed(ctx, userID, productID)

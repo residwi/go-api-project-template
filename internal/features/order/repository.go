@@ -36,7 +36,8 @@ func scanOrderSummary(row pgx.CollectableRow) (Order, error) {
 	var idempotencyKey *string
 	err := row.Scan(&o.ID, &o.UserID, &idempotencyKey, &o.Status,
 		&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
-		&o.CouponCode, &o.Currency, &o.CreatedAt, &o.UpdatedAt)
+		&o.CouponCode, &o.Currency, &o.StockDeducted, &o.StockReversed,
+		&o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		return o, err
 	}
@@ -72,7 +73,7 @@ type Repository interface {
 	ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]Item, error)
 	GetExpiredOrders(ctx context.Context, limit int) ([]Order, error)
 	GetStaleProcessingOrders(ctx context.Context, threshold time.Duration, limit int) ([]Order, error)
-	HasDeliveredOrder(ctx context.Context, userID, productID uuid.UUID) (bool, error)
+	HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error)
 }
 
 type PostgresRepository struct {
@@ -348,7 +349,7 @@ func (r *PostgresRepository) GetExpiredOrders(ctx context.Context, limit int) ([
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
 		`SELECT id, user_id, idempotency_key, status, subtotal_amount, discount_amount, total_amount,
-		        coupon_code, currency, created_at, updated_at
+		        coupon_code, currency, stock_deducted, stock_reversed, created_at, updated_at
 		FROM orders WHERE status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '30 minutes'
 		ORDER BY created_at LIMIT $1`, limit,
 	)
@@ -366,7 +367,7 @@ func (r *PostgresRepository) GetStaleProcessingOrders(ctx context.Context, thres
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
 		`SELECT id, user_id, idempotency_key, status, subtotal_amount, discount_amount, total_amount,
-		        coupon_code, currency, created_at, updated_at
+		        coupon_code, currency, stock_deducted, stock_reversed, created_at, updated_at
 		FROM orders WHERE status = 'payment_processing' AND updated_at < NOW() - $1::interval
 		ORDER BY updated_at LIMIT $2`, threshold.String(), limit,
 	)
@@ -380,19 +381,20 @@ func (r *PostgresRepository) GetStaleProcessingOrders(ctx context.Context, thres
 	return orders, nil
 }
 
-// HasDeliveredOrder reports whether the user has a delivered order containing
-// the product. It backs review's purchase-verification check: the query lives
-// here because the orders and order_items tables belong to the order module.
-func (r *PostgresRepository) HasDeliveredOrder(ctx context.Context, userID, productID uuid.UUID) (bool, error) {
+// HasDeliveredOrder reports whether the given order is delivered, belongs to the
+// user, and contains the product. Binding to the specific orderID (not just
+// "some delivered order for this product") stops a review being filed against an
+// order that isn't the reviewer's or never contained the product.
+func (r *PostgresRepository) HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error) {
 	db := database.DB(ctx, r.pool)
 	var exists bool
 	err := db.QueryRow(ctx,
 		`SELECT EXISTS(
 			SELECT 1 FROM order_items oi
 			JOIN orders o ON o.id = oi.order_id
-			WHERE o.user_id = $1 AND oi.product_id = $2 AND o.status = 'delivered'
+			WHERE o.user_id = $1 AND o.id = $2 AND oi.product_id = $3 AND o.status = 'delivered'
 		)`,
-		userID, productID,
+		userID, orderID, productID,
 	).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("checking delivered order: %w", err)
