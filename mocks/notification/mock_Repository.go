@@ -238,6 +238,69 @@ func (_c *MockRepository_Create_Call) RunAndReturn(run func(ctx context.Context,
 	return _c
 }
 
+// CreateAndComplete provides a mock function for the type MockRepository
+func (_mock *MockRepository) CreateAndComplete(ctx context.Context, n *notification.Notification, job *notification.Job) error {
+	ret := _mock.Called(ctx, n, job)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAndComplete")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *notification.Notification, *notification.Job) error); ok {
+		r0 = returnFunc(ctx, n, job)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockRepository_CreateAndComplete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAndComplete'
+type MockRepository_CreateAndComplete_Call struct {
+	*mock.Call
+}
+
+// CreateAndComplete is a helper method to define mock.On call
+//   - ctx context.Context
+//   - n *notification.Notification
+//   - job *notification.Job
+func (_e *MockRepository_Expecter) CreateAndComplete(ctx interface{}, n interface{}, job interface{}) *MockRepository_CreateAndComplete_Call {
+	return &MockRepository_CreateAndComplete_Call{Call: _e.mock.On("CreateAndComplete", ctx, n, job)}
+}
+
+func (_c *MockRepository_CreateAndComplete_Call) Run(run func(ctx context.Context, n *notification.Notification, job *notification.Job)) *MockRepository_CreateAndComplete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *notification.Notification
+		if args[1] != nil {
+			arg1 = args[1].(*notification.Notification)
+		}
+		var arg2 *notification.Job
+		if args[2] != nil {
+			arg2 = args[2].(*notification.Job)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_CreateAndComplete_Call) Return(err error) *MockRepository_CreateAndComplete_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockRepository_CreateAndComplete_Call) RunAndReturn(run func(ctx context.Context, n *notification.Notification, job *notification.Job) error) *MockRepository_CreateAndComplete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateJob provides a mock function for the type MockRepository
 func (_mock *MockRepository) CreateJob(ctx context.Context, job *notification.Job) error {
 	ret := _mock.Called(ctx, job)

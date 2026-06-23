@@ -228,19 +228,20 @@ func TestService_Process(t *testing.T) {
 			Data:   []byte(`{"order_id":"abc"}`),
 		}
 
-		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(n *notification.Notification) bool {
-			return n.UserID == userID &&
-				n.Type == notification.TypeOrderPlaced &&
-				n.Title == "Order Placed" &&
-				n.Body == "Your order has been placed." &&
-				n.IsRead == false &&
-				string(n.Data) == `{"order_id":"abc"}`
-		})).Return(nil)
-		// On success the job is marked completed so it isn't re-claimed and
-		// re-processed (which would create duplicate notifications).
-		repo.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *notification.Job) bool {
-			return j.Status == notification.JobStatusCompleted
-		})).Return(nil)
+		// Insert + completion commit atomically, so the job can't be re-claimed into a duplicate.
+		repo.EXPECT().CreateAndComplete(mock.Anything,
+			mock.MatchedBy(func(n *notification.Notification) bool {
+				return n.UserID == userID &&
+					n.Type == notification.TypeOrderPlaced &&
+					n.Title == "Order Placed" &&
+					n.Body == "Your order has been placed." &&
+					n.IsRead == false &&
+					string(n.Data) == `{"order_id":"abc"}`
+			}),
+			mock.MatchedBy(func(j *notification.Job) bool {
+				return j.Status == notification.JobStatusCompleted
+			}),
+		).Return(nil)
 
 		err := svc.Process(ctx, job)
 		require.NoError(t, err)
@@ -260,7 +261,10 @@ func TestService_Process(t *testing.T) {
 			MaxAttempts: 3,
 		}
 
-		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*notification.Notification")).Return(assert.AnError)
+		repo.EXPECT().CreateAndComplete(mock.Anything,
+			mock.AnythingOfType("*notification.Notification"),
+			mock.AnythingOfType("*notification.Job"),
+		).Return(assert.AnError)
 		// On failure the attempt is recorded so the job can reach a terminal state
 		// instead of being re-claimed forever; here attempts<max, so it's requeued.
 		repo.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *notification.Job) bool {

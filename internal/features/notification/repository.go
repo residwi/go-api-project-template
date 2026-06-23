@@ -41,6 +41,7 @@ type Repository interface {
 	CreateJob(ctx context.Context, job *Job) error
 	Claim(ctx context.Context, batchSize int, lease time.Duration) ([]Job, error)
 	UpdateJob(ctx context.Context, job *Job) error
+	CreateAndComplete(ctx context.Context, n *Notification, job *Job) error
 	Prune(ctx context.Context, olderThan time.Duration, limit int) (int, error)
 }
 
@@ -201,6 +202,19 @@ func (r *PostgresRepository) UpdateJob(ctx context.Context, job *Job) error {
 		return core.ErrNotFound
 	}
 	return nil
+}
+
+// CreateAndComplete inserts the notification and persists the (already
+// completed) job in one transaction. The atomicity prevents duplicates: if
+// either write fails the whole transaction rolls back, so the job is never left
+// claimable with the notification already written.
+func (r *PostgresRepository) CreateAndComplete(ctx context.Context, n *Notification, job *Job) error {
+	return database.WithTx(ctx, r.pool, func(txCtx context.Context) error {
+		if err := r.Create(txCtx, n); err != nil {
+			return err
+		}
+		return r.UpdateJob(txCtx, job)
+	})
 }
 
 func (r *PostgresRepository) Prune(ctx context.Context, olderThan time.Duration, limit int) (int, error) {

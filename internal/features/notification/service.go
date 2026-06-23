@@ -60,12 +60,10 @@ func (s *Service) EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, orde
 	return s.repo.CreateJob(ctx, job)
 }
 
-// Process creates a notification record from a job and owns the job's terminal
-// state. The runner does not mark jobs done, so Process must: on success mark the
-// job completed (otherwise its lease lapses and it is re-claimed, creating
-// duplicate notifications forever), and on failure record the attempt so the job
-// reaches a terminal 'failed' state after MaxAttempts instead of being retried
-// indefinitely with attempts frozen at zero.
+// Process creates the notification for a job and owns the job's terminal state
+// (the runner does not). On success it persists the notification and completes
+// the job atomically, so a lost completion can't re-deliver a duplicate; on
+// failure it records the attempt so the job reaches 'failed' after MaxAttempts.
 func (s *Service) Process(ctx context.Context, job Job) error {
 	n := &Notification{
 		UserID: job.UserID,
@@ -76,7 +74,9 @@ func (s *Service) Process(ctx context.Context, job Job) error {
 		Data:   job.Data,
 	}
 
-	if err := s.repo.Create(ctx, n); err != nil {
+	job.Status = JobStatusCompleted
+	if err := s.repo.CreateAndComplete(ctx, n, &job); err != nil {
+		// Record the attempt so the job retries and reaches 'failed' after MaxAttempts.
 		job.Attempts++
 		job.LastError = err.Error()
 		if job.Attempts >= job.MaxAttempts {
@@ -87,12 +87,8 @@ func (s *Service) Process(ctx context.Context, job Job) error {
 		if updateErr := s.repo.UpdateJob(ctx, &job); updateErr != nil {
 			slog.ErrorContext(ctx, "failed to update notification job after failure", "job_id", job.ID, "error", updateErr)
 		}
-		return fmt.Errorf("creating notification: %w", err)
+		return fmt.Errorf("processing notification: %w", err)
 	}
 
-	job.Status = JobStatusCompleted
-	if err := s.repo.UpdateJob(ctx, &job); err != nil {
-		slog.ErrorContext(ctx, "failed to mark notification job completed", "job_id", job.ID, "error", err)
-	}
 	return nil
 }
