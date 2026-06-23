@@ -115,6 +115,9 @@ func (r *PostgresRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		`DELETE FROM categories WHERE id = $1`, id,
 	)
 	if err != nil {
+		if database.IsForeignKeyViolation(err) {
+			return fmt.Errorf("%w: category still has products or subcategories", core.ErrConflict)
+		}
 		return fmt.Errorf("deleting category: %w", err)
 	}
 	if tag.RowsAffected() == 0 {

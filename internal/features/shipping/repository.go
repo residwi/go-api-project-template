@@ -47,6 +47,9 @@ func (r *PostgresRepository) Create(ctx context.Context, shipment *Shipment) err
 		shipment.OrderID, shipment.Carrier, shipment.TrackingNumber, shipment.Status, shippedAt,
 	).Scan(&shipment.ID, &shipment.ShippedAt, &shipment.CreatedAt, &shipment.UpdatedAt)
 	if err != nil {
+		if database.IsUniqueViolation(err) {
+			return fmt.Errorf("%w: shipment already exists for this order", core.ErrConflict)
+		}
 		return fmt.Errorf("creating shipment: %w", err)
 	}
 	return nil

@@ -54,6 +54,8 @@ func HandleErr(w http.ResponseWriter, err error) {
 		Unauthorized(w, err.Error())
 	case errors.Is(err, core.ErrInsufficientStock):
 		Conflict(w, err.Error())
+	case errors.Is(err, core.ErrInsufficientFunds):
+		Conflict(w, err.Error())
 	case errors.Is(err, core.ErrCartEmpty):
 		BadRequest(w, err.Error())
 	case errors.Is(err, core.ErrOrderNotPayable):

@@ -51,6 +51,9 @@ func (r *PostgresRepository) AddItem(ctx context.Context, wishlistID, productID 
 		wishlistID, productID,
 	)
 	if err != nil {
+		if database.IsForeignKeyViolation(err) {
+			return fmt.Errorf("%w: product not found", core.ErrNotFound)
+		}
 		return fmt.Errorf("adding wishlist item: %w", err)
 	}
 	return nil
