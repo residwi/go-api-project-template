@@ -104,9 +104,21 @@ func TestConfig_Validate(t *testing.T) {
 		assert.Contains(t, err.Error(), "AUTH_RATE_WINDOW must be at least 1s")
 	})
 
+	t.Run("error when OrderRateWindow is sub-second", func(t *testing.T) {
+		cfg := Config{
+			App:     AppConfig{Env: "production", AuthRateWindow: time.Minute, OrderRateWindow: 500 * time.Millisecond},
+			Payment: PaymentConfig{WebhookSecret: "real-secret", GatewayTimeout: 10 * time.Second},
+			Worker:  WorkerConfig{LeaseDuration: 2 * time.Minute, Interval: 10 * time.Second},
+		}
+
+		err := cfg.validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "ORDER_RATE_WINDOW must be at least 1s")
+	})
+
 	t.Run("error when WorkerConcurrency is zero", func(t *testing.T) {
 		cfg := Config{
-			App:     AppConfig{Env: "production", AuthRateWindow: time.Minute},
+			App:     AppConfig{Env: "production", AuthRateWindow: time.Minute, OrderRateWindow: time.Minute},
 			Payment: PaymentConfig{WebhookSecret: "real-secret", GatewayTimeout: 10 * time.Second},
 			Worker:  WorkerConfig{LeaseDuration: 2 * time.Minute, Interval: 10 * time.Second, Concurrency: 0},
 		}
@@ -118,7 +130,7 @@ func TestConfig_Validate(t *testing.T) {
 
 	t.Run("passes with valid production config", func(t *testing.T) {
 		cfg := Config{
-			App:     AppConfig{Env: "production", AuthRateWindow: time.Minute},
+			App:     AppConfig{Env: "production", AuthRateWindow: time.Minute, OrderRateWindow: time.Minute},
 			Payment: PaymentConfig{WebhookSecret: "real-secret", GatewayTimeout: 10 * time.Second},
 			Worker:  WorkerConfig{LeaseDuration: 2 * time.Minute, Interval: 10 * time.Second, Concurrency: 5, PruneLimit: 100},
 		}
@@ -129,7 +141,7 @@ func TestConfig_Validate(t *testing.T) {
 
 	t.Run("passes in development with default webhook secret", func(t *testing.T) {
 		cfg := Config{
-			App:     AppConfig{Env: "development", AuthRateWindow: time.Minute},
+			App:     AppConfig{Env: "development", AuthRateWindow: time.Minute, OrderRateWindow: time.Minute},
 			Payment: PaymentConfig{WebhookSecret: defaultWebhookSecret, GatewayTimeout: 10 * time.Second},
 			Worker:  WorkerConfig{LeaseDuration: 2 * time.Minute, Interval: 10 * time.Second, Concurrency: 5, PruneLimit: 100},
 		}

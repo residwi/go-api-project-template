@@ -45,9 +45,15 @@ func RateLimit(rdb *redis.Client, maxRequests int, window time.Duration) Middlew
 				return
 			}
 
-			ip := clientIP(r)
+			// Key by authenticated user when one is present (the limiter runs after
+			// auth on authed routes), so users sharing an egress IP (NAT/CGNAT) don't
+			// share a bucket; fall back to client IP for unauthenticated endpoints.
+			identifier := clientIP(r)
+			if uc, ok := GetUserContext(r.Context()); ok {
+				identifier = "user:" + uc.UserID.String()
+			}
 			bucket := time.Now().Unix() / int64(window.Seconds())
-			key := fmt.Sprintf("rl:%s:%d", ip, bucket)
+			key := fmt.Sprintf("rl:%s:%d", identifier, bucket)
 
 			count, err := rdb.Incr(r.Context(), key).Result()
 			if err != nil {

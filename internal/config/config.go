@@ -36,6 +36,7 @@ type AppConfig struct {
 	ShutdownTimeout time.Duration `envconfig:"APP_SHUTDOWN_TIMEOUT" default:"30s"`
 	MaxCartItems    int           `envconfig:"MAX_CART_ITEMS" default:"50"`
 	OrderRateLimit  int           `envconfig:"ORDER_RATE_LIMIT" default:"5"`
+	OrderRateWindow time.Duration `envconfig:"ORDER_RATE_WINDOW" default:"1m"`
 	AuthRateLimit   int           `envconfig:"AUTH_RATE_LIMIT" default:"10"`
 	AuthRateWindow  time.Duration `envconfig:"AUTH_RATE_WINDOW" default:"1m"`
 	BcryptCost      int           `envconfig:"BCRYPT_COST" default:"10"`
@@ -140,12 +141,32 @@ func (c *Config) validate() error {
 		return errors.New("WORKER_LEASE_DURATION must be at least 3× PAYMENT_GATEWAY_TIMEOUT to avoid duplicate gateway calls")
 	}
 
+	// A charge job's lease must expire before order.staleProcessingThreshold
+	// (15m), or the recovery sweep reverts an order whose charge is still leased.
+	// Mirrored here manually — config cannot import the order package.
+	const orderStaleProcessingThreshold = 15 * time.Minute
+	if c.Worker.LeaseDuration >= orderStaleProcessingThreshold {
+		return fmt.Errorf("WORKER_LEASE_DURATION (%s) must be less than the order stale-processing threshold (%s), or the recovery sweep can revert an order whose charge is still leased", c.Worker.LeaseDuration, orderStaleProcessingThreshold)
+	}
+
+	// Guard the satisfiability of the two lease bounds above: if 3× the gateway
+	// timeout already meets/exceeds the stale threshold, no WORKER_LEASE_DURATION
+	// can satisfy both rules, so point at the real cause instead of a confusing
+	// lease error.
+	if c.Payment.GatewayTimeout*3 >= orderStaleProcessingThreshold {
+		return fmt.Errorf("PAYMENT_GATEWAY_TIMEOUT (%s) is too large: 3× it must stay below the order stale-processing threshold (%s) so a valid WORKER_LEASE_DURATION range exists", c.Payment.GatewayTimeout, orderStaleProcessingThreshold)
+	}
+
 	if c.Worker.Interval < 5*time.Second {
 		return errors.New("WORKER_INTERVAL must be at least 5s to avoid database polling overhead")
 	}
 
 	if c.App.AuthRateWindow < time.Second {
 		return errors.New("AUTH_RATE_WINDOW must be at least 1s (sub-second windows divide by zero in the limiter)")
+	}
+
+	if c.App.OrderRateWindow < time.Second {
+		return errors.New("ORDER_RATE_WINDOW must be at least 1s (sub-second windows divide by zero in the limiter)")
 	}
 
 	if c.Worker.Concurrency < 1 {

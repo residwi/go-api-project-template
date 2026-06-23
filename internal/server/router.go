@@ -98,13 +98,17 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	authLimiter := middleware.RateLimit(deps.Redis, deps.Config.App.AuthRateLimit, deps.Config.App.AuthRateWindow)
 	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
 
+	// Throttle order placement/payment-retry (each runs a cart-lock + reserve +
+	// charge); wired into order routes for the write endpoints only.
+	orderWriteLimiter := middleware.RateLimit(deps.Redis, deps.Config.App.OrderRateLimit, deps.Config.App.OrderRateWindow)
+
 	auth.RegisterRoutes(authPublic, auth.RouteDeps{Validator: v, Service: authSvc})
 	user.RegisterRoutes(authed, admin, user.RouteDeps{Validator: v, Service: userSvc})
 	category.RegisterRoutes(api, admin, category.RouteDeps{Validator: v, Service: categorySvc})
 	product.RegisterRoutes(api, admin, product.RouteDeps{Validator: v, Service: productSvc})
 	inventory.RegisterRoutes(admin, inventory.RouteDeps{Validator: v, Service: inventorySvc})
 	cart.RegisterRoutes(authed, cart.RouteDeps{Validator: v, Service: cartSvc})
-	order.RegisterRoutes(authed, admin, order.RouteDeps{Validator: v, Service: orderSvc})
+	order.RegisterRoutes(authed, admin, order.RouteDeps{Validator: v, Service: orderSvc, WriteLimiter: orderWriteLimiter})
 	payment.RegisterRoutes(api, admin, payment.RouteDeps{Validator: v, Service: paymentSvc, WebhookSecret: cfg.Payment.WebhookSecret})
 	shipping.RegisterRoutes(authed, admin, shipping.RouteDeps{Validator: v, Service: shippingSvc, Orders: shippingOrderProvider})
 	review.RegisterRoutes(api, authed, admin, review.RouteDeps{Validator: v, Service: reviewSvc})
