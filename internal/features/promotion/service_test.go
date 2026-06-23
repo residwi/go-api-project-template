@@ -414,7 +414,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).Return(nil)
 
-		newValue := int64(750)
+		newValue := int64(75)
 		newMinOrder := int64(2000)
 		newMaxDiscount := int64(300)
 		newMaxUses := 50
@@ -438,7 +438,7 @@ func TestService_Update(t *testing.T) {
 			ID:             id,
 			Code:           "NEWCODE",
 			Type:           promotion.TypePercentage,
-			Value:          750,
+			Value:          75,
 			MinOrderAmount: 2000,
 			MaxDiscount:    &newMaxDiscount,
 			MaxUses:        &newMaxUses,

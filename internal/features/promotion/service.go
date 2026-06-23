@@ -94,6 +94,10 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*Promotion, er
 		Active:         req.Active,
 	}
 
+	if err := validatePercentageValue(promo.Type, promo.Value); err != nil {
+		return nil, err
+	}
+
 	if err := s.repo.Create(ctx, promo); err != nil {
 		return nil, err
 	}
@@ -139,6 +143,12 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateRequest) (
 		promo.Active = *req.Active
 	}
 
+	// Type and/or Value may be partially supplied; validate the final
+	// persisted combination, not just the incoming fields.
+	if err := validatePercentageValue(promo.Type, promo.Value); err != nil {
+		return nil, err
+	}
+
 	if err := s.repo.Update(ctx, promo); err != nil {
 		return nil, err
 	}
@@ -148,6 +158,17 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateRequest) (
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
+}
+
+// validatePercentageValue rejects a percentage promotion above 100, which the
+// clamp in computeDiscount would otherwise silently turn into a free order. The
+// cap is type-conditional (fixed_amount allows any positive value), so it lives
+// here rather than in a validate tag.
+func validatePercentageValue(promoType Type, value int64) error {
+	if promoType == TypePercentage && value > 100 {
+		return fmt.Errorf("%w: percentage discount value cannot exceed 100", core.ErrBadRequest)
+	}
+	return nil
 }
 
 func validatePromotion(promo *Promotion, orderAmount int64) error {
@@ -189,6 +210,8 @@ func computeDiscount(promo *Promotion, orderSubtotal int64) int64 {
 		discount = promo.Value
 	}
 
+	// Safety net for a fixed_amount promo that legitimately exceeds the subtotal;
+	// percentage overflows are rejected at write time (validatePercentageValue).
 	if discount > orderSubtotal {
 		discount = orderSubtotal
 	}
