@@ -5,18 +5,16 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/core"
 )
 
 type Service struct {
 	repo Repository
-	pool *pgxpool.Pool
 }
 
-func NewService(repo Repository, pool *pgxpool.Pool) *Service {
-	return &Service{repo: repo, pool: pool}
+func NewService(repo Repository) *Service {
+	return &Service{repo: repo}
 }
 
 func (s *Service) Create(ctx context.Context, req CreateProductRequest) (*Product, error) {

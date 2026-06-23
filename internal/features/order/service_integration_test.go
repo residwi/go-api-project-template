@@ -48,7 +48,7 @@ func toStockChanges(items []order.InventoryItem) []inventory.StockChange {
 func newExpiryService(t *testing.T) *order.Service {
 	t.Helper()
 	orderRepo := order.NewPostgresRepository(testPool)
-	invSvc := inventory.NewService(inventory.NewPostgresRepository(testPool), testPool)
+	invSvc := inventory.NewService(inventory.NewPostgresRepository(testPool))
 	return order.NewService(orderRepo, testPool, nil, expireInventory{svc: invSvc}, nil, nil, nil, nil)
 }
 

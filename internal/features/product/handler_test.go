@@ -24,7 +24,7 @@ import (
 
 func setupProductMux(t *testing.T) (*http.ServeMux, *prodMocks.MockRepository) {
 	repo := prodMocks.NewMockRepository(t)
-	svc := product.NewService(repo, nil)
+	svc := product.NewService(repo)
 	v := validator.New()
 
 	mux := http.NewServeMux()

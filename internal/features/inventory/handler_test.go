@@ -23,7 +23,7 @@ import (
 
 func setupInventoryMux(t *testing.T) (*http.ServeMux, *mocks.MockRepository) {
 	repo := mocks.NewMockRepository(t)
-	svc := inventory.NewService(repo, nil)
+	svc := inventory.NewService(repo)
 	v := validator.New()
 
 	mux := http.NewServeMux()

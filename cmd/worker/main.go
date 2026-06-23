@@ -52,7 +52,7 @@ func run() error {
 	promotionRepo := promotion.NewPostgresRepository(pool)
 	notificationRepo := notification.NewPostgresRepository(pool)
 
-	inventorySvc := inventory.NewService(inventoryRepo, pool)
+	inventorySvc := inventory.NewService(inventoryRepo)
 	promotionSvc := promotion.NewService(promotionRepo, pool)
 	notificationSvc := notification.NewService(notificationRepo)
 

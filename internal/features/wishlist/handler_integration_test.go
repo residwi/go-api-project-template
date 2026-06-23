@@ -23,7 +23,7 @@ import (
 
 func setupWishlistMux(t *testing.T) (*http.ServeMux, *wishMocks.MockRepository, middleware.UserContext) {
 	repo := wishMocks.NewMockRepository(t)
-	svc := wishlist.NewService(repo, nil)
+	svc := wishlist.NewService(repo)
 	v := validator.New()
 
 	mux := http.NewServeMux()

@@ -17,7 +17,7 @@ import (
 func TestService_GetWishlist(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo, nil)
+		svc := wishlist.NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -36,7 +36,7 @@ func TestService_GetWishlist(t *testing.T) {
 
 	t.Run("empty wishlist", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo, nil)
+		svc := wishlist.NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -53,7 +53,7 @@ func TestService_GetWishlist(t *testing.T) {
 func TestService_AddItem(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo, nil)
+		svc := wishlist.NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -69,7 +69,7 @@ func TestService_AddItem(t *testing.T) {
 
 	t.Run("get or create fails", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo, nil)
+		svc := wishlist.NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -86,7 +86,7 @@ func TestService_AddItem(t *testing.T) {
 func TestService_RemoveItem(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo, nil)
+		svc := wishlist.NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -100,7 +100,7 @@ func TestService_RemoveItem(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo, nil)
+		svc := wishlist.NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -115,7 +115,7 @@ func TestService_RemoveItem(t *testing.T) {
 
 	t.Run("repo error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo, nil)
+		svc := wishlist.NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -132,7 +132,7 @@ func TestService_RemoveItem(t *testing.T) {
 func TestService_GetWishlist_RepoError(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo, nil)
+		svc := wishlist.NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -148,7 +148,7 @@ func TestService_GetWishlist_RepoError(t *testing.T) {
 func TestService_AddItem_AddItemFails(t *testing.T) {
 	t.Run("add item repo error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo, nil)
+		svc := wishlist.NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()

@@ -57,8 +57,8 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 
 	userSvc := user.NewService(userRepo, deps.Redis)
 	categorySvc := category.NewService(categoryRepo)
-	productSvc := product.NewService(productRepo, deps.Pool)
-	inventorySvc := inventory.NewService(inventoryRepo, deps.Pool)
+	productSvc := product.NewService(productRepo)
+	inventorySvc := inventory.NewService(inventoryRepo)
 	cartSvc := wiring.NewCartService(cartRepo, deps.Pool, productSvc, deps.Config.App.MaxCartItems)
 	authSvc := auth.NewService(
 		userSvc,
@@ -70,7 +70,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	authSvc.SetBcryptCost(deps.Config.App.BcryptCost)
 	promotionSvc := promotion.NewService(promotionRepo, deps.Pool)
 	notificationSvc := notification.NewService(notificationRepo)
-	wishlistSvc := wishlist.NewService(wishlistRepo, deps.Pool)
+	wishlistSvc := wishlist.NewService(wishlistRepo)
 	dashboardSvc := dashboard.NewService(dashboardRepo)
 
 	orderSvc := wiring.NewOrderService(orderRepo, deps.Pool, cartSvc, inventorySvc, promotionSvc, notificationSvc)

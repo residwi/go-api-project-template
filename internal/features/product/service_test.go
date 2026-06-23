@@ -19,7 +19,7 @@ import (
 func TestService_Create(t *testing.T) {
 	t.Run("success sets slug default currency and status", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*product.Product")).
 			Run(func(_ context.Context, p *product.Product) {
@@ -49,7 +49,7 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("sets currency status and stock from request", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		stockQty := 100
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p *product.Product) bool {
@@ -84,7 +84,7 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(core.ErrConflict)
 
@@ -100,7 +100,7 @@ func TestService_Create(t *testing.T) {
 func TestService_GetBySlug(t *testing.T) {
 	t.Run("success only published", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetBySlug(mock.Anything, "cool-widget").
@@ -123,7 +123,7 @@ func TestService_GetBySlug(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").
 			Return(nil, core.ErrNotFound)
@@ -134,7 +134,7 @@ func TestService_GetBySlug(t *testing.T) {
 
 	t.Run("draft product returns ErrNotFound", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "draft-item").
 			Return(&product.Product{
@@ -149,7 +149,7 @@ func TestService_GetBySlug(t *testing.T) {
 
 	t.Run("images fetch error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetBySlug(mock.Anything, "widget").
@@ -169,7 +169,7 @@ func TestService_GetBySlug(t *testing.T) {
 func TestService_GetByID(t *testing.T) {
 	t.Run("success loads images", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -192,7 +192,7 @@ func TestService_GetByID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, core.ErrNotFound)
@@ -204,7 +204,7 @@ func TestService_GetByID(t *testing.T) {
 
 	t.Run("images fetch error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -220,7 +220,7 @@ func TestService_GetByID(t *testing.T) {
 func TestService_ListPublished(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		params := product.PublishedListParams{Limit: 10}
 		products := []product.Product{
@@ -240,7 +240,7 @@ func TestService_ListPublished(t *testing.T) {
 func TestService_ListAdmin(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		params := product.AdminListParams{Page: 1, PageSize: 20}
 		products := []product.Product{
@@ -260,7 +260,7 @@ func TestService_ListAdmin(t *testing.T) {
 func TestService_Update(t *testing.T) {
 	t.Run("success partial update", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -291,7 +291,7 @@ func TestService_Update(t *testing.T) {
 
 	t.Run("updates all optional fields", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		catID := uuid.New()
@@ -346,7 +346,7 @@ func TestService_Update(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, core.ErrNotFound)
@@ -357,7 +357,7 @@ func TestService_Update(t *testing.T) {
 
 	t.Run("update repo error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -383,7 +383,7 @@ func TestService_Update(t *testing.T) {
 func TestService_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		repo.EXPECT().Delete(mock.Anything, id).Return(nil)
@@ -394,7 +394,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		repo.EXPECT().Delete(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(core.ErrNotFound)
@@ -407,7 +407,7 @@ func TestService_Delete(t *testing.T) {
 func TestService_AddImage(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		productID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, productID).
@@ -434,7 +434,7 @@ func TestService_AddImage(t *testing.T) {
 
 	t.Run("product not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, core.ErrNotFound)
@@ -447,7 +447,7 @@ func TestService_AddImage(t *testing.T) {
 
 	t.Run("add image repo error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		productID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, productID).
@@ -464,7 +464,7 @@ func TestService_AddImage(t *testing.T) {
 func TestService_DeleteImage(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		productID := uuid.New()
 		imageID := uuid.New()
@@ -478,7 +478,7 @@ func TestService_DeleteImage(t *testing.T) {
 
 	t.Run("product not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, core.ErrNotFound)
@@ -491,7 +491,7 @@ func TestService_DeleteImage(t *testing.T) {
 func TestService_AvailableQuantity(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -508,7 +508,7 @@ func TestService_AvailableQuantity(t *testing.T) {
 
 	t.Run("negative available returns ErrInsufficientStock", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -524,7 +524,7 @@ func TestService_AvailableQuantity(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := product.NewService(repo, nil)
+		svc := product.NewService(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, core.ErrNotFound)
