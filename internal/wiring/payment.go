@@ -63,6 +63,7 @@ func (a *orderGetterAdapter) GetByID(ctx context.Context, orderID uuid.UUID) (pa
 		CouponCode:    couponCode,
 		StockDeducted: o.StockDeducted,
 		StockReversed: o.StockReversed,
+		Dispatched:    o.Status == order.StatusShipped || o.Status == order.StatusDelivered,
 	}, nil
 }
 

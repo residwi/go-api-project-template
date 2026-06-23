@@ -57,6 +57,11 @@ type OrderSnapshot struct {
 	// and to skip a reversal that already happened (avoiding a double release).
 	StockDeducted bool
 	StockReversed bool
+	// Dispatched reports whether the order's goods have physically left the
+	// warehouse (shipped/delivered). The order module owns the mapping from its
+	// status enum; payment reads this flag to skip restocking on refund rather
+	// than re-deriving order semantics from a status string it can't import.
+	Dispatched bool
 }
 
 type OrderGetter interface {
@@ -206,6 +211,14 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 			}
 			result.PaymentURL = resp.PaymentURL
 		}
+	default:
+		// A synchronous decline (non-success, non-pending) must surface as an
+		// error, not be swallowed into the nil-error fall-through that would make a
+		// declined charge look like success. Handled like the gateway-error path
+		// above; the order stays awaiting_payment for retry/expiry.
+		slog.WarnContext(ctx, "gateway declined charge synchronously",
+			"payment_id", p.ID, "order_id", params.OrderID, "gateway_status", resp.Status)
+		return result, fmt.Errorf("%w: payment was declined", core.ErrBadRequest)
 	}
 
 	return result, nil
@@ -506,7 +519,13 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		if listErr != nil {
 			return listErr
 		}
-		if len(items) > 0 && !orderSnap.StockReversed {
+		switch {
+		case orderSnap.Dispatched:
+			// The goods already left the warehouse, so refund the money but do NOT
+			// restock — adding shipped units back to sellable stock would oversell.
+			slog.InfoContext(txCtx, "refund: skipping inventory restock for dispatched order",
+				"order_id", job.OrderID, "order_status", orderSnap.Status)
+		case len(items) > 0 && !orderSnap.StockReversed:
 			// Inventory owns release-vs-restock; we pass the order's persisted fact.
 			if restoreErr := s.inventoryRestorer.Restore(txCtx, toInventoryChanges(items), orderSnap.StockDeducted); restoreErr != nil {
 				slog.ErrorContext(txCtx, "failed to restore inventory on refund",
@@ -569,7 +588,10 @@ func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) err
 		return nil
 	}
 
-	if p.Status == StatusSuccess || p.Status == StatusRefunded {
+	// requires_review means a compensating refund already owns this payment, so a
+	// late/replayed webhook must not re-drive it (a failed event would cancel the
+	// in-flight refund job; a duplicate success would re-finalize it).
+	if p.Status == StatusSuccess || p.Status == StatusRefunded || p.Status == StatusRequiresReview {
 		return nil
 	}
 
