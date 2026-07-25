@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -120,7 +120,7 @@ func (r *PostgresRepository) UpdateItemQuantity(ctx context.Context, cartID, pro
 		return fmt.Errorf("updating cart item quantity: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
@@ -135,7 +135,7 @@ func (r *PostgresRepository) RemoveItem(ctx context.Context, cartID, productID u
 		return fmt.Errorf("removing cart item: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
@@ -193,7 +193,7 @@ func (r *PostgresRepository) GetCartForLock(ctx context.Context, userID uuid.UUI
 	).Scan(&cartID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return uuid.Nil, core.ErrNotFound
+			return uuid.Nil, apperror.ErrNotFound
 		}
 		return uuid.Nil, fmt.Errorf("locking cart: %w", err)
 	}

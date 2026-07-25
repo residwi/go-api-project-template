@@ -9,9 +9,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/features/notification"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/features/notification"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -359,7 +360,7 @@ func (_c *MockRepository_CreateJob_Call) RunAndReturn(run func(ctx context.Conte
 }
 
 // ListByUser provides a mock function for the type MockRepository
-func (_mock *MockRepository) ListByUser(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]notification.Notification, error) {
+func (_mock *MockRepository) ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]notification.Notification, error) {
 	ret := _mock.Called(ctx, userID, cursor)
 
 	if len(ret) == 0 {
@@ -368,17 +369,17 @@ func (_mock *MockRepository) ListByUser(ctx context.Context, userID uuid.UUID, c
 
 	var r0 []notification.Notification
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, core.CursorPage) ([]notification.Notification, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, paging.CursorPage) ([]notification.Notification, error)); ok {
 		return returnFunc(ctx, userID, cursor)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, core.CursorPage) []notification.Notification); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, paging.CursorPage) []notification.Notification); ok {
 		r0 = returnFunc(ctx, userID, cursor)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]notification.Notification)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, core.CursorPage) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, paging.CursorPage) error); ok {
 		r1 = returnFunc(ctx, userID, cursor)
 	} else {
 		r1 = ret.Error(1)
@@ -394,12 +395,12 @@ type MockRepository_ListByUser_Call struct {
 // ListByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-//   - cursor core.CursorPage
+//   - cursor paging.CursorPage
 func (_e *MockRepository_Expecter) ListByUser(ctx interface{}, userID interface{}, cursor interface{}) *MockRepository_ListByUser_Call {
 	return &MockRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, cursor)}
 }
 
-func (_c *MockRepository_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, cursor core.CursorPage)) *MockRepository_ListByUser_Call {
+func (_c *MockRepository_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage)) *MockRepository_ListByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -409,9 +410,9 @@ func (_c *MockRepository_ListByUser_Call) Run(run func(ctx context.Context, user
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 core.CursorPage
+		var arg2 paging.CursorPage
 		if args[2] != nil {
-			arg2 = args[2].(core.CursorPage)
+			arg2 = args[2].(paging.CursorPage)
 		}
 		run(
 			arg0,
@@ -427,7 +428,7 @@ func (_c *MockRepository_ListByUser_Call) Return(notifications []notification.No
 	return _c
 }
 
-func (_c *MockRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]notification.Notification, error)) *MockRepository_ListByUser_Call {
+func (_c *MockRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]notification.Notification, error)) *MockRepository_ListByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -8,8 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/features/auth"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/features/auth"
 )
 
 // NewMockUserProvider creates a new instance of MockUserProvider. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

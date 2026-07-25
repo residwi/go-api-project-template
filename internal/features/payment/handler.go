@@ -9,7 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 )
 
 const webhookSignatureHeader = "X-Webhook-Signature"

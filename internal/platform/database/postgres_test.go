@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/config"
-	"github.com/residwi/go-api-project-template/internal/core"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -95,7 +95,7 @@ func TestNewPostgres(t *testing.T) {
 func TestNewReaderPostgres(t *testing.T) {
 	t.Run("empty url returns ErrReaderNotConfigured", func(t *testing.T) {
 		pool, err := database.NewReaderPostgres(context.Background(), config.DatabaseConfig{ReaderURL: ""})
-		require.ErrorIs(t, err, core.ErrReaderNotConfigured)
+		require.ErrorIs(t, err, apperror.ErrReaderNotConfigured)
 		assert.Nil(t, pool)
 	})
 

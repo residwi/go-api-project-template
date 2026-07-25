@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/review"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -124,7 +125,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 			Status:    "published",
 		}
 		err = repo.Create(ctx, second)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -160,7 +161,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		repo := review.NewPostgresRepository(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -199,7 +200,7 @@ func TestPostgresRepository_ListByProduct(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM reviews WHERE id = $1`, pending.ID) })
 
-		reviews, err := repo.ListByProduct(ctx, productID, core.CursorPage{Limit: 10})
+		reviews, err := repo.ListByProduct(ctx, productID, paging.CursorPage{Limit: 10})
 		require.NoError(t, err)
 		require.Len(t, reviews, 1)
 		assert.Equal(t, published.ID, reviews[0].ID)
@@ -223,14 +224,14 @@ func TestPostgresRepository_ListByProduct(t *testing.T) {
 			t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM reviews WHERE id = $1`, r.ID) })
 		}
 
-		page1, err := repo.ListByProduct(ctx, productID, core.CursorPage{Limit: 2})
+		page1, err := repo.ListByProduct(ctx, productID, paging.CursorPage{Limit: 2})
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(page1), 2)
 
 		last := page1[1]
-		cursor := core.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
+		cursor := paging.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
 
-		page2, err := repo.ListByProduct(ctx, productID, core.CursorPage{Cursor: cursor, Limit: 2})
+		page2, err := repo.ListByProduct(ctx, productID, paging.CursorPage{Cursor: cursor, Limit: 2})
 		require.NoError(t, err)
 		assert.NotEmpty(t, page2)
 	})
@@ -334,7 +335,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = repo.GetByID(ctx, rv.ID)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
@@ -342,7 +343,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		repo := review.NewPostgresRepository(testPool)
 
 		err := repo.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -352,7 +353,7 @@ func TestPostgresRepository_ListByProduct_InvalidCursor(t *testing.T) {
 		productID := seedProduct(t)
 		repo := review.NewPostgresRepository(testPool)
 
-		_, err := repo.ListByProduct(context.Background(), productID, core.CursorPage{Cursor: "!!!invalid!!!", Limit: 10})
+		_, err := repo.ListByProduct(context.Background(), productID, paging.CursorPage{Cursor: "!!!invalid!!!", Limit: 10})
 		assert.Error(t, err)
 	})
 }
@@ -384,7 +385,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("ListByProduct", func(t *testing.T) {
 		setup(t)
-		_, err := repo.ListByProduct(cancelledCtx, uuid.New(), core.CursorPage{Limit: 10})
+		_, err := repo.ListByProduct(cancelledCtx, uuid.New(), paging.CursorPage{Limit: 10})
 		assert.Error(t, err)
 	})
 

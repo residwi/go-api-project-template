@@ -9,8 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 func scanProduct(row pgx.CollectableRow) (Product, error) {
@@ -75,7 +76,7 @@ func (r *PostgresRepository) Create(ctx context.Context, p *Product) error {
 	).Scan(&p.ID, &p.ReservedQuantity, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("creating product: %w", err)
 	}
@@ -93,7 +94,7 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Produc
 		&p.Currency, &p.SKU, &p.StockQuantity, &p.ReservedQuantity, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting product by id: %w", err)
 	}
@@ -111,7 +112,7 @@ func (r *PostgresRepository) GetBySlug(ctx context.Context, slug string) (*Produ
 		&p.Currency, &p.SKU, &p.StockQuantity, &p.ReservedQuantity, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting product by slug: %w", err)
 	}
@@ -129,12 +130,12 @@ func (r *PostgresRepository) Update(ctx context.Context, p *Product) error {
 	)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("updating product: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
@@ -148,7 +149,7 @@ func (r *PostgresRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("deleting product: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
@@ -216,7 +217,7 @@ func (r *PostgresRepository) ListPublished(ctx context.Context, params Published
 	var nextCursor string
 	if hasMore && len(products) > 0 {
 		last := products[len(products)-1]
-		nextCursor = core.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
+		nextCursor = paging.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
 	}
 
 	return products, nextCursor, hasMore, nil
@@ -295,7 +296,7 @@ func (r *PostgresRepository) DeleteImage(ctx context.Context, imageID uuid.UUID)
 		return fmt.Errorf("deleting product image: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }

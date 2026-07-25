@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -71,7 +71,7 @@ func (s *Service) Release(ctx context.Context, orderID uuid.UUID) error {
 	return database.WithTx(ctx, s.pool, func(ctx context.Context) error {
 		usage, err := s.repo.DeleteUsageByOrderID(ctx, orderID)
 		if err != nil {
-			if errors.Is(err, core.ErrNotFound) {
+			if errors.Is(err, apperror.ErrNotFound) {
 				return nil
 			}
 			return err
@@ -166,30 +166,30 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 // here rather than in a validate tag.
 func validatePercentageValue(promoType Type, value int64) error {
 	if promoType == TypePercentage && value > 100 {
-		return fmt.Errorf("%w: percentage discount value cannot exceed 100", core.ErrBadRequest)
+		return fmt.Errorf("%w: percentage discount value cannot exceed 100", apperror.ErrBadRequest)
 	}
 	return nil
 }
 
 func validatePromotion(promo *Promotion, orderAmount int64) error {
 	if !promo.Active {
-		return fmt.Errorf("%w: promotion is not active", core.ErrBadRequest)
+		return fmt.Errorf("%w: promotion is not active", apperror.ErrBadRequest)
 	}
 
 	now := time.Now()
 	if now.Before(promo.StartsAt) {
-		return fmt.Errorf("%w: promotion has not started yet", core.ErrBadRequest)
+		return fmt.Errorf("%w: promotion has not started yet", apperror.ErrBadRequest)
 	}
 	if now.After(promo.ExpiresAt) {
-		return fmt.Errorf("%w: promotion has expired", core.ErrBadRequest)
+		return fmt.Errorf("%w: promotion has expired", apperror.ErrBadRequest)
 	}
 
 	if promo.MaxUses != nil && promo.UsedCount >= *promo.MaxUses {
-		return core.ErrCouponExhausted
+		return apperror.ErrCouponExhausted
 	}
 
 	if orderAmount < promo.MinOrderAmount {
-		return fmt.Errorf("%w: order amount below minimum", core.ErrBadRequest)
+		return fmt.Errorf("%w: order amount below minimum", apperror.ErrBadRequest)
 	}
 
 	return nil

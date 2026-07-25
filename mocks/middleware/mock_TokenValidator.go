@@ -5,8 +5,9 @@
 package mocks
 
 import (
-	"github.com/residwi/go-api-project-template/internal/middleware"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/middleware"
 )
 
 // NewMockTokenValidator creates a new instance of MockTokenValidator. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

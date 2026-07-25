@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/cart"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	cartMocks "github.com/residwi/go-api-project-template/mocks/cart"
 )
@@ -76,7 +76,7 @@ func TestCartHandler_GetCart(t *testing.T) {
 		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
-		repo.EXPECT().GetCart(mock.Anything, userID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetCart(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/cart", nil)
 		r = authRequest(r, userID)
@@ -98,7 +98,7 @@ func TestCartHandler_AddItem(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, core.ErrNotFound)
+		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
 
 		body := fmt.Sprintf(`{"product_id":"%s","quantity":1}`, productID)
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/cart/items", strings.NewReader(body))
@@ -122,7 +122,7 @@ func TestCartHandler_UpdateItem(t *testing.T) {
 		// touching the cart; let that pass so GetOrCreate is what fails here.
 		products.EXPECT().GetByID(mock.Anything, productID).
 			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 10}, nil)
-		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, core.ErrNotFound)
+		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, apperror.ErrNotFound)
 
 		body := `{"quantity":3}`
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/cart/items/"+productID.String(), strings.NewReader(body))
@@ -161,7 +161,7 @@ func TestCartHandler_RemoveItem(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, core.ErrNotFound)
+		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, apperror.ErrNotFound)
 
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/cart/items/"+productID.String(), nil)
 		r = authRequest(r, userID)

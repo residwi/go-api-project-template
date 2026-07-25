@@ -12,9 +12,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	mocks "github.com/residwi/go-api-project-template/mocks/order"
 )
 
@@ -79,7 +80,7 @@ func TestService_ExpireStale(t *testing.T) {
 
 		expired := order.Order{ID: uuid.New()}
 		repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return([]order.Order{expired}, nil)
-		repo.EXPECT().Apply(mock.Anything, expired.ID, order.ExpiredTransition).Return(core.ErrConflict)
+		repo.EXPECT().Apply(mock.Anything, expired.ID, order.ExpiredTransition).Return(apperror.ErrConflict)
 
 		// no ListItemsByOrderID / Restore / Release — the order is skipped
 
@@ -130,12 +131,12 @@ func TestService_RetryPayment(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		result, err := svc.RetryPayment(ctx, userID, orderID, paymentMethodID)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("not owned by user", func(t *testing.T) {
@@ -153,7 +154,7 @@ func TestService_RetryPayment(t *testing.T) {
 		result, err := svc.RetryPayment(ctx, userID, orderID, paymentMethodID)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("not payable when status is paid", func(t *testing.T) {
@@ -170,7 +171,7 @@ func TestService_RetryPayment(t *testing.T) {
 		result, err := svc.RetryPayment(ctx, userID, orderID, paymentMethodID)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrOrderNotPayable)
+		assert.ErrorIs(t, err, apperror.ErrOrderNotPayable)
 	})
 
 	t.Run("not payable when status is cancelled", func(t *testing.T) {
@@ -187,7 +188,7 @@ func TestService_RetryPayment(t *testing.T) {
 		result, err := svc.RetryPayment(ctx, userID, orderID, paymentMethodID)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrOrderNotPayable)
+		assert.ErrorIs(t, err, apperror.ErrOrderNotPayable)
 	})
 
 	t.Run("payment initiation fails", func(t *testing.T) {
@@ -259,12 +260,12 @@ func TestService_GetByID(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		result, err := svc.GetByID(ctx, userID, orderID)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("not owned by user", func(t *testing.T) {
@@ -282,7 +283,7 @@ func TestService_GetByID(t *testing.T) {
 		result, err := svc.GetByID(ctx, userID, orderID)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("list items error", func(t *testing.T) {
@@ -315,7 +316,7 @@ func TestService_ListByUser(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		cursor := core.CursorPage{Limit: 10}
+		cursor := paging.CursorPage{Limit: 10}
 		expected := []order.Order{
 			{ID: uuid.New(), UserID: userID, Status: order.StatusPaid},
 			{ID: uuid.New(), UserID: userID, Status: order.StatusDelivered},
@@ -333,7 +334,7 @@ func TestService_ListByUser(t *testing.T) {
 	t.Run("empty list", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		cursor := core.CursorPage{Limit: 10}
+		cursor := paging.CursorPage{Limit: 10}
 
 		repo.EXPECT().ListByUser(mock.Anything, userID, cursor).Return(nil, nil)
 
@@ -416,12 +417,12 @@ func TestService_AdminGetByID(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		result, err := svc.AdminGetByID(ctx, orderID)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("ListItemsByOrderID error propagates", func(t *testing.T) {
@@ -494,7 +495,7 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 
 		err := svc.AdminUpdateStatus(ctx, orderID, order.StatusDelivered)
 
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("rejects managed status cancelled without a direct write", func(t *testing.T) {
@@ -505,7 +506,7 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 
 		err := svc.AdminUpdateStatus(ctx, orderID, order.StatusCancelled)
 
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("rejects managed status refunded without a direct write", func(t *testing.T) {
@@ -513,17 +514,17 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 
 		err := svc.AdminUpdateStatus(ctx, orderID, order.StatusRefunded)
 
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("not found", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		err := svc.AdminUpdateStatus(ctx, orderID, order.StatusProcessing)
 
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("update status repo error", func(t *testing.T) {
@@ -535,11 +536,11 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		repo.EXPECT().UpdateStatus(mock.Anything, orderID, order.StatusPaid, order.StatusProcessing).Return(core.ErrConflict)
+		repo.EXPECT().UpdateStatus(mock.Anything, orderID, order.StatusPaid, order.StatusProcessing).Return(apperror.ErrConflict)
 
 		err := svc.AdminUpdateStatus(ctx, orderID, order.StatusProcessing)
 
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -562,11 +563,11 @@ func TestService_Apply(t *testing.T) {
 	t.Run("conflict error propagates", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		repo.EXPECT().Apply(mock.Anything, orderID, order.RefundTransition).Return(core.ErrConflict)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.RefundTransition).Return(apperror.ErrConflict)
 
 		err := svc.Apply(ctx, orderID, order.RefundTransition)
 
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -656,7 +657,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		svc, repo, cart, _, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-empty-cart"
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID:    uuid.New(),
@@ -667,14 +668,14 @@ func TestService_PlaceOrder(t *testing.T) {
 		resp, err := svc.PlaceOrder(database.WithTestTx(ctx, noopDBTX{}), userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, core.ErrCartEmpty)
+		assert.ErrorIs(t, err, apperror.ErrCartEmpty)
 	})
 
 	t.Run("unavailable product returns ErrBadRequest", func(t *testing.T) {
 		svc, repo, cart, _, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-unavailable"
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -694,14 +695,14 @@ func TestService_PlaceOrder(t *testing.T) {
 		resp, err := svc.PlaceOrder(database.WithTestTx(ctx, noopDBTX{}), userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("GetCart error propagates", func(t *testing.T) {
 		svc, repo, cart, _, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-cart-error"
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cartErr := errors.New("cart service error")
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(nil, cartErr)
@@ -720,7 +721,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		productA := uuid.New()
 		productB := uuid.New()
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -762,7 +763,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		productA := uuid.New()
 		couponCode := "SAVE20"
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -798,7 +799,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		svc, repo, cart, _, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-mixed-ccy"
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -812,7 +813,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		resp, err := svc.PlaceOrder(database.WithTestTx(ctx, noopDBTX{}), userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("idempotent replay propagates ListItemsByOrderID error", func(t *testing.T) {
@@ -847,7 +848,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		productA := uuid.New()
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -876,7 +877,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		productA := uuid.New()
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -909,7 +910,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		productA := uuid.New()
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -935,7 +936,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		productA := uuid.New()
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -962,7 +963,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		productA := uuid.New()
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -990,7 +991,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		productA := uuid.New()
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -1020,7 +1021,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		productA := uuid.New()
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -1060,7 +1061,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		productA := uuid.New()
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
@@ -1099,11 +1100,11 @@ func TestService_CancelOrder(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		err := svc.CancelOrder(ctx, userID, orderID)
 
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("not owned by user", func(t *testing.T) {
@@ -1120,7 +1121,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		err := svc.CancelOrder(ctx, userID, orderID)
 
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("payment processing returns ErrOrderCharging", func(t *testing.T) {
@@ -1136,7 +1137,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		err := svc.CancelOrder(ctx, userID, orderID)
 
-		assert.ErrorIs(t, err, core.ErrOrderCharging)
+		assert.ErrorIs(t, err, apperror.ErrOrderCharging)
 	})
 
 	t.Run("invalid transition from delivered", func(t *testing.T) {
@@ -1149,11 +1150,11 @@ func TestService_CancelOrder(t *testing.T) {
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(core.ErrConflict)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(apperror.ErrConflict)
 
 		err := svc.CancelOrder(database.WithTestTx(ctx, noopDBTX{}), userID, orderID)
 
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("invalid transition from paid", func(t *testing.T) {
@@ -1166,11 +1167,11 @@ func TestService_CancelOrder(t *testing.T) {
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(core.ErrConflict)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(apperror.ErrConflict)
 
 		err := svc.CancelOrder(database.WithTestTx(ctx, noopDBTX{}), userID, orderID)
 
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("invalid transition from shipped", func(t *testing.T) {
@@ -1183,11 +1184,11 @@ func TestService_CancelOrder(t *testing.T) {
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(core.ErrConflict)
+		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(apperror.ErrConflict)
 
 		err := svc.CancelOrder(database.WithTestTx(ctx, noopDBTX{}), userID, orderID)
 
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("success cancels awaiting_payment order", func(t *testing.T) {

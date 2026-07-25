@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/shipping"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -110,7 +110,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		repo := shipping.NewPostgresRepository(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -142,7 +142,7 @@ func TestPostgresRepository_GetByOrderID(t *testing.T) {
 		repo := shipping.NewPostgresRepository(testPool)
 
 		_, err := repo.GetByOrderID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -184,7 +184,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 			Status:  shipping.StatusPending,
 		}
 		err := repo.Update(context.Background(), s)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -219,7 +219,7 @@ func TestPostgresRepository_MarkShipped(t *testing.T) {
 		repo := shipping.NewPostgresRepository(testPool)
 
 		err := repo.MarkShipped(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -251,7 +251,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 		repo := shipping.NewPostgresRepository(testPool)
 
 		_, err := repo.MarkDelivered(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 

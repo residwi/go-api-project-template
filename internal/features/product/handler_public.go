@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 )
 
@@ -17,7 +17,7 @@ type publicHandler struct {
 }
 
 func (h *publicHandler) List(w http.ResponseWriter, r *http.Request) {
-	cursor := core.ParseCursorPage(r)
+	cursor := paging.ParseCursorPage(r)
 
 	params := PublishedListParams{
 		Cursor: cursor.Cursor,
@@ -56,7 +56,7 @@ func (h *publicHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.Paginated(w, core.NewCursorPageResult(products, nextCursor, hasMore))
+	response.Paginated(w, paging.NewCursorPageResult(products, nextCursor, hasMore))
 }
 
 func (h *publicHandler) GetBySlug(w http.ResponseWriter, r *http.Request) {

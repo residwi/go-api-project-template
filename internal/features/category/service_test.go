@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/category"
 	mocks "github.com/residwi/go-api-project-template/mocks/category"
 )
@@ -49,14 +49,14 @@ func TestService_Create(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		svc := category.NewService(repo)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(core.ErrConflict)
+		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
 		result, err := svc.Create(context.Background(), category.CreateCategoryRequest{
 			Name: "Electronics",
 		})
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 
 	t.Run("sets sort order and active from request", func(t *testing.T) {
@@ -115,12 +115,12 @@ func TestService_GetBySlug(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		svc := category.NewService(repo)
 
-		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 
 		result, err := svc.GetBySlug(context.Background(), "nonexistent")
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -174,12 +174,12 @@ func TestService_GetByID(t *testing.T) {
 		svc := category.NewService(repo)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
 
 		result, err := svc.GetByID(context.Background(), id)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -221,7 +221,7 @@ func TestService_Update(t *testing.T) {
 		svc := category.NewService(repo)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
 
 		newName := "Gadgets"
 		result, err := svc.Update(context.Background(), id, category.UpdateCategoryRequest{
@@ -229,7 +229,7 @@ func TestService_Update(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
@@ -244,7 +244,7 @@ func TestService_Update(t *testing.T) {
 			Active: true,
 		}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
-		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(core.ErrConflict)
+		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
 		newName := "Gadgets"
 		result, err := svc.Update(context.Background(), id, category.UpdateCategoryRequest{
@@ -252,7 +252,7 @@ func TestService_Update(t *testing.T) {
 		})
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 
 	t.Run("updates all optional fields", func(t *testing.T) {
@@ -314,11 +314,11 @@ func TestService_Delete(t *testing.T) {
 
 		id := uuid.New()
 		repo.EXPECT().CountPublishedProducts(mock.Anything, id).Return(0, nil)
-		repo.EXPECT().Delete(mock.Anything, id).Return(core.ErrNotFound)
+		repo.EXPECT().Delete(mock.Anything, id).Return(apperror.ErrNotFound)
 
 		err := svc.Delete(context.Background(), id)
 
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("has published products returns ErrBadRequest", func(t *testing.T) {
@@ -330,7 +330,7 @@ func TestService_Delete(t *testing.T) {
 
 		err := svc.Delete(context.Background(), id)
 
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("count published products error", func(t *testing.T) {

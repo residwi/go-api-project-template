@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 )
 
 type handler struct {
@@ -21,7 +21,7 @@ func (h *handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cursor := core.ParseCursorPage(r)
+	cursor := paging.ParseCursorPage(r)
 
 	notifications, err := h.service.ListByUser(r.Context(), uc.UserID, cursor)
 	if err != nil {

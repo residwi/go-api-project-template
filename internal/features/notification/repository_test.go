@@ -11,8 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/notification"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -85,7 +86,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 			require.NoError(t, repo.Create(ctx, n))
 		}
 
-		items, err := repo.ListByUser(ctx, userID, core.CursorPage{Limit: 10})
+		items, err := repo.ListByUser(ctx, userID, paging.CursorPage{Limit: 10})
 		require.NoError(t, err)
 		assert.Len(t, items, 3)
 	})
@@ -101,7 +102,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 			require.NoError(t, repo.Create(ctx, n))
 		}
 
-		items, err := repo.ListByUser(ctx, userID, core.CursorPage{Limit: 3})
+		items, err := repo.ListByUser(ctx, userID, paging.CursorPage{Limit: 3})
 		require.NoError(t, err)
 		// ListByUser fetches Limit+1 to detect next page
 		assert.Len(t, items, 4)
@@ -118,14 +119,14 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 			require.NoError(t, repo.Create(ctx, n))
 		}
 
-		page1, err := repo.ListByUser(ctx, userID, core.CursorPage{Limit: 2})
+		page1, err := repo.ListByUser(ctx, userID, paging.CursorPage{Limit: 2})
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(page1), 2)
 
 		last := page1[1]
-		cursor := core.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
+		cursor := paging.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
 
-		page2, err := repo.ListByUser(ctx, userID, core.CursorPage{Cursor: cursor, Limit: 2})
+		page2, err := repo.ListByUser(ctx, userID, paging.CursorPage{Cursor: cursor, Limit: 2})
 		require.NoError(t, err)
 		assert.NotEmpty(t, page2)
 		for _, n := range page2 {
@@ -156,7 +157,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		repo := notification.NewPostgresRepository(testPool)
 
 		err := repo.MarkRead(context.Background(), otherUserID, n.ID)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("returns not found for a missing notification id", func(t *testing.T) {
@@ -165,7 +166,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		repo := notification.NewPostgresRepository(testPool)
 
 		err := repo.MarkRead(context.Background(), userID, uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("is idempotent: re-marking an already-read notification succeeds", func(t *testing.T) {
@@ -281,7 +282,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 			Attempts: 1,
 		}
 		err := repo.UpdateJob(context.Background(), job)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -385,7 +386,7 @@ func TestPostgresRepository_ListByUser_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.ListByUser(ctx, uuid.New(), core.CursorPage{Limit: 10})
+		_, err := repo.ListByUser(ctx, uuid.New(), paging.CursorPage{Limit: 10})
 		assert.Error(t, err)
 	})
 }

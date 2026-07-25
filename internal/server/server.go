@@ -12,8 +12,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/config"
-	"github.com/residwi/go-api-project-template/internal/core"
 	"github.com/residwi/go-api-project-template/internal/platform/cache"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
@@ -38,7 +38,7 @@ func Run() error {
 
 	readerPool, err := database.NewReaderPostgres(ctx, cfg.Database)
 	if err != nil {
-		if !errors.Is(err, core.ErrReaderNotConfigured) {
+		if !errors.Is(err, apperror.ErrReaderNotConfigured) {
 			slog.Warn("failed to connect reader database, using primary", "error", err)
 		}
 		readerPool = nil

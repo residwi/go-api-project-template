@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -53,7 +53,7 @@ func (r *PostgresRepository) Create(ctx context.Context, promo *Promotion) error
 	).Scan(&promo.ID, &promo.UsedCount, &promo.CreatedAt, &promo.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("creating promotion: %w", err)
 	}
@@ -71,7 +71,7 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Promot
 		&p.Active, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting promotion by id: %w", err)
 	}
@@ -89,7 +89,7 @@ func (r *PostgresRepository) GetByCode(ctx context.Context, code string) (*Promo
 		&p.Active, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting promotion by code: %w", err)
 	}
@@ -106,12 +106,12 @@ func (r *PostgresRepository) Update(ctx context.Context, promo *Promotion) error
 	)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("updating promotion: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
@@ -123,7 +123,7 @@ func (r *PostgresRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("deleting promotion: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
@@ -165,7 +165,7 @@ func (r *PostgresRepository) ApplyPromotion(ctx context.Context, id uuid.UUID) e
 		return fmt.Errorf("applying promotion: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrCouponExhausted
+		return apperror.ErrCouponExhausted
 	}
 	return nil
 }
@@ -192,7 +192,7 @@ func (r *PostgresRepository) CreateUsage(ctx context.Context, usage *CouponUsage
 	).Scan(&usage.ID, &usage.CreatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("creating coupon usage: %w", err)
 	}
@@ -208,7 +208,7 @@ func (r *PostgresRepository) DeleteUsageByOrderID(ctx context.Context, orderID u
 	).Scan(&usage.CouponID, &usage.Discount)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("deleting coupon usage by order: %w", err)
 	}

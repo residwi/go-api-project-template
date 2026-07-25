@@ -17,11 +17,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	mocks "github.com/residwi/go-api-project-template/mocks/payment"
 )
@@ -86,7 +86,7 @@ func TestWebhookHandler_SignatureVerification(t *testing.T) {
 		mux, repo := setupPaymentMuxWithSecret(t, secret)
 		// Unknown payment id: service no-ops and returns 200, which is enough to
 		// prove the signature check passed and the body reached the service.
-		repo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{
 			"event":    "success",
@@ -368,7 +368,7 @@ func TestAdminHandler_Get(t *testing.T) {
 		mux, repo, _, _, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/payments/"+paymentID.String(), nil)

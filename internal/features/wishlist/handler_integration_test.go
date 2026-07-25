@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/wishlist"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	wishMocks "github.com/residwi/go-api-project-template/mocks/wishlist"
 )
@@ -148,7 +148,7 @@ func TestHandler_RemoveItem_ServiceError(t *testing.T) {
 		mux, repo, uc := setupWishlistMux(t)
 
 		productID := uuid.New()
-		repo.EXPECT().RemoveItem(mock.Anything, uc.UserID, productID).Return(core.ErrNotFound)
+		repo.EXPECT().RemoveItem(mock.Anything, uc.UserID, productID).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlist/items/"+productID.String(), nil)

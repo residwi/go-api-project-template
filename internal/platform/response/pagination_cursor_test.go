@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 )
 
 type pageRow struct {
@@ -23,8 +23,8 @@ type pageRow struct {
 func pageRowKey(r pageRow) (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
 type cursorPageBody struct {
-	Success bool                           `json:"success"`
-	Data    core.CursorPageResult[pageRow] `json:"data"`
+	Success bool                             `json:"success"`
+	Data    paging.CursorPageResult[pageRow] `json:"data"`
 }
 
 func TestCursorPage(t *testing.T) {
@@ -60,7 +60,7 @@ func TestCursorPage(t *testing.T) {
 		assert.True(t, body.Data.Pagination.HasMore)
 
 		// Cursor must encode the last KEPT row (second), in the canonical Z07:00 format.
-		want := core.EncodeCursor(second.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), second.ID.String())
+		want := paging.EncodeCursor(second.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), second.ID.String())
 		assert.Equal(t, want, body.Data.Pagination.NextCursor)
 	})
 

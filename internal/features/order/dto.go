@@ -4,16 +4,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/residwi/go-api-project-template/internal/core"
 )
 
 type PlaceOrderRequest struct {
-	PaymentMethodID string        `json:"payment_method_id" validate:"required"`
-	CouponCode      *string       `json:"coupon_code,omitempty"`
-	ShippingAddress *core.Address `json:"shipping_address,omitempty"`
-	BillingAddress  *core.Address `json:"billing_address,omitempty"`
-	Notes           string        `json:"notes,omitempty"`
+	PaymentMethodID string   `json:"payment_method_id" validate:"required"`
+	CouponCode      *string  `json:"coupon_code,omitempty"`
+	ShippingAddress *Address `json:"shipping_address,omitempty"`
+	BillingAddress  *Address `json:"billing_address,omitempty"`
+	Notes           string   `json:"notes,omitempty"`
 }
 
 type PlaceResponse struct {
@@ -33,8 +31,8 @@ type Response struct {
 	TotalAmount     int64          `json:"total_amount"`
 	CouponCode      *string        `json:"coupon_code,omitempty"`
 	Currency        string         `json:"currency"`
-	ShippingAddress *core.Address  `json:"shipping_address,omitempty"`
-	BillingAddress  *core.Address  `json:"billing_address,omitempty"`
+	ShippingAddress *Address       `json:"shipping_address,omitempty"`
+	BillingAddress  *Address       `json:"billing_address,omitempty"`
 	Notes           string         `json:"notes,omitempty"`
 	Items           []ItemResponse `json:"items,omitempty"`
 	CreatedAt       time.Time      `json:"created_at"`

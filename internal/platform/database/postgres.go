@@ -7,8 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/config"
-	"github.com/residwi/go-api-project-template/internal/core"
 )
 
 func NewPostgres(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
@@ -34,7 +34,7 @@ func NewPostgres(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool,
 
 func NewReaderPostgres(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
 	if cfg.ReaderURL == "" {
-		return nil, core.ErrReaderNotConfigured
+		return nil, apperror.ErrReaderNotConfigured
 	}
 
 	poolCfg, err := pgxpool.ParseConfig(cfg.ReaderURL)

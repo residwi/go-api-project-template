@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -64,7 +64,7 @@ func TestPostgresRepository_Reserve(t *testing.T) {
 		repo := inventory.NewPostgresRepository(testPool)
 
 		_, err := repo.Reserve(context.Background(), productID, 100)
-		assert.ErrorIs(t, err, core.ErrInsufficientStock)
+		assert.ErrorIs(t, err, apperror.ErrInsufficientStock)
 	})
 }
 
@@ -116,7 +116,7 @@ func TestPostgresRepository_Release(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = repo.Release(ctx, productID, 5)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 }
 
@@ -147,7 +147,7 @@ func TestPostgresRepository_Deduct(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = repo.Deduct(ctx, productID, 5)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 }
 
@@ -170,7 +170,7 @@ func TestPostgresRepository_Restock(t *testing.T) {
 		repo := inventory.NewPostgresRepository(testPool)
 
 		_, err := repo.Restock(context.Background(), uuid.New(), 5)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -193,7 +193,7 @@ func TestPostgresRepository_GetStock(t *testing.T) {
 		repo := inventory.NewPostgresRepository(testPool)
 
 		_, err := repo.GetStock(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -221,7 +221,7 @@ func TestPostgresRepository_AdjustStock(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = repo.AdjustStock(ctx, productID, 3)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 }
 

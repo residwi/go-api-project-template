@@ -11,8 +11,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 func scanOrder(row pgx.CollectableRow) (Order, error) {
@@ -65,7 +66,7 @@ type Repository interface {
 	CreateItems(ctx context.Context, items []Item) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Order, error)
 	GetByUserIDAndIdempotencyKey(ctx context.Context, userID uuid.UUID, key string) (*Order, error)
-	ListByUser(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Order, error)
+	ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]Order, error)
 	ListAdmin(ctx context.Context, params AdminListParams) ([]Order, int, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, fromStatus, toStatus Status) error
 	Apply(ctx context.Context, id uuid.UUID, t Transition) error
@@ -97,7 +98,7 @@ func (r *PostgresRepository) Create(ctx context.Context, order *Order) error {
 	).Scan(&order.ID, &order.CreatedAt, &order.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("creating order: %w", err)
 	}
@@ -171,7 +172,7 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Order,
 		&o.Notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting order by id: %w", err)
 	}
@@ -191,14 +192,14 @@ func (r *PostgresRepository) GetByUserIDAndIdempotencyKey(ctx context.Context, u
 		&o.Notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting order by idempotency key: %w", err)
 	}
 	return &o, nil
 }
 
-func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Order, error) {
+func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]Order, error) {
 	db := database.DB(ctx, r.pool)
 
 	args := []any{userID}
@@ -282,7 +283,7 @@ func (r *PostgresRepository) UpdateStatus(ctx context.Context, id uuid.UUID, fro
 	).Scan(&returnedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("updating order status: %w", err)
 	}
@@ -299,13 +300,13 @@ func (r *PostgresRepository) UpdateTotals(ctx context.Context, id uuid.UUID, dis
 		return fmt.Errorf("updating order totals: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
 
 // Apply runs the guarded compare-and-set for a Transition: it moves the order to
-// t.To only if its current status is one of t.From, returning core.ErrConflict
+// t.To only if its current status is one of t.From, returning apperror.ErrConflict
 // if nothing matched.
 func (r *PostgresRepository) Apply(ctx context.Context, id uuid.UUID, t Transition) error {
 	db := database.DB(ctx, r.pool)
@@ -322,7 +323,7 @@ func (r *PostgresRepository) Apply(ctx context.Context, id uuid.UUID, t Transiti
 	).Scan(&returnedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("applying order transition: %w", err)
 	}

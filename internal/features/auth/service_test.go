@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/auth"
 	mocks "github.com/residwi/go-api-project-template/mocks/auth"
 )
@@ -65,7 +65,7 @@ func TestService_Register(t *testing.T) {
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		users.EXPECT().Create(mock.Anything, mock.Anything).
-			Return(auth.UserResult{}, core.ErrConflict)
+			Return(auth.UserResult{}, apperror.ErrConflict)
 
 		resp, err := svc.Register(context.Background(), auth.RegisterRequest{
 			Email:     "dup@example.com",
@@ -75,7 +75,7 @@ func TestService_Register(t *testing.T) {
 		})
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 
 	t.Run("password exceeding 72 bytes is a bad request, not a 500", func(t *testing.T) {
@@ -91,7 +91,7 @@ func TestService_Register(t *testing.T) {
 
 		assert.Nil(t, resp)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 }
 
@@ -144,7 +144,7 @@ func TestService_Login(t *testing.T) {
 		})
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, core.ErrUnauthorized)
+		assert.ErrorIs(t, err, apperror.ErrUnauthorized)
 	})
 
 	t.Run("wrong password returns ErrInvalidCredentials", func(t *testing.T) {
@@ -166,7 +166,7 @@ func TestService_Login(t *testing.T) {
 		})
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, core.ErrInvalidCredentials)
+		assert.ErrorIs(t, err, apperror.ErrInvalidCredentials)
 	})
 
 	t.Run("user not found returns ErrInvalidCredentials", func(t *testing.T) {
@@ -181,7 +181,7 @@ func TestService_Login(t *testing.T) {
 		})
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, core.ErrInvalidCredentials)
+		assert.ErrorIs(t, err, apperror.ErrInvalidCredentials)
 	})
 }
 
@@ -225,7 +225,7 @@ func TestService_RefreshToken(t *testing.T) {
 		resp, err := svc.RefreshToken(context.Background(), "invalid-token")
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, core.ErrInvalidToken)
+		assert.ErrorIs(t, err, apperror.ErrInvalidToken)
 	})
 
 	t.Run("access token instead of refresh returns ErrInvalidToken", func(t *testing.T) {
@@ -244,7 +244,7 @@ func TestService_RefreshToken(t *testing.T) {
 		resp, err := svc.RefreshToken(context.Background(), accessToken)
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, core.ErrInvalidToken)
+		assert.ErrorIs(t, err, apperror.ErrInvalidToken)
 	})
 
 	t.Run("inactive user returns ErrUnauthorized", func(t *testing.T) {
@@ -271,7 +271,7 @@ func TestService_RefreshToken(t *testing.T) {
 		resp, err := svc.RefreshToken(context.Background(), refreshToken)
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, core.ErrUnauthorized)
+		assert.ErrorIs(t, err, apperror.ErrUnauthorized)
 	})
 
 	t.Run("token version mismatch returns ErrInvalidToken", func(t *testing.T) {
@@ -298,7 +298,7 @@ func TestService_RefreshToken(t *testing.T) {
 		resp, err := svc.RefreshToken(context.Background(), refreshToken)
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, core.ErrInvalidToken)
+		assert.ErrorIs(t, err, apperror.ErrInvalidToken)
 	})
 
 	t.Run("GetByID error propagates", func(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/category"
 )
 
@@ -56,7 +56,7 @@ func TestServiceCreate_ValidateParent(t *testing.T) {
 			Name:     "Orphan-" + uuid.New().String()[:8],
 			ParentID: &nonExistent,
 		})
-		require.ErrorIs(t, err, core.ErrBadRequest)
+		require.ErrorIs(t, err, apperror.ErrBadRequest)
 		assert.ErrorContains(t, err, "parent category not found")
 	})
 
@@ -67,7 +67,7 @@ func TestServiceCreate_ValidateParent(t *testing.T) {
 		_, err := svc.Update(context.Background(), cat.ID, category.UpdateCategoryRequest{
 			ParentID: &cat.ID,
 		})
-		require.ErrorIs(t, err, core.ErrBadRequest)
+		require.ErrorIs(t, err, apperror.ErrBadRequest)
 		assert.ErrorContains(t, err, "cannot be its own parent")
 	})
 
@@ -86,7 +86,7 @@ func TestServiceCreate_ValidateParent(t *testing.T) {
 			Name:     "Level6-" + uuid.New().String()[:8],
 			ParentID: &level5.ID,
 		})
-		require.ErrorIs(t, err, core.ErrBadRequest)
+		require.ErrorIs(t, err, apperror.ErrBadRequest)
 		assert.ErrorContains(t, err, "depth exceeds maximum of 5")
 	})
 
@@ -102,7 +102,7 @@ func TestServiceCreate_ValidateParent(t *testing.T) {
 		_, err := svc.Update(context.Background(), catA.ID, category.UpdateCategoryRequest{
 			ParentID: &catC.ID,
 		})
-		require.ErrorIs(t, err, core.ErrBadRequest)
+		require.ErrorIs(t, err, apperror.ErrBadRequest)
 		assert.ErrorContains(t, err, "circular parent reference")
 	})
 }

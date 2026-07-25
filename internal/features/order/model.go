@@ -4,8 +4,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/residwi/go-api-project-template/internal/core"
 )
 
 type Status string
@@ -24,19 +22,19 @@ const (
 )
 
 type Order struct {
-	ID              uuid.UUID     `json:"id"`
-	UserID          uuid.UUID     `json:"user_id"`
-	IdempotencyKey  string        `json:"idempotency_key"`
-	RequestHash     string        `json:"-"`
-	Status          Status        `json:"status"`
-	SubtotalAmount  int64         `json:"subtotal_amount"`
-	DiscountAmount  int64         `json:"discount_amount"`
-	TotalAmount     int64         `json:"total_amount"`
-	CouponCode      *string       `json:"coupon_code,omitempty"`
-	Currency        string        `json:"currency"`
-	ShippingAddress *core.Address `json:"shipping_address,omitempty"`
-	BillingAddress  *core.Address `json:"billing_address,omitempty"`
-	Notes           string        `json:"notes,omitempty"`
+	ID              uuid.UUID `json:"id"`
+	UserID          uuid.UUID `json:"user_id"`
+	IdempotencyKey  string    `json:"idempotency_key"`
+	RequestHash     string    `json:"-"`
+	Status          Status    `json:"status"`
+	SubtotalAmount  int64     `json:"subtotal_amount"`
+	DiscountAmount  int64     `json:"discount_amount"`
+	TotalAmount     int64     `json:"total_amount"`
+	CouponCode      *string   `json:"coupon_code,omitempty"`
+	Currency        string    `json:"currency"`
+	ShippingAddress *Address  `json:"shipping_address,omitempty"`
+	BillingAddress  *Address  `json:"billing_address,omitempty"`
+	Notes           string    `json:"notes,omitempty"`
 	// StockDeducted reports whether the order's reserved stock has been deducted
 	// (sold); StockReversed reports whether its inventory hold has already been
 	// released or restocked. Both are persisted and set atomically with the

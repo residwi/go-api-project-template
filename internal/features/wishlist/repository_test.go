@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/wishlist"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -130,7 +131,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 		setup(t)
 		repo := wishlist.NewPostgresRepository(testPool)
 		err := repo.RemoveItem(context.Background(), uuid.New(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -140,7 +141,7 @@ func TestPostgresRepository_GetItems(t *testing.T) {
 		userID := seedUser(t)
 		repo := wishlist.NewPostgresRepository(testPool)
 
-		items, err := repo.GetItems(context.Background(), userID, core.CursorPage{Limit: 10})
+		items, err := repo.GetItems(context.Background(), userID, paging.CursorPage{Limit: 10})
 		require.NoError(t, err)
 		assert.Empty(t, items)
 	})
@@ -160,7 +161,7 @@ func TestPostgresRepository_GetItems(t *testing.T) {
 		}
 
 		// Fetch with limit 3 — returns limit+1 to detect more
-		items, err := repo.GetItems(ctx, userID, core.CursorPage{Limit: 3})
+		items, err := repo.GetItems(ctx, userID, paging.CursorPage{Limit: 3})
 		require.NoError(t, err)
 		assert.Len(t, items, 4) // limit+1 signals more available
 	})
@@ -177,14 +178,14 @@ func TestPostgresRepository_GetItems(t *testing.T) {
 			require.NoError(t, repo.AddItem(ctx, wishlistID, productID))
 		}
 
-		page1, err := repo.GetItems(ctx, userID, core.CursorPage{Limit: 2})
+		page1, err := repo.GetItems(ctx, userID, paging.CursorPage{Limit: 2})
 		require.NoError(t, err)
 		require.GreaterOrEqual(t, len(page1), 2)
 
 		last := page1[1]
-		cursor := core.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
+		cursor := paging.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
 
-		page2, err := repo.GetItems(ctx, userID, core.CursorPage{Cursor: cursor, Limit: 2})
+		page2, err := repo.GetItems(ctx, userID, paging.CursorPage{Cursor: cursor, Limit: 2})
 		require.NoError(t, err)
 		assert.NotEmpty(t, page2)
 		for _, item := range page2 {
@@ -232,7 +233,7 @@ func TestPostgresRepository_GetItems_InvalidCursor(t *testing.T) {
 
 		_, _ = repo.GetOrCreate(ctx, userID)
 
-		_, err := repo.GetItems(ctx, userID, core.CursorPage{Cursor: "!!!invalid!!!", Limit: 10})
+		_, err := repo.GetItems(ctx, userID, paging.CursorPage{Cursor: "!!!invalid!!!", Limit: 10})
 		assert.Error(t, err)
 	})
 }
@@ -263,7 +264,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("GetItems", func(t *testing.T) {
 		setup(t)
-		_, err := repo.GetItems(cancelledCtx, uuid.New(), core.CursorPage{Limit: 10})
+		_, err := repo.GetItems(cancelledCtx, uuid.New(), paging.CursorPage{Limit: 10})
 		assert.Error(t, err)
 	})
 

@@ -3,8 +3,8 @@ package cart
 import (
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/core/response"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 )
 

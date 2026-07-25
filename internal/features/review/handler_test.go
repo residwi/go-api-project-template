@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/review"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	revMocks "github.com/residwi/go-api-project-template/mocks/review"
 )
@@ -371,7 +371,7 @@ func TestHandler_Delete(t *testing.T) {
 		mux, repo, _ := setupReviewMux(t)
 
 		reviewID := uuid.New()
-		repo.EXPECT().Delete(mock.Anything, reviewID).Return(core.ErrNotFound)
+		repo.EXPECT().Delete(mock.Anything, reviewID).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/reviews/"+reviewID.String(), nil)

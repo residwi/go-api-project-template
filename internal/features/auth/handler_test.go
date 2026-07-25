@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/auth"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	authMocks "github.com/residwi/go-api-project-template/mocks/auth"
 )
@@ -133,7 +133,7 @@ func TestHandler_Register(t *testing.T) {
 	t.Run("service error duplicate email", func(t *testing.T) {
 		mux, users := newTestMux(t)
 
-		users.EXPECT().Create(mock.Anything, mock.Anything).Return(auth.UserResult{}, core.ErrConflict)
+		users.EXPECT().Create(mock.Anything, mock.Anything).Return(auth.UserResult{}, apperror.ErrConflict)
 
 		body, _ := json.Marshal(auth.RegisterRequest{
 			Email:     "test@example.com",
@@ -240,7 +240,7 @@ func TestHandler_Login(t *testing.T) {
 	t.Run("service error user not found", func(t *testing.T) {
 		mux, users := newTestMux(t)
 
-		users.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").Return(auth.UserCredentials{}, core.ErrNotFound)
+		users.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").Return(auth.UserCredentials{}, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(auth.LoginRequest{
 			Email:    "notfound@example.com",

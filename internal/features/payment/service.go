@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
 )
@@ -31,7 +31,7 @@ type OrderUpdater interface {
 	MarkFulfillmentFailedCompensating(ctx context.Context, orderID uuid.UUID) error
 	MarkRefunded(ctx context.Context, orderID uuid.UUID) error
 	// CancelUnpaid cancels an order whose payment terminally failed and releases
-	// its reserved stock and coupon. Returns a wrapped core.ErrBadRequest when the
+	// its reserved stock and coupon. Returns a wrapped apperror.ErrBadRequest when the
 	// order is no longer cancellable (e.g. already paid by a concurrent charge).
 	CancelUnpaid(ctx context.Context, orderID uuid.UUID) error
 }
@@ -148,12 +148,12 @@ type InitiatePaymentResult struct {
 
 func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentParams) (InitiatePaymentResult, error) {
 	existing, err := s.repo.GetActiveByOrderID(ctx, params.OrderID)
-	if err != nil && !errors.Is(err, core.ErrNotFound) {
+	if err != nil && !errors.Is(err, apperror.ErrNotFound) {
 		return InitiatePaymentResult{}, err
 	}
 
 	var p *Payment
-	if !errors.Is(err, core.ErrNotFound) {
+	if !errors.Is(err, apperror.ErrNotFound) {
 		p = existing
 	} else {
 		p = &Payment{
@@ -199,7 +199,7 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 		// deduct inventory — instead of leaving it in awaiting_payment for a webhook
 		// or job that never comes. Mirrors the webhook success path.
 		finalizeJob := Job{PaymentID: p.ID, OrderID: params.OrderID, Action: ActionCharge}
-		if finalizeErr := s.FinalizePaymentSuccess(ctx, finalizeJob); finalizeErr != nil && !errors.Is(finalizeErr, core.ErrAlreadyFinalized) {
+		if finalizeErr := s.FinalizePaymentSuccess(ctx, finalizeJob); finalizeErr != nil && !errors.Is(finalizeErr, apperror.ErrAlreadyFinalized) {
 			slog.ErrorContext(ctx, "synchronous charge succeeded but finalization failed, running compensating refund",
 				"payment_id", p.ID, "order_id", params.OrderID, "error", finalizeErr)
 			s.runCompensatingRefund(ctx, finalizeJob)
@@ -218,7 +218,7 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 		// above; the order stays awaiting_payment for retry/expiry.
 		slog.WarnContext(ctx, "gateway declined charge synchronously",
 			"payment_id", p.ID, "order_id", params.OrderID, "gateway_status", resp.Status)
-		return result, fmt.Errorf("%w: payment was declined", core.ErrBadRequest)
+		return result, fmt.Errorf("%w: payment was declined", apperror.ErrBadRequest)
 	}
 
 	return result, nil
@@ -292,7 +292,7 @@ func (s *Service) processChargeJob(ctx context.Context, job Job) error {
 			"gateway_txn_id", resp.TransactionID, "attempt", job.Attempts)
 
 		if finalizeErr := s.FinalizePaymentSuccess(ctx, job); finalizeErr != nil {
-			if errors.Is(finalizeErr, core.ErrAlreadyFinalized) {
+			if errors.Is(finalizeErr, apperror.ErrAlreadyFinalized) {
 				slog.InfoContext(ctx, "charge job: payment already finalized externally",
 					"job_id", job.ID, "order_id", job.OrderID)
 				return nil
@@ -352,7 +352,7 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 		}
 
 		if p.Amount != orderSnap.TotalAmount || p.Currency != orderSnap.Currency {
-			return core.ErrAmountMismatch
+			return apperror.ErrAmountMismatch
 		}
 
 		paymentErr := s.repo.MarkPaid(txCtx, job.PaymentID,
@@ -366,7 +366,7 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 			if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
 				slog.ErrorContext(txCtx, "failed to mark job completed", "job_id", job.ID, "error", markErr)
 			}
-			return core.ErrAlreadyFinalized
+			return apperror.ErrAlreadyFinalized
 		}
 
 		if orderErr != nil {
@@ -575,7 +575,7 @@ func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) err
 	if p == nil && txnID != "" {
 		found, getErr := s.repo.GetByGatewayTxnID(ctx, txnID)
 		if getErr != nil {
-			if !errors.Is(getErr, core.ErrNotFound) {
+			if !errors.Is(getErr, apperror.ErrNotFound) {
 				slog.ErrorContext(ctx, "webhook: failed to get payment by gateway txn id", "txn_id", txnID, "error", getErr)
 			}
 		} else {
@@ -603,7 +603,7 @@ func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) err
 			Action:    ActionCharge,
 		}
 		if err := s.FinalizePaymentSuccess(ctx, job); err != nil {
-			if errors.Is(err, core.ErrAlreadyFinalized) {
+			if errors.Is(err, apperror.ErrAlreadyFinalized) {
 				break
 			}
 			// The gateway has already captured funds, so a finalization failure
@@ -636,7 +636,7 @@ func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) err
 		// reserved until the expiry sweep (which can't touch a payment_processing
 		// order at all). ErrBadRequest means the order is no longer cancellable
 		// (e.g. a concurrent charge already paid it) — leave it for that flow.
-		if err := s.orders.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, core.ErrBadRequest) {
+		if err := s.orders.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, apperror.ErrBadRequest) {
 			slog.ErrorContext(ctx, "webhook: failed to cancel order after payment failure", "order_id", p.OrderID, "error", err)
 		}
 		slog.InfoContext(ctx, "webhook payment failed",
@@ -657,7 +657,7 @@ func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
 	}
 
 	if p.Status != StatusSuccess && p.Status != StatusRequiresReview {
-		return fmt.Errorf("%w: payment is not refundable", core.ErrBadRequest)
+		return fmt.Errorf("%w: payment is not refundable", apperror.ErrBadRequest)
 	}
 
 	// The refund worker recomputes release-vs-restock from the order when it runs,

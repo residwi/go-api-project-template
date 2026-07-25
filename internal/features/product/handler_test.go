@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/product"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	prodMocks "github.com/residwi/go-api-project-template/mocks/product"
 )
@@ -210,7 +210,7 @@ func TestPublicHandler_GetBySlug(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		mux, repo := setupProductMux(t)
 
-		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products/nonexistent", nil)
@@ -262,7 +262,7 @@ func TestAdminHandler_CreateProduct(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		mux, repo := setupProductMux(t)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(core.ErrConflict)
+		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
 		body, _ := json.Marshal(product.CreateProductRequest{
 			Name:  "Duplicate",
@@ -360,7 +360,7 @@ func TestAdminHandler_GetProduct(t *testing.T) {
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, prodID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, prodID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/products/"+prodID.String(), nil)
@@ -422,7 +422,7 @@ func TestAdminHandler_DeleteProduct(t *testing.T) {
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
-		repo.EXPECT().Delete(mock.Anything, prodID).Return(core.ErrNotFound)
+		repo.EXPECT().Delete(mock.Anything, prodID).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/products/"+prodID.String(), nil)
@@ -626,7 +626,7 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, prodID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, prodID).Return(nil, apperror.ErrNotFound)
 
 		newName := "Updated"
 		body, _ := json.Marshal(product.UpdateProductRequest{

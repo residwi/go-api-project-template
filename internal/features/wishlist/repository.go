@@ -8,15 +8,16 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 type Repository interface {
 	GetOrCreate(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
 	AddItem(ctx context.Context, wishlistID, productID uuid.UUID) error
 	RemoveItem(ctx context.Context, userID, productID uuid.UUID) error
-	GetItems(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Item, error)
+	GetItems(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]Item, error)
 	HasItem(ctx context.Context, wishlistID, productID uuid.UUID) (bool, error)
 }
 
@@ -52,7 +53,7 @@ func (r *PostgresRepository) AddItem(ctx context.Context, wishlistID, productID 
 	)
 	if err != nil {
 		if database.IsForeignKeyViolation(err) {
-			return fmt.Errorf("%w: product not found", core.ErrNotFound)
+			return fmt.Errorf("%w: product not found", apperror.ErrNotFound)
 		}
 		return fmt.Errorf("adding wishlist item: %w", err)
 	}
@@ -71,12 +72,12 @@ func (r *PostgresRepository) RemoveItem(ctx context.Context, userID, productID u
 		return fmt.Errorf("removing wishlist item: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
 
-func (r *PostgresRepository) GetItems(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Item, error) {
+func (r *PostgresRepository) GetItems(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]Item, error) {
 	db := database.DB(ctx, r.pool)
 
 	args := []any{userID}

@@ -9,8 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 func scanNotification(row pgx.CollectableRow) (Notification, error) {
@@ -34,7 +35,7 @@ func scanJob(row pgx.CollectableRow) (Job, error) {
 
 type Repository interface {
 	Create(ctx context.Context, n *Notification) error
-	ListByUser(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Notification, error)
+	ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]Notification, error)
 	MarkRead(ctx context.Context, userID, id uuid.UUID) error
 	MarkAllRead(ctx context.Context, userID uuid.UUID) error
 	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
@@ -67,7 +68,7 @@ func (r *PostgresRepository) Create(ctx context.Context, n *Notification) error 
 	return nil
 }
 
-func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Notification, error) {
+func (r *PostgresRepository) ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]Notification, error) {
 	db := database.DB(ctx, r.pool)
 
 	args := []any{userID}
@@ -111,7 +112,7 @@ func (r *PostgresRepository) MarkRead(ctx context.Context, userID, id uuid.UUID)
 		return fmt.Errorf("marking notification read: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
@@ -199,7 +200,7 @@ func (r *PostgresRepository) UpdateJob(ctx context.Context, job *Job) error {
 		return fmt.Errorf("updating notification job: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }

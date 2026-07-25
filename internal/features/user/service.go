@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/auth"
 	"github.com/residwi/go-api-project-template/internal/middleware"
 )
@@ -122,7 +122,7 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware
 	if err != nil {
 		// A deleted/non-existent user is a definitive "deny", not an infra error:
 		// report inactive so middleware returns 401 instead of 500.
-		if errors.Is(err, core.ErrNotFound) {
+		if errors.Is(err, apperror.ErrNotFound) {
 			return middleware.UserStatusResult{Active: false}, nil
 		}
 		return middleware.UserStatusResult{}, err
@@ -212,7 +212,7 @@ func (s *Service) AdminUpdate(ctx context.Context, id uuid.UUID, req AdminUpdate
 
 func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUID, role string) error {
 	if requesterID == targetID {
-		return fmt.Errorf("%w: cannot change own role", core.ErrForbidden)
+		return fmt.Errorf("%w: cannot change own role", apperror.ErrForbidden)
 	}
 
 	u, err := s.repo.GetByID(ctx, targetID)
@@ -226,7 +226,7 @@ func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUI
 			return err
 		}
 		if count <= 1 {
-			return fmt.Errorf("%w: cannot remove last admin", core.ErrBadRequest)
+			return fmt.Errorf("%w: cannot remove last admin", apperror.ErrBadRequest)
 		}
 	}
 
@@ -249,7 +249,7 @@ func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUI
 
 func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) error {
 	if requesterID == targetID {
-		return fmt.Errorf("%w: cannot delete own account", core.ErrForbidden)
+		return fmt.Errorf("%w: cannot delete own account", apperror.ErrForbidden)
 	}
 
 	u, err := s.repo.GetByID(ctx, targetID)
@@ -263,7 +263,7 @@ func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) e
 			return err
 		}
 		if count <= 1 {
-			return fmt.Errorf("%w: cannot delete last admin", core.ErrBadRequest)
+			return fmt.Errorf("%w: cannot delete last admin", apperror.ErrBadRequest)
 		}
 	}
 

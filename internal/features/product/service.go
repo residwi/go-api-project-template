@@ -6,7 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
 
 type Service struct {
@@ -21,7 +22,7 @@ func (s *Service) Create(ctx context.Context, req CreateProductRequest) (*Produc
 	p := &Product{
 		CategoryID:     req.CategoryID,
 		Name:           req.Name,
-		Slug:           core.SlugifyOrFallback(req.Name, "product-"+uuid.New().String()[:8]),
+		Slug:           slug.MakeOrFallback(req.Name, "product-"+uuid.New().String()[:8]),
 		Description:    req.Description,
 		Price:          req.Price,
 		CompareAtPrice: req.CompareAtPrice,
@@ -54,7 +55,7 @@ func (s *Service) GetBySlug(ctx context.Context, slug string) (*Product, error) 
 	}
 
 	if p.Status != StatusPublished {
-		return nil, core.ErrNotFound
+		return nil, apperror.ErrNotFound
 	}
 
 	images, err := s.repo.GetImagesByProductID(ctx, p.ID)
@@ -100,7 +101,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateProductReq
 	}
 	if req.Name != nil {
 		p.Name = *req.Name
-		p.Slug = core.SlugifyOrFallback(p.Name, "product-"+p.ID.String()[:8])
+		p.Slug = slug.MakeOrFallback(p.Name, "product-"+p.ID.String()[:8])
 	}
 	if req.Description != nil {
 		p.Description = req.Description
@@ -172,7 +173,7 @@ func (s *Service) AvailableQuantity(ctx context.Context, id uuid.UUID) (int, err
 	}
 	avail := p.StockQuantity - p.ReservedQuantity
 	if avail < 0 {
-		return 0, fmt.Errorf("%w: negative available quantity", core.ErrInsufficientStock)
+		return 0, fmt.Errorf("%w: negative available quantity", apperror.ErrInsufficientStock)
 	}
 	return avail, nil
 }

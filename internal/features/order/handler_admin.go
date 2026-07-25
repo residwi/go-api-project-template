@@ -3,8 +3,8 @@ package order
 import (
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 )
 
@@ -14,7 +14,7 @@ type adminHandler struct {
 }
 
 func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
-	page := core.ParseOffsetPage(r)
+	page := paging.ParseOffsetPage(r)
 	params := AdminListParams{
 		Page:     page.Page,
 		PageSize: page.PageSize,
@@ -27,7 +27,7 @@ func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.Paginated(w, core.NewOffsetPageResult(orders, page, total))
+	response.Paginated(w, paging.NewOffsetPageResult(orders, page, total))
 }
 
 func (h *adminHandler) Get(w http.ResponseWriter, r *http.Request) {

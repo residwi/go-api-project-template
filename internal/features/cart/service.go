@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -49,10 +49,10 @@ func (s *Service) AddItem(ctx context.Context, userID uuid.UUID, req AddItemRequ
 	}
 
 	if p.Status != productStatusPublished {
-		return fmt.Errorf("%w: product is not available", core.ErrBadRequest)
+		return fmt.Errorf("%w: product is not available", apperror.ErrBadRequest)
 	}
 	if p.Available < req.Quantity {
-		return core.ErrInsufficientStock
+		return apperror.ErrInsufficientStock
 	}
 
 	return database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
@@ -68,7 +68,7 @@ func (s *Service) AddItem(ctx context.Context, userID uuid.UUID, req AddItemRequ
 		// Only a new distinct product can push the cart past the cap; bumping the
 		// quantity of a product already in the cart is always allowed.
 		if !hasItem && count >= s.maxCartItems {
-			return fmt.Errorf("%w: cart cannot have more than %d items", core.ErrBadRequest, s.maxCartItems)
+			return fmt.Errorf("%w: cart cannot have more than %d items", apperror.ErrBadRequest, s.maxCartItems)
 		}
 
 		return s.repo.AddItem(txCtx, cartID, req.ProductID, req.Quantity)
@@ -93,10 +93,10 @@ func (s *Service) UpdateQuantity(ctx context.Context, userID, productID uuid.UUI
 		return err
 	}
 	if p.Status != productStatusPublished {
-		return fmt.Errorf("%w: product is not available", core.ErrBadRequest)
+		return fmt.Errorf("%w: product is not available", apperror.ErrBadRequest)
 	}
 	if p.Available < req.Quantity {
-		return core.ErrInsufficientStock
+		return apperror.ErrInsufficientStock
 	}
 
 	cartID, err := s.repo.GetOrCreate(ctx, userID)

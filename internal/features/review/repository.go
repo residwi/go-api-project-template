@@ -9,8 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 func scanReview(row pgx.CollectableRow) (Review, error) {
@@ -22,7 +23,7 @@ func scanReview(row pgx.CollectableRow) (Review, error) {
 type Repository interface {
 	Create(ctx context.Context, review *Review) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Review, error)
-	ListByProduct(ctx context.Context, productID uuid.UUID, cursor core.CursorPage) ([]Review, error)
+	ListByProduct(ctx context.Context, productID uuid.UUID, cursor paging.CursorPage) ([]Review, error)
 	GetStats(ctx context.Context, productID uuid.UUID) (Stats, error)
 	HasUserReviewed(ctx context.Context, userID, productID uuid.UUID) (bool, error)
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -46,7 +47,7 @@ func (r *PostgresRepository) Create(ctx context.Context, review *Review) error {
 	).Scan(&review.ID, &review.CreatedAt, &review.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("creating review: %w", err)
 	}
@@ -62,14 +63,14 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Review
 	).Scan(&rv.ID, &rv.UserID, &rv.ProductID, &rv.OrderID, &rv.Rating, &rv.Title, &rv.Body, &rv.Status, &rv.CreatedAt, &rv.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting review by id: %w", err)
 	}
 	return &rv, nil
 }
 
-func (r *PostgresRepository) ListByProduct(ctx context.Context, productID uuid.UUID, cursor core.CursorPage) ([]Review, error) {
+func (r *PostgresRepository) ListByProduct(ctx context.Context, productID uuid.UUID, cursor paging.CursorPage) ([]Review, error) {
 	db := database.DB(ctx, r.pool)
 
 	args := []any{productID}
@@ -136,7 +137,7 @@ func (r *PostgresRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("deleting review: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }

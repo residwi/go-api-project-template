@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/product"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -86,7 +86,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 			Status:        product.StatusDraft,
 		}
 		err := repo.Create(context.Background(), dup)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -107,7 +107,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		repo := product.NewPostgresRepository(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -128,7 +128,7 @@ func TestPostgresRepository_GetBySlug(t *testing.T) {
 		repo := product.NewPostgresRepository(testPool)
 
 		_, err := repo.GetBySlug(context.Background(), "nonexistent-slug")
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -165,7 +165,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 			Status:        product.StatusDraft,
 		}
 		err := repo.Update(context.Background(), p)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("returns conflict on duplicate slug", func(t *testing.T) {
@@ -176,7 +176,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 		p2.Slug = p1.Slug
 		err := repo.Update(context.Background(), p2)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -199,14 +199,14 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, p.ID))
 
 		_, err := repo.GetByID(ctx, p.ID)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("returns not found for nonexistent product", func(t *testing.T) {
 		setup(t)
 		repo := product.NewPostgresRepository(testPool)
 		err := repo.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -359,7 +359,7 @@ func TestPostgresRepository_ListPublished_InvalidCursor(t *testing.T) {
 			Limit:  10,
 		})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 }
 
@@ -572,6 +572,6 @@ func TestPostgresRepository_Images(t *testing.T) {
 		assert.Empty(t, images)
 
 		err = repo.DeleteImage(ctx, img.ID)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }

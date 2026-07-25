@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/review"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	mocks "github.com/residwi/go-api-project-template/mocks/review"
 )
 
@@ -78,7 +79,7 @@ func TestService_Create(t *testing.T) {
 		result, err := svc.Create(ctx, userID, productID, req)
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("purchase verifier error propagates", func(t *testing.T) {
@@ -159,7 +160,7 @@ func TestService_Create(t *testing.T) {
 		result, err := svc.Create(ctx, userID, productID, req)
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -170,7 +171,7 @@ func TestService_ListByProduct(t *testing.T) {
 
 		ctx := context.Background()
 		productID := uuid.New()
-		cursor := core.CursorPage{Limit: 20}
+		cursor := paging.CursorPage{Limit: 20}
 		expected := []review.Review{
 			{ID: uuid.New(), ProductID: productID, Rating: 5, Title: "Great"},
 			{ID: uuid.New(), ProductID: productID, Rating: 4, Title: "Good"},
@@ -189,7 +190,7 @@ func TestService_ListByProduct(t *testing.T) {
 
 		ctx := context.Background()
 		productID := uuid.New()
-		cursor := core.CursorPage{Limit: 20}
+		cursor := paging.CursorPage{Limit: 20}
 		dbErr := errors.New("query failed")
 
 		repo.EXPECT().ListByProduct(mock.Anything, productID, cursor).Return(nil, dbErr)
@@ -253,9 +254,9 @@ func TestService_Delete(t *testing.T) {
 		ctx := context.Background()
 		id := uuid.New()
 
-		repo.EXPECT().Delete(mock.Anything, id).Return(core.ErrNotFound)
+		repo.EXPECT().Delete(mock.Anything, id).Return(apperror.ErrNotFound)
 
 		err := svc.Delete(ctx, id)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }

@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/notification"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	mocks "github.com/residwi/go-api-project-template/mocks/notification"
 )
 
@@ -56,7 +57,7 @@ func TestService_ListByUser(t *testing.T) {
 
 		ctx := context.Background()
 		userID := uuid.New()
-		cursor := core.CursorPage{Limit: 20}
+		cursor := paging.CursorPage{Limit: 20}
 		expected := []notification.Notification{
 			{ID: uuid.New(), UserID: userID, Type: notification.TypeOrderPlaced, Title: "Order Placed"},
 			{ID: uuid.New(), UserID: userID, Type: notification.TypeOrderShipped, Title: "Order Shipped"},
@@ -75,7 +76,7 @@ func TestService_ListByUser(t *testing.T) {
 
 		ctx := context.Background()
 		userID := uuid.New()
-		cursor := core.CursorPage{Limit: 20}
+		cursor := paging.CursorPage{Limit: 20}
 
 		repo.EXPECT().ListByUser(mock.Anything, userID, cursor).Return(nil, assert.AnError)
 
@@ -107,10 +108,10 @@ func TestService_MarkRead(t *testing.T) {
 		userID := uuid.New()
 		id := uuid.New()
 
-		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(core.ErrNotFound)
+		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(apperror.ErrNotFound)
 
 		err := svc.MarkRead(ctx, userID, id)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 

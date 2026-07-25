@@ -10,8 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 // staleProcessingThreshold is how long an order may sit in payment_processing
@@ -26,7 +27,7 @@ const productStatusPublished = "published"
 
 type CartProvider interface {
 	// LockCart takes a row lock on the user's cart for the current transaction so
-	// concurrent checkouts of the same cart serialize. Returns core.ErrNotFound
+	// concurrent checkouts of the same cart serialize. Returns apperror.ErrNotFound
 	// when the user has no cart.
 	LockCart(ctx context.Context, userID uuid.UUID) error
 	GetCart(ctx context.Context, userID uuid.UUID) (*CartSnapshot, error)
@@ -124,7 +125,7 @@ func NewService(
 
 func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrderRequest, idempotencyKey string) (*PlaceResponse, error) { //nolint:gocognit,funlen // checkout orchestrates idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction
 	existing, err := s.repo.GetByUserIDAndIdempotencyKey(ctx, userID, idempotencyKey)
-	if err != nil && !errors.Is(err, core.ErrNotFound) {
+	if err != nil && !errors.Is(err, apperror.ErrNotFound) {
 		return nil, err
 	}
 	if existing != nil {
@@ -156,8 +157,8 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 		// into a second order. The Idempotency-Key only dedupes retries of one
 		// request, not two distinct concurrent checkouts.
 		if txErr := s.cart.LockCart(txCtx, userID); txErr != nil {
-			if errors.Is(txErr, core.ErrNotFound) {
-				return core.ErrCartEmpty
+			if errors.Is(txErr, apperror.ErrNotFound) {
+				return apperror.ErrCartEmpty
 			}
 			return txErr
 		}
@@ -167,7 +168,7 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 			return txErr
 		}
 		if len(snapshot.Items) == 0 {
-			return core.ErrCartEmpty
+			return apperror.ErrCartEmpty
 		}
 
 		var subtotal int64
@@ -176,12 +177,12 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 		orderItems = make([]Item, len(snapshot.Items))
 		for i, item := range snapshot.Items {
 			if item.Status != productStatusPublished {
-				return fmt.Errorf("%w: product %s is not available", core.ErrBadRequest, item.Name)
+				return fmt.Errorf("%w: product %s is not available", apperror.ErrBadRequest, item.Name)
 			}
 			// All cart items must share one currency; summing across currencies
 			// would produce a meaningless total (and an arbitrary order currency).
 			if item.Currency != currency {
-				return fmt.Errorf("%w: cart contains mixed currencies", core.ErrBadRequest)
+				return fmt.Errorf("%w: cart contains mixed currencies", apperror.ErrBadRequest)
 			}
 			subtotal += item.Price * int64(item.Quantity)
 			reservations[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
@@ -289,10 +290,10 @@ func (s *Service) RetryPayment(ctx context.Context, userID, orderID uuid.UUID, p
 		return nil, err
 	}
 	if order.UserID != userID {
-		return nil, core.ErrNotFound
+		return nil, apperror.ErrNotFound
 	}
 	if order.Status != StatusAwaitingPayment {
-		return nil, core.ErrOrderNotPayable
+		return nil, apperror.ErrOrderNotPayable
 	}
 
 	result, err := s.payment.InitiatePayment(ctx, InitiatePaymentParams{
@@ -314,11 +315,11 @@ func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) er
 		return err
 	}
 	if order.UserID != userID {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 
 	if order.Status == StatusPaymentProcessing {
-		return core.ErrOrderCharging
+		return apperror.ErrOrderCharging
 	}
 
 	if err := s.cancelWithReversal(ctx, order); err != nil {
@@ -358,8 +359,8 @@ func (s *Service) CancelUnpaidByID(ctx context.Context, orderID uuid.UUID) error
 func (s *Service) cancelWithReversal(ctx context.Context, order *Order) error {
 	return database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
 		if txErr := s.repo.Apply(txCtx, order.ID, CancelledTransition); txErr != nil {
-			if errors.Is(txErr, core.ErrConflict) {
-				return fmt.Errorf("%w: cannot cancel order in status %s", core.ErrBadRequest, order.Status)
+			if errors.Is(txErr, apperror.ErrConflict) {
+				return fmt.Errorf("%w: cannot cancel order in status %s", apperror.ErrBadRequest, order.Status)
 			}
 			return txErr
 		}
@@ -409,7 +410,7 @@ func (s *Service) ExpireStale(ctx context.Context) error {
 func (s *Service) expireOne(ctx context.Context, o Order) error {
 	return database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
 		if err := s.repo.Apply(txCtx, o.ID, ExpiredTransition); err != nil {
-			if errors.Is(err, core.ErrConflict) {
+			if errors.Is(err, apperror.ErrConflict) {
 				return nil // another worker already moved it out of awaiting_payment
 			}
 			return err
@@ -457,7 +458,7 @@ func (s *Service) RecoverStaleProcessing(ctx context.Context) error {
 	}
 	for _, o := range orders {
 		if err := s.repo.Apply(ctx, o.ID, AwaitingPaymentTransition); err != nil {
-			if errors.Is(err, core.ErrConflict) {
+			if errors.Is(err, apperror.ErrConflict) {
 				continue // already moved on by another worker
 			}
 			slog.ErrorContext(ctx, "failed to recover stale processing order", "order_id", o.ID, "error", err)
@@ -472,7 +473,7 @@ func (s *Service) GetByID(ctx context.Context, userID, orderID uuid.UUID) (*Orde
 		return nil, err
 	}
 	if order.UserID != userID {
-		return nil, core.ErrNotFound
+		return nil, apperror.ErrNotFound
 	}
 
 	items, err := s.repo.ListItemsByOrderID(ctx, orderID)
@@ -484,7 +485,7 @@ func (s *Service) GetByID(ctx context.Context, userID, orderID uuid.UUID) (*Orde
 	return order, nil
 }
 
-func (s *Service) ListByUser(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Order, error) {
+func (s *Service) ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]Order, error) {
 	return s.repo.ListByUser(ctx, userID, cursor)
 }
 
@@ -528,7 +529,7 @@ func (s *Service) AdminUpdateStatus(ctx context.Context, orderID uuid.UUID, toSt
 		// i.e. from an order with money captured and stock deducted. A bare status
 		// write here would strand both — no refund, no restock — so it must go
 		// through the payment/refund compensating flow, not a direct admin update.
-		return fmt.Errorf("%w: status %s is managed by the payment, cancel, or refund flow and cannot be set with a direct status update", core.ErrBadRequest, toStatus)
+		return fmt.Errorf("%w: status %s is managed by the payment, cancel, or refund flow and cannot be set with a direct status update", apperror.ErrBadRequest, toStatus)
 	case StatusAwaitingPayment, StatusProcessing, StatusShipped, StatusDelivered:
 		// Side-effect-free fulfillment markers — allowed to be set directly below
 		// (subject to CanTransition); none of these reverse inventory or payment.
@@ -540,7 +541,7 @@ func (s *Service) AdminUpdateStatus(ctx context.Context, orderID uuid.UUID, toSt
 	}
 
 	if !CanTransition(order.Status, toStatus) {
-		return fmt.Errorf("%w: cannot transition from %s to %s", core.ErrBadRequest, order.Status, toStatus)
+		return fmt.Errorf("%w: cannot transition from %s to %s", apperror.ErrBadRequest, order.Status, toStatus)
 	}
 
 	return s.repo.UpdateStatus(ctx, orderID, order.Status, toStatus)
@@ -548,7 +549,7 @@ func (s *Service) AdminUpdateStatus(ctx context.Context, orderID uuid.UUID, toSt
 
 // Apply performs the guarded status transition t (a compare-and-set): it moves
 // the order to t.To only if its current status is one of t.From, returning
-// core.ErrConflict if nothing matched. It is the single entry point the
+// apperror.ErrConflict if nothing matched. It is the single entry point the
 // cross-feature wiring adapters call — each names its transition in
 // transition.go rather than passing ad-hoc from/to status lists.
 func (s *Service) Apply(ctx context.Context, orderID uuid.UUID, t Transition) error {

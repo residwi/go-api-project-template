@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -79,7 +79,7 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Paymen
 		&p.PaidAt, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting payment by id: %w", err)
 	}
@@ -109,7 +109,7 @@ func (r *PostgresRepository) GetActiveByOrderID(ctx context.Context, orderID uui
 		&p.PaidAt, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting active payment for order: %w", err)
 	}
@@ -138,7 +138,7 @@ func (r *PostgresRepository) GetByGatewayTxnID(ctx context.Context, txnID string
 		&p.PaidAt, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting payment by gateway txn id: %w", err)
 	}
@@ -163,7 +163,7 @@ func (r *PostgresRepository) UpdateStatus(ctx context.Context, id uuid.UUID, toS
 	).Scan(&returnedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("updating payment status: %w", err)
 	}
@@ -215,7 +215,7 @@ func (r *PostgresRepository) MarkPaid(ctx context.Context, id uuid.UUID, fromSta
 	).Scan(&returnedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("marking payment paid: %w", err)
 	}

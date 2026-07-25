@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	orderMocks "github.com/residwi/go-api-project-template/mocks/order"
 )
@@ -84,7 +84,7 @@ func TestPublicHandler_ListOrders(t *testing.T) {
 				UpdatedAt:      now,
 			},
 		}
-		repo.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("core.CursorPage")).Return(orders, nil)
+		repo.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).Return(orders, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders?limit=10", nil)
@@ -117,7 +117,7 @@ func TestPublicHandler_ListOrders(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
 		userID := uuid.New()
-		repo.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("core.CursorPage")).Return(nil, errors.New("db error"))
+		repo.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).Return(nil, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders", nil)
@@ -144,7 +144,7 @@ func TestPublicHandler_ListOrders(t *testing.T) {
 				UpdatedAt:      now,
 			}
 		}
-		repo.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("core.CursorPage")).Return(orders, nil)
+		repo.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).Return(orders, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders", nil)
@@ -239,7 +239,7 @@ func TestPublicHandler_GetOrder(t *testing.T) {
 
 		userID := uuid.New()
 		orderID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String(), nil)
@@ -439,7 +439,7 @@ func TestPublicHandler_RetryPayment(t *testing.T) {
 
 		userID := uuid.New()
 		orderID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`
@@ -605,7 +605,7 @@ func TestAdminHandler_GetOrder(t *testing.T) {
 	t.Run("service error not found", func(t *testing.T) {
 		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
 		orderID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/orders/"+orderID.String(), nil)
@@ -684,7 +684,7 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
 
 		orderID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		body := `{"status":"processing"}`

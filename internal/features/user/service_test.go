@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/auth"
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/middleware"
@@ -55,10 +55,10 @@ func TestService_GetByEmail(t *testing.T) {
 		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByEmail(mock.Anything, "nobody@example.com").
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		_, err := svc.GetByEmail(context.Background(), "nobody@example.com")
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -98,7 +98,7 @@ func TestService_Create(t *testing.T) {
 		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*user.User")).
-			Return(core.ErrConflict)
+			Return(apperror.ErrConflict)
 
 		_, err := svc.Create(context.Background(), auth.CreateUserParams{
 			Email:        "dup@example.com",
@@ -106,7 +106,7 @@ func TestService_Create(t *testing.T) {
 			FirstName:    "Dup",
 			LastName:     "User",
 		})
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -145,10 +145,10 @@ func TestService_GetByID(t *testing.T) {
 		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		_, err := svc.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -206,10 +206,10 @@ func TestService_GetProfile(t *testing.T) {
 		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		_, err := svc.GetProfile(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -277,10 +277,10 @@ func TestService_UpdateProfile(t *testing.T) {
 		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		_, err := svc.UpdateProfile(context.Background(), uuid.New(), user.UpdateProfileRequest{FirstName: "X"})
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("repo Update error propagates", func(t *testing.T) {
@@ -362,10 +362,10 @@ func TestService_AdminUpdate(t *testing.T) {
 		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		_, err := svc.AdminUpdate(context.Background(), uuid.New(), user.AdminUpdateUserRequest{})
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("repo Update error propagates", func(t *testing.T) {
@@ -455,7 +455,7 @@ func TestService_UpdateRole(t *testing.T) {
 		sameID := uuid.New()
 
 		err := svc.UpdateRole(context.Background(), sameID, sameID, "user")
-		assert.ErrorIs(t, err, core.ErrForbidden)
+		assert.ErrorIs(t, err, apperror.ErrForbidden)
 	})
 
 	t.Run("last admin blocked", func(t *testing.T) {
@@ -473,7 +473,7 @@ func TestService_UpdateRole(t *testing.T) {
 		repo.EXPECT().CountAdmins(mock.Anything).Return(1, nil)
 
 		err := svc.UpdateRole(context.Background(), requesterID, targetID, "user")
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("CountAdmins error propagates", func(t *testing.T) {
@@ -521,10 +521,10 @@ func TestService_UpdateRole(t *testing.T) {
 		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		err := svc.UpdateRole(context.Background(), uuid.New(), uuid.New(), "admin")
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("Update error propagates", func(t *testing.T) {
@@ -574,7 +574,7 @@ func TestService_Delete(t *testing.T) {
 		sameID := uuid.New()
 
 		err := svc.Delete(context.Background(), sameID, sameID)
-		assert.ErrorIs(t, err, core.ErrForbidden)
+		assert.ErrorIs(t, err, apperror.ErrForbidden)
 	})
 
 	t.Run("last admin blocked", func(t *testing.T) {
@@ -592,7 +592,7 @@ func TestService_Delete(t *testing.T) {
 		repo.EXPECT().CountAdmins(mock.Anything).Return(1, nil)
 
 		err := svc.Delete(context.Background(), requesterID, targetID)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("not found", func(t *testing.T) {
@@ -600,10 +600,10 @@ func TestService_Delete(t *testing.T) {
 		svc := user.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		err := svc.Delete(context.Background(), uuid.New(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("CountAdmins error propagates", func(t *testing.T) {

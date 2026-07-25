@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 )
 
@@ -23,7 +23,7 @@ func (h *publicHandler) ListByProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cursor := core.ParseCursorPage(r)
+	cursor := paging.ParseCursorPage(r)
 
 	reviews, err := h.service.ListByProduct(r.Context(), productID, cursor)
 	if err != nil {

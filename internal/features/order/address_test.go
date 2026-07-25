@@ -1,4 +1,4 @@
-package core_test
+package order_test
 
 import (
 	"encoding/json"
@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/features/order"
 )
 
 func TestAddress_JSONRoundTrip(t *testing.T) {
-	addr := core.Address{
+	addr := order.Address{
 		Street:  "123 Main St",
 		City:    "Springfield",
 		State:   "IL",
@@ -29,13 +29,13 @@ func TestAddress_JSONRoundTrip(t *testing.T) {
 		"country":"US"
 	}`, string(data))
 
-	var decoded core.Address
+	var decoded order.Address
 	err = json.Unmarshal(data, &decoded)
 	require.NoError(t, err)
 	assert.Equal(t, addr, decoded)
 }
 
 func TestAddress_ZeroValue(t *testing.T) {
-	var addr core.Address
-	assert.Equal(t, core.Address{}, addr)
+	var addr order.Address
+	assert.Equal(t, order.Address{}, addr)
 }

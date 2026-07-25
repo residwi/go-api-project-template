@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
@@ -73,7 +73,7 @@ func TestService_InitiatePayment(t *testing.T) {
 		svc, repo, gw, orders, orderGet, orderItems, inventory, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		var capturedPayment *payment.Payment
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*payment.Payment")).
@@ -198,7 +198,7 @@ func TestService_InitiatePayment(t *testing.T) {
 		svc, repo, gw, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		var createdID uuid.UUID
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*payment.Payment")).
@@ -233,7 +233,7 @@ func TestService_InitiatePayment(t *testing.T) {
 		svc, repo, gw, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*payment.Payment")).
 			Run(func(_ context.Context, p *payment.Payment) {
@@ -261,7 +261,7 @@ func TestService_InitiatePayment(t *testing.T) {
 		svc, repo, gw, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		var createdID uuid.UUID
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*payment.Payment")).
@@ -298,7 +298,7 @@ func TestService_InitiatePayment(t *testing.T) {
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*payment.Payment")).
 			Return(errors.New("insert failed"))
@@ -724,7 +724,7 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 		svc, repo, gw, orders, orderGet, orderItems, inventory, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		var capturedPayment *payment.Payment
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*payment.Payment")).
@@ -778,7 +778,7 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 		svc, repo, gw, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*payment.Payment")).
 			Run(func(_ context.Context, p *payment.Payment) {
@@ -1037,7 +1037,7 @@ func TestService_HandleWebhook(t *testing.T) {
 		unknownID := uuid.New()
 
 		repo.EXPECT().GetByID(mock.Anything, unknownID).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		payload := map[string]any{
 			"event": "success",
@@ -1246,7 +1246,7 @@ func TestService_Refund(t *testing.T) {
 		err := svc.Refund(ctx, paymentID)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("payment not refundable - cancelled status", func(t *testing.T) {
@@ -1265,7 +1265,7 @@ func TestService_Refund(t *testing.T) {
 		err := svc.Refund(ctx, paymentID)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("payment not found", func(t *testing.T) {
@@ -1274,12 +1274,12 @@ func TestService_Refund(t *testing.T) {
 		paymentID := uuid.New()
 
 		repo.EXPECT().GetByID(mock.Anything, paymentID).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		err := svc.Refund(ctx, paymentID)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("create job error", func(t *testing.T) {
@@ -1385,7 +1385,7 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 
 		err := svc.FinalizePaymentSuccess(ctx, job)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrAmountMismatch)
+		assert.ErrorIs(t, err, apperror.ErrAmountMismatch)
 	})
 
 	t.Run("currency mismatch returns error", func(t *testing.T) {
@@ -1415,7 +1415,7 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 
 		err := svc.FinalizePaymentSuccess(ctx, job)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrAmountMismatch)
+		assert.ErrorIs(t, err, apperror.ErrAmountMismatch)
 	})
 
 	t.Run("already finalized by webhook", func(t *testing.T) {
@@ -1454,7 +1454,7 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 			Return(nil)
 
 		err := svc.FinalizePaymentSuccess(ctx, job)
-		require.ErrorIs(t, err, core.ErrAlreadyFinalized)
+		require.ErrorIs(t, err, apperror.ErrAlreadyFinalized)
 	})
 
 	t.Run("late payment enqueues refund job", func(t *testing.T) {

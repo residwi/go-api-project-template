@@ -3,9 +3,9 @@ package shipping
 import (
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 )
 
 type publicHandler struct {
@@ -31,7 +31,7 @@ func (h *publicHandler) GetShipping(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if order.UserID != uc.UserID {
-		response.HandleErr(w, core.ErrNotFound)
+		response.HandleErr(w, apperror.ErrNotFound)
 		return
 	}
 

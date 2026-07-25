@@ -11,8 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/order"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -101,7 +102,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 		dup := newOrder(userID)
 		dup.IdempotencyKey = o.IdempotencyKey
 		err := repo.Create(context.Background(), dup)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -145,7 +146,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		setup(t)
 		repo := order.NewPostgresRepository(testPool)
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -168,7 +169,7 @@ func TestPostgresRepository_GetByUserIDAndIdempotencyKey(t *testing.T) {
 		repo := order.NewPostgresRepository(testPool)
 
 		got, err := repo.GetByUserIDAndIdempotencyKey(context.Background(), userID, "nonexistent-key")
-		require.ErrorIs(t, err, core.ErrNotFound)
+		require.ErrorIs(t, err, apperror.ErrNotFound)
 		assert.Nil(t, got)
 	})
 }
@@ -182,7 +183,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 		}
 		repo := order.NewPostgresRepository(testPool)
 
-		orders, err := repo.ListByUser(context.Background(), userID, core.CursorPage{Limit: 10})
+		orders, err := repo.ListByUser(context.Background(), userID, paging.CursorPage{Limit: 10})
 		require.NoError(t, err)
 		assert.Len(t, orders, 3)
 	})
@@ -195,14 +196,14 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 		}
 		repo := order.NewPostgresRepository(testPool)
 
-		page1, err := repo.ListByUser(context.Background(), userID, core.CursorPage{Limit: 2})
+		page1, err := repo.ListByUser(context.Background(), userID, paging.CursorPage{Limit: 2})
 		require.NoError(t, err)
 		require.Len(t, page1, 3) // limit+1 for hasMore
 
 		last := page1[1]
-		cursor := core.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
+		cursor := paging.EncodeCursor(last.CreatedAt.Format("2006-01-02T15:04:05.999999Z07:00"), last.ID.String())
 
-		page2, err := repo.ListByUser(context.Background(), userID, core.CursorPage{Cursor: cursor, Limit: 2})
+		page2, err := repo.ListByUser(context.Background(), userID, paging.CursorPage{Cursor: cursor, Limit: 2})
 		require.NoError(t, err)
 		assert.NotEmpty(t, page2)
 		for _, o := range page2 {
@@ -216,7 +217,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 		userID := seedUser(t)
 		repo := order.NewPostgresRepository(testPool)
 
-		orders, err := repo.ListByUser(context.Background(), userID, core.CursorPage{Limit: 10})
+		orders, err := repo.ListByUser(context.Background(), userID, paging.CursorPage{Limit: 10})
 		require.NoError(t, err)
 		assert.Empty(t, orders)
 	})
@@ -276,7 +277,7 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 
 		// Order is awaiting_payment, try to transition from paid (wrong from-status)
 		err := repo.UpdateStatus(context.Background(), o.ID, order.StatusPaid, order.StatusProcessing)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -437,7 +438,7 @@ func TestPostgresRepository_ListByUser_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.ListByUser(ctx, uuid.New(), core.CursorPage{Limit: 10})
+		_, err := repo.ListByUser(ctx, uuid.New(), paging.CursorPage{Limit: 10})
 		assert.Error(t, err)
 	})
 }

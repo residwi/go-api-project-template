@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -48,7 +48,7 @@ func (r *PostgresRepository) Create(ctx context.Context, shipment *Shipment) err
 	).Scan(&shipment.ID, &shipment.ShippedAt, &shipment.CreatedAt, &shipment.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return fmt.Errorf("%w: shipment already exists for this order", core.ErrConflict)
+			return fmt.Errorf("%w: shipment already exists for this order", apperror.ErrConflict)
 		}
 		return fmt.Errorf("creating shipment: %w", err)
 	}
@@ -65,7 +65,7 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Shipme
 		&s.ShippedAt, &s.DeliveredAt, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting shipment by id: %w", err)
 	}
@@ -82,7 +82,7 @@ func (r *PostgresRepository) GetByOrderID(ctx context.Context, orderID uuid.UUID
 		&s.ShippedAt, &s.DeliveredAt, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting shipment by order id: %w", err)
 	}
@@ -100,7 +100,7 @@ func (r *PostgresRepository) Update(ctx context.Context, shipment *Shipment) err
 		return fmt.Errorf("updating shipment: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
@@ -115,7 +115,7 @@ func (r *PostgresRepository) MarkShipped(ctx context.Context, id uuid.UUID) erro
 		return fmt.Errorf("marking shipment as shipped: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
@@ -134,7 +134,7 @@ func (r *PostgresRepository) MarkDelivered(ctx context.Context, id uuid.UUID) (*
 		&s.ShippedAt, &s.DeliveredAt, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("marking shipment as delivered: %w", err)
 	}

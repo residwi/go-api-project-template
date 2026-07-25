@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 type Service struct {
@@ -16,7 +16,7 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) GetWishlist(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Item, error) {
+func (s *Service) GetWishlist(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]Item, error) {
 	return s.repo.GetItems(ctx, userID, cursor)
 }
 

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/product"
 	mocks "github.com/residwi/go-api-project-template/mocks/product"
 )
@@ -86,14 +86,14 @@ func TestService_Create(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		svc := product.NewService(repo)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(core.ErrConflict)
+		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
 		p, err := svc.Create(context.Background(), product.CreateProductRequest{
 			Name:  "Widget",
 			Price: 1000,
 		})
 		assert.Nil(t, p)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -126,10 +126,10 @@ func TestService_GetBySlug(t *testing.T) {
 		svc := product.NewService(repo)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		_, err := svc.GetBySlug(context.Background(), "nonexistent")
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("draft product returns ErrNotFound", func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestService_GetBySlug(t *testing.T) {
 			}, nil)
 
 		_, err := svc.GetBySlug(context.Background(), "draft-item")
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("images fetch error", func(t *testing.T) {
@@ -195,11 +195,11 @@ func TestService_GetByID(t *testing.T) {
 		svc := product.NewService(repo)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
 
 		p, err := svc.GetByID(context.Background(), id)
 		assert.Nil(t, p)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("images fetch error", func(t *testing.T) {
@@ -349,10 +349,10 @@ func TestService_Update(t *testing.T) {
 		svc := product.NewService(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		_, err := svc.Update(context.Background(), uuid.New(), product.UpdateProductRequest{})
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
@@ -369,14 +369,14 @@ func TestService_Update(t *testing.T) {
 				Currency: "USD",
 				Status:   product.StatusDraft,
 			}, nil)
-		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(core.ErrConflict)
+		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
 		newName := "New"
 		p, err := svc.Update(context.Background(), id, product.UpdateProductRequest{
 			Name: &newName,
 		})
 		assert.Nil(t, p)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -397,10 +397,10 @@ func TestService_Delete(t *testing.T) {
 		svc := product.NewService(repo)
 
 		repo.EXPECT().Delete(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(core.ErrNotFound)
+			Return(apperror.ErrNotFound)
 
 		err := svc.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -437,12 +437,12 @@ func TestService_AddImage(t *testing.T) {
 		svc := product.NewService(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		_, err := svc.AddImage(context.Background(), uuid.New(), product.AddImageRequest{
 			URL: "https://img.example.com/x.jpg",
 		})
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("add image repo error", func(t *testing.T) {
@@ -481,10 +481,10 @@ func TestService_DeleteImage(t *testing.T) {
 		svc := product.NewService(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		err := svc.DeleteImage(context.Background(), uuid.New(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -519,7 +519,7 @@ func TestService_AvailableQuantity(t *testing.T) {
 			}, nil)
 
 		_, err := svc.AvailableQuantity(context.Background(), id)
-		assert.ErrorIs(t, err, core.ErrInsufficientStock)
+		assert.ErrorIs(t, err, apperror.ErrInsufficientStock)
 	})
 
 	t.Run("not found", func(t *testing.T) {
@@ -527,9 +527,9 @@ func TestService_AvailableQuantity(t *testing.T) {
 		svc := product.NewService(repo)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
 
 		_, err := svc.AvailableQuantity(context.Background(), id)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }

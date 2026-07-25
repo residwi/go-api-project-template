@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 )
 
 type AppError struct {
@@ -40,33 +40,33 @@ func HandleErr(w http.ResponseWriter, err error) {
 	}
 
 	switch {
-	case errors.Is(err, core.ErrNotFound):
+	case errors.Is(err, apperror.ErrNotFound):
 		NotFound(w, err.Error())
-	case errors.Is(err, core.ErrConflict):
+	case errors.Is(err, apperror.ErrConflict):
 		Conflict(w, err.Error())
-	case errors.Is(err, core.ErrBadRequest):
+	case errors.Is(err, apperror.ErrBadRequest):
 		BadRequest(w, err.Error())
-	case errors.Is(err, core.ErrUnauthorized), errors.Is(err, core.ErrInvalidCredentials):
+	case errors.Is(err, apperror.ErrUnauthorized), errors.Is(err, apperror.ErrInvalidCredentials):
 		Unauthorized(w, err.Error())
-	case errors.Is(err, core.ErrForbidden):
+	case errors.Is(err, apperror.ErrForbidden):
 		Forbidden(w, err.Error())
-	case errors.Is(err, core.ErrTokenExpired), errors.Is(err, core.ErrInvalidToken):
+	case errors.Is(err, apperror.ErrTokenExpired), errors.Is(err, apperror.ErrInvalidToken):
 		Unauthorized(w, err.Error())
-	case errors.Is(err, core.ErrInsufficientStock):
+	case errors.Is(err, apperror.ErrInsufficientStock):
 		Conflict(w, err.Error())
-	case errors.Is(err, core.ErrInsufficientFunds):
+	case errors.Is(err, apperror.ErrInsufficientFunds):
 		Conflict(w, err.Error())
-	case errors.Is(err, core.ErrCartEmpty):
+	case errors.Is(err, apperror.ErrCartEmpty):
 		BadRequest(w, err.Error())
-	case errors.Is(err, core.ErrOrderNotPayable):
+	case errors.Is(err, apperror.ErrOrderNotPayable):
 		BadRequest(w, err.Error())
-	case errors.Is(err, core.ErrOrderCharging):
+	case errors.Is(err, apperror.ErrOrderCharging):
 		Conflict(w, err.Error())
-	case errors.Is(err, core.ErrAmountMismatch):
+	case errors.Is(err, apperror.ErrAmountMismatch):
 		Conflict(w, err.Error())
-	case errors.Is(err, core.ErrCouponExhausted):
+	case errors.Is(err, apperror.ErrCouponExhausted):
 		Conflict(w, err.Error())
-	case errors.Is(err, core.ErrFulfillmentFailed):
+	case errors.Is(err, apperror.ErrFulfillmentFailed):
 		Conflict(w, err.Error())
 	default:
 		InternalError(w)

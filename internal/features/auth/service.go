@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/middleware"
 )
 
@@ -92,7 +92,7 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*TokenResp
 	// max=72 counts runes, so reject overlong multibyte passwords as a 400 here
 	// rather than letting bcrypt surface a 500.
 	if len(req.Password) > maxPasswordBytes {
-		return nil, fmt.Errorf("%w: password must not exceed %d bytes", core.ErrBadRequest, maxPasswordBytes)
+		return nil, fmt.Errorf("%w: password must not exceed %d bytes", apperror.ErrBadRequest, maxPasswordBytes)
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), s.bcryptCost)
@@ -119,15 +119,15 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*TokenResponse, 
 		// Run a dummy comparison so an unknown email takes about as long as a
 		// wrong password, removing the timing oracle for account enumeration.
 		_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(req.Password))
-		return nil, core.ErrInvalidCredentials
+		return nil, apperror.ErrInvalidCredentials
 	}
 
 	if !creds.Active {
-		return nil, core.ErrUnauthorized
+		return nil, apperror.ErrUnauthorized
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(creds.PasswordHash), []byte(req.Password)); err != nil {
-		return nil, core.ErrInvalidCredentials
+		return nil, apperror.ErrInvalidCredentials
 	}
 
 	return s.generateTokenResponse(UserResult{
@@ -144,11 +144,11 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*TokenResponse, 
 func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error) {
 	claims, err := ValidateToken(refreshToken, s.jwtSecret, s.jwtIssuer)
 	if err != nil {
-		return nil, core.ErrInvalidToken
+		return nil, apperror.ErrInvalidToken
 	}
 
 	if claims.Type != "refresh" {
-		return nil, core.ErrInvalidToken
+		return nil, apperror.ErrInvalidToken
 	}
 
 	result, err := s.users.GetByID(ctx, claims.UserID)
@@ -157,11 +157,11 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*Token
 	}
 
 	if !result.Active {
-		return nil, core.ErrUnauthorized
+		return nil, apperror.ErrUnauthorized
 	}
 
 	if result.TokenVersion != claims.TokenVersion {
-		return nil, core.ErrInvalidToken
+		return nil, apperror.ErrInvalidToken
 	}
 
 	return s.generateTokenResponse(result)

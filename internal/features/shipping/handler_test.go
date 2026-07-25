@@ -15,11 +15,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/shipping"
 	"github.com/residwi/go-api-project-template/internal/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	shipMocks "github.com/residwi/go-api-project-template/mocks/shipping"
 )
@@ -140,7 +140,7 @@ func TestHandler_GetShipping(t *testing.T) {
 		mux, _, orderProv, _ := setupShippingMux(t)
 
 		orderID := uuid.New()
-		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{}, core.ErrNotFound)
+		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{}, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -188,7 +188,7 @@ func TestHandler_GetShipping(t *testing.T) {
 		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{
 			ID: orderID, UserID: userID, Status: "shipped",
 		}, nil)
-		repo.EXPECT().GetByOrderID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByOrderID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -307,7 +307,7 @@ func TestHandler_CreateShipment(t *testing.T) {
 		mux, _, orderProv, _ := setupShippingMux(t)
 
 		orderID := uuid.New()
-		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{}, core.ErrNotFound)
+		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{}, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(shipping.CreateShipmentRequest{
 			Carrier:        "FedEx",
@@ -436,7 +436,7 @@ func TestHandler_UpdateTracking(t *testing.T) {
 		mux, repo, _, _ := setupShippingMux(t)
 
 		shipmentID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(shipping.UpdateTrackingRequest{
 			Carrier:        "UPS",

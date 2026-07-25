@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/promotion"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -84,7 +84,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 
 		dup := newPromotion(p.Code)
 		err := repo.Create(context.Background(), dup)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -104,7 +104,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		setup(t)
 		repo := promotion.NewPostgresRepository(testPool)
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -123,7 +123,7 @@ func TestPostgresRepository_GetByCode(t *testing.T) {
 		setup(t)
 		repo := promotion.NewPostgresRepository(testPool)
 		_, err := repo.GetByCode(context.Background(), "NONEXISTENT")
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -147,7 +147,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		p := newPromotion("NOPE-" + uuid.New().String()[:8])
 		p.ID = uuid.New()
 		err := repo.Update(context.Background(), p)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("returns conflict on duplicate code", func(t *testing.T) {
@@ -158,7 +158,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 		p2.Code = p1.Code
 		err := repo.Update(context.Background(), p2)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -171,14 +171,14 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		require.NoError(t, repo.Delete(context.Background(), p.ID))
 
 		_, err := repo.GetByID(context.Background(), p.ID)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
 		repo := promotion.NewPostgresRepository(testPool)
 		err := repo.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -228,7 +228,7 @@ func TestPostgresRepository_ApplyPromotion(t *testing.T) {
 		require.NoError(t, repo.ApplyPromotion(context.Background(), p.ID))
 		// Second apply exceeds max_uses
 		err := repo.ApplyPromotion(context.Background(), p.ID)
-		assert.ErrorIs(t, err, core.ErrCouponExhausted)
+		assert.ErrorIs(t, err, apperror.ErrCouponExhausted)
 	})
 }
 
@@ -304,7 +304,7 @@ func TestPostgresRepository_CreateUsage(t *testing.T) {
 			CouponID: p.ID, UserID: userID, OrderID: orderID, Discount: 50,
 		}
 		err = repo.CreateUsage(ctx, dup)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -429,7 +429,7 @@ func TestPostgresRepository_DeleteUsageByOrderID(t *testing.T) {
 		setup(t)
 		repo := promotion.NewPostgresRepository(testPool)
 		result, err := repo.DeleteUsageByOrderID(context.Background(), uuid.New())
-		require.ErrorIs(t, err, core.ErrNotFound)
+		require.ErrorIs(t, err, apperror.ErrNotFound)
 		assert.Nil(t, result)
 	})
 }

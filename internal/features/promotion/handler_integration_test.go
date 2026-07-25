@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/promotion"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	promoMocks "github.com/residwi/go-api-project-template/mocks/promotion"
 )
@@ -52,7 +52,7 @@ func TestHandler_Apply_ServiceError(t *testing.T) {
 	t.Run("service returns not found", func(t *testing.T) {
 		mux, repo := setupPromotionMux(t)
 
-		repo.EXPECT().GetByCode(mock.Anything, "NOTEXIST").Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByCode(mock.Anything, "NOTEXIST").Return(nil, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(promotion.ApplyRequest{
 			Code:     "NOTEXIST",
@@ -164,7 +164,7 @@ func TestHandler_AdminCreate_ServiceError(t *testing.T) {
 	t.Run("repo conflict", func(t *testing.T) {
 		mux, repo := setupPromotionMux(t)
 
-		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).Return(core.ErrConflict)
+		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).Return(apperror.ErrConflict)
 
 		startsAt := time.Now().Truncate(time.Second)
 		expiresAt := time.Now().Add(24 * time.Hour).Truncate(time.Second)
@@ -258,7 +258,7 @@ func TestHandler_AdminUpdate_ServiceError(t *testing.T) {
 		mux, repo := setupPromotionMux(t)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]string{"code": "UPDATED"})
 
@@ -350,7 +350,7 @@ func TestHandler_AdminDelete_ServiceError(t *testing.T) {
 		mux, repo := setupPromotionMux(t)
 
 		id := uuid.New()
-		repo.EXPECT().Delete(mock.Anything, id).Return(core.ErrNotFound)
+		repo.EXPECT().Delete(mock.Anything, id).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/promotions/"+id.String(), nil)

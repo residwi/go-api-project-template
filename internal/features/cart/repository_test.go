@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/cart"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -147,7 +147,7 @@ func TestPostgresRepository_UpdateItemQuantity(t *testing.T) {
 		setup(t)
 		repo := cart.NewPostgresRepository(testPool)
 		err := repo.UpdateItemQuantity(context.Background(), uuid.New(), uuid.New(), 5)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -171,7 +171,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 		setup(t)
 		repo := cart.NewPostgresRepository(testPool)
 		err := repo.RemoveItem(context.Background(), uuid.New(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -262,7 +262,7 @@ func TestPostgresRepository_GetCartForLock(t *testing.T) {
 		repo := cart.NewPostgresRepository(testPool)
 
 		_, err := repo.GetCartForLock(context.Background(), userID)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("returns cart id when cart exists", func(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/category"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -81,7 +81,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 			Active:    true,
 		}
 		err := repo.Create(context.Background(), dup)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -103,7 +103,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		repo := category.NewPostgresRepository(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -124,7 +124,7 @@ func TestPostgresRepository_GetBySlug(t *testing.T) {
 		repo := category.NewPostgresRepository(testPool)
 
 		_, err := repo.GetBySlug(context.Background(), "nonexistent-slug")
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -157,7 +157,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 			Active:    true,
 		}
 		err := repo.Update(context.Background(), cat)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("returns conflict on duplicate slug", func(t *testing.T) {
@@ -168,7 +168,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 		cat2.Slug = cat1.Slug
 		err := repo.Update(context.Background(), cat2)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -182,7 +182,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = repo.GetByID(context.Background(), cat.ID)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
@@ -190,7 +190,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		repo := category.NewPostgresRepository(testPool)
 
 		err := repo.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -256,21 +256,21 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		}
 		err := repo.Create(ctx, cat)
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, core.ErrConflict)
+		assert.NotErrorIs(t, err, apperror.ErrConflict)
 	})
 
 	t.Run("GetByID returns error on cancelled context", func(t *testing.T) {
 		setup(t)
 		_, err := repo.GetByID(ctx, uuid.New())
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, core.ErrNotFound)
+		assert.NotErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("GetBySlug returns error on cancelled context", func(t *testing.T) {
 		setup(t)
 		_, err := repo.GetBySlug(ctx, "some-slug")
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, core.ErrNotFound)
+		assert.NotErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("Update returns error on cancelled context", func(t *testing.T) {
@@ -284,15 +284,15 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		}
 		err := repo.Update(ctx, cat)
 		require.Error(t, err)
-		require.NotErrorIs(t, err, core.ErrNotFound)
-		assert.NotErrorIs(t, err, core.ErrConflict)
+		require.NotErrorIs(t, err, apperror.ErrNotFound)
+		assert.NotErrorIs(t, err, apperror.ErrConflict)
 	})
 
 	t.Run("Delete returns error on cancelled context", func(t *testing.T) {
 		setup(t)
 		err := repo.Delete(ctx, uuid.New())
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, core.ErrNotFound)
+		assert.NotErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("List returns error on cancelled context", func(t *testing.T) {

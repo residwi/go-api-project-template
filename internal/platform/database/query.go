@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 // keysetCursorArgs is the number of placeholders a keyset predicate appends:
@@ -27,11 +28,11 @@ func EscapeLike(s string) string {
 // interpolated into the SQL verbatim (not a bind parameter), so it MUST be a
 // trusted compile-time literal — never pass user- or request-derived text. The
 // returned argIdx is advanced past the two placeholders that were appended. A
-// malformed cursor yields core.ErrBadRequest and leaves the inputs unchanged.
+// malformed cursor yields apperror.ErrBadRequest and leaves the inputs unchanged.
 func KeysetCursor(where string, args []any, argIdx int, columns, cursor string) (string, []any, int, error) {
-	createdAt, id, err := core.DecodeCursor(cursor)
+	createdAt, id, err := paging.DecodeCursor(cursor)
 	if err != nil {
-		return where, args, argIdx, fmt.Errorf("%w: invalid cursor", core.ErrBadRequest)
+		return where, args, argIdx, fmt.Errorf("%w: invalid cursor", apperror.ErrBadRequest)
 	}
 	where += fmt.Sprintf(" AND (%s) < ($%d, $%d)", columns, argIdx, argIdx+1)
 	args = append(args, createdAt, id)

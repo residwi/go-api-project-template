@@ -8,9 +8,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/features/review"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/features/review"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -361,7 +362,7 @@ func (_c *MockRepository_HasUserReviewed_Call) RunAndReturn(run func(ctx context
 }
 
 // ListByProduct provides a mock function for the type MockRepository
-func (_mock *MockRepository) ListByProduct(ctx context.Context, productID uuid.UUID, cursor core.CursorPage) ([]review.Review, error) {
+func (_mock *MockRepository) ListByProduct(ctx context.Context, productID uuid.UUID, cursor paging.CursorPage) ([]review.Review, error) {
 	ret := _mock.Called(ctx, productID, cursor)
 
 	if len(ret) == 0 {
@@ -370,17 +371,17 @@ func (_mock *MockRepository) ListByProduct(ctx context.Context, productID uuid.U
 
 	var r0 []review.Review
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, core.CursorPage) ([]review.Review, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, paging.CursorPage) ([]review.Review, error)); ok {
 		return returnFunc(ctx, productID, cursor)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, core.CursorPage) []review.Review); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, paging.CursorPage) []review.Review); ok {
 		r0 = returnFunc(ctx, productID, cursor)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]review.Review)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, core.CursorPage) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, paging.CursorPage) error); ok {
 		r1 = returnFunc(ctx, productID, cursor)
 	} else {
 		r1 = ret.Error(1)
@@ -396,12 +397,12 @@ type MockRepository_ListByProduct_Call struct {
 // ListByProduct is a helper method to define mock.On call
 //   - ctx context.Context
 //   - productID uuid.UUID
-//   - cursor core.CursorPage
+//   - cursor paging.CursorPage
 func (_e *MockRepository_Expecter) ListByProduct(ctx interface{}, productID interface{}, cursor interface{}) *MockRepository_ListByProduct_Call {
 	return &MockRepository_ListByProduct_Call{Call: _e.mock.On("ListByProduct", ctx, productID, cursor)}
 }
 
-func (_c *MockRepository_ListByProduct_Call) Run(run func(ctx context.Context, productID uuid.UUID, cursor core.CursorPage)) *MockRepository_ListByProduct_Call {
+func (_c *MockRepository_ListByProduct_Call) Run(run func(ctx context.Context, productID uuid.UUID, cursor paging.CursorPage)) *MockRepository_ListByProduct_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -411,9 +412,9 @@ func (_c *MockRepository_ListByProduct_Call) Run(run func(ctx context.Context, p
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 core.CursorPage
+		var arg2 paging.CursorPage
 		if args[2] != nil {
-			arg2 = args[2].(core.CursorPage)
+			arg2 = args[2].(paging.CursorPage)
 		}
 		run(
 			arg0,
@@ -429,7 +430,7 @@ func (_c *MockRepository_ListByProduct_Call) Return(reviews []review.Review, err
 	return _c
 }
 
-func (_c *MockRepository_ListByProduct_Call) RunAndReturn(run func(ctx context.Context, productID uuid.UUID, cursor core.CursorPage) ([]review.Review, error)) *MockRepository_ListByProduct_Call {
+func (_c *MockRepository_ListByProduct_Call) RunAndReturn(run func(ctx context.Context, productID uuid.UUID, cursor paging.CursorPage) ([]review.Review, error)) *MockRepository_ListByProduct_Call {
 	_c.Call.Return(run)
 	return _c
 }

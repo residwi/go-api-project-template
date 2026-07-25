@@ -8,9 +8,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/features/wishlist"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/features/wishlist"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -104,7 +105,7 @@ func (_c *MockRepository_AddItem_Call) RunAndReturn(run func(ctx context.Context
 }
 
 // GetItems provides a mock function for the type MockRepository
-func (_mock *MockRepository) GetItems(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]wishlist.Item, error) {
+func (_mock *MockRepository) GetItems(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]wishlist.Item, error) {
 	ret := _mock.Called(ctx, userID, cursor)
 
 	if len(ret) == 0 {
@@ -113,17 +114,17 @@ func (_mock *MockRepository) GetItems(ctx context.Context, userID uuid.UUID, cur
 
 	var r0 []wishlist.Item
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, core.CursorPage) ([]wishlist.Item, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, paging.CursorPage) ([]wishlist.Item, error)); ok {
 		return returnFunc(ctx, userID, cursor)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, core.CursorPage) []wishlist.Item); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, paging.CursorPage) []wishlist.Item); ok {
 		r0 = returnFunc(ctx, userID, cursor)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]wishlist.Item)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, core.CursorPage) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, paging.CursorPage) error); ok {
 		r1 = returnFunc(ctx, userID, cursor)
 	} else {
 		r1 = ret.Error(1)
@@ -139,12 +140,12 @@ type MockRepository_GetItems_Call struct {
 // GetItems is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-//   - cursor core.CursorPage
+//   - cursor paging.CursorPage
 func (_e *MockRepository_Expecter) GetItems(ctx interface{}, userID interface{}, cursor interface{}) *MockRepository_GetItems_Call {
 	return &MockRepository_GetItems_Call{Call: _e.mock.On("GetItems", ctx, userID, cursor)}
 }
 
-func (_c *MockRepository_GetItems_Call) Run(run func(ctx context.Context, userID uuid.UUID, cursor core.CursorPage)) *MockRepository_GetItems_Call {
+func (_c *MockRepository_GetItems_Call) Run(run func(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage)) *MockRepository_GetItems_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -154,9 +155,9 @@ func (_c *MockRepository_GetItems_Call) Run(run func(ctx context.Context, userID
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 core.CursorPage
+		var arg2 paging.CursorPage
 		if args[2] != nil {
-			arg2 = args[2].(core.CursorPage)
+			arg2 = args[2].(paging.CursorPage)
 		}
 		run(
 			arg0,
@@ -172,7 +173,7 @@ func (_c *MockRepository_GetItems_Call) Return(items []wishlist.Item, err error)
 	return _c
 }
 
-func (_c *MockRepository_GetItems_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]wishlist.Item, error)) *MockRepository_GetItems_Call {
+func (_c *MockRepository_GetItems_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]wishlist.Item, error)) *MockRepository_GetItems_Call {
 	_c.Call.Return(run)
 	return _c
 }

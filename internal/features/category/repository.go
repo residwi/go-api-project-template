@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -49,7 +49,7 @@ func (r *PostgresRepository) Create(ctx context.Context, cat *Category) error {
 	).Scan(&cat.ID, &cat.CreatedAt, &cat.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("creating category: %w", err)
 	}
@@ -66,7 +66,7 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Catego
 		&c.SortOrder, &c.Active, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting category by id: %w", err)
 	}
@@ -83,7 +83,7 @@ func (r *PostgresRepository) GetBySlug(ctx context.Context, slug string) (*Categ
 		&c.SortOrder, &c.Active, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting category by slug: %w", err)
 	}
@@ -99,12 +99,12 @@ func (r *PostgresRepository) Update(ctx context.Context, cat *Category) error {
 	)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return core.ErrConflict
+			return apperror.ErrConflict
 		}
 		return fmt.Errorf("updating category: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }
@@ -116,12 +116,12 @@ func (r *PostgresRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	)
 	if err != nil {
 		if database.IsForeignKeyViolation(err) {
-			return fmt.Errorf("%w: category still has products or subcategories", core.ErrConflict)
+			return fmt.Errorf("%w: category still has products or subcategories", apperror.ErrConflict)
 		}
 		return fmt.Errorf("deleting category: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return core.ErrNotFound
+		return apperror.ErrNotFound
 	}
 	return nil
 }

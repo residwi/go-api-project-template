@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/shipping"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	mocks "github.com/residwi/go-api-project-template/mocks/shipping"
@@ -96,7 +96,7 @@ func TestService_CreateShipment(t *testing.T) {
 			Carrier:        "UPS",
 			TrackingNumber: "UPS123",
 		})
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("order not found", func(t *testing.T) {
@@ -107,13 +107,13 @@ func TestService_CreateShipment(t *testing.T) {
 
 		orderID := uuid.New()
 		orders.EXPECT().GetByID(mock.Anything, orderID).
-			Return(shipping.OrderInfo{}, core.ErrNotFound)
+			Return(shipping.OrderInfo{}, apperror.ErrNotFound)
 
 		_, err := svc.CreateShipment(context.Background(), orderID, shipping.CreateShipmentRequest{
 			Carrier:        "DHL",
 			TrackingNumber: "DHL456",
 		})
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("repo create error", func(t *testing.T) {
@@ -201,11 +201,11 @@ func TestService_GetByOrderID(t *testing.T) {
 		svc := shipping.NewService(repo, nil, orders, updater)
 
 		orderID := uuid.New()
-		repo.EXPECT().GetByOrderID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByOrderID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		result, err := svc.GetByOrderID(context.Background(), orderID)
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -253,13 +253,13 @@ func TestService_UpdateTracking(t *testing.T) {
 		svc := shipping.NewService(repo, nil, orders, updater)
 
 		shipmentID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
 
 		result, err := svc.UpdateTracking(context.Background(), shipmentID, shipping.UpdateTrackingRequest{
 			Carrier: "UPS",
 		})
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
@@ -326,11 +326,11 @@ func TestService_MarkDelivered(t *testing.T) {
 		svc := shipping.NewService(repo, nil, orders, updater)
 
 		shipmentID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
 
 		result, err := svc.MarkDelivered(context.Background(), shipmentID)
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("mark delivered repo error", func(t *testing.T) {

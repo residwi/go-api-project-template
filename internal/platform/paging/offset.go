@@ -1,4 +1,4 @@
-package core
+package paging
 
 import (
 	"net/http"

@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 type Service struct {
@@ -30,7 +30,7 @@ func (s *Service) Send(ctx context.Context, userID uuid.UUID, typ Type, title, b
 	return s.repo.Create(ctx, n)
 }
 
-func (s *Service) ListByUser(ctx context.Context, userID uuid.UUID, cursor core.CursorPage) ([]Notification, error) {
+func (s *Service) ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]Notification, error) {
 	return s.repo.ListByUser(ctx, userID, cursor)
 }
 

@@ -9,8 +9,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/wishlist"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	mocks "github.com/residwi/go-api-project-template/mocks/wishlist"
 )
 
@@ -21,7 +22,7 @@ func TestService_GetWishlist(t *testing.T) {
 
 		ctx := context.Background()
 		userID := uuid.New()
-		cursor := core.CursorPage{Limit: 20}
+		cursor := paging.CursorPage{Limit: 20}
 		expected := []wishlist.Item{
 			{ID: uuid.New(), ProductID: uuid.New()},
 			{ID: uuid.New(), ProductID: uuid.New()},
@@ -40,7 +41,7 @@ func TestService_GetWishlist(t *testing.T) {
 
 		ctx := context.Background()
 		userID := uuid.New()
-		cursor := core.CursorPage{Limit: 20}
+		cursor := paging.CursorPage{Limit: 20}
 
 		repo.EXPECT().GetItems(mock.Anything, userID, cursor).Return([]wishlist.Item{}, nil)
 
@@ -106,11 +107,11 @@ func TestService_RemoveItem(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		repo.EXPECT().RemoveItem(mock.Anything, userID, productID).Return(core.ErrNotFound)
+		repo.EXPECT().RemoveItem(mock.Anything, userID, productID).Return(apperror.ErrNotFound)
 
 		err := svc.RemoveItem(ctx, userID, productID)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("repo error propagates", func(t *testing.T) {
@@ -136,7 +137,7 @@ func TestService_GetWishlist_RepoError(t *testing.T) {
 
 		ctx := context.Background()
 		userID := uuid.New()
-		cursor := core.CursorPage{Limit: 20}
+		cursor := paging.CursorPage{Limit: 20}
 
 		repo.EXPECT().GetItems(mock.Anything, userID, cursor).Return(nil, assert.AnError)
 

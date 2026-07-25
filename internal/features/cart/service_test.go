@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/cart"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	cartMocks "github.com/residwi/go-api-project-template/mocks/cart"
@@ -66,7 +66,7 @@ func TestService_AddItem(t *testing.T) {
 
 		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("insufficient stock", func(t *testing.T) {
@@ -83,7 +83,7 @@ func TestService_AddItem(t *testing.T) {
 
 		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 5})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrInsufficientStock)
+		assert.ErrorIs(t, err, apperror.ErrInsufficientStock)
 	})
 
 	t.Run("cart full", func(t *testing.T) {
@@ -106,7 +106,7 @@ func TestService_AddItem(t *testing.T) {
 
 		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("cart full but bumping quantity of existing product succeeds", func(t *testing.T) {
@@ -144,11 +144,11 @@ func TestService_AddItem(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, core.ErrNotFound)
+		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
 
 		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("get or create error", func(t *testing.T) {
@@ -218,11 +218,11 @@ func TestService_RemoveItem(t *testing.T) {
 		cartID := uuid.New()
 
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
-		repo.EXPECT().RemoveItem(mock.Anything, cartID, productID).Return(core.ErrNotFound)
+		repo.EXPECT().RemoveItem(mock.Anything, cartID, productID).Return(apperror.ErrNotFound)
 
 		err := svc.RemoveItem(ctx, userID, productID)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("get or create error", func(t *testing.T) {
@@ -273,7 +273,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 2}, nil)
 
 		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateItemRequest{Quantity: 5})
-		assert.ErrorIs(t, err, core.ErrInsufficientStock)
+		assert.ErrorIs(t, err, apperror.ErrInsufficientStock)
 	})
 
 	t.Run("rejects unpublished product", func(t *testing.T) {
@@ -289,7 +289,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 			Return(&cart.ProductInfo{ID: productID, Status: "draft", Available: 100}, nil)
 
 		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateItemRequest{Quantity: 1})
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("product lookup error", func(t *testing.T) {
@@ -352,11 +352,11 @@ func TestService_GetCart(t *testing.T) {
 		ctx := context.Background()
 		userID := uuid.New()
 
-		repo.EXPECT().GetCart(mock.Anything, userID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetCart(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
 
 		result, err := svc.GetCart(ctx, userID)
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 

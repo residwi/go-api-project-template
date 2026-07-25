@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/category"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	catMocks "github.com/residwi/go-api-project-template/mocks/category"
 )
@@ -141,7 +141,7 @@ func TestPublicHandler_GetBySlug(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		mux, repo := setupCategoryMux(t)
 
-		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/categories/nonexistent", nil)
@@ -205,7 +205,7 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		mux, repo := setupCategoryMux(t)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(core.ErrConflict)
+		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
 		body, _ := json.Marshal(category.CreateCategoryRequest{
 			Name: "Duplicate",
@@ -350,7 +350,7 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 		mux, repo := setupCategoryMux(t)
 
 		catID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, catID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, catID).Return(nil, apperror.ErrNotFound)
 
 		newName := "Updated"
 		body, _ := json.Marshal(category.UpdateCategoryRequest{
@@ -404,7 +404,7 @@ func TestAdminHandler_DeleteCategory(t *testing.T) {
 
 		catID := uuid.New()
 		repo.EXPECT().CountPublishedProducts(mock.Anything, catID).Return(0, nil)
-		repo.EXPECT().Delete(mock.Anything, catID).Return(core.ErrNotFound)
+		repo.EXPECT().Delete(mock.Anything, catID).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/categories/"+catID.String(), nil)

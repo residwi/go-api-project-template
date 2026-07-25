@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/promotion"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	mocks "github.com/residwi/go-api-project-template/mocks/promotion"
@@ -108,7 +108,7 @@ func TestService_Validate(t *testing.T) {
 			}, nil)
 
 		_, err := svc.Validate(context.Background(), "INACTIVE", 5000)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("expired", func(t *testing.T) {
@@ -125,7 +125,7 @@ func TestService_Validate(t *testing.T) {
 			}, nil)
 
 		_, err := svc.Validate(context.Background(), "EXPIRED", 5000)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("not started", func(t *testing.T) {
@@ -142,7 +142,7 @@ func TestService_Validate(t *testing.T) {
 			}, nil)
 
 		_, err := svc.Validate(context.Background(), "FUTURE", 5000)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("exhausted uses", func(t *testing.T) {
@@ -162,7 +162,7 @@ func TestService_Validate(t *testing.T) {
 			}, nil)
 
 		_, err := svc.Validate(context.Background(), "MAXED", 5000)
-		assert.ErrorIs(t, err, core.ErrCouponExhausted)
+		assert.ErrorIs(t, err, apperror.ErrCouponExhausted)
 	})
 
 	t.Run("below min order", func(t *testing.T) {
@@ -182,17 +182,17 @@ func TestService_Validate(t *testing.T) {
 			}, nil)
 
 		_, err := svc.Validate(context.Background(), "MINORDER", 1000)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("repo error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, nil)
 
-		repo.EXPECT().GetByCode(mock.Anything, "UNKNOWN").Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByCode(mock.Anything, "UNKNOWN").Return(nil, apperror.ErrNotFound)
 
 		_, err := svc.Validate(context.Background(), "UNKNOWN", 5000)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("discount capped by subtotal", func(t *testing.T) {
@@ -283,7 +283,7 @@ func TestService_Create(t *testing.T) {
 		svc := promotion.NewService(repo, nil)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).
-			Return(core.ErrConflict)
+			Return(apperror.ErrConflict)
 
 		_, err := svc.Create(context.Background(), promotion.CreateRequest{
 			Code:      "DUP",
@@ -293,7 +293,7 @@ func TestService_Create(t *testing.T) {
 			ExpiresAt: time.Now().Add(time.Hour),
 			Active:    true,
 		})
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -369,10 +369,10 @@ func TestService_Update(t *testing.T) {
 		svc := promotion.NewService(repo, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, core.ErrNotFound)
+			Return(nil, apperror.ErrNotFound)
 
 		_, err := svc.Update(context.Background(), uuid.New(), promotion.UpdateRequest{Code: "X"})
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
@@ -390,10 +390,10 @@ func TestService_Update(t *testing.T) {
 			ExpiresAt: time.Now().Add(time.Hour),
 		}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).Return(core.ErrConflict)
+		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).Return(apperror.ErrConflict)
 
 		_, err := svc.Update(context.Background(), id, promotion.UpdateRequest{Code: "DUP"})
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 
 	t.Run("all fields updated", func(t *testing.T) {
@@ -466,10 +466,10 @@ func TestService_Delete(t *testing.T) {
 		svc := promotion.NewService(repo, nil)
 
 		id := uuid.New()
-		repo.EXPECT().Delete(mock.Anything, id).Return(core.ErrNotFound)
+		repo.EXPECT().Delete(mock.Anything, id).Return(apperror.ErrNotFound)
 
 		err := svc.Delete(context.Background(), id)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -520,7 +520,7 @@ func TestService_Reserve(t *testing.T) {
 
 		discount, err := svc.Reserve(ctx, "INACTIVE", uuid.New(), uuid.New(), 5000)
 		assert.Equal(t, int64(0), discount)
-		assert.ErrorIs(t, err, core.ErrBadRequest)
+		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("GetByCode error propagates", func(t *testing.T) {
@@ -528,11 +528,11 @@ func TestService_Reserve(t *testing.T) {
 		svc := promotion.NewService(repo, nil)
 		ctx := database.WithTestTx(context.Background(), noopDBTX{})
 
-		repo.EXPECT().GetByCode(mock.Anything, "UNKNOWN").Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByCode(mock.Anything, "UNKNOWN").Return(nil, apperror.ErrNotFound)
 
 		discount, err := svc.Reserve(ctx, "UNKNOWN", uuid.New(), uuid.New(), 5000)
 		assert.Equal(t, int64(0), discount)
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("ApplyPromotion error propagates", func(t *testing.T) {
@@ -552,11 +552,11 @@ func TestService_Reserve(t *testing.T) {
 				StartsAt:       time.Now().Add(-time.Hour),
 				ExpiresAt:      time.Now().Add(time.Hour),
 			}, nil)
-		repo.EXPECT().ApplyPromotion(mock.Anything, promoID).Return(core.ErrCouponExhausted)
+		repo.EXPECT().ApplyPromotion(mock.Anything, promoID).Return(apperror.ErrCouponExhausted)
 
 		discount, err := svc.Reserve(ctx, "SAVE20", uuid.New(), uuid.New(), 2000)
 		assert.Equal(t, int64(400), discount)
-		assert.ErrorIs(t, err, core.ErrCouponExhausted)
+		assert.ErrorIs(t, err, apperror.ErrCouponExhausted)
 	})
 
 	t.Run("CreateUsage error propagates", func(t *testing.T) {
@@ -577,11 +577,11 @@ func TestService_Reserve(t *testing.T) {
 				ExpiresAt:      time.Now().Add(time.Hour),
 			}, nil)
 		repo.EXPECT().ApplyPromotion(mock.Anything, promoID).Return(nil)
-		repo.EXPECT().CreateUsage(mock.Anything, mock.AnythingOfType("*promotion.CouponUsage")).Return(core.ErrConflict)
+		repo.EXPECT().CreateUsage(mock.Anything, mock.AnythingOfType("*promotion.CouponUsage")).Return(apperror.ErrConflict)
 
 		discount, err := svc.Reserve(ctx, "SAVE20", uuid.New(), uuid.New(), 2000)
 		assert.Equal(t, int64(400), discount)
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -607,7 +607,7 @@ func TestService_Release(t *testing.T) {
 		ctx := database.WithTestTx(context.Background(), noopDBTX{})
 
 		orderID := uuid.New()
-		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
 
 		err := svc.Release(ctx, orderID)
 		require.NoError(t, err)

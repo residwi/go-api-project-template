@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/notification"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	notifMocks "github.com/residwi/go-api-project-template/mocks/notification"
 )
 
@@ -105,7 +105,7 @@ func TestHandler_MarkRead_ServiceError(t *testing.T) {
 		mux, repo, uc := setupNotificationMux(t)
 
 		id := uuid.New()
-		repo.EXPECT().MarkRead(mock.Anything, uc.UserID, id).Return(core.ErrNotFound)
+		repo.EXPECT().MarkRead(mock.Anything, uc.UserID, id).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/"+id.String()+"/read", nil)

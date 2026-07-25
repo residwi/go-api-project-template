@@ -8,8 +8,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/residwi/go-api-project-template/internal/features/dashboard"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/features/dashboard"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

@@ -14,10 +14,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	userMocks "github.com/residwi/go-api-project-template/mocks/user"
 )
@@ -114,7 +114,7 @@ func TestPublicHandler_GetProfile(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		mux, repo := setupUserMux(t)
 		userID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/users/me", nil)
@@ -236,7 +236,7 @@ func TestPublicHandler_UpdateProfile(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		mux, repo := setupUserMux(t)
 		userID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(user.UpdateProfileRequest{FirstName: "Jane"})
 		w := httptest.NewRecorder()
@@ -379,7 +379,7 @@ func TestAdminHandler_GetUser(t *testing.T) {
 	t.Run("service error not found", func(t *testing.T) {
 		mux, repo := setupUserMux(t)
 		userID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/"+userID.String(), nil)
@@ -477,7 +477,7 @@ func TestAdminHandler_UpdateUser(t *testing.T) {
 		mux, repo := setupUserMux(t)
 
 		userID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(user.AdminUpdateUserRequest{FirstName: "Test"})
 

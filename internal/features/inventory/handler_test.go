@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	mocks "github.com/residwi/go-api-project-template/mocks/inventory"
 )
@@ -89,7 +89,7 @@ func TestAdminHandler_GetStock(t *testing.T) {
 		mux, repo := setupInventoryMux(t)
 
 		productID := uuid.New()
-		repo.EXPECT().GetStock(mock.Anything, productID).Return(nil, core.ErrNotFound)
+		repo.EXPECT().GetStock(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/inventory/"+productID.String(), nil)
@@ -206,7 +206,7 @@ func TestAdminHandler_Restock(t *testing.T) {
 		mux, repo := setupInventoryMux(t)
 
 		productID := uuid.New()
-		repo.EXPECT().Restock(mock.Anything, productID, 50).Return(nil, fmt.Errorf("%w: product not found", core.ErrNotFound))
+		repo.EXPECT().Restock(mock.Anything, productID, 50).Return(nil, fmt.Errorf("%w: product not found", apperror.ErrNotFound))
 
 		body, _ := json.Marshal(inventory.RestockRequest{Quantity: 50})
 
@@ -326,7 +326,7 @@ func TestAdminHandler_Adjust(t *testing.T) {
 		mux, repo := setupInventoryMux(t)
 
 		productID := uuid.New()
-		repo.EXPECT().AdjustStock(mock.Anything, productID, 200).Return(nil, fmt.Errorf("%w: cannot set stock below reserved quantity", core.ErrBadRequest))
+		repo.EXPECT().AdjustStock(mock.Anything, productID, 200).Return(nil, fmt.Errorf("%w: cannot set stock below reserved quantity", apperror.ErrBadRequest))
 
 		body, _ := json.Marshal(inventory.AdjustRequest{Quantity: 200})
 

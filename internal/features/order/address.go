@@ -1,4 +1,4 @@
-package core
+package order
 
 type Address struct {
 	Street  string `json:"street"`

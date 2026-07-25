@@ -6,7 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
 
 const maxCategoryDepth = 5
@@ -22,7 +23,7 @@ func NewService(repo Repository) *Service {
 func (s *Service) Create(ctx context.Context, req CreateCategoryRequest) (*Category, error) {
 	cat := &Category{
 		Name:        req.Name,
-		Slug:        core.SlugifyOrFallback(req.Name, "category-"+uuid.New().String()[:8]),
+		Slug:        slug.MakeOrFallback(req.Name, "category-"+uuid.New().String()[:8]),
 		Description: req.Description,
 		ParentID:    req.ParentID,
 		Active:      true,
@@ -68,7 +69,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateCategoryRe
 
 	if req.Name != nil {
 		cat.Name = *req.Name
-		cat.Slug = core.SlugifyOrFallback(cat.Name, "category-"+cat.ID.String()[:8])
+		cat.Slug = slug.MakeOrFallback(cat.Name, "category-"+cat.ID.String()[:8])
 	}
 	if req.Description != nil {
 		cat.Description = req.Description
@@ -102,7 +103,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if count > 0 {
-		return fmt.Errorf("%w: category has %d published products", core.ErrBadRequest, count)
+		return fmt.Errorf("%w: category has %d published products", apperror.ErrBadRequest, count)
 	}
 
 	return s.repo.Delete(ctx, id)
@@ -111,7 +112,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 // validateParent checks that parent_id exists, does not create a cycle, and max depth is 5.
 func (s *Service) validateParent(ctx context.Context, parentID, selfID uuid.UUID) error {
 	if parentID == selfID && selfID != uuid.Nil {
-		return fmt.Errorf("%w: category cannot be its own parent", core.ErrBadRequest)
+		return fmt.Errorf("%w: category cannot be its own parent", apperror.ErrBadRequest)
 	}
 
 	depth, formsCycle, err := s.repo.AncestorDepthAndCycle(ctx, parentID, selfID, maxCategoryDepth)
@@ -120,14 +121,14 @@ func (s *Service) validateParent(ctx context.Context, parentID, selfID uuid.UUID
 	}
 
 	if depth == 0 {
-		return fmt.Errorf("%w: parent category not found", core.ErrBadRequest)
+		return fmt.Errorf("%w: parent category not found", apperror.ErrBadRequest)
 	}
 	if formsCycle {
-		return fmt.Errorf("%w: circular parent reference", core.ErrBadRequest)
+		return fmt.Errorf("%w: circular parent reference", apperror.ErrBadRequest)
 	}
 	// depth is the distance from parent to root. Adding this child makes it depth+1.
 	if depth+1 > maxCategoryDepth {
-		return fmt.Errorf("%w: category depth exceeds maximum of %d", core.ErrBadRequest, maxCategoryDepth)
+		return fmt.Errorf("%w: category depth exceeds maximum of %d", apperror.ErrBadRequest, maxCategoryDepth)
 	}
 
 	return nil

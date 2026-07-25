@@ -7,8 +7,9 @@ package mocks
 import (
 	"context"
 
-	"github.com/residwi/go-api-project-template/internal/platform/payment"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/platform/payment"
 )
 
 // NewMockGateway creates a new instance of MockGateway. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

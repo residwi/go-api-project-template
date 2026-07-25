@@ -6,7 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 type PurchaseVerifier interface {
@@ -34,7 +35,7 @@ func (s *Service) Create(ctx context.Context, userID, productID uuid.UUID, req C
 		return nil, err
 	}
 	if !delivered {
-		return nil, fmt.Errorf("%w: order must be a delivered order of yours containing this product", core.ErrBadRequest)
+		return nil, fmt.Errorf("%w: order must be a delivered order of yours containing this product", apperror.ErrBadRequest)
 	}
 
 	reviewed, err := s.repo.HasUserReviewed(ctx, userID, productID)
@@ -42,7 +43,7 @@ func (s *Service) Create(ctx context.Context, userID, productID uuid.UUID, req C
 		return nil, err
 	}
 	if reviewed {
-		return nil, core.ErrConflict
+		return nil, apperror.ErrConflict
 	}
 
 	rv := &Review{
@@ -62,7 +63,7 @@ func (s *Service) Create(ctx context.Context, userID, productID uuid.UUID, req C
 	return rv, nil
 }
 
-func (s *Service) ListByProduct(ctx context.Context, productID uuid.UUID, cursor core.CursorPage) ([]Review, error) {
+func (s *Service) ListByProduct(ctx context.Context, productID uuid.UUID, cursor paging.CursorPage) ([]Review, error) {
 	return s.repo.ListByProduct(ctx, productID, cursor)
 }
 

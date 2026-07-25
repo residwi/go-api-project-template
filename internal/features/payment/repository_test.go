@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -121,7 +121,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		repo := payment.NewPostgresRepository(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, core.ErrNotFound)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
 
@@ -146,7 +146,7 @@ func TestPostgresRepository_GetActiveByOrderID(t *testing.T) {
 		repo := payment.NewPostgresRepository(testPool)
 
 		got, err := repo.GetActiveByOrderID(context.Background(), orderID)
-		require.ErrorIs(t, err, core.ErrNotFound)
+		require.ErrorIs(t, err, apperror.ErrNotFound)
 		assert.Nil(t, got)
 	})
 }
@@ -176,7 +176,7 @@ func TestPostgresRepository_GetByGatewayTxnID(t *testing.T) {
 		repo := payment.NewPostgresRepository(testPool)
 
 		got, err := repo.GetByGatewayTxnID(context.Background(), "nonexistent-txn-id")
-		require.ErrorIs(t, err, core.ErrNotFound)
+		require.ErrorIs(t, err, apperror.ErrNotFound)
 		assert.Nil(t, got)
 	})
 }
@@ -206,7 +206,7 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 		repo := payment.NewPostgresRepository(testPool)
 
 		err := repo.UpdateStatus(context.Background(), p.ID, payment.StatusSuccess, []payment.Status{payment.StatusFailed})
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 
@@ -283,7 +283,7 @@ func TestPostgresRepository_MarkPaid(t *testing.T) {
 		repo := payment.NewPostgresRepository(testPool)
 
 		err := repo.MarkPaid(context.Background(), p.ID, []payment.Status{payment.StatusFailed})
-		assert.ErrorIs(t, err, core.ErrConflict)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
 

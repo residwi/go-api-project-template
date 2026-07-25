@@ -7,8 +7,9 @@ package mocks
 import (
 	"context"
 
-	"github.com/residwi/go-api-project-template/internal/features/payment"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/features/payment"
 )
 
 // NewMockInventoryRestorer creates a new instance of MockInventoryRestorer. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

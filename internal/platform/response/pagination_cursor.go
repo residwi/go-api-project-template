@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 // cursorTimeFormat is the single timestamp layout every keyset cursor is built
@@ -27,8 +27,8 @@ func CursorPage[T any](w http.ResponseWriter, rows []T, limit int, keyOf func(T)
 	var next string
 	if hasMore && len(rows) > 0 {
 		ts, id := keyOf(rows[len(rows)-1])
-		next = core.EncodeCursor(ts.Format(cursorTimeFormat), id.String())
+		next = paging.EncodeCursor(ts.Format(cursorTimeFormat), id.String())
 	}
 
-	Paginated(w, core.NewCursorPageResult(rows, next, hasMore))
+	Paginated(w, paging.NewCursorPageResult(rows, next, hasMore))
 }

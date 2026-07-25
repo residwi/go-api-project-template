@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/core"
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -104,7 +104,7 @@ func (r *PostgresRepository) Reserve(ctx context.Context, productID uuid.UUID, q
 	).Scan(&stockQty, &reservedQty)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrInsufficientStock
+			return nil, apperror.ErrInsufficientStock
 		}
 		return nil, fmt.Errorf("reserving stock: %w", err)
 	}
@@ -127,7 +127,7 @@ func (r *PostgresRepository) Release(ctx context.Context, productID uuid.UUID, q
 	).Scan(&stockQty, &reservedQty)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("%w: cannot release more than reserved", core.ErrBadRequest)
+			return nil, fmt.Errorf("%w: cannot release more than reserved", apperror.ErrBadRequest)
 		}
 		return nil, fmt.Errorf("releasing stock: %w", err)
 	}
@@ -163,7 +163,7 @@ func (r *PostgresRepository) ReserveBatch(ctx context.Context, items []StockChan
 		return fmt.Errorf("reserving stock batch: %w", err)
 	}
 	if int(tag.RowsAffected()) != len(ids) {
-		return core.ErrInsufficientStock
+		return apperror.ErrInsufficientStock
 	}
 	return nil
 }
@@ -215,7 +215,7 @@ func (r *PostgresRepository) DeductBatch(ctx context.Context, items []StockChang
 		return fmt.Errorf("deducting stock batch: %w", err)
 	}
 	if int(tag.RowsAffected()) != len(ids) {
-		return fmt.Errorf("%w: cannot deduct stock", core.ErrBadRequest)
+		return fmt.Errorf("%w: cannot deduct stock", apperror.ErrBadRequest)
 	}
 	return nil
 }
@@ -254,7 +254,7 @@ func (r *PostgresRepository) Deduct(ctx context.Context, productID uuid.UUID, qt
 	).Scan(&stockQty, &reservedQty)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("%w: cannot deduct stock", core.ErrBadRequest)
+			return nil, fmt.Errorf("%w: cannot deduct stock", apperror.ErrBadRequest)
 		}
 		return nil, fmt.Errorf("deducting stock: %w", err)
 	}
@@ -277,7 +277,7 @@ func (r *PostgresRepository) Restock(ctx context.Context, productID uuid.UUID, q
 	).Scan(&stockQty, &reservedQty)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("restocking: %w", err)
 	}
@@ -298,7 +298,7 @@ func (r *PostgresRepository) GetStock(ctx context.Context, productID uuid.UUID) 
 	).Scan(&stockQty, &reservedQty)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, core.ErrNotFound
+			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting stock: %w", err)
 	}
@@ -321,7 +321,7 @@ func (r *PostgresRepository) AdjustStock(ctx context.Context, productID uuid.UUI
 	).Scan(&stockQty, &reservedQty)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("%w: cannot set stock below reserved quantity", core.ErrBadRequest)
+			return nil, fmt.Errorf("%w: cannot set stock below reserved quantity", apperror.ErrBadRequest)
 		}
 		return nil, fmt.Errorf("adjusting stock: %w", err)
 	}

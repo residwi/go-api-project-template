@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/core"
-	"github.com/residwi/go-api-project-template/internal/core/response"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 )
 
@@ -31,7 +31,7 @@ func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
-	page := core.ParseOffsetPage(r)
+	page := paging.ParseOffsetPage(r)
 
 	params := AdminListParams{
 		Page:     page.Page,
@@ -55,7 +55,7 @@ func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.Paginated(w, core.NewOffsetPageResult(products, page, total))
+	response.Paginated(w, paging.NewOffsetPageResult(products, page, total))
 }
 
 func (h *adminHandler) Get(w http.ResponseWriter, r *http.Request) {
