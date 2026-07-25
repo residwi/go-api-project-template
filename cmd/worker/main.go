@@ -58,7 +58,7 @@ func run() error {
 	promotionSvc := promotion.NewService(promotionRepo, txRunner)
 	notificationSvc := notification.NewService(notificationRepo)
 
-	orderSvc := wiring.NewOrderService(orderRepo, pool, nil, inventorySvc, promotionSvc, nil)
+	orderSvc := wiring.NewOrderService(orderRepo, txRunner, nil, inventorySvc, promotionSvc, nil)
 
 	gw := mockgw.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 

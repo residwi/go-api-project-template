@@ -76,7 +76,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	wishlistSvc := wishlist.NewService(wishlistRepo)
 	dashboardSvc := dashboard.NewService(dashboardRepo)
 
-	orderSvc := wiring.NewOrderService(orderRepo, deps.Pool, cartSvc, inventorySvc, promotionSvc, notificationSvc)
+	orderSvc := wiring.NewOrderService(orderRepo, txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc)
 
 	cfg := deps.Config
 	gw := mockgw.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)

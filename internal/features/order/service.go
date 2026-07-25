@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -27,7 +26,7 @@ const productStatusPublished = "published"
 
 type Service struct {
 	repo          Repository
-	pool          *pgxpool.Pool
+	tx            database.TxRunner
 	cart          CartProvider
 	inventory     InventoryReserver
 	payment       PaymentInitiator
@@ -38,7 +37,7 @@ type Service struct {
 
 func NewService(
 	repo Repository,
-	pool *pgxpool.Pool,
+	tx database.TxRunner,
 	cart CartProvider,
 	inventory InventoryReserver,
 	payment PaymentInitiator,
@@ -48,7 +47,7 @@ func NewService(
 ) *Service {
 	return &Service{
 		repo:          repo,
-		pool:          pool,
+		tx:            tx,
 		cart:          cart,
 		inventory:     inventory,
 		payment:       payment,
@@ -84,7 +83,7 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 
 	var orderItems []Item
 
-	err = database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+	err = s.tx.Run(ctx, func(txCtx context.Context) error {
 		// Lock the cart row, then read its contents INSIDE the transaction. This
 		// serializes concurrent checkouts of the same cart: a second checkout
 		// blocks on the lock until the first commits (clearing the cart), then
@@ -207,7 +206,7 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 // atomically. Without this the order would sit in awaiting_payment and be
 // cancelled by the expiry sweep, so a legitimately free order could never ship.
 func (s *Service) finalizeFreeOrder(ctx context.Context, order *Order) error {
-	return database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+	return s.tx.Run(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Apply(txCtx, order.ID, PaidTransition); err != nil {
 			return err
 		}
@@ -292,7 +291,7 @@ func (s *Service) CancelUnpaidByID(ctx context.Context, orderID uuid.UUID) error
 //
 //nolint:gocognit // the single cancel path: guarded status CAS, conditional stock reversal (release vs restock vs skip), and best-effort coupon release
 func (s *Service) cancelWithReversal(ctx context.Context, order *Order) error {
-	return database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+	return s.tx.Run(ctx, func(txCtx context.Context) error {
 		if txErr := s.repo.Apply(txCtx, order.ID, CancelledTransition); txErr != nil {
 			if errors.Is(txErr, apperror.ErrConflict) {
 				return fmt.Errorf("%w: cannot cancel order in status %s", apperror.ErrBadRequest, order.Status)
@@ -343,7 +342,7 @@ func (s *Service) ExpireStale(ctx context.Context) error {
 }
 
 func (s *Service) expireOne(ctx context.Context, o Order) error {
-	return database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+	return s.tx.Run(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Apply(txCtx, o.ID, ExpiredTransition); err != nil {
 			if errors.Is(err, apperror.ErrConflict) {
 				return nil // another worker already moved it out of awaiting_payment

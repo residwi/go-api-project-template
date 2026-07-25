@@ -10,6 +10,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/features/order"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
 // expireInventory adapts the real inventory.Service to order.InventoryReserver,
@@ -49,7 +50,7 @@ func newExpiryService(t *testing.T) *order.Service {
 	t.Helper()
 	orderRepo := order.NewPostgresRepository(testPool)
 	invSvc := inventory.NewService(inventory.NewPostgresRepository(testPool))
-	return order.NewService(orderRepo, testPool, nil, expireInventory{svc: invSvc}, nil, nil, nil, nil)
+	return order.NewService(orderRepo, database.NewTxRunner(testPool), nil, expireInventory{svc: invSvc}, nil, nil, nil, nil)
 }
 
 func orderStatusOf(t *testing.T, orderID uuid.UUID) order.Status {

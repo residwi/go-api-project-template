@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 	orderMocks "github.com/residwi/go-api-project-template/mocks/order"
 )
 
@@ -40,7 +41,7 @@ func setupOrderMux(t *testing.T) (
 	coupons := orderMocks.NewMockCouponReserver(t)
 	notifications := orderMocks.NewMockNotificationEnqueuer(t)
 
-	svc := order.NewService(repo, nil, cart, inventory, payment, paymentCancel, coupons, notifications)
+	svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, payment, paymentCancel, coupons, notifications)
 	v := validator.New()
 
 	mux := http.NewServeMux()

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/features/cart"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
@@ -12,18 +11,19 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/features/promotion"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
 func NewOrderService(
 	repo order.Repository,
-	pool *pgxpool.Pool,
+	tx database.TxRunner,
 	cartSvc *cart.Service,
 	inventorySvc *inventory.Service,
 	promotionSvc *promotion.Service,
 	notificationSvc *notification.Service,
 ) *order.Service {
 	return order.NewService(
-		repo, pool,
+		repo, tx,
 		&cartProviderAdapter{svc: cartSvc},
 		&inventoryReserverAdapter{svc: inventorySvc},
 		nil, // payment deps are circular — wired by SetOrderPaymentDeps
