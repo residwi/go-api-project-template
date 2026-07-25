@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/features/payment"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
 	mocks "github.com/residwi/go-api-project-template/mocks/payment"
 )
@@ -41,7 +42,7 @@ func newIntegrationService(t *testing.T) (*payment.Service, paymentMocks) {
 		couponRel:        mocks.NewMockCouponReleaser(t),
 		gw:               mocks.NewMockGateway(t),
 	}
-	svc := payment.NewService(repo, testPool, m.gw, m.orderUpdater, m.orderGet, m.orderItems,
+	svc := payment.NewService(repo, database.NewTxRunner(testPool), m.gw, m.orderUpdater, m.orderGet, m.orderItems,
 		m.inventoryDeduct, m.inventoryRestore, m.couponRel)
 	return svc, m
 }

@@ -4,12 +4,12 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/features/promotion"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
 )
 
@@ -103,14 +103,14 @@ func paymentToStockChanges(items []payment.InventoryChange) []inventory.StockCha
 
 func NewPaymentService(
 	repo payment.Repository,
-	pool *pgxpool.Pool,
+	tx database.TxRunner,
 	gw gateway.Gateway,
 	orderSvc *order.Service,
 	inventorySvc *inventory.Service,
 	promotionSvc *promotion.Service,
 ) *payment.Service {
 	return payment.NewService(
-		repo, pool, gw,
+		repo, tx, gw,
 		&paymentOrderUpdaterAdapter{svc: orderSvc},
 		&orderGetterAdapter{svc: orderSvc},
 		&orderItemsGetterAdapter{svc: orderSvc},

@@ -62,7 +62,7 @@ func run() error {
 
 	gw := mockgw.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 
-	paymentSvc := wiring.NewPaymentService(paymentRepo, pool, gw, orderSvc, inventorySvc, promotionSvc)
+	paymentSvc := wiring.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc)
 
 	jobCfg := jobs.Config{
 		Interval:      cfg.Worker.Interval,

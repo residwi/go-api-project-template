@@ -20,9 +20,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/middleware"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 	mocks "github.com/residwi/go-api-project-template/mocks/payment"
 )
 
@@ -42,7 +42,7 @@ func setupPaymentMux(t *testing.T) (
 	invRestore := mocks.NewMockInventoryRestorer(t)
 	couponRel := mocks.NewMockCouponReleaser(t)
 
-	svc := payment.NewService(repo, nil, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
+	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
 	v := validator.New()
 
 	mux := http.NewServeMux()
@@ -63,7 +63,7 @@ func setupPaymentMuxWithSecret(t *testing.T, secret string) (*http.ServeMux, *mo
 	invRestore := mocks.NewMockInventoryRestorer(t)
 	couponRel := mocks.NewMockCouponReleaser(t)
 
-	svc := payment.NewService(repo, nil, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
+	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
 	v := validator.New()
 
 	mux := http.NewServeMux()
@@ -221,9 +221,6 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
-
-		ctx := database.WithTestTx(r.Context(), noopDBTX{})
-		r = r.WithContext(ctx)
 
 		mux.ServeHTTP(w, r)
 

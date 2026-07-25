@@ -81,7 +81,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	cfg := deps.Config
 	gw := mockgw.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 
-	paymentSvc := wiring.NewPaymentService(paymentRepo, deps.Pool, gw, orderSvc, inventorySvc, promotionSvc)
+	paymentSvc := wiring.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc)
 	wiring.SetOrderPaymentDeps(orderSvc, paymentSvc)
 
 	shippingSvc, shippingOrderProvider := wiring.NewShippingService(shippingRepo, txRunner, orderSvc)

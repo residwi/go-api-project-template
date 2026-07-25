@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -29,7 +28,7 @@ func toInventoryChanges(items []OrderItemDTO) []InventoryChange {
 
 type Service struct {
 	repo              Repository
-	pool              *pgxpool.Pool
+	tx                database.TxRunner
 	gateway           gateway.Gateway
 	orders            OrderUpdater
 	orderGet          OrderGetter
@@ -41,7 +40,7 @@ type Service struct {
 
 func NewService(
 	repo Repository,
-	pool *pgxpool.Pool,
+	tx database.TxRunner,
 	gw gateway.Gateway,
 	orders OrderUpdater,
 	orderGet OrderGetter,
@@ -52,7 +51,7 @@ func NewService(
 ) *Service {
 	return &Service{
 		repo:              repo,
-		pool:              pool,
+		tx:                tx,
 		gateway:           gw,
 		orders:            orders,
 		orderGet:          orderGet,
@@ -270,7 +269,7 @@ func (s *Service) handleChargeFailure(ctx context.Context, job *Job, lastError s
 
 //nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches
 func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
-	return database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+	return s.tx.Run(ctx, func(txCtx context.Context) error {
 		orderSnap, err := s.orderGet.GetByID(txCtx, job.OrderID)
 		if err != nil {
 			return fmt.Errorf("getting order for verification: %w", err)
@@ -344,7 +343,7 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 }
 
 func (s *Service) runCompensatingRefund(ctx context.Context, job Job) {
-	txErr := database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+	txErr := s.tx.Run(ctx, func(txCtx context.Context) error {
 		if statusErr := s.repo.UpdateStatus(txCtx, job.PaymentID, StatusRequiresReview,
 			[]Status{StatusPending, StatusProcessing, StatusSuccess}); statusErr != nil {
 			slog.ErrorContext(txCtx, "failed to update payment status in compensating refund", "payment_id", job.PaymentID, "error", statusErr)
@@ -426,7 +425,7 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		"job_id", job.ID, "order_id", job.OrderID, "payment_id", job.PaymentID,
 		"refund_id", resp.RefundID)
 
-	txErr := database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+	txErr := s.tx.Run(ctx, func(txCtx context.Context) error {
 		// Capture the order's persisted stock state BEFORE flipping it to refunded:
 		// StockDeducted chooses restock vs release, and StockReversed tells us the
 		// hold was already unwound (e.g. the order was cancelled/expired before a
