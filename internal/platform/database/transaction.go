@@ -17,11 +17,9 @@ type DBTX interface {
 
 type txCtxKey struct{}
 
-// WithTx begins a transaction, stores it in context, and executes fn.
-// All repositories that call DB(ctx, pool) will use the tx automatically.
-// If a transaction already exists in context, fn runs inside it (reuse) —
-// this prevents nested WithTx from silently opening a second connection
-// and breaking atomicity.
+// WithTx runs fn inside a transaction that repositories pick up automatically via
+// DB(ctx, pool). A transaction already in context is reused, so nested WithTx
+// cannot silently open a second connection and break atomicity.
 //
 // ⚠️ GOROUTINE SAFETY: Never pass a tx-carrying context to a goroutine.
 // pgx.Tx is NOT goroutine-safe — concurrent use corrupts state. The worker

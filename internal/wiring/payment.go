@@ -120,7 +120,8 @@ func NewPaymentService(
 	)
 }
 
-// orderSvc satisfies payment.OrderHousekeeper directly.
+// NewOrderHousekeeper returns the order service itself: it satisfies
+// payment.OrderHousekeeper directly, so there is nothing to adapt.
 func NewOrderHousekeeper(orderSvc *order.Service) payment.OrderHousekeeper {
 	return orderSvc
 }

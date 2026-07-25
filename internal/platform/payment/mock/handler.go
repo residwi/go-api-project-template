@@ -63,7 +63,6 @@ func (s *mockServer) handleCharge(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Idempotency check
 	if existing, ok := s.charges[req.IdempotencyKey]; ok {
 		writeJSONResponse(w, existing.Response)
 		return
@@ -73,7 +72,6 @@ func (s *mockServer) handleCharge(w http.ResponseWriter, r *http.Request) {
 	var resp payment.ChargeResponse
 
 	if req.PaymentMethodID != "" {
-		// Direct charge
 		if req.Amount%100 == 99 { //nolint:mnd // sentinel test value
 			resp = payment.ChargeResponse{
 				TransactionID: txnID,
@@ -86,7 +84,6 @@ func (s *mockServer) handleCharge(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		// Redirect flow
 		resp = payment.ChargeResponse{
 			TransactionID: txnID,
 			Status:        "pending",
