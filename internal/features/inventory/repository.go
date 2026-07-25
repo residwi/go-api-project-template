@@ -168,9 +168,9 @@ func (r *PostgresRepository) ReserveBatch(ctx context.Context, items []StockChan
 	return nil
 }
 
-// ReleaseBatch releases reserved stock for many products in a single UPDATE.
-// The reserved_quantity >= qty guard keeps reservations from going negative;
-// releasing is best-effort, so a partial match is not treated as an error.
+// ReleaseBatch releases reserved stock for many products. A partial match is an
+// error: a skipped row means the reservation stayed, and silent success would
+// strand it.
 func (r *PostgresRepository) ReleaseBatch(ctx context.Context, items []StockChange) error {
 	if len(items) == 0 {
 		return nil
@@ -180,7 +180,7 @@ func (r *PostgresRepository) ReleaseBatch(ctx context.Context, items []StockChan
 	if err := lockProducts(ctx, db, ids); err != nil {
 		return err
 	}
-	_, err := db.Exec(ctx,
+	tag, err := db.Exec(ctx,
 		`UPDATE products AS p SET reserved_quantity = reserved_quantity - v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
 		WHERE p.id = v.product_id AND p.reserved_quantity >= v.qty`,
@@ -188,6 +188,9 @@ func (r *PostgresRepository) ReleaseBatch(ctx context.Context, items []StockChan
 	)
 	if err != nil {
 		return fmt.Errorf("releasing stock batch: %w", err)
+	}
+	if int(tag.RowsAffected()) != len(items) {
+		return fmt.Errorf("%w: cannot release more than reserved", apperror.ErrBadRequest)
 	}
 	return nil
 }
@@ -221,7 +224,8 @@ func (r *PostgresRepository) DeductBatch(ctx context.Context, items []StockChang
 }
 
 // RestockBatch adds quantities back to stock for many products in one UPDATE
-// (used on refund/restock). Best-effort, like ReleaseBatch.
+// (used on refund/restock). Best-effort unlike ReleaseBatch: a skipped row means
+// the product is deleted, and failing a refund over that would help no one.
 func (r *PostgresRepository) RestockBatch(ctx context.Context, items []StockChange) error {
 	if len(items) == 0 {
 		return nil

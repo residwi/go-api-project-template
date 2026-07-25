@@ -68,6 +68,63 @@ func TestPostgresRepository_Reserve(t *testing.T) {
 	})
 }
 
+func reservedOf(t *testing.T, productID uuid.UUID) int {
+	t.Helper()
+	var reserved int
+	require.NoError(t, testPool.QueryRow(context.Background(),
+		`SELECT reserved_quantity FROM products WHERE id = $1`, productID).Scan(&reserved))
+	return reserved
+}
+
+func TestPostgresRepository_ReleaseBatch(t *testing.T) {
+	t.Run("releases the reservation for every product", func(t *testing.T) {
+		setup(t)
+		first := seedProduct(t)
+		second := seedProduct(t)
+		repo := inventory.NewPostgresRepository(testPool)
+		ctx := context.Background()
+
+		require.NoError(t, repo.ReserveBatch(ctx, []inventory.StockChange{
+			{ProductID: first, Quantity: 4},
+			{ProductID: second, Quantity: 2},
+		}))
+
+		require.NoError(t, repo.ReleaseBatch(ctx, []inventory.StockChange{
+			{ProductID: first, Quantity: 4},
+			{ProductID: second, Quantity: 2},
+		}))
+
+		assert.Equal(t, 0, reservedOf(t, first))
+		assert.Equal(t, 0, reservedOf(t, second))
+	})
+
+	// Silent success here would strand the reservation forever.
+	t.Run("refuses to release more than is reserved", func(t *testing.T) {
+		setup(t)
+		productID := seedProduct(t)
+		repo := inventory.NewPostgresRepository(testPool)
+		ctx := context.Background()
+
+		require.NoError(t, repo.ReserveBatch(ctx, []inventory.StockChange{
+			{ProductID: productID, Quantity: 2},
+		}))
+
+		err := repo.ReleaseBatch(ctx, []inventory.StockChange{
+			{ProductID: productID, Quantity: 3},
+		})
+
+		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.Equal(t, 2, reservedOf(t, productID), "the reservation must be left intact")
+	})
+
+	t.Run("no items is a no-op", func(t *testing.T) {
+		setup(t)
+		repo := inventory.NewPostgresRepository(testPool)
+
+		assert.NoError(t, repo.ReleaseBatch(context.Background(), nil))
+	})
+}
+
 func TestPostgresRepository_ReserveBatch_DuplicateProduct(t *testing.T) {
 	t.Run("sums quantities for a repeated product id instead of failing", func(t *testing.T) {
 		setup(t)
