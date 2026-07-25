@@ -12,6 +12,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/cart"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -337,4 +338,68 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		_, err := repo.GetCartForLock(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
+}
+
+// TestUserHardDeleteIsRestricted documents that carts no longer disappear when a
+// user row is hard-deleted. The application only ever soft-deletes users
+// (UPDATE users SET deleted_at), so the old ON DELETE CASCADE was unreachable
+// configuration that implied cart cleanup the code never performed.
+func TestUserHardDeleteIsRestricted(t *testing.T) {
+	setup(t)
+	ctx := context.Background()
+
+	userID := seedUser(t)
+	repo := cart.NewPostgresRepository(testPool)
+	_, err := repo.GetOrCreate(ctx, userID)
+	require.NoError(t, err)
+
+	_, err = testPool.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
+	require.Error(t, err, "hard-deleting a user with a cart must be refused")
+	assert.True(t, database.IsForeignKeyViolation(err),
+		"expected a foreign key violation, got: %v", err)
+
+	var count int
+	require.NoError(t, testPool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM carts WHERE user_id = $1`, userID).Scan(&count))
+	assert.Equal(t, 1, count, "cart must survive the refused delete")
+}
+
+// TestCrossModuleCascadesDropped pins which foreign keys cascade. The six
+// cross-module ones were unreachable (users and products are soft-deleted) while
+// implying a cleanup the code never performed; the four within-module ones are
+// aggregate-internal and correct.
+func TestCrossModuleCascadesDropped(t *testing.T) {
+	setup(t)
+
+	noAction := []string{
+		"carts_user_id_fkey",
+		"cart_items_product_id_fkey",
+		"wishlists_user_id_fkey",
+		"wishlist_items_product_id_fkey",
+		"notifications_user_id_fkey",
+		"notification_jobs_user_id_fkey",
+	}
+	stillCascade := []string{
+		"product_images_product_id_fkey",
+		"cart_items_cart_id_fkey",
+		"order_items_order_id_fkey",
+		"wishlist_items_wishlist_id_fkey",
+	}
+
+	for _, name := range noAction {
+		t.Run(name+" does not cascade", func(t *testing.T) {
+			var delType string
+			require.NoError(t, testPool.QueryRow(context.Background(),
+				`SELECT confdeltype::text FROM pg_constraint WHERE conname = $1`, name).Scan(&delType))
+			assert.Equal(t, "a", delType, "expected NO ACTION")
+		})
+	}
+	for _, name := range stillCascade {
+		t.Run(name+" still cascades", func(t *testing.T) {
+			var delType string
+			require.NoError(t, testPool.QueryRow(context.Background(),
+				`SELECT confdeltype::text FROM pg_constraint WHERE conname = $1`, name).Scan(&delType))
+			assert.Equal(t, "c", delType, "aggregate-internal cascade must be kept")
+		})
+	}
 }
