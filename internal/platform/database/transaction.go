@@ -77,12 +77,6 @@ func WithRecentWrite(ctx context.Context) context.Context {
 	return context.WithValue(ctx, recentWriteCtxKey{}, true)
 }
 
-// WithTestTx returns a context with a DBTX set, causing WithTx to skip pool.Begin.
-// Use in unit tests where repositories are mocked and no real DB connection exists.
-func WithTestTx(ctx context.Context, dbtx DBTX) context.Context {
-	return context.WithValue(ctx, txCtxKey{}, dbtx)
-}
-
 // TxRunner runs a function inside a transaction. Services depend on this
 // instead of *pgxpool.Pool: a pool is a database handle, but a service only
 // ever needs atomicity, and the narrower type makes an accidental
