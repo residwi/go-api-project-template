@@ -71,11 +71,11 @@ func (s *Service) Create(ctx context.Context, req CreateProductRequest) (*Produc
 		return nil, err
 	}
 
-	one := []Product{*p}
-	if err := s.enrich(ctx, one); err != nil {
-		return nil, err
-	}
-	return &one[0], nil
+	// Availability is (0,0) by construction: EnsureLevel just wrote that row, and
+	// nothing can hold a reservation against a product that did not exist a
+	// moment ago. Querying inventory back would be a round trip for a known value.
+	p.Availability = Availability{}
+	return p, nil
 }
 
 func (s *Service) GetBySlug(ctx context.Context, slug string) (*Product, error) {

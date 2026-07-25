@@ -31,8 +31,6 @@ func TestService_Create(t *testing.T) {
 			}).
 			Return(nil)
 		reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
-		inv.EXPECT().GetAvailability(mock.Anything, mock.Anything).
-			Return(map[uuid.UUID]product.Availability{}, nil)
 
 		result, err := svc.Create(context.Background(), product.CreateProductRequest{
 			Name:  "Cool Widget",
@@ -66,8 +64,6 @@ func TestService_Create(t *testing.T) {
 			p.UpdatedAt = time.Now()
 		}).Return(nil)
 		reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
-		inv.EXPECT().GetAvailability(mock.Anything, mock.Anything).
-			Return(map[uuid.UUID]product.Availability{}, nil)
 
 		result, err := svc.Create(context.Background(), product.CreateProductRequest{
 			Name:     "Widget",
@@ -632,8 +628,9 @@ func TestService_Create_RegistersZeroInventoryLevel(t *testing.T) {
 	// A new product must be registered with inventory, or its first reservation
 	// would fail on a missing level row.
 	reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
-	inv.EXPECT().GetAvailability(mock.Anything, mock.Anything).
-		Return(map[uuid.UUID]product.Availability{}, nil)
+	// No GetAvailability expectation: Create must not read inventory back for a
+	// value it already knows by construction. inv has no expectation set, so
+	// mockery fails this test immediately if Create calls it anyway.
 
 	p, err := svc.Create(context.Background(), product.CreateProductRequest{
 		Name:  "Widget",
