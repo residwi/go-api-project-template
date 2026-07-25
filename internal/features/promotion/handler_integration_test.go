@@ -19,12 +19,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 	promoMocks "github.com/residwi/go-api-project-template/mocks/promotion"
 )
 
 func setupPromotionMux(t *testing.T) (*http.ServeMux, *promoMocks.MockRepository) {
 	repo := promoMocks.NewMockRepository(t)
-	svc := promotion.NewService(repo, nil)
+	svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 	v := validator.New()
 
 	mux := http.NewServeMux()

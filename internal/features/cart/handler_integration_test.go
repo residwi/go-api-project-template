@@ -19,13 +19,14 @@ import (
 	"github.com/residwi/go-api-project-template/internal/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 	cartMocks "github.com/residwi/go-api-project-template/mocks/cart"
 )
 
 func setupCartMux(t *testing.T) (*http.ServeMux, *cartMocks.MockRepository, *cartMocks.MockProductLookup) {
 	repo := cartMocks.NewMockRepository(t)
 	products := cartMocks.NewMockProductLookup(t)
-	svc := cart.NewService(repo, nil, products, 50)
+	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 	v := validator.New()
 
 	mux := http.NewServeMux()
