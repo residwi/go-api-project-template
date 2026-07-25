@@ -340,6 +340,47 @@ func TestPostgresRepository_EnsureLevel(t *testing.T) {
 	})
 }
 
+func TestPostgresRepository_GetLevels(t *testing.T) {
+	t.Run("returns levels for many products in one call", func(t *testing.T) {
+		setup(t)
+		repo := inventory.NewPostgresRepository(testPool)
+
+		id1 := seedProduct(t)
+		id2 := seedProduct(t)
+		_, err := repo.Reserve(context.Background(), id1, 4)
+		require.NoError(t, err)
+
+		levels, err := repo.GetLevels(context.Background(), []uuid.UUID{id1, id2})
+		require.NoError(t, err)
+		require.Len(t, levels, 2)
+		assert.Equal(t, inventory.Stock{ProductID: id1, Quantity: 10, Reserved: 4, Available: 6}, levels[id1])
+		assert.Equal(t, inventory.Stock{ProductID: id2, Quantity: 10, Reserved: 0, Available: 10}, levels[id2])
+	})
+
+	t.Run("omits ids with no level row", func(t *testing.T) {
+		setup(t)
+		repo := inventory.NewPostgresRepository(testPool)
+
+		id := seedProduct(t)
+		missing := uuid.New()
+
+		levels, err := repo.GetLevels(context.Background(), []uuid.UUID{id, missing})
+		require.NoError(t, err)
+		assert.Len(t, levels, 1)
+		_, ok := levels[missing]
+		assert.False(t, ok)
+	})
+
+	t.Run("empty ids returns empty map without querying", func(t *testing.T) {
+		setup(t)
+		repo := inventory.NewPostgresRepository(testPool)
+
+		levels, err := repo.GetLevels(context.Background(), nil)
+		require.NoError(t, err)
+		assert.Empty(t, levels)
+	})
+}
+
 func TestPostgresRepository_Reserve_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
@@ -420,6 +461,18 @@ func TestPostgresRepository_EnsureLevel_CancelledContext(t *testing.T) {
 		cancel()
 
 		err := repo.EnsureLevel(ctx, uuid.New())
+		assert.Error(t, err)
+	})
+}
+
+func TestPostgresRepository_GetLevels_CancelledContext(t *testing.T) {
+	t.Run("returns error on cancelled context", func(t *testing.T) {
+		setup(t)
+		repo := inventory.NewPostgresRepository(testPool)
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		_, err := repo.GetLevels(ctx, []uuid.UUID{uuid.New()})
 		assert.Error(t, err)
 	})
 }

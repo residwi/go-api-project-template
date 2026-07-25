@@ -24,7 +24,10 @@ import (
 
 func setupProductMux(t *testing.T) (*http.ServeMux, *prodMocks.MockRepository) {
 	repo := prodMocks.NewMockRepository(t)
-	svc := product.NewService(repo)
+	inv := prodMocks.NewMockInventoryReader(t)
+	inv.EXPECT().GetAvailability(mock.Anything, mock.Anything).
+		Return(map[uuid.UUID]product.Availability{}, nil).Maybe()
+	svc := product.NewService(repo, inv)
 	v := validator.New()
 
 	mux := http.NewServeMux()

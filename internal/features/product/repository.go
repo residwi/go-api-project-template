@@ -17,7 +17,7 @@ import (
 func scanProduct(row pgx.CollectableRow) (Product, error) {
 	var p Product
 	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &p.Price, &p.CompareAtPrice,
-		&p.Currency, &p.SKU, &p.StockQuantity, &p.ReservedQuantity, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+		&p.Currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	return p, err
 }
 
@@ -68,12 +68,12 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 func (r *PostgresRepository) Create(ctx context.Context, p *Product) error {
 	db := database.DB(ctx, r.pool)
 	err := db.QueryRow(ctx,
-		`INSERT INTO products (category_id, name, slug, description, price, compare_at_price, currency, sku, stock_quantity, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, reserved_quantity, created_at, updated_at`,
+		`INSERT INTO products (category_id, name, slug, description, price, compare_at_price, currency, sku, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, created_at, updated_at`,
 		p.CategoryID, p.Name, p.Slug, p.Description, p.Price, p.CompareAtPrice,
-		p.Currency, p.SKU, p.StockQuantity, p.Status,
-	).Scan(&p.ID, &p.ReservedQuantity, &p.CreatedAt, &p.UpdatedAt)
+		p.Currency, p.SKU, p.Status,
+	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
 			return apperror.ErrConflict
@@ -88,10 +88,10 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id uuid.UUID) (*Produc
 	var p Product
 	err := db.QueryRow(ctx,
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,
-		        stock_quantity, reserved_quantity, status, created_at, updated_at
+		        status, created_at, updated_at
 		FROM products WHERE id = $1 AND deleted_at IS NULL`, id,
 	).Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &p.Price, &p.CompareAtPrice,
-		&p.Currency, &p.SKU, &p.StockQuantity, &p.ReservedQuantity, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+		&p.Currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, apperror.ErrNotFound
@@ -106,10 +106,10 @@ func (r *PostgresRepository) GetBySlug(ctx context.Context, slug string) (*Produ
 	var p Product
 	err := db.QueryRow(ctx,
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,
-		        stock_quantity, reserved_quantity, status, created_at, updated_at
+		        status, created_at, updated_at
 		FROM products WHERE slug = $1 AND deleted_at IS NULL`, slug,
 	).Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &p.Price, &p.CompareAtPrice,
-		&p.Currency, &p.SKU, &p.StockQuantity, &p.ReservedQuantity, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+		&p.Currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, apperror.ErrNotFound
@@ -123,10 +123,10 @@ func (r *PostgresRepository) Update(ctx context.Context, p *Product) error {
 	db := database.DB(ctx, r.pool)
 	tag, err := db.Exec(ctx,
 		`UPDATE products SET category_id=$1, name=$2, slug=$3, description=$4, price=$5,
-		        compare_at_price=$6, currency=$7, sku=$8, stock_quantity=$9, status=$10
-		WHERE id = $11 AND deleted_at IS NULL`,
+		        compare_at_price=$6, currency=$7, sku=$8, status=$9
+		WHERE id = $10 AND deleted_at IS NULL`,
 		p.CategoryID, p.Name, p.Slug, p.Description, p.Price, p.CompareAtPrice,
-		p.Currency, p.SKU, p.StockQuantity, p.Status, p.ID,
+		p.Currency, p.SKU, p.Status, p.ID,
 	)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
@@ -194,7 +194,7 @@ func (r *PostgresRepository) ListPublished(ctx context.Context, params Published
 	limit := params.Limit + 1
 	query := fmt.Sprintf(
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,
-		        stock_quantity, reserved_quantity, status, created_at, updated_at
+		        status, created_at, updated_at
 		FROM products WHERE %s ORDER BY created_at DESC, id DESC LIMIT $%d`,
 		where, argIdx,
 	)
@@ -255,7 +255,7 @@ func (r *PostgresRepository) ListAdmin(ctx context.Context, params AdminListPara
 	offset := (params.Page - 1) * params.PageSize
 	query := fmt.Sprintf(
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,
-		        stock_quantity, reserved_quantity, status, created_at, updated_at
+		        status, created_at, updated_at
 		FROM products WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`,
 		where, argIdx, argIdx+1,
 	)

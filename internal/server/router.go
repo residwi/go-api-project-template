@@ -60,8 +60,8 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 
 	userSvc := user.NewService(userRepo, deps.Redis)
 	categorySvc := category.NewService(categoryRepo)
-	productSvc := product.NewService(productRepo)
 	inventorySvc := inventory.NewService(inventoryRepo)
+	productSvc := wiring.NewProductService(productRepo, inventorySvc)
 	cartSvc := wiring.NewCartService(cartRepo, txRunner, productSvc, deps.Config.App.MaxCartItems)
 	authSvc := auth.NewService(
 		userSvc,

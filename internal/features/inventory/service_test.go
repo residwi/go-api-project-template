@@ -212,6 +212,39 @@ func TestService_AdjustStock(t *testing.T) {
 	})
 }
 
+func TestService_GetLevels(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		svc := inventory.NewService(repo)
+
+		id1, id2 := uuid.New(), uuid.New()
+		ids := []uuid.UUID{id1, id2}
+		expected := map[uuid.UUID]inventory.Stock{
+			id1: {ProductID: id1, Quantity: 100, Reserved: 10, Available: 90},
+			id2: {ProductID: id2, Quantity: 50, Reserved: 0, Available: 50},
+		}
+		repo.EXPECT().GetLevels(mock.Anything, ids).Return(expected, nil)
+
+		result, err := svc.GetLevels(context.Background(), ids)
+
+		require.NoError(t, err)
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		svc := inventory.NewService(repo)
+
+		ids := []uuid.UUID{uuid.New()}
+		repo.EXPECT().GetLevels(mock.Anything, ids).Return(nil, errors.New("db error"))
+
+		result, err := svc.GetLevels(context.Background(), ids)
+
+		assert.Nil(t, result)
+		assert.Error(t, err)
+	})
+}
+
 func TestService_EnsureLevel(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)

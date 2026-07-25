@@ -19,6 +19,7 @@ packages:
   github.com/residwi/go-api-project-template/internal/features/product:
     interfaces:
       Repository:
+      InventoryReader:
   github.com/residwi/go-api-project-template/internal/features/inventory:
     interfaces:
       Repository:

@@ -27,6 +27,6 @@ func (a *productLookupAdapter) GetByID(ctx context.Context, id uuid.UUID) (*cart
 		Price:     p.Price,
 		Currency:  p.Currency,
 		Status:    p.Status,
-		Available: p.StockQuantity - p.ReservedQuantity,
+		Available: p.Availability.Available,
 	}, nil
 }

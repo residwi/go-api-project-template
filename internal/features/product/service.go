@@ -12,10 +12,32 @@ import (
 
 type Service struct {
 	repo Repository
+	inv  InventoryReader
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, inv InventoryReader) *Service {
+	return &Service{repo: repo, inv: inv}
+}
+
+// enrich fills Availability for a page of products in one call to inventory.
+// Products with no level row (never registered) read as zero rather than
+// erroring, so a missing row cannot take down a listing.
+func (s *Service) enrich(ctx context.Context, products []Product) error {
+	if len(products) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(products))
+	for i := range products {
+		ids[i] = products[i].ID
+	}
+	levels, err := s.inv.GetAvailability(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("reading availability: %w", err)
+	}
+	for i := range products {
+		products[i].Availability = levels[products[i].ID]
+	}
+	return nil
 }
 
 func (s *Service) Create(ctx context.Context, req CreateProductRequest) (*Product, error) {
@@ -33,9 +55,6 @@ func (s *Service) Create(ctx context.Context, req CreateProductRequest) (*Produc
 
 	if req.Currency != "" {
 		p.Currency = req.Currency
-	}
-	if req.StockQuantity != nil {
-		p.StockQuantity = *req.StockQuantity
 	}
 	if req.Status != "" {
 		p.Status = req.Status
@@ -64,7 +83,11 @@ func (s *Service) GetBySlug(ctx context.Context, slug string) (*Product, error) 
 	}
 	p.Images = images
 
-	return p, nil
+	one := []Product{*p}
+	if err := s.enrich(ctx, one); err != nil {
+		return nil, err
+	}
+	return &one[0], nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Product, error) {
@@ -79,15 +102,33 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Product, error) {
 	}
 	p.Images = images
 
-	return p, nil
+	one := []Product{*p}
+	if err := s.enrich(ctx, one); err != nil {
+		return nil, err
+	}
+	return &one[0], nil
 }
 
 func (s *Service) ListPublished(ctx context.Context, params PublishedListParams) ([]Product, string, bool, error) {
-	return s.repo.ListPublished(ctx, params)
+	products, nextCursor, hasMore, err := s.repo.ListPublished(ctx, params)
+	if err != nil {
+		return nil, "", false, err
+	}
+	if err := s.enrich(ctx, products); err != nil {
+		return nil, "", false, err
+	}
+	return products, nextCursor, hasMore, nil
 }
 
 func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]Product, int, error) {
-	return s.repo.ListAdmin(ctx, params)
+	products, total, err := s.repo.ListAdmin(ctx, params)
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := s.enrich(ctx, products); err != nil {
+		return nil, 0, err
+	}
+	return products, total, nil
 }
 
 func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateProductRequest) (*Product, error) {
@@ -117,9 +158,6 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateProductReq
 	}
 	if req.SKU != nil {
 		p.SKU = req.SKU
-	}
-	if req.StockQuantity != nil {
-		p.StockQuantity = *req.StockQuantity
 	}
 	if req.Status != nil {
 		p.Status = *req.Status
@@ -165,13 +203,17 @@ func (s *Service) DeleteImage(ctx context.Context, productID, imageID uuid.UUID)
 	return s.repo.DeleteImage(ctx, imageID)
 }
 
-// AvailableQuantity returns stock - reserved for a given product.
+// AvailableQuantity returns the sellable quantity for a given product, read
+// through the InventoryReader port now that product no longer stores stock.
 func (s *Service) AvailableQuantity(ctx context.Context, id uuid.UUID) (int, error) {
-	p, err := s.repo.GetByID(ctx, id)
+	if _, err := s.repo.GetByID(ctx, id); err != nil {
+		return 0, err
+	}
+	levels, err := s.inv.GetAvailability(ctx, []uuid.UUID{id})
 	if err != nil {
 		return 0, err
 	}
-	avail := p.StockQuantity - p.ReservedQuantity
+	avail := levels[id].Available
 	if avail < 0 {
 		return 0, fmt.Errorf("%w: negative available quantity", apperror.ErrInsufficientStock)
 	}

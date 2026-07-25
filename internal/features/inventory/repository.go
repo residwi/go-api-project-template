@@ -32,6 +32,7 @@ type Repository interface {
 	GetStock(ctx context.Context, productID uuid.UUID) (*Stock, error)
 	AdjustStock(ctx context.Context, productID uuid.UUID, newQuantity int) (*Stock, error)
 	EnsureLevel(ctx context.Context, productID uuid.UUID) error
+	GetLevels(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Stock, error)
 }
 
 // stockValueCols is the number of columns per (product_id, qty) VALUES tuple.
@@ -338,4 +339,34 @@ func (r *PostgresRepository) EnsureLevel(ctx context.Context, productID uuid.UUI
 		return fmt.Errorf("ensuring inventory level: %w", err)
 	}
 	return nil
+}
+
+// GetLevels reads many products' levels in one query. Missing product ids are
+// simply absent from the map; the caller decides what a missing level means.
+func (r *PostgresRepository) GetLevels(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Stock, error) {
+	if len(ids) == 0 {
+		return map[uuid.UUID]Stock{}, nil
+	}
+	db := database.DB(ctx, r.pool)
+	rows, err := db.Query(ctx,
+		`SELECT product_id, available_stock, reserved_stock
+		 FROM inventory_levels WHERE product_id = ANY($1)`, ids)
+	if err != nil {
+		return nil, fmt.Errorf("getting inventory levels: %w", err)
+	}
+	defer rows.Close()
+
+	out := make(map[uuid.UUID]Stock, len(ids))
+	for rows.Next() {
+		var id uuid.UUID
+		var available, reserved int
+		if err := rows.Scan(&id, &available, &reserved); err != nil {
+			return nil, fmt.Errorf("scanning inventory level: %w", err)
+		}
+		out[id] = *stockFrom(id, available, reserved)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating inventory levels: %w", err)
+	}
+	return out, nil
 }

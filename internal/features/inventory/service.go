@@ -79,3 +79,9 @@ func (s *Service) AdjustStock(ctx context.Context, productID uuid.UUID, newQuant
 func (s *Service) EnsureLevel(ctx context.Context, productID uuid.UUID) error {
 	return s.repo.EnsureLevel(ctx, productID)
 }
+
+// GetLevels answers product's InventoryReader port: one batch read per page,
+// not one query per product.
+func (s *Service) GetLevels(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Stock, error) {
+	return s.repo.GetLevels(ctx, ids)
+}

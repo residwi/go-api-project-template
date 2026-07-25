@@ -54,13 +54,12 @@ func TestPostgresRepository_Create(t *testing.T) {
 		repo := product.NewPostgresRepository(testPool)
 		desc := "A description"
 		p := &product.Product{
-			Name:          "New Product",
-			Slug:          "new-product-" + uuid.New().String(),
-			Description:   &desc,
-			Price:         1000,
-			Currency:      "USD",
-			StockQuantity: 5,
-			Status:        product.StatusPublished,
+			Name:        "New Product",
+			Slug:        "new-product-" + uuid.New().String(),
+			Description: &desc,
+			Price:       1000,
+			Currency:    "USD",
+			Status:      product.StatusPublished,
 		}
 
 		err := repo.Create(context.Background(), p)
@@ -78,12 +77,11 @@ func TestPostgresRepository_Create(t *testing.T) {
 		repo := product.NewPostgresRepository(testPool)
 
 		dup := &product.Product{
-			Name:          "Duplicate",
-			Slug:          existing.Slug,
-			Price:         500,
-			Currency:      "USD",
-			StockQuantity: 1,
-			Status:        product.StatusDraft,
+			Name:     "Duplicate",
+			Slug:     existing.Slug,
+			Price:    500,
+			Currency: "USD",
+			Status:   product.StatusDraft,
 		}
 		err := repo.Create(context.Background(), dup)
 		assert.ErrorIs(t, err, apperror.ErrConflict)
@@ -156,13 +154,12 @@ func TestPostgresRepository_Update(t *testing.T) {
 		repo := product.NewPostgresRepository(testPool)
 
 		p := &product.Product{
-			ID:            uuid.New(),
-			Name:          "Ghost",
-			Slug:          "ghost-" + uuid.New().String(),
-			Price:         100,
-			Currency:      "USD",
-			StockQuantity: 1,
-			Status:        product.StatusDraft,
+			ID:       uuid.New(),
+			Name:     "Ghost",
+			Slug:     "ghost-" + uuid.New().String(),
+			Price:    100,
+			Currency: "USD",
+			Status:   product.StatusDraft,
 		}
 		err := repo.Update(context.Background(), p)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -464,7 +461,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Create", func(t *testing.T) {
 		setup(t)
-		p := &product.Product{Name: "X", Slug: "x-" + uuid.New().String(), Price: 100, Currency: "USD", StockQuantity: 1, Status: product.StatusDraft}
+		p := &product.Product{Name: "X", Slug: "x-" + uuid.New().String(), Price: 100, Currency: "USD", Status: product.StatusDraft}
 		err := repo.Create(cancelledCtx, p)
 		assert.Error(t, err)
 	})
@@ -483,7 +480,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Update", func(t *testing.T) {
 		setup(t)
-		p := &product.Product{ID: uuid.New(), Name: "X", Slug: "x-" + uuid.New().String(), Price: 100, Currency: "USD", StockQuantity: 1, Status: product.StatusDraft}
+		p := &product.Product{ID: uuid.New(), Name: "X", Slug: "x-" + uuid.New().String(), Price: 100, Currency: "USD", Status: product.StatusDraft}
 		err := repo.Update(cancelledCtx, p)
 		assert.Error(t, err)
 	})
