@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -94,5 +95,74 @@ func TestDB(t *testing.T) {
 			return nil
 		})
 		require.NoError(t, err)
+	})
+}
+
+func TestTxRunner_Run(t *testing.T) {
+	pool := newTestPool(t)
+	runner := database.NewTxRunner(pool)
+
+	t.Run("commits when fn returns nil", func(t *testing.T) {
+		ctx := context.Background()
+		email := "txrunner-commit-" + uuid.NewString() + "@example.com"
+
+		err := runner.Run(ctx, func(txCtx context.Context) error {
+			_, err := database.DB(txCtx, pool).Exec(txCtx,
+				`INSERT INTO users (email, password_hash, first_name, last_name)
+				 VALUES ($1, 'x', 'Tx', 'Runner')`, email)
+			return err
+		})
+		require.NoError(t, err)
+
+		var count int
+		require.NoError(t, pool.QueryRow(ctx,
+			`SELECT COUNT(*) FROM users WHERE email = $1`, email).Scan(&count))
+		assert.Equal(t, 1, count)
+	})
+
+	t.Run("rolls back when fn returns an error", func(t *testing.T) {
+		ctx := context.Background()
+		email := "txrunner-rollback-" + uuid.NewString() + "@example.com"
+		sentinel := errors.New("boom")
+
+		err := runner.Run(ctx, func(txCtx context.Context) error {
+			if _, err := database.DB(txCtx, pool).Exec(txCtx,
+				`INSERT INTO users (email, password_hash, first_name, last_name)
+				 VALUES ($1, 'x', 'Tx', 'Runner')`, email); err != nil {
+				return err
+			}
+			return sentinel
+		})
+		require.ErrorIs(t, err, sentinel)
+
+		var count int
+		require.NoError(t, pool.QueryRow(ctx,
+			`SELECT COUNT(*) FROM users WHERE email = $1`, email).Scan(&count))
+		assert.Equal(t, 0, count, "insert must not survive a returned error")
+	})
+
+	t.Run("nested Run reuses the outer transaction", func(t *testing.T) {
+		ctx := context.Background()
+		email := "txrunner-nested-" + uuid.NewString() + "@example.com"
+		sentinel := errors.New("outer fails")
+
+		err := runner.Run(ctx, func(outerCtx context.Context) error {
+			if err := runner.Run(outerCtx, func(innerCtx context.Context) error {
+				_, err := database.DB(innerCtx, pool).Exec(innerCtx,
+					`INSERT INTO users (email, password_hash, first_name, last_name)
+					 VALUES ($1, 'x', 'Tx', 'Runner')`, email)
+				return err
+			}); err != nil {
+				return err
+			}
+			return sentinel
+		})
+		require.ErrorIs(t, err, sentinel)
+
+		var count int
+		require.NoError(t, pool.QueryRow(ctx,
+			`SELECT COUNT(*) FROM users WHERE email = $1`, email).Scan(&count))
+		assert.Equal(t, 0, count,
+			"inner Run must join the outer tx, so the outer rollback discards it")
 	})
 }

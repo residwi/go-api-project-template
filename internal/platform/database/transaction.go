@@ -82,3 +82,21 @@ func WithRecentWrite(ctx context.Context) context.Context {
 func WithTestTx(ctx context.Context, dbtx DBTX) context.Context {
 	return context.WithValue(ctx, txCtxKey{}, dbtx)
 }
+
+// TxRunner runs a function inside a transaction. Services depend on this
+// instead of *pgxpool.Pool: a pool is a database handle, but a service only
+// ever needs atomicity, and the narrower type makes an accidental
+// s.pool.Query() in the service layer a compile error.
+type TxRunner interface {
+	Run(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+type poolTxRunner struct{ pool *pgxpool.Pool }
+
+// NewTxRunner returns a TxRunner backed by pool. Nested calls reuse the
+// transaction already in ctx, matching WithTx.
+func NewTxRunner(pool *pgxpool.Pool) TxRunner { return &poolTxRunner{pool: pool} }
+
+func (r *poolTxRunner) Run(ctx context.Context, fn func(ctx context.Context) error) error {
+	return WithTx(ctx, r.pool, fn)
+}
