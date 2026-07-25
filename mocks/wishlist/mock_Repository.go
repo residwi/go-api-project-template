@@ -8,10 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/wishlist"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -67,7 +66,7 @@ type MockRepository_AddItem_Call struct {
 //   - ctx context.Context
 //   - wishlistID uuid.UUID
 //   - productID uuid.UUID
-func (_e *MockRepository_Expecter) AddItem(ctx interface{}, wishlistID interface{}, productID interface{}) *MockRepository_AddItem_Call {
+func (_e *MockRepository_Expecter) AddItem(ctx any, wishlistID any, productID any) *MockRepository_AddItem_Call {
 	return &MockRepository_AddItem_Call{Call: _e.mock.On("AddItem", ctx, wishlistID, productID)}
 }
 
@@ -141,7 +140,7 @@ type MockRepository_GetItems_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - cursor paging.CursorPage
-func (_e *MockRepository_Expecter) GetItems(ctx interface{}, userID interface{}, cursor interface{}) *MockRepository_GetItems_Call {
+func (_e *MockRepository_Expecter) GetItems(ctx any, userID any, cursor any) *MockRepository_GetItems_Call {
 	return &MockRepository_GetItems_Call{Call: _e.mock.On("GetItems", ctx, userID, cursor)}
 }
 
@@ -214,7 +213,7 @@ type MockRepository_GetOrCreate_Call struct {
 // GetOrCreate is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockRepository_Expecter) GetOrCreate(ctx interface{}, userID interface{}) *MockRepository_GetOrCreate_Call {
+func (_e *MockRepository_Expecter) GetOrCreate(ctx any, userID any) *MockRepository_GetOrCreate_Call {
 	return &MockRepository_GetOrCreate_Call{Call: _e.mock.On("GetOrCreate", ctx, userID)}
 }
 
@@ -281,7 +280,7 @@ type MockRepository_HasItem_Call struct {
 //   - ctx context.Context
 //   - wishlistID uuid.UUID
 //   - productID uuid.UUID
-func (_e *MockRepository_Expecter) HasItem(ctx interface{}, wishlistID interface{}, productID interface{}) *MockRepository_HasItem_Call {
+func (_e *MockRepository_Expecter) HasItem(ctx any, wishlistID any, productID any) *MockRepository_HasItem_Call {
 	return &MockRepository_HasItem_Call{Call: _e.mock.On("HasItem", ctx, wishlistID, productID)}
 }
 
@@ -344,7 +343,7 @@ type MockRepository_RemoveItem_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - productID uuid.UUID
-func (_e *MockRepository_Expecter) RemoveItem(ctx interface{}, userID interface{}, productID interface{}) *MockRepository_RemoveItem_Call {
+func (_e *MockRepository_Expecter) RemoveItem(ctx any, userID any, productID any) *MockRepository_RemoveItem_Call {
 	return &MockRepository_RemoveItem_Call{Call: _e.mock.On("RemoveItem", ctx, userID, productID)}
 }
 

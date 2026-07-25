@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -68,7 +67,7 @@ type MockRepository_Apply_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - t order.Transition
-func (_e *MockRepository_Expecter) Apply(ctx interface{}, id interface{}, t interface{}) *MockRepository_Apply_Call {
+func (_e *MockRepository_Expecter) Apply(ctx any, id any, t any) *MockRepository_Apply_Call {
 	return &MockRepository_Apply_Call{Call: _e.mock.On("Apply", ctx, id, t)}
 }
 
@@ -130,7 +129,7 @@ type MockRepository_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - order1 *order.Order
-func (_e *MockRepository_Expecter) Create(ctx interface{}, order1 interface{}) *MockRepository_Create_Call {
+func (_e *MockRepository_Expecter) Create(ctx any, order1 any) *MockRepository_Create_Call {
 	return &MockRepository_Create_Call{Call: _e.mock.On("Create", ctx, order1)}
 }
 
@@ -187,7 +186,7 @@ type MockRepository_CreateItems_Call struct {
 // CreateItems is a helper method to define mock.On call
 //   - ctx context.Context
 //   - items []order.Item
-func (_e *MockRepository_Expecter) CreateItems(ctx interface{}, items interface{}) *MockRepository_CreateItems_Call {
+func (_e *MockRepository_Expecter) CreateItems(ctx any, items any) *MockRepository_CreateItems_Call {
 	return &MockRepository_CreateItems_Call{Call: _e.mock.On("CreateItems", ctx, items)}
 }
 
@@ -255,7 +254,7 @@ type MockRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockRepository_GetByID_Call {
+func (_e *MockRepository_Expecter) GetByID(ctx any, id any) *MockRepository_GetByID_Call {
 	return &MockRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -324,7 +323,7 @@ type MockRepository_GetByUserIDAndIdempotencyKey_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - key string
-func (_e *MockRepository_Expecter) GetByUserIDAndIdempotencyKey(ctx interface{}, userID interface{}, key interface{}) *MockRepository_GetByUserIDAndIdempotencyKey_Call {
+func (_e *MockRepository_Expecter) GetByUserIDAndIdempotencyKey(ctx any, userID any, key any) *MockRepository_GetByUserIDAndIdempotencyKey_Call {
 	return &MockRepository_GetByUserIDAndIdempotencyKey_Call{Call: _e.mock.On("GetByUserIDAndIdempotencyKey", ctx, userID, key)}
 }
 
@@ -397,7 +396,7 @@ type MockRepository_GetExpiredOrders_Call struct {
 // GetExpiredOrders is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
-func (_e *MockRepository_Expecter) GetExpiredOrders(ctx interface{}, limit interface{}) *MockRepository_GetExpiredOrders_Call {
+func (_e *MockRepository_Expecter) GetExpiredOrders(ctx any, limit any) *MockRepository_GetExpiredOrders_Call {
 	return &MockRepository_GetExpiredOrders_Call{Call: _e.mock.On("GetExpiredOrders", ctx, limit)}
 }
 
@@ -466,7 +465,7 @@ type MockRepository_GetStaleProcessingOrders_Call struct {
 //   - ctx context.Context
 //   - threshold time.Duration
 //   - limit int
-func (_e *MockRepository_Expecter) GetStaleProcessingOrders(ctx interface{}, threshold interface{}, limit interface{}) *MockRepository_GetStaleProcessingOrders_Call {
+func (_e *MockRepository_Expecter) GetStaleProcessingOrders(ctx any, threshold any, limit any) *MockRepository_GetStaleProcessingOrders_Call {
 	return &MockRepository_GetStaleProcessingOrders_Call{Call: _e.mock.On("GetStaleProcessingOrders", ctx, threshold, limit)}
 }
 
@@ -504,8 +503,8 @@ func (_c *MockRepository_GetStaleProcessingOrders_Call) RunAndReturn(run func(ct
 }
 
 // HasDeliveredOrder provides a mock function for the type MockRepository
-func (_mock *MockRepository) HasDeliveredOrder(ctx context.Context, userID uuid.UUID, orderID uuid.UUID, productID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, userID, orderID, productID)
+func (_mock *MockRepository) HasDeliveredOrder(ctx context.Context, p order.DeliveredPurchaseParams) (bool, error) {
+	ret := _mock.Called(ctx, p)
 
 	if len(ret) == 0 {
 		panic("no return value specified for HasDeliveredOrder")
@@ -513,16 +512,16 @@ func (_mock *MockRepository) HasDeliveredOrder(ctx context.Context, userID uuid.
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, userID, orderID, productID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, order.DeliveredPurchaseParams) (bool, error)); ok {
+		return returnFunc(ctx, p)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, userID, orderID, productID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, order.DeliveredPurchaseParams) bool); ok {
+		r0 = returnFunc(ctx, p)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID, orderID, productID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, order.DeliveredPurchaseParams) error); ok {
+		r1 = returnFunc(ctx, p)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -536,36 +535,24 @@ type MockRepository_HasDeliveredOrder_Call struct {
 
 // HasDeliveredOrder is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - orderID uuid.UUID
-//   - productID uuid.UUID
-func (_e *MockRepository_Expecter) HasDeliveredOrder(ctx interface{}, userID interface{}, orderID interface{}, productID interface{}) *MockRepository_HasDeliveredOrder_Call {
-	return &MockRepository_HasDeliveredOrder_Call{Call: _e.mock.On("HasDeliveredOrder", ctx, userID, orderID, productID)}
+//   - p order.DeliveredPurchaseParams
+func (_e *MockRepository_Expecter) HasDeliveredOrder(ctx any, p any) *MockRepository_HasDeliveredOrder_Call {
+	return &MockRepository_HasDeliveredOrder_Call{Call: _e.mock.On("HasDeliveredOrder", ctx, p)}
 }
 
-func (_c *MockRepository_HasDeliveredOrder_Call) Run(run func(ctx context.Context, userID uuid.UUID, orderID uuid.UUID, productID uuid.UUID)) *MockRepository_HasDeliveredOrder_Call {
+func (_c *MockRepository_HasDeliveredOrder_Call) Run(run func(ctx context.Context, p order.DeliveredPurchaseParams)) *MockRepository_HasDeliveredOrder_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 order.DeliveredPurchaseParams
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 uuid.UUID
-		if args[3] != nil {
-			arg3 = args[3].(uuid.UUID)
+			arg1 = args[1].(order.DeliveredPurchaseParams)
 		}
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -576,7 +563,7 @@ func (_c *MockRepository_HasDeliveredOrder_Call) Return(b bool, err error) *Mock
 	return _c
 }
 
-func (_c *MockRepository_HasDeliveredOrder_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, orderID uuid.UUID, productID uuid.UUID) (bool, error)) *MockRepository_HasDeliveredOrder_Call {
+func (_c *MockRepository_HasDeliveredOrder_Call) RunAndReturn(run func(ctx context.Context, p order.DeliveredPurchaseParams) (bool, error)) *MockRepository_HasDeliveredOrder_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -623,7 +610,7 @@ type MockRepository_ListAdmin_Call struct {
 // ListAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - params order.AdminListParams
-func (_e *MockRepository_Expecter) ListAdmin(ctx interface{}, params interface{}) *MockRepository_ListAdmin_Call {
+func (_e *MockRepository_Expecter) ListAdmin(ctx any, params any) *MockRepository_ListAdmin_Call {
 	return &MockRepository_ListAdmin_Call{Call: _e.mock.On("ListAdmin", ctx, params)}
 }
 
@@ -692,7 +679,7 @@ type MockRepository_ListByUser_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - cursor paging.CursorPage
-func (_e *MockRepository_Expecter) ListByUser(ctx interface{}, userID interface{}, cursor interface{}) *MockRepository_ListByUser_Call {
+func (_e *MockRepository_Expecter) ListByUser(ctx any, userID any, cursor any) *MockRepository_ListByUser_Call {
 	return &MockRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, cursor)}
 }
 
@@ -765,7 +752,7 @@ type MockRepository_ListItemsByOrderID_Call struct {
 // ListItemsByOrderID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockRepository_Expecter) ListItemsByOrderID(ctx interface{}, orderID interface{}) *MockRepository_ListItemsByOrderID_Call {
+func (_e *MockRepository_Expecter) ListItemsByOrderID(ctx any, orderID any) *MockRepository_ListItemsByOrderID_Call {
 	return &MockRepository_ListItemsByOrderID_Call{Call: _e.mock.On("ListItemsByOrderID", ctx, orderID)}
 }
 
@@ -824,7 +811,7 @@ type MockRepository_UpdateStatus_Call struct {
 //   - id uuid.UUID
 //   - fromStatus order.Status
 //   - toStatus order.Status
-func (_e *MockRepository_Expecter) UpdateStatus(ctx interface{}, id interface{}, fromStatus interface{}, toStatus interface{}) *MockRepository_UpdateStatus_Call {
+func (_e *MockRepository_Expecter) UpdateStatus(ctx any, id any, fromStatus any, toStatus any) *MockRepository_UpdateStatus_Call {
 	return &MockRepository_UpdateStatus_Call{Call: _e.mock.On("UpdateStatus", ctx, id, fromStatus, toStatus)}
 }
 
@@ -893,7 +880,7 @@ type MockRepository_UpdateTotals_Call struct {
 //   - id uuid.UUID
 //   - discount int64
 //   - total int64
-func (_e *MockRepository_Expecter) UpdateTotals(ctx interface{}, id interface{}, discount interface{}, total interface{}) *MockRepository_UpdateTotals_Call {
+func (_e *MockRepository_Expecter) UpdateTotals(ctx any, id any, discount any, total any) *MockRepository_UpdateTotals_Call {
 	return &MockRepository_UpdateTotals_Call{Call: _e.mock.On("UpdateTotals", ctx, id, discount, total)}
 }
 

@@ -63,7 +63,7 @@ type MockPaymentJobCanceller_CancelJobsByOrderID_Call struct {
 // CancelJobsByOrderID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockPaymentJobCanceller_Expecter) CancelJobsByOrderID(ctx interface{}, orderID interface{}) *MockPaymentJobCanceller_CancelJobsByOrderID_Call {
+func (_e *MockPaymentJobCanceller_Expecter) CancelJobsByOrderID(ctx any, orderID any) *MockPaymentJobCanceller_CancelJobsByOrderID_Call {
 	return &MockPaymentJobCanceller_CancelJobsByOrderID_Call{Call: _e.mock.On("CancelJobsByOrderID", ctx, orderID)}
 }
 

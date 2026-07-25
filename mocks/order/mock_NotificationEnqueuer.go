@@ -64,7 +64,7 @@ type MockNotificationEnqueuer_EnqueueOrderPlaced_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - orderID uuid.UUID
-func (_e *MockNotificationEnqueuer_Expecter) EnqueueOrderPlaced(ctx interface{}, userID interface{}, orderID interface{}) *MockNotificationEnqueuer_EnqueueOrderPlaced_Call {
+func (_e *MockNotificationEnqueuer_Expecter) EnqueueOrderPlaced(ctx any, userID any, orderID any) *MockNotificationEnqueuer_EnqueueOrderPlaced_Call {
 	return &MockNotificationEnqueuer_EnqueueOrderPlaced_Call{Call: _e.mock.On("EnqueueOrderPlaced", ctx, userID, orderID)}
 }
 

@@ -7,9 +7,8 @@ package mocks
 import (
 	"context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/platform/payment"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockGateway creates a new instance of MockGateway. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -73,7 +72,7 @@ type MockGateway_Charge_Call struct {
 // Charge is a helper method to define mock.On call
 //   - ctx context.Context
 //   - req payment.ChargeRequest
-func (_e *MockGateway_Expecter) Charge(ctx interface{}, req interface{}) *MockGateway_Charge_Call {
+func (_e *MockGateway_Expecter) Charge(ctx any, req any) *MockGateway_Charge_Call {
 	return &MockGateway_Charge_Call{Call: _e.mock.On("Charge", ctx, req)}
 }
 
@@ -139,7 +138,7 @@ type MockGateway_Refund_Call struct {
 // Refund is a helper method to define mock.On call
 //   - ctx context.Context
 //   - req payment.RefundRequest
-func (_e *MockGateway_Expecter) Refund(ctx interface{}, req interface{}) *MockGateway_Refund_Call {
+func (_e *MockGateway_Expecter) Refund(ctx any, req any) *MockGateway_Refund_Call {
 	return &MockGateway_Refund_Call{Call: _e.mock.On("Refund", ctx, req)}
 }
 

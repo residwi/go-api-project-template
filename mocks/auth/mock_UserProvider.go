@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/auth"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockUserProvider creates a new instance of MockUserProvider. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -74,7 +73,7 @@ type MockUserProvider_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - params auth.CreateUserParams
-func (_e *MockUserProvider_Expecter) Create(ctx interface{}, params interface{}) *MockUserProvider_Create_Call {
+func (_e *MockUserProvider_Expecter) Create(ctx any, params any) *MockUserProvider_Create_Call {
 	return &MockUserProvider_Create_Call{Call: _e.mock.On("Create", ctx, params)}
 }
 
@@ -140,7 +139,7 @@ type MockUserProvider_GetByEmail_Call struct {
 // GetByEmail is a helper method to define mock.On call
 //   - ctx context.Context
 //   - email string
-func (_e *MockUserProvider_Expecter) GetByEmail(ctx interface{}, email interface{}) *MockUserProvider_GetByEmail_Call {
+func (_e *MockUserProvider_Expecter) GetByEmail(ctx any, email any) *MockUserProvider_GetByEmail_Call {
 	return &MockUserProvider_GetByEmail_Call{Call: _e.mock.On("GetByEmail", ctx, email)}
 }
 
@@ -206,7 +205,7 @@ type MockUserProvider_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockUserProvider_Expecter) GetByID(ctx interface{}, id interface{}) *MockUserProvider_GetByID_Call {
+func (_e *MockUserProvider_Expecter) GetByID(ctx any, id any) *MockUserProvider_GetByID_Call {
 	return &MockUserProvider_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 

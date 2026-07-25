@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/user"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -73,7 +72,7 @@ type MockRepository_CountAdmins_Call struct {
 
 // CountAdmins is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockRepository_Expecter) CountAdmins(ctx interface{}) *MockRepository_CountAdmins_Call {
+func (_e *MockRepository_Expecter) CountAdmins(ctx any) *MockRepository_CountAdmins_Call {
 	return &MockRepository_CountAdmins_Call{Call: _e.mock.On("CountAdmins", ctx)}
 }
 
@@ -125,7 +124,7 @@ type MockRepository_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - user1 *user.User
-func (_e *MockRepository_Expecter) Create(ctx interface{}, user1 interface{}) *MockRepository_Create_Call {
+func (_e *MockRepository_Expecter) Create(ctx any, user1 any) *MockRepository_Create_Call {
 	return &MockRepository_Create_Call{Call: _e.mock.On("Create", ctx, user1)}
 }
 
@@ -182,7 +181,7 @@ type MockRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockRepository_Delete_Call {
+func (_e *MockRepository_Expecter) Delete(ctx any, id any) *MockRepository_Delete_Call {
 	return &MockRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
@@ -248,7 +247,7 @@ type MockRepository_ExistsByEmail_Call struct {
 // ExistsByEmail is a helper method to define mock.On call
 //   - ctx context.Context
 //   - email string
-func (_e *MockRepository_Expecter) ExistsByEmail(ctx interface{}, email interface{}) *MockRepository_ExistsByEmail_Call {
+func (_e *MockRepository_Expecter) ExistsByEmail(ctx any, email any) *MockRepository_ExistsByEmail_Call {
 	return &MockRepository_ExistsByEmail_Call{Call: _e.mock.On("ExistsByEmail", ctx, email)}
 }
 
@@ -316,7 +315,7 @@ type MockRepository_GetByEmail_Call struct {
 // GetByEmail is a helper method to define mock.On call
 //   - ctx context.Context
 //   - email string
-func (_e *MockRepository_Expecter) GetByEmail(ctx interface{}, email interface{}) *MockRepository_GetByEmail_Call {
+func (_e *MockRepository_Expecter) GetByEmail(ctx any, email any) *MockRepository_GetByEmail_Call {
 	return &MockRepository_GetByEmail_Call{Call: _e.mock.On("GetByEmail", ctx, email)}
 }
 
@@ -384,7 +383,7 @@ type MockRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockRepository_GetByID_Call {
+func (_e *MockRepository_Expecter) GetByID(ctx any, id any) *MockRepository_GetByID_Call {
 	return &MockRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -456,7 +455,7 @@ type MockRepository_GetStatusByID_Call struct {
 // GetStatusByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) GetStatusByID(ctx interface{}, id interface{}) *MockRepository_GetStatusByID_Call {
+func (_e *MockRepository_Expecter) GetStatusByID(ctx any, id any) *MockRepository_GetStatusByID_Call {
 	return &MockRepository_GetStatusByID_Call{Call: _e.mock.On("GetStatusByID", ctx, id)}
 }
 
@@ -513,7 +512,7 @@ type MockRepository_IncrementTokenVersion_Call struct {
 // IncrementTokenVersion is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) IncrementTokenVersion(ctx interface{}, id interface{}) *MockRepository_IncrementTokenVersion_Call {
+func (_e *MockRepository_Expecter) IncrementTokenVersion(ctx any, id any) *MockRepository_IncrementTokenVersion_Call {
 	return &MockRepository_IncrementTokenVersion_Call{Call: _e.mock.On("IncrementTokenVersion", ctx, id)}
 }
 
@@ -587,7 +586,7 @@ type MockRepository_List_Call struct {
 // List is a helper method to define mock.On call
 //   - ctx context.Context
 //   - params user.ListParams
-func (_e *MockRepository_Expecter) List(ctx interface{}, params interface{}) *MockRepository_List_Call {
+func (_e *MockRepository_Expecter) List(ctx any, params any) *MockRepository_List_Call {
 	return &MockRepository_List_Call{Call: _e.mock.On("List", ctx, params)}
 }
 
@@ -644,7 +643,7 @@ type MockRepository_Update_Call struct {
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
 //   - user1 *user.User
-func (_e *MockRepository_Expecter) Update(ctx interface{}, user1 interface{}) *MockRepository_Update_Call {
+func (_e *MockRepository_Expecter) Update(ctx any, user1 any) *MockRepository_Update_Call {
 	return &MockRepository_Update_Call{Call: _e.mock.On("Update", ctx, user1)}
 }
 

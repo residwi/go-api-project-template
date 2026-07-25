@@ -7,9 +7,8 @@ package mocks
 import (
 	"context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/order"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockPaymentInitiator creates a new instance of MockPaymentInitiator. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -73,7 +72,7 @@ type MockPaymentInitiator_InitiatePayment_Call struct {
 // InitiatePayment is a helper method to define mock.On call
 //   - ctx context.Context
 //   - params order.InitiatePaymentParams
-func (_e *MockPaymentInitiator_Expecter) InitiatePayment(ctx interface{}, params interface{}) *MockPaymentInitiator_InitiatePayment_Call {
+func (_e *MockPaymentInitiator_Expecter) InitiatePayment(ctx any, params any) *MockPaymentInitiator_InitiatePayment_Call {
 	return &MockPaymentInitiator_InitiatePayment_Call{Call: _e.mock.On("InitiatePayment", ctx, params)}
 }
 

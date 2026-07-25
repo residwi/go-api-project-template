@@ -9,9 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/payment"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -66,7 +65,7 @@ type MockRepository_CancelJobsByOrderID_Call struct {
 // CancelJobsByOrderID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockRepository_Expecter) CancelJobsByOrderID(ctx interface{}, orderID interface{}) *MockRepository_CancelJobsByOrderID_Call {
+func (_e *MockRepository_Expecter) CancelJobsByOrderID(ctx any, orderID any) *MockRepository_CancelJobsByOrderID_Call {
 	return &MockRepository_CancelJobsByOrderID_Call{Call: _e.mock.On("CancelJobsByOrderID", ctx, orderID)}
 }
 
@@ -135,7 +134,7 @@ type MockRepository_Claim_Call struct {
 //   - ctx context.Context
 //   - batchSize int
 //   - leaseDuration time.Duration
-func (_e *MockRepository_Expecter) Claim(ctx interface{}, batchSize interface{}, leaseDuration interface{}) *MockRepository_Claim_Call {
+func (_e *MockRepository_Expecter) Claim(ctx any, batchSize any, leaseDuration any) *MockRepository_Claim_Call {
 	return &MockRepository_Claim_Call{Call: _e.mock.On("Claim", ctx, batchSize, leaseDuration)}
 }
 
@@ -197,7 +196,7 @@ type MockRepository_ClearPaymentURL_Call struct {
 // ClearPaymentURL is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) ClearPaymentURL(ctx interface{}, id interface{}) *MockRepository_ClearPaymentURL_Call {
+func (_e *MockRepository_Expecter) ClearPaymentURL(ctx any, id any) *MockRepository_ClearPaymentURL_Call {
 	return &MockRepository_ClearPaymentURL_Call{Call: _e.mock.On("ClearPaymentURL", ctx, id)}
 }
 
@@ -254,7 +253,7 @@ type MockRepository_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - p *payment.Payment
-func (_e *MockRepository_Expecter) Create(ctx interface{}, p interface{}) *MockRepository_Create_Call {
+func (_e *MockRepository_Expecter) Create(ctx any, p any) *MockRepository_Create_Call {
 	return &MockRepository_Create_Call{Call: _e.mock.On("Create", ctx, p)}
 }
 
@@ -311,7 +310,7 @@ type MockRepository_CreateJob_Call struct {
 // CreateJob is a helper method to define mock.On call
 //   - ctx context.Context
 //   - job *payment.Job
-func (_e *MockRepository_Expecter) CreateJob(ctx interface{}, job interface{}) *MockRepository_CreateJob_Call {
+func (_e *MockRepository_Expecter) CreateJob(ctx any, job any) *MockRepository_CreateJob_Call {
 	return &MockRepository_CreateJob_Call{Call: _e.mock.On("CreateJob", ctx, job)}
 }
 
@@ -379,7 +378,7 @@ type MockRepository_GetActiveByOrderID_Call struct {
 // GetActiveByOrderID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockRepository_Expecter) GetActiveByOrderID(ctx interface{}, orderID interface{}) *MockRepository_GetActiveByOrderID_Call {
+func (_e *MockRepository_Expecter) GetActiveByOrderID(ctx any, orderID any) *MockRepository_GetActiveByOrderID_Call {
 	return &MockRepository_GetActiveByOrderID_Call{Call: _e.mock.On("GetActiveByOrderID", ctx, orderID)}
 }
 
@@ -447,7 +446,7 @@ type MockRepository_GetByGatewayTxnID_Call struct {
 // GetByGatewayTxnID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - txnID string
-func (_e *MockRepository_Expecter) GetByGatewayTxnID(ctx interface{}, txnID interface{}) *MockRepository_GetByGatewayTxnID_Call {
+func (_e *MockRepository_Expecter) GetByGatewayTxnID(ctx any, txnID any) *MockRepository_GetByGatewayTxnID_Call {
 	return &MockRepository_GetByGatewayTxnID_Call{Call: _e.mock.On("GetByGatewayTxnID", ctx, txnID)}
 }
 
@@ -515,7 +514,7 @@ type MockRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockRepository_GetByID_Call {
+func (_e *MockRepository_Expecter) GetByID(ctx any, id any) *MockRepository_GetByID_Call {
 	return &MockRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -589,7 +588,7 @@ type MockRepository_ListAdmin_Call struct {
 // ListAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - params payment.AdminListParams
-func (_e *MockRepository_Expecter) ListAdmin(ctx interface{}, params interface{}) *MockRepository_ListAdmin_Call {
+func (_e *MockRepository_Expecter) ListAdmin(ctx any, params any) *MockRepository_ListAdmin_Call {
 	return &MockRepository_ListAdmin_Call{Call: _e.mock.On("ListAdmin", ctx, params)}
 }
 
@@ -657,7 +656,7 @@ type MockRepository_ListByOrderID_Call struct {
 // ListByOrderID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockRepository_Expecter) ListByOrderID(ctx interface{}, orderID interface{}) *MockRepository_ListByOrderID_Call {
+func (_e *MockRepository_Expecter) ListByOrderID(ctx any, orderID any) *MockRepository_ListByOrderID_Call {
 	return &MockRepository_ListByOrderID_Call{Call: _e.mock.On("ListByOrderID", ctx, orderID)}
 }
 
@@ -714,7 +713,7 @@ type MockRepository_MarkJobCompleted_Call struct {
 // MarkJobCompleted is a helper method to define mock.On call
 //   - ctx context.Context
 //   - jobID uuid.UUID
-func (_e *MockRepository_Expecter) MarkJobCompleted(ctx interface{}, jobID interface{}) *MockRepository_MarkJobCompleted_Call {
+func (_e *MockRepository_Expecter) MarkJobCompleted(ctx any, jobID any) *MockRepository_MarkJobCompleted_Call {
 	return &MockRepository_MarkJobCompleted_Call{Call: _e.mock.On("MarkJobCompleted", ctx, jobID)}
 }
 
@@ -772,7 +771,7 @@ type MockRepository_MarkJobCompletedByPaymentID_Call struct {
 //   - ctx context.Context
 //   - paymentID uuid.UUID
 //   - action payment.JobAction
-func (_e *MockRepository_Expecter) MarkJobCompletedByPaymentID(ctx interface{}, paymentID interface{}, action interface{}) *MockRepository_MarkJobCompletedByPaymentID_Call {
+func (_e *MockRepository_Expecter) MarkJobCompletedByPaymentID(ctx any, paymentID any, action any) *MockRepository_MarkJobCompletedByPaymentID_Call {
 	return &MockRepository_MarkJobCompletedByPaymentID_Call{Call: _e.mock.On("MarkJobCompletedByPaymentID", ctx, paymentID, action)}
 }
 
@@ -835,7 +834,7 @@ type MockRepository_MarkPaid_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - fromStatuses []payment.Status
-func (_e *MockRepository_Expecter) MarkPaid(ctx interface{}, id interface{}, fromStatuses interface{}) *MockRepository_MarkPaid_Call {
+func (_e *MockRepository_Expecter) MarkPaid(ctx any, id any, fromStatuses any) *MockRepository_MarkPaid_Call {
 	return &MockRepository_MarkPaid_Call{Call: _e.mock.On("MarkPaid", ctx, id, fromStatuses)}
 }
 
@@ -907,7 +906,7 @@ type MockRepository_Prune_Call struct {
 //   - ctx context.Context
 //   - olderThan time.Duration
 //   - limit int
-func (_e *MockRepository_Expecter) Prune(ctx interface{}, olderThan interface{}, limit interface{}) *MockRepository_Prune_Call {
+func (_e *MockRepository_Expecter) Prune(ctx any, olderThan any, limit any) *MockRepository_Prune_Call {
 	return &MockRepository_Prune_Call{Call: _e.mock.On("Prune", ctx, olderThan, limit)}
 }
 
@@ -971,7 +970,7 @@ type MockRepository_UpdateGateway_Call struct {
 //   - id uuid.UUID
 //   - txnID string
 //   - response []byte
-func (_e *MockRepository_Expecter) UpdateGateway(ctx interface{}, id interface{}, txnID interface{}, response interface{}) *MockRepository_UpdateGateway_Call {
+func (_e *MockRepository_Expecter) UpdateGateway(ctx any, id any, txnID any, response any) *MockRepository_UpdateGateway_Call {
 	return &MockRepository_UpdateGateway_Call{Call: _e.mock.On("UpdateGateway", ctx, id, txnID, response)}
 }
 
@@ -1038,7 +1037,7 @@ type MockRepository_UpdateJob_Call struct {
 // UpdateJob is a helper method to define mock.On call
 //   - ctx context.Context
 //   - job *payment.Job
-func (_e *MockRepository_Expecter) UpdateJob(ctx interface{}, job interface{}) *MockRepository_UpdateJob_Call {
+func (_e *MockRepository_Expecter) UpdateJob(ctx any, job any) *MockRepository_UpdateJob_Call {
 	return &MockRepository_UpdateJob_Call{Call: _e.mock.On("UpdateJob", ctx, job)}
 }
 
@@ -1096,7 +1095,7 @@ type MockRepository_UpdatePaymentURL_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - paymentURL string
-func (_e *MockRepository_Expecter) UpdatePaymentURL(ctx interface{}, id interface{}, paymentURL interface{}) *MockRepository_UpdatePaymentURL_Call {
+func (_e *MockRepository_Expecter) UpdatePaymentURL(ctx any, id any, paymentURL any) *MockRepository_UpdatePaymentURL_Call {
 	return &MockRepository_UpdatePaymentURL_Call{Call: _e.mock.On("UpdatePaymentURL", ctx, id, paymentURL)}
 }
 
@@ -1160,7 +1159,7 @@ type MockRepository_UpdateStatus_Call struct {
 //   - id uuid.UUID
 //   - toStatus payment.Status
 //   - fromStatuses []payment.Status
-func (_e *MockRepository_Expecter) UpdateStatus(ctx interface{}, id interface{}, toStatus interface{}, fromStatuses interface{}) *MockRepository_UpdateStatus_Call {
+func (_e *MockRepository_Expecter) UpdateStatus(ctx any, id any, toStatus any, fromStatuses any) *MockRepository_UpdateStatus_Call {
 	return &MockRepository_UpdateStatus_Call{Call: _e.mock.On("UpdateStatus", ctx, id, toStatus, fromStatuses)}
 }
 

@@ -63,7 +63,7 @@ type MockCouponReserver_Release_Call struct {
 // Release is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockCouponReserver_Expecter) Release(ctx interface{}, orderID interface{}) *MockCouponReserver_Release_Call {
+func (_e *MockCouponReserver_Expecter) Release(ctx any, orderID any) *MockCouponReserver_Release_Call {
 	return &MockCouponReserver_Release_Call{Call: _e.mock.On("Release", ctx, orderID)}
 }
 
@@ -132,7 +132,7 @@ type MockCouponReserver_Reserve_Call struct {
 //   - userID uuid.UUID
 //   - orderID uuid.UUID
 //   - orderSubtotal int64
-func (_e *MockCouponReserver_Expecter) Reserve(ctx interface{}, code interface{}, userID interface{}, orderID interface{}, orderSubtotal interface{}) *MockCouponReserver_Reserve_Call {
+func (_e *MockCouponReserver_Expecter) Reserve(ctx any, code any, userID any, orderID any, orderSubtotal any) *MockCouponReserver_Reserve_Call {
 	return &MockCouponReserver_Reserve_Call{Call: _e.mock.On("Reserve", ctx, code, userID, orderID, orderSubtotal)}
 }
 

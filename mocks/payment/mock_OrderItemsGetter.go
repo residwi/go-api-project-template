@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/payment"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockOrderItemsGetter creates a new instance of MockOrderItemsGetter. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -76,7 +75,7 @@ type MockOrderItemsGetter_ListItemsByOrderID_Call struct {
 // ListItemsByOrderID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderItemsGetter_Expecter) ListItemsByOrderID(ctx interface{}, orderID interface{}) *MockOrderItemsGetter_ListItemsByOrderID_Call {
+func (_e *MockOrderItemsGetter_Expecter) ListItemsByOrderID(ctx any, orderID any) *MockOrderItemsGetter_ListItemsByOrderID_Call {
 	return &MockOrderItemsGetter_ListItemsByOrderID_Call{Call: _e.mock.On("ListItemsByOrderID", ctx, orderID)}
 }
 

@@ -86,7 +86,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 
 	shippingSvc, shippingOrderProvider := wiring.NewShippingService(shippingRepo, txRunner, orderSvc)
 
-	reviewSvc := review.NewService(reviewRepo, orderSvc)
+	reviewSvc := wiring.NewReviewService(reviewRepo, orderSvc)
 
 	tokenValidator := auth.NewTokenValidatorAdapter(authSvc)
 	authMiddleware := middleware.Auth(tokenValidator, userSvc)

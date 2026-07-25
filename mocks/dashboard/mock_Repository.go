@@ -8,9 +8,8 @@ import (
 	"context"
 	"time"
 
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/dashboard"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -77,7 +76,7 @@ type MockRepository_GetOrderStatusBreakdown_Call struct {
 //   - ctx context.Context
 //   - from time.Time
 //   - to time.Time
-func (_e *MockRepository_Expecter) GetOrderStatusBreakdown(ctx interface{}, from interface{}, to interface{}) *MockRepository_GetOrderStatusBreakdown_Call {
+func (_e *MockRepository_Expecter) GetOrderStatusBreakdown(ctx any, from any, to any) *MockRepository_GetOrderStatusBreakdown_Call {
 	return &MockRepository_GetOrderStatusBreakdown_Call{Call: _e.mock.On("GetOrderStatusBreakdown", ctx, from, to)}
 }
 
@@ -151,7 +150,7 @@ type MockRepository_GetRevenueByDay_Call struct {
 //   - ctx context.Context
 //   - from time.Time
 //   - to time.Time
-func (_e *MockRepository_Expecter) GetRevenueByDay(ctx interface{}, from interface{}, to interface{}) *MockRepository_GetRevenueByDay_Call {
+func (_e *MockRepository_Expecter) GetRevenueByDay(ctx any, from any, to any) *MockRepository_GetRevenueByDay_Call {
 	return &MockRepository_GetRevenueByDay_Call{Call: _e.mock.On("GetRevenueByDay", ctx, from, to)}
 }
 
@@ -223,7 +222,7 @@ type MockRepository_GetSalesSummary_Call struct {
 //   - ctx context.Context
 //   - from time.Time
 //   - to time.Time
-func (_e *MockRepository_Expecter) GetSalesSummary(ctx interface{}, from interface{}, to interface{}) *MockRepository_GetSalesSummary_Call {
+func (_e *MockRepository_Expecter) GetSalesSummary(ctx any, from any, to any) *MockRepository_GetSalesSummary_Call {
 	return &MockRepository_GetSalesSummary_Call{Call: _e.mock.On("GetSalesSummary", ctx, from, to)}
 }
 
@@ -298,7 +297,7 @@ type MockRepository_GetTopProducts_Call struct {
 //   - limit int
 //   - from time.Time
 //   - to time.Time
-func (_e *MockRepository_Expecter) GetTopProducts(ctx interface{}, limit interface{}, from interface{}, to interface{}) *MockRepository_GetTopProducts_Call {
+func (_e *MockRepository_Expecter) GetTopProducts(ctx any, limit any, from any, to any) *MockRepository_GetTopProducts_Call {
 	return &MockRepository_GetTopProducts_Call{Call: _e.mock.On("GetTopProducts", ctx, limit, from, to)}
 }
 

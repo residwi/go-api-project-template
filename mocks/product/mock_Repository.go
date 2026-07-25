@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/product"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -65,7 +64,7 @@ type MockRepository_AddImage_Call struct {
 // AddImage is a helper method to define mock.On call
 //   - ctx context.Context
 //   - img *product.Image
-func (_e *MockRepository_Expecter) AddImage(ctx interface{}, img interface{}) *MockRepository_AddImage_Call {
+func (_e *MockRepository_Expecter) AddImage(ctx any, img any) *MockRepository_AddImage_Call {
 	return &MockRepository_AddImage_Call{Call: _e.mock.On("AddImage", ctx, img)}
 }
 
@@ -122,7 +121,7 @@ type MockRepository_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - p *product.Product
-func (_e *MockRepository_Expecter) Create(ctx interface{}, p interface{}) *MockRepository_Create_Call {
+func (_e *MockRepository_Expecter) Create(ctx any, p any) *MockRepository_Create_Call {
 	return &MockRepository_Create_Call{Call: _e.mock.On("Create", ctx, p)}
 }
 
@@ -179,7 +178,7 @@ type MockRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockRepository_Delete_Call {
+func (_e *MockRepository_Expecter) Delete(ctx any, id any) *MockRepository_Delete_Call {
 	return &MockRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
@@ -236,7 +235,7 @@ type MockRepository_DeleteImage_Call struct {
 // DeleteImage is a helper method to define mock.On call
 //   - ctx context.Context
 //   - imageID uuid.UUID
-func (_e *MockRepository_Expecter) DeleteImage(ctx interface{}, imageID interface{}) *MockRepository_DeleteImage_Call {
+func (_e *MockRepository_Expecter) DeleteImage(ctx any, imageID any) *MockRepository_DeleteImage_Call {
 	return &MockRepository_DeleteImage_Call{Call: _e.mock.On("DeleteImage", ctx, imageID)}
 }
 
@@ -304,7 +303,7 @@ type MockRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockRepository_GetByID_Call {
+func (_e *MockRepository_Expecter) GetByID(ctx any, id any) *MockRepository_GetByID_Call {
 	return &MockRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -372,7 +371,7 @@ type MockRepository_GetBySlug_Call struct {
 // GetBySlug is a helper method to define mock.On call
 //   - ctx context.Context
 //   - slug string
-func (_e *MockRepository_Expecter) GetBySlug(ctx interface{}, slug interface{}) *MockRepository_GetBySlug_Call {
+func (_e *MockRepository_Expecter) GetBySlug(ctx any, slug any) *MockRepository_GetBySlug_Call {
 	return &MockRepository_GetBySlug_Call{Call: _e.mock.On("GetBySlug", ctx, slug)}
 }
 
@@ -440,7 +439,7 @@ type MockRepository_GetImagesByProductID_Call struct {
 // GetImagesByProductID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - productID uuid.UUID
-func (_e *MockRepository_Expecter) GetImagesByProductID(ctx interface{}, productID interface{}) *MockRepository_GetImagesByProductID_Call {
+func (_e *MockRepository_Expecter) GetImagesByProductID(ctx any, productID any) *MockRepository_GetImagesByProductID_Call {
 	return &MockRepository_GetImagesByProductID_Call{Call: _e.mock.On("GetImagesByProductID", ctx, productID)}
 }
 
@@ -514,7 +513,7 @@ type MockRepository_ListAdmin_Call struct {
 // ListAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - params product.AdminListParams
-func (_e *MockRepository_Expecter) ListAdmin(ctx interface{}, params interface{}) *MockRepository_ListAdmin_Call {
+func (_e *MockRepository_Expecter) ListAdmin(ctx any, params any) *MockRepository_ListAdmin_Call {
 	return &MockRepository_ListAdmin_Call{Call: _e.mock.On("ListAdmin", ctx, params)}
 }
 
@@ -594,7 +593,7 @@ type MockRepository_ListPublished_Call struct {
 // ListPublished is a helper method to define mock.On call
 //   - ctx context.Context
 //   - params product.PublishedListParams
-func (_e *MockRepository_Expecter) ListPublished(ctx interface{}, params interface{}) *MockRepository_ListPublished_Call {
+func (_e *MockRepository_Expecter) ListPublished(ctx any, params any) *MockRepository_ListPublished_Call {
 	return &MockRepository_ListPublished_Call{Call: _e.mock.On("ListPublished", ctx, params)}
 }
 
@@ -651,7 +650,7 @@ type MockRepository_Update_Call struct {
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
 //   - p *product.Product
-func (_e *MockRepository_Expecter) Update(ctx interface{}, p interface{}) *MockRepository_Update_Call {
+func (_e *MockRepository_Expecter) Update(ctx any, p any) *MockRepository_Update_Call {
 	return &MockRepository_Update_Call{Call: _e.mock.On("Update", ctx, p)}
 }
 

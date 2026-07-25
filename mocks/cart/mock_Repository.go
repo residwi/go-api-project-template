@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/cart"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -67,7 +66,7 @@ type MockRepository_AddItem_Call struct {
 //   - cartID uuid.UUID
 //   - productID uuid.UUID
 //   - qty int
-func (_e *MockRepository_Expecter) AddItem(ctx interface{}, cartID interface{}, productID interface{}, qty interface{}) *MockRepository_AddItem_Call {
+func (_e *MockRepository_Expecter) AddItem(ctx any, cartID any, productID any, qty any) *MockRepository_AddItem_Call {
 	return &MockRepository_AddItem_Call{Call: _e.mock.On("AddItem", ctx, cartID, productID, qty)}
 }
 
@@ -134,7 +133,7 @@ type MockRepository_Clear_Call struct {
 // Clear is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockRepository_Expecter) Clear(ctx interface{}, userID interface{}) *MockRepository_Clear_Call {
+func (_e *MockRepository_Expecter) Clear(ctx any, userID any) *MockRepository_Clear_Call {
 	return &MockRepository_Clear_Call{Call: _e.mock.On("Clear", ctx, userID)}
 }
 
@@ -207,7 +206,7 @@ type MockRepository_CountAndHasItem_Call struct {
 //   - ctx context.Context
 //   - cartID uuid.UUID
 //   - productID uuid.UUID
-func (_e *MockRepository_Expecter) CountAndHasItem(ctx interface{}, cartID interface{}, productID interface{}) *MockRepository_CountAndHasItem_Call {
+func (_e *MockRepository_Expecter) CountAndHasItem(ctx any, cartID any, productID any) *MockRepository_CountAndHasItem_Call {
 	return &MockRepository_CountAndHasItem_Call{Call: _e.mock.On("CountAndHasItem", ctx, cartID, productID)}
 }
 
@@ -278,7 +277,7 @@ type MockRepository_CountItems_Call struct {
 // CountItems is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cartID uuid.UUID
-func (_e *MockRepository_Expecter) CountItems(ctx interface{}, cartID interface{}) *MockRepository_CountItems_Call {
+func (_e *MockRepository_Expecter) CountItems(ctx any, cartID any) *MockRepository_CountItems_Call {
 	return &MockRepository_CountItems_Call{Call: _e.mock.On("CountItems", ctx, cartID)}
 }
 
@@ -346,7 +345,7 @@ type MockRepository_GetCart_Call struct {
 // GetCart is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockRepository_Expecter) GetCart(ctx interface{}, userID interface{}) *MockRepository_GetCart_Call {
+func (_e *MockRepository_Expecter) GetCart(ctx any, userID any) *MockRepository_GetCart_Call {
 	return &MockRepository_GetCart_Call{Call: _e.mock.On("GetCart", ctx, userID)}
 }
 
@@ -414,7 +413,7 @@ type MockRepository_GetCartForLock_Call struct {
 // GetCartForLock is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockRepository_Expecter) GetCartForLock(ctx interface{}, userID interface{}) *MockRepository_GetCartForLock_Call {
+func (_e *MockRepository_Expecter) GetCartForLock(ctx any, userID any) *MockRepository_GetCartForLock_Call {
 	return &MockRepository_GetCartForLock_Call{Call: _e.mock.On("GetCartForLock", ctx, userID)}
 }
 
@@ -482,7 +481,7 @@ type MockRepository_GetOrCreate_Call struct {
 // GetOrCreate is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockRepository_Expecter) GetOrCreate(ctx interface{}, userID interface{}) *MockRepository_GetOrCreate_Call {
+func (_e *MockRepository_Expecter) GetOrCreate(ctx any, userID any) *MockRepository_GetOrCreate_Call {
 	return &MockRepository_GetOrCreate_Call{Call: _e.mock.On("GetOrCreate", ctx, userID)}
 }
 
@@ -540,7 +539,7 @@ type MockRepository_RemoveItem_Call struct {
 //   - ctx context.Context
 //   - cartID uuid.UUID
 //   - productID uuid.UUID
-func (_e *MockRepository_Expecter) RemoveItem(ctx interface{}, cartID interface{}, productID interface{}) *MockRepository_RemoveItem_Call {
+func (_e *MockRepository_Expecter) RemoveItem(ctx any, cartID any, productID any) *MockRepository_RemoveItem_Call {
 	return &MockRepository_RemoveItem_Call{Call: _e.mock.On("RemoveItem", ctx, cartID, productID)}
 }
 
@@ -604,7 +603,7 @@ type MockRepository_UpdateItemQuantity_Call struct {
 //   - cartID uuid.UUID
 //   - productID uuid.UUID
 //   - qty int
-func (_e *MockRepository_Expecter) UpdateItemQuantity(ctx interface{}, cartID interface{}, productID interface{}, qty interface{}) *MockRepository_UpdateItemQuantity_Call {
+func (_e *MockRepository_Expecter) UpdateItemQuantity(ctx any, cartID any, productID any, qty any) *MockRepository_UpdateItemQuantity_Call {
 	return &MockRepository_UpdateItemQuantity_Call{Call: _e.mock.On("UpdateItemQuantity", ctx, cartID, productID, qty)}
 }
 

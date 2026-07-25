@@ -63,7 +63,7 @@ type MockOrderUpdater_CancelUnpaid_Call struct {
 // CancelUnpaid is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderUpdater_Expecter) CancelUnpaid(ctx interface{}, orderID interface{}) *MockOrderUpdater_CancelUnpaid_Call {
+func (_e *MockOrderUpdater_Expecter) CancelUnpaid(ctx any, orderID any) *MockOrderUpdater_CancelUnpaid_Call {
 	return &MockOrderUpdater_CancelUnpaid_Call{Call: _e.mock.On("CancelUnpaid", ctx, orderID)}
 }
 
@@ -120,7 +120,7 @@ type MockOrderUpdater_MarkAwaitingPayment_Call struct {
 // MarkAwaitingPayment is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderUpdater_Expecter) MarkAwaitingPayment(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkAwaitingPayment_Call {
+func (_e *MockOrderUpdater_Expecter) MarkAwaitingPayment(ctx any, orderID any) *MockOrderUpdater_MarkAwaitingPayment_Call {
 	return &MockOrderUpdater_MarkAwaitingPayment_Call{Call: _e.mock.On("MarkAwaitingPayment", ctx, orderID)}
 }
 
@@ -177,7 +177,7 @@ type MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call struct {
 // MarkFulfillmentFailedAfterCharge is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderUpdater_Expecter) MarkFulfillmentFailedAfterCharge(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call {
+func (_e *MockOrderUpdater_Expecter) MarkFulfillmentFailedAfterCharge(ctx any, orderID any) *MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call {
 	return &MockOrderUpdater_MarkFulfillmentFailedAfterCharge_Call{Call: _e.mock.On("MarkFulfillmentFailedAfterCharge", ctx, orderID)}
 }
 
@@ -234,7 +234,7 @@ type MockOrderUpdater_MarkFulfillmentFailedCompensating_Call struct {
 // MarkFulfillmentFailedCompensating is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderUpdater_Expecter) MarkFulfillmentFailedCompensating(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkFulfillmentFailedCompensating_Call {
+func (_e *MockOrderUpdater_Expecter) MarkFulfillmentFailedCompensating(ctx any, orderID any) *MockOrderUpdater_MarkFulfillmentFailedCompensating_Call {
 	return &MockOrderUpdater_MarkFulfillmentFailedCompensating_Call{Call: _e.mock.On("MarkFulfillmentFailedCompensating", ctx, orderID)}
 }
 
@@ -291,7 +291,7 @@ type MockOrderUpdater_MarkPaid_Call struct {
 // MarkPaid is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderUpdater_Expecter) MarkPaid(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkPaid_Call {
+func (_e *MockOrderUpdater_Expecter) MarkPaid(ctx any, orderID any) *MockOrderUpdater_MarkPaid_Call {
 	return &MockOrderUpdater_MarkPaid_Call{Call: _e.mock.On("MarkPaid", ctx, orderID)}
 }
 
@@ -348,7 +348,7 @@ type MockOrderUpdater_MarkPaymentProcessing_Call struct {
 // MarkPaymentProcessing is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderUpdater_Expecter) MarkPaymentProcessing(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkPaymentProcessing_Call {
+func (_e *MockOrderUpdater_Expecter) MarkPaymentProcessing(ctx any, orderID any) *MockOrderUpdater_MarkPaymentProcessing_Call {
 	return &MockOrderUpdater_MarkPaymentProcessing_Call{Call: _e.mock.On("MarkPaymentProcessing", ctx, orderID)}
 }
 
@@ -405,7 +405,7 @@ type MockOrderUpdater_MarkRefunded_Call struct {
 // MarkRefunded is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderUpdater_Expecter) MarkRefunded(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkRefunded_Call {
+func (_e *MockOrderUpdater_Expecter) MarkRefunded(ctx any, orderID any) *MockOrderUpdater_MarkRefunded_Call {
 	return &MockOrderUpdater_MarkRefunded_Call{Call: _e.mock.On("MarkRefunded", ctx, orderID)}
 }
 

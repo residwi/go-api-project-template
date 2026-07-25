@@ -16,6 +16,14 @@ import (
 	mocks "github.com/residwi/go-api-project-template/mocks/review"
 )
 
+// matchDelivery matches a review.DeliveredPurchase by user and product, leaving
+// the order id unconstrained for subtests that generate it inline.
+func matchDelivery(userID, productID uuid.UUID) any {
+	return mock.MatchedBy(func(p review.DeliveredPurchase) bool {
+		return p.UserID == userID && p.ProductID == productID
+	})
+}
+
 func TestService_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
@@ -27,7 +35,11 @@ func TestService_Create(t *testing.T) {
 		productID := uuid.New()
 		orderID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, orderID, productID).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, review.DeliveredPurchase{
+			UserID:    userID,
+			OrderID:   orderID,
+			ProductID: productID,
+		}).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, nil)
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(rv *review.Review) bool {
 			return rv.UserID == userID &&
@@ -68,7 +80,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(false, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(false, nil)
 
 		req := review.CreateReviewRequest{
 			OrderID: uuid.New(),
@@ -92,7 +104,7 @@ func TestService_Create(t *testing.T) {
 		productID := uuid.New()
 
 		verifyErr := errors.New("purchase check failed")
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(false, verifyErr)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(false, verifyErr)
 
 		req := review.CreateReviewRequest{OrderID: uuid.New(), Rating: 5, Title: "Great"}
 		result, err := svc.Create(ctx, userID, productID, req)
@@ -109,7 +121,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(true, nil)
 		dbErr := errors.New("database error")
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, dbErr)
 
@@ -128,7 +140,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, nil)
 		createErr := errors.New("insert failed")
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*review.Review")).Return(createErr)
@@ -148,7 +160,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(true, nil)
 
 		req := review.CreateReviewRequest{
@@ -259,4 +271,30 @@ func TestService_Delete(t *testing.T) {
 		err := svc.Delete(ctx, id)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
+}
+
+func TestService_Create_PassesNamedPurchaseFields(t *testing.T) {
+	repo := mocks.NewMockRepository(t)
+	verifier := mocks.NewMockPurchaseVerifier(t)
+	svc := review.NewService(repo, verifier)
+
+	userID := uuid.New()
+	productID := uuid.New()
+	orderID := uuid.New()
+
+	// The verifier must receive each id in its named field. With positional
+	// args a swap here would still compile and still pass.
+	verifier.EXPECT().HasDeliveredOrder(mock.Anything, review.DeliveredPurchase{
+		UserID:    userID,
+		OrderID:   orderID,
+		ProductID: productID,
+	}).Return(false, nil)
+
+	_, err := svc.Create(context.Background(), userID, productID, review.CreateReviewRequest{
+		OrderID: orderID,
+		Rating:  5,
+		Title:   "Great",
+		Body:    "Worked well",
+	})
+	require.ErrorIs(t, err, apperror.ErrBadRequest, "a non-delivered purchase must be rejected")
 }

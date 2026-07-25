@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockUserStatusChecker creates a new instance of MockUserStatusChecker. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -74,7 +73,7 @@ type MockUserStatusChecker_CheckStatus_Call struct {
 // CheckStatus is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockUserStatusChecker_Expecter) CheckStatus(ctx interface{}, userID interface{}) *MockUserStatusChecker_CheckStatus_Call {
+func (_e *MockUserStatusChecker_Expecter) CheckStatus(ctx any, userID any) *MockUserStatusChecker_CheckStatus_Call {
 	return &MockUserStatusChecker_CheckStatus_Call{Call: _e.mock.On("CheckStatus", ctx, userID)}
 }
 

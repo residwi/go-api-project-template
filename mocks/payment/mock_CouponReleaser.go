@@ -63,7 +63,7 @@ type MockCouponReleaser_Release_Call struct {
 // Release is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockCouponReleaser_Expecter) Release(ctx interface{}, orderID interface{}) *MockCouponReleaser_Release_Call {
+func (_e *MockCouponReleaser_Expecter) Release(ctx any, orderID any) *MockCouponReleaser_Release_Call {
 	return &MockCouponReleaser_Release_Call{Call: _e.mock.On("Release", ctx, orderID)}
 }
 

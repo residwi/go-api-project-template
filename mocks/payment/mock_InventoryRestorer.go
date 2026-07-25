@@ -7,9 +7,8 @@ package mocks
 import (
 	"context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/payment"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockInventoryRestorer creates a new instance of MockInventoryRestorer. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -65,7 +64,7 @@ type MockInventoryRestorer_Restore_Call struct {
 //   - ctx context.Context
 //   - items []payment.InventoryChange
 //   - wasDeducted bool
-func (_e *MockInventoryRestorer_Expecter) Restore(ctx interface{}, items interface{}, wasDeducted interface{}) *MockInventoryRestorer_Restore_Call {
+func (_e *MockInventoryRestorer_Expecter) Restore(ctx any, items any, wasDeducted any) *MockInventoryRestorer_Restore_Call {
 	return &MockInventoryRestorer_Restore_Call{Call: _e.mock.On("Restore", ctx, items, wasDeducted)}
 }
 

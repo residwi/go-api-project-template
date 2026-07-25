@@ -39,7 +39,11 @@ func TestPostgresRepository_HasDeliveredOrder(t *testing.T) {
 		productID := seedProduct(t)
 		orderID := seedOrderItem(t, userID, productID, order.StatusDelivered)
 
-		ok, err := repo.HasDeliveredOrder(ctx, userID, orderID, productID)
+		ok, err := repo.HasDeliveredOrder(ctx, order.DeliveredPurchaseParams{
+			UserID:    userID,
+			OrderID:   orderID,
+			ProductID: productID,
+		})
 
 		require.NoError(t, err)
 		assert.True(t, ok)
@@ -51,7 +55,11 @@ func TestPostgresRepository_HasDeliveredOrder(t *testing.T) {
 		productID := seedProduct(t)
 		orderID := seedOrderItem(t, userID, productID, order.StatusPaid)
 
-		ok, err := repo.HasDeliveredOrder(ctx, userID, orderID, productID)
+		ok, err := repo.HasDeliveredOrder(ctx, order.DeliveredPurchaseParams{
+			UserID:    userID,
+			OrderID:   orderID,
+			ProductID: productID,
+		})
 
 		require.NoError(t, err)
 		assert.False(t, ok)
@@ -62,7 +70,11 @@ func TestPostgresRepository_HasDeliveredOrder(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 
-		ok, err := repo.HasDeliveredOrder(ctx, userID, uuid.New(), productID)
+		ok, err := repo.HasDeliveredOrder(ctx, order.DeliveredPurchaseParams{
+			UserID:    userID,
+			OrderID:   uuid.New(),
+			ProductID: productID,
+		})
 
 		require.NoError(t, err)
 		assert.False(t, ok)
@@ -75,7 +87,11 @@ func TestPostgresRepository_HasDeliveredOrder(t *testing.T) {
 		productID := seedProduct(t)
 		orderID := seedOrderItem(t, buyer, productID, order.StatusDelivered)
 
-		ok, err := repo.HasDeliveredOrder(ctx, other, orderID, productID)
+		ok, err := repo.HasDeliveredOrder(ctx, order.DeliveredPurchaseParams{
+			UserID:    other,
+			OrderID:   orderID,
+			ProductID: productID,
+		})
 
 		require.NoError(t, err)
 		assert.False(t, ok)
@@ -87,7 +103,11 @@ func TestPostgresRepository_HasDeliveredOrder(t *testing.T) {
 		productID := seedProduct(t)
 		seedOrderItem(t, userID, productID, order.StatusDelivered)
 
-		ok, err := repo.HasDeliveredOrder(ctx, userID, uuid.New(), productID)
+		ok, err := repo.HasDeliveredOrder(ctx, order.DeliveredPurchaseParams{
+			UserID:    userID,
+			OrderID:   uuid.New(),
+			ProductID: productID,
+		})
 
 		require.NoError(t, err)
 		assert.False(t, ok)

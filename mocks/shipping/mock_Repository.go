@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/shipping"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -65,7 +64,7 @@ type MockRepository_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - shipment *shipping.Shipment
-func (_e *MockRepository_Expecter) Create(ctx interface{}, shipment interface{}) *MockRepository_Create_Call {
+func (_e *MockRepository_Expecter) Create(ctx any, shipment any) *MockRepository_Create_Call {
 	return &MockRepository_Create_Call{Call: _e.mock.On("Create", ctx, shipment)}
 }
 
@@ -133,7 +132,7 @@ type MockRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockRepository_GetByID_Call {
+func (_e *MockRepository_Expecter) GetByID(ctx any, id any) *MockRepository_GetByID_Call {
 	return &MockRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -201,7 +200,7 @@ type MockRepository_GetByOrderID_Call struct {
 // GetByOrderID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockRepository_Expecter) GetByOrderID(ctx interface{}, orderID interface{}) *MockRepository_GetByOrderID_Call {
+func (_e *MockRepository_Expecter) GetByOrderID(ctx any, orderID any) *MockRepository_GetByOrderID_Call {
 	return &MockRepository_GetByOrderID_Call{Call: _e.mock.On("GetByOrderID", ctx, orderID)}
 }
 
@@ -269,7 +268,7 @@ type MockRepository_MarkDelivered_Call struct {
 // MarkDelivered is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) MarkDelivered(ctx interface{}, id interface{}) *MockRepository_MarkDelivered_Call {
+func (_e *MockRepository_Expecter) MarkDelivered(ctx any, id any) *MockRepository_MarkDelivered_Call {
 	return &MockRepository_MarkDelivered_Call{Call: _e.mock.On("MarkDelivered", ctx, id)}
 }
 
@@ -326,7 +325,7 @@ type MockRepository_MarkShipped_Call struct {
 // MarkShipped is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) MarkShipped(ctx interface{}, id interface{}) *MockRepository_MarkShipped_Call {
+func (_e *MockRepository_Expecter) MarkShipped(ctx any, id any) *MockRepository_MarkShipped_Call {
 	return &MockRepository_MarkShipped_Call{Call: _e.mock.On("MarkShipped", ctx, id)}
 }
 
@@ -383,7 +382,7 @@ type MockRepository_Update_Call struct {
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
 //   - shipment *shipping.Shipment
-func (_e *MockRepository_Expecter) Update(ctx interface{}, shipment interface{}) *MockRepository_Update_Call {
+func (_e *MockRepository_Expecter) Update(ctx any, shipment any) *MockRepository_Update_Call {
 	return &MockRepository_Update_Call{Call: _e.mock.On("Update", ctx, shipment)}
 }
 

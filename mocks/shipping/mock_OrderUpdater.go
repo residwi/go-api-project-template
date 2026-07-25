@@ -63,7 +63,7 @@ type MockOrderUpdater_MarkDelivered_Call struct {
 // MarkDelivered is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderUpdater_Expecter) MarkDelivered(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkDelivered_Call {
+func (_e *MockOrderUpdater_Expecter) MarkDelivered(ctx any, orderID any) *MockOrderUpdater_MarkDelivered_Call {
 	return &MockOrderUpdater_MarkDelivered_Call{Call: _e.mock.On("MarkDelivered", ctx, orderID)}
 }
 
@@ -120,7 +120,7 @@ type MockOrderUpdater_MarkShipped_Call struct {
 // MarkShipped is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderUpdater_Expecter) MarkShipped(ctx interface{}, orderID interface{}) *MockOrderUpdater_MarkShipped_Call {
+func (_e *MockOrderUpdater_Expecter) MarkShipped(ctx any, orderID any) *MockOrderUpdater_MarkShipped_Call {
 	return &MockOrderUpdater_MarkShipped_Call{Call: _e.mock.On("MarkShipped", ctx, orderID)}
 }
 

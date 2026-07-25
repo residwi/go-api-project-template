@@ -495,12 +495,22 @@ func (s *Service) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]
 	return s.repo.ListItemsByOrderID(ctx, orderID)
 }
 
+// DeliveredPurchaseParams names each id so a caller cannot transpose them; all
+// three are uuid.UUID and a positional swap would compile and silently return
+// the wrong verdict on whether this customer may review this product.
+type DeliveredPurchaseParams struct {
+	UserID    uuid.UUID
+	OrderID   uuid.UUID
+	ProductID uuid.UUID
+}
+
 // HasDeliveredOrder reports whether the given order is delivered, belongs to the
-// user, and contains the product. It satisfies review.PurchaseVerifier, letting
-// review confirm a specific purchase through the order module rather than
-// querying the orders schema directly from the wiring layer.
-func (s *Service) HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error) {
-	return s.repo.HasDeliveredOrder(ctx, userID, orderID, productID)
+// user, and contains the product. A wiring adapter maps this onto
+// review.PurchaseVerifier, letting review confirm a specific purchase through
+// the order module rather than querying the orders schema directly from the
+// wiring layer.
+func (s *Service) HasDeliveredOrder(ctx context.Context, p DeliveredPurchaseParams) (bool, error) {
+	return s.repo.HasDeliveredOrder(ctx, p)
 }
 
 // SetPaymentDeps sets payment-related dependencies after construction.

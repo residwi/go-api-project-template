@@ -7,9 +7,8 @@ package mocks
 import (
 	"context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/payment"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockInventoryDeductor creates a new instance of MockInventoryDeductor. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -64,7 +63,7 @@ type MockInventoryDeductor_DeductBatch_Call struct {
 // DeductBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - items []payment.InventoryChange
-func (_e *MockInventoryDeductor_Expecter) DeductBatch(ctx interface{}, items interface{}) *MockInventoryDeductor_DeductBatch_Call {
+func (_e *MockInventoryDeductor_Expecter) DeductBatch(ctx any, items any) *MockInventoryDeductor_DeductBatch_Call {
 	return &MockInventoryDeductor_DeductBatch_Call{Call: _e.mock.On("DeductBatch", ctx, items)}
 }
 

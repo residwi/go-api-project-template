@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/notification"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -79,7 +78,7 @@ type MockRepository_Claim_Call struct {
 //   - ctx context.Context
 //   - batchSize int
 //   - lease time.Duration
-func (_e *MockRepository_Expecter) Claim(ctx interface{}, batchSize interface{}, lease interface{}) *MockRepository_Claim_Call {
+func (_e *MockRepository_Expecter) Claim(ctx any, batchSize any, lease any) *MockRepository_Claim_Call {
 	return &MockRepository_Claim_Call{Call: _e.mock.On("Claim", ctx, batchSize, lease)}
 }
 
@@ -150,7 +149,7 @@ type MockRepository_CountUnread_Call struct {
 // CountUnread is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockRepository_Expecter) CountUnread(ctx interface{}, userID interface{}) *MockRepository_CountUnread_Call {
+func (_e *MockRepository_Expecter) CountUnread(ctx any, userID any) *MockRepository_CountUnread_Call {
 	return &MockRepository_CountUnread_Call{Call: _e.mock.On("CountUnread", ctx, userID)}
 }
 
@@ -207,7 +206,7 @@ type MockRepository_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - n *notification.Notification
-func (_e *MockRepository_Expecter) Create(ctx interface{}, n interface{}) *MockRepository_Create_Call {
+func (_e *MockRepository_Expecter) Create(ctx any, n any) *MockRepository_Create_Call {
 	return &MockRepository_Create_Call{Call: _e.mock.On("Create", ctx, n)}
 }
 
@@ -265,7 +264,7 @@ type MockRepository_CreateAndComplete_Call struct {
 //   - ctx context.Context
 //   - n *notification.Notification
 //   - job *notification.Job
-func (_e *MockRepository_Expecter) CreateAndComplete(ctx interface{}, n interface{}, job interface{}) *MockRepository_CreateAndComplete_Call {
+func (_e *MockRepository_Expecter) CreateAndComplete(ctx any, n any, job any) *MockRepository_CreateAndComplete_Call {
 	return &MockRepository_CreateAndComplete_Call{Call: _e.mock.On("CreateAndComplete", ctx, n, job)}
 }
 
@@ -327,7 +326,7 @@ type MockRepository_CreateJob_Call struct {
 // CreateJob is a helper method to define mock.On call
 //   - ctx context.Context
 //   - job *notification.Job
-func (_e *MockRepository_Expecter) CreateJob(ctx interface{}, job interface{}) *MockRepository_CreateJob_Call {
+func (_e *MockRepository_Expecter) CreateJob(ctx any, job any) *MockRepository_CreateJob_Call {
 	return &MockRepository_CreateJob_Call{Call: _e.mock.On("CreateJob", ctx, job)}
 }
 
@@ -396,7 +395,7 @@ type MockRepository_ListByUser_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - cursor paging.CursorPage
-func (_e *MockRepository_Expecter) ListByUser(ctx interface{}, userID interface{}, cursor interface{}) *MockRepository_ListByUser_Call {
+func (_e *MockRepository_Expecter) ListByUser(ctx any, userID any, cursor any) *MockRepository_ListByUser_Call {
 	return &MockRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, cursor)}
 }
 
@@ -458,7 +457,7 @@ type MockRepository_MarkAllRead_Call struct {
 // MarkAllRead is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockRepository_Expecter) MarkAllRead(ctx interface{}, userID interface{}) *MockRepository_MarkAllRead_Call {
+func (_e *MockRepository_Expecter) MarkAllRead(ctx any, userID any) *MockRepository_MarkAllRead_Call {
 	return &MockRepository_MarkAllRead_Call{Call: _e.mock.On("MarkAllRead", ctx, userID)}
 }
 
@@ -516,7 +515,7 @@ type MockRepository_MarkRead_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) MarkRead(ctx interface{}, userID interface{}, id interface{}) *MockRepository_MarkRead_Call {
+func (_e *MockRepository_Expecter) MarkRead(ctx any, userID any, id any) *MockRepository_MarkRead_Call {
 	return &MockRepository_MarkRead_Call{Call: _e.mock.On("MarkRead", ctx, userID, id)}
 }
 
@@ -588,7 +587,7 @@ type MockRepository_Prune_Call struct {
 //   - ctx context.Context
 //   - olderThan time.Duration
 //   - limit int
-func (_e *MockRepository_Expecter) Prune(ctx interface{}, olderThan interface{}, limit interface{}) *MockRepository_Prune_Call {
+func (_e *MockRepository_Expecter) Prune(ctx any, olderThan any, limit any) *MockRepository_Prune_Call {
 	return &MockRepository_Prune_Call{Call: _e.mock.On("Prune", ctx, olderThan, limit)}
 }
 
@@ -650,7 +649,7 @@ type MockRepository_UpdateJob_Call struct {
 // UpdateJob is a helper method to define mock.On call
 //   - ctx context.Context
 //   - job *notification.Job
-func (_e *MockRepository_Expecter) UpdateJob(ctx interface{}, job interface{}) *MockRepository_UpdateJob_Call {
+func (_e *MockRepository_Expecter) UpdateJob(ctx any, job any) *MockRepository_UpdateJob_Call {
 	return &MockRepository_UpdateJob_Call{Call: _e.mock.On("UpdateJob", ctx, job)}
 }
 

@@ -26,7 +26,11 @@ func (s *Service) Create(ctx context.Context, userID, productID uuid.UUID, req C
 	// Verify the SPECIFIC client-supplied order is delivered, owned by this user,
 	// and contains the product — otherwise req.OrderID could be any existing
 	// order, forging the review's provenance.
-	delivered, err := s.purchase.HasDeliveredOrder(ctx, userID, req.OrderID, productID)
+	delivered, err := s.purchase.HasDeliveredOrder(ctx, DeliveredPurchase{
+		UserID:    userID,
+		OrderID:   req.OrderID,
+		ProductID: productID,
+	})
 	if err != nil {
 		return nil, err
 	}

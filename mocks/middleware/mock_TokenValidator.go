@@ -5,9 +5,8 @@
 package mocks
 
 import (
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockTokenValidator creates a new instance of MockTokenValidator. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -72,7 +71,7 @@ type MockTokenValidator_ValidateToken_Call struct {
 
 // ValidateToken is a helper method to define mock.On call
 //   - tokenString string
-func (_e *MockTokenValidator_Expecter) ValidateToken(tokenString interface{}) *MockTokenValidator_ValidateToken_Call {
+func (_e *MockTokenValidator_Expecter) ValidateToken(tokenString any) *MockTokenValidator_ValidateToken_Call {
 	return &MockTokenValidator_ValidateToken_Call{Call: _e.mock.On("ValidateToken", tokenString)}
 }
 

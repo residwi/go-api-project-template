@@ -74,7 +74,7 @@ type Repository interface {
 	ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]Item, error)
 	GetExpiredOrders(ctx context.Context, limit int) ([]Order, error)
 	GetStaleProcessingOrders(ctx context.Context, threshold time.Duration, limit int) ([]Order, error)
-	HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error)
+	HasDeliveredOrder(ctx context.Context, p DeliveredPurchaseParams) (bool, error)
 }
 
 type PostgresRepository struct {
@@ -386,7 +386,7 @@ func (r *PostgresRepository) GetStaleProcessingOrders(ctx context.Context, thres
 // user, and contains the product. Binding to the specific orderID (not just
 // "some delivered order for this product") stops a review being filed against an
 // order that isn't the reviewer's or never contained the product.
-func (r *PostgresRepository) HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error) {
+func (r *PostgresRepository) HasDeliveredOrder(ctx context.Context, p DeliveredPurchaseParams) (bool, error) {
 	db := database.DB(ctx, r.pool)
 	var exists bool
 	err := db.QueryRow(ctx,
@@ -395,7 +395,7 @@ func (r *PostgresRepository) HasDeliveredOrder(ctx context.Context, userID, orde
 			JOIN orders o ON o.id = oi.order_id
 			WHERE o.user_id = $1 AND o.id = $2 AND oi.product_id = $3 AND o.status = 'delivered'
 		)`,
-		userID, orderID, productID,
+		p.UserID, p.OrderID, p.ProductID,
 	).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("checking delivered order: %w", err)

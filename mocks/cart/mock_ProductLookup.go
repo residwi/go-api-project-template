@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/cart"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockProductLookup creates a new instance of MockProductLookup. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -76,7 +75,7 @@ type MockProductLookup_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockProductLookup_Expecter) GetByID(ctx interface{}, id interface{}) *MockProductLookup_GetByID_Call {
+func (_e *MockProductLookup_Expecter) GetByID(ctx any, id any) *MockProductLookup_GetByID_Call {
 	return &MockProductLookup_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 

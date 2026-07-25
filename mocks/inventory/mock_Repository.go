@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -77,7 +76,7 @@ type MockRepository_AdjustStock_Call struct {
 //   - ctx context.Context
 //   - productID uuid.UUID
 //   - newQuantity int
-func (_e *MockRepository_Expecter) AdjustStock(ctx interface{}, productID interface{}, newQuantity interface{}) *MockRepository_AdjustStock_Call {
+func (_e *MockRepository_Expecter) AdjustStock(ctx any, productID any, newQuantity any) *MockRepository_AdjustStock_Call {
 	return &MockRepository_AdjustStock_Call{Call: _e.mock.On("AdjustStock", ctx, productID, newQuantity)}
 }
 
@@ -151,7 +150,7 @@ type MockRepository_Deduct_Call struct {
 //   - ctx context.Context
 //   - productID uuid.UUID
 //   - qty int
-func (_e *MockRepository_Expecter) Deduct(ctx interface{}, productID interface{}, qty interface{}) *MockRepository_Deduct_Call {
+func (_e *MockRepository_Expecter) Deduct(ctx any, productID any, qty any) *MockRepository_Deduct_Call {
 	return &MockRepository_Deduct_Call{Call: _e.mock.On("Deduct", ctx, productID, qty)}
 }
 
@@ -213,7 +212,7 @@ type MockRepository_DeductBatch_Call struct {
 // DeductBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - items []inventory.StockChange
-func (_e *MockRepository_Expecter) DeductBatch(ctx interface{}, items interface{}) *MockRepository_DeductBatch_Call {
+func (_e *MockRepository_Expecter) DeductBatch(ctx any, items any) *MockRepository_DeductBatch_Call {
 	return &MockRepository_DeductBatch_Call{Call: _e.mock.On("DeductBatch", ctx, items)}
 }
 
@@ -281,7 +280,7 @@ type MockRepository_GetStock_Call struct {
 // GetStock is a helper method to define mock.On call
 //   - ctx context.Context
 //   - productID uuid.UUID
-func (_e *MockRepository_Expecter) GetStock(ctx interface{}, productID interface{}) *MockRepository_GetStock_Call {
+func (_e *MockRepository_Expecter) GetStock(ctx any, productID any) *MockRepository_GetStock_Call {
 	return &MockRepository_GetStock_Call{Call: _e.mock.On("GetStock", ctx, productID)}
 }
 
@@ -350,7 +349,7 @@ type MockRepository_Release_Call struct {
 //   - ctx context.Context
 //   - productID uuid.UUID
 //   - qty int
-func (_e *MockRepository_Expecter) Release(ctx interface{}, productID interface{}, qty interface{}) *MockRepository_Release_Call {
+func (_e *MockRepository_Expecter) Release(ctx any, productID any, qty any) *MockRepository_Release_Call {
 	return &MockRepository_Release_Call{Call: _e.mock.On("Release", ctx, productID, qty)}
 }
 
@@ -412,7 +411,7 @@ type MockRepository_ReleaseBatch_Call struct {
 // ReleaseBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - items []inventory.StockChange
-func (_e *MockRepository_Expecter) ReleaseBatch(ctx interface{}, items interface{}) *MockRepository_ReleaseBatch_Call {
+func (_e *MockRepository_Expecter) ReleaseBatch(ctx any, items any) *MockRepository_ReleaseBatch_Call {
 	return &MockRepository_ReleaseBatch_Call{Call: _e.mock.On("ReleaseBatch", ctx, items)}
 }
 
@@ -481,7 +480,7 @@ type MockRepository_Reserve_Call struct {
 //   - ctx context.Context
 //   - productID uuid.UUID
 //   - qty int
-func (_e *MockRepository_Expecter) Reserve(ctx interface{}, productID interface{}, qty interface{}) *MockRepository_Reserve_Call {
+func (_e *MockRepository_Expecter) Reserve(ctx any, productID any, qty any) *MockRepository_Reserve_Call {
 	return &MockRepository_Reserve_Call{Call: _e.mock.On("Reserve", ctx, productID, qty)}
 }
 
@@ -543,7 +542,7 @@ type MockRepository_ReserveBatch_Call struct {
 // ReserveBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - items []inventory.StockChange
-func (_e *MockRepository_Expecter) ReserveBatch(ctx interface{}, items interface{}) *MockRepository_ReserveBatch_Call {
+func (_e *MockRepository_Expecter) ReserveBatch(ctx any, items any) *MockRepository_ReserveBatch_Call {
 	return &MockRepository_ReserveBatch_Call{Call: _e.mock.On("ReserveBatch", ctx, items)}
 }
 
@@ -612,7 +611,7 @@ type MockRepository_Restock_Call struct {
 //   - ctx context.Context
 //   - productID uuid.UUID
 //   - qty int
-func (_e *MockRepository_Expecter) Restock(ctx interface{}, productID interface{}, qty interface{}) *MockRepository_Restock_Call {
+func (_e *MockRepository_Expecter) Restock(ctx any, productID any, qty any) *MockRepository_Restock_Call {
 	return &MockRepository_Restock_Call{Call: _e.mock.On("Restock", ctx, productID, qty)}
 }
 
@@ -674,7 +673,7 @@ type MockRepository_RestockBatch_Call struct {
 // RestockBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - items []inventory.StockChange
-func (_e *MockRepository_Expecter) RestockBatch(ctx interface{}, items interface{}) *MockRepository_RestockBatch_Call {
+func (_e *MockRepository_Expecter) RestockBatch(ctx any, items any) *MockRepository_RestockBatch_Call {
 	return &MockRepository_RestockBatch_Call{Call: _e.mock.On("RestockBatch", ctx, items)}
 }
 

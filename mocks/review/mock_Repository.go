@@ -8,10 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/review"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -66,7 +65,7 @@ type MockRepository_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - review1 *review.Review
-func (_e *MockRepository_Expecter) Create(ctx interface{}, review1 interface{}) *MockRepository_Create_Call {
+func (_e *MockRepository_Expecter) Create(ctx any, review1 any) *MockRepository_Create_Call {
 	return &MockRepository_Create_Call{Call: _e.mock.On("Create", ctx, review1)}
 }
 
@@ -123,7 +122,7 @@ type MockRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockRepository_Delete_Call {
+func (_e *MockRepository_Expecter) Delete(ctx any, id any) *MockRepository_Delete_Call {
 	return &MockRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
@@ -191,7 +190,7 @@ type MockRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockRepository_GetByID_Call {
+func (_e *MockRepository_Expecter) GetByID(ctx any, id any) *MockRepository_GetByID_Call {
 	return &MockRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -257,7 +256,7 @@ type MockRepository_GetStats_Call struct {
 // GetStats is a helper method to define mock.On call
 //   - ctx context.Context
 //   - productID uuid.UUID
-func (_e *MockRepository_Expecter) GetStats(ctx interface{}, productID interface{}) *MockRepository_GetStats_Call {
+func (_e *MockRepository_Expecter) GetStats(ctx any, productID any) *MockRepository_GetStats_Call {
 	return &MockRepository_GetStats_Call{Call: _e.mock.On("GetStats", ctx, productID)}
 }
 
@@ -324,7 +323,7 @@ type MockRepository_HasUserReviewed_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - productID uuid.UUID
-func (_e *MockRepository_Expecter) HasUserReviewed(ctx interface{}, userID interface{}, productID interface{}) *MockRepository_HasUserReviewed_Call {
+func (_e *MockRepository_Expecter) HasUserReviewed(ctx any, userID any, productID any) *MockRepository_HasUserReviewed_Call {
 	return &MockRepository_HasUserReviewed_Call{Call: _e.mock.On("HasUserReviewed", ctx, userID, productID)}
 }
 
@@ -398,7 +397,7 @@ type MockRepository_ListByProduct_Call struct {
 //   - ctx context.Context
 //   - productID uuid.UUID
 //   - cursor paging.CursorPage
-func (_e *MockRepository_Expecter) ListByProduct(ctx interface{}, productID interface{}, cursor interface{}) *MockRepository_ListByProduct_Call {
+func (_e *MockRepository_Expecter) ListByProduct(ctx any, productID any, cursor any) *MockRepository_ListByProduct_Call {
 	return &MockRepository_ListByProduct_Call{Call: _e.mock.On("ListByProduct", ctx, productID, cursor)}
 }
 

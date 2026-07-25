@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/category"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -82,7 +81,7 @@ type MockRepository_AncestorDepthAndCycle_Call struct {
 //   - parentID uuid.UUID
 //   - selfID uuid.UUID
 //   - maxDepth int
-func (_e *MockRepository_Expecter) AncestorDepthAndCycle(ctx interface{}, parentID interface{}, selfID interface{}, maxDepth interface{}) *MockRepository_AncestorDepthAndCycle_Call {
+func (_e *MockRepository_Expecter) AncestorDepthAndCycle(ctx any, parentID any, selfID any, maxDepth any) *MockRepository_AncestorDepthAndCycle_Call {
 	return &MockRepository_AncestorDepthAndCycle_Call{Call: _e.mock.On("AncestorDepthAndCycle", ctx, parentID, selfID, maxDepth)}
 }
 
@@ -158,7 +157,7 @@ type MockRepository_CountPublishedProducts_Call struct {
 // CountPublishedProducts is a helper method to define mock.On call
 //   - ctx context.Context
 //   - categoryID uuid.UUID
-func (_e *MockRepository_Expecter) CountPublishedProducts(ctx interface{}, categoryID interface{}) *MockRepository_CountPublishedProducts_Call {
+func (_e *MockRepository_Expecter) CountPublishedProducts(ctx any, categoryID any) *MockRepository_CountPublishedProducts_Call {
 	return &MockRepository_CountPublishedProducts_Call{Call: _e.mock.On("CountPublishedProducts", ctx, categoryID)}
 }
 
@@ -215,7 +214,7 @@ type MockRepository_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cat *category.Category
-func (_e *MockRepository_Expecter) Create(ctx interface{}, cat interface{}) *MockRepository_Create_Call {
+func (_e *MockRepository_Expecter) Create(ctx any, cat any) *MockRepository_Create_Call {
 	return &MockRepository_Create_Call{Call: _e.mock.On("Create", ctx, cat)}
 }
 
@@ -272,7 +271,7 @@ type MockRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockRepository_Delete_Call {
+func (_e *MockRepository_Expecter) Delete(ctx any, id any) *MockRepository_Delete_Call {
 	return &MockRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
@@ -340,7 +339,7 @@ type MockRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockRepository_GetByID_Call {
+func (_e *MockRepository_Expecter) GetByID(ctx any, id any) *MockRepository_GetByID_Call {
 	return &MockRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -408,7 +407,7 @@ type MockRepository_GetBySlug_Call struct {
 // GetBySlug is a helper method to define mock.On call
 //   - ctx context.Context
 //   - slug string
-func (_e *MockRepository_Expecter) GetBySlug(ctx interface{}, slug interface{}) *MockRepository_GetBySlug_Call {
+func (_e *MockRepository_Expecter) GetBySlug(ctx any, slug any) *MockRepository_GetBySlug_Call {
 	return &MockRepository_GetBySlug_Call{Call: _e.mock.On("GetBySlug", ctx, slug)}
 }
 
@@ -475,7 +474,7 @@ type MockRepository_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockRepository_Expecter) List(ctx interface{}) *MockRepository_List_Call {
+func (_e *MockRepository_Expecter) List(ctx any) *MockRepository_List_Call {
 	return &MockRepository_List_Call{Call: _e.mock.On("List", ctx)}
 }
 
@@ -527,7 +526,7 @@ type MockRepository_Update_Call struct {
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cat *category.Category
-func (_e *MockRepository_Expecter) Update(ctx interface{}, cat interface{}) *MockRepository_Update_Call {
+func (_e *MockRepository_Expecter) Update(ctx any, cat any) *MockRepository_Update_Call {
 	return &MockRepository_Update_Call{Call: _e.mock.On("Update", ctx, cat)}
 }
 

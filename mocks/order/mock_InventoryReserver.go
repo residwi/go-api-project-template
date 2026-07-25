@@ -7,9 +7,8 @@ package mocks
 import (
 	"context"
 
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/order"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockInventoryReserver creates a new instance of MockInventoryReserver. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -64,7 +63,7 @@ type MockInventoryReserver_DeductBatch_Call struct {
 // DeductBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - items []order.InventoryItem
-func (_e *MockInventoryReserver_Expecter) DeductBatch(ctx interface{}, items interface{}) *MockInventoryReserver_DeductBatch_Call {
+func (_e *MockInventoryReserver_Expecter) DeductBatch(ctx any, items any) *MockInventoryReserver_DeductBatch_Call {
 	return &MockInventoryReserver_DeductBatch_Call{Call: _e.mock.On("DeductBatch", ctx, items)}
 }
 
@@ -121,7 +120,7 @@ type MockInventoryReserver_ReserveBatch_Call struct {
 // ReserveBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - items []order.InventoryItem
-func (_e *MockInventoryReserver_Expecter) ReserveBatch(ctx interface{}, items interface{}) *MockInventoryReserver_ReserveBatch_Call {
+func (_e *MockInventoryReserver_Expecter) ReserveBatch(ctx any, items any) *MockInventoryReserver_ReserveBatch_Call {
 	return &MockInventoryReserver_ReserveBatch_Call{Call: _e.mock.On("ReserveBatch", ctx, items)}
 }
 
@@ -179,7 +178,7 @@ type MockInventoryReserver_Restore_Call struct {
 //   - ctx context.Context
 //   - items []order.InventoryItem
 //   - wasDeducted bool
-func (_e *MockInventoryReserver_Expecter) Restore(ctx interface{}, items interface{}, wasDeducted interface{}) *MockInventoryReserver_Restore_Call {
+func (_e *MockInventoryReserver_Expecter) Restore(ctx any, items any, wasDeducted any) *MockInventoryReserver_Restore_Call {
 	return &MockInventoryReserver_Restore_Call{Call: _e.mock.On("Restore", ctx, items, wasDeducted)}
 }
 

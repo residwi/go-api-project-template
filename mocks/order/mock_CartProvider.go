@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/order"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockCartProvider creates a new instance of MockCartProvider. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -65,7 +64,7 @@ type MockCartProvider_Clear_Call struct {
 // Clear is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockCartProvider_Expecter) Clear(ctx interface{}, userID interface{}) *MockCartProvider_Clear_Call {
+func (_e *MockCartProvider_Expecter) Clear(ctx any, userID any) *MockCartProvider_Clear_Call {
 	return &MockCartProvider_Clear_Call{Call: _e.mock.On("Clear", ctx, userID)}
 }
 
@@ -133,7 +132,7 @@ type MockCartProvider_GetCart_Call struct {
 // GetCart is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockCartProvider_Expecter) GetCart(ctx interface{}, userID interface{}) *MockCartProvider_GetCart_Call {
+func (_e *MockCartProvider_Expecter) GetCart(ctx any, userID any) *MockCartProvider_GetCart_Call {
 	return &MockCartProvider_GetCart_Call{Call: _e.mock.On("GetCart", ctx, userID)}
 }
 
@@ -190,7 +189,7 @@ type MockCartProvider_LockCart_Call struct {
 // LockCart is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockCartProvider_Expecter) LockCart(ctx interface{}, userID interface{}) *MockCartProvider_LockCart_Call {
+func (_e *MockCartProvider_Expecter) LockCart(ctx any, userID any) *MockCartProvider_LockCart_Call {
 	return &MockCartProvider_LockCart_Call{Call: _e.mock.On("LockCart", ctx, userID)}
 }
 
