@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -13,13 +12,13 @@ import (
 
 type Service struct {
 	repo    Repository
-	pool    *pgxpool.Pool
+	tx      database.TxRunner
 	orders  OrderProvider
 	updater OrderUpdater
 }
 
-func NewService(repo Repository, pool *pgxpool.Pool, orders OrderProvider, updater OrderUpdater) *Service {
-	return &Service{repo: repo, pool: pool, orders: orders, updater: updater}
+func NewService(repo Repository, tx database.TxRunner, orders OrderProvider, updater OrderUpdater) *Service {
+	return &Service{repo: repo, tx: tx, orders: orders, updater: updater}
 }
 
 func (s *Service) CreateShipment(ctx context.Context, orderID uuid.UUID, req CreateShipmentRequest) (*Shipment, error) {
@@ -41,7 +40,7 @@ func (s *Service) CreateShipment(ctx context.Context, orderID uuid.UUID, req Cre
 
 	// Create the shipment and flip the order to shipped atomically — a failed
 	// order update rolls back the shipment instead of orphaning it.
-	if err := database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+	if err := s.tx.Run(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, shipment); err != nil {
 			return err
 		}
@@ -87,7 +86,7 @@ func (s *Service) MarkDelivered(ctx context.Context, shipmentID uuid.UUID) (*Shi
 	// failed order update rolls back the shipment instead of diverging from it.
 	// MarkDelivered returns the updated row, so no follow-up read is needed.
 	var delivered *Shipment
-	if err := database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+	if err := s.tx.Run(ctx, func(txCtx context.Context) error {
 		var markErr error
 		delivered, markErr = s.repo.MarkDelivered(txCtx, shipmentID)
 		if markErr != nil {

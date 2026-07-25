@@ -4,14 +4,14 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/features/cart"
 	"github.com/residwi/go-api-project-template/internal/features/product"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-func NewCartService(repo cart.Repository, pool *pgxpool.Pool, productSvc *product.Service, maxCartItems int) *cart.Service {
-	return cart.NewService(repo, pool, &productLookupAdapter{svc: productSvc}, maxCartItems)
+func NewCartService(repo cart.Repository, tx database.TxRunner, productSvc *product.Service, maxCartItems int) *cart.Service {
+	return cart.NewService(repo, tx, &productLookupAdapter{svc: productSvc}, maxCartItems)
 }
 
 type productLookupAdapter struct{ svc *product.Service }

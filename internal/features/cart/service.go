@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -15,15 +14,15 @@ const productStatusPublished = "published"
 
 type Service struct {
 	repo         Repository
-	pool         *pgxpool.Pool
+	tx           database.TxRunner
 	products     ProductLookup
 	maxCartItems int
 }
 
-func NewService(repo Repository, pool *pgxpool.Pool, products ProductLookup, maxCartItems int) *Service {
+func NewService(repo Repository, tx database.TxRunner, products ProductLookup, maxCartItems int) *Service {
 	return &Service{
 		repo:         repo,
-		pool:         pool,
+		tx:           tx,
 		products:     products,
 		maxCartItems: maxCartItems,
 	}
@@ -42,7 +41,7 @@ func (s *Service) AddItem(ctx context.Context, userID uuid.UUID, req AddItemRequ
 		return apperror.ErrInsufficientStock
 	}
 
-	return database.WithTx(ctx, s.pool, func(txCtx context.Context) error {
+	return s.tx.Run(ctx, func(txCtx context.Context) error {
 		cartID, err := s.repo.GetOrCreate(txCtx, userID)
 		if err != nil {
 			return err

@@ -7,34 +7,22 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/shipping"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 	mocks "github.com/residwi/go-api-project-template/mocks/shipping"
 )
-
-// noopDBTX satisfies database.DBTX so WithTestTx can seed a tx, letting
-// CreateShipment's WithTx run as a passthrough with a nil pool.
-type noopDBTX struct{}
-
-func (noopDBTX) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
-	return pgconn.CommandTag{}, nil
-}
-func (noopDBTX) Query(context.Context, string, ...any) (pgx.Rows, error) { return nil, nil } //nolint:nilnil // test stub
-func (noopDBTX) QueryRow(context.Context, string, ...any) pgx.Row        { return nil }
 
 func TestService_CreateShipment(t *testing.T) {
 	t.Run("success order in paid status", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		orderID := uuid.New()
 		userID := uuid.New()
@@ -60,7 +48,7 @@ func TestService_CreateShipment(t *testing.T) {
 		updater.EXPECT().MarkShipped(mock.Anything, orderID).
 			Return(nil)
 
-		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		ctx := context.Background()
 		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateShipmentRequest{
 			Carrier:        "FedEx",
 			TrackingNumber: "TRACK123",
@@ -83,7 +71,7 @@ func TestService_CreateShipment(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		orderID := uuid.New()
 		orders.EXPECT().GetByID(mock.Anything, orderID).
@@ -103,7 +91,7 @@ func TestService_CreateShipment(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		orderID := uuid.New()
 		orders.EXPECT().GetByID(mock.Anything, orderID).
@@ -120,7 +108,7 @@ func TestService_CreateShipment(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		orderID := uuid.New()
 		orders.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{
@@ -132,7 +120,7 @@ func TestService_CreateShipment(t *testing.T) {
 		dbErr := errors.New("insert failed")
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*shipping.Shipment")).Return(dbErr)
 
-		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		ctx := context.Background()
 		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateShipmentRequest{
 			Carrier:        "FedEx",
 			TrackingNumber: "TRACK123",
@@ -145,7 +133,7 @@ func TestService_CreateShipment(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		orderID := uuid.New()
 		orders.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{
@@ -162,7 +150,7 @@ func TestService_CreateShipment(t *testing.T) {
 		updateErr := errors.New("order status update failed")
 		updater.EXPECT().MarkShipped(mock.Anything, orderID).Return(updateErr)
 
-		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		ctx := context.Background()
 		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateShipmentRequest{
 			Carrier:        "FedEx",
 			TrackingNumber: "TRACK123",
@@ -177,7 +165,7 @@ func TestService_GetByOrderID(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		orderID := uuid.New()
 		expected := &shipping.Shipment{
@@ -198,7 +186,7 @@ func TestService_GetByOrderID(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		orderID := uuid.New()
 		repo.EXPECT().GetByOrderID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
@@ -214,7 +202,7 @@ func TestService_UpdateTracking(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		shipmentID := uuid.New()
 		existing := &shipping.Shipment{
@@ -250,7 +238,7 @@ func TestService_UpdateTracking(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		shipmentID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
@@ -266,7 +254,7 @@ func TestService_UpdateTracking(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		shipmentID := uuid.New()
 		existing := &shipping.Shipment{
@@ -292,7 +280,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		shipmentID := uuid.New()
 		orderID := uuid.New()
@@ -313,7 +301,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(delivered, nil)
 		updater.EXPECT().MarkDelivered(mock.Anything, orderID).Return(nil)
 
-		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		ctx := context.Background()
 		result, err := svc.MarkDelivered(ctx, shipmentID)
 		require.NoError(t, err)
 		assert.Equal(t, delivered, result)
@@ -323,7 +311,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		shipmentID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
@@ -337,7 +325,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		shipmentID := uuid.New()
 		existing := &shipping.Shipment{
@@ -349,7 +337,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		dbErr := errors.New("database error")
 		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(nil, dbErr)
 
-		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		ctx := context.Background()
 		result, err := svc.MarkDelivered(ctx, shipmentID)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, dbErr)
@@ -359,7 +347,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
-		svc := shipping.NewService(repo, nil, orders, updater)
+		svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		shipmentID := uuid.New()
 		orderID := uuid.New()
@@ -373,7 +361,7 @@ func TestService_MarkDelivered(t *testing.T) {
 		updateErr := errors.New("order update failed")
 		updater.EXPECT().MarkDelivered(mock.Anything, orderID).Return(updateErr)
 
-		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		ctx := context.Background()
 		result, err := svc.MarkDelivered(ctx, shipmentID)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, updateErr)

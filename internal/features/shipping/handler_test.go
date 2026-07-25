@@ -18,9 +18,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/shipping"
 	"github.com/residwi/go-api-project-template/internal/middleware"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 	shipMocks "github.com/residwi/go-api-project-template/mocks/shipping"
 )
 
@@ -28,7 +28,7 @@ func setupShippingMux(t *testing.T) (*http.ServeMux, *shipMocks.MockRepository, 
 	repo := shipMocks.NewMockRepository(t)
 	orderProv := shipMocks.NewMockOrderProvider(t)
 	orderUpd := shipMocks.NewMockOrderUpdater(t)
-	svc := shipping.NewService(repo, nil, orderProv, orderUpd)
+	svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orderProv, orderUpd)
 	v := validator.New()
 
 	mux := http.NewServeMux()
@@ -232,7 +232,6 @@ func TestHandler_CreateShipment(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/orders/"+orderID.String()+"/ship", bytes.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
-		r = r.WithContext(database.WithTestTx(r.Context(), noopDBTX{}))
 
 		mux.ServeHTTP(w, r)
 
@@ -484,7 +483,6 @@ func TestHandler_MarkDelivered(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/shipments/"+shipmentID.String()+"/deliver", nil)
-		r = r.WithContext(database.WithTestTx(r.Context(), noopDBTX{}))
 
 		mux.ServeHTTP(w, r)
 

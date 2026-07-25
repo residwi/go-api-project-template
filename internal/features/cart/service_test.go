@@ -6,35 +6,51 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/cart"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 	cartMocks "github.com/residwi/go-api-project-template/mocks/cart"
 )
 
-// noopDBTX satisfies database.DBTX so WithTestTx can seed a tx in context,
-// letting AddItem's WithTx run as a passthrough with a nil pool.
-type noopDBTX struct{}
+func TestService_AddItem_RunsInsideTxRunner(t *testing.T) {
+	repo := cartMocks.NewMockRepository(t)
+	products := cartMocks.NewMockProductLookup(t)
+	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
-func (noopDBTX) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
-	return pgconn.CommandTag{}, nil
+	userID := uuid.New()
+	productID := uuid.New()
+	cartID := uuid.New()
+
+	products.EXPECT().GetByID(mock.Anything, productID).Return(&cart.ProductInfo{
+		ID:        productID,
+		Name:      "Widget",
+		Price:     1500,
+		Currency:  "USD",
+		Status:    "published",
+		Available: 10,
+	}, nil)
+	repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
+	repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).Return(0, false, nil)
+	repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).Return(nil)
+
+	err := svc.AddItem(context.Background(), userID, cart.AddItemRequest{
+		ProductID: productID,
+		Quantity:  2,
+	})
+	require.NoError(t, err)
 }
-func (noopDBTX) Query(context.Context, string, ...any) (pgx.Rows, error) { return nil, nil } //nolint:nilnil // test stub
-func (noopDBTX) QueryRow(context.Context, string, ...any) pgx.Row        { return nil }
 
 func TestService_AddItem(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, nil, products, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
-		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 		cartID := uuid.New()
@@ -55,7 +71,7 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("product not published", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, nil, products, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -72,7 +88,7 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("insufficient stock", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, nil, products, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -90,9 +106,9 @@ func TestService_AddItem(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		maxItems := 3
-		svc := cart.NewService(repo, nil, products, maxItems)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, maxItems)
 
-		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 		cartID := uuid.New()
@@ -113,9 +129,9 @@ func TestService_AddItem(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		maxItems := 3
-		svc := cart.NewService(repo, nil, products, maxItems)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, maxItems)
 
-		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 		cartID := uuid.New()
@@ -138,7 +154,7 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("product not found", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, nil, products, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -154,9 +170,9 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("get or create error", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, nil, products, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
-		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
@@ -172,9 +188,9 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("cap check query error", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, nil, products, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
-		ctx := database.WithTestTx(context.Background(), noopDBTX{})
+		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 		cartID := uuid.New()
@@ -194,7 +210,7 @@ func TestService_AddItem(t *testing.T) {
 func TestService_RemoveItem(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, nil, nil, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -210,7 +226,7 @@ func TestService_RemoveItem(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, nil, nil, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -227,7 +243,7 @@ func TestService_RemoveItem(t *testing.T) {
 
 	t.Run("get or create error", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, nil, nil, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -244,7 +260,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, nil, products, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -263,7 +279,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 	t.Run("rejects quantity above available stock", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, nil, products, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -279,7 +295,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 	t.Run("rejects unpublished product", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, nil, products, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -295,7 +311,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 	t.Run("product lookup error", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, nil, products, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -310,7 +326,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 	t.Run("get or create error", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, nil, products, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -328,7 +344,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 func TestService_GetCart(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, nil, nil, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -347,7 +363,7 @@ func TestService_GetCart(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, nil, nil, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -363,7 +379,7 @@ func TestService_GetCart(t *testing.T) {
 func TestService_Clear(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, nil, nil, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -376,7 +392,7 @@ func TestService_Clear(t *testing.T) {
 
 	t.Run("repo error propagates", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, nil, nil, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()

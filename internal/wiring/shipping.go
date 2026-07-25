@@ -4,17 +4,17 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/features/shipping"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
 // NewShippingService also returns the OrderProvider: the shipping routes need it
 // for order-ownership checks, so the same adapter instance is reused.
-func NewShippingService(repo shipping.Repository, pool *pgxpool.Pool, orderSvc *order.Service) (*shipping.Service, shipping.OrderProvider) {
+func NewShippingService(repo shipping.Repository, tx database.TxRunner, orderSvc *order.Service) (*shipping.Service, shipping.OrderProvider) {
 	provider := &shippingOrderProviderAdapter{svc: orderSvc}
-	svc := shipping.NewService(repo, pool, provider, &shippingOrderUpdaterAdapter{svc: orderSvc})
+	svc := shipping.NewService(repo, tx, provider, &shippingOrderUpdaterAdapter{svc: orderSvc})
 	return svc, provider
 }
 

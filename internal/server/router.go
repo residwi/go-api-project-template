@@ -62,7 +62,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	categorySvc := category.NewService(categoryRepo)
 	productSvc := product.NewService(productRepo)
 	inventorySvc := inventory.NewService(inventoryRepo)
-	cartSvc := wiring.NewCartService(cartRepo, deps.Pool, productSvc, deps.Config.App.MaxCartItems)
+	cartSvc := wiring.NewCartService(cartRepo, txRunner, productSvc, deps.Config.App.MaxCartItems)
 	authSvc := auth.NewService(
 		userSvc,
 		deps.Config.JWT.Secret,
@@ -84,7 +84,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	paymentSvc := wiring.NewPaymentService(paymentRepo, deps.Pool, gw, orderSvc, inventorySvc, promotionSvc)
 	wiring.SetOrderPaymentDeps(orderSvc, paymentSvc)
 
-	shippingSvc, shippingOrderProvider := wiring.NewShippingService(shippingRepo, deps.Pool, orderSvc)
+	shippingSvc, shippingOrderProvider := wiring.NewShippingService(shippingRepo, txRunner, orderSvc)
 
 	reviewSvc := review.NewService(reviewRepo, orderSvc)
 

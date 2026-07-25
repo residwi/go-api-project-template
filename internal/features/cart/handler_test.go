@@ -10,25 +10,13 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/middleware"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
-
-// noopDBTX satisfies database.DBTX so WithTestTx can seed a tx, letting the
-// AddItem handler's WithTx run as a passthrough with a nil pool.
-type noopDBTX struct{}
-
-func (noopDBTX) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
-	return pgconn.CommandTag{}, nil
-}
-func (noopDBTX) Query(context.Context, string, ...any) (pgx.Rows, error) { return nil, nil } //nolint:nilnil // test stub
-func (noopDBTX) QueryRow(context.Context, string, ...any) pgx.Row        { return nil }
 
 type stubRepo struct {
 	getOrCreateID uuid.UUID
@@ -138,7 +126,7 @@ func TestHandler_AddItem(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		repo := &stubRepo{getOrCreateID: uuid.New()}
-		svc := NewService(repo, nil, &stubProducts{}, 50)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, &stubProducts{}, 50)
 		h := &handler{service: svc, validator: validator.New()}
 
 		userID := uuid.New()
@@ -146,7 +134,7 @@ func TestHandler_AddItem(t *testing.T) {
 
 		body := fmt.Sprintf(`{"product_id":"%s","quantity":2}`, productID)
 		r := httptest.NewRequest(http.MethodPost, "/cart/items", strings.NewReader(body))
-		ctx := middleware.SetUserContext(database.WithTestTx(r.Context(), noopDBTX{}), middleware.UserContext{
+		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
 			UserID: userID, Email: "test@example.com", Role: "user",
 		})
 		r = r.WithContext(ctx)
@@ -213,7 +201,7 @@ func TestHandler_UpdateItem(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		repo := &stubRepo{getOrCreateID: uuid.New()}
-		svc := NewService(repo, nil, &stubProducts{}, 50)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, &stubProducts{}, 50)
 		h := &handler{service: svc, validator: validator.New()}
 
 		userID := uuid.New()
