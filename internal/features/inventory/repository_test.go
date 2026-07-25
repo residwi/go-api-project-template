@@ -358,32 +358,64 @@ func TestPostgresRepository_AdjustStock_CancelledContext(t *testing.T) {
 // replaces. available_stock is what was sellable (stock minus reserved), and
 // reserved_stock is the hold -- so available + reserved == the old stock_quantity.
 func TestInventoryLevelsBackfill(t *testing.T) {
-	setup(t)
-	ctx := context.Background()
+	// runBackfill re-runs the migration's own backfill statement for a single
+	// product, so each subtest covers the projection itself rather than
+	// whatever the container happened to migrate.
+	runBackfill := func(t *testing.T, ctx context.Context, productID uuid.UUID) {
+		t.Helper()
+		_, err := testPool.Exec(ctx,
+			`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
+			 SELECT id, stock_quantity - reserved_quantity, reserved_quantity
+			 FROM products WHERE id = $1
+			 ON CONFLICT (product_id) DO UPDATE
+			 SET available_stock = EXCLUDED.available_stock,
+			     reserved_stock  = EXCLUDED.reserved_stock`, productID)
+		require.NoError(t, err)
+	}
 
-	productID := seedProduct(t)
+	t.Run("backfills available and reserved stock for an ordinary product", func(t *testing.T) {
+		setup(t)
+		ctx := context.Background()
 
-	_, err := testPool.Exec(ctx,
-		`UPDATE products SET stock_quantity = 10, reserved_quantity = 3 WHERE id = $1`, productID)
-	require.NoError(t, err)
+		productID := seedProduct(t)
+		_, err := testPool.Exec(ctx,
+			`UPDATE products SET stock_quantity = 10, reserved_quantity = 3 WHERE id = $1`, productID)
+		require.NoError(t, err)
 
-	// Re-run the backfill statement the migration uses, so this test covers the
-	// projection itself rather than whatever the container happened to migrate.
-	_, err = testPool.Exec(ctx,
-		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
-		 SELECT id, stock_quantity - reserved_quantity, reserved_quantity
-		 FROM products WHERE id = $1
-		 ON CONFLICT (product_id) DO UPDATE
-		 SET available_stock = EXCLUDED.available_stock,
-		     reserved_stock  = EXCLUDED.reserved_stock`, productID)
-	require.NoError(t, err)
+		runBackfill(t, ctx, productID)
 
-	var available, reserved int
-	require.NoError(t, testPool.QueryRow(ctx,
-		`SELECT available_stock, reserved_stock FROM inventory_levels WHERE product_id = $1`,
-		productID).Scan(&available, &reserved))
+		var available, reserved int
+		require.NoError(t, testPool.QueryRow(ctx,
+			`SELECT available_stock, reserved_stock FROM inventory_levels WHERE product_id = $1`,
+			productID).Scan(&available, &reserved))
 
-	assert.Equal(t, 7, available, "available = stock - reserved")
-	assert.Equal(t, 3, reserved)
-	assert.Equal(t, 10, available+reserved, "total on hand is derived")
+		assert.Equal(t, 7, available, "available = stock - reserved")
+		assert.Equal(t, 3, reserved)
+		assert.Equal(t, 10, available+reserved, "total on hand is derived")
+	})
+
+	// This is the case the backfill's lack of a "WHERE deleted_at IS NULL"
+	// filter exists for: a soft-deleted product can still be holding reserved
+	// stock for an in-flight order. Skipping it would strand that reservation,
+	// so the row existing at all is the assertion that matters here.
+	t.Run("includes a soft-deleted product still holding a reservation", func(t *testing.T) {
+		setup(t)
+		ctx := context.Background()
+
+		productID := seedProduct(t)
+		_, err := testPool.Exec(ctx,
+			`UPDATE products SET stock_quantity = 20, reserved_quantity = 5, deleted_at = NOW() WHERE id = $1`,
+			productID)
+		require.NoError(t, err)
+
+		runBackfill(t, ctx, productID)
+
+		var available, reserved int
+		require.NoError(t, testPool.QueryRow(ctx,
+			`SELECT available_stock, reserved_stock FROM inventory_levels WHERE product_id = $1`,
+			productID).Scan(&available, &reserved))
+
+		assert.Equal(t, 15, available, "available = stock - reserved")
+		assert.Equal(t, 5, reserved, "the in-flight reservation must survive the soft delete")
+	})
 }
