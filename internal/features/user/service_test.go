@@ -444,7 +444,11 @@ func TestService_UpdateRole(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
 		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(nil)
 
-		err := svc.UpdateRole(context.Background(), requesterID, targetID, "admin")
+		err := svc.UpdateRole(context.Background(), user.UpdateRoleParams{
+			RequesterID: requesterID,
+			TargetID:    targetID,
+			Role:        "admin",
+		})
 		require.NoError(t, err)
 	})
 
@@ -454,7 +458,11 @@ func TestService_UpdateRole(t *testing.T) {
 
 		sameID := uuid.New()
 
-		err := svc.UpdateRole(context.Background(), sameID, sameID, "user")
+		err := svc.UpdateRole(context.Background(), user.UpdateRoleParams{
+			RequesterID: sameID,
+			TargetID:    sameID,
+			Role:        "user",
+		})
 		assert.ErrorIs(t, err, apperror.ErrForbidden)
 	})
 
@@ -472,7 +480,11 @@ func TestService_UpdateRole(t *testing.T) {
 			}, nil)
 		repo.EXPECT().CountAdmins(mock.Anything).Return(1, nil)
 
-		err := svc.UpdateRole(context.Background(), requesterID, targetID, "user")
+		err := svc.UpdateRole(context.Background(), user.UpdateRoleParams{
+			RequesterID: requesterID,
+			TargetID:    targetID,
+			Role:        "user",
+		})
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
@@ -492,7 +504,11 @@ func TestService_UpdateRole(t *testing.T) {
 		countErr := errors.New("count query failed")
 		repo.EXPECT().CountAdmins(mock.Anything).Return(0, countErr)
 
-		err := svc.UpdateRole(context.Background(), requesterID, targetID, "user")
+		err := svc.UpdateRole(context.Background(), user.UpdateRoleParams{
+			RequesterID: requesterID,
+			TargetID:    targetID,
+			Role:        "user",
+		})
 		assert.ErrorIs(t, err, countErr)
 	})
 
@@ -512,7 +528,11 @@ func TestService_UpdateRole(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
 		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(nil)
 
-		err := svc.UpdateRole(context.Background(), requesterID, targetID, "user")
+		err := svc.UpdateRole(context.Background(), user.UpdateRoleParams{
+			RequesterID: requesterID,
+			TargetID:    targetID,
+			Role:        "user",
+		})
 		require.NoError(t, err)
 	})
 
@@ -523,7 +543,11 @@ func TestService_UpdateRole(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
 
-		err := svc.UpdateRole(context.Background(), uuid.New(), uuid.New(), "admin")
+		err := svc.UpdateRole(context.Background(), user.UpdateRoleParams{
+			RequesterID: uuid.New(),
+			TargetID:    uuid.New(),
+			Role:        "admin",
+		})
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
@@ -543,7 +567,11 @@ func TestService_UpdateRole(t *testing.T) {
 		updateErr := errors.New("database write failed")
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*user.User")).Return(updateErr)
 
-		err := svc.UpdateRole(context.Background(), requesterID, targetID, "admin")
+		err := svc.UpdateRole(context.Background(), user.UpdateRoleParams{
+			RequesterID: requesterID,
+			TargetID:    targetID,
+			Role:        "admin",
+		})
 		assert.ErrorIs(t, err, updateErr)
 	})
 }
@@ -563,7 +591,10 @@ func TestService_Delete(t *testing.T) {
 			}, nil)
 		repo.EXPECT().Delete(mock.Anything, targetID).Return(nil)
 
-		err := svc.Delete(context.Background(), requesterID, targetID)
+		err := svc.Delete(context.Background(), user.DeleteParams{
+			RequesterID: requesterID,
+			TargetID:    targetID,
+		})
 		require.NoError(t, err)
 	})
 
@@ -573,7 +604,10 @@ func TestService_Delete(t *testing.T) {
 
 		sameID := uuid.New()
 
-		err := svc.Delete(context.Background(), sameID, sameID)
+		err := svc.Delete(context.Background(), user.DeleteParams{
+			RequesterID: sameID,
+			TargetID:    sameID,
+		})
 		assert.ErrorIs(t, err, apperror.ErrForbidden)
 	})
 
@@ -591,7 +625,10 @@ func TestService_Delete(t *testing.T) {
 			}, nil)
 		repo.EXPECT().CountAdmins(mock.Anything).Return(1, nil)
 
-		err := svc.Delete(context.Background(), requesterID, targetID)
+		err := svc.Delete(context.Background(), user.DeleteParams{
+			RequesterID: requesterID,
+			TargetID:    targetID,
+		})
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
@@ -602,7 +639,10 @@ func TestService_Delete(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
 
-		err := svc.Delete(context.Background(), uuid.New(), uuid.New())
+		err := svc.Delete(context.Background(), user.DeleteParams{
+			RequesterID: uuid.New(),
+			TargetID:    uuid.New(),
+		})
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
@@ -622,7 +662,10 @@ func TestService_Delete(t *testing.T) {
 		countErr := errors.New("count query failed")
 		repo.EXPECT().CountAdmins(mock.Anything).Return(0, countErr)
 
-		err := svc.Delete(context.Background(), requesterID, targetID)
+		err := svc.Delete(context.Background(), user.DeleteParams{
+			RequesterID: requesterID,
+			TargetID:    targetID,
+		})
 		assert.ErrorIs(t, err, countErr)
 	})
 
@@ -641,7 +684,10 @@ func TestService_Delete(t *testing.T) {
 		repo.EXPECT().CountAdmins(mock.Anything).Return(3, nil)
 		repo.EXPECT().Delete(mock.Anything, targetID).Return(nil)
 
-		err := svc.Delete(context.Background(), requesterID, targetID)
+		err := svc.Delete(context.Background(), user.DeleteParams{
+			RequesterID: requesterID,
+			TargetID:    targetID,
+		})
 		require.NoError(t, err)
 	})
 
@@ -661,7 +707,23 @@ func TestService_Delete(t *testing.T) {
 		deleteErr := errors.New("database delete failed")
 		repo.EXPECT().Delete(mock.Anything, targetID).Return(deleteErr)
 
-		err := svc.Delete(context.Background(), requesterID, targetID)
+		err := svc.Delete(context.Background(), user.DeleteParams{
+			RequesterID: requesterID,
+			TargetID:    targetID,
+		})
 		assert.ErrorIs(t, err, deleteErr)
 	})
+}
+
+func TestService_Delete_RejectsSelfDeleteByName(t *testing.T) {
+	repo := mocks.NewMockRepository(t)
+	svc := user.NewService(repo, nil)
+
+	actorID := uuid.New()
+
+	err := svc.Delete(context.Background(), user.DeleteParams{
+		RequesterID: actorID,
+		TargetID:    actorID,
+	})
+	require.ErrorIs(t, err, apperror.ErrForbidden)
 }

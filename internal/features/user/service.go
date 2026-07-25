@@ -210,17 +210,31 @@ func (s *Service) AdminUpdate(ctx context.Context, id uuid.UUID, req AdminUpdate
 	return u, nil
 }
 
-func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUID, role string) error {
-	if requesterID == targetID {
+// UpdateRoleParams and DeleteParams name the actor and the subject. Both are
+// uuid.UUID, and the requesterID == targetID guard below does not catch a
+// transposition -- swapped, it would act on the admin instead of the target.
+type UpdateRoleParams struct {
+	RequesterID uuid.UUID
+	TargetID    uuid.UUID
+	Role        string
+}
+
+type DeleteParams struct {
+	RequesterID uuid.UUID
+	TargetID    uuid.UUID
+}
+
+func (s *Service) UpdateRole(ctx context.Context, p UpdateRoleParams) error {
+	if p.RequesterID == p.TargetID {
 		return fmt.Errorf("%w: cannot change own role", apperror.ErrForbidden)
 	}
 
-	u, err := s.repo.GetByID(ctx, targetID)
+	u, err := s.repo.GetByID(ctx, p.TargetID)
 	if err != nil {
 		return err
 	}
 
-	if u.Role == "admin" && role == "user" {
+	if u.Role == "admin" && p.Role == "user" {
 		count, err := s.repo.CountAdmins(ctx)
 		if err != nil {
 			return err
@@ -230,7 +244,7 @@ func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUI
 		}
 	}
 
-	u.Role = role
+	u.Role = p.Role
 	if err := s.repo.Update(ctx, u); err != nil {
 		return err
 	}
@@ -238,21 +252,21 @@ func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUI
 	// Revoke the target user's outstanding access tokens: the auth middleware
 	// rejects a token whose token_version differs from the DB, so bumping it
 	// forces a re-auth that reflects the new role.
-	if err := s.repo.IncrementTokenVersion(ctx, targetID); err != nil {
+	if err := s.repo.IncrementTokenVersion(ctx, p.TargetID); err != nil {
 		return fmt.Errorf("revoking tokens after role change: %w", err)
 	}
 
 	// Invalidate after the bump so the cache repopulates with the new token_version.
-	s.invalidateStatusCache(ctx, targetID)
+	s.invalidateStatusCache(ctx, p.TargetID)
 	return nil
 }
 
-func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) error {
-	if requesterID == targetID {
+func (s *Service) Delete(ctx context.Context, p DeleteParams) error {
+	if p.RequesterID == p.TargetID {
 		return fmt.Errorf("%w: cannot delete own account", apperror.ErrForbidden)
 	}
 
-	u, err := s.repo.GetByID(ctx, targetID)
+	u, err := s.repo.GetByID(ctx, p.TargetID)
 	if err != nil {
 		return err
 	}
@@ -267,9 +281,9 @@ func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) e
 		}
 	}
 
-	if err := s.repo.Delete(ctx, targetID); err != nil {
+	if err := s.repo.Delete(ctx, p.TargetID); err != nil {
 		return err
 	}
-	s.invalidateStatusCache(ctx, targetID)
+	s.invalidateStatusCache(ctx, p.TargetID)
 	return nil
 }

@@ -88,7 +88,11 @@ func (h *adminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.UpdateRole(r.Context(), uc.UserID, id, req.Role); err != nil {
+	if err := h.service.UpdateRole(r.Context(), UpdateRoleParams{
+		RequesterID: uc.UserID,
+		TargetID:    id,
+		Role:        req.Role,
+	}); err != nil {
 		response.HandleErr(w, err)
 		return
 	}
@@ -107,7 +111,10 @@ func (h *adminHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.Delete(r.Context(), uc.UserID, id); err != nil {
+	if err := h.service.Delete(r.Context(), DeleteParams{
+		RequesterID: uc.UserID,
+		TargetID:    id,
+	}); err != nil {
 		response.HandleErr(w, err)
 		return
 	}
