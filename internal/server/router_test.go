@@ -81,6 +81,32 @@ func setup(t *testing.T) {
 	testhelper.ResetRedis(t, testRedis)
 }
 
+// seedInventoryLevel gives a product an inventory_levels row so ReserveBatch/
+// DeductBatch have something to update. Product creation doesn't wire this up
+// yet (a later task does), so these E2E flows -- which seed products directly
+// via SQL rather than through product creation -- must seed it themselves.
+func seedInventoryLevel(t *testing.T, productID uuid.UUID, available, reserved int) {
+	t.Helper()
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (product_id) DO UPDATE
+		 SET available_stock = EXCLUDED.available_stock,
+		     reserved_stock  = EXCLUDED.reserved_stock`,
+		productID, available, reserved)
+	require.NoError(t, err)
+}
+
+// inventoryLevelOf reads back a product's current available/reserved split.
+// Checkout and refund flows now mutate inventory_levels, not products.
+func inventoryLevelOf(t *testing.T, productID uuid.UUID) (available, reserved int) {
+	t.Helper()
+	require.NoError(t, testPool.QueryRow(context.Background(),
+		`SELECT available_stock, reserved_stock FROM inventory_levels WHERE product_id = $1`,
+		productID).Scan(&available, &reserved))
+	return available, reserved
+}
+
 func TestNewRouter(t *testing.T) {
 	setup(t)
 	t.Run("initializes without error", func(t *testing.T) {
@@ -540,12 +566,14 @@ func TestE2EOrderFlow(t *testing.T) {
 		 VALUES ($1, 'E2E Product', $2, 'desc', 5000, 'USD', 100, 'published', $3)`,
 		prodID, "e2e-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
+	})
 
-	// Ensure product has stock (stock_quantity is on products table)
-	_, err = testPool.Exec(ctx,
-		`UPDATE products SET stock_quantity = 100, reserved_quantity = 0 WHERE id = $1`, prodID)
-	require.NoError(t, err)
+	// Ensure product has stock: inventory reserves against inventory_levels, not
+	// products.stock_quantity.
+	seedInventoryLevel(t, prodID, 100, 0)
 
 	// Register user and get token
 	regBody := `{"email":"e2e-flow@example.com","password":"Password123!","first_name":"E2E","last_name":"User"}`
@@ -649,7 +677,11 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 		 VALUES ($1, 'Cancel Product', $2, 'desc', 3000, 'USD', 50, 'published', $3)`,
 		prodID, "cancel-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
+	})
+	seedInventoryLevel(t, prodID, 50, 0)
 
 	// Register user
 	email := "cancel-flow@example.com"
@@ -840,7 +872,11 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 		 VALUES ($1, 'Webhook Product', $2, 'desc', 5000, 'USD', 100, 'published', $3)`,
 		prodID, "webhook-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
+	})
+	seedInventoryLevel(t, prodID, 100, 0)
 
 	// Register user
 	email := "webhook-flow@example.com"
@@ -956,20 +992,28 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		 VALUES ($1, 'Fail Product', $2, 'desc', 2000, 'USD', 50, 'published', $3)`,
 		prodID, "fail-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
+	})
+	seedInventoryLevel(t, prodID, 50, 0)
 
 	// A second, cheap product priced 99 makes the GRAND total end in 99
 	// (2000*2 + 99 = 4099, 4099 % 100 == 99) so the mock gateway's synchronous
 	// charge FAILS and the order stays awaiting_payment with stock only RESERVED
 	// (a paid order's stock would be deducted, not reserved). Keeping prodID's
-	// quantity at 2 preserves the reserved_quantity == 2 assertion below.
+	// quantity at 2 preserves the reserved_stock == 2 assertion below.
 	prod2ID := uuid.New()
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
 		 VALUES ($1, 'Fail Product 2', $2, 'desc', 99, 'USD', 50, 'published', $3)`,
 		prod2ID, "fail-prod2-"+prod2ID.String()[:8], catID)
 	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prod2ID) })
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prod2ID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prod2ID)
+	})
+	seedInventoryLevel(t, prod2ID, 50, 0)
 
 	email := "fail-flow@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"Fail","last_name":"User"}`
@@ -1034,10 +1078,8 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	t.Run("webhook failed cancels payment and jobs", func(t *testing.T) {
 		// Before the webhook: the synchronous charge failed (total ended in 99),
 		// so the order is still awaiting_payment with a pending payment and the
-		// stock is only RESERVED (prodID's reserved_quantity == 2).
-		var reservedBefore int
-		err := testPool.QueryRow(ctx, `SELECT reserved_quantity FROM products WHERE id = $1`, prodID).Scan(&reservedBefore)
-		require.NoError(t, err)
+		// stock is only RESERVED (prodID's reserved_stock == 2).
+		_, reservedBefore := inventoryLevelOf(t, prodID)
 		assert.Equal(t, 2, reservedBefore)
 
 		var orderStatusBefore string
@@ -1077,9 +1119,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "cancelled", orderStatus)
 
-		var reservedAfter int
-		err = testPool.QueryRow(ctx, `SELECT reserved_quantity FROM products WHERE id = $1`, prodID).Scan(&reservedAfter)
-		require.NoError(t, err)
+		_, reservedAfter := inventoryLevelOf(t, prodID)
 		assert.Equal(t, 0, reservedAfter)
 	})
 }
@@ -1124,7 +1164,11 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		 VALUES ($1, 'Refund Product', $2, 'desc', 3000, 'USD', 100, 'published', $3)`,
 		prodID, "refund-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
+	})
+	seedInventoryLevel(t, prodID, 100, 0)
 
 	// Register user
 	email := "refund-flow@example.com"
@@ -1241,10 +1285,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		assert.Equal(t, payment.ActionRefund, job.Action)
 
 		// Record stock before refund
-		var stockBefore int
-		err = testPool.QueryRow(ctx,
-			`SELECT stock_quantity FROM products WHERE id = $1`, prodID).Scan(&stockBefore)
-		require.NoError(t, err)
+		stockBefore, _ := inventoryLevelOf(t, prodID)
 
 		// Process the refund job via the router's payment service
 		processErr := router.PaymentSvc.Process(ctx, job)
@@ -1263,10 +1304,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		assert.Equal(t, "refunded", paymentStatus)
 
 		// Verify inventory was restocked
-		var stockAfter int
-		err = testPool.QueryRow(ctx,
-			`SELECT stock_quantity FROM products WHERE id = $1`, prodID).Scan(&stockAfter)
-		require.NoError(t, err)
+		stockAfter, _ := inventoryLevelOf(t, prodID)
 		assert.Equal(t, stockBefore+1, stockAfter)
 
 		// Verify refund job marked as completed
@@ -1317,7 +1355,11 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 		 VALUES ($1, 'Ship Product', $2, 'desc', 4000, 'USD', 100, 'published', $3)`,
 		prodID, "ship-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
+	})
+	seedInventoryLevel(t, prodID, 100, 0)
 
 	// Register user
 	email := "shipping-flow@example.com"
@@ -1490,7 +1532,11 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 		 VALUES ($1, 'Coupon Product', $2, 'desc', 1110, 'USD', 50, 'published', $3)`,
 		prodID, "coupon-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
+	})
+	seedInventoryLevel(t, prodID, 50, 0)
 
 	// Seed a coupon: 10% off, active, valid date range, high usage limit
 	couponID := uuid.New()
@@ -1628,7 +1674,11 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		 VALUES ($1, 'RelCoupon Product', $2, 'desc', 8000, 'USD', 100, 'published', $3)`,
 		prodID, "relcoupon-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
+	})
+	seedInventoryLevel(t, prodID, 100, 0)
 
 	// Seed a coupon
 	couponID := uuid.New()
@@ -1715,14 +1765,11 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 
 	t.Run("processing refund job restocks inventory and releases coupon", func(t *testing.T) {
 		// The synchronous charge finalized this order at placement: stock was
-		// DEDUCTED (stock_quantity 100 -> 99, reserved_quantity 1 -> 0) and the
+		// DEDUCTED (available_stock 100 -> 99, reserved_stock 1 -> 0) and the
 		// order's stock_deducted flag was set. Record stock/reserved before the
 		// refund so we can assert the refund RESTOCKS (adds back to
-		// stock_quantity) rather than releasing a reservation.
-		var stockBefore, reservedBefore int
-		err := testPool.QueryRow(ctx,
-			`SELECT stock_quantity, reserved_quantity FROM products WHERE id = $1`, prodID).Scan(&stockBefore, &reservedBefore)
-		require.NoError(t, err)
+		// available_stock) rather than releasing a reservation.
+		stockBefore, reservedBefore := inventoryLevelOf(t, prodID)
 		assert.Equal(t, 99, stockBefore)
 		assert.Equal(t, 0, reservedBefore)
 
@@ -1749,12 +1796,9 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		processErr := router.PaymentSvc.Process(ctx, job)
 		require.NoError(t, processErr)
 
-		// Verify inventory was RESTOCKED: stock_quantity returns to its original
-		// seeded value (100) and reserved_quantity stays at 0.
-		var stockAfter, reservedAfter int
-		err = testPool.QueryRow(ctx,
-			`SELECT stock_quantity, reserved_quantity FROM products WHERE id = $1`, prodID).Scan(&stockAfter, &reservedAfter)
-		require.NoError(t, err)
+		// Verify inventory was RESTOCKED: available_stock returns to its original
+		// seeded value (100) and reserved_stock stays at 0.
+		stockAfter, reservedAfter := inventoryLevelOf(t, prodID)
 		assert.Equal(t, 100, stockAfter)
 		assert.Equal(t, 0, reservedAfter)
 
@@ -1860,7 +1904,11 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		 VALUES ($1, 'ErrAdapt Product', $2, 'desc', 3000, 'USD', 100, 'published', $3)`,
 		prodID, "erradapt-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
+	})
+	seedInventoryLevel(t, prodID, 100, 0)
 
 	// Register user
 	email := "erradapt-flow@example.com"

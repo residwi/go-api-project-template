@@ -211,3 +211,29 @@ func TestService_AdjustStock(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestService_EnsureLevel(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		svc := inventory.NewService(repo)
+
+		productID := uuid.New()
+		repo.EXPECT().EnsureLevel(mock.Anything, productID).Return(nil)
+
+		err := svc.EnsureLevel(context.Background(), productID)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		svc := inventory.NewService(repo)
+
+		productID := uuid.New()
+		repo.EXPECT().EnsureLevel(mock.Anything, productID).Return(errors.New("ensuring inventory level"))
+
+		err := svc.EnsureLevel(context.Background(), productID)
+
+		assert.Error(t, err)
+	})
+}

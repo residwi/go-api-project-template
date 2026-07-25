@@ -31,6 +31,7 @@ type Repository interface {
 	Restock(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error)
 	GetStock(ctx context.Context, productID uuid.UUID) (*Stock, error)
 	AdjustStock(ctx context.Context, productID uuid.UUID, newQuantity int) (*Stock, error)
+	EnsureLevel(ctx context.Context, productID uuid.UUID) error
 }
 
 // stockValueCols is the number of columns per (product_id, qty) VALUES tuple.
@@ -41,9 +42,9 @@ const stockValueCols = 2
 // joined against (product_id, qty) tuples. Aggregation is required for
 // correctness: a duplicate product_id would otherwise join the product row to
 // two VALUES tuples and apply only one of the quantities. ids holds the distinct
-// product ids in first-seen order; len(ids) is the number of distinct products
-// updated. Lock ordering is owned by lockProducts' SQL `ORDER BY id`, not the
-// order of this slice (which only feeds the VALUES join, where order is moot).
+// product ids in first-seen order; len(ids) is the number of distinct product
+// rows updated. Lock ordering is owned by lockLevels' SQL `ORDER BY product_id`,
+// not the order of this slice (which only feeds the VALUES join, where order is moot).
 func buildStockValues(items []StockChange) (string, []any, []uuid.UUID) {
 	sums := make(map[uuid.UUID]int, len(items))
 	ids := make([]uuid.UUID, 0, len(items))
@@ -71,18 +72,28 @@ func buildStockValues(items []StockChange) (string, []any, []uuid.UUID) {
 	return strings.Join(placeholders, ","), args, ids
 }
 
-// lockProducts locks the given product rows in a single, id-ordered statement
-// so that concurrent batch operations acquire row locks in a consistent order
-// and cannot deadlock. The batched UPDATE that follows does not control its own
-// lock-acquisition order, so this runs first. It must execute inside the
-// caller's transaction (the locks are held until commit).
-func lockProducts(ctx context.Context, db database.DBTX, ids []uuid.UUID) error {
-	if _, err := db.Exec(ctx,
-		`SELECT 1 FROM products WHERE id = ANY($1) ORDER BY id FOR UPDATE`, ids,
-	); err != nil {
-		return fmt.Errorf("locking products: %w", err)
+// lockLevels takes row locks in a deterministic order so concurrent batches
+// covering overlapping product rows cannot deadlock. Locking inventory_levels
+// instead of the product table also means a checkout no longer blocks an admin
+// editing a product's name or price.
+func lockLevels(ctx context.Context, db database.DBTX, ids []uuid.UUID) error {
+	_, err := db.Exec(ctx,
+		`SELECT 1 FROM inventory_levels WHERE product_id = ANY($1) ORDER BY product_id FOR UPDATE`, ids)
+	if err != nil {
+		return fmt.Errorf("locking inventory levels: %w", err)
 	}
 	return nil
+}
+
+// stockFrom assembles a Stock from the two stored columns. Total on hand is
+// derived as their sum rather than stored.
+func stockFrom(productID uuid.UUID, available, reserved int) *Stock {
+	return &Stock{
+		ProductID: productID,
+		Quantity:  available + reserved,
+		Reserved:  reserved,
+		Available: available,
+	}
 }
 
 type PostgresRepository struct {
@@ -95,52 +106,44 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 
 func (r *PostgresRepository) Reserve(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error) {
 	db := database.DB(ctx, r.pool)
-	var stockQty, reservedQty int
+	var available, reserved int
 	err := db.QueryRow(ctx,
-		`UPDATE products SET reserved_quantity = reserved_quantity + $1
-		WHERE id = $2 AND (stock_quantity - reserved_quantity) >= $1 AND deleted_at IS NULL
-		RETURNING stock_quantity, reserved_quantity`,
+		`UPDATE inventory_levels
+		SET available_stock = available_stock - $1, reserved_stock = reserved_stock + $1
+		WHERE product_id = $2 AND available_stock >= $1
+		RETURNING available_stock, reserved_stock`,
 		qty, productID,
-	).Scan(&stockQty, &reservedQty)
+	).Scan(&available, &reserved)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, apperror.ErrInsufficientStock
 		}
 		return nil, fmt.Errorf("reserving stock: %w", err)
 	}
-	return &Stock{
-		ProductID: productID,
-		Quantity:  stockQty,
-		Reserved:  reservedQty,
-		Available: stockQty - reservedQty,
-	}, nil
+	return stockFrom(productID, available, reserved), nil
 }
 
 func (r *PostgresRepository) Release(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error) {
 	db := database.DB(ctx, r.pool)
-	var stockQty, reservedQty int
+	var available, reserved int
 	err := db.QueryRow(ctx,
-		`UPDATE products SET reserved_quantity = reserved_quantity - $1
-		WHERE id = $2 AND reserved_quantity >= $1
-		RETURNING stock_quantity, reserved_quantity`,
+		`UPDATE inventory_levels
+		SET available_stock = available_stock + $1, reserved_stock = reserved_stock - $1
+		WHERE product_id = $2 AND reserved_stock >= $1
+		RETURNING available_stock, reserved_stock`,
 		qty, productID,
-	).Scan(&stockQty, &reservedQty)
+	).Scan(&available, &reserved)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("%w: cannot release more than reserved", apperror.ErrBadRequest)
 		}
 		return nil, fmt.Errorf("releasing stock: %w", err)
 	}
-	return &Stock{
-		ProductID: productID,
-		Quantity:  stockQty,
-		Reserved:  reservedQty,
-		Available: stockQty - reservedQty,
-	}, nil
+	return stockFrom(productID, available, reserved), nil
 }
 
-// ReserveBatch reserves stock for many products in a single UPDATE. If any row
-// is missing, deleted, or has insufficient available stock it won't match, so a
+// ReserveBatch reserves stock for many product rows in a single UPDATE. If any row
+// is missing or has insufficient available stock it won't match, so a
 // RowsAffected count below the input length means at least one reservation
 // failed and the whole batch is reported as insufficient stock (the caller runs
 // this inside a transaction, so nothing is reserved).
@@ -150,13 +153,15 @@ func (r *PostgresRepository) ReserveBatch(ctx context.Context, items []StockChan
 	}
 	db := database.DB(ctx, r.pool)
 	values, args, ids := buildStockValues(items)
-	if err := lockProducts(ctx, db, ids); err != nil {
+	if err := lockLevels(ctx, db, ids); err != nil {
 		return err
 	}
 	tag, err := db.Exec(ctx,
-		`UPDATE products AS p SET reserved_quantity = reserved_quantity + v.qty
+		`UPDATE inventory_levels AS i
+		SET available_stock = available_stock - v.qty,
+		    reserved_stock  = reserved_stock  + v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
-		WHERE p.id = v.product_id AND (p.stock_quantity - p.reserved_quantity) >= v.qty AND p.deleted_at IS NULL`,
+		WHERE i.product_id = v.product_id AND i.available_stock >= v.qty`,
 		args...,
 	)
 	if err != nil {
@@ -168,7 +173,7 @@ func (r *PostgresRepository) ReserveBatch(ctx context.Context, items []StockChan
 	return nil
 }
 
-// ReleaseBatch releases reserved stock for many products. A partial match is an
+// ReleaseBatch releases reserved stock for many product rows. A partial match is an
 // error: a skipped row means the reservation stayed, and silent success would
 // strand it.
 func (r *PostgresRepository) ReleaseBatch(ctx context.Context, items []StockChange) error {
@@ -177,68 +182,70 @@ func (r *PostgresRepository) ReleaseBatch(ctx context.Context, items []StockChan
 	}
 	db := database.DB(ctx, r.pool)
 	values, args, ids := buildStockValues(items)
-	if err := lockProducts(ctx, db, ids); err != nil {
+	if err := lockLevels(ctx, db, ids); err != nil {
 		return err
 	}
 	tag, err := db.Exec(ctx,
-		`UPDATE products AS p SET reserved_quantity = reserved_quantity - v.qty
+		`UPDATE inventory_levels AS i
+		SET available_stock = available_stock + v.qty,
+		    reserved_stock  = reserved_stock  - v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
-		WHERE p.id = v.product_id AND p.reserved_quantity >= v.qty`,
+		WHERE i.product_id = v.product_id AND i.reserved_stock >= v.qty`,
 		args...,
 	)
 	if err != nil {
 		return fmt.Errorf("releasing stock batch: %w", err)
 	}
-	if int(tag.RowsAffected()) != len(items) {
+	if int(tag.RowsAffected()) != len(ids) {
 		return fmt.Errorf("%w: cannot release more than reserved", apperror.ErrBadRequest)
 	}
 	return nil
 }
 
-// DeductBatch converts reserved stock to sold (decrements both stock and
-// reserved) for many products in one UPDATE. Every product must satisfy the
-// guard, so a RowsAffected count below the input length is an error (the caller
-// runs this in a transaction).
+// DeductBatch converts a reservation into a sale. With stored-available this
+// only decrements reserved_stock: the goods have left, and available_stock was
+// already reduced when the hold was taken.
 func (r *PostgresRepository) DeductBatch(ctx context.Context, items []StockChange) error {
 	if len(items) == 0 {
 		return nil
 	}
 	db := database.DB(ctx, r.pool)
 	values, args, ids := buildStockValues(items)
-	if err := lockProducts(ctx, db, ids); err != nil {
+	if err := lockLevels(ctx, db, ids); err != nil {
 		return err
 	}
 	tag, err := db.Exec(ctx,
-		`UPDATE products AS p SET stock_quantity = stock_quantity - v.qty, reserved_quantity = reserved_quantity - v.qty
+		`UPDATE inventory_levels AS i
+		SET reserved_stock = reserved_stock - v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
-		WHERE p.id = v.product_id AND p.reserved_quantity >= v.qty AND p.stock_quantity >= v.qty`,
+		WHERE i.product_id = v.product_id AND i.reserved_stock >= v.qty`,
 		args...,
 	)
 	if err != nil {
 		return fmt.Errorf("deducting stock batch: %w", err)
 	}
 	if int(tag.RowsAffected()) != len(ids) {
-		return fmt.Errorf("%w: cannot deduct stock", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: cannot deduct more than reserved", apperror.ErrBadRequest)
 	}
 	return nil
 }
 
-// RestockBatch adds quantities back to stock for many products in one UPDATE
-// (used on refund/restock). Best-effort unlike ReleaseBatch: a skipped row means
-// the product is deleted, and failing a refund over that would help no one.
+// RestockBatch returns sold goods to the shelf. It does not touch
+// reserved_stock: the reservation was already consumed by DeductBatch.
 func (r *PostgresRepository) RestockBatch(ctx context.Context, items []StockChange) error {
 	if len(items) == 0 {
 		return nil
 	}
 	db := database.DB(ctx, r.pool)
 	values, args, ids := buildStockValues(items)
-	if err := lockProducts(ctx, db, ids); err != nil {
+	if err := lockLevels(ctx, db, ids); err != nil {
 		return err
 	}
 	_, err := db.Exec(ctx,
-		`UPDATE products AS p SET stock_quantity = stock_quantity + v.qty
+		`UPDATE inventory_levels AS i
+		SET available_stock = available_stock + v.qty
 		FROM (VALUES `+values+`) AS v(product_id, qty)
-		WHERE p.id = v.product_id AND p.deleted_at IS NULL`,
+		WHERE i.product_id = v.product_id`,
 		args...,
 	)
 	if err != nil {
@@ -249,90 +256,86 @@ func (r *PostgresRepository) RestockBatch(ctx context.Context, items []StockChan
 
 func (r *PostgresRepository) Deduct(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error) {
 	db := database.DB(ctx, r.pool)
-	var stockQty, reservedQty int
+	var available, reserved int
 	err := db.QueryRow(ctx,
-		`UPDATE products SET stock_quantity = stock_quantity - $1, reserved_quantity = reserved_quantity - $1
-		WHERE id = $2 AND reserved_quantity >= $1 AND stock_quantity >= $1
-		RETURNING stock_quantity, reserved_quantity`,
+		`UPDATE inventory_levels SET reserved_stock = reserved_stock - $1
+		WHERE product_id = $2 AND reserved_stock >= $1
+		RETURNING available_stock, reserved_stock`,
 		qty, productID,
-	).Scan(&stockQty, &reservedQty)
+	).Scan(&available, &reserved)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("%w: cannot deduct stock", apperror.ErrBadRequest)
 		}
 		return nil, fmt.Errorf("deducting stock: %w", err)
 	}
-	return &Stock{
-		ProductID: productID,
-		Quantity:  stockQty,
-		Reserved:  reservedQty,
-		Available: stockQty - reservedQty,
-	}, nil
+	return stockFrom(productID, available, reserved), nil
 }
 
 func (r *PostgresRepository) Restock(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error) {
 	db := database.DB(ctx, r.pool)
-	var stockQty, reservedQty int
+	var available, reserved int
 	err := db.QueryRow(ctx,
-		`UPDATE products SET stock_quantity = stock_quantity + $1
-		WHERE id = $2 AND deleted_at IS NULL
-		RETURNING stock_quantity, reserved_quantity`,
+		`UPDATE inventory_levels SET available_stock = available_stock + $1
+		WHERE product_id = $2
+		RETURNING available_stock, reserved_stock`,
 		qty, productID,
-	).Scan(&stockQty, &reservedQty)
+	).Scan(&available, &reserved)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("restocking: %w", err)
 	}
-	return &Stock{
-		ProductID: productID,
-		Quantity:  stockQty,
-		Reserved:  reservedQty,
-		Available: stockQty - reservedQty,
-	}, nil
+	return stockFrom(productID, available, reserved), nil
 }
 
 func (r *PostgresRepository) GetStock(ctx context.Context, productID uuid.UUID) (*Stock, error) {
 	db := database.DB(ctx, r.pool)
-	var stockQty, reservedQty int
+	var available, reserved int
 	err := db.QueryRow(ctx,
-		`SELECT stock_quantity, reserved_quantity FROM products WHERE id = $1 AND deleted_at IS NULL`,
+		`SELECT available_stock, reserved_stock FROM inventory_levels WHERE product_id = $1`,
 		productID,
-	).Scan(&stockQty, &reservedQty)
+	).Scan(&available, &reserved)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting stock: %w", err)
 	}
-	return &Stock{
-		ProductID: productID,
-		Quantity:  stockQty,
-		Reserved:  reservedQty,
-		Available: stockQty - reservedQty,
-	}, nil
+	return stockFrom(productID, available, reserved), nil
 }
 
+// AdjustStock sets total on hand. Because available is stored, the new available
+// is the requested total minus whatever is currently reserved -- and a total
+// below the outstanding reservations is refused.
 func (r *PostgresRepository) AdjustStock(ctx context.Context, productID uuid.UUID, newQuantity int) (*Stock, error) {
 	db := database.DB(ctx, r.pool)
-	var stockQty, reservedQty int
+	var available, reserved int
 	err := db.QueryRow(ctx,
-		`UPDATE products SET stock_quantity = $1
-		WHERE id = $2 AND reserved_quantity <= $1 AND deleted_at IS NULL
-		RETURNING stock_quantity, reserved_quantity`,
+		`UPDATE inventory_levels SET available_stock = $1 - reserved_stock
+		WHERE product_id = $2 AND reserved_stock <= $1
+		RETURNING available_stock, reserved_stock`,
 		newQuantity, productID,
-	).Scan(&stockQty, &reservedQty)
+	).Scan(&available, &reserved)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("%w: cannot set stock below reserved quantity", apperror.ErrBadRequest)
 		}
 		return nil, fmt.Errorf("adjusting stock: %w", err)
 	}
-	return &Stock{
-		ProductID: productID,
-		Quantity:  stockQty,
-		Reserved:  reservedQty,
-		Available: stockQty - reservedQty,
-	}, nil
+	return stockFrom(productID, available, reserved), nil
+}
+
+// EnsureLevel creates a zeroed level row for a product. Idempotent, so a retry
+// or a re-created product cannot clobber existing counts.
+func (r *PostgresRepository) EnsureLevel(ctx context.Context, productID uuid.UUID) error {
+	db := database.DB(ctx, r.pool)
+	_, err := db.Exec(ctx,
+		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
+		 VALUES ($1, 0, 0) ON CONFLICT (product_id) DO NOTHING`, productID)
+	if err != nil {
+		return fmt.Errorf("ensuring inventory level: %w", err)
+	}
+	return nil
 }

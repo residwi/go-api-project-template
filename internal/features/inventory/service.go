@@ -72,3 +72,10 @@ func (s *Service) GetStock(ctx context.Context, productID uuid.UUID) (*Stock, er
 func (s *Service) AdjustStock(ctx context.Context, productID uuid.UUID, newQuantity int) (*Stock, error) {
 	return s.repo.AdjustStock(ctx, productID, newQuantity)
 }
+
+// EnsureLevel registers a product with inventory at zero stock. Called when a
+// product is created, so stock is set afterwards through inventory's own admin
+// endpoint rather than smuggled in on the product payload.
+func (s *Service) EnsureLevel(ctx context.Context, productID uuid.UUID) error {
+	return s.repo.EnsureLevel(ctx, productID)
+}

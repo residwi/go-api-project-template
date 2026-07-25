@@ -29,6 +29,24 @@ func setup(t *testing.T) {
 	testhelper.ResetDB(t, testPool)
 }
 
+// seedLevel upserts an inventory_levels row directly, bypassing the repository
+// under test so tests can arrange a starting available/reserved split.
+func seedLevel(t *testing.T, productID uuid.UUID, available, reserved int) {
+	t.Helper()
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (product_id) DO UPDATE
+		 SET available_stock = EXCLUDED.available_stock,
+		     reserved_stock  = EXCLUDED.reserved_stock`,
+		productID, available, reserved)
+	require.NoError(t, err)
+}
+
+// seedProduct inserts a product row (inventory_levels.product_id references it)
+// and a matching inventory_levels row at available=10, reserved=0 -- mirroring
+// the stock_quantity=10 seeded on products -- since the repository under test
+// now reads and writes inventory_levels exclusively.
 func seedProduct(t *testing.T) uuid.UUID {
 	t.Helper()
 	id := uuid.New()
@@ -38,7 +56,9 @@ func seedProduct(t *testing.T) uuid.UUID {
 		id, "slug-"+id.String(),
 	)
 	require.NoError(t, err)
+	seedLevel(t, id, 10, 0)
 	t.Cleanup(func() {
+		testPool.Exec(context.Background(), `DELETE FROM inventory_levels WHERE product_id = $1`, id)
 		testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id)
 	})
 	return id
@@ -72,7 +92,7 @@ func reservedOf(t *testing.T, productID uuid.UUID) int {
 	t.Helper()
 	var reserved int
 	require.NoError(t, testPool.QueryRow(context.Background(),
-		`SELECT reserved_quantity FROM products WHERE id = $1`, productID).Scan(&reserved))
+		`SELECT reserved_stock FROM inventory_levels WHERE product_id = $1`, productID).Scan(&reserved))
 	return reserved
 }
 
@@ -282,6 +302,44 @@ func TestPostgresRepository_AdjustStock(t *testing.T) {
 	})
 }
 
+func TestPostgresRepository_EnsureLevel(t *testing.T) {
+	t.Run("creates a zeroed level row for a product with none", func(t *testing.T) {
+		setup(t)
+		ctx := context.Background()
+		repo := inventory.NewPostgresRepository(testPool)
+
+		id := uuid.New()
+		_, err := testPool.Exec(ctx,
+			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity)
+			 VALUES ($1, 'Product', $2, 'desc', 1000, 'USD', 10)`,
+			id, "slug-"+id.String())
+		require.NoError(t, err)
+		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
+
+		require.NoError(t, repo.EnsureLevel(ctx, id))
+
+		stock, err := repo.GetStock(ctx, id)
+		require.NoError(t, err)
+		assert.Equal(t, &inventory.Stock{ProductID: id, Quantity: 0, Reserved: 0, Available: 0}, stock)
+	})
+
+	t.Run("is idempotent and does not clobber an existing reservation", func(t *testing.T) {
+		setup(t)
+		ctx := context.Background()
+		repo := inventory.NewPostgresRepository(testPool)
+
+		productID := seedProduct(t)
+		_, err := repo.Reserve(ctx, productID, 3)
+		require.NoError(t, err)
+
+		require.NoError(t, repo.EnsureLevel(ctx, productID))
+
+		stock, err := repo.GetStock(ctx, productID)
+		require.NoError(t, err)
+		assert.Equal(t, 3, stock.Reserved, "a retry must not reset an existing reservation")
+	})
+}
+
 func TestPostgresRepository_Reserve_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
@@ -354,6 +412,18 @@ func TestPostgresRepository_AdjustStock_CancelledContext(t *testing.T) {
 	})
 }
 
+func TestPostgresRepository_EnsureLevel_CancelledContext(t *testing.T) {
+	t.Run("returns error on cancelled context", func(t *testing.T) {
+		setup(t)
+		repo := inventory.NewPostgresRepository(testPool)
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		err := repo.EnsureLevel(ctx, uuid.New())
+		assert.Error(t, err)
+	})
+}
+
 // TestInventoryLevelsBackfill asserts the new table mirrors the stock columns it
 // replaces. available_stock is what was sellable (stock minus reserved), and
 // reserved_stock is the hold -- so available + reserved == the old stock_quantity.
@@ -418,4 +488,59 @@ func TestInventoryLevelsBackfill(t *testing.T) {
 		assert.Equal(t, 15, available, "available = stock - reserved")
 		assert.Equal(t, 5, reserved, "the in-flight reservation must survive the soft delete")
 	})
+}
+
+// TestPostgresRepository_ReserveBatch_UsesInventoryLevels proves reservations are
+// recorded against inventory_levels and no longer mutate the products table.
+func TestPostgresRepository_ReserveBatch_UsesInventoryLevels(t *testing.T) {
+	setup(t)
+	ctx := context.Background()
+	repo := inventory.NewPostgresRepository(testPool)
+
+	productID := seedProduct(t)
+	_, err := testPool.Exec(ctx,
+		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
+		 VALUES ($1, 10, 0)
+		 ON CONFLICT (product_id) DO UPDATE
+		 SET available_stock = 10, reserved_stock = 0`, productID)
+	require.NoError(t, err)
+
+	require.NoError(t, repo.ReserveBatch(ctx, []inventory.StockChange{
+		{ProductID: productID, Quantity: 4},
+	}))
+
+	var available, reserved int
+	require.NoError(t, testPool.QueryRow(ctx,
+		`SELECT available_stock, reserved_stock FROM inventory_levels WHERE product_id = $1`,
+		productID).Scan(&available, &reserved))
+	assert.Equal(t, 6, available)
+	assert.Equal(t, 4, reserved)
+
+	var productReserved int
+	require.NoError(t, testPool.QueryRow(ctx,
+		`SELECT reserved_quantity FROM products WHERE id = $1`, productID).Scan(&productReserved))
+	assert.Equal(t, 0, productReserved, "inventory must not write the products table")
+}
+
+func TestPostgresRepository_ReserveBatch_RejectsOverReservation(t *testing.T) {
+	setup(t)
+	ctx := context.Background()
+	repo := inventory.NewPostgresRepository(testPool)
+
+	productID := seedProduct(t)
+	_, err := testPool.Exec(ctx,
+		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
+		 VALUES ($1, 2, 0)
+		 ON CONFLICT (product_id) DO UPDATE
+		 SET available_stock = 2, reserved_stock = 0`, productID)
+	require.NoError(t, err)
+
+	err = repo.ReserveBatch(ctx, []inventory.StockChange{{ProductID: productID, Quantity: 5}})
+	require.ErrorIs(t, err, apperror.ErrInsufficientStock)
+
+	var available int
+	require.NoError(t, testPool.QueryRow(ctx,
+		`SELECT available_stock FROM inventory_levels WHERE product_id = $1`,
+		productID).Scan(&available))
+	assert.Equal(t, 2, available, "a rejected batch must reserve nothing")
 }

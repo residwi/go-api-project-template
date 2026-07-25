@@ -73,7 +73,16 @@ func TestService_ExpireStale_Integration(t *testing.T) {
 			 VALUES ($1, 'Expiry Product', $2, 1000, 'USD', 'published', 10, 3)`,
 			productID, "expiry-"+productID.String()[:8])
 		require.NoError(t, err)
-		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, productID) })
+		// inventory reads/writes inventory_levels now, not products.stock_quantity:
+		// available = old stock_quantity(10) - reserved_quantity(3).
+		_, err = testPool.Exec(ctx,
+			`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
+			 VALUES ($1, 7, 3)`, productID)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, productID)
+			testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, productID)
+		})
 
 		o := seedOrder(t, userID)
 		_, err = testPool.Exec(ctx,
@@ -93,7 +102,7 @@ func TestService_ExpireStale_Integration(t *testing.T) {
 
 		var reserved int
 		require.NoError(t, testPool.QueryRow(ctx,
-			`SELECT reserved_quantity FROM products WHERE id = $1`, productID).Scan(&reserved))
+			`SELECT reserved_stock FROM inventory_levels WHERE product_id = $1`, productID).Scan(&reserved))
 		assert.Equal(t, 0, reserved)
 	})
 
