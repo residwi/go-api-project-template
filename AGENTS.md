@@ -7,7 +7,7 @@ Production-ready ecommerce API template built in Go 1.26. It exposes RESTful end
 - `cmd/api/` — API server binary entry point (`server.Run()`)
 - `cmd/worker/` — Payment job worker binary entry point
 - `internal/config/` — Configuration management (`godotenv` + `envconfig`)
-- `internal/core/` — Shared value objects (Money, Address, Pagination, Slugify, AppError, Response helpers) — no feature deps
+- `internal/apperror/` — The application's error vocabulary (`ErrNotFound`, `ErrBadRequest`, …) — no feature deps
 - `internal/features/` — 14 feature modules, each self-contained:
   - `auth/` — Authentication (register, login, JWT refresh)
   - `user/` — User management (profile, admin CRUD)
@@ -24,17 +24,20 @@ Production-ready ecommerce API template built in Go 1.26. It exposes RESTful end
   - `notification/` — User notifications
   - `dashboard/` — Admin analytics (summary, top products, revenue)
 - `internal/middleware/` — HTTP middleware (auth, admin, CORS, logging, recovery, request ID, rate limiting)
-- `internal/platform/` — Infrastructure layer:
+- `internal/platform/` — Infrastructure and generic utilities, no feature deps:
   - `database/` — PostgreSQL connection + transaction helpers
   - `cache/` — Redis client
   - `payment/` — Payment gateway interface + implementations (mock, Stripe, Midtrans)
   - `jobs/` — Generic background job runner: poll/claim/lease/concurrency/prune behind `Runner[T]`; features supply a `Queue` + `Processor`
   - `validator/` — Request validation
+  - `response/` — Standard JSON response envelope, error mapping, request binding
+  - `paging/` — Cursor and offset pagination
+  - `slug/` — URL slug generation
   - `logger/` — Structured logging setup
   - `email/` — Email service (future)
   - `storage/` — File storage (future)
 - `internal/server/` — HTTP server bootstrap, router, service composition
-- `internal/wiring/` — Cross-feature adapters (concrete types satisfying other features' inline interfaces) and the constructors that build cross-dependent services, shared by the API server and worker so adapters are defined once, not per binary
+- `internal/wiring/` — Cross-feature adapters (concrete types satisfying the interfaces other features declare in their `ports.go`) and the constructors that build cross-dependent services, shared by the API server and worker so adapters are defined once, not per binary
 - `db/migrations/` — Timestamped SQL migration files (goose)
 - `mocks/` — Generated mocks (mockery v3); sub-dirs per feature
 - `bin/` — Build output
@@ -114,9 +117,9 @@ make ci    # deps → fmt → vet → lint → test
 - Validation: `go-playground/validator/v10`.
 - Config: `godotenv` + `kelseyhightower/envconfig`; struct tags define env var names and defaults. `Config.validate()` runs at load time and fails fast on invalid combinations (e.g. a sub-second `AUTH_RATE_WINDOW`, `WORKER_CONCURRENCY < 1`, or a too-short `WORKER_LEASE_DURATION`) so misconfiguration aborts boot instead of surfacing as a runtime error later — add new invariants there rather than guarding per use site.
 - Logging: `log/slog` only (structured, JSON format in production).
-- Naming: packages are short, singular nouns (`user`, `product`, `cart`). Files inside a feature: `handler.go`, `service.go`, `repository.go`, `model.go`, `dto.go`, `routes.go`. Tests: `*_test.go` in the same package.
-- Error handling: Application errors in `core/apperror.go`; use sentinel errors like `core.ErrNotFound`, `core.ErrBadRequest`, `core.ErrUnauthorized` for structured error responses. Wrap with `fmt.Errorf("%w: ...", core.ErrBadRequest)` for additional context.
-- Response helpers: Use `response.OK()`, `response.Created()`, `response.BadRequest()`, `response.NotFound()`, etc. from `internal/core/response/`.
+- Naming: packages are short, singular nouns (`user`, `product`, `cart`). Files inside a feature: `handler.go`, `service.go`, `repository.go`, `model.go`, `dto.go`, `routes.go`, and `ports.go` when the feature needs interfaces from other features. Tests: `*_test.go` in the same package.
+- Error handling: Application errors in `internal/apperror`; use sentinel errors like `apperror.ErrNotFound`, `apperror.ErrBadRequest`, `apperror.ErrUnauthorized` for structured error responses. Wrap with `fmt.Errorf("%w: ...", apperror.ErrBadRequest)` for additional context.
+- Response helpers: Use `response.OK()`, `response.Created()`, `response.BadRequest()`, `response.NotFound()`, etc. from `internal/platform/response/`.
 - Request decoding: handlers decode and validate a JSON body with `response.Bind[T](w, r, h.validator)` and read the authenticated user with `middleware.RequireUser(w, r)` — not hand-rolled decode/validate or auth-context blocks.
 - Repository reads: scan list/collection queries with `pgx.CollectRows` (never hand-rolled `for rows.Next()` loops). Escape ILIKE search terms with `database.EscapeLike()` and build keyset pagination predicates with `database.KeysetCursor()`.
 - Service ↔ repository boundary: a `service.go` never runs SQL or holds a `*pgxpool.Pool` for data access — every read and write goes through the feature's repository, which owns the pool (via `database.DB(ctx, pool)`). The **only** database-layer import permitted in a service is `database.WithTx`, used to compose several repository calls into one transaction: the service owns the unit-of-work boundary and the transaction propagates to every repository (its own and other features') through the `ctx` handed to the callback. A service that opens no transaction takes no pool at all (e.g. `user`, `product`, `inventory`, `wishlist` — repository-only). Do not inject a pool "just in case".
@@ -125,9 +128,9 @@ make ci    # deps → fmt → vet → lint → test
 - Commit messages: imperative mood, e.g. "Add webhook signature validation". No conventional-commits prefix required.
 - Comments: Add only when necessary. Explain why, not how.
 - Duplication over wrong abstraction: Prefer duplicating code over introducing a shared abstraction that doesn't quite fit.
-- Cross-feature dependencies: Use inline interfaces at the top of the consumer's `service.go` (dependency inversion). No shared `port.go` files. Each feature defines only the methods it needs from other features. The concrete adapters that satisfy those interfaces live in `internal/wiring` (not in `server/router.go`), exposed as service constructors both binaries reuse.
+- Cross-feature dependencies: Declare the interfaces a feature needs from other features in its own `ports.go`, alongside any DTOs those interfaces pass (dependency inversion). Each feature defines only the methods it needs, so no feature imports another's package. There is no shared/global ports package — `ports.go` is per-feature and lives inside the feature it belongs to. `service.go` holds only the `Service` struct and its methods. The concrete adapters that satisfy those interfaces live in `internal/wiring` (not in `server/router.go`), exposed as service constructors both binaries reuse.
 - Background job workers: a feature that drains a job queue implements `jobs.Queue[T]` (`Claim` + `Prune`) on its repository and `jobs.Processor[T]` (`Process`) on its service — plus optional `jobs.Sweeper` (`Sweep`) for per-tick domain housekeeping. The binary builds a `jobs.Runner[T]` from `internal/platform/jobs`; never hand-roll a ticker/lease/poll loop. The runner owns polling, the leased compare-and-set claim, bounded concurrency, the per-job timeout (a fraction of the lease), and pruning of terminal jobs. `Process` does its own retry/backoff bookkeeping and returns an error only so the runner can log it.
-- Order status transitions: the `order` package owns its state machine — never set an order's status from another feature with ad-hoc from/to lists. Every guarded transition (a compare-and-set that moves the order to a target status only if its current status is in an allowed-from set) is a named `order.Transition` value in `order/transition.go` (e.g. `order.PaidTransition`, `order.RefundTransition`), applied through the single `order.Service.Apply(ctx, id, transition)` entry point. Other features depend on *intent* methods on their inline interface (`payment.OrderUpdater.MarkPaid`, `shipping.OrderUpdater.MarkShipped`, …); the `internal/wiring` adapters map each intent to its named transition. This keeps every allowed-from set in one file so it cannot drift per call site.
+- Order status transitions: the `order` package owns its state machine — never set an order's status from another feature with ad-hoc from/to lists. Every guarded transition (a compare-and-set that moves the order to a target status only if its current status is in an allowed-from set) is a named `order.Transition` value in `order/transition.go` (e.g. `order.PaidTransition`, `order.RefundTransition`), applied through the single `order.Service.Apply(ctx, id, transition)` entry point. Other features depend on *intent* methods on their `ports.go` interface (`payment.OrderUpdater.MarkPaid`, `shipping.OrderUpdater.MarkShipped`, …); the `internal/wiring` adapters map each intent to its named transition. This keeps every allowed-from set in one file so it cannot drift per call site.
 - Inventory reversal: undoing an order's stock goes through `inventory.Restore(ctx, items, StockState)` — inventory owns whether that means releasing a reservation or restocking deducted goods. Callers supply the order's prior state (`Reserved`/`Deducted`, from `OrderSnapshot.StockDeducted()`), never the mechanics; the `internal/wiring` adapter maps each consumer's `wasDeducted bool` to the `StockState`. Stale `awaiting_payment` orders are expired by `order.Service.ExpireStale` (a time-triggered bulk-cancel that reuses the cancel path), not by ad-hoc SQL in the worker.
 
 ## Architecture Notes
@@ -150,7 +153,7 @@ make ci    # deps → fmt → vet → lint → test
 │  │  └───┬────┘ └───┬────┘ └────┬────┘         │          │
 │  │      │          │           │               │          │
 │  │      └──────────┼───────────┘               │          │
-│  │                 │ (inline interfaces)        │          │
+│  │                 │ (ports.go interfaces)      │          │
 │  │  ┌──────────────▼───────────────────────┐   │          │
 │  │  │      PostgreSQL repositories         │   │          │
 │  │  │   (embedded in each feature pkg)     │   │          │
@@ -235,7 +238,7 @@ make ci    # deps → fmt → vet → lint → test
 
            result, err := svc.RetryPayment(ctx, userID, orderID, "pm_test")
            assert.Nil(t, result)
-           assert.ErrorIs(t, err, core.ErrOrderNotPayable)
+           assert.ErrorIs(t, err, apperror.ErrOrderNotPayable)
        })
    }
 
@@ -247,7 +250,7 @@ make ci    # deps → fmt → vet → lint → test
            wantErr error
        }{
            {"success", &order.Order{Status: order.StatusAwaitingPayment}, nil},
-           {"not payable", &order.Order{Status: order.StatusPaid}, core.ErrOrderNotPayable},
+           {"not payable", &order.Order{Status: order.StatusPaid}, apperror.ErrOrderNotPayable},
        }
        for _, tt := range tests {
            t.Run(tt.name, func(t *testing.T) { /* ... */ })
@@ -350,8 +353,8 @@ Tests must stay fast. Follow these rules to avoid slow tests:
 - Do not add third-party routers; the project uses `net/http` ServeMux intentionally.
 - Do not suppress lint or vet errors with `//nolint` without a justification comment.
 - Preserve the vertical-slice structure: each feature module is self-contained with handler → service → repository interface. PostgreSQL repository implementations are embedded in each feature package.
-- Cross-feature dependencies must use inline interfaces at the top of the consumer's `service.go`. Never import another feature's concrete types directly.
-- Never drive an order's status from another feature with raw from/to status lists. Add or reuse a named `order.Transition` in `order/transition.go`, expose an intent method on the consumer's inline `OrderUpdater` interface, and map it in the `internal/wiring` adapter — all status changes funnel through `order.Service.Apply`.
+- Cross-feature dependencies must use consumer-declared interfaces in the consumer's own `ports.go`. Never import another feature's concrete types directly.
+- Never drive an order's status from another feature with raw from/to status lists. Add or reuse a named `order.Transition` in `order/transition.go`, expose an intent method on the consumer's `OrderUpdater` interface in `ports.go`, and map it in the `internal/wiring` adapter — all status changes funnel through `order.Service.Apply`.
 - When adding a new feature, create a package under `internal/features/`, register routes in `internal/server/router.go`, and place any cross-feature adapters in `internal/wiring`.
 
 ## Extensibility Hooks

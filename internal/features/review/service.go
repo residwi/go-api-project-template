@@ -10,10 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-type PurchaseVerifier interface {
-	HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error)
-}
-
 type Service struct {
 	repo     Repository
 	purchase PurchaseVerifier

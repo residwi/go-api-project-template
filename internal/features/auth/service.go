@@ -5,46 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/middleware"
 )
-
-type UserCredentials struct {
-	ID           uuid.UUID
-	Email        string
-	PasswordHash string
-	FirstName    string
-	LastName     string
-	Role         string
-	Active       bool
-	TokenVersion int
-}
-
-type UserResult struct {
-	ID           uuid.UUID
-	Email        string
-	FirstName    string
-	LastName     string
-	Role         string
-	Active       bool
-	TokenVersion int
-}
-
-type CreateUserParams struct {
-	Email        string
-	PasswordHash string
-	FirstName    string
-	LastName     string
-}
-
-type UserProvider interface {
-	GetByEmail(ctx context.Context, email string) (UserCredentials, error)
-	Create(ctx context.Context, params CreateUserParams) (UserResult, error)
-	GetByID(ctx context.Context, id uuid.UUID) (UserResult, error)
-}
 
 // maxPasswordBytes is bcrypt's hard input limit; inputs longer than this error
 // in GenerateFromPassword. validator's max=72 counts runes, so we re-check bytes.
@@ -167,7 +132,6 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*Token
 	return s.generateTokenResponse(result)
 }
 
-// ValidateAccessToken validates an access token and returns the claims.
 func (s *Service) ValidateAccessToken(tokenString string) (*Claims, error) {
 	return ValidateToken(tokenString, s.jwtSecret, s.jwtIssuer)
 }

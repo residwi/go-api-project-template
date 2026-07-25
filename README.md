@@ -30,8 +30,7 @@ A production-ready Go API template with Feature-Based Clean Architecture (Vertic
 │   └── /worker                 # Payment job worker entry point
 ├── /internal
 │   ├── /config                 # Configuration management
-│   ├── /core                   # Shared value objects (Money, Address, Pagination, AppError)
-│   │   └── /response           # Standard JSON response envelope
+│   ├── /apperror               # Application error vocabulary (ErrNotFound, ErrBadRequest, ...)
 │   ├── /features               # Feature modules (vertical slices)
 │   │   ├── /auth               # Authentication (register, login, JWT)
 │   │   ├── /user               # User management & profiles
@@ -510,10 +509,10 @@ This template follows **Feature-Based Clean Architecture** (Vertical Slicing):
 - Each feature (auth, user, product, order, etc.) is self-contained with its own handler, service, repository, and DTOs
 - Dependencies flow inward (handlers → services → repositories)
 - PostgreSQL repositories are embedded within each feature package
-- Cross-feature dependencies use inline interfaces (consumer-defined) to maintain loose coupling; the concrete adapters that satisfy them live in `internal/wiring`, shared by the API server and worker so they are defined once
+- Cross-feature dependencies use consumer-declared interfaces in each feature's `ports.go` to maintain loose coupling; the concrete adapters that satisfy them live in `internal/wiring`, shared by the API server and worker so they are defined once
 - Order status changes from other features go through named `order.Transition` values applied via `order.Service.Apply` — payment and shipping express intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) and the `wiring` adapters map each intent to its transition, keeping the order state machine's allowed transitions defined in one place (`order/transition.go`)
 - Configuration is validated at startup (`config.Config.validate()`); invalid settings (e.g. a sub-second `AUTH_RATE_WINDOW` or `WORKER_CONCURRENCY < 1`) fail fast on boot
-- Shared value objects (`Money`, `Address`, `Pagination`, `AppError`) live in `internal/core`
+- The error vocabulary lives in `internal/apperror`; generic utilities (`response`, `paging`, `slug`) live in `internal/platform`
 
 ### Layer Responsibilities
 

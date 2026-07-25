@@ -13,19 +13,6 @@ import (
 
 const productStatusPublished = "published"
 
-type ProductLookup interface {
-	GetByID(ctx context.Context, id uuid.UUID) (*ProductInfo, error)
-}
-
-type ProductInfo struct {
-	ID        uuid.UUID
-	Name      string
-	Price     int64
-	Currency  string
-	Status    string
-	Available int
-}
-
 type Service struct {
 	repo         Repository
 	pool         *pgxpool.Pool
