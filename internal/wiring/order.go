@@ -28,8 +28,8 @@ func NewOrderService(
 		&inventoryReserverAdapter{svc: inventorySvc},
 		nil, // payment deps are circular — wired by SetOrderPaymentDeps
 		nil,
-		&couponReserverAdapter{svc: promotionSvc},
-		&notificationEnqueuerAdapter{svc: notificationSvc},
+		promotionSvc,
+		notificationSvc,
 	)
 }
 
@@ -38,7 +38,7 @@ func NewOrderService(
 func SetOrderPaymentDeps(orderSvc *order.Service, paymentSvc *payment.Service) {
 	orderSvc.SetPaymentDeps(
 		&paymentInitiatorAdapter{svc: paymentSvc},
-		&paymentJobCancellerAdapter{svc: paymentSvc},
+		paymentSvc, // satisfies order.PaymentJobCanceller directly
 	)
 }
 
@@ -123,26 +123,4 @@ func (a *paymentInitiatorAdapter) InitiatePayment(ctx context.Context, params or
 		PaymentURL: result.PaymentURL,
 		Charged:    result.Charged,
 	}, nil
-}
-
-type paymentJobCancellerAdapter struct{ svc *payment.Service }
-
-func (a *paymentJobCancellerAdapter) CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.CancelJobsByOrderID(ctx, orderID)
-}
-
-type couponReserverAdapter struct{ svc *promotion.Service }
-
-func (a *couponReserverAdapter) Reserve(ctx context.Context, code string, userID, orderID uuid.UUID, orderSubtotal int64) (int64, error) {
-	return a.svc.Reserve(ctx, code, userID, orderID, orderSubtotal)
-}
-
-func (a *couponReserverAdapter) Release(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.Release(ctx, orderID)
-}
-
-type notificationEnqueuerAdapter struct{ svc *notification.Service }
-
-func (a *notificationEnqueuerAdapter) EnqueueOrderPlaced(ctx context.Context, userID, orderID uuid.UUID) error {
-	return a.svc.EnqueueOrderPlaced(ctx, userID, orderID)
 }

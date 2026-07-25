@@ -1539,7 +1539,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	// Place order with coupon_code — exercises couponReserverAdapter.Reserve
+	// Place order with coupon_code — exercises promotion.Service.Reserve via order.CouponReserver
 	orderBody := fmt.Sprintf(`{"payment_method_id":"pm_test_123","coupon_code":"%s"}`, couponCode)
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
@@ -1564,7 +1564,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	})
 
 	t.Run("cancel order releases coupon", func(t *testing.T) {
-		// Cancel the order — exercises couponReserverAdapter.Release
+		// Cancel the order — exercises promotion.Service.Release via order.CouponReserver
 		req := httptest.NewRequest(http.MethodPost, "/api/orders/"+orderID+"/cancel", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
@@ -1589,7 +1589,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 
 func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	setup(t)
-	// This test covers inventoryReleaserAdapter.Release and couponReleaserAdapter.Release
+	// This test covers inventoryRestorerAdapter.Restore and promotion.Service.Release
 	// by processing a refund job with inventory_action='release' on an order with a coupon.
 	mockMux := http.NewServeMux()
 	mockgw.RegisterRoutes(mockMux)
@@ -1941,12 +1941,9 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		// ProcessJob should fail because orderItemsGetter.ListItemsByOrderID returns
-		// empty (no items) — the refund tx still commits but the adapter was exercised
-		processErr := router.PaymentSvc.Process(ctx, job)
-		// The job may succeed (empty items list) or fail depending on implementation;
-		// either way we exercised the adapter paths
-		_ = processErr
+		// The outcome is not asserted: this exists to drive the order-facing adapters
+		// with an order whose items are gone.
+		_ = router.PaymentSvc.Process(ctx, job)
 
 		// Cleanup the job
 		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, refundJobID)
@@ -1963,8 +1960,7 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	setup(t)
 	router := server.NewRouter(testDeps)
 
-	// Call FinalizePaymentSuccess with a non-existent order ID.
-	// This exercises orderGetterAdapter.GetByID error path (router.go:355-357).
+	// A missing order drives orderGetterAdapter.GetByID down its error path.
 	fakeJob := payment.Job{
 		ID:        uuid.New(),
 		PaymentID: uuid.New(),

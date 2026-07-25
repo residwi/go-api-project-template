@@ -101,12 +101,6 @@ func paymentToStockChanges(items []payment.InventoryChange) []inventory.StockCha
 	return changes
 }
 
-type couponReleaserAdapter struct{ svc *promotion.Service }
-
-func (a *couponReleaserAdapter) Release(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.Release(ctx, orderID)
-}
-
 func NewPaymentService(
 	repo payment.Repository,
 	pool *pgxpool.Pool,
@@ -122,20 +116,11 @@ func NewPaymentService(
 		&orderItemsGetterAdapter{svc: orderSvc},
 		&inventoryDeductorAdapter{svc: inventorySvc},
 		&inventoryRestorerAdapter{svc: inventorySvc},
-		&couponReleaserAdapter{svc: promotionSvc},
+		promotionSvc, // satisfies payment.CouponReleaser directly
 	)
 }
 
-type orderHousekeeperAdapter struct{ svc *order.Service }
-
-func (a *orderHousekeeperAdapter) ExpireStale(ctx context.Context) error {
-	return a.svc.ExpireStale(ctx)
-}
-
-func (a *orderHousekeeperAdapter) RecoverStaleProcessing(ctx context.Context) error {
-	return a.svc.RecoverStaleProcessing(ctx)
-}
-
+// orderSvc satisfies payment.OrderHousekeeper directly.
 func NewOrderHousekeeper(orderSvc *order.Service) payment.OrderHousekeeper {
-	return &orderHousekeeperAdapter{svc: orderSvc}
+	return orderSvc
 }
