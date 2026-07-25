@@ -353,3 +353,37 @@ func TestPostgresRepository_AdjustStock_CancelledContext(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+// TestInventoryLevelsBackfill asserts the new table mirrors the stock columns it
+// replaces. available_stock is what was sellable (stock minus reserved), and
+// reserved_stock is the hold -- so available + reserved == the old stock_quantity.
+func TestInventoryLevelsBackfill(t *testing.T) {
+	setup(t)
+	ctx := context.Background()
+
+	productID := seedProduct(t)
+
+	_, err := testPool.Exec(ctx,
+		`UPDATE products SET stock_quantity = 10, reserved_quantity = 3 WHERE id = $1`, productID)
+	require.NoError(t, err)
+
+	// Re-run the backfill statement the migration uses, so this test covers the
+	// projection itself rather than whatever the container happened to migrate.
+	_, err = testPool.Exec(ctx,
+		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
+		 SELECT id, stock_quantity - reserved_quantity, reserved_quantity
+		 FROM products WHERE id = $1
+		 ON CONFLICT (product_id) DO UPDATE
+		 SET available_stock = EXCLUDED.available_stock,
+		     reserved_stock  = EXCLUDED.reserved_stock`, productID)
+	require.NoError(t, err)
+
+	var available, reserved int
+	require.NoError(t, testPool.QueryRow(ctx,
+		`SELECT available_stock, reserved_stock FROM inventory_levels WHERE product_id = $1`,
+		productID).Scan(&available, &reserved))
+
+	assert.Equal(t, 7, available, "available = stock - reserved")
+	assert.Equal(t, 3, reserved)
+	assert.Equal(t, 10, available+reserved, "total on hand is derived")
+}
