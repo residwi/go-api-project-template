@@ -320,6 +320,59 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 	})
 }
 
+// Claim requires attempts < max_attempts, so a stored zero would strand the job
+// forever.
+func TestPostgresRepository_CreateJob_MaxAttempts(t *testing.T) {
+	maxAttemptsOf := func(t *testing.T, jobID uuid.UUID) int {
+		t.Helper()
+		var got int
+		require.NoError(t, testPool.QueryRow(context.Background(),
+			`SELECT max_attempts FROM payment_jobs WHERE id = $1`, jobID).Scan(&got))
+		return got
+	}
+
+	t.Run("persists the caller's max_attempts", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		orderID := seedOrder(t, userID)
+		p := seedPayment(t, orderID)
+		repo := payment.NewPostgresRepository(testPool)
+
+		job := &payment.Job{
+			PaymentID:   p.ID,
+			OrderID:     orderID,
+			Action:      payment.ActionCharge,
+			Status:      payment.JobStatusPending,
+			MaxAttempts: 7,
+			NextRetryAt: time.Now(),
+		}
+		require.NoError(t, repo.CreateJob(context.Background(), job))
+
+		assert.Equal(t, 7, maxAttemptsOf(t, job.ID))
+	})
+
+	t.Run("falls back to the default when the caller leaves it unset", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		orderID := seedOrder(t, userID)
+		p := seedPayment(t, orderID)
+		repo := payment.NewPostgresRepository(testPool)
+
+		job := &payment.Job{
+			PaymentID:   p.ID,
+			OrderID:     orderID,
+			Action:      payment.ActionRefund,
+			Status:      payment.JobStatusPending,
+			NextRetryAt: time.Now(),
+		}
+		require.NoError(t, repo.CreateJob(context.Background(), job))
+
+		assert.Positive(t, maxAttemptsOf(t, job.ID), "an unset max_attempts must not strand the job")
+		assert.Equal(t, maxAttemptsOf(t, job.ID), job.MaxAttempts,
+			"the caller should see the value that was actually stored")
+	})
+}
+
 func TestPostgresRepository_JobLifecycle(t *testing.T) {
 	t.Run("create, claim, update, cancel, complete, and delete job", func(t *testing.T) {
 		setup(t)
@@ -336,7 +389,9 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 			Action:      payment.ActionCharge,
 			Status:      payment.JobStatusPending,
 			MaxAttempts: 3,
-			NextRetryAt: time.Now(),
+			// Backdated so the job is unambiguously due: time.Now() lands on the
+			// next_retry_at <= NOW() boundary the claim query tests.
+			NextRetryAt: time.Now().Add(-time.Minute),
 		}
 		err := repo.CreateJob(ctx, job)
 		require.NoError(t, err)
@@ -344,17 +399,15 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, job.ID) })
 
 		// Claim — job moves to 'processing'
+		// setup(t) truncated the table, so the claim must return exactly this job;
+		// searching a batch instead would hide a job leaked by another test behind
+		// a confusing nil.
 		claimed, err := repo.Claim(ctx, 10, 30*time.Second)
 		require.NoError(t, err)
+		require.Len(t, claimed, 1, "expected to claim only the seeded job")
 
-		var claimedJob *payment.Job
-		for i := range claimed {
-			if claimed[i].ID == job.ID {
-				claimedJob = &claimed[i]
-				break
-			}
-		}
-		require.NotNil(t, claimedJob, "expected to claim the seeded job")
+		claimedJob := &claimed[0]
+		require.Equal(t, job.ID, claimedJob.ID)
 		assert.Equal(t, payment.JobStatusProcessing, claimedJob.Status)
 		assert.NotNil(t, claimedJob.LockedUntil)
 
@@ -584,21 +637,12 @@ func TestPostgresRepository_Claim_WithOptionalFields(t *testing.T) {
 			"some error", job.ID)
 		require.NoError(t, err)
 
-		// Cancel all other pending/processing jobs to avoid interference
 		claimed, err := repo.Claim(ctx, 1, 30*time.Second)
 		require.NoError(t, err)
+		require.Len(t, claimed, 1, "expected to reclaim the seeded job")
 
-		var claimedJob *payment.Job
-		for i := range claimed {
-			if claimed[i].ID == job.ID {
-				claimedJob = &claimed[i]
-				break
-			}
-		}
-		if claimedJob == nil {
-			t.Skip("job was claimed by a concurrent test")
-			return
-		}
+		claimedJob := &claimed[0]
+		require.Equal(t, job.ID, claimedJob.ID)
 		assert.Equal(t, "some error", claimedJob.LastError)
 	})
 }
@@ -725,7 +769,7 @@ func TestPostgresRepository_MarkJobCompletedByPaymentID(t *testing.T) {
 			Action:      payment.ActionCharge,
 			Status:      payment.JobStatusPending,
 			MaxAttempts: 3,
-			NextRetryAt: time.Now(),
+			NextRetryAt: time.Now().Add(-time.Minute),
 		}
 		err := repo.CreateJob(ctx, job)
 		require.NoError(t, err)
@@ -755,7 +799,7 @@ func TestPostgresRepository_MarkJobCompletedByPaymentID(t *testing.T) {
 			Action:      payment.ActionCharge,
 			Status:      payment.JobStatusPending,
 			MaxAttempts: 3,
-			NextRetryAt: time.Now(),
+			NextRetryAt: time.Now().Add(-time.Minute),
 		}
 		err := repo.CreateJob(ctx, job)
 		require.NoError(t, err)
@@ -766,14 +810,7 @@ func TestPostgresRepository_MarkJobCompletedByPaymentID(t *testing.T) {
 
 		claimed, err := repo.Claim(ctx, 10, 30*time.Second)
 		require.NoError(t, err)
-
-		var found bool
-		for _, j := range claimed {
-			if j.ID == job.ID {
-				found = true
-				break
-			}
-		}
-		assert.True(t, found, "charge job should still be claimable after completing refund action")
+		require.Len(t, claimed, 1, "charge job should still be claimable after completing refund action")
+		assert.Equal(t, job.ID, claimed[0].ID)
 	})
 }

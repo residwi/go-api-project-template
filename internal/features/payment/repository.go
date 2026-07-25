@@ -321,13 +321,23 @@ func scanPaymentAdmin(row pgx.CollectableRow) (Payment, error) {
 	return p, nil
 }
 
+// defaultJobMaxAttempts mirrors the payment_jobs.max_attempts column default.
+const defaultJobMaxAttempts = 3
+
 func (r *PostgresRepository) CreateJob(ctx context.Context, job *Job) error {
 	db := database.DB(ctx, r.pool)
+
+	// Claim requires attempts < max_attempts, so a zero budget would strand the
+	// job. Written back so the caller sees the budget it actually got.
+	if job.MaxAttempts <= 0 {
+		job.MaxAttempts = defaultJobMaxAttempts
+	}
+
 	err := db.QueryRow(ctx,
-		`INSERT INTO payment_jobs (payment_id, order_id, action, status, locked_until, next_retry_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		`INSERT INTO payment_jobs (payment_id, order_id, action, status, max_attempts, locked_until, next_retry_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at`,
-		job.PaymentID, job.OrderID, job.Action, job.Status,
+		job.PaymentID, job.OrderID, job.Action, job.Status, job.MaxAttempts,
 		job.LockedUntil, job.NextRetryAt,
 	).Scan(&job.ID, &job.CreatedAt, &job.UpdatedAt)
 	if err != nil {
