@@ -27,7 +27,9 @@ func setupProductMux(t *testing.T) (*http.ServeMux, *prodMocks.MockRepository) {
 	inv := prodMocks.NewMockInventoryReader(t)
 	inv.EXPECT().GetAvailability(mock.Anything, mock.Anything).
 		Return(map[uuid.UUID]product.Availability{}, nil).Maybe()
-	svc := product.NewService(repo, inv)
+	reg := prodMocks.NewMockInventoryRegistrar(t)
+	reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil).Maybe()
+	svc := product.NewService(repo, inv, reg)
 	v := validator.New()
 
 	mux := http.NewServeMux()

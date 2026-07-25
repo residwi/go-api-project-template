@@ -13,10 +13,11 @@ import (
 type Service struct {
 	repo Repository
 	inv  InventoryReader
+	reg  InventoryRegistrar
 }
 
-func NewService(repo Repository, inv InventoryReader) *Service {
-	return &Service{repo: repo, inv: inv}
+func NewService(repo Repository, inv InventoryReader, reg InventoryRegistrar) *Service {
+	return &Service{repo: repo, inv: inv, reg: reg}
 }
 
 // enrich fills Availability for a page of products in one call to inventory.
@@ -64,7 +65,17 @@ func (s *Service) Create(ctx context.Context, req CreateProductRequest) (*Produc
 		return nil, err
 	}
 
-	return p, nil
+	// A product with no level row can never be reserved against, so a failure
+	// here must not be swallowed into an unsellable product.
+	if err := s.reg.EnsureLevel(ctx, p.ID); err != nil {
+		return nil, err
+	}
+
+	one := []Product{*p}
+	if err := s.enrich(ctx, one); err != nil {
+		return nil, err
+	}
+	return &one[0], nil
 }
 
 func (s *Service) GetBySlug(ctx context.Context, slug string) (*Product, error) {

@@ -10,7 +10,6 @@ type CreateProductRequest struct {
 	CompareAtPrice *int64     `json:"compare_at_price" validate:"omitempty,min=0"`
 	Currency       string     `json:"currency" validate:"omitempty,len=3"`
 	SKU            *string    `json:"sku" validate:"omitempty,max=100"`
-	StockQuantity  *int       `json:"stock_quantity" validate:"omitempty,min=0"`
 	Status         string     `json:"status" validate:"omitempty,oneof=draft published archived"`
 }
 
@@ -22,7 +21,6 @@ type UpdateProductRequest struct {
 	CompareAtPrice *int64     `json:"compare_at_price" validate:"omitempty,min=0"`
 	Currency       *string    `json:"currency" validate:"omitempty,len=3"`
 	SKU            *string    `json:"sku" validate:"omitempty,max=100"`
-	StockQuantity  *int       `json:"stock_quantity" validate:"omitempty,min=0"`
 	Status         *string    `json:"status" validate:"omitempty,oneof=draft published archived"`
 }
 

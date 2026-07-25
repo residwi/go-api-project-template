@@ -23,3 +23,11 @@ type Availability struct {
 type InventoryReader interface {
 	GetAvailability(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Availability, error)
 }
+
+// InventoryRegistrar registers a product with inventory at zero stock. Product
+// cannot set an initial quantity: stock is inventory's data, and writing it from
+// product's create transaction is exactly the cross-module write this refactor
+// removes.
+type InventoryRegistrar interface {
+	EnsureLevel(ctx context.Context, productID uuid.UUID) error
+}

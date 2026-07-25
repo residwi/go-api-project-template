@@ -20,6 +20,7 @@ packages:
     interfaces:
       Repository:
       InventoryReader:
+      InventoryRegistrar:
   github.com/residwi/go-api-project-template/internal/features/inventory:
     interfaces:
       Repository:

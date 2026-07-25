@@ -26,5 +26,5 @@ func (a *inventoryReaderAdapter) GetAvailability(ctx context.Context, ids []uuid
 }
 
 func NewProductService(repo product.Repository, inventorySvc *inventory.Service) *product.Service {
-	return product.NewService(repo, &inventoryReaderAdapter{svc: inventorySvc})
+	return product.NewService(repo, &inventoryReaderAdapter{svc: inventorySvc}, inventorySvc)
 }
