@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -16,11 +15,11 @@ import (
 
 type Service struct {
 	repo Repository
-	pool *pgxpool.Pool
+	tx   database.TxRunner
 }
 
-func NewService(repo Repository, pool *pgxpool.Pool) *Service {
-	return &Service{repo: repo, pool: pool}
+func NewService(repo Repository, tx database.TxRunner) *Service {
+	return &Service{repo: repo, tx: tx}
 }
 
 func (s *Service) Validate(ctx context.Context, code string, orderAmount int64) (int64, error) {
@@ -39,7 +38,7 @@ func (s *Service) Validate(ctx context.Context, code string, orderAmount int64) 
 func (s *Service) Reserve(ctx context.Context, code string, userID, orderID uuid.UUID, orderSubtotal int64) (int64, error) {
 	var discountAmount int64
 
-	err := database.WithTx(ctx, s.pool, func(ctx context.Context) error {
+	err := s.tx.Run(ctx, func(ctx context.Context) error {
 		promo, err := s.repo.GetByCode(ctx, code)
 		if err != nil {
 			return err
@@ -68,7 +67,7 @@ func (s *Service) Reserve(ctx context.Context, code string, userID, orderID uuid
 }
 
 func (s *Service) Release(ctx context.Context, orderID uuid.UUID) error {
-	return database.WithTx(ctx, s.pool, func(ctx context.Context) error {
+	return s.tx.Run(ctx, func(ctx context.Context) error {
 		usage, err := s.repo.DeleteUsageByOrderID(ctx, orderID)
 		if err != nil {
 			if errors.Is(err, apperror.ErrNotFound) {

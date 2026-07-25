@@ -52,8 +52,10 @@ func run() error {
 	promotionRepo := promotion.NewPostgresRepository(pool)
 	notificationRepo := notification.NewPostgresRepository(pool)
 
+	txRunner := database.NewTxRunner(pool)
+
 	inventorySvc := inventory.NewService(inventoryRepo)
-	promotionSvc := promotion.NewService(promotionRepo, pool)
+	promotionSvc := promotion.NewService(promotionRepo, txRunner)
 	notificationSvc := notification.NewService(notificationRepo)
 
 	orderSvc := wiring.NewOrderService(orderRepo, pool, nil, inventorySvc, promotionSvc, nil)

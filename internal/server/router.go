@@ -24,6 +24,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/features/wishlist"
 	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	mockgw "github.com/residwi/go-api-project-template/internal/platform/payment/mock"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/wiring"
@@ -55,6 +56,8 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	notificationRepo := notification.NewPostgresRepository(deps.Pool)
 	dashboardRepo := dashboard.NewPostgresRepository(deps.Pool)
 
+	txRunner := database.NewTxRunner(deps.Pool)
+
 	userSvc := user.NewService(userRepo, deps.Redis)
 	categorySvc := category.NewService(categoryRepo)
 	productSvc := product.NewService(productRepo)
@@ -68,7 +71,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 		deps.Config.JWT.RefreshTokenTTL,
 	)
 	authSvc.SetBcryptCost(deps.Config.App.BcryptCost)
-	promotionSvc := promotion.NewService(promotionRepo, deps.Pool)
+	promotionSvc := promotion.NewService(promotionRepo, txRunner)
 	notificationSvc := notification.NewService(notificationRepo)
 	wishlistSvc := wishlist.NewService(wishlistRepo)
 	dashboardSvc := dashboard.NewService(dashboardRepo)
