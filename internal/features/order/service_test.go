@@ -1386,3 +1386,55 @@ func TestService_SetPaymentDeps(t *testing.T) {
 		assert.Equal(t, &expectedResult, result)
 	})
 }
+
+// TestService_PlaceOrder_RejectsWithdrawnProduct pins the behaviour Task 5
+// changed. Cart used to drop a soft-deleted line via its JOIN, so checkout
+// silently proceeded without it; cart now surfaces the line carrying its status,
+// and PlaceOrder's existing guard refuses the whole order by name.
+func TestService_PlaceOrder_RejectsWithdrawnProduct(t *testing.T) {
+	svc, repo, cartProvider, _, _, _, _, _ := newTestService(t)
+
+	userID := uuid.New()
+	productID := uuid.New()
+	idempotencyKey := "idem-withdrawn-1"
+
+	repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
+	cartProvider.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+	cartProvider.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
+		ID: uuid.New(),
+		Items: []order.CartSnapshotItem{
+			{ProductID: productID, Quantity: 1, Name: "Withdrawn Widget",
+				Price: 1000, Currency: "USD", Status: "archived"},
+		},
+	}, nil)
+
+	_, err := svc.PlaceOrder(context.Background(), userID,
+		order.PlaceOrderRequest{}, idempotencyKey)
+
+	require.ErrorIs(t, err, apperror.ErrBadRequest)
+	assert.Contains(t, err.Error(), "Withdrawn Widget",
+		"the error must name the product so the customer can fix their cart")
+}
+
+// TestService_PlaceOrder_RejectsUnavailableProduct covers the case where the
+// product record is gone entirely -- cart supplies Status "unavailable".
+func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
+	svc, repo, cartProvider, _, _, _, _, _ := newTestService(t)
+
+	userID := uuid.New()
+	idempotencyKey := "idem-unavailable-1"
+
+	repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
+	cartProvider.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+	cartProvider.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
+		ID: uuid.New(),
+		Items: []order.CartSnapshotItem{
+			{ProductID: uuid.New(), Quantity: 1, Name: "", Price: 0,
+				Currency: "USD", Status: "unavailable"},
+		},
+	}, nil)
+
+	_, err := svc.PlaceOrder(context.Background(), userID,
+		order.PlaceOrderRequest{}, idempotencyKey)
+	require.ErrorIs(t, err, apperror.ErrBadRequest)
+}
