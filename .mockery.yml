@@ -7,29 +7,29 @@ log-level: info
 pkgname: "mocks"
 template: testify
 packages:
-  github.com/residwi/go-api-project-template/internal/features/auth:
+  github.com/residwi/go-api-project-template/internal/auth:
     interfaces:
       UserProvider:
-  github.com/residwi/go-api-project-template/internal/features/user:
+  github.com/residwi/go-api-project-template/internal/user:
     interfaces:
       Repository:
-  github.com/residwi/go-api-project-template/internal/features/category:
+  github.com/residwi/go-api-project-template/internal/category:
     interfaces:
       Repository:
       ProductCounter:
-  github.com/residwi/go-api-project-template/internal/features/product:
+  github.com/residwi/go-api-project-template/internal/product:
     interfaces:
       Repository:
       InventoryReader:
       InventoryRegistrar:
-  github.com/residwi/go-api-project-template/internal/features/inventory:
+  github.com/residwi/go-api-project-template/internal/inventory:
     interfaces:
       Repository:
-  github.com/residwi/go-api-project-template/internal/features/cart:
+  github.com/residwi/go-api-project-template/internal/cart:
     interfaces:
       Repository:
       ProductLookup:
-  github.com/residwi/go-api-project-template/internal/features/order:
+  github.com/residwi/go-api-project-template/internal/order:
     interfaces:
       Repository:
       CartProvider:
@@ -38,7 +38,7 @@ packages:
       PaymentJobCanceller:
       CouponReserver:
       NotificationEnqueuer:
-  github.com/residwi/go-api-project-template/internal/features/payment:
+  github.com/residwi/go-api-project-template/internal/payment:
     interfaces:
       Repository:
       OrderUpdater:
@@ -47,25 +47,25 @@ packages:
       InventoryDeductor:
       InventoryRestorer:
       CouponReleaser:
-  github.com/residwi/go-api-project-template/internal/features/shipping:
+  github.com/residwi/go-api-project-template/internal/shipping:
     interfaces:
       Repository:
       OrderProvider:
       OrderUpdater:
-  github.com/residwi/go-api-project-template/internal/features/review:
+  github.com/residwi/go-api-project-template/internal/review:
     interfaces:
       Repository:
       PurchaseVerifier:
-  github.com/residwi/go-api-project-template/internal/features/promotion:
+  github.com/residwi/go-api-project-template/internal/promotion:
     interfaces:
       Repository:
-  github.com/residwi/go-api-project-template/internal/features/wishlist:
+  github.com/residwi/go-api-project-template/internal/wishlist:
     interfaces:
       Repository:
-  github.com/residwi/go-api-project-template/internal/features/notification:
+  github.com/residwi/go-api-project-template/internal/notification:
     interfaces:
       Repository:
-  github.com/residwi/go-api-project-template/internal/features/dashboard:
+  github.com/residwi/go-api-project-template/internal/dashboard:
     interfaces:
       Repository:
   github.com/residwi/go-api-project-template/internal/platform/payment:

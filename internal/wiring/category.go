@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/features/category"
-	"github.com/residwi/go-api-project-template/internal/features/product"
+	"github.com/residwi/go-api-project-template/internal/category"
+	"github.com/residwi/go-api-project-template/internal/product"
 )
 
 type productCounterAdapter struct{ svc *product.Service }

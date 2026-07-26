@@ -5,13 +5,13 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/features/cart"
-	"github.com/residwi/go-api-project-template/internal/features/inventory"
-	"github.com/residwi/go-api-project-template/internal/features/notification"
-	"github.com/residwi/go-api-project-template/internal/features/order"
-	"github.com/residwi/go-api-project-template/internal/features/payment"
-	"github.com/residwi/go-api-project-template/internal/features/promotion"
+	"github.com/residwi/go-api-project-template/internal/cart"
+	"github.com/residwi/go-api-project-template/internal/inventory"
+	"github.com/residwi/go-api-project-template/internal/notification"
+	"github.com/residwi/go-api-project-template/internal/order"
+	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/promotion"
 )
 
 func NewOrderService(

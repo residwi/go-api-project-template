@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/features/inventory"
-	"github.com/residwi/go-api-project-template/internal/features/product"
+	"github.com/residwi/go-api-project-template/internal/inventory"
+	"github.com/residwi/go-api-project-template/internal/product"
 )
 
 // inventoryReaderAdapter maps product's Availability onto inventory's Stock.

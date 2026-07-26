@@ -5,12 +5,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/features/inventory"
-	"github.com/residwi/go-api-project-template/internal/features/order"
-	"github.com/residwi/go-api-project-template/internal/features/payment"
-	"github.com/residwi/go-api-project-template/internal/features/promotion"
+	"github.com/residwi/go-api-project-template/internal/inventory"
+	"github.com/residwi/go-api-project-template/internal/order"
+	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
+	"github.com/residwi/go-api-project-template/internal/promotion"
 )
 
 // paymentOrderUpdaterAdapter maps payment.OrderUpdater's intent methods to the

@@ -5,9 +5,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/features/order"
-	"github.com/residwi/go-api-project-template/internal/features/shipping"
+	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/shipping"
 )
 
 // NewShippingService also returns the OrderProvider: the shipping routes need it

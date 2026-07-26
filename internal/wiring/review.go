@@ -3,8 +3,8 @@ package wiring
 import (
 	"context"
 
-	"github.com/residwi/go-api-project-template/internal/features/order"
-	"github.com/residwi/go-api-project-template/internal/features/review"
+	"github.com/residwi/go-api-project-template/internal/order"
+	"github.com/residwi/go-api-project-template/internal/review"
 )
 
 // purchaseVerifierAdapter maps review's locally-declared DeliveredPurchase onto

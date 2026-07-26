@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/features/inventory"
+	"github.com/residwi/go-api-project-template/internal/inventory"
 	invMocks "github.com/residwi/go-api-project-template/mocks/inventory"
 )
 

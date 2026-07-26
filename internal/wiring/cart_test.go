@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/features/product"
+	"github.com/residwi/go-api-project-template/internal/product"
 	productMocks "github.com/residwi/go-api-project-template/mocks/product"
 )
 

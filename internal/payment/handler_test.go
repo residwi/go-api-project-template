@@ -1,0 +1,463 @@
+package payment_test
+
+import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/payment"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
+	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/testhelper"
+	mocks "github.com/residwi/go-api-project-template/mocks/payment"
+)
+
+func setupPaymentMux(t *testing.T) (
+	*http.ServeMux,
+	*mocks.MockRepository,
+	*mocks.MockGateway,
+	*mocks.MockOrderUpdater,
+	*mocks.MockOrderGetter,
+) {
+	repo := mocks.NewMockRepository(t)
+	gw := mocks.NewMockGateway(t)
+	orders := mocks.NewMockOrderUpdater(t)
+	orderGet := mocks.NewMockOrderGetter(t)
+	orderItems := mocks.NewMockOrderItemsGetter(t)
+	inv := mocks.NewMockInventoryDeductor(t)
+	invRestore := mocks.NewMockInventoryRestorer(t)
+	couponRel := mocks.NewMockCouponReleaser(t)
+
+	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	api := middleware.NewRouteGroup(mux, "/api")
+	admin := middleware.NewRouteGroup(mux, "/api/admin")
+	payment.RegisterRoutes(api, admin, payment.RouteDeps{Validator: v, Service: svc})
+
+	return mux, repo, gw, orders, orderGet
+}
+
+func setupPaymentMuxWithSecret(t *testing.T, secret string) (*http.ServeMux, *mocks.MockRepository) {
+	repo := mocks.NewMockRepository(t)
+	gw := mocks.NewMockGateway(t)
+	orders := mocks.NewMockOrderUpdater(t)
+	orderGet := mocks.NewMockOrderGetter(t)
+	orderItems := mocks.NewMockOrderItemsGetter(t)
+	inv := mocks.NewMockInventoryDeductor(t)
+	invRestore := mocks.NewMockInventoryRestorer(t)
+	couponRel := mocks.NewMockCouponReleaser(t)
+
+	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	api := middleware.NewRouteGroup(mux, "/api")
+	admin := middleware.NewRouteGroup(mux, "/api/admin")
+	payment.RegisterRoutes(api, admin, payment.RouteDeps{Validator: v, Service: svc, WebhookSecret: secret})
+
+	return mux, repo
+}
+
+func TestWebhookHandler_SignatureVerification(t *testing.T) {
+	const secret = "whsec_test"
+	sign := func(body []byte) string {
+		mac := hmac.New(sha256.New, []byte(secret))
+		mac.Write(body)
+		return hex.EncodeToString(mac.Sum(nil))
+	}
+
+	t.Run("valid signature is accepted", func(t *testing.T) {
+		mux, repo := setupPaymentMuxWithSecret(t, secret)
+		// Unknown payment id: service no-ops and returns 200, which is enough to
+		// prove the signature check passed and the body reached the service.
+		repo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, apperror.ErrNotFound)
+
+		body, _ := json.Marshal(map[string]any{
+			"event":    "success",
+			"metadata": map[string]any{"payment_id": uuid.New().String()},
+		})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader(body))
+		r.Header.Set("X-Webhook-Signature", sign(body))
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("missing signature is rejected", func(t *testing.T) {
+		mux, _ := setupPaymentMuxWithSecret(t, secret)
+
+		body, _ := json.Marshal(map[string]any{"event": "success"})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader(body))
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("wrong signature is rejected", func(t *testing.T) {
+		mux, _ := setupPaymentMuxWithSecret(t, secret)
+
+		body, _ := json.Marshal(map[string]any{"event": "success"})
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader(body))
+		r.Header.Set("X-Webhook-Signature", "deadbeef")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+func TestWebhookHandler_HandleWebhook(t *testing.T) {
+	t.Run("success with valid JSON payload", func(t *testing.T) {
+		mux, repo, _, orders, _ := setupPaymentMux(t)
+
+		paymentID := uuid.New()
+		orderID := uuid.New()
+		p := &payment.Payment{
+			ID:      paymentID,
+			OrderID: orderID,
+			Status:  payment.StatusPending,
+		}
+
+		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil)
+		repo.EXPECT().UpdateStatus(mock.Anything, paymentID, payment.StatusCancelled,
+			[]payment.Status{payment.StatusPending, payment.StatusProcessing}).Return(nil)
+		repo.EXPECT().ClearPaymentURL(mock.Anything, paymentID).Return(nil)
+		repo.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
+		// Failed payment now also cancels the order and releases its reserved stock.
+		orders.EXPECT().CancelUnpaid(mock.Anything, orderID).Return(nil)
+
+		payload := map[string]any{
+			"event":          "failed",
+			"transaction_id": "txn_123",
+			"metadata": map[string]any{
+				"payment_id": paymentID.String(),
+			},
+		}
+		body, _ := json.Marshal(payload)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("invalid JSON returns 200", func(t *testing.T) {
+		mux, _, _, _, _ := setupPaymentMux(t)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader([]byte("not json")))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("finalize failure runs compensating refund and returns 200", func(t *testing.T) {
+		// The gateway has already captured funds, so a finalize failure (here an
+		// amount mismatch) must not 5xx and leave money captured with the order
+		// unpaid. HandleWebhook now runs a compensating refund and acks the webhook
+		// with 200 so the gateway stops retrying into an already-handled failure.
+		mux, repo, _, orders, orderGet := setupPaymentMux(t)
+
+		paymentID := uuid.New()
+		orderID := uuid.New()
+		p := &payment.Payment{
+			ID:      paymentID,
+			OrderID: orderID,
+			Amount:  5000,
+			Status:  payment.StatusPending,
+		}
+
+		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil).Times(2)
+		orderGet.EXPECT().GetByID(mock.Anything, orderID).Return(payment.OrderSnapshot{
+			TotalAmount: 9999,
+			Currency:    "USD",
+		}, nil)
+
+		// Compensating refund: flag payment requires_review, mark the order
+		// fulfillment-failed, and enqueue a refund job.
+		repo.EXPECT().UpdateStatus(mock.Anything, paymentID, payment.StatusRequiresReview,
+			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusSuccess}).Return(nil)
+		orders.EXPECT().MarkFulfillmentFailedCompensating(mock.Anything, orderID).Return(nil)
+		repo.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(func(job *payment.Job) bool {
+			return job.PaymentID == paymentID &&
+				job.OrderID == orderID &&
+				job.Action == payment.ActionRefund
+		})).Return(nil)
+
+		payload := map[string]any{
+			"event": "success",
+			"metadata": map[string]any{
+				"payment_id": paymentID.String(),
+			},
+		}
+		body, _ := json.Marshal(payload)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestAdminHandler_List(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mux, repo, _, _, _ := setupPaymentMux(t)
+
+		now := time.Now()
+		payments := []payment.Payment{
+			{
+				ID:        uuid.New(),
+				OrderID:   uuid.New(),
+				Amount:    5000,
+				Currency:  "USD",
+				Status:    payment.StatusSuccess,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+		}
+
+		repo.EXPECT().ListAdmin(mock.Anything, mock.MatchedBy(func(p payment.AdminListParams) bool {
+			return p.Page == 1 && p.PageSize == 20
+		})).Return(payments, 1, nil)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/api/admin/payments", nil)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.True(t, resp.Success)
+
+		data, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		items, ok := data["items"].([]any)
+		require.True(t, ok)
+		assert.Len(t, items, 1)
+
+		item := items[0].(map[string]any)
+		assert.InDelta(t, float64(5000), item["amount"], 0.0001)
+		assert.Equal(t, "USD", item["currency"])
+		assert.Equal(t, "success", item["status"])
+		assert.NotEmpty(t, item["id"])
+		assert.NotEmpty(t, item["order_id"])
+		assert.NotEmpty(t, item["created_at"])
+		assert.NotEmpty(t, item["updated_at"])
+
+		pagination, ok := data["pagination"].(map[string]any)
+		require.True(t, ok)
+		assert.InDelta(t, float64(1), pagination["current_page"], 0.0001)
+		assert.InDelta(t, float64(20), pagination["page_size"], 0.0001)
+		assert.InDelta(t, float64(1), pagination["total_items"], 0.0001)
+		assert.InDelta(t, float64(1), pagination["total_pages"], 0.0001)
+		assert.Equal(t, false, pagination["has_previous"])
+		assert.Equal(t, false, pagination["has_next"])
+	})
+
+	t.Run("service error", func(t *testing.T) {
+		mux, repo, _, _, _ := setupPaymentMux(t)
+
+		repo.EXPECT().ListAdmin(mock.Anything, mock.Anything).
+			Return(nil, 0, errors.New("db connection failed"))
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/api/admin/payments", nil)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.False(t, resp.Success)
+	})
+}
+
+func TestAdminHandler_Get(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mux, repo, _, _, _ := setupPaymentMux(t)
+
+		paymentID := uuid.New()
+		now := time.Now()
+		p := &payment.Payment{
+			ID:        paymentID,
+			OrderID:   uuid.New(),
+			Amount:    10000,
+			Currency:  "USD",
+			Status:    payment.StatusSuccess,
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+
+		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/api/admin/payments/"+paymentID.String(), nil)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.True(t, resp.Success)
+
+		obj, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		// id is echoed back from the request, so it is deterministic.
+		assert.Equal(t, paymentID.String(), obj["id"])
+		assert.InDelta(t, float64(10000), obj["amount"], 0.0001)
+		assert.Equal(t, "USD", obj["currency"])
+		assert.Equal(t, "success", obj["status"])
+		assert.NotEmpty(t, obj["order_id"])
+		assert.NotEmpty(t, obj["created_at"])
+		assert.NotEmpty(t, obj["updated_at"])
+	})
+
+	t.Run("invalid UUID", func(t *testing.T) {
+		mux, _, _, _, _ := setupPaymentMux(t)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/api/admin/payments/not-a-uuid", nil)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.False(t, resp.Success)
+		assert.Equal(t, "invalid id", resp.Error.Message)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		mux, repo, _, _, _ := setupPaymentMux(t)
+
+		paymentID := uuid.New()
+		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(nil, apperror.ErrNotFound)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodGet, "/api/admin/payments/"+paymentID.String(), nil)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.False(t, resp.Success)
+	})
+}
+
+func TestAdminHandler_Refund(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mux, repo, _, _, _ := setupPaymentMux(t)
+
+		paymentID := uuid.New()
+		orderID := uuid.New()
+		p := &payment.Payment{
+			ID:      paymentID,
+			OrderID: orderID,
+			Status:  payment.StatusSuccess,
+		}
+
+		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil)
+		repo.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(func(job *payment.Job) bool {
+			return job.PaymentID == paymentID &&
+				job.OrderID == orderID &&
+				job.Action == payment.ActionRefund &&
+				job.Status == payment.JobStatusPending
+		})).Return(nil)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/admin/payments/"+paymentID.String()+"/refund", nil)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.True(t, resp.Success)
+
+		dataJSON, err := json.Marshal(resp.Data)
+		require.NoError(t, err)
+		var got struct {
+			Status string `json:"status"`
+		}
+		require.NoError(t, json.Unmarshal(dataJSON, &got))
+		assert.Equal(t, struct {
+			Status string `json:"status"`
+		}{Status: "refund_enqueued"}, got)
+	})
+
+	t.Run("invalid UUID", func(t *testing.T) {
+		mux, _, _, _, _ := setupPaymentMux(t)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/admin/payments/not-a-uuid/refund", nil)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.False(t, resp.Success)
+		assert.Equal(t, "invalid id", resp.Error.Message)
+	})
+
+	t.Run("payment not refundable", func(t *testing.T) {
+		mux, repo, _, _, _ := setupPaymentMux(t)
+
+		paymentID := uuid.New()
+		p := &payment.Payment{
+			ID:     paymentID,
+			Status: payment.StatusPending,
+		}
+
+		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/admin/payments/"+paymentID.String()+"/refund", nil)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.False(t, resp.Success)
+	})
+}

@@ -29,7 +29,7 @@ const (
 //
 //	0 — internal/platform/cache
 //	1 — internal/middleware
-//	2 — internal/features/user
+//	2 — internal/user
 //	3 — internal/server
 
 func init() {
