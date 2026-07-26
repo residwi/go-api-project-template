@@ -38,12 +38,21 @@ func (a *productLookupAdapter) GetByIDs(ctx context.Context, ids []uuid.UUID) (m
 	}
 	out := make(map[uuid.UUID]cart.ProductInfo, len(products))
 	for _, p := range products {
+		status := p.Status
+		if p.DeletedAt != nil {
+			// product.Delete only sets deleted_at -- it leaves status untouched --
+			// so a withdrawn product's row can still read status='published'. Report
+			// the soft delete honestly instead of forwarding that stale value: cart
+			// (and order's availability guard downstream) must see this line as
+			// unsellable, not silently drop it.
+			status = "unavailable"
+		}
 		out[p.ID] = cart.ProductInfo{
 			ID:        p.ID,
 			Name:      p.Name,
 			Price:     p.Price,
 			Currency:  p.Currency,
-			Status:    p.Status,
+			Status:    status,
 			Available: p.Availability.Available,
 		}
 	}

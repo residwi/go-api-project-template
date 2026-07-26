@@ -299,6 +299,30 @@ func TestPostgresRepository_AdjustStock(t *testing.T) {
 		_, err = repo.AdjustStock(ctx, productID, 3)
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
+
+	// A product can exist with no inventory_levels row at all if product.Create
+	// committed but a later EnsureLevel never ran (see product.Service.Create) --
+	// GetStock and Restock both 404 on that row, so AdjustStock upserting it is
+	// the only way an admin can recover the product through the API.
+	t.Run("succeeds against a product with no level row", func(t *testing.T) {
+		setup(t)
+		ctx := context.Background()
+		id := uuid.New()
+		_, err := testPool.Exec(ctx,
+			`INSERT INTO products (id, name, slug, description, price, currency)
+			 VALUES ($1, 'Levelless', $2, 'desc', 1000, 'USD')`,
+			id, "levelless-"+id.String())
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			testPool.Exec(context.Background(), `DELETE FROM inventory_levels WHERE product_id = $1`, id)
+			testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id)
+		})
+
+		repo := inventory.NewPostgresRepository(testPool)
+		stock, err := repo.AdjustStock(ctx, id, 15)
+		require.NoError(t, err)
+		assert.Equal(t, &inventory.Stock{ProductID: id, Quantity: 15, Reserved: 0, Available: 15}, stock)
+	})
 }
 
 func TestPostgresRepository_EnsureLevel(t *testing.T) {

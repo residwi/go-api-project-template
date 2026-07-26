@@ -466,10 +466,12 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, archivedID) })
 
+		// status is left 'published': product.Delete only sets deleted_at, so this
+		// mirrors a real withdrawn-but-still-published row.
 		deletedID := uuid.New()
 		_, err = testPool.Exec(context.Background(),
-			`INSERT INTO products (id, name, slug, description, price, currency, deleted_at)
-			 VALUES ($1, 'Deleted', $2, 'desc', 1000, 'USD', NOW())`,
+			`INSERT INTO products (id, name, slug, description, price, currency, status, deleted_at)
+			 VALUES ($1, 'Deleted', $2, 'desc', 1000, 'USD', 'published', NOW())`,
 			deletedID, "deleted-"+deletedID.String())
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, deletedID) })
@@ -484,8 +486,15 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		}
 		require.Len(t, byID, 3, "the fourth id has no row at all and must simply be absent")
 		assert.Equal(t, live.Status, byID[live.ID].Status)
+		assert.Nil(t, byID[live.ID].DeletedAt)
 		assert.Equal(t, "archived", byID[archivedID].Status)
+		assert.Nil(t, byID[archivedID].DeletedAt)
 		assert.Contains(t, byID, deletedID, "a soft-deleted product must still be returned")
+		// The row is left with status='published' by product.Delete (only
+		// deleted_at changes), so a caller must consult DeletedAt -- not Status --
+		// to know this product is no longer sellable.
+		assert.Equal(t, "published", byID[deletedID].Status)
+		require.NotNil(t, byID[deletedID].DeletedAt, "a soft-deleted product must carry DeletedAt so a consumer can flag it unsellable")
 	})
 
 	t.Run("returns empty slice for empty ids", func(t *testing.T) {

@@ -21,6 +21,18 @@ func scanProduct(row pgx.CollectableRow) (Product, error) {
 	return p, err
 }
 
+// scanProductIncludingDeleted additionally scans deleted_at, unlike scanProduct:
+// every other query filters deleted_at IS NULL, so DeletedAt would always come
+// back nil there; GetByIDsIncludingDeleted is the one caller that needs it, to
+// report a withdrawn product's sellability honestly instead of via its
+// (untouched) status column.
+func scanProductIncludingDeleted(row pgx.CollectableRow) (Product, error) {
+	var p Product
+	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &p.Price, &p.CompareAtPrice,
+		&p.Currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt)
+	return p, err
+}
+
 func scanImage(row pgx.CollectableRow) (Image, error) {
 	var img Image
 	err := row.Scan(&img.ID, &img.ProductID, &img.URL, &img.AltText, &img.SortOrder, &img.CreatedAt)
@@ -285,13 +297,13 @@ func (r *PostgresRepository) GetByIDsIncludingDeleted(ctx context.Context, ids [
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
 		`SELECT id, category_id, name, slug, description, price, compare_at_price,
-		        currency, sku, status, created_at, updated_at
+		        currency, sku, status, created_at, updated_at, deleted_at
 		FROM products WHERE id = ANY($1)`, ids)
 	if err != nil {
 		return nil, fmt.Errorf("getting products by ids: %w", err)
 	}
 	defer rows.Close()
-	return pgx.CollectRows(rows, scanProduct)
+	return pgx.CollectRows(rows, scanProductIncludingDeleted)
 }
 
 func (r *PostgresRepository) AddImage(ctx context.Context, img *Image) error {

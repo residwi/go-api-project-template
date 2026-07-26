@@ -16,7 +16,7 @@ import (
 // tests exercise Delete, so it is wired in but never actually invoked.
 type noopProductCounter struct{}
 
-func (noopProductCounter) CountPublished(ctx context.Context, categoryID uuid.UUID) (int, error) {
+func (noopProductCounter) CountPublished(_ context.Context, _ uuid.UUID) (int, error) {
 	return 0, nil
 }
 

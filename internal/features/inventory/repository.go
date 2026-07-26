@@ -310,14 +310,27 @@ func (r *PostgresRepository) GetStock(ctx context.Context, productID uuid.UUID) 
 // AdjustStock sets total on hand. Because available is stored, the new available
 // is the requested total minus whatever is currently reserved -- and a total
 // below the outstanding reservations is refused.
+//
+// It upserts rather than requiring an existing row: a product can exist with
+// no inventory_levels row at all if product.Create committed but a later
+// EnsureLevel never ran (see product.Service.Create), and that product is
+// otherwise unrecoverable -- GetStock and Restock both 404 on a missing row,
+// and a bare UPDATE here would too. ON CONFLICT's DO UPDATE ... WHERE clause
+// still refuses the reserved-quantity guard for a product that does have a
+// row: when it doesn't match, that row is left untouched and unreturned, so
+// RETURNING yields no row and this reports the same "cannot set stock below
+// reserved quantity" error as before.
 func (r *PostgresRepository) AdjustStock(ctx context.Context, productID uuid.UUID, newQuantity int) (*Stock, error) {
 	db := database.DB(ctx, r.pool)
 	var available, reserved int
 	err := db.QueryRow(ctx,
-		`UPDATE inventory_levels SET available_stock = $1 - reserved_stock
-		WHERE product_id = $2 AND reserved_stock <= $1
+		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
+		VALUES ($1, $2, 0)
+		ON CONFLICT (product_id) DO UPDATE
+		    SET available_stock = $2 - inventory_levels.reserved_stock
+		WHERE inventory_levels.reserved_stock <= $2
 		RETURNING available_stock, reserved_stock`,
-		newQuantity, productID,
+		productID, newQuantity,
 	).Scan(&available, &reserved)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

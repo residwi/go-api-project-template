@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -11,10 +12,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/features/cart"
+	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/features/order"
+	"github.com/residwi/go-api-project-template/internal/features/product"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/wiring"
+	cartMocks "github.com/residwi/go-api-project-template/mocks/cart"
+	inventoryMocks "github.com/residwi/go-api-project-template/mocks/inventory"
 	mocks "github.com/residwi/go-api-project-template/mocks/order"
+	productMocks "github.com/residwi/go-api-project-template/mocks/product"
 )
 
 func newTestService(t *testing.T) (
@@ -1392,7 +1400,7 @@ func TestService_SetPaymentDeps(t *testing.T) {
 // silently proceeded without it; cart now surfaces the line carrying its status,
 // and PlaceOrder's existing guard refuses the whole order by name.
 func TestService_PlaceOrder_RejectsWithdrawnProduct(t *testing.T) {
-	svc, repo, cartProvider, _, _, _, _, _ := newTestService(t)
+	svc, repo, cartProvider, inventory, _, _, _, _ := newTestService(t)
 
 	userID := uuid.New()
 	productID := uuid.New()
@@ -1403,8 +1411,10 @@ func TestService_PlaceOrder_RejectsWithdrawnProduct(t *testing.T) {
 	cartProvider.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 		ID: uuid.New(),
 		Items: []order.CartSnapshotItem{
-			{ProductID: productID, Quantity: 1, Name: "Withdrawn Widget",
-				Price: 1000, Currency: "USD", Status: "archived"},
+			{
+				ProductID: productID, Quantity: 1, Name: "Withdrawn Widget",
+				Price: 1000, Currency: "USD", Status: "archived",
+			},
 		},
 	}, nil)
 
@@ -1414,12 +1424,15 @@ func TestService_PlaceOrder_RejectsWithdrawnProduct(t *testing.T) {
 	require.ErrorIs(t, err, apperror.ErrBadRequest)
 	assert.Contains(t, err.Error(), "Withdrawn Widget",
 		"the error must name the product so the customer can fix their cart")
+	// Direct and intentional, rather than incidental: the guard must reject
+	// before any stock is reserved, not merely happen to fail elsewhere first.
+	inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
 }
 
 // TestService_PlaceOrder_RejectsUnavailableProduct covers the case where the
 // product record is gone entirely -- cart supplies Status "unavailable".
 func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
-	svc, repo, cartProvider, _, _, _, _, _ := newTestService(t)
+	svc, repo, cartProvider, inventory, _, _, _, _ := newTestService(t)
 
 	userID := uuid.New()
 	idempotencyKey := "idem-unavailable-1"
@@ -1429,12 +1442,115 @@ func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
 	cartProvider.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 		ID: uuid.New(),
 		Items: []order.CartSnapshotItem{
-			{ProductID: uuid.New(), Quantity: 1, Name: "", Price: 0,
-				Currency: "USD", Status: "unavailable"},
+			{
+				ProductID: uuid.New(), Quantity: 1, Name: "", Price: 0,
+				Currency: "USD", Status: "unavailable",
+			},
 		},
 	}, nil)
 
 	_, err := svc.PlaceOrder(context.Background(), userID,
 		order.PlaceOrderRequest{}, idempotencyKey)
 	require.ErrorIs(t, err, apperror.ErrBadRequest)
+	// Direct and intentional, rather than incidental: the guard must reject
+	// before any stock is reserved, not merely happen to fail elsewhere first.
+	inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
+}
+
+// realCartProvider mirrors internal/wiring's unexported cartProviderAdapter
+// (it is not the fix under test, just the trivial Cart -> CartSnapshot
+// mapping), so this test can drive a real cart.Service -- and, critically, the
+// real wiring.productLookupAdapter it wraps -- without reaching into wiring's
+// unexported types.
+type realCartProvider struct{ svc *cart.Service }
+
+func (a realCartProvider) LockCart(ctx context.Context, userID uuid.UUID) error {
+	return a.svc.LockCart(ctx, userID)
+}
+
+func (a realCartProvider) GetCart(ctx context.Context, userID uuid.UUID) (*order.CartSnapshot, error) {
+	c, err := a.svc.GetCart(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	snap := &order.CartSnapshot{ID: c.ID}
+	for _, item := range c.Items {
+		si := order.CartSnapshotItem{ProductID: item.ProductID, Quantity: item.Quantity}
+		if item.Product != nil {
+			si.Name = item.Product.Name
+			si.Price = item.Product.Price
+			si.Currency = item.Product.Currency
+			si.Status = item.Product.Status
+		}
+		snap.Items = append(snap.Items, si)
+	}
+	return snap, nil
+}
+
+func (a realCartProvider) Clear(ctx context.Context, userID uuid.UUID) error {
+	return a.svc.Clear(ctx, userID)
+}
+
+// TestService_PlaceOrder_RejectsSoftDeletedProduct exercises the real
+// product -> cart chain (product.Service.GetByIDsIncludingDeleted through the
+// actual wiring.productLookupAdapter) instead of a hand-built
+// CartSnapshotItem. Task 7's two tests above only ever supply the
+// guard-tripping status directly ("archived", "unavailable"), so neither
+// would have caught cart's adapter forwarding a soft-deleted product's stale
+// status='published' straight through -- this is the shape that would have.
+func TestService_PlaceOrder_RejectsSoftDeletedProduct(t *testing.T) {
+	userID := uuid.New()
+	cartID := uuid.New()
+	productID := uuid.New()
+	idempotencyKey := "idem-soft-deleted-1"
+	deletedAt := time.Now()
+
+	orderRepo := mocks.NewMockRepository(t)
+	orderInventory := mocks.NewMockInventoryReserver(t)
+
+	productRepo := productMocks.NewMockRepository(t)
+	productRepo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, []uuid.UUID{productID}).
+		Return([]product.Product{
+			{
+				ID: productID, Name: "Withdrawn Widget", Price: 0, Currency: "USD",
+				Status: product.StatusPublished, DeletedAt: &deletedAt,
+			},
+		}, nil)
+
+	invRepo := inventoryMocks.NewMockRepository(t)
+	invRepo.EXPECT().GetLevels(mock.Anything, []uuid.UUID{productID}).
+		Return(map[uuid.UUID]inventory.Stock{}, nil)
+	productSvc := wiring.NewProductService(productRepo, inventory.NewService(invRepo))
+
+	cartRepo := cartMocks.NewMockRepository(t)
+	cartRepo.EXPECT().GetCartForLock(mock.Anything, userID).Return(cartID, nil)
+	cartRepo.EXPECT().GetCart(mock.Anything, userID).Return(&cart.Cart{
+		ID:    cartID,
+		Items: []cart.Item{{ProductID: productID, Quantity: 1}},
+	}, nil)
+	// Only reached if the guard fails to reject: exercised in a pre-fix run,
+	// never called once the guard correctly rejects.
+	cartRepo.EXPECT().Clear(mock.Anything, userID).Return(nil).Maybe()
+
+	cartSvc := wiring.NewCartService(cartRepo, testhelper.FakeTxRunner{}, productSvc, 50)
+
+	// Everything below the guard is lenient (.Maybe()): a pre-fix run reaches
+	// and exercises these; a correctly-rejecting run never calls them.
+	orderRepo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
+		Return(nil, apperror.ErrNotFound)
+	orderRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
+	orderRepo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil).Maybe()
+	orderRepo.EXPECT().Apply(mock.Anything, mock.Anything, order.PaidTransition).Return(nil).Maybe()
+	orderInventory.EXPECT().ReserveBatch(mock.Anything, mock.Anything).Return(nil).Maybe()
+	orderInventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	svc := order.NewService(orderRepo, testhelper.FakeTxRunner{},
+		realCartProvider{svc: cartSvc}, orderInventory, nil, nil, nil, nil)
+
+	_, err := svc.PlaceOrder(context.Background(), userID, order.PlaceOrderRequest{}, idempotencyKey)
+
+	require.ErrorIs(t, err, apperror.ErrBadRequest,
+		"a soft-deleted product (status still 'published', deleted_at set) must be flagged "+
+			"unavailable by cart's adapter and rejected here, not pass through as sellable")
+	orderInventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
 }

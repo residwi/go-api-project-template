@@ -19,7 +19,7 @@ import (
 
 // seedFilePath resolves data.sql relative to this source file rather than a
 // hardcoded absolute path, mirroring how testhelper locates the migrations
-// directory from runtime.Caller(0).
+// directory from [runtime.Caller].
 func seedFilePath() string {
 	_, file, _, _ := runtime.Caller(0)
 	return filepath.Join(filepath.Dir(file), "data.sql")
