@@ -23,9 +23,10 @@ import (
 	catMocks "github.com/residwi/go-api-project-template/mocks/category"
 )
 
-func setupCategoryMux(t *testing.T) (*http.ServeMux, *catMocks.MockRepository) {
+func setupCategoryMux(t *testing.T) (*http.ServeMux, *catMocks.MockRepository, *catMocks.MockProductCounter) {
 	repo := catMocks.NewMockRepository(t)
-	svc := category.NewService(repo)
+	counter := catMocks.NewMockProductCounter(t)
+	svc := category.NewService(repo, counter)
 	v := validator.New()
 
 	mux := http.NewServeMux()
@@ -37,12 +38,12 @@ func setupCategoryMux(t *testing.T) (*http.ServeMux, *catMocks.MockRepository) {
 		Service:   svc,
 	})
 
-	return mux, repo
+	return mux, repo, counter
 }
 
 func TestPublicHandler_ListCategories(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo := setupCategoryMux(t)
+		mux, repo, _ := setupCategoryMux(t)
 
 		now := time.Now()
 		repo.EXPECT().List(mock.Anything).Return([]category.Category{
@@ -82,7 +83,7 @@ func TestPublicHandler_ListCategories(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
-		mux, repo := setupCategoryMux(t)
+		mux, repo, _ := setupCategoryMux(t)
 
 		repo.EXPECT().List(mock.Anything).Return(nil, errors.New("db error"))
 
@@ -97,7 +98,7 @@ func TestPublicHandler_ListCategories(t *testing.T) {
 
 func TestPublicHandler_GetBySlug(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo := setupCategoryMux(t)
+		mux, repo, _ := setupCategoryMux(t)
 
 		catID := uuid.New()
 		now := time.Now()
@@ -139,7 +140,7 @@ func TestPublicHandler_GetBySlug(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		mux, repo := setupCategoryMux(t)
+		mux, repo, _ := setupCategoryMux(t)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 
@@ -156,7 +157,7 @@ func TestPublicHandler_GetBySlug(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
-		mux, repo := setupCategoryMux(t)
+		mux, repo, _ := setupCategoryMux(t)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "fail").Return(nil, errors.New("db error"))
 
@@ -171,7 +172,7 @@ func TestPublicHandler_GetBySlug(t *testing.T) {
 
 func TestAdminHandler_CreateCategory(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo := setupCategoryMux(t)
+		mux, repo, _ := setupCategoryMux(t)
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
@@ -203,7 +204,7 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
-		mux, repo := setupCategoryMux(t)
+		mux, repo, _ := setupCategoryMux(t)
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
@@ -225,7 +226,7 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
-		mux, _ := setupCategoryMux(t)
+		mux, _, _ := setupCategoryMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/categories", bytes.NewReader([]byte("{bad")))
@@ -237,7 +238,7 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 	})
 
 	t.Run("validation error missing name", func(t *testing.T) {
-		mux, _ := setupCategoryMux(t)
+		mux, _, _ := setupCategoryMux(t)
 
 		body, _ := json.Marshal(map[string]string{})
 
@@ -258,7 +259,7 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 
 func TestAdminHandler_UpdateCategory(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo := setupCategoryMux(t)
+		mux, repo, _ := setupCategoryMux(t)
 
 		catID := uuid.New()
 		now := time.Now()
@@ -291,7 +292,7 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
-		mux, _ := setupCategoryMux(t)
+		mux, _, _ := setupCategoryMux(t)
 
 		body, _ := json.Marshal(map[string]string{"name": "test"})
 
@@ -310,7 +311,7 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
-		mux, _ := setupCategoryMux(t)
+		mux, _, _ := setupCategoryMux(t)
 
 		catID := uuid.New()
 
@@ -324,7 +325,7 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 	})
 
 	t.Run("validation error", func(t *testing.T) {
-		mux, _ := setupCategoryMux(t)
+		mux, _, _ := setupCategoryMux(t)
 
 		catID := uuid.New()
 		tooLong := strings.Repeat("a", 256)
@@ -347,7 +348,7 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
-		mux, repo := setupCategoryMux(t)
+		mux, repo, _ := setupCategoryMux(t)
 
 		catID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, catID).Return(nil, apperror.ErrNotFound)
@@ -369,10 +370,10 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 
 func TestAdminHandler_DeleteCategory(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo := setupCategoryMux(t)
+		mux, repo, counter := setupCategoryMux(t)
 
 		catID := uuid.New()
-		repo.EXPECT().CountPublishedProducts(mock.Anything, catID).Return(0, nil)
+		counter.EXPECT().CountPublished(mock.Anything, catID).Return(0, nil)
 		repo.EXPECT().Delete(mock.Anything, catID).Return(nil)
 
 		w := httptest.NewRecorder()
@@ -384,7 +385,7 @@ func TestAdminHandler_DeleteCategory(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
-		mux, _ := setupCategoryMux(t)
+		mux, _, _ := setupCategoryMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/categories/not-a-uuid", nil)
@@ -400,10 +401,10 @@ func TestAdminHandler_DeleteCategory(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
-		mux, repo := setupCategoryMux(t)
+		mux, repo, counter := setupCategoryMux(t)
 
 		catID := uuid.New()
-		repo.EXPECT().CountPublishedProducts(mock.Anything, catID).Return(0, nil)
+		counter.EXPECT().CountPublished(mock.Anything, catID).Return(0, nil)
 		repo.EXPECT().Delete(mock.Anything, catID).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()

@@ -27,7 +27,6 @@ type Repository interface {
 	Update(ctx context.Context, cat *Category) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context) ([]Category, error)
-	CountPublishedProducts(ctx context.Context, categoryID uuid.UUID) (int, error)
 	AncestorDepthAndCycle(ctx context.Context, parentID, selfID uuid.UUID, maxDepth int) (depth int, formsCycle bool, err error)
 }
 
@@ -141,19 +140,6 @@ func (r *PostgresRepository) List(ctx context.Context) ([]Category, error) {
 	}
 
 	return categories, nil
-}
-
-func (r *PostgresRepository) CountPublishedProducts(ctx context.Context, categoryID uuid.UUID) (int, error) {
-	db := database.DB(ctx, r.pool)
-	var count int
-	err := db.QueryRow(ctx,
-		`SELECT COUNT(*) FROM products WHERE category_id = $1 AND status = 'published' AND deleted_at IS NULL`,
-		categoryID,
-	).Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("counting published products: %w", err)
-	}
-	return count, nil
 }
 
 // AncestorDepthAndCycle walks the parent chain upward from parentID via a

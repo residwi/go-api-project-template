@@ -39,6 +39,7 @@ type Repository interface {
 	AddImage(ctx context.Context, img *Image) error
 	DeleteImage(ctx context.Context, imageID uuid.UUID) error
 	GetImagesByProductID(ctx context.Context, productID uuid.UUID) ([]Image, error)
+	CountPublishedByCategory(ctx context.Context, categoryID uuid.UUID) (int, error)
 }
 
 type PublishedListParams struct {
@@ -336,4 +337,18 @@ func (r *PostgresRepository) GetImagesByProductID(ctx context.Context, productID
 	}
 
 	return images, nil
+}
+
+func (r *PostgresRepository) CountPublishedByCategory(ctx context.Context, categoryID uuid.UUID) (int, error) {
+	db := database.DB(ctx, r.pool)
+	var count int
+	err := db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM products
+		 WHERE category_id = $1 AND status = 'published' AND deleted_at IS NULL`,
+		categoryID,
+	).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("counting published products: %w", err)
+	}
+	return count, nil
 }

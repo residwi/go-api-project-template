@@ -19,7 +19,8 @@ import (
 func TestService_Create(t *testing.T) {
 	t.Run("success without parent", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *category.Category) bool {
 			return c.Name == "Electronics" && c.Slug == "electronics" && c.Active
@@ -47,7 +48,8 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
@@ -61,7 +63,8 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("sets sort order and active from request", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		sortOrder := 5
 		active := false
@@ -96,7 +99,8 @@ func TestService_Create(t *testing.T) {
 func TestService_GetBySlug(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		expected := &category.Category{
 			ID:   uuid.New(),
@@ -113,7 +117,8 @@ func TestService_GetBySlug(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 
@@ -127,7 +132,8 @@ func TestService_GetBySlug(t *testing.T) {
 func TestService_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		expected := []category.Category{
 			{ID: uuid.New(), Name: "Electronics", Slug: "electronics"},
@@ -144,7 +150,8 @@ func TestService_List(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		repo.EXPECT().List(mock.Anything).Return(nil, errors.New("db error"))
 
@@ -157,7 +164,8 @@ func TestService_List(t *testing.T) {
 func TestService_GetByID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		id := uuid.New()
 		expected := &category.Category{ID: id, Name: "Electronics", Slug: "electronics"}
@@ -171,7 +179,8 @@ func TestService_GetByID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
@@ -186,7 +195,8 @@ func TestService_GetByID(t *testing.T) {
 func TestService_Update(t *testing.T) {
 	t.Run("success partial update", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		id := uuid.New()
 		existing := &category.Category{
@@ -218,7 +228,8 @@ func TestService_Update(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
@@ -234,7 +245,8 @@ func TestService_Update(t *testing.T) {
 
 	t.Run("update repo error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		id := uuid.New()
 		existing := &category.Category{
@@ -257,7 +269,8 @@ func TestService_Update(t *testing.T) {
 
 	t.Run("updates all optional fields", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		id := uuid.New()
 		existing := &category.Category{
@@ -297,10 +310,11 @@ func TestService_Update(t *testing.T) {
 func TestService_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		id := uuid.New()
-		repo.EXPECT().CountPublishedProducts(mock.Anything, id).Return(0, nil)
+		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
 		repo.EXPECT().Delete(mock.Anything, id).Return(nil)
 
 		err := svc.Delete(context.Background(), id)
@@ -310,10 +324,11 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		id := uuid.New()
-		repo.EXPECT().CountPublishedProducts(mock.Anything, id).Return(0, nil)
+		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
 		repo.EXPECT().Delete(mock.Anything, id).Return(apperror.ErrNotFound)
 
 		err := svc.Delete(context.Background(), id)
@@ -323,10 +338,11 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("has published products returns ErrBadRequest", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		id := uuid.New()
-		repo.EXPECT().CountPublishedProducts(mock.Anything, id).Return(3, nil)
+		counter.EXPECT().CountPublished(mock.Anything, id).Return(3, nil)
 
 		err := svc.Delete(context.Background(), id)
 
@@ -335,10 +351,11 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("count published products error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		id := uuid.New()
-		repo.EXPECT().CountPublishedProducts(mock.Anything, id).Return(0, errors.New("db error"))
+		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, errors.New("db error"))
 
 		err := svc.Delete(context.Background(), id)
 
@@ -347,10 +364,11 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("delete repo error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := category.NewService(repo)
+		counter := mocks.NewMockProductCounter(t)
+		svc := category.NewService(repo, counter)
 
 		id := uuid.New()
-		repo.EXPECT().CountPublishedProducts(mock.Anything, id).Return(0, nil)
+		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
 
 		deleteErr := errors.New("database delete failed")
 		repo.EXPECT().Delete(mock.Anything, id).Return(deleteErr)
@@ -358,4 +376,16 @@ func TestService_Delete(t *testing.T) {
 		err := svc.Delete(context.Background(), id)
 		assert.ErrorIs(t, err, deleteErr)
 	})
+}
+
+func TestService_Delete_RefusesCategoryWithPublishedProducts(t *testing.T) {
+	repo := mocks.NewMockRepository(t)
+	counter := mocks.NewMockProductCounter(t)
+	svc := category.NewService(repo, counter)
+
+	categoryID := uuid.New()
+	counter.EXPECT().CountPublished(mock.Anything, categoryID).Return(3, nil)
+
+	err := svc.Delete(context.Background(), categoryID)
+	require.ErrorIs(t, err, apperror.ErrBadRequest)
 }

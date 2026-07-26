@@ -655,6 +655,35 @@ func TestService_AvailableQuantity(t *testing.T) {
 	})
 }
 
+func TestService_CountPublishedByCategory(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		inv := mocks.NewMockInventoryReader(t)
+		reg := mocks.NewMockInventoryRegistrar(t)
+		svc := product.NewService(repo, inv, reg)
+
+		categoryID := uuid.New()
+		repo.EXPECT().CountPublishedByCategory(mock.Anything, categoryID).Return(3, nil)
+
+		count, err := svc.CountPublishedByCategory(context.Background(), categoryID)
+		require.NoError(t, err)
+		assert.Equal(t, 3, count)
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		inv := mocks.NewMockInventoryReader(t)
+		reg := mocks.NewMockInventoryRegistrar(t)
+		svc := product.NewService(repo, inv, reg)
+
+		categoryID := uuid.New()
+		repo.EXPECT().CountPublishedByCategory(mock.Anything, categoryID).Return(0, errors.New("db error"))
+
+		_, err := svc.CountPublishedByCategory(context.Background(), categoryID)
+		assert.Error(t, err)
+	})
+}
+
 func TestService_Create_RegistersZeroInventoryLevel(t *testing.T) {
 	repo := mocks.NewMockRepository(t)
 	inv := mocks.NewMockInventoryReader(t)

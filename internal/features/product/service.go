@@ -244,3 +244,9 @@ func (s *Service) AvailableQuantity(ctx context.Context, id uuid.UUID) (int, err
 	}
 	return avail, nil
 }
+
+// CountPublishedByCategory backs category's ProductCounter port: category has
+// no products table access of its own, so it asks here before deleting.
+func (s *Service) CountPublishedByCategory(ctx context.Context, categoryID uuid.UUID) (int, error) {
+	return s.repo.CountPublishedByCategory(ctx, categoryID)
+}

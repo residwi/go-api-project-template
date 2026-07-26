@@ -13,11 +13,12 @@ import (
 const maxCategoryDepth = 5
 
 type Service struct {
-	repo Repository
+	repo     Repository
+	products ProductCounter
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, products ProductCounter) *Service {
+	return &Service{repo: repo, products: products}
 }
 
 func (s *Service) Create(ctx context.Context, req CreateCategoryRequest) (*Category, error) {
@@ -98,7 +99,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateCategoryRe
 }
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
-	count, err := s.repo.CountPublishedProducts(ctx, id)
+	count, err := s.products.CountPublished(ctx, id)
 	if err != nil {
 		return err
 	}

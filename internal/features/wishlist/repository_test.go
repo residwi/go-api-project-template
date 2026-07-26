@@ -46,8 +46,8 @@ func seedProduct(t *testing.T) uuid.UUID {
 	t.Helper()
 	id := uuid.New()
 	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity)
-		 VALUES ($1, 'Test Product', $2, 'desc', 1000, 'USD', 10)`,
+		`INSERT INTO products (id, name, slug, description, price, currency)
+		 VALUES ($1, 'Test Product', $2, 'desc', 1000, 'USD')`,
 		id, "slug-"+id.String(),
 	)
 	require.NoError(t, err)

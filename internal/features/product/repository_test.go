@@ -33,8 +33,8 @@ func seedProduct(t *testing.T) *product.Product {
 	t.Helper()
 	id := uuid.New()
 	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity)
-		 VALUES ($1, 'Product', $2, 'desc', 1000, 'USD', 10)`,
+		`INSERT INTO products (id, name, slug, description, price, currency)
+		 VALUES ($1, 'Product', $2, 'desc', 1000, 'USD')`,
 		id, "slug-"+id.String(),
 	)
 	require.NoError(t, err)
@@ -212,8 +212,8 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		setup(t)
 		id := uuid.New()
 		_, err := testPool.Exec(context.Background(),
-			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status)
-			 VALUES ($1, 'Published Product', $2, 'desc', 1000, 'USD', 10, 'published')`,
+			`INSERT INTO products (id, name, slug, description, price, currency, status)
+			 VALUES ($1, 'Published Product', $2, 'desc', 1000, 'USD', 'published')`,
 			id, "pub-"+id.String(),
 		)
 		require.NoError(t, err)
@@ -243,8 +243,8 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 
 		id := uuid.New()
 		_, err = testPool.Exec(context.Background(),
-			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-			 VALUES ($1, 'Cat Product', $2, 'desc', 1000, 'USD', 10, 'published', $3)`,
+			`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+			 VALUES ($1, 'Cat Product', $2, 'desc', 1000, 'USD', 'published', $3)`,
 			id, "cat-prod-"+id.String()[:8], catID)
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
@@ -265,8 +265,8 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		setup(t)
 		id := uuid.New()
 		_, err := testPool.Exec(context.Background(),
-			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status)
-			 VALUES ($1, 'UniqueSearchable Widget', $2, 'desc', 1000, 'USD', 10, 'published')`,
+			`INSERT INTO products (id, name, slug, description, price, currency, status)
+			 VALUES ($1, 'UniqueSearchable Widget', $2, 'desc', 1000, 'USD', 'published')`,
 			id, "search-"+id.String()[:8])
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
@@ -285,8 +285,8 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		setup(t)
 		id := uuid.New()
 		_, err := testPool.Exec(context.Background(),
-			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status)
-			 VALUES ($1, 'Price Filter Product', $2, 'desc', 5000, 'USD', 10, 'published')`,
+			`INSERT INTO products (id, name, slug, description, price, currency, status)
+			 VALUES ($1, 'Price Filter Product', $2, 'desc', 5000, 'USD', 'published')`,
 			id, "price-"+id.String()[:8])
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
@@ -313,8 +313,8 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		for range 3 {
 			id := uuid.New()
 			_, err := testPool.Exec(context.Background(),
-				`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status)
-				 VALUES ($1, $2, $3, 'desc', 1000, 'USD', 10, 'published')`,
+				`INSERT INTO products (id, name, slug, description, price, currency, status)
+				 VALUES ($1, $2, $3, 'desc', 1000, 'USD', 'published')`,
 				id, "cursor-prod-"+id.String()[:8], "cursor-"+id.String()[:8])
 			require.NoError(t, err)
 			t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
@@ -380,8 +380,8 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		setup(t)
 		id := uuid.New()
 		_, err := testPool.Exec(context.Background(),
-			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status)
-			 VALUES ($1, 'Draft Product', $2, 'desc', 1000, 'USD', 10, 'draft')`,
+			`INSERT INTO products (id, name, slug, description, price, currency, status)
+			 VALUES ($1, 'Draft Product', $2, 'desc', 1000, 'USD', 'draft')`,
 			id, "draft-"+id.String()[:8])
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
@@ -410,8 +410,8 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 
 		id := uuid.New()
 		_, err = testPool.Exec(context.Background(),
-			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-			 VALUES ($1, 'Admin Cat Product', $2, 'desc', 1000, 'USD', 10, 'draft', $3)`,
+			`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+			 VALUES ($1, 'Admin Cat Product', $2, 'desc', 1000, 'USD', 'draft', $3)`,
 			id, "admin-cat-prod-"+id.String()[:8], catID)
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
@@ -434,8 +434,8 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		sku := "UNIQSKU-" + uuid.New().String()[:8]
 		id := uuid.New()
 		_, err := testPool.Exec(context.Background(),
-			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, sku)
-			 VALUES ($1, 'Admin Search Product', $2, 'desc', 1000, 'USD', 10, 'draft', $3)`,
+			`INSERT INTO products (id, name, slug, description, price, currency, status, sku)
+			 VALUES ($1, 'Admin Search Product', $2, 'desc', 1000, 'USD', 'draft', $3)`,
 			id, "admin-search-"+id.String()[:8], sku)
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
@@ -460,16 +460,16 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 
 		archivedID := uuid.New()
 		_, err := testPool.Exec(context.Background(),
-			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status)
-			 VALUES ($1, 'Archived', $2, 'desc', 1000, 'USD', 10, 'archived')`,
+			`INSERT INTO products (id, name, slug, description, price, currency, status)
+			 VALUES ($1, 'Archived', $2, 'desc', 1000, 'USD', 'archived')`,
 			archivedID, "archived-"+archivedID.String())
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, archivedID) })
 
 		deletedID := uuid.New()
 		_, err = testPool.Exec(context.Background(),
-			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, deleted_at)
-			 VALUES ($1, 'Deleted', $2, 'desc', 1000, 'USD', 10, NOW())`,
+			`INSERT INTO products (id, name, slug, description, price, currency, deleted_at)
+			 VALUES ($1, 'Deleted', $2, 'desc', 1000, 'USD', NOW())`,
 			deletedID, "deleted-"+deletedID.String())
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, deletedID) })
@@ -495,6 +495,48 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		got, err := repo.GetByIDsIncludingDeleted(context.Background(), nil)
 		require.NoError(t, err)
 		assert.Empty(t, got)
+	})
+}
+
+func TestPostgresRepository_CountPublishedByCategory(t *testing.T) {
+	t.Run("returns zero when no products", func(t *testing.T) {
+		setup(t)
+		catID := uuid.New()
+		_, err := testPool.Exec(context.Background(),
+			`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Empty Cat', $2, true)`,
+			catID, "empty-cat-"+catID.String()[:8])
+		require.NoError(t, err)
+		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM categories WHERE id = $1`, catID) })
+
+		repo := product.NewPostgresRepository(testPool)
+		count, err := repo.CountPublishedByCategory(context.Background(), catID)
+		require.NoError(t, err)
+		assert.Equal(t, 0, count)
+	})
+
+	t.Run("returns count of published products", func(t *testing.T) {
+		setup(t)
+		ctx := context.Background()
+		catID := uuid.New()
+		_, err := testPool.Exec(ctx,
+			`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Count Cat', $2, true)`,
+			catID, "count-cat-"+catID.String()[:8])
+		require.NoError(t, err)
+		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
+
+		productID := uuid.New()
+		_, err = testPool.Exec(ctx,
+			`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+			 VALUES ($1, 'Product', $2, 'desc', 1000, 'USD', 'published', $3)`,
+			productID, "slug-"+productID.String(), catID,
+		)
+		require.NoError(t, err)
+		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, productID) })
+
+		repo := product.NewPostgresRepository(testPool)
+		count, err := repo.CountPublishedByCategory(ctx, catID)
+		require.NoError(t, err)
+		assert.Equal(t, 1, count)
 	})
 }
 
@@ -570,6 +612,12 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	t.Run("GetImagesByProductID", func(t *testing.T) {
 		setup(t)
 		_, err := repo.GetImagesByProductID(cancelledCtx, uuid.New())
+		assert.Error(t, err)
+	})
+
+	t.Run("CountPublishedByCategory", func(t *testing.T) {
+		setup(t)
+		_, err := repo.CountPublishedByCategory(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
 }

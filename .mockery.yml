@@ -16,6 +16,7 @@ packages:
   github.com/residwi/go-api-project-template/internal/features/category:
     interfaces:
       Repository:
+      ProductCounter:
   github.com/residwi/go-api-project-template/internal/features/product:
     interfaces:
       Repository:

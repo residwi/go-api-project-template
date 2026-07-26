@@ -207,40 +207,6 @@ func TestPostgresRepository_List(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_CountPublishedProducts(t *testing.T) {
-	t.Run("returns zero when no products", func(t *testing.T) {
-		setup(t)
-		cat := seedCategory(t)
-		repo := category.NewPostgresRepository(testPool)
-
-		count, err := repo.CountPublishedProducts(context.Background(), cat.ID)
-		require.NoError(t, err)
-		assert.Equal(t, 0, count)
-	})
-
-	t.Run("returns count of published products", func(t *testing.T) {
-		setup(t)
-		cat := seedCategory(t)
-		repo := category.NewPostgresRepository(testPool)
-		ctx := context.Background()
-
-		productID := uuid.New()
-		_, err := testPool.Exec(ctx,
-			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-			 VALUES ($1, 'Product', $2, 'desc', 1000, 'USD', 10, 'published', $3)`,
-			productID, "slug-"+productID.String(), cat.ID,
-		)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, productID)
-		})
-
-		count, err := repo.CountPublishedProducts(ctx, cat.ID)
-		require.NoError(t, err)
-		assert.Equal(t, 1, count)
-	})
-}
-
 func TestPostgresRepository_CancelledContext(t *testing.T) {
 	repo := category.NewPostgresRepository(testPool)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -298,12 +264,6 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	t.Run("List returns error on cancelled context", func(t *testing.T) {
 		setup(t)
 		_, err := repo.List(ctx)
-		assert.Error(t, err)
-	})
-
-	t.Run("CountPublishedProducts returns error on cancelled context", func(t *testing.T) {
-		setup(t)
-		_, err := repo.CountPublishedProducts(ctx, uuid.New())
 		assert.Error(t, err)
 	})
 }

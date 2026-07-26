@@ -12,10 +12,18 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/category"
 )
 
+// noopProductCounter always reports zero published products. None of these
+// tests exercise Delete, so it is wired in but never actually invoked.
+type noopProductCounter struct{}
+
+func (noopProductCounter) CountPublished(ctx context.Context, categoryID uuid.UUID) (int, error) {
+	return 0, nil
+}
+
 func newTestService(t *testing.T) *category.Service {
 	t.Helper()
 	repo := category.NewPostgresRepository(testPool)
-	return category.NewService(repo)
+	return category.NewService(repo, noopProductCounter{})
 }
 
 func createCategory(t *testing.T, svc *category.Service, parentID *uuid.UUID) *category.Category {

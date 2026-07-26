@@ -562,8 +562,8 @@ func TestE2EOrderFlow(t *testing.T) {
 	// Seed a product
 	prodID := uuid.New()
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-		 VALUES ($1, 'E2E Product', $2, 'desc', 5000, 'USD', 100, 'published', $3)`,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'E2E Product', $2, 'desc', 5000, 'USD', 'published', $3)`,
 		prodID, "e2e-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -571,8 +571,8 @@ func TestE2EOrderFlow(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
 	})
 
-	// Ensure product has stock: inventory reserves against inventory_levels, not
-	// products.stock_quantity.
+	// Ensure product has stock: inventory reserves against inventory_levels, the
+	// products table no longer carries a stock column at all.
 	seedInventoryLevel(t, prodID, 100, 0)
 
 	// Register user and get token
@@ -673,8 +673,8 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 
 	prodID := uuid.New()
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-		 VALUES ($1, 'Cancel Product', $2, 'desc', 3000, 'USD', 50, 'published', $3)`,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'Cancel Product', $2, 'desc', 3000, 'USD', 'published', $3)`,
 		prodID, "cancel-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -868,8 +868,8 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 
 	prodID := uuid.New()
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-		 VALUES ($1, 'Webhook Product', $2, 'desc', 5000, 'USD', 100, 'published', $3)`,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'Webhook Product', $2, 'desc', 5000, 'USD', 'published', $3)`,
 		prodID, "webhook-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -988,8 +988,8 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 
 	prodID := uuid.New()
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-		 VALUES ($1, 'Fail Product', $2, 'desc', 2000, 'USD', 50, 'published', $3)`,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'Fail Product', $2, 'desc', 2000, 'USD', 'published', $3)`,
 		prodID, "fail-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -1005,8 +1005,8 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	// quantity at 2 preserves the reserved_stock == 2 assertion below.
 	prod2ID := uuid.New()
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-		 VALUES ($1, 'Fail Product 2', $2, 'desc', 99, 'USD', 50, 'published', $3)`,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'Fail Product 2', $2, 'desc', 99, 'USD', 'published', $3)`,
 		prod2ID, "fail-prod2-"+prod2ID.String()[:8], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -1160,8 +1160,8 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 
 	prodID := uuid.New()
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-		 VALUES ($1, 'Refund Product', $2, 'desc', 3000, 'USD', 100, 'published', $3)`,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'Refund Product', $2, 'desc', 3000, 'USD', 'published', $3)`,
 		prodID, "refund-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -1351,8 +1351,8 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 
 	prodID := uuid.New()
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-		 VALUES ($1, 'Ship Product', $2, 'desc', 4000, 'USD', 100, 'published', $3)`,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'Ship Product', $2, 'desc', 4000, 'USD', 'published', $3)`,
 		prodID, "ship-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -1528,8 +1528,8 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	// synchronous charge FAIL, leaving the order awaiting_payment so it can be
 	// cancelled (a paid order can't be cancelled).
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-		 VALUES ($1, 'Coupon Product', $2, 'desc', 1110, 'USD', 50, 'published', $3)`,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'Coupon Product', $2, 'desc', 1110, 'USD', 'published', $3)`,
 		prodID, "coupon-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -1670,8 +1670,8 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 
 	prodID := uuid.New()
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-		 VALUES ($1, 'RelCoupon Product', $2, 'desc', 8000, 'USD', 100, 'published', $3)`,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'RelCoupon Product', $2, 'desc', 8000, 'USD', 'published', $3)`,
 		prodID, "relcoupon-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -1900,8 +1900,8 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 
 	prodID := uuid.New()
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status, category_id)
-		 VALUES ($1, 'ErrAdapt Product', $2, 'desc', 3000, 'USD', 100, 'published', $3)`,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'ErrAdapt Product', $2, 'desc', 3000, 'USD', 'published', $3)`,
 		prodID, "erradapt-prod-"+prodID.String()[:8], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {

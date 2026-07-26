@@ -69,12 +69,12 @@ func TestService_ExpireStale_Integration(t *testing.T) {
 
 		productID := uuid.New()
 		_, err := testPool.Exec(ctx,
-			`INSERT INTO products (id, name, slug, price, currency, status, stock_quantity, reserved_quantity)
-			 VALUES ($1, 'Expiry Product', $2, 1000, 'USD', 'published', 10, 3)`,
+			`INSERT INTO products (id, name, slug, price, currency, status)
+			 VALUES ($1, 'Expiry Product', $2, 1000, 'USD', 'published')`,
 			productID, "expiry-"+productID.String()[:8])
 		require.NoError(t, err)
-		// inventory reads/writes inventory_levels now, not products.stock_quantity:
-		// available = old stock_quantity(10) - reserved_quantity(3).
+		// inventory reads and writes inventory_levels, not the products table:
+		// 7 sellable plus a 3-unit hold for the order placed below.
 		_, err = testPool.Exec(ctx,
 			`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
 			 VALUES ($1, 7, 3)`, productID)
