@@ -102,7 +102,40 @@ func (s *Service) LockCart(ctx context.Context, userID uuid.UUID) error {
 }
 
 func (s *Service) GetCart(ctx context.Context, userID uuid.UUID) (*Cart, error) {
-	return s.repo.GetCart(ctx, userID)
+	c, err := s.repo.GetCart(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(c.Items) == 0 {
+		return c, nil
+	}
+
+	ids := make([]uuid.UUID, len(c.Items))
+	for i := range c.Items {
+		ids[i] = c.Items[i].ProductID
+	}
+	infos, err := s.products.GetByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("looking up cart products: %w", err)
+	}
+
+	for i := range c.Items {
+		info, ok := infos[c.Items[i].ProductID]
+		if !ok {
+			// The product record is gone entirely. Keep the line visible and
+			// unsellable rather than making the customer's total change silently.
+			c.Items[i].Product = &Product{Status: "unavailable"}
+			continue
+		}
+		c.Items[i].Product = &Product{
+			Name:     info.Name,
+			Price:    info.Price,
+			Currency: info.Currency,
+			Stock:    info.Available,
+			Status:   info.Status,
+		}
+	}
+	return c, nil
 }
 
 func (s *Service) Clear(ctx context.Context, userID uuid.UUID) error {

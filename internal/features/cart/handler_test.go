@@ -50,6 +50,14 @@ func (s *stubProducts) GetByID(_ context.Context, id uuid.UUID) (*ProductInfo, e
 	return &ProductInfo{ID: id, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil
 }
 
+func (s *stubProducts) GetByIDs(_ context.Context, ids []uuid.UUID) (map[uuid.UUID]ProductInfo, error) {
+	out := make(map[uuid.UUID]ProductInfo, len(ids))
+	for _, id := range ids {
+		out[id] = ProductInfo{ID: id, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}
+	}
+	return out, nil
+}
+
 func newTestHandler() *handler {
 	return &handler{
 		service:   &Service{},

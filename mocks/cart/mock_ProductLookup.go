@@ -106,3 +106,71 @@ func (_c *MockProductLookup_GetByID_Call) RunAndReturn(run func(ctx context.Cont
 	_c.Call.Return(run)
 	return _c
 }
+
+// GetByIDs provides a mock function for the type MockProductLookup
+func (_mock *MockProductLookup) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]cart.ProductInfo, error) {
+	ret := _mock.Called(ctx, ids)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByIDs")
+	}
+
+	var r0 map[uuid.UUID]cart.ProductInfo
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]cart.ProductInfo, error)); ok {
+		return returnFunc(ctx, ids)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]cart.ProductInfo); ok {
+		r0 = returnFunc(ctx, ids)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uuid.UUID]cart.ProductInfo)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, ids)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockProductLookup_GetByIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByIDs'
+type MockProductLookup_GetByIDs_Call struct {
+	*mock.Call
+}
+
+// GetByIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ids []uuid.UUID
+func (_e *MockProductLookup_Expecter) GetByIDs(ctx any, ids any) *MockProductLookup_GetByIDs_Call {
+	return &MockProductLookup_GetByIDs_Call{Call: _e.mock.On("GetByIDs", ctx, ids)}
+}
+
+func (_c *MockProductLookup_GetByIDs_Call) Run(run func(ctx context.Context, ids []uuid.UUID)) *MockProductLookup_GetByIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockProductLookup_GetByIDs_Call) Return(uUIDToProductInfo map[uuid.UUID]cart.ProductInfo, err error) *MockProductLookup_GetByIDs_Call {
+	_c.Call.Return(uUIDToProductInfo, err)
+	return _c
+}
+
+func (_c *MockProductLookup_GetByIDs_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]cart.ProductInfo, error)) *MockProductLookup_GetByIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}

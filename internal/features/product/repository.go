@@ -35,6 +35,7 @@ type Repository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	ListPublished(ctx context.Context, params PublishedListParams) ([]Product, string, bool, error)
 	ListAdmin(ctx context.Context, params AdminListParams) ([]Product, int, error)
+	GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UUID) ([]Product, error)
 	AddImage(ctx context.Context, img *Image) error
 	DeleteImage(ctx context.Context, imageID uuid.UUID) error
 	GetImagesByProductID(ctx context.Context, productID uuid.UUID) ([]Image, error)
@@ -271,6 +272,25 @@ func (r *PostgresRepository) ListAdmin(ctx context.Context, params AdminListPara
 	}
 
 	return products, total, nil
+}
+
+// GetByIDsIncludingDeleted returns products regardless of status or deleted_at,
+// so a consumer holding a stale id (a cart line, a wishlist entry) can render
+// what it has instead of dropping the row.
+func (r *PostgresRepository) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UUID) ([]Product, error) {
+	if len(ids) == 0 {
+		return []Product{}, nil
+	}
+	db := database.DB(ctx, r.pool)
+	rows, err := db.Query(ctx,
+		`SELECT id, category_id, name, slug, description, price, compare_at_price,
+		        currency, sku, status, created_at, updated_at
+		FROM products WHERE id = ANY($1)`, ids)
+	if err != nil {
+		return nil, fmt.Errorf("getting products by ids: %w", err)
+	}
+	defer rows.Close()
+	return pgx.CollectRows(rows, scanProduct)
 }
 
 func (r *PostgresRepository) AddImage(ctx context.Context, img *Image) error {

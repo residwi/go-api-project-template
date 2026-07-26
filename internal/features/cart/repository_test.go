@@ -108,6 +108,26 @@ func TestPostgresRepository_GetCart(t *testing.T) {
 		assert.Equal(t, cartID, c.Items[0].CartID)
 		assert.Equal(t, productID, c.Items[0].ProductID)
 		assert.Equal(t, 2, c.Items[0].Quantity)
+		assert.Nil(t, c.Items[0].Product, "repository no longer joins products; the service fills this in through ProductLookup")
+	})
+
+	t.Run("keeps the line when its product is soft-deleted", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		productID := seedProduct(t)
+		repo := cart.NewPostgresRepository(testPool)
+		ctx := context.Background()
+
+		cartID, _ := repo.GetOrCreate(ctx, userID)
+		require.NoError(t, repo.AddItem(ctx, cartID, productID, 1))
+
+		_, err := testPool.Exec(ctx, `UPDATE products SET deleted_at = NOW() WHERE id = $1`, productID)
+		require.NoError(t, err)
+
+		c, err := repo.GetCart(ctx, userID)
+		require.NoError(t, err)
+		require.Len(t, c.Items, 1, "a soft-deleted product's line must not silently vanish from the cart")
+		assert.Equal(t, productID, c.Items[0].ProductID)
 	})
 }
 

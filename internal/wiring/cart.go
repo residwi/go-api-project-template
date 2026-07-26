@@ -30,3 +30,22 @@ func (a *productLookupAdapter) GetByID(ctx context.Context, id uuid.UUID) (*cart
 		Available: p.Availability.Available,
 	}, nil
 }
+
+func (a *productLookupAdapter) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]cart.ProductInfo, error) {
+	products, err := a.svc.GetByIDsIncludingDeleted(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uuid.UUID]cart.ProductInfo, len(products))
+	for _, p := range products {
+		out[p.ID] = cart.ProductInfo{
+			ID:        p.ID,
+			Name:      p.Name,
+			Price:     p.Price,
+			Currency:  p.Currency,
+			Status:    p.Status,
+			Available: p.Availability.Available,
+		}
+	}
+	return out, nil
+}

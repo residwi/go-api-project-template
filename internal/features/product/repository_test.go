@@ -453,6 +453,51 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 	})
 }
 
+func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
+	t.Run("returns soft-deleted and unpublished products alongside live ones", func(t *testing.T) {
+		setup(t)
+		live := seedProduct(t)
+
+		archivedID := uuid.New()
+		_, err := testPool.Exec(context.Background(),
+			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, status)
+			 VALUES ($1, 'Archived', $2, 'desc', 1000, 'USD', 10, 'archived')`,
+			archivedID, "archived-"+archivedID.String())
+		require.NoError(t, err)
+		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, archivedID) })
+
+		deletedID := uuid.New()
+		_, err = testPool.Exec(context.Background(),
+			`INSERT INTO products (id, name, slug, description, price, currency, stock_quantity, deleted_at)
+			 VALUES ($1, 'Deleted', $2, 'desc', 1000, 'USD', 10, NOW())`,
+			deletedID, "deleted-"+deletedID.String())
+		require.NoError(t, err)
+		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, deletedID) })
+
+		repo := product.NewPostgresRepository(testPool)
+		got, err := repo.GetByIDsIncludingDeleted(context.Background(), []uuid.UUID{live.ID, archivedID, deletedID, uuid.New()})
+		require.NoError(t, err)
+
+		byID := make(map[uuid.UUID]product.Product, len(got))
+		for _, p := range got {
+			byID[p.ID] = p
+		}
+		require.Len(t, byID, 3, "the fourth id has no row at all and must simply be absent")
+		assert.Equal(t, live.Status, byID[live.ID].Status)
+		assert.Equal(t, "archived", byID[archivedID].Status)
+		assert.Contains(t, byID, deletedID, "a soft-deleted product must still be returned")
+	})
+
+	t.Run("returns empty slice for empty ids", func(t *testing.T) {
+		setup(t)
+		repo := product.NewPostgresRepository(testPool)
+
+		got, err := repo.GetByIDsIncludingDeleted(context.Background(), nil)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
+
 func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -500,6 +545,12 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	t.Run("ListAdmin", func(t *testing.T) {
 		setup(t)
 		_, _, err := repo.ListAdmin(cancelledCtx, product.AdminListParams{Page: 1, PageSize: 10})
+		assert.Error(t, err)
+	})
+
+	t.Run("GetByIDsIncludingDeleted", func(t *testing.T) {
+		setup(t)
+		_, err := repo.GetByIDsIncludingDeleted(cancelledCtx, []uuid.UUID{uuid.New()})
 		assert.Error(t, err)
 	})
 

@@ -11,6 +11,10 @@ import (
 
 type ProductLookup interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*ProductInfo, error)
+	// GetByIDs answers for a whole cart in one call. It returns soft-deleted and
+	// unpublished products too, carrying Status -- cart decides whether to show a
+	// line as unavailable, because the display rule is cart's, not product's.
+	GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]ProductInfo, error)
 }
 
 type ProductInfo struct {

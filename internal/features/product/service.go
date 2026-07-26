@@ -142,6 +142,20 @@ func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]Prod
 	return products, total, nil
 }
 
+// GetByIDsIncludingDeleted returns products regardless of status or deleted_at,
+// so a consumer holding a stale id (a cart line, a wishlist entry) can render
+// what it has instead of dropping the row.
+func (s *Service) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UUID) ([]Product, error) {
+	products, err := s.repo.GetByIDsIncludingDeleted(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.enrich(ctx, products); err != nil {
+		return nil, err
+	}
+	return products, nil
+}
+
 func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateProductRequest) (*Product, error) {
 	p, err := s.repo.GetByID(ctx, id)
 	if err != nil {

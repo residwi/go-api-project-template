@@ -335,6 +335,74 @@ func (_c *MockRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// GetByIDsIncludingDeleted provides a mock function for the type MockRepository
+func (_mock *MockRepository) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UUID) ([]product.Product, error) {
+	ret := _mock.Called(ctx, ids)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByIDsIncludingDeleted")
+	}
+
+	var r0 []product.Product
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) ([]product.Product, error)); ok {
+		return returnFunc(ctx, ids)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) []product.Product); ok {
+		r0 = returnFunc(ctx, ids)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]product.Product)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, ids)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_GetByIDsIncludingDeleted_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByIDsIncludingDeleted'
+type MockRepository_GetByIDsIncludingDeleted_Call struct {
+	*mock.Call
+}
+
+// GetByIDsIncludingDeleted is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ids []uuid.UUID
+func (_e *MockRepository_Expecter) GetByIDsIncludingDeleted(ctx any, ids any) *MockRepository_GetByIDsIncludingDeleted_Call {
+	return &MockRepository_GetByIDsIncludingDeleted_Call{Call: _e.mock.On("GetByIDsIncludingDeleted", ctx, ids)}
+}
+
+func (_c *MockRepository_GetByIDsIncludingDeleted_Call) Run(run func(ctx context.Context, ids []uuid.UUID)) *MockRepository_GetByIDsIncludingDeleted_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_GetByIDsIncludingDeleted_Call) Return(products []product.Product, err error) *MockRepository_GetByIDsIncludingDeleted_Call {
+	_c.Call.Return(products, err)
+	return _c
+}
+
+func (_c *MockRepository_GetByIDsIncludingDeleted_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) ([]product.Product, error)) *MockRepository_GetByIDsIncludingDeleted_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBySlug provides a mock function for the type MockRepository
 func (_mock *MockRepository) GetBySlug(ctx context.Context, slug string) (*product.Product, error) {
 	ret := _mock.Called(ctx, slug)

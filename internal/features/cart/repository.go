@@ -13,17 +13,17 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
+// scanCartItem reads only cart's own columns. Product name, price and
+// availability are filled by the service through ProductLookup; joining
+// products here would put product's lifecycle rule (deleted_at IS NULL) inside
+// cart's query.
 func scanCartItem(row pgx.CollectableRow) (Item, error) {
 	var item Item
-	var cp Product
-	err := row.Scan(
-		&item.ID, &item.CartID, &item.ProductID, &item.Quantity, &item.CreatedAt, &item.UpdatedAt,
-		&cp.Name, &cp.Price, &cp.Currency, &cp.Stock, &cp.Status,
-	)
+	err := row.Scan(&item.ID, &item.CartID, &item.ProductID, &item.Quantity,
+		&item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return Item{}, err
 	}
-	item.Product = &cp
 	return item, nil
 }
 
@@ -78,12 +78,10 @@ func (r *PostgresRepository) GetCart(ctx context.Context, userID uuid.UUID) (*Ca
 	}
 
 	rows, err := db.Query(ctx,
-		`SELECT ci.id, ci.cart_id, ci.product_id, ci.quantity, ci.created_at, ci.updated_at,
-		        p.name, p.price, p.currency, (p.stock_quantity - p.reserved_quantity), p.status
-		FROM cart_items ci
-		JOIN products p ON p.id = ci.product_id AND p.deleted_at IS NULL
-		WHERE ci.cart_id = $1
-		ORDER BY ci.created_at`,
+		`SELECT id, cart_id, product_id, quantity, created_at, updated_at
+		FROM cart_items
+		WHERE cart_id = $1
+		ORDER BY created_at`,
 		c.ID,
 	)
 	if err != nil {

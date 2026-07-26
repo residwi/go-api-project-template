@@ -376,6 +376,65 @@ func TestService_GetCart(t *testing.T) {
 	})
 }
 
+func TestService_GetCart_FlagsUnavailableLines(t *testing.T) {
+	repo := cartMocks.NewMockRepository(t)
+	products := cartMocks.NewMockProductLookup(t)
+	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+
+	userID := uuid.New()
+	liveID, goneID := uuid.New(), uuid.New()
+
+	repo.EXPECT().GetCart(mock.Anything, userID).Return(&cart.Cart{
+		UserID: userID,
+		Items: []cart.Item{
+			{ProductID: liveID, Quantity: 2},
+			{ProductID: goneID, Quantity: 1},
+		},
+	}, nil)
+
+	// The port reports what it knows. A soft-deleted product still comes back,
+	// carrying its status -- cart, not product, decides how to show it.
+	products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{liveID, goneID}).
+		Return(map[uuid.UUID]cart.ProductInfo{
+			liveID: {ID: liveID, Name: "Widget", Price: 1500, Currency: "USD", Status: "published", Available: 5},
+			goneID: {ID: goneID, Name: "Gone", Price: 900, Currency: "USD", Status: "archived", Available: 0},
+		}, nil)
+
+	c, err := svc.GetCart(context.Background(), userID)
+	require.NoError(t, err)
+	require.Len(t, c.Items, 2, "an unsellable line must be shown, not hidden")
+	assert.Equal(t, "published", c.Items[0].Product.Status)
+	assert.Equal(t, "archived", c.Items[1].Product.Status)
+}
+
+func TestService_GetCart_MissingProductBecomesUnavailable(t *testing.T) {
+	repo := cartMocks.NewMockRepository(t)
+	products := cartMocks.NewMockProductLookup(t)
+	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+
+	userID := uuid.New()
+	missingID := uuid.New()
+
+	repo.EXPECT().GetCart(mock.Anything, userID).Return(&cart.Cart{
+		UserID: userID,
+		Items: []cart.Item{
+			{ProductID: missingID, Quantity: 1},
+		},
+	}, nil)
+
+	// The product row is gone entirely -- absent from the map, not merely
+	// carrying a terminal status. The line must still render, non-nil, so a
+	// later consumer of Item.Product never has to nil-check it.
+	products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{missingID}).
+		Return(map[uuid.UUID]cart.ProductInfo{}, nil)
+
+	c, err := svc.GetCart(context.Background(), userID)
+	require.NoError(t, err)
+	require.Len(t, c.Items, 1)
+	require.NotNil(t, c.Items[0].Product)
+	assert.Equal(t, "unavailable", c.Items[0].Product.Status)
+}
+
 func TestService_Clear(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := cartMocks.NewMockRepository(t)

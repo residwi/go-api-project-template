@@ -564,6 +564,47 @@ func TestService_ListPublished_EnrichesWithAvailability(t *testing.T) {
 	assert.Equal(t, 0, items[1].Availability.Available)
 }
 
+func TestService_GetByIDsIncludingDeleted(t *testing.T) {
+	t.Run("enriches through inventory in one batch call", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		inv := mocks.NewMockInventoryReader(t)
+		reg := mocks.NewMockInventoryRegistrar(t)
+		svc := product.NewService(repo, inv, reg)
+
+		liveID, archivedID := uuid.New(), uuid.New()
+		ids := []uuid.UUID{liveID, archivedID}
+		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, ids).
+			Return([]product.Product{
+				{ID: liveID, Name: "Live", Status: product.StatusPublished},
+				{ID: archivedID, Name: "Gone", Status: product.StatusArchived},
+			}, nil)
+		// One batch call for the whole set -- not one call per id.
+		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{liveID, archivedID}).
+			Return(map[uuid.UUID]product.Availability{
+				liveID: {OnHand: 10, Available: 8},
+			}, nil)
+
+		got, err := svc.GetByIDsIncludingDeleted(context.Background(), ids)
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		assert.Equal(t, 8, got[0].Availability.Available)
+		assert.Equal(t, product.StatusArchived, got[1].Status)
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		inv := mocks.NewMockInventoryReader(t)
+		reg := mocks.NewMockInventoryRegistrar(t)
+		svc := product.NewService(repo, inv, reg)
+
+		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, mock.Anything).
+			Return(nil, errors.New("db error"))
+
+		_, err := svc.GetByIDsIncludingDeleted(context.Background(), []uuid.UUID{uuid.New()})
+		require.Error(t, err)
+	})
+}
+
 func TestService_AvailableQuantity(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
