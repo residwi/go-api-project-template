@@ -14,6 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/cart"
 	"github.com/residwi/go-api-project-template/internal/category"
+	categorypg "github.com/residwi/go-api-project-template/internal/category/postgres"
 	"github.com/residwi/go-api-project-template/internal/dashboard"
 	"github.com/residwi/go-api-project-template/internal/inventory"
 	"github.com/residwi/go-api-project-template/internal/notification"
@@ -46,7 +47,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	v := validator.New()
 
 	userRepo := userpg.New(deps.Pool)
-	categoryRepo := category.NewPostgresRepository(deps.Pool)
+	categoryRepo := categorypg.New(deps.Pool)
 	productRepo := product.NewPostgresRepository(deps.Pool)
 	inventoryRepo := inventory.NewPostgresRepository(deps.Pool)
 	cartRepo := cart.NewPostgresRepository(deps.Pool)

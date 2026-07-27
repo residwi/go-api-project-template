@@ -10,6 +10,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/category"
+	"github.com/residwi/go-api-project-template/internal/category/postgres"
 )
 
 // noopProductCounter always reports zero published products. None of these
@@ -22,7 +23,7 @@ func (noopProductCounter) CountPublished(_ context.Context, _ uuid.UUID) (int, e
 
 func newTestService(t *testing.T) *category.Service {
 	t.Helper()
-	repo := category.NewPostgresRepository(testPool)
+	repo := postgres.New(testPool)
 	return category.NewService(repo, noopProductCounter{})
 }
 

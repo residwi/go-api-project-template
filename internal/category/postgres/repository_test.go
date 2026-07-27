@@ -1,4 +1,4 @@
-package category_test
+package postgres_test
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/category"
+	"github.com/residwi/go-api-project-template/internal/category/postgres"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -31,7 +32,7 @@ func setup(t *testing.T) {
 
 func seedCategory(t *testing.T) *category.Category {
 	t.Helper()
-	repo := category.NewPostgresRepository(testPool)
+	repo := postgres.New(testPool)
 	desc := "Test description"
 	cat := &category.Category{
 		Name:        "Category-" + uuid.New().String()[:8],
@@ -50,7 +51,7 @@ func seedCategory(t *testing.T) *category.Category {
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates category", func(t *testing.T) {
 		setup(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		desc := "A description"
 		cat := &category.Category{
 			Name:        "New Category",
@@ -72,7 +73,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("returns conflict on duplicate slug", func(t *testing.T) {
 		setup(t)
 		existing := seedCategory(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		dup := &category.Category{
 			Name:      "Duplicate",
@@ -89,7 +90,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns category", func(t *testing.T) {
 		setup(t)
 		cat := seedCategory(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		got, err := repo.GetByID(context.Background(), cat.ID)
 		require.NoError(t, err)
@@ -100,7 +101,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -111,7 +112,7 @@ func TestPostgresRepository_GetBySlug(t *testing.T) {
 	t.Run("returns category by slug", func(t *testing.T) {
 		setup(t)
 		cat := seedCategory(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		got, err := repo.GetBySlug(context.Background(), cat.Slug)
 		require.NoError(t, err)
@@ -121,7 +122,7 @@ func TestPostgresRepository_GetBySlug(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		_, err := repo.GetBySlug(context.Background(), "nonexistent-slug")
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -132,7 +133,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 	t.Run("updates category fields", func(t *testing.T) {
 		setup(t)
 		cat := seedCategory(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		cat.Name = "Updated Name"
 		cat.Active = false
@@ -147,7 +148,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		cat := &category.Category{
 			ID:        uuid.New(),
@@ -164,7 +165,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		setup(t)
 		cat1 := seedCategory(t)
 		cat2 := seedCategory(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		cat2.Slug = cat1.Slug
 		err := repo.Update(context.Background(), cat2)
@@ -176,7 +177,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("deletes category", func(t *testing.T) {
 		setup(t)
 		cat := seedCategory(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		err := repo.Delete(context.Background(), cat.ID)
 		require.NoError(t, err)
@@ -187,7 +188,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		err := repo.Delete(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -199,7 +200,7 @@ func TestPostgresRepository_List(t *testing.T) {
 		setup(t)
 		seedCategory(t)
 		seedCategory(t)
-		repo := category.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		categories, err := repo.List(context.Background())
 		require.NoError(t, err)
@@ -208,7 +209,7 @@ func TestPostgresRepository_List(t *testing.T) {
 }
 
 func TestPostgresRepository_CancelledContext(t *testing.T) {
-	repo := category.NewPostgresRepository(testPool)
+	repo := postgres.New(testPool)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
