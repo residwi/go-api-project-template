@@ -1,4 +1,4 @@
-package promotion_test
+package postgres_test
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/promotion"
+	"github.com/residwi/go-api-project-template/internal/promotion/postgres"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -57,7 +58,7 @@ func newPromotion(code string) *promotion.Promotion {
 
 func seedPromotion(t *testing.T) *promotion.Promotion {
 	t.Helper()
-	repo := promotion.NewPostgresRepository(testPool)
+	repo := postgres.New(testPool)
 	p := newPromotion("PROMO-" + uuid.New().String()[:8])
 	require.NoError(t, repo.Create(context.Background(), p))
 	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM promotions WHERE id = $1`, p.ID) })
@@ -67,7 +68,7 @@ func seedPromotion(t *testing.T) *promotion.Promotion {
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates promotion", func(t *testing.T) {
 		setup(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		p := newPromotion("CREATE-" + uuid.New().String()[:8])
 
 		err := repo.Create(context.Background(), p)
@@ -80,7 +81,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("returns conflict error on duplicate code", func(t *testing.T) {
 		setup(t)
 		p := seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		dup := newPromotion(p.Code)
 		err := repo.Create(context.Background(), dup)
@@ -92,7 +93,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns promotion", func(t *testing.T) {
 		setup(t)
 		p := seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		got, err := repo.GetByID(context.Background(), p.ID)
 		require.NoError(t, err)
@@ -102,7 +103,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -112,7 +113,7 @@ func TestPostgresRepository_GetByCode(t *testing.T) {
 	t.Run("returns promotion by code", func(t *testing.T) {
 		setup(t)
 		p := seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		got, err := repo.GetByCode(context.Background(), p.Code)
 		require.NoError(t, err)
@@ -121,7 +122,7 @@ func TestPostgresRepository_GetByCode(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		_, err := repo.GetByCode(context.Background(), "NONEXISTENT")
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -131,7 +132,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 	t.Run("updates promotion fields", func(t *testing.T) {
 		setup(t)
 		p := seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		p.Active = false
 		err := repo.Update(context.Background(), p)
@@ -143,7 +144,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		p := newPromotion("NOPE-" + uuid.New().String()[:8])
 		p.ID = uuid.New()
 		err := repo.Update(context.Background(), p)
@@ -154,7 +155,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		setup(t)
 		p1 := seedPromotion(t)
 		p2 := seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		p2.Code = p1.Code
 		err := repo.Update(context.Background(), p2)
@@ -166,7 +167,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("deletes promotion", func(t *testing.T) {
 		setup(t)
 		p := seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		require.NoError(t, repo.Delete(context.Background(), p.ID))
 
@@ -176,7 +177,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		err := repo.Delete(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -187,7 +188,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		setup(t)
 		seedPromotion(t)
 		seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		items, total, err := repo.ListAdmin(context.Background(), promotion.ListParams{Page: 1, PageSize: 10})
 		require.NoError(t, err)
@@ -200,7 +201,7 @@ func TestPostgresRepository_ApplyPromotion(t *testing.T) {
 	t.Run("applies discount and increments uses", func(t *testing.T) {
 		setup(t)
 		p := seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		require.NoError(t, repo.ApplyPromotion(context.Background(), p.ID))
 
@@ -210,7 +211,7 @@ func TestPostgresRepository_ApplyPromotion(t *testing.T) {
 
 	t.Run("returns error when max uses exceeded", func(t *testing.T) {
 		setup(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		maxUses := 1
 		p := &promotion.Promotion{
 			Code:      "MAXED-" + uuid.New().String()[:8],
@@ -236,7 +237,7 @@ func TestPostgresRepository_ReleasePromotion(t *testing.T) {
 	t.Run("decrements uses count", func(t *testing.T) {
 		setup(t)
 		p := seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		require.NoError(t, repo.ApplyPromotion(ctx, p.ID))
@@ -252,7 +253,7 @@ func TestPostgresRepository_CreateUsage(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		p := seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		// Need a valid order — insert directly
@@ -280,7 +281,7 @@ func TestPostgresRepository_CreateUsage(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		p := seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		orderID := uuid.New()
@@ -312,7 +313,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	repo := promotion.NewPostgresRepository(testPool)
+	repo := postgres.New(testPool)
 
 	t.Run("Create", func(t *testing.T) {
 		setup(t)
@@ -382,7 +383,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 func TestSearchString(t *testing.T) {
 	t.Run("returns false when substring not found", func(t *testing.T) {
 		setup(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		p := newPromotion("SEARCH-" + uuid.New().String()[:8])
 		require.NoError(t, repo.Create(context.Background(), p))
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM promotions WHERE id = $1`, p.ID) })
@@ -399,7 +400,7 @@ func TestPostgresRepository_DeleteUsageByOrderID(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		p := seedPromotion(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		orderID := uuid.New()
@@ -427,7 +428,7 @@ func TestPostgresRepository_DeleteUsageByOrderID(t *testing.T) {
 
 	t.Run("returns ErrNotFound when no usage exists", func(t *testing.T) {
 		setup(t)
-		repo := promotion.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		result, err := repo.DeleteUsageByOrderID(context.Background(), uuid.New())
 		require.ErrorIs(t, err, apperror.ErrNotFound)
 		assert.Nil(t, result)
