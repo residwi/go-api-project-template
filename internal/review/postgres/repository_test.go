@@ -1,4 +1,4 @@
-package review_test
+package postgres_test
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/review"
+	"github.com/residwi/go-api-project-template/internal/review/postgres"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -74,7 +75,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		rv := &review.Review{
 			UserID:    userID,
@@ -103,7 +104,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		first := &review.Review{
@@ -135,7 +136,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		rv := &review.Review{
@@ -158,7 +159,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -173,7 +174,7 @@ func TestPostgresRepository_ListByProduct(t *testing.T) {
 		productID := seedProduct(t)
 		orderA := seedOrder(t, userA)
 		orderB := seedOrder(t, userB)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		published := &review.Review{
@@ -210,7 +211,7 @@ func TestPostgresRepository_ListByProduct(t *testing.T) {
 	t.Run("cursor pagination returns next page", func(t *testing.T) {
 		setup(t)
 		productID := seedProduct(t)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		for range 4 {
@@ -241,7 +242,7 @@ func TestPostgresRepository_GetStats(t *testing.T) {
 	t.Run("returns zero stats when no reviews", func(t *testing.T) {
 		setup(t)
 		productID := seedProduct(t)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		stats, err := repo.GetStats(context.Background(), productID)
 		require.NoError(t, err)
@@ -254,7 +255,7 @@ func TestPostgresRepository_GetStats(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		rv := &review.Review{
@@ -280,7 +281,7 @@ func TestPostgresRepository_HasUserReviewed(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		has, err := repo.HasUserReviewed(context.Background(), userID, productID)
 		require.NoError(t, err)
@@ -292,7 +293,7 @@ func TestPostgresRepository_HasUserReviewed(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		rv := &review.Review{
@@ -318,7 +319,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		rv := &review.Review{
@@ -340,7 +341,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		err := repo.Delete(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -351,7 +352,7 @@ func TestPostgresRepository_ListByProduct_InvalidCursor(t *testing.T) {
 	t.Run("returns error for invalid cursor", func(t *testing.T) {
 		setup(t)
 		productID := seedProduct(t)
-		repo := review.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		_, err := repo.ListByProduct(context.Background(), productID, paging.CursorPage{Cursor: "!!!invalid!!!", Limit: 10})
 		assert.Error(t, err)
@@ -362,7 +363,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	repo := review.NewPostgresRepository(testPool)
+	repo := postgres.New(testPool)
 
 	t.Run("Create", func(t *testing.T) {
 		setup(t)
