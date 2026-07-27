@@ -29,6 +29,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/user"
 	"github.com/residwi/go-api-project-template/internal/wishlist"
+	wishlistpg "github.com/residwi/go-api-project-template/internal/wishlist/postgres"
 )
 
 type Router struct {
@@ -53,7 +54,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	shippingRepo := shipping.NewPostgresRepository(deps.Pool)
 	reviewRepo := review.NewPostgresRepository(deps.Pool)
 	promotionRepo := promotion.NewPostgresRepository(deps.Pool)
-	wishlistRepo := wishlist.NewPostgresRepository(deps.Pool)
+	wishlistRepo := wishlistpg.New(deps.Pool)
 	notificationRepo := notification.NewPostgresRepository(deps.Pool)
 	dashboardRepo := dashboard.NewPostgresRepository(deps.Pool)
 
