@@ -484,7 +484,7 @@ func (s *Service) AdminUpdateStatus(ctx context.Context, orderID uuid.UUID, toSt
 // Apply performs the guarded status transition t (a compare-and-set): it moves
 // the order to t.To only if its current status is one of t.From, returning
 // apperror.ErrConflict if nothing matched. It is the single entry point the
-// cross-feature wiring adapters call — each names its transition in
+// cross-feature bootstrap adapters call — each names its transition in
 // transition.go rather than passing ad-hoc from/to status lists.
 func (s *Service) Apply(ctx context.Context, orderID uuid.UUID, t Transition) error {
 	return s.repo.Apply(ctx, orderID, t)
@@ -505,10 +505,10 @@ type DeliveredPurchaseParams struct {
 }
 
 // HasDeliveredOrder reports whether the given order is delivered, belongs to the
-// user, and contains the product. A wiring adapter maps this onto
+// user, and contains the product. A bootstrap adapter maps this onto
 // review.PurchaseVerifier, letting review confirm a specific purchase through
 // the order module rather than querying the orders schema directly from the
-// wiring layer.
+// bootstrap layer.
 func (s *Service) HasDeliveredOrder(ctx context.Context, p DeliveredPurchaseParams) (bool, error) {
 	return s.repo.HasDeliveredOrder(ctx, p)
 }

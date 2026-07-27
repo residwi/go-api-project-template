@@ -11,6 +11,7 @@ import (
 
 	mockgateway "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/auth"
+	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/cart"
 	"github.com/residwi/go-api-project-template/internal/category"
 	"github.com/residwi/go-api-project-template/internal/dashboard"
@@ -27,7 +28,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/shipping"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/user"
-	"github.com/residwi/go-api-project-template/internal/wiring"
 	"github.com/residwi/go-api-project-template/internal/wishlist"
 )
 
@@ -61,9 +61,9 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 
 	userSvc := user.NewService(userRepo, deps.Redis)
 	inventorySvc := inventory.NewService(inventoryRepo)
-	productSvc := wiring.NewProductService(productRepo, inventorySvc)
-	categorySvc := wiring.NewCategoryService(categoryRepo, productSvc)
-	cartSvc := wiring.NewCartService(cartRepo, txRunner, productSvc, deps.Config.App.MaxCartItems)
+	productSvc := bootstrap.NewProductService(productRepo, inventorySvc)
+	categorySvc := bootstrap.NewCategoryService(categoryRepo, productSvc)
+	cartSvc := bootstrap.NewCartService(cartRepo, txRunner, productSvc, deps.Config.App.MaxCartItems)
 	authSvc := auth.NewService(
 		userSvc,
 		deps.Config.JWT.Secret,
@@ -77,17 +77,17 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	wishlistSvc := wishlist.NewService(wishlistRepo)
 	dashboardSvc := dashboard.NewService(dashboardRepo)
 
-	orderSvc := wiring.NewOrderService(orderRepo, txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc)
+	orderSvc := bootstrap.NewOrderService(orderRepo, txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc)
 
 	cfg := deps.Config
 	gw := mockgw.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 
-	paymentSvc := wiring.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc)
-	wiring.SetOrderPaymentDeps(orderSvc, paymentSvc)
+	paymentSvc := bootstrap.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc)
+	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
 
-	shippingSvc, shippingOrderProvider := wiring.NewShippingService(shippingRepo, txRunner, orderSvc)
+	shippingSvc, shippingOrderProvider := bootstrap.NewShippingService(shippingRepo, txRunner, orderSvc)
 
-	reviewSvc := wiring.NewReviewService(reviewRepo, orderSvc)
+	reviewSvc := bootstrap.NewReviewService(reviewRepo, orderSvc)
 
 	tokenValidator := auth.NewTokenValidatorAdapter(authSvc)
 	authMiddleware := middleware.Auth(tokenValidator, userSvc)

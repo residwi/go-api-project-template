@@ -12,13 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/cart"
 	"github.com/residwi/go-api-project-template/internal/inventory"
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/product"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
-	"github.com/residwi/go-api-project-template/internal/wiring"
 	cartMocks "github.com/residwi/go-api-project-template/mocks/cart"
 	inventoryMocks "github.com/residwi/go-api-project-template/mocks/inventory"
 	mocks "github.com/residwi/go-api-project-template/mocks/order"
@@ -1457,10 +1457,10 @@ func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
 	inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
 }
 
-// realCartProvider mirrors internal/wiring's unexported cartProviderAdapter
+// realCartProvider mirrors internal/bootstrap's unexported cartProviderAdapter
 // (it is not the fix under test, just the trivial Cart -> CartSnapshot
 // mapping), so this test can drive a real cart.Service -- and, critically, the
-// real wiring.productLookupAdapter it wraps -- without reaching into wiring's
+// real bootstrap.productLookupAdapter it wraps -- without reaching into bootstrap's
 // unexported types.
 type realCartProvider struct{ svc *cart.Service }
 
@@ -1493,7 +1493,7 @@ func (a realCartProvider) Clear(ctx context.Context, userID uuid.UUID) error {
 
 // TestService_PlaceOrder_RejectsSoftDeletedProduct exercises the real
 // product -> cart chain (product.Service.GetByIDsIncludingDeleted through the
-// actual wiring.productLookupAdapter) instead of a hand-built
+// actual bootstrap.productLookupAdapter) instead of a hand-built
 // CartSnapshotItem. Task 7's two tests above only ever supply the
 // guard-tripping status directly ("archived", "unavailable"), so neither
 // would have caught cart's adapter forwarding a soft-deleted product's stale
@@ -1520,7 +1520,7 @@ func TestService_PlaceOrder_RejectsSoftDeletedProduct(t *testing.T) {
 	invRepo := inventoryMocks.NewMockRepository(t)
 	invRepo.EXPECT().GetLevels(mock.Anything, []uuid.UUID{productID}).
 		Return(map[uuid.UUID]inventory.Stock{}, nil)
-	productSvc := wiring.NewProductService(productRepo, inventory.NewService(invRepo))
+	productSvc := bootstrap.NewProductService(productRepo, inventory.NewService(invRepo))
 
 	cartRepo := cartMocks.NewMockRepository(t)
 	cartRepo.EXPECT().GetCartForLock(mock.Anything, userID).Return(cartID, nil)
@@ -1532,7 +1532,7 @@ func TestService_PlaceOrder_RejectsSoftDeletedProduct(t *testing.T) {
 	// never called once the guard correctly rejects.
 	cartRepo.EXPECT().Clear(mock.Anything, userID).Return(nil).Maybe()
 
-	cartSvc := wiring.NewCartService(cartRepo, testhelper.FakeTxRunner{}, productSvc, 50)
+	cartSvc := bootstrap.NewCartService(cartRepo, testhelper.FakeTxRunner{}, productSvc, 50)
 
 	// Everything below the guard is lenient (.Maybe()): a pre-fix run reaches
 	// and exercises these; a correctly-rejecting run never calls them.

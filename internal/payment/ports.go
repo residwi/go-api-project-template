@@ -10,7 +10,7 @@ import (
 // than imported, so no feature depends on another's package.
 
 // OrderUpdater drives order-status changes from the payment domain via intent
-// methods, so payment never imports the order package; the wiring adapter maps
+// methods, so payment never imports the order package; the bootstrap adapter maps
 // each method to the corresponding order.Transition (which owns the allowed-from
 // set).
 type OrderUpdater interface {
@@ -83,7 +83,7 @@ type CouponReleaser interface {
 // awaiting_payment orders and recovering orders stuck in payment_processing
 // (e.g. after a worker died mid-charge). It's an inline cross-feature interface
 // (like OrderUpdater/OrderGetter); the order module owns the logic and the
-// wiring adapter supplies it.
+// bootstrap adapter supplies it.
 type OrderHousekeeper interface {
 	ExpireStale(ctx context.Context) error
 	RecoverStaleProcessing(ctx context.Context) error

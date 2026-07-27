@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/inventory"
 	"github.com/residwi/go-api-project-template/internal/notification"
@@ -19,7 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/promotion"
-	"github.com/residwi/go-api-project-template/internal/wiring"
 )
 
 func main() {
@@ -58,11 +58,11 @@ func run() error {
 	promotionSvc := promotion.NewService(promotionRepo, txRunner)
 	notificationSvc := notification.NewService(notificationRepo)
 
-	orderSvc := wiring.NewOrderService(orderRepo, txRunner, nil, inventorySvc, promotionSvc, nil)
+	orderSvc := bootstrap.NewOrderService(orderRepo, txRunner, nil, inventorySvc, promotionSvc, nil)
 
 	gw := mockgw.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 
-	paymentSvc := wiring.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc)
+	paymentSvc := bootstrap.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc)
 
 	jobCfg := jobs.Config{
 		Interval:      cfg.Worker.Interval,
@@ -73,7 +73,7 @@ func run() error {
 		PruneLimit:    cfg.Worker.PruneLimit,
 	}
 
-	paymentProcessor := payment.NewJobProcessor(paymentSvc, wiring.NewOrderHousekeeper(orderSvc))
+	paymentProcessor := payment.NewJobProcessor(paymentSvc, bootstrap.NewOrderHousekeeper(orderSvc))
 	paymentRunner := jobs.NewRunner("payment", paymentRepo, paymentProcessor, jobCfg)
 	notificationRunner := jobs.NewRunner("notification", notificationRepo, notificationSvc, jobCfg)
 

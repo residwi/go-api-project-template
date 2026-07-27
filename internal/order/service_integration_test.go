@@ -15,8 +15,8 @@ import (
 
 // expireInventory adapts the real inventory.Service to order.InventoryReserver,
 // translating the cross-feature wasDeducted bool to inventory's StockState — the
-// same job the production wiring adapter does, kept local so order's tests don't
-// depend on the wiring layer.
+// same job the production bootstrap adapter does, kept local so order's tests don't
+// depend on the bootstrap layer.
 type expireInventory struct{ svc *inventory.Service }
 
 func (a expireInventory) ReserveBatch(ctx context.Context, items []order.InventoryItem) error {
