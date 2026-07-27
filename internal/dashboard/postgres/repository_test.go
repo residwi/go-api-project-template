@@ -1,4 +1,4 @@
-package dashboard_test
+package postgres_test
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/dashboard"
+	"github.com/residwi/go-api-project-template/internal/dashboard/postgres"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -83,7 +83,7 @@ func seedOrderItem(t *testing.T, orderID, productID uuid.UUID) uuid.UUID {
 func TestPostgresRepository_GetSalesSummary(t *testing.T) {
 	t.Run("returns zero stats when no paid orders in range", func(t *testing.T) {
 		setup(t)
-		repo := dashboard.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		// Use a time range far in the future with no data
 		from := time.Now().Add(100 * 24 * time.Hour)
@@ -100,7 +100,7 @@ func TestPostgresRepository_GetSalesSummary(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		seedPaidOrder(t, userID)
-		repo := dashboard.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		from := time.Now().Add(-24 * time.Hour)
 		to := time.Now().Add(24 * time.Hour)
@@ -115,7 +115,7 @@ func TestPostgresRepository_GetSalesSummary(t *testing.T) {
 func TestPostgresRepository_GetTopProducts(t *testing.T) {
 	t.Run("returns empty slice when no orders", func(t *testing.T) {
 		setup(t)
-		repo := dashboard.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		// Use a time range far in the future with no data
 		from := time.Now().Add(100 * 24 * time.Hour)
@@ -132,7 +132,7 @@ func TestPostgresRepository_GetTopProducts(t *testing.T) {
 		orderID := seedPaidOrder(t, userID)
 		productID := seedProduct(t)
 		seedOrderItem(t, orderID, productID)
-		repo := dashboard.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		from := time.Now().Add(-24 * time.Hour)
 		to := time.Now().Add(24 * time.Hour)
@@ -159,7 +159,7 @@ func TestPostgresRepository_GetRevenueByDay(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		seedPaidOrder(t, userID)
-		repo := dashboard.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		from := time.Now().Add(-24 * time.Hour)
 		to := time.Now().Add(24 * time.Hour)
@@ -181,7 +181,7 @@ func TestPostgresRepository_GetOrderStatusBreakdown(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		seedPaidOrder(t, userID)
-		repo := dashboard.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		breakdowns, err := repo.GetOrderStatusBreakdown(context.Background(),
 			time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour))
@@ -203,7 +203,7 @@ func TestPostgresRepository_GetOrderStatusBreakdown(t *testing.T) {
 func TestPostgresRepository_GetSalesSummary_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := dashboard.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -215,7 +215,7 @@ func TestPostgresRepository_GetSalesSummary_CancelledContext(t *testing.T) {
 func TestPostgresRepository_GetTopProducts_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := dashboard.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -227,7 +227,7 @@ func TestPostgresRepository_GetTopProducts_CancelledContext(t *testing.T) {
 func TestPostgresRepository_GetRevenueByDay_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := dashboard.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -239,7 +239,7 @@ func TestPostgresRepository_GetRevenueByDay_CancelledContext(t *testing.T) {
 func TestPostgresRepository_GetOrderStatusBreakdown_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := dashboard.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
