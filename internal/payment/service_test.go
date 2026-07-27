@@ -12,7 +12,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/payment"
-	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	mocks "github.com/residwi/go-api-project-template/mocks/payment"
 )
@@ -73,12 +72,12 @@ func TestService_InitiatePayment(t *testing.T) {
 			}).
 			Return(nil)
 
-		gw.EXPECT().Charge(mock.Anything, mock.MatchedBy(func(req gateway.ChargeRequest) bool {
+		gw.EXPECT().Charge(mock.Anything, mock.MatchedBy(func(req payment.ChargeRequest) bool {
 			return req.OrderID == orderID.String() &&
 				req.Amount == 10000 &&
 				req.Currency == "USD" &&
 				req.PaymentMethodID == "pm_test_123"
-		})).Return(gateway.ChargeResponse{
+		})).Return(payment.ChargeResponse{
 			TransactionID: "txn_abc",
 			Status:        "success",
 		}, nil)
@@ -144,9 +143,9 @@ func TestService_InitiatePayment(t *testing.T) {
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
 			Return(existing, nil)
 
-		gw.EXPECT().Charge(mock.Anything, mock.MatchedBy(func(req gateway.ChargeRequest) bool {
+		gw.EXPECT().Charge(mock.Anything, mock.MatchedBy(func(req payment.ChargeRequest) bool {
 			return req.IdempotencyKey == existingID.String()
-		})).Return(gateway.ChargeResponse{
+		})).Return(payment.ChargeResponse{
 			TransactionID: "txn_existing",
 			Status:        "success",
 		}, nil)
@@ -199,7 +198,7 @@ func TestService_InitiatePayment(t *testing.T) {
 			Return(nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(payment.ChargeResponse{
 				TransactionID: "txn_pending",
 				Status:        "pending",
 				PaymentURL:    "https://pay.example.com/redirect",
@@ -232,7 +231,7 @@ func TestService_InitiatePayment(t *testing.T) {
 			Return(nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(payment.ChargeResponse{
 				TransactionID: "txn_no_url",
 				Status:        "pending",
 			}, nil)
@@ -262,7 +261,7 @@ func TestService_InitiatePayment(t *testing.T) {
 			Return(nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{}, errors.New("gateway timeout"))
+			Return(payment.ChargeResponse{}, errors.New("gateway timeout"))
 
 		result, err := svc.InitiatePayment(ctx, params)
 
@@ -383,7 +382,7 @@ func TestService_Process(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{}, errors.New("gateway error"))
+			Return(payment.ChargeResponse{}, errors.New("gateway error"))
 
 		orders.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
 			Return(nil)
@@ -426,7 +425,7 @@ func TestService_Process(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{}, errors.New("gateway error"))
+			Return(payment.ChargeResponse{}, errors.New("gateway error"))
 
 		orders.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
 			Return(nil)
@@ -469,7 +468,7 @@ func TestService_Process(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(payment.ChargeResponse{
 				TransactionID: "txn_success",
 				Status:        "success",
 			}, nil)
@@ -537,7 +536,7 @@ func TestService_Process(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{}, errors.New("gateway error"))
+			Return(payment.ChargeResponse{}, errors.New("gateway error"))
 
 		orders.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
 			Return(errors.New("CAS failed"))
@@ -577,7 +576,7 @@ func TestService_Process(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{}, errors.New("gateway error"))
+			Return(payment.ChargeResponse{}, errors.New("gateway error"))
 
 		orders.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
 			Return(nil)
@@ -617,7 +616,7 @@ func TestService_Process(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(payment.ChargeResponse{
 				TransactionID: "txn_comp",
 				Status:        "success",
 			}, nil)
@@ -674,7 +673,7 @@ func TestService_Process(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(payment.ChargeResponse{
 				TransactionID: "txn_failed",
 				Status:        "failed",
 			}, nil)
@@ -725,7 +724,7 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 			Return(nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(payment.ChargeResponse{
 				TransactionID: "txn_gw_err",
 				Status:        "success",
 			}, nil)
@@ -777,7 +776,7 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 			Return(nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(payment.ChargeResponse{
 				TransactionID: "txn_url_err",
 				Status:        "pending",
 				PaymentURL:    "https://pay.example.com/url-err",
@@ -879,7 +878,7 @@ func TestService_RunCompensatingRefund_Error(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(payment.ChargeResponse{
 				TransactionID: "txn_comp_err",
 				Status:        "success",
 			}, nil)
@@ -1709,12 +1708,12 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
 			Return(p, nil)
 
-		gw.EXPECT().Refund(mock.Anything, gateway.RefundRequest{
+		gw.EXPECT().Refund(mock.Anything, payment.RefundRequest{
 			IdempotencyKey: job.PaymentID.String(),
 			TransactionID:  "txn_123",
 			Amount:         5000,
 			Reason:         "auto-refund",
-		}).Return(gateway.RefundResponse{RefundID: "ref_001"}, nil)
+		}).Return(payment.RefundResponse{RefundID: "ref_001"}, nil)
 
 		repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, payment.StatusRefunded,
 			[]payment.Status{payment.StatusSuccess, payment.StatusRequiresReview}).
@@ -1769,12 +1768,12 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
 			Return(p, nil)
 
-		gw.EXPECT().Refund(mock.Anything, gateway.RefundRequest{
+		gw.EXPECT().Refund(mock.Anything, payment.RefundRequest{
 			IdempotencyKey: job.PaymentID.String(),
 			TransactionID:  "txn_456",
 			Amount:         8000,
 			Reason:         "auto-refund",
-		}).Return(gateway.RefundResponse{RefundID: "ref_002"}, nil)
+		}).Return(payment.RefundResponse{RefundID: "ref_002"}, nil)
 
 		repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, payment.StatusRefunded,
 			[]payment.Status{payment.StatusSuccess, payment.StatusRequiresReview}).
@@ -1868,7 +1867,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{}, errors.New("gateway timeout"))
+			Return(payment.RefundResponse{}, errors.New("gateway timeout"))
 
 		repo.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *payment.Job) bool {
 			return j.ID == job.ID &&
@@ -1904,7 +1903,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{}, errors.New("gateway error"))
+			Return(payment.RefundResponse{}, errors.New("gateway error"))
 
 		repo.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *payment.Job) bool {
 			return j.ID == job.ID &&
@@ -1941,7 +1940,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{RefundID: "ref_items_err"}, nil)
+			Return(payment.RefundResponse{RefundID: "ref_items_err"}, nil)
 
 		repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, payment.StatusRefunded,
 			[]payment.Status{payment.StatusSuccess, payment.StatusRequiresReview}).
@@ -1985,7 +1984,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{RefundID: "ref_multi"}, nil)
+			Return(payment.RefundResponse{RefundID: "ref_multi"}, nil)
 
 		repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, payment.StatusRefunded,
 			[]payment.Status{payment.StatusSuccess, payment.StatusRequiresReview}).
@@ -2040,7 +2039,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{RefundID: "ref_rel_err"}, nil)
+			Return(payment.RefundResponse{RefundID: "ref_rel_err"}, nil)
 
 		repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, payment.StatusRefunded,
 			[]payment.Status{payment.StatusSuccess, payment.StatusRequiresReview}).
@@ -2093,7 +2092,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{RefundID: "ref_restock_err"}, nil)
+			Return(payment.RefundResponse{RefundID: "ref_restock_err"}, nil)
 
 		repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, payment.StatusRefunded,
 			[]payment.Status{payment.StatusSuccess, payment.StatusRequiresReview}).
@@ -2146,7 +2145,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 			Return(p, nil)
 
 		gw.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{RefundID: "ref_coupon_err"}, nil)
+			Return(payment.RefundResponse{RefundID: "ref_coupon_err"}, nil)
 
 		repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, payment.StatusRefunded,
 			[]payment.Status{payment.StatusSuccess, payment.StatusRequiresReview}).

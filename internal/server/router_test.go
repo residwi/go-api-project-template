@@ -20,9 +20,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	mockgw "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/payment"
-	mockgw "github.com/residwi/go-api-project-template/internal/platform/payment/mock"
 	"github.com/residwi/go-api-project-template/internal/server"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )

@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/platform/payment"
-	mockgw "github.com/residwi/go-api-project-template/internal/platform/payment/mock"
+	"github.com/residwi/go-api-project-template/internal/payment"
+	mockgw "github.com/residwi/go-api-project-template/internal/payment/mock"
 )
 
 func TestGateway_Charge(t *testing.T) {

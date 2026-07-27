@@ -7,7 +7,7 @@ package mocks
 import (
 	"context"
 
-	"github.com/residwi/go-api-project-template/internal/platform/payment"
+	"github.com/residwi/go-api-project-template/internal/payment"
 	mock "github.com/stretchr/testify/mock"
 )
 

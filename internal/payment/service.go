@@ -13,7 +13,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
 )
 
 const jitterDivisor = 2
@@ -29,7 +28,7 @@ func toInventoryChanges(items []OrderItemDTO) []InventoryChange {
 type Service struct {
 	repo              Repository
 	tx                database.TxRunner
-	gateway           gateway.Gateway
+	gateway           Gateway
 	orders            OrderUpdater
 	orderGet          OrderGetter
 	orderItems        OrderItemsGetter
@@ -41,7 +40,7 @@ type Service struct {
 func NewService(
 	repo Repository,
 	tx database.TxRunner,
-	gw gateway.Gateway,
+	gw Gateway,
 	orders OrderUpdater,
 	orderGet OrderGetter,
 	orderItems OrderItemsGetter,
@@ -97,7 +96,7 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 		}
 	}
 
-	chargeReq := gateway.ChargeRequest{
+	chargeReq := ChargeRequest{
 		IdempotencyKey:  p.ID.String(),
 		OrderID:         params.OrderID.String(),
 		Amount:          params.Amount,
@@ -187,7 +186,7 @@ func (s *Service) processChargeJob(ctx context.Context, job Job) error {
 		return fmt.Errorf("getting payment for job: %w", err)
 	}
 
-	chargeReq := gateway.ChargeRequest{
+	chargeReq := ChargeRequest{
 		IdempotencyKey:  p.ID.String(),
 		OrderID:         job.OrderID.String(),
 		Amount:          p.Amount,
@@ -389,7 +388,7 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		"job_id", job.ID, "order_id", job.OrderID, "payment_id", job.PaymentID,
 		"gateway_txn_id", p.GatewayTxnID, "amount", p.Amount)
 
-	resp, gwErr := s.gateway.Refund(ctx, gateway.RefundRequest{
+	resp, gwErr := s.gateway.Refund(ctx, RefundRequest{
 		// Key on the payment id: a payment is refunded once, so a job re-claimed
 		// after a crash between this call and the commit reuses the same key and
 		// the gateway dedupes it instead of refunding twice.

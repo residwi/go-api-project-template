@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	mockgateway "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/auth"
 	"github.com/residwi/go-api-project-template/internal/cart"
 	"github.com/residwi/go-api-project-template/internal/category"
@@ -18,8 +19,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/notification"
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/payment"
+	mockgw "github.com/residwi/go-api-project-template/internal/payment/mock"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	mockgw "github.com/residwi/go-api-project-template/internal/platform/payment/mock"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/product"
 	"github.com/residwi/go-api-project-template/internal/promotion"
@@ -121,7 +122,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	dashboard.RegisterRoutes(admin, dashboard.RouteDeps{Service: dashboardSvc})
 
 	if deps.Config.App.Env == "development" {
-		mockgw.RegisterRoutes(mux, mockgw.WithWebhookSecret(cfg.Payment.WebhookSecret))
+		mockgateway.RegisterRoutes(mux, mockgateway.WithWebhookSecret(cfg.Payment.WebhookSecret))
 	}
 
 	return &Router{

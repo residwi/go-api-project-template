@@ -12,7 +12,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
 	mocks "github.com/residwi/go-api-project-template/mocks/payment"
 )
 
@@ -75,7 +74,7 @@ func TestService_ProcessIntegration(t *testing.T) {
 			Return([]payment.OrderItemDTO{{ProductID: uuid.New(), Quantity: 1}}, nil)
 		m.inventoryDeduct.EXPECT().DeductBatch(mock.Anything, mock.Anything).Return(nil)
 		m.gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{TransactionID: "txn-" + uuid.New().String(), Status: "success"}, nil)
+			Return(payment.ChargeResponse{TransactionID: "txn-" + uuid.New().String(), Status: "success"}, nil)
 
 		require.NoError(t, svc.Process(ctx, *job))
 
@@ -110,7 +109,7 @@ func TestService_ProcessIntegration(t *testing.T) {
 		m.orderUpdater.EXPECT().MarkPaymentProcessing(mock.Anything, orderID).Return(nil)
 		m.orderUpdater.EXPECT().MarkAwaitingPayment(mock.Anything, orderID).Return(nil)
 		m.gw.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{}, assert.AnError)
+			Return(payment.ChargeResponse{}, assert.AnError)
 
 		err := svc.Process(ctx, *job)
 		require.Error(t, err)

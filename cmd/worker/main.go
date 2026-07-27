@@ -14,10 +14,10 @@ import (
 	"github.com/residwi/go-api-project-template/internal/notification"
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/payment"
+	mockgw "github.com/residwi/go-api-project-template/internal/payment/mock"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
-	mockgw "github.com/residwi/go-api-project-template/internal/platform/payment/mock"
 	"github.com/residwi/go-api-project-template/internal/promotion"
 	"github.com/residwi/go-api-project-template/internal/wiring"
 )

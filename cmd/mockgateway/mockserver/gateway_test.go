@@ -1,4 +1,4 @@
-package mock_test
+package mockserver
 
 import (
 	"encoding/json"
@@ -10,13 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/platform/payment"
-	mockgw "github.com/residwi/go-api-project-template/internal/platform/payment/mock"
+	"github.com/residwi/go-api-project-template/internal/payment"
 )
 
 func newMockMux() *http.ServeMux {
 	mux := http.NewServeMux()
-	mockgw.RegisterRoutes(mux)
+	RegisterRoutes(mux)
 	return mux
 }
 

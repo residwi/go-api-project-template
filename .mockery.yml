@@ -47,6 +47,7 @@ packages:
       InventoryDeductor:
       InventoryRestorer:
       CouponReleaser:
+      Gateway:
   github.com/residwi/go-api-project-template/internal/shipping:
     interfaces:
       Repository:
@@ -68,9 +69,6 @@ packages:
   github.com/residwi/go-api-project-template/internal/dashboard:
     interfaces:
       Repository:
-  github.com/residwi/go-api-project-template/internal/platform/payment:
-    interfaces:
-      Gateway:
   github.com/residwi/go-api-project-template/internal/middleware:
     interfaces:
       TokenValidator:

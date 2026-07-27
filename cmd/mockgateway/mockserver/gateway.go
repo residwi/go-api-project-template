@@ -1,4 +1,9 @@
-package mock
+// Package mockserver implements the dev-only fake payment gateway HTTP
+// handlers (charge, refund, webhook trigger). It is importable — unlike
+// package main in cmd/mockgateway — so internal/server can still mount it
+// in-process for local development, while cmd/mockgateway/main.go runs it as
+// a standalone binary.
+package mockserver
 
 import (
 	"bytes"
@@ -14,7 +19,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/platform/payment"
+	"github.com/residwi/go-api-project-template/internal/payment"
 )
 
 const statusSuccess = "success"

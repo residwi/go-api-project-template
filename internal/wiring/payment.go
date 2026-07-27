@@ -9,7 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	gateway "github.com/residwi/go-api-project-template/internal/platform/payment"
 	"github.com/residwi/go-api-project-template/internal/promotion"
 )
 
@@ -104,7 +103,7 @@ func paymentToStockChanges(items []payment.InventoryChange) []inventory.StockCha
 func NewPaymentService(
 	repo payment.Repository,
 	tx database.TxRunner,
-	gw gateway.Gateway,
+	gw payment.Gateway,
 	orderSvc *order.Service,
 	inventorySvc *inventory.Service,
 	promotionSvc *promotion.Service,

@@ -31,6 +31,10 @@ build-worker: ## Build the worker
 	@echo "Building worker..."
 	go build -o bin/worker ./cmd/worker
 
+.PHONY: build-mockgateway
+build-mockgateway: ## Build the dev-only mock payment gateway
+	go build -o bin/mockgateway ./cmd/mockgateway
+
 .PHONY: run
 run: ## Run the API server
 	@echo "Running API..."
