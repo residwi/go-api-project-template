@@ -9,10 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/order"
+	"github.com/residwi/go-api-project-template/internal/order/postgres"
 )
 
 func TestPostgresRepository_HasDeliveredOrder(t *testing.T) {
-	repo := order.NewPostgresRepository(testPool)
+	repo := postgres.New(testPool)
 	ctx := context.Background()
 
 	seedOrderItem := func(t *testing.T, userID, productID uuid.UUID, status order.Status) uuid.UUID {

@@ -11,6 +11,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/inventory"
 	inventorypg "github.com/residwi/go-api-project-template/internal/inventory/postgres"
 	"github.com/residwi/go-api-project-template/internal/order"
+	"github.com/residwi/go-api-project-template/internal/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -49,7 +50,7 @@ func toStockChanges(items []order.InventoryItem) []inventory.StockChange {
 // notification are left nil.
 func newExpiryService(t *testing.T) *order.Service {
 	t.Helper()
-	orderRepo := order.NewPostgresRepository(testPool)
+	orderRepo := postgres.New(testPool)
 	invSvc := inventory.NewService(inventorypg.New(testPool))
 	return order.NewService(orderRepo, database.NewTxRunner(testPool), nil, expireInventory{svc: invSvc}, nil, nil, nil, nil)
 }

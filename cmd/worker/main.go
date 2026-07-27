@@ -15,7 +15,7 @@ import (
 	inventorypg "github.com/residwi/go-api-project-template/internal/inventory/postgres"
 	"github.com/residwi/go-api-project-template/internal/notification"
 	notificationpg "github.com/residwi/go-api-project-template/internal/notification/postgres"
-	"github.com/residwi/go-api-project-template/internal/order"
+	orderpg "github.com/residwi/go-api-project-template/internal/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	mockgw "github.com/residwi/go-api-project-template/internal/payment/mock"
 	paymentpg "github.com/residwi/go-api-project-template/internal/payment/postgres"
@@ -50,7 +50,7 @@ func run() error {
 	}
 	defer pool.Close()
 
-	orderRepo := order.NewPostgresRepository(pool)
+	orderRepo := orderpg.New(pool)
 	paymentRepo := paymentpg.New(pool)
 	inventoryRepo := inventorypg.New(pool)
 	promotionRepo := promotionpg.New(pool)

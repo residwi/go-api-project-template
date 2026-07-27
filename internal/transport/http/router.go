@@ -23,6 +23,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/notification"
 	notificationpg "github.com/residwi/go-api-project-template/internal/notification/postgres"
 	"github.com/residwi/go-api-project-template/internal/order"
+	orderpg "github.com/residwi/go-api-project-template/internal/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	mockgw "github.com/residwi/go-api-project-template/internal/payment/mock"
 	paymentpg "github.com/residwi/go-api-project-template/internal/payment/postgres"
@@ -60,7 +61,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	productRepo := productpg.New(deps.Pool)
 	inventoryRepo := inventorypg.New(deps.Pool)
 	cartRepo := cartpg.New(deps.Pool)
-	orderRepo := order.NewPostgresRepository(deps.Pool)
+	orderRepo := orderpg.New(deps.Pool)
 	paymentRepo := paymentpg.New(deps.Pool)
 	shippingRepo := shippingpg.New(deps.Pool)
 	reviewRepo := reviewpg.New(deps.Pool)
