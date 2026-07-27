@@ -12,6 +12,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/inventory"
+	inventorypg "github.com/residwi/go-api-project-template/internal/inventory/postgres"
 	"github.com/residwi/go-api-project-template/internal/notification"
 	notificationpg "github.com/residwi/go-api-project-template/internal/notification/postgres"
 	"github.com/residwi/go-api-project-template/internal/order"
@@ -50,7 +51,7 @@ func run() error {
 
 	orderRepo := order.NewPostgresRepository(pool)
 	paymentRepo := payment.NewPostgresRepository(pool)
-	inventoryRepo := inventory.NewPostgresRepository(pool)
+	inventoryRepo := inventorypg.New(pool)
 	promotionRepo := promotionpg.New(pool)
 	notificationRepo := notificationpg.New(pool)
 
