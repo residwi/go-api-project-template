@@ -1,0 +1,55 @@
+package user_test
+
+import (
+	"context"
+	"os"
+	"testing"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/user"
+	"github.com/residwi/go-api-project-template/internal/user/postgres"
+)
+
+// testPool and testRedis back this package's service-level integration test
+// (service_integration_test.go). They are separate from the postgres
+// subpackage's own containers/DB/Redis index to avoid two test binaries
+// racing on the same database or Redis keyspace.
+var (
+	testPool  *pgxpool.Pool
+	testRedis *redis.Client
+)
+
+func TestMain(m *testing.M) {
+	pool, cleanupPG := testhelper.MustStartPostgres("test_features_user_svc")
+	defer cleanupPG()
+	testPool = pool
+
+	rdb, cleanupRedis := testhelper.MustStartRedis(4)
+	defer cleanupRedis()
+	testRedis = rdb
+
+	os.Exit(m.Run())
+}
+
+func seedUser(t *testing.T) *user.User {
+	t.Helper()
+	id := uuid.New()
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO users (id, email, password_hash, first_name, last_name) VALUES ($1, $2, 'x', 'A', 'B')`,
+		id, id.String()+"@test.com",
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		testPool.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, id)
+	})
+
+	repo := postgres.New(testPool)
+	u, err := repo.GetByID(context.Background(), id)
+	require.NoError(t, err)
+	return u
+}

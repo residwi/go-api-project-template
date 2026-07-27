@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/user"
+	"github.com/residwi/go-api-project-template/internal/user/postgres"
 )
 
 func TestService_CheckStatus_Integration(t *testing.T) {
@@ -21,7 +22,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 		key := fmt.Sprintf("user:status:%s", u.ID.String())
 		t.Cleanup(func() { testRedis.Del(ctx, key) })
 
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		svc := user.NewService(repo, testRedis)
 
 		result, err := svc.CheckStatus(ctx, u.ID)
@@ -43,7 +44,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 
 		testRedis.HSet(ctx, key, "active", "1", "token_version", "42")
 
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		svc := user.NewService(repo, testRedis)
 
 		result, err := svc.CheckStatus(ctx, u.ID)
@@ -66,7 +67,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 		})
 		defer brokenRedis.Close()
 
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		svc := user.NewService(repo, brokenRedis)
 
 		result, err := svc.CheckStatus(ctx, u.ID)
@@ -84,7 +85,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 		_, err := testPool.Exec(ctx, `UPDATE users SET active = false WHERE id = $1`, u.ID)
 		require.NoError(t, err)
 
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		svc := user.NewService(repo, testRedis)
 
 		result, err := svc.CheckStatus(ctx, u.ID)

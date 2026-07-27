@@ -29,8 +29,9 @@ const (
 //
 //	0 — internal/platform/cache
 //	1 — internal/transport/http/middleware
-//	2 — internal/user
+//	2 — internal/user/postgres
 //	3 — internal/transport/http
+//	4 — internal/user
 
 func init() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})))

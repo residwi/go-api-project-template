@@ -1,4 +1,4 @@
-package user_test
+package postgres_test
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/user"
+	"github.com/residwi/go-api-project-template/internal/user/postgres"
 )
 
 var (
@@ -51,7 +52,7 @@ func seedUser(t *testing.T) *user.User {
 		testPool.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, id)
 	})
 
-	repo := user.NewPostgresRepository(testPool)
+	repo := postgres.New(testPool)
 	u, err := repo.GetByID(context.Background(), id)
 	require.NoError(t, err)
 	return u
@@ -60,7 +61,7 @@ func seedUser(t *testing.T) *user.User {
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates user", func(t *testing.T) {
 		setup(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		u := &user.User{
 			Email:        uuid.New().String() + "@example.com",
 			PasswordHash: "hashed",
@@ -82,7 +83,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("returns conflict on duplicate email", func(t *testing.T) {
 		setup(t)
 		existing := seedUser(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		dup := &user.User{
 			Email:        existing.Email,
@@ -101,7 +102,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns user", func(t *testing.T) {
 		setup(t)
 		u := seedUser(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		got, err := repo.GetByID(context.Background(), u.ID)
 		require.NoError(t, err)
@@ -111,7 +112,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -122,7 +123,7 @@ func TestPostgresRepository_GetByEmail(t *testing.T) {
 	t.Run("returns user by email", func(t *testing.T) {
 		setup(t)
 		u := seedUser(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		got, err := repo.GetByEmail(context.Background(), u.Email)
 		require.NoError(t, err)
@@ -132,7 +133,7 @@ func TestPostgresRepository_GetByEmail(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		_, err := repo.GetByEmail(context.Background(), "nobody@nowhere.example")
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -143,7 +144,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 	t.Run("updates user fields", func(t *testing.T) {
 		setup(t)
 		u := seedUser(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		u.FirstName = "Updated"
 		u.LastName = "Name"
@@ -160,7 +161,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		u := &user.User{
 			ID:        uuid.New(),
@@ -178,7 +179,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("soft deletes user", func(t *testing.T) {
 		setup(t)
 		u := seedUser(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		err := repo.Delete(context.Background(), u.ID)
 		require.NoError(t, err)
@@ -187,7 +188,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("GetByID returns not found after delete", func(t *testing.T) {
 		setup(t)
 		u := seedUser(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		require.NoError(t, repo.Delete(ctx, u.ID))
@@ -198,7 +199,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 
 	t.Run("returns not found for nonexistent user", func(t *testing.T) {
 		setup(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		err := repo.Delete(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -209,7 +210,7 @@ func TestPostgresRepository_List(t *testing.T) {
 		setup(t)
 		seedUser(t)
 		seedUser(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		users, total, err := repo.List(context.Background(), user.ListParams{
 			Page:     1,
@@ -225,7 +226,7 @@ func TestPostgresRepository_List(t *testing.T) {
 		u := seedUser(t)
 		_, err := testPool.Exec(context.Background(), `UPDATE users SET role = 'admin' WHERE id = $1`, u.ID)
 		require.NoError(t, err)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		users, total, err := repo.List(context.Background(), user.ListParams{
 			Page: 1, PageSize: 50, Role: "admin",
@@ -240,7 +241,7 @@ func TestPostgresRepository_List(t *testing.T) {
 	t.Run("filters by active", func(t *testing.T) {
 		setup(t)
 		seedUser(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		active := true
 
 		users, _, err := repo.List(context.Background(), user.ListParams{
@@ -255,7 +256,7 @@ func TestPostgresRepository_List(t *testing.T) {
 	t.Run("filters by search", func(t *testing.T) {
 		setup(t)
 		u := seedUser(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		users, total, err := repo.List(context.Background(), user.ListParams{
 			Page: 1, PageSize: 50, Search: u.Email,
@@ -269,7 +270,7 @@ func TestPostgresRepository_List(t *testing.T) {
 func TestPostgresRepository_ExistsByEmail(t *testing.T) {
 	t.Run("returns false when no user", func(t *testing.T) {
 		setup(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		exists, err := repo.ExistsByEmail(context.Background(), "ghost@nowhere.example")
 		require.NoError(t, err)
@@ -279,7 +280,7 @@ func TestPostgresRepository_ExistsByEmail(t *testing.T) {
 	t.Run("returns true for existing email", func(t *testing.T) {
 		setup(t)
 		u := seedUser(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		exists, err := repo.ExistsByEmail(context.Background(), u.Email)
 		require.NoError(t, err)
@@ -293,7 +294,7 @@ func TestPostgresRepository_CountAdmins(t *testing.T) {
 		// Ensure a clean count by checking that we can call it without error;
 		// we cannot guarantee zero since other tests may have seeded admins,
 		// so we just verify the call succeeds.
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		count, err := repo.CountAdmins(context.Background())
 		require.NoError(t, err)
@@ -302,7 +303,7 @@ func TestPostgresRepository_CountAdmins(t *testing.T) {
 
 	t.Run("returns correct count of active admins", func(t *testing.T) {
 		setup(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		before, err := repo.CountAdmins(ctx)
@@ -329,7 +330,7 @@ func TestPostgresRepository_IncrementTokenVersion(t *testing.T) {
 	t.Run("increments token version", func(t *testing.T) {
 		setup(t)
 		u := seedUser(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		ctx := context.Background()
 
 		err := repo.IncrementTokenVersion(ctx, u.ID)
@@ -342,7 +343,7 @@ func TestPostgresRepository_IncrementTokenVersion(t *testing.T) {
 
 	t.Run("returns not found for missing user", func(t *testing.T) {
 		setup(t)
-		repo := user.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 
 		err := repo.IncrementTokenVersion(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -350,7 +351,7 @@ func TestPostgresRepository_IncrementTokenVersion(t *testing.T) {
 }
 
 func TestPostgresRepository_CancelledContext(t *testing.T) {
-	repo := user.NewPostgresRepository(testPool)
+	repo := postgres.New(testPool)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
