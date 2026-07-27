@@ -19,6 +19,7 @@ import (
 	dashboardpg "github.com/residwi/go-api-project-template/internal/dashboard/postgres"
 	"github.com/residwi/go-api-project-template/internal/inventory"
 	"github.com/residwi/go-api-project-template/internal/notification"
+	notificationpg "github.com/residwi/go-api-project-template/internal/notification/postgres"
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	mockgw "github.com/residwi/go-api-project-template/internal/payment/mock"
@@ -59,7 +60,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	reviewRepo := reviewpg.New(deps.Pool)
 	promotionRepo := promotion.NewPostgresRepository(deps.Pool)
 	wishlistRepo := wishlistpg.New(deps.Pool)
-	notificationRepo := notification.NewPostgresRepository(deps.Pool)
+	notificationRepo := notificationpg.New(deps.Pool)
 	dashboardRepo := dashboardpg.New(deps.Pool)
 
 	txRunner := database.NewTxRunner(deps.Pool)
