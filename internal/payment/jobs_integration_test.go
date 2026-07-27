@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/payment"
+	"github.com/residwi/go-api-project-template/internal/payment/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	mocks "github.com/residwi/go-api-project-template/mocks/payment"
 )
@@ -31,7 +32,7 @@ type paymentMocks struct {
 // collaborators. It sets no expectations — each test sets its own.
 func newIntegrationService(t *testing.T) (*payment.Service, paymentMocks) {
 	t.Helper()
-	repo := payment.NewPostgresRepository(testPool)
+	repo := postgres.New(testPool)
 	m := paymentMocks{
 		orderUpdater:     mocks.NewMockOrderUpdater(t),
 		orderGet:         mocks.NewMockOrderGetter(t),
@@ -53,7 +54,7 @@ func TestService_ProcessIntegration(t *testing.T) {
 		orderID := seedOrder(t, userID)
 		p := seedPayment(t, orderID)
 
-		repo := payment.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		job := &payment.Job{
 			PaymentID:   p.ID,
 			OrderID:     orderID,
@@ -93,7 +94,7 @@ func TestService_ProcessIntegration(t *testing.T) {
 		orderID := seedOrder(t, userID)
 		p := seedPayment(t, orderID)
 
-		repo := payment.NewPostgresRepository(testPool)
+		repo := postgres.New(testPool)
 		job := &payment.Job{
 			PaymentID:   p.ID,
 			OrderID:     orderID,
