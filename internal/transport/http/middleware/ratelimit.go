@@ -10,7 +10,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/residwi/go-api-project-template/internal/platform/response"
+	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 // clientIP resolves the per-client identifier for rate limiting. It strips the

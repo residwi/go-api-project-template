@@ -1,4 +1,4 @@
-package server
+package http
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/category"
 	"github.com/residwi/go-api-project-template/internal/dashboard"
 	"github.com/residwi/go-api-project-template/internal/inventory"
-	"github.com/residwi/go-api-project-template/internal/middleware"
 	"github.com/residwi/go-api-project-template/internal/notification"
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/payment"
@@ -26,6 +25,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/promotion"
 	"github.com/residwi/go-api-project-template/internal/review"
 	"github.com/residwi/go-api-project-template/internal/shipping"
+	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/user"
 	"github.com/residwi/go-api-project-template/internal/wiring"
 	"github.com/residwi/go-api-project-template/internal/wishlist"

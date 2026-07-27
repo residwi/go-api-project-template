@@ -5,7 +5,7 @@
 package mocks
 
 import (
-	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	mock "github.com/stretchr/testify/mock"
 )
 

@@ -1,6 +1,6 @@
 // Package mockserver implements the dev-only fake payment gateway HTTP
 // handlers (charge, refund, webhook trigger). It is importable — unlike
-// package main in cmd/mockgateway — so internal/server can still mount it
+// package main in cmd/mockgateway — so internal/transport/http can still mount it
 // in-process for local development, while cmd/mockgateway/main.go runs it as
 // a standalone binary.
 package mockserver

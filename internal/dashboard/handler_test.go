@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/dashboard"
-	"github.com/residwi/go-api-project-template/internal/middleware"
+	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	mocks "github.com/residwi/go-api-project-template/mocks/dashboard"
 )
 

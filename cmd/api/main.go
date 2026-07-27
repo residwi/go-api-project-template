@@ -4,11 +4,11 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/residwi/go-api-project-template/internal/server"
+	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 )
 
 func main() {
-	if err := server.Run(); err != nil {
+	if err := apihttp.Run(); err != nil {
 		slog.Error("server failed to start", "error", err)
 		os.Exit(1)
 	}

@@ -1,4 +1,4 @@
-package server_test
+package http_test
 
 import (
 	"context"
@@ -23,14 +23,14 @@ import (
 	mockgw "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/payment"
-	"github.com/residwi/go-api-project-template/internal/server"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
+	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 )
 
 var (
 	testPool  *pgxpool.Pool
 	testRedis *redis.Client
-	testDeps  *server.Deps
+	testDeps  *apihttp.Deps
 )
 
 func TestMain(m *testing.M) {
@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 	defer cleanupRedis()
 	testRedis = rdb
 
-	testDeps = &server.Deps{
+	testDeps = &apihttp.Deps{
 		Config: &config.Config{
 			App: config.AppConfig{
 				Name:         "test",
@@ -110,14 +110,14 @@ func inventoryLevelOf(t *testing.T, productID uuid.UUID) (available, reserved in
 func TestNewRouter(t *testing.T) {
 	setup(t)
 	t.Run("initializes without error", func(t *testing.T) {
-		handler := server.NewRouter(testDeps)
+		handler := apihttp.NewRouter(testDeps)
 		require.NotNil(t, handler)
 	})
 }
 
 func TestHealthHandler(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 
 	t.Run("returns healthy status", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -142,12 +142,12 @@ func TestHealthHandler(t *testing.T) {
 		}
 		defer badPool.Close()
 
-		badDeps := &server.Deps{
+		badDeps := &apihttp.Deps{
 			Config: testDeps.Config,
 			Pool:   badPool,
 			Redis:  testRedis,
 		}
-		h := server.NewRouter(badDeps).Handler
+		h := apihttp.NewRouter(badDeps).Handler
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -172,12 +172,12 @@ func TestHealthHandler(t *testing.T) {
 		})
 		defer badRedis.Close()
 
-		badDeps := &server.Deps{
+		badDeps := &apihttp.Deps{
 			Config: testDeps.Config,
 			Pool:   testPool,
 			Redis:  badRedis,
 		}
-		h := server.NewRouter(badDeps).Handler
+		h := apihttp.NewRouter(badDeps).Handler
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -194,12 +194,12 @@ func TestHealthHandler(t *testing.T) {
 	})
 
 	t.Run("returns not configured when redis is nil", func(t *testing.T) {
-		nilRedisDeps := &server.Deps{
+		nilRedisDeps := &apihttp.Deps{
 			Config: testDeps.Config,
 			Pool:   testPool,
 			Redis:  nil,
 		}
-		h := server.NewRouter(nilRedisDeps).Handler
+		h := apihttp.NewRouter(nilRedisDeps).Handler
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -218,7 +218,7 @@ func TestHealthHandler(t *testing.T) {
 
 func TestPublicEndpoints(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 
 	t.Run("GET /api/categories returns list", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/categories", nil)
@@ -258,7 +258,7 @@ func TestPublicEndpoints(t *testing.T) {
 
 func TestAuthEndpoints(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 	ctx := context.Background()
 
 	t.Run("POST /api/auth/register creates user", func(t *testing.T) {
@@ -377,7 +377,7 @@ func TestAuthEndpoints(t *testing.T) {
 
 func TestProtectedEndpointsRequireAuth(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 
 	endpoints := []struct {
 		method string
@@ -402,7 +402,7 @@ func TestProtectedEndpointsRequireAuth(t *testing.T) {
 
 func TestAdminEndpointsRequireAuth(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 
 	endpoints := []struct {
 		method string
@@ -430,7 +430,7 @@ func TestAdminEndpointsRequireAuth(t *testing.T) {
 
 func TestAuthenticatedEndpoints(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 	ctx := context.Background()
 
 	// Register and login to get an access token
@@ -501,7 +501,7 @@ func TestAuthenticatedEndpoints(t *testing.T) {
 
 func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 	ctx := context.Background()
 
 	// Register a regular user
@@ -548,7 +548,7 @@ func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 
 func TestE2EOrderFlow(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 	ctx := context.Background()
 
 	// Seed a category
@@ -637,12 +637,12 @@ func TestE2EOrderFlow(t *testing.T) {
 
 func TestHealthHandler_NilRedis(t *testing.T) {
 	setup(t)
-	nilRedisDeps := &server.Deps{
+	nilRedisDeps := &apihttp.Deps{
 		Config: testDeps.Config,
 		Pool:   testDeps.Pool,
 		Redis:  nil,
 	}
-	handler := server.NewRouter(nilRedisDeps).Handler
+	handler := apihttp.NewRouter(nilRedisDeps).Handler
 
 	t.Run("returns healthy with redis not configured", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -660,7 +660,7 @@ func TestHealthHandler_NilRedis(t *testing.T) {
 
 func TestE2ECancelOrderFlow(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 	ctx := context.Background()
 
 	// Seed category + product
@@ -741,7 +741,7 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 
 func TestE2EAdminFlow(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 	ctx := context.Background()
 
 	// Register and promote to admin
@@ -820,7 +820,7 @@ func TestE2EAdminFlow(t *testing.T) {
 
 func TestCORSHeaders(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 
 	t.Run("OPTIONS preflight returns CORS headers", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodOptions, "/api/products", nil)
@@ -841,7 +841,7 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
-	webhookDeps := &server.Deps{
+	webhookDeps := &apihttp.Deps{
 		Config: &config.Config{
 			App:  testDeps.Config.App,
 			JWT:  testDeps.Config.JWT,
@@ -855,7 +855,7 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 		Pool:  testPool,
 		Redis: testRedis,
 	}
-	handler := server.NewRouter(webhookDeps).Handler
+	handler := apihttp.NewRouter(webhookDeps).Handler
 	ctx := context.Background()
 
 	// Seed category + product
@@ -961,7 +961,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
-	deps := &server.Deps{
+	deps := &apihttp.Deps{
 		Config: &config.Config{
 			App:  testDeps.Config.App,
 			JWT:  testDeps.Config.JWT,
@@ -975,7 +975,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		Pool:  testPool,
 		Redis: testRedis,
 	}
-	handler := server.NewRouter(deps).Handler
+	handler := apihttp.NewRouter(deps).Handler
 	ctx := context.Background()
 
 	// Seed category + product
@@ -1132,7 +1132,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
-	webhookDeps := &server.Deps{
+	webhookDeps := &apihttp.Deps{
 		Config: &config.Config{
 			App:  testDeps.Config.App,
 			JWT:  testDeps.Config.JWT,
@@ -1146,7 +1146,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		Pool:  testPool,
 		Redis: testRedis,
 	}
-	router := server.NewRouter(webhookDeps)
+	router := apihttp.NewRouter(webhookDeps)
 	handler := router.Handler
 	ctx := context.Background()
 
@@ -1324,7 +1324,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
-	deps := &server.Deps{
+	deps := &apihttp.Deps{
 		Config: &config.Config{
 			App:  testDeps.Config.App,
 			JWT:  testDeps.Config.JWT,
@@ -1338,7 +1338,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 		Pool:  testPool,
 		Redis: testRedis,
 	}
-	handler := server.NewRouter(deps).Handler
+	handler := apihttp.NewRouter(deps).Handler
 	ctx := context.Background()
 
 	// Seed category + product
@@ -1497,7 +1497,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
-	deps := &server.Deps{
+	deps := &apihttp.Deps{
 		Config: &config.Config{
 			App:  testDeps.Config.App,
 			JWT:  testDeps.Config.JWT,
@@ -1511,7 +1511,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 		Pool:  testPool,
 		Redis: testRedis,
 	}
-	handler := server.NewRouter(deps).Handler
+	handler := apihttp.NewRouter(deps).Handler
 	ctx := context.Background()
 
 	// Seed category + product
@@ -1642,7 +1642,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
-	webhookDeps := &server.Deps{
+	webhookDeps := &apihttp.Deps{
 		Config: &config.Config{
 			App:  testDeps.Config.App,
 			JWT:  testDeps.Config.JWT,
@@ -1656,7 +1656,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		Pool:  testPool,
 		Redis: testRedis,
 	}
-	router := server.NewRouter(webhookDeps)
+	router := apihttp.NewRouter(webhookDeps)
 	handler := router.Handler
 	ctx := context.Background()
 
@@ -1825,7 +1825,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 
 func TestAdapterErrorPaths(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps).Handler
 	ctx := context.Background()
 
 	// Register a user for authenticated requests
@@ -1872,7 +1872,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
-	deps := &server.Deps{
+	deps := &apihttp.Deps{
 		Config: &config.Config{
 			App:  testDeps.Config.App,
 			JWT:  testDeps.Config.JWT,
@@ -1886,7 +1886,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		Pool:  testPool,
 		Redis: testRedis,
 	}
-	router := server.NewRouter(deps)
+	router := apihttp.NewRouter(deps)
 	handler := router.Handler
 	ctx := context.Background()
 
@@ -2006,7 +2006,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 
 func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	setup(t)
-	router := server.NewRouter(testDeps)
+	router := apihttp.NewRouter(testDeps)
 
 	// A missing order drives orderGetterAdapter.GetByID down its error path.
 	fakeJob := payment.Job{
@@ -2021,7 +2021,7 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	assert.Contains(t, err.Error(), "getting order for verification")
 }
 
-// serverRunEnv sets the base env vars for a server.Run() test using the dockertest containers.
+// serverRunEnv sets the base env vars for a apihttp.Run() test using the dockertest containers.
 func serverRunEnv(t *testing.T, port int) {
 	t.Helper()
 	pgCfg := testPool.Config().ConnConfig
@@ -2041,12 +2041,12 @@ func serverRunEnv(t *testing.T, port int) {
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
 }
 
-// startAndStopServer starts server.Run() in a goroutine, waits for it to be
+// startAndStopServer starts apihttp.Run() in a goroutine, waits for it to be
 // ready (via healthAddr), sends SIGINT, and returns the Run() error.
 func startAndStopServer(t *testing.T, healthAddr string) error {
 	t.Helper()
 	errCh := make(chan error, 1)
-	go func() { errCh <- server.Run() }()
+	go func() { errCh <- apihttp.Run() }()
 
 	require.Eventually(t, func() bool {
 		resp, err := http.Get(healthAddr + "/health")
@@ -2063,7 +2063,7 @@ func startAndStopServer(t *testing.T, healthAddr string) error {
 	case runErr := <-errCh:
 		return runErr
 	case <-time.After(10 * time.Second):
-		t.Fatal("server.Run() did not return after SIGINT")
+		t.Fatal("apihttp.Run() did not return after SIGINT")
 		return nil
 	}
 }
@@ -2124,7 +2124,7 @@ func TestServerRunListenError(t *testing.T) {
 	serverRunEnv(t, port)
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- server.Run() }()
+	go func() { errCh <- apihttp.Run() }()
 
 	// Give the server goroutine time to hit the ListenAndServe error
 	time.Sleep(500 * time.Millisecond)
@@ -2137,7 +2137,7 @@ func TestServerRunListenError(t *testing.T) {
 		// Run() returns nil because the ListenAndServe error is only logged, not returned
 		require.NoError(t, runErr)
 	case <-time.After(10 * time.Second):
-		t.Fatal("server.Run() did not return after SIGINT")
+		t.Fatal("apihttp.Run() did not return after SIGINT")
 	}
 }
 
@@ -2147,7 +2147,7 @@ func TestServerRunConfigError(t *testing.T) {
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
 	t.Setenv("JWT_ACCESS_TTL", "not-a-duration")
 
-	err := server.Run()
+	err := apihttp.Run()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading config")
 }
@@ -2161,7 +2161,7 @@ func TestServerRunDatabaseError(t *testing.T) {
 	t.Setenv("DB_PASSWORD", "invalid")
 	t.Setenv("DB_NAME", "invalid")
 
-	err := server.Run()
+	err := apihttp.Run()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "connecting to database")
 }
@@ -2178,7 +2178,7 @@ func TestServerRun(t *testing.T) {
 	addr := fmt.Sprintf("http://127.0.0.1:%d", port)
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- server.Run() }()
+	go func() { errCh <- apihttp.Run() }()
 
 	require.Eventually(t, func() bool {
 		resp, err := http.Get(addr + "/health")
@@ -2207,6 +2207,6 @@ func TestServerRun(t *testing.T) {
 	case runErr := <-errCh:
 		require.NoError(t, runErr)
 	case <-time.After(10 * time.Second):
-		t.Fatal("server.Run() did not return after SIGINT")
+		t.Fatal("apihttp.Run() did not return after SIGINT")
 	}
 }

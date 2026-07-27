@@ -28,9 +28,9 @@ const (
 // Redis DB index per package (must be unique, 0–15):
 //
 //	0 — internal/platform/cache
-//	1 — internal/middleware
+//	1 — internal/transport/http/middleware
 //	2 — internal/user
-//	3 — internal/server
+//	3 — internal/transport/http
 
 func init() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})))
