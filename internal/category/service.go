@@ -21,20 +21,20 @@ func NewService(repo Repository, products ProductCounter) *Service {
 	return &Service{repo: repo, products: products}
 }
 
-func (s *Service) Create(ctx context.Context, req CreateCategoryRequest) (*Category, error) {
+func (s *Service) Create(ctx context.Context, p CreateParams) (*Category, error) {
 	cat := &Category{
-		Name:        req.Name,
-		Slug:        slug.MakeOrFallback(req.Name, "category-"+uuid.New().String()[:8]),
-		Description: req.Description,
-		ParentID:    req.ParentID,
+		Name:        p.Name,
+		Slug:        slug.MakeOrFallback(p.Name, "category-"+uuid.New().String()[:8]),
+		Description: p.Description,
+		ParentID:    p.ParentID,
 		Active:      true,
 	}
 
-	if req.SortOrder != nil {
-		cat.SortOrder = *req.SortOrder
+	if p.SortOrder != nil {
+		cat.SortOrder = *p.SortOrder
 	}
-	if req.Active != nil {
-		cat.Active = *req.Active
+	if p.Active != nil {
+		cat.Active = *p.Active
 	}
 
 	if cat.ParentID != nil {
@@ -62,27 +62,27 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Category, error) 
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateCategoryRequest) (*Category, error) {
+func (s *Service) Update(ctx context.Context, id uuid.UUID, p UpdateParams) (*Category, error) {
 	cat, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if req.Name != nil {
-		cat.Name = *req.Name
+	if p.Name != nil {
+		cat.Name = *p.Name
 		cat.Slug = slug.MakeOrFallback(cat.Name, "category-"+cat.ID.String()[:8])
 	}
-	if req.Description != nil {
-		cat.Description = req.Description
+	if p.Description != nil {
+		cat.Description = p.Description
 	}
-	if req.ParentID != nil {
-		cat.ParentID = req.ParentID
+	if p.ParentID != nil {
+		cat.ParentID = p.ParentID
 	}
-	if req.SortOrder != nil {
-		cat.SortOrder = *req.SortOrder
+	if p.SortOrder != nil {
+		cat.SortOrder = *p.SortOrder
 	}
-	if req.Active != nil {
-		cat.Active = *req.Active
+	if p.Active != nil {
+		cat.Active = *p.Active
 	}
 
 	if cat.ParentID != nil {

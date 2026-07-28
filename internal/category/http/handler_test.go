@@ -177,8 +177,8 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
-		body, _ := json.Marshal(category.CreateCategoryRequest{
-			Name: "New Category",
+		body, _ := json.Marshal(map[string]any{
+			"name": "New Category",
 		})
 
 		w := httptest.NewRecorder()
@@ -209,8 +209,8 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
-		body, _ := json.Marshal(category.CreateCategoryRequest{
-			Name: "Duplicate",
+		body, _ := json.Marshal(map[string]any{
+			"name": "Duplicate",
 		})
 
 		w := httptest.NewRecorder()
@@ -275,8 +275,8 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil)
 
 		newName := "Updated Name"
-		body, _ := json.Marshal(category.UpdateCategoryRequest{
-			Name: &newName,
+		body, _ := json.Marshal(map[string]any{
+			"name": newName,
 		})
 
 		w := httptest.NewRecorder()
@@ -330,8 +330,8 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 
 		catID := uuid.New()
 		tooLong := strings.Repeat("a", 256)
-		body, _ := json.Marshal(category.UpdateCategoryRequest{
-			Name: &tooLong,
+		body, _ := json.Marshal(map[string]any{
+			"name": tooLong,
 		})
 
 		w := httptest.NewRecorder()
@@ -355,8 +355,8 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, catID).Return(nil, apperror.ErrNotFound)
 
 		newName := "Updated"
-		body, _ := json.Marshal(category.UpdateCategoryRequest{
-			Name: &newName,
+		body, _ := json.Marshal(map[string]any{
+			"name": newName,
 		})
 
 		w := httptest.NewRecorder()

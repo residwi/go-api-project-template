@@ -29,7 +29,7 @@ func newTestService(t *testing.T) *category.Service {
 
 func createCategory(t *testing.T, svc *category.Service, parentID *uuid.UUID) *category.Category {
 	t.Helper()
-	cat, err := svc.Create(context.Background(), category.CreateCategoryRequest{
+	cat, err := svc.Create(context.Background(), category.CreateParams{
 		Name:     "Cat-" + uuid.New().String()[:8],
 		ParentID: parentID,
 	})
@@ -45,7 +45,7 @@ func TestServiceCreate_ValidateParent(t *testing.T) {
 		svc := newTestService(t)
 		parent := createCategory(t, svc, nil)
 
-		child, err := svc.Create(context.Background(), category.CreateCategoryRequest{
+		child, err := svc.Create(context.Background(), category.CreateParams{
 			Name:     "Child-" + uuid.New().String()[:8],
 			ParentID: &parent.ID,
 		})
@@ -61,7 +61,7 @@ func TestServiceCreate_ValidateParent(t *testing.T) {
 		svc := newTestService(t)
 		nonExistent := uuid.New()
 
-		_, err := svc.Create(context.Background(), category.CreateCategoryRequest{
+		_, err := svc.Create(context.Background(), category.CreateParams{
 			Name:     "Orphan-" + uuid.New().String()[:8],
 			ParentID: &nonExistent,
 		})
@@ -73,7 +73,7 @@ func TestServiceCreate_ValidateParent(t *testing.T) {
 		svc := newTestService(t)
 		cat := createCategory(t, svc, nil)
 
-		_, err := svc.Update(context.Background(), cat.ID, category.UpdateCategoryRequest{
+		_, err := svc.Update(context.Background(), cat.ID, category.UpdateParams{
 			ParentID: &cat.ID,
 		})
 		require.ErrorIs(t, err, apperror.ErrBadRequest)
@@ -91,7 +91,7 @@ func TestServiceCreate_ValidateParent(t *testing.T) {
 		level5 := createCategory(t, svc, &level4.ID)
 
 		// Adding a 6th level should fail
-		_, err := svc.Create(context.Background(), category.CreateCategoryRequest{
+		_, err := svc.Create(context.Background(), category.CreateParams{
 			Name:     "Level6-" + uuid.New().String()[:8],
 			ParentID: &level5.ID,
 		})
@@ -108,7 +108,7 @@ func TestServiceCreate_ValidateParent(t *testing.T) {
 		catC := createCategory(t, svc, &catB.ID)
 
 		// Try to set A's parent to C → circular
-		_, err := svc.Update(context.Background(), catA.ID, category.UpdateCategoryRequest{
+		_, err := svc.Update(context.Background(), catA.ID, category.UpdateParams{
 			ParentID: &catC.ID,
 		})
 		require.ErrorIs(t, err, apperror.ErrBadRequest)
@@ -123,7 +123,7 @@ func TestServiceCreate_ValidateParent_DBError(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := svc.Create(ctx, category.CreateCategoryRequest{
+		_, err := svc.Create(ctx, category.CreateParams{
 			Name:     "Test-" + uuid.New().String()[:8],
 			ParentID: &parentID,
 		})
@@ -139,7 +139,7 @@ func TestServiceUpdate_MoveParent(t *testing.T) {
 		newParent := createCategory(t, svc, nil)
 		child := createCategory(t, svc, &oldParent.ID)
 
-		updated, err := svc.Update(context.Background(), child.ID, category.UpdateCategoryRequest{
+		updated, err := svc.Update(context.Background(), child.ID, category.UpdateParams{
 			ParentID: &newParent.ID,
 		})
 		require.NoError(t, err)

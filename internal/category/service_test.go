@@ -30,7 +30,7 @@ func TestService_Create(t *testing.T) {
 			c.UpdatedAt = time.Now()
 		}).Return(nil)
 
-		result, err := svc.Create(context.Background(), category.CreateCategoryRequest{
+		result, err := svc.Create(context.Background(), category.CreateParams{
 			Name: "Electronics",
 		})
 
@@ -53,7 +53,7 @@ func TestService_Create(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
-		result, err := svc.Create(context.Background(), category.CreateCategoryRequest{
+		result, err := svc.Create(context.Background(), category.CreateParams{
 			Name: "Electronics",
 		})
 
@@ -76,7 +76,7 @@ func TestService_Create(t *testing.T) {
 			c.UpdatedAt = time.Now()
 		}).Return(nil)
 
-		result, err := svc.Create(context.Background(), category.CreateCategoryRequest{
+		result, err := svc.Create(context.Background(), category.CreateParams{
 			Name:      "Books",
 			SortOrder: &sortOrder,
 			Active:    &active,
@@ -211,7 +211,7 @@ func TestService_Update(t *testing.T) {
 		})).Return(nil)
 
 		newName := "Gadgets"
-		result, err := svc.Update(context.Background(), id, category.UpdateCategoryRequest{
+		result, err := svc.Update(context.Background(), id, category.UpdateParams{
 			Name: &newName,
 		})
 
@@ -235,7 +235,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
 
 		newName := "Gadgets"
-		result, err := svc.Update(context.Background(), id, category.UpdateCategoryRequest{
+		result, err := svc.Update(context.Background(), id, category.UpdateParams{
 			Name: &newName,
 		})
 
@@ -259,7 +259,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
 		newName := "Gadgets"
-		result, err := svc.Update(context.Background(), id, category.UpdateCategoryRequest{
+		result, err := svc.Update(context.Background(), id, category.UpdateParams{
 			Name: &newName,
 		})
 
@@ -286,7 +286,7 @@ func TestService_Update(t *testing.T) {
 		newDesc := "A description"
 		newSort := 10
 		newActive := false
-		result, err := svc.Update(context.Background(), id, category.UpdateCategoryRequest{
+		result, err := svc.Update(context.Background(), id, category.UpdateParams{
 			Name:        &newName,
 			Description: &newDesc,
 			SortOrder:   &newSort,

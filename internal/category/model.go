@@ -7,19 +7,19 @@ import (
 )
 
 type Category struct {
-	ID          uuid.UUID  `json:"id"`
-	Name        string     `json:"name"`
-	Slug        string     `json:"slug"`
-	Description *string    `json:"description,omitempty"`
-	ParentID    *uuid.UUID `json:"parent_id,omitempty"`
-	SortOrder   int        `json:"sort_order"`
-	Active      bool       `json:"active"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          uuid.UUID
+	Name        string
+	Slug        string
+	Description *string
+	ParentID    *uuid.UUID
+	SortOrder   int
+	Active      bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type Tree struct {
 	Category
 
-	Children []Tree `json:"children,omitempty"`
+	Children []Tree
 }
