@@ -1,13 +1,14 @@
-package cart
+package http
 
 import (
+	"github.com/residwi/go-api-project-template/internal/cart"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
 	Validator *validator.Validator
-	Service   *Service
+	Service   *cart.Service
 }
 
 func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {

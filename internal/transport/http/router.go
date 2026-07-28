@@ -13,7 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/auth"
 	authhttp "github.com/residwi/go-api-project-template/internal/auth/http"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/cart"
+	carthttp "github.com/residwi/go-api-project-template/internal/cart/http"
 	cartpg "github.com/residwi/go-api-project-template/internal/cart/postgres"
 	categoryhttp "github.com/residwi/go-api-project-template/internal/category/http"
 	categorypg "github.com/residwi/go-api-project-template/internal/category/postgres"
@@ -131,7 +131,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	categoryhttp.RegisterRoutes(api, admin, categoryhttp.RouteDeps{Validator: v, Service: categorySvc})
 	producthttp.RegisterRoutes(api, admin, producthttp.RouteDeps{Validator: v, Service: productSvc})
 	inventoryhttp.RegisterRoutes(admin, inventoryhttp.RouteDeps{Validator: v, Service: inventorySvc})
-	cart.RegisterRoutes(authed, cart.RouteDeps{Validator: v, Service: cartSvc})
+	carthttp.RegisterRoutes(authed, carthttp.RouteDeps{Validator: v, Service: cartSvc})
 	order.RegisterRoutes(authed, admin, order.RouteDeps{Validator: v, Service: orderSvc, WriteLimiter: orderWriteLimiter})
 	payment.RegisterRoutes(api, admin, payment.RouteDeps{Validator: v, Service: paymentSvc, WebhookSecret: cfg.Payment.WebhookSecret})
 	shippinghttp.RegisterRoutes(authed, admin, shippinghttp.RouteDeps{Validator: v, Service: shippingSvc, Orders: shippingOrderProvider})

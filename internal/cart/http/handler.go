@@ -1,15 +1,16 @@
-package cart
+package http
 
 import (
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/cart"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type handler struct {
-	service   *Service
+	service   *cart.Service
 	validator *validator.Validator
 }
 
@@ -34,7 +35,7 @@ func (h *handler) AddItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[AddItemRequest](w, r, h.validator)
+	req, ok := response.Bind[cart.AddItemRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -58,7 +59,7 @@ func (h *handler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[UpdateItemRequest](w, r, h.validator)
+	req, ok := response.Bind[cart.UpdateItemRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

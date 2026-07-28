@@ -1,4 +1,4 @@
-package cart_test
+package http_test
 
 import (
 	"encoding/json"
@@ -16,6 +16,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/cart"
+	carthttp "github.com/residwi/go-api-project-template/internal/cart/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
@@ -32,7 +33,7 @@ func setupCartMux(t *testing.T) (*http.ServeMux, *cartMocks.MockRepository, *car
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	cart.RegisterRoutes(authed, cart.RouteDeps{
+	carthttp.RegisterRoutes(authed, carthttp.RouteDeps{
 		Validator: v,
 		Service:   svc,
 	})

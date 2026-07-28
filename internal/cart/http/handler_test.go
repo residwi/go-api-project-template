@@ -1,4 +1,4 @@
-package cart
+package http
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/cart"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
@@ -25,7 +26,7 @@ type stubRepo struct {
 func (s *stubRepo) GetOrCreate(_ context.Context, _ uuid.UUID) (uuid.UUID, error) {
 	return s.getOrCreateID, nil
 }
-func (s *stubRepo) GetCart(context.Context, uuid.UUID) (*Cart, error) { return nil, nil } //nolint:nilnil // test stub
+func (s *stubRepo) GetCart(context.Context, uuid.UUID) (*cart.Cart, error) { return nil, nil } //nolint:nilnil // test stub
 func (s *stubRepo) AddItem(_ context.Context, _, _ uuid.UUID, _ int) error {
 	return nil
 }
@@ -46,21 +47,21 @@ func (s *stubRepo) GetCartForLock(context.Context, uuid.UUID) (uuid.UUID, error)
 
 type stubProducts struct{}
 
-func (s *stubProducts) GetByID(_ context.Context, id uuid.UUID) (*ProductInfo, error) {
-	return &ProductInfo{ID: id, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil
+func (s *stubProducts) GetByID(_ context.Context, id uuid.UUID) (*cart.ProductInfo, error) {
+	return &cart.ProductInfo{ID: id, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil
 }
 
-func (s *stubProducts) GetByIDs(_ context.Context, ids []uuid.UUID) (map[uuid.UUID]ProductInfo, error) {
-	out := make(map[uuid.UUID]ProductInfo, len(ids))
+func (s *stubProducts) GetByIDs(_ context.Context, ids []uuid.UUID) (map[uuid.UUID]cart.ProductInfo, error) {
+	out := make(map[uuid.UUID]cart.ProductInfo, len(ids))
 	for _, id := range ids {
-		out[id] = ProductInfo{ID: id, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}
+		out[id] = cart.ProductInfo{ID: id, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}
 	}
 	return out, nil
 }
 
 func newTestHandler() *handler {
 	return &handler{
-		service:   &Service{},
+		service:   &cart.Service{},
 		validator: validator.New(),
 	}
 }
@@ -134,7 +135,7 @@ func TestHandler_AddItem(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		repo := &stubRepo{getOrCreateID: uuid.New()}
-		svc := NewService(repo, testhelper.FakeTxRunner{}, &stubProducts{}, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, &stubProducts{}, 50)
 		h := &handler{service: svc, validator: validator.New()}
 
 		userID := uuid.New()
@@ -209,7 +210,7 @@ func TestHandler_UpdateItem(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		repo := &stubRepo{getOrCreateID: uuid.New()}
-		svc := NewService(repo, testhelper.FakeTxRunner{}, &stubProducts{}, 50)
+		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, &stubProducts{}, 50)
 		h := &handler{service: svc, validator: validator.New()}
 
 		userID := uuid.New()
