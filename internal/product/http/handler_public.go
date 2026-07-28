@@ -1,4 +1,4 @@
-package product
+package http
 
 import (
 	"net/http"
@@ -8,18 +8,19 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/product"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type publicHandler struct {
-	service   *Service
+	service   *product.Service
 	validator *validator.Validator
 }
 
 func (h *publicHandler) List(w http.ResponseWriter, r *http.Request) {
 	cursor := paging.ParseCursorPage(r)
 
-	params := PublishedListParams{
+	params := product.PublishedListParams{
 		Cursor: cursor.Cursor,
 		Limit:  cursor.Limit,
 		Search: r.URL.Query().Get("search"),

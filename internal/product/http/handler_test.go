@@ -1,4 +1,4 @@
-package product_test
+package http_test
 
 import (
 	"bytes"
@@ -17,6 +17,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/product"
+	producthttp "github.com/residwi/go-api-project-template/internal/product/http"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	prodMocks "github.com/residwi/go-api-project-template/mocks/product"
@@ -36,7 +37,7 @@ func setupProductMux(t *testing.T) (*http.ServeMux, *prodMocks.MockRepository) {
 	api := middleware.NewRouteGroup(mux, "/api/v1")
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	product.RegisterRoutes(api, admin, product.RouteDeps{
+	producthttp.RegisterRoutes(api, admin, producthttp.RouteDeps{
 		Validator: v,
 		Service:   svc,
 	})

@@ -32,7 +32,7 @@ import (
 	paymentpg "github.com/residwi/go-api-project-template/internal/payment/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/product"
+	producthttp "github.com/residwi/go-api-project-template/internal/product/http"
 	productpg "github.com/residwi/go-api-project-template/internal/product/postgres"
 	"github.com/residwi/go-api-project-template/internal/promotion"
 	promotionpg "github.com/residwi/go-api-project-template/internal/promotion/postgres"
@@ -127,7 +127,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Service: authSvc})
 	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Service: userSvc})
 	categoryhttp.RegisterRoutes(api, admin, categoryhttp.RouteDeps{Validator: v, Service: categorySvc})
-	product.RegisterRoutes(api, admin, product.RouteDeps{Validator: v, Service: productSvc})
+	producthttp.RegisterRoutes(api, admin, producthttp.RouteDeps{Validator: v, Service: productSvc})
 	inventory.RegisterRoutes(admin, inventory.RouteDeps{Validator: v, Service: inventorySvc})
 	cart.RegisterRoutes(authed, cart.RouteDeps{Validator: v, Service: cartSvc})
 	order.RegisterRoutes(authed, admin, order.RouteDeps{Validator: v, Service: orderSvc, WriteLimiter: orderWriteLimiter})

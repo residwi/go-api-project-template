@@ -1,4 +1,4 @@
-package product
+package http
 
 import (
 	"net/http"
@@ -7,16 +7,17 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/product"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type adminHandler struct {
-	service   *Service
+	service   *product.Service
 	validator *validator.Validator
 }
 
 func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := response.Bind[CreateProductRequest](w, r, h.validator)
+	req, ok := response.Bind[product.CreateProductRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -33,7 +34,7 @@ func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 
-	params := AdminListParams{
+	params := product.AdminListParams{
 		Page:     page.Page,
 		PageSize: page.PageSize,
 		Status:   r.URL.Query().Get("status"),
@@ -79,7 +80,7 @@ func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[UpdateProductRequest](w, r, h.validator)
+	req, ok := response.Bind[product.UpdateProductRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
