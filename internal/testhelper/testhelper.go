@@ -41,6 +41,7 @@ const (
 //	2 — internal/user/postgres
 //	3 — internal/transport/http
 //	4 — internal/user
+//	5 — test/e2e
 
 func init() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})))

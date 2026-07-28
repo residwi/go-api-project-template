@@ -63,7 +63,7 @@ test: ## Run tests (requires Docker)
 .PHONY: test-coverage
 test-coverage: ## Run tests with coverage report (requires Docker)
 	@echo "Running tests with coverage..."
-	go test -v -race -count=1 -timeout 5m ./internal/... ./mocks/... \
+	go test -v -race -count=1 -timeout 5m ./internal/... ./mocks/... ./test/... \
 		-coverpkg=$$(go list ./internal/... | grep -v /testhelper | paste -sd, -) \
 		-coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
