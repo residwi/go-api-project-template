@@ -1,373 +1,365 @@
-# Project Overview
+# AGENTS.md
 
-Production-ready ecommerce API template built in Go 1.26. It exposes RESTful endpoints for a complete ecommerce system (auth, users, categories, products, inventory, cart, orders, payments, shipping, reviews, promotions, wishlist, notifications, admin dashboard) and runs a separate payment job worker process. The data layer is PostgreSQL (pgx/v5) with Redis caching. The codebase follows Feature-Based Clean Architecture (vertical slicing) with strict dependency inversion.
+Orientation for agents and humans working in this repository. It describes the
+tree as it actually is, the commands that actually exist, and — most usefully —
+which rules are **machine-checked** and which are only conventions.
 
-## Repository Structure
+Three documents carry the reasoning; this one does not duplicate them:
 
-- `cmd/api/` — API server binary entry point (`server.Run()`)
-- `cmd/worker/` — Payment job worker binary entry point
-- `internal/config/` — Configuration management (`godotenv` + `envconfig`)
-- `internal/apperror/` — The application's error vocabulary (`ErrNotFound`, `ErrBadRequest`, …) — no feature deps
-- `internal/features/` — 14 feature modules, each self-contained:
-  - `auth/` — Authentication (register, login, JWT refresh)
-  - `user/` — User management (profile, admin CRUD)
-  - `category/` — Product categories (public list, admin CRUD)
-  - `product/` — Product catalog (public list, admin CRUD)
-  - `inventory/` — Stock management (admin only)
-  - `cart/` — Shopping cart (authenticated users)
-  - `order/` — Order lifecycle (place, pay, cancel, admin management)
-  - `payment/` — Payment processing + worker jobs
-  - `shipping/` — Shipment tracking (admin + user view)
-  - `review/` — Product reviews (purchase-verified)
-  - `promotion/` — Coupons/promotions (apply + admin CRUD)
-  - `wishlist/` — User wishlists
-  - `notification/` — User notifications
-  - `dashboard/` — Admin analytics (summary, top products, revenue)
-- `internal/middleware/` — HTTP middleware (auth, admin, CORS, logging, recovery, request ID, rate limiting)
-- `internal/platform/` — Infrastructure and generic utilities, no feature deps:
-  - `database/` — PostgreSQL connection + transaction helpers
-  - `cache/` — Redis client
-  - `payment/` — Payment gateway interface + implementations (mock, Stripe, Midtrans)
-  - `jobs/` — Generic background job runner: poll/claim/lease/concurrency/prune behind `Runner[T]`; features supply a `Queue` + `Processor`
-  - `validator/` — Request validation
-  - `response/` — Standard JSON response envelope, error mapping, request binding
-  - `paging/` — Cursor and offset pagination
-  - `slug/` — URL slug generation
-  - `logger/` — Structured logging setup
-  - `email/` — Email service (future)
-  - `storage/` — File storage (future)
-- `internal/server/` — HTTP server bootstrap, router, service composition
-- `internal/wiring/` — Cross-feature adapters (concrete types satisfying the interfaces other features declare in their `ports.go`) and the constructors that build cross-dependent services, shared by the API server and worker so adapters are defined once, not per binary
-- `db/migrations/` — Timestamped SQL migration files (goose)
-- `mocks/` — Generated mocks (mockery v3); sub-dirs per feature
-- `bin/` — Build output
+- **`ARCHITECTURE.md`** — the eleven decisions that shaped this codebase and the
+  fourteen things it deliberately does not do, each with its cost.
+- **`ARCHITECTURE-LIMITATIONS.md`** — what those decisions make hard or
+  impossible, and what you would have to build to get past each one. Read this
+  before proposing a feature that crosses a module boundary.
+- **`db/OWNERSHIP.md`** — which module owns which table, parsed at run time by
+  `make check-boundaries`, plus what that check cannot see.
 
-## Build & Development Commands
+If this file ever disagrees with the code, the code wins — say so and fix the
+file.
 
-```bash
-# Install dependencies
-make setup
+## What this is
 
-# Build all binaries (API + worker)
-make build
+A Go 1.26 ecommerce API template. REST endpoints under `/api` for auth, users,
+categories, products, inventory, cart, orders, payments, shipping, reviews,
+promotions, wishlists, notifications and an admin dashboard, plus a separate
+worker process that drains payment and notification job queues. PostgreSQL via
+`pgx/v5`, Redis via `go-redis/v9`, routing on stdlib `net/http` `ServeMux` — no
+third-party router.
 
-# Build API server only
-make build-api
+The structure is the product. It is a template others copy, so a boundary the
+compiler or CI can enforce is preferred over one a code review has to.
 
-# Build worker only
-make build-worker
-
-# Run API server
-make run
-
-# Run worker
-make run-worker
-
-# Run with hot reload (API)
-make dev
-
-# Run tests with race detector + coverage
-make test
-
-# Run tests and generate HTML coverage report
-make test-coverage
-
-# Remove shared test containers (postgres + redis)
-make test-clean
-
-# Lint
-make lint
-
-# Format
-make fmt
-
-# Vet
-make vet
-
-# Tidy modules
-make tidy
-
-# Generate mocks (mockery v3)
-make mocks
-
-# Database migrations
-make migrate-up
-make migrate-down
-make migrate-down-all
-make migrate-create name=migration_name
-make migrate-status
-
-# Docker
-make docker-build
-make docker-up
-make docker-dev
-make docker-down
-make docker-logs
-make docker-clean
-
-# Full pipeline
-make all   # fmt → vet → lint → test → build
-make ci    # deps → fmt → vet → lint → test
-```
-
-## Code Style & Conventions
-
-- Language: Go 1.26; use `net/http` ServeMux (no third-party routers).
-- JSON: `encoding/json` — never `github.com/bytedance/sonic`.
-- Validation: `go-playground/validator/v10`.
-- Config: `godotenv` + `kelseyhightower/envconfig`; struct tags define env var names and defaults. `Config.validate()` runs at load time and fails fast on invalid combinations (e.g. a sub-second `AUTH_RATE_WINDOW`, `WORKER_CONCURRENCY < 1`, or a too-short `WORKER_LEASE_DURATION`) so misconfiguration aborts boot instead of surfacing as a runtime error later — add new invariants there rather than guarding per use site.
-- Logging: `log/slog` only (structured, JSON format in production).
-- Naming: packages are short, singular nouns (`user`, `product`, `cart`). Files inside a feature: `handler.go`, `service.go`, `repository.go`, `model.go`, `dto.go`, `routes.go`, and `ports.go` when the feature needs interfaces from other features. Tests: `*_test.go` in the same package.
-- Error handling: Application errors in `internal/apperror`; use sentinel errors like `apperror.ErrNotFound`, `apperror.ErrBadRequest`, `apperror.ErrUnauthorized` for structured error responses. Wrap with `fmt.Errorf("%w: ...", apperror.ErrBadRequest)` for additional context.
-- Response helpers: Use `response.OK()`, `response.Created()`, `response.BadRequest()`, `response.NotFound()`, etc. from `internal/platform/response/`.
-- Request decoding: handlers decode and validate a JSON body with `response.Bind[T](w, r, h.validator)` and read the authenticated user with `middleware.RequireUser(w, r)` — not hand-rolled decode/validate or auth-context blocks.
-- Repository reads: scan list/collection queries with `pgx.CollectRows` (never hand-rolled `for rows.Next()` loops). Escape ILIKE search terms with `database.EscapeLike()` and build keyset pagination predicates with `database.KeysetCursor()`.
-- Service ↔ repository boundary: a `service.go` never runs SQL or holds a `*pgxpool.Pool` for data access — every read and write goes through the feature's repository, which owns the pool (via `database.DB(ctx, pool)`). The **only** database-layer import permitted in a service is `database.WithTx`, used to compose several repository calls into one transaction: the service owns the unit-of-work boundary and the transaction propagates to every repository (its own and other features') through the `ctx` handed to the callback. A service that opens no transaction takes no pool at all (e.g. `user`, `product`, `inventory`, `wishlist` — repository-only). Do not inject a pool "just in case".
-- Formatting: `gofmt -s`; enforced via `make fmt` and golangci-lint.
-- Imports: Group as stdlib, blank line, third-party, blank line, local (`go-api-project-template/...`).
-- Commit messages: imperative mood, e.g. "Add webhook signature validation". No conventional-commits prefix required.
-- Comments: Add only when necessary. Explain why, not how.
-- Duplication over wrong abstraction: Prefer duplicating code over introducing a shared abstraction that doesn't quite fit.
-- Cross-feature dependencies: Declare the interfaces a feature needs from other features in its own `ports.go`, alongside any DTOs those interfaces pass (dependency inversion). Each feature defines only the methods it needs, so no feature imports another's package. There is no shared/global ports package — `ports.go` is per-feature and lives inside the feature it belongs to. `service.go` holds only the `Service` struct and its methods. The concrete adapters that satisfy those interfaces live in `internal/wiring` (not in `server/router.go`), exposed as service constructors both binaries reuse.
-- Background job workers: a feature that drains a job queue implements `jobs.Queue[T]` (`Claim` + `Prune`) on its repository and `jobs.Processor[T]` (`Process`) on its service — plus optional `jobs.Sweeper` (`Sweep`) for per-tick domain housekeeping. The binary builds a `jobs.Runner[T]` from `internal/platform/jobs`; never hand-roll a ticker/lease/poll loop. The runner owns polling, the leased compare-and-set claim, bounded concurrency, the per-job timeout (a fraction of the lease), and pruning of terminal jobs. `Process` does its own retry/backoff bookkeeping and returns an error only so the runner can log it.
-- Order status transitions: the `order` package owns its state machine — never set an order's status from another feature with ad-hoc from/to lists. Every guarded transition (a compare-and-set that moves the order to a target status only if its current status is in an allowed-from set) is a named `order.Transition` value in `order/transition.go` (e.g. `order.PaidTransition`, `order.RefundTransition`), applied through the single `order.Service.Apply(ctx, id, transition)` entry point. Other features depend on *intent* methods on their `ports.go` interface (`payment.OrderUpdater.MarkPaid`, `shipping.OrderUpdater.MarkShipped`, …); the `internal/wiring` adapters map each intent to its named transition. This keeps every allowed-from set in one file so it cannot drift per call site.
-- Inventory reversal: undoing an order's stock goes through `inventory.Restore(ctx, items, StockState)` — inventory owns whether that means releasing a reservation or restocking deducted goods. Callers supply the order's prior state (`Reserved`/`Deducted`, from `OrderSnapshot.StockDeducted()`), never the mechanics; the `internal/wiring` adapter maps each consumer's `wasDeducted bool` to the `StockState`. Stale `awaiting_payment` orders are expired by `order.Service.ExpireStale` (a time-triggered bulk-cancel that reuses the cancel path), not by ad-hoc SQL in the worker.
-
-## Architecture Notes
+## Repository structure
 
 ```text
-┌───────────────────────────────────────────────────────────┐
-│               cmd/api (HTTP server binary)                │
-│  server.Run() ──► Router ──► Middleware Chain              │
-│                     │                                     │
-│  ┌──────────────────┼──────────────────────────┐          │
-│  │  internal/features (14 vertical slices)     │          │
-│  │  ┌────────┐ ┌────────┐ ┌─────────┐  ...    │          │
-│  │  │  auth  │ │  user  │ │ product │         │          │
-│  │  │handler │ │handler │ │ handler │         │          │
-│  │  └───┬────┘ └───┬────┘ └────┬────┘         │          │
-│  │      │          │           │               │          │
-│  │  ┌───▼────┐ ┌───▼────┐ ┌────▼────┐         │          │
-│  │  │  auth  │ │  user  │ │ product │         │          │
-│  │  │service │ │service │ │ service │         │          │
-│  │  └───┬────┘ └───┬────┘ └────┬────┘         │          │
-│  │      │          │           │               │          │
-│  │      └──────────┼───────────┘               │          │
-│  │                 │ (ports.go interfaces)      │          │
-│  │  ┌──────────────▼───────────────────────┐   │          │
-│  │  │      PostgreSQL repositories         │   │          │
-│  │  │   (embedded in each feature pkg)     │   │          │
-│  │  └──────────────┬───────────────────────┘   │          │
-│  └─────────────────┼───────────────────────────┘          │
-│                    │                                      │
-│  ┌─────────────────▼───────────────────────────┐          │
-│  │  internal/platform (infrastructure)         │          │
-│  │  database │ cache │ payment │ validator │ …  │          │
-│  └─────────────────────────────────────────────┘          │
-│                    │                                      │
-│  ┌─────────────────▼──────────────────────────┐           │
-│  │  cmd/worker (payment job processor binary)  │           │
-│  │  Polls payment_jobs table on interval       │           │
-│  │  ──► paymentSvc ──► gateway ──► order update│           │
-│  └─────────────────────────────────────────────┘           │
-│                    │                                      │
-│           PostgreSQL + Redis                              │
-└───────────────────────────────────────────────────────────┘
+cmd/api/                  API server binary
+cmd/worker/               payment + notification job worker binary
+cmd/mockgateway/          dev-only fake payment gateway binary
+  mockserver/             its handlers, importable so transport/http can mount them in-process
+internal/
+  apperror/               error vocabulary (ErrNotFound, ErrBadRequest, ...); no feature deps
+  money/                  the Money value object; no feature deps
+  config/                 godotenv + envconfig; Load() then validate()
+  bootstrap/              cross-feature adapters + constructors for cross-dependent services
+  transport/http/         server.go, router.go, middleware/, response/
+  platform/               generic infrastructure, no feature deps:
+                          cache/ database/ jobs/ logger/ paging/ slug/ storage/ validator/
+  testhelper/             shared dockertest harness (Postgres + Redis containers)
+  <feature>/              14 feature modules (see below)
+db/migrations/            goose SQL migrations
+db/seeds/data.sql         seed data, applied by `make seed`
+db/OWNERSHIP.md           table -> owning module, read by the boundary check
+test/e2e/                 cross-module saga tests through the real router
+scripts/check-boundaries.sh   the architectural checks
+mocks/                    generated (mockery v3), one subdir per source package
 ```
 
-**Data flow (place order):**
+`internal/` has 21 directories: **14 features** — `auth cart category dashboard
+inventory notification order payment product promotion review shipping user
+wishlist` — and **7 non-features** — `apperror bootstrap config money platform
+testhelper transport`. That split is not decorative:
+`scripts/check-boundaries.sh` derives the feature list from the tree by
+subtracting exactly those seven names, so adding a directory under `internal/`
+enrols it in the boundary checks as a feature unless it is also added to
+`NON_FEATURE_DIRS` in that script.
 
-1. User sends POST to `/api/orders` with cart + payment method.
-2. `order.Handler` validates request → `order.Service.PlaceOrder()` locks cart, snapshots items, reserves inventory, applies coupon (if any), creates order + items in a transaction.
-3. `payment.Service.InitiatePayment()` creates a payment record, calls the payment gateway to get a payment URL or charge.
-4. A `jobs.Runner[payment.Job]` (in `cmd/worker`) claims `payment_jobs` on an interval, processes pending payments, transitions order status on success/failure via named `order.Transition` values (`order.Service.Apply`), and deducts/releases inventory accordingly. A second `jobs.Runner[notification.Job]` drains `notification_jobs`. Both reuse the generic runner in `internal/platform/jobs`; the payment service's per-tick `Sweep` expires stale unpaid orders.
+### Inside a feature
 
-## Testing Strategy
+A feature holds its domain types, its service, its repository *interface*, and
+the ports it needs from other features. Adapters are subpackages.
 
-- Framework: `testing` + `github.com/stretchr/testify` (assert, require). Always use `assert` for non-fatal checks and `require` when a failure should stop the test immediately (e.g. nil checks before dereferencing).
-- Mocks: Generated with mockery v3 (config in `.mockery.yml`). Run `make mocks` to regenerate into `mocks/`. Use the mockery expecter API (`.EXPECT().Method().Return(...)`) — never set up mock calls manually.
-- Unit tests live alongside source files (`*_test.go`). Every feature package has handler and service tests.
-- Run all tests: `make test` (`go test -v -race -cover ./...`).
-- Coverage report: `make test-coverage` → `coverage.html`.
-- CI pipeline: `make ci` (deps → fmt → vet → lint → test).
+```text
+internal/order/
+  model.go        domain types
+  params.go       input structs for service methods
+  ports.go        interfaces order needs from other features
+  repository.go   the Repository interface order's own storage must satisfy
+  service.go      Service struct and its methods
+  transition.go   order's state machine (feature-specific file)
+  address.go      feature-specific file
+  postgres/       the Postgres repository — the only place order's tables are named
+  http/           one file per endpoint, each owning its request/response DTOs, plus routes.go
+```
 
-### Testing Rules for Agents
+Every feature has `model.go`, `service.go` and `repository.go` except `auth`,
+which has no storage of its own. There is **no** `handler.go`, `dto.go` or
+`routes.go` at a feature root — those live in `<feature>/http/`.
 
-1. **Test behavior, not implementation.** Each test should verify a user-visible outcome (returned value, error, or side effect), not internal wiring. This enables refactoring and optimisation without
-   breaking tests.
+Ports are usually in `ports.go`, but two features name the file after the module
+they depend on instead: `category/product.go` declares `ProductCounter`, and
+`product/inventory.go` declares `InventoryReader` and `InventoryRegistrar`.
+Either is fine. The rule is about *who declares the interface* (the consumer),
+not the filename.
 
-2. **Use stretchr/testify for all assertions.** Use `assert` for soft checks, `require` when the test cannot continue without the value.
+**The subpackage tree is deliberately non-uniform. Do not tidy it into
+uniformity.** A feature has a subpackage only where adaptation is needed:
 
-3. **Use mockery-generated mocks from `mocks/`.** Set expectations with the expecter API:
+| Feature | Subpackages |
+| --- | --- |
+| `payment` | `postgres/ http/ stripe/ midtrans/ mock/ worker/` |
+| `auth` | `http/` only — no storage; it asks `user` via `auth.UserProvider` |
+| `dashboard` | `postgres/ http/` — but owns no table (see the reporting carve-out) |
+| the other 11 | `postgres/ http/` |
 
-   ```go
-   // ✅ Correct — expecter API
-   repo := mocks.NewMockRepository(t)
-   repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
+`notification` has no `worker/` package because `notification.Service` satisfies
+`jobs.Processor` directly. That absence is the lesson — `ARCHITECTURE.md`
+decision 4 — not an omission to fix. There are 13 packages named `postgres` and
+14 feature packages named `http`, which is why
+`internal/transport/http/router.go` needs 27 aliased adapter imports.
 
-   // ❌ Wrong — manual On/Return
-   repo.On("GetByID", mock.Anything, orderID).Return(existingOrder, nil)
-   ```
+## Commands
 
-4. **Prefer subtests over table-driven tests.** Each subtest should cover one logical scenario with a descriptive name:
+All verified against the `Makefile`; `make help` lists them with descriptions.
 
-   ```go
-   // ✅ Correct — separate subtests, each with its own setup
-   func TestService_RetryPayment(t *testing.T) {
-       t.Run("success", func(t *testing.T) {
-           svc, repo, _, _, payment, _, _, _ := newTestService(t)
-           existingOrder := &order.Order{
-               ID: orderID, UserID: userID,
-               Status: order.StatusAwaitingPayment, TotalAmount: 5000,
-           }
-           repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-           payment.EXPECT().InitiatePayment(mock.Anything, mock.Anything).
-               Return(order.PaymentResult{PaymentID: uuid.New()}, nil)
+```bash
+make setup             # deps + install air, golangci-lint, goose; copy .env.example
+make deps              # go mod download && go mod verify
 
-           result, err := svc.RetryPayment(ctx, userID, orderID, "pm_test")
-           require.NoError(t, err)
-           assert.NotNil(t, result)
-       })
+make build             # build-api + build-worker
+make build-api
+make build-worker
+make build-mockgateway # the dev-only fake gateway
+make run               # go run ./cmd/api
+make run-worker
+make dev               # hot reload via air
 
-       t.Run("not payable when status is paid", func(t *testing.T) {
-           svc, repo, _, _, _, _, _, _ := newTestService(t)
-           existingOrder := &order.Order{
-               ID: orderID, UserID: userID, Status: order.StatusPaid,
-           }
-           repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
+make test              # go test -v -race -count=1 -timeout 5m -cover ./...
+make test-coverage     # ./internal/... ./mocks/... ./test/... -> coverage.out + coverage.html
+make test-clean        # remove the shared postgres + redis test containers
 
-           result, err := svc.RetryPayment(ctx, userID, orderID, "pm_test")
-           assert.Nil(t, result)
-           assert.ErrorIs(t, err, apperror.ErrOrderNotPayable)
-       })
-   }
+make check-boundaries  # the architectural checks; prints "Boundaries OK"
+make lint              # golangci-lint run ./...
+make vet
+make fmt               # go fmt ./... && gofmt -s -w .
+make vuln              # govulncheck
+make tidy
+make clean
 
-   // ❌ Wrong — table-driven test with complex struct
-   func TestService_RetryPayment(t *testing.T) {
-       tests := []struct {
-           name    string
-           order   *order.Order
-           wantErr error
-       }{
-           {"success", &order.Order{Status: order.StatusAwaitingPayment}, nil},
-           {"not payable", &order.Order{Status: order.StatusPaid}, apperror.ErrOrderNotPayable},
-       }
-       for _, tt := range tests {
-           t.Run(tt.name, func(t *testing.T) { /* ... */ })
-       }
-   }
-   ```
+make all               # fmt -> vet -> check-boundaries -> lint -> test -> build
+make ci                # deps -> fmt -> vet -> lint -> test
+```
 
-5. **No monolithic tests.** Break large scenarios into focused subtests:
+Two things about those last two are worth knowing:
 
-   ```go
-   // ✅ Correct — one concern per test
-   func TestService_CancelOrder(t *testing.T) {
-       t.Run("not found", func(t *testing.T) { /* ... */ })
-       t.Run("not owned by user", func(t *testing.T) { /* ... */ })
-       t.Run("payment processing returns ErrOrderCharging", func(t *testing.T) { /* ... */ })
-       t.Run("invalid transition from delivered", func(t *testing.T) { /* ... */ })
-   }
+- **`make ci` does not run `check-boundaries`; `make all` does.** If you rely on
+  one command before calling work finished, use `make all`, or run
+  `make check-boundaries` explicitly.
+- **`make test` runs `./...` while `make test-coverage` globs
+  `./internal/... ./mocks/... ./test/...`.** A new top-level test directory is
+  picked up by the first and silently skipped by the second.
 
-   // ❌ Wrong — one giant test checking everything
-   func TestService_CancelOrder(t *testing.T) {
-       // 200 lines testing every scenario in sequence ...
-   }
-   ```
+Database commands need the goose CLI (`make migrate-install`; the Makefile
+expects it at `$(go env GOPATH)/bin/goose`). They build `DATABASE_URL` from
+`DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSLMODE`,
+all overridable:
 
-6. **Duplication is cheaper than the wrong abstraction.** Repeat setup in each subtest rather than building a shared helper that obscures intent. A `newTestService(t)` helper that returns all mocks is fine; a helper that also sets up mock expectations is not.
+```bash
+make migrate-up  migrate-down  migrate-down-all  migrate-status  migrate-version
+make migrate-create name=add_something
+make db-create  db-drop  seed
+make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
+```
 
-7. **Compare entire objects, not individual fields:**
+## Architectural rules
 
-   ```go
-   // ✅ Correct — compare the whole struct
-   expected := []order.Item{
-       {ID: itemID, OrderID: orderID, ProductName: "Widget", Price: 5000, Quantity: 2, Subtotal: 10000},
-   }
-   assert.Equal(t, expected, result)
+### Machine-checked
 
-   // ❌ Wrong — assert field by field
-   assert.Equal(t, "Widget", result[0].ProductName)
-   assert.Equal(t, int64(5000), result[0].Price)
-   assert.Equal(t, 2, result[0].Quantity)
-   ```
+`make check-boundaries` runs `scripts/check-boundaries.sh` and fails the build on
+any of these. This is the part worth memorising, because these are the rules you
+cannot violate quietly.
 
-### Test Speed Rules
+1. **No `json` tag outside `internal/<feature>/http/`.** Domain models carry no
+   transport concerns; every endpoint owns its request DTO, response DTO and
+   explicit mapping. A field is private unless a DTO names it. Also checked:
+   `json:"-"` must not appear anywhere under `internal/` outside an http adapter
+   (no exemption at all, including tests), and `internal/<feature>/dto.go` must
+   not come back. Exemptions are allowlisted by path *with a stated reason* in
+   the script — `internal/payment/gateway.go`, which is the external gateway's
+   wire contract rather than ours — plus `internal/config/` and
+   `internal/platform/` by location.
+2. **A feature's `postgres` adapter only names tables it owns.** Ownership is
+   read out of `db/OWNERSHIP.md` at run time, so the document and the check
+   cannot drift. The check also validates the document itself: duplicate rows,
+   rows for tables no migration creates, and tables no row claims all fail.
+   `dashboard` is exempt by name — it is a reporting read-model. Change
+   ownership in `db/OWNERSHIP.md`; there is no list in the script to keep in
+   step.
+3. **No feature imports another feature's `postgres` or `http` package.** Only
+   `internal/bootstrap/` and `internal/transport/` may wire adapters together.
 
-Tests must stay fast. Follow these rules to avoid slow tests:
+Read the "What it does not catch" section of `db/OWNERSHIP.md` before trusting a
+green run. In short: table names must be string literals, `_test.go` files are
+skipped on purpose, `dashboard` is exempt wholesale, only
+`internal/<feature>/postgres/` is scanned, and ownership is per table so column
+coupling is invisible.
 
-8. **Use `bcrypt.MinCost` in tests.** `bcrypt.DefaultCost` (10) costs ~250ms per hash. Pre-hash sample passwords with `bcrypt.MinCost` (4) and inject the hash via the mock `UserProvider`. Group tests that exercise the real `Register` path (which uses `DefaultCost`) into a single subtest to limit total runtime.
+### Conventions — not checked, so they need you
 
-   ```go
-   hash, _ := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.MinCost)
-   users.EXPECT().GetByEmail(mock.Anything, "user@example.com").
-       Return(auth.UserCredentials{ID: id, PasswordHash: string(hash), Active: true}, nil)
-   ```
+4. **A feature never imports another feature.** Declare the interface *the
+   consumer* needs in the consumer's own package (`order/ports.go` declares what
+   `order` needs from inventory), and let `internal/bootstrap/` supply the
+   adapter. Often the other module's service satisfies the interface directly and
+   no adapter is written — `promotion.Service` already satisfies
+   `payment.CouponReleaser`, and `notification.Service` already satisfies
+   `jobs.Processor`. There is no shared ports package, and adding one would
+   defeat the point. *(Rule 3 catches the crudest violation — importing a
+   sibling's adapter — but importing a sibling's root package is not caught.)*
+5. **Services take `database.TxRunner`, never `*pgxpool.Pool`.** A service needs
+   atomicity, not a database handle. `TxRunner` is declared once in
+   `internal/platform/database` rather than per consumer — the one deliberate
+   exception to rule 4's consumer-declaration pattern, because features already
+   import `platform/database`. A service that opens no transaction takes no
+   runner at all.
+6. **Money is `money.Money`, never an `int64` beside a `Currency string`.** Scope
+   is four features: `order`, `payment`, `product`, `cart`. `promotion` and
+   `dashboard` stay on `int64` for stated reasons — `ARCHITECTURE.md` §10 and
+   `ARCHITECTURE-LIMITATIONS.md`. `Money` carries no `json` tag and implements no
+   `sql.Scanner`: each adapter maps it explicitly, because the wire shapes
+   genuinely differ per endpoint. There is no float constructor and no `Div`.
+7. **A service runs no SQL and holds no pool.** Every read and write goes through
+   the feature's repository interface; the `postgres` adapter owns the pool and
+   reaches it with `database.DB(ctx, pool)`, which returns the context's
+   transaction if there is one. A service composes several repository calls into
+   one unit of work via its `TxRunner`, and the transaction propagates to every
+   repository — its own and other features' — through the `ctx`.
+8. **Order status changes only through `order.Service.Apply`.** Every guarded
+   transition is a named `order.Transition` value in `order/transition.go`
+   (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other
+   features depend on *intent* methods on their own port interface
+   (`payment.OrderUpdater.MarkPaid`, `shipping.OrderUpdater.MarkShipped`), and
+   the `internal/bootstrap/` adapter maps each intent to its transition. Never
+   write an ad-hoc from/to status list at a call site.
+9. **Inventory reversal goes through `inventory.Service.Restore(ctx, items,
+   prior StockState)`.** Inventory decides whether that means releasing a
+   reservation or restocking deducted goods; callers supply the order's prior
+   state, never the mechanics.
+10. **Background job workers use `platform/jobs`.** A feature draining a queue
+    implements `jobs.Queue[T]` (`Claim` + `Prune`) on its repository and
+    `jobs.Processor[T]` (`Process`) on its service, plus optional `jobs.Sweeper`
+    for per-tick housekeeping. The binary builds a `jobs.Runner[T]`. Never
+    hand-roll a ticker/lease/poll loop — the runner owns polling, the leased
+    compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
+11. **Repository reads use `pgx.CollectRows`**, never a hand-rolled
+    `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and
+    build keyset predicates with `database.KeysetCursor()`.
+12. **Handlers use the shared helpers.** Decode and validate with
+    `response.Bind[T](w, r, h.validator)`; read the caller with
+    `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`.
+    Do not hand-roll decode/validate or auth-context blocks.
+13. **New config invariants go in `Config.validate()`**
+    (`internal/config/config.go`), so misconfiguration aborts boot instead of
+    surfacing later as a runtime error. Do not guard per use site.
 
-9. **Use `testing/synctest` for time-dependent tests.** When testing code that uses `time.NewTicker`, `time.Sleep`, or `time.After`, wrap the subtest body in `synctest.Test` so the fake clock advances instantly instead of waiting for real wall-clock time.
+## Code style
 
-   ```go
-   // ✅ Correct — completes instantly
-   t.Run("processes jobs", func(t *testing.T) {
-       synctest.Test(t, func(t *testing.T) {
-           ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-           defer cancel()
-           w.Start(ctx) // ticker-based loop exits instantly via fake clock
-       })
-   })
+- Go 1.26. stdlib `net/http` `ServeMux` — do not add a third-party router.
+- `encoding/json` for JSON. `log/slog` for logging. `go-playground/validator/v10`
+  for validation. `godotenv` + `kelseyhightower/envconfig` for config.
+- Errors: sentinels in `internal/apperror`. Wrap with
+  `fmt.Errorf("%w: ...", apperror.ErrBadRequest)` to add context.
+- Packages are short singular nouns (`user`, `product`, `cart`).
+- `gofmt -s`, enforced by `make fmt` and golangci-lint. Import groups: stdlib,
+  blank line, third-party, blank line, local
+  (`github.com/residwi/go-api-project-template/...`).
+- Comments explain *why*, not *how*. Write one where a reader would otherwise
+  read the code as a mistake.
+- Prefer duplication over an abstraction that does not quite fit.
+- Commit messages: conventional-commit prefixes are in use on this branch
+  (`refactor(cart): …`, `docs(db): …`, `test(e2e): …`). Match the surrounding
+  history.
 
-   // ❌ Wrong — waits 5 real seconds
-   t.Run("processes jobs", func(t *testing.T) {
-       ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-       defer cancel()
-       w.Start(ctx)
-   })
-   ```
+## Testing
 
-10. **Set short timeouts on intentionally-broken connections.** When creating clients that connect to unreachable addresses (e.g., `localhost:1`) to test error paths, always set `MaxRetries: 0` and a short `DialTimeout`. Never rely on default timeouts for expected-failure tests.
+- `testing` + `stretchr/testify`. `require` when the test cannot continue without
+  the value, `assert` for soft checks.
+- **Docker is required.** There are no build tags and no short mode.
+  `internal/testhelper` starts two long-lived containers by fixed name
+  (`go-api-test-postgres`, `go-api-test-redis`) and every test binary attaches to
+  whichever already exists. Remove them with `make test-clean`.
+- **Integration tests stay colocated** with the code they test
+  (`internal/<feature>/postgres/repository_test.go`, and
+  `internal/<feature>/*_integration_test.go`). `go test ./...` runs package
+  binaries concurrently; collapsing them into one `test/integration` package
+  would make them sequential. `ARCHITECTURE.md` decision 11 rejects that
+  directory explicitly.
+- **`test/e2e/` is for sagas no single feature can own** — checkout, payment,
+  refund, fulfilment failure, admin flows — driven through the real
+  `apihttp.NewRouter`, a real Postgres, and the mock gateway on an
+  `httptest.Server`.
+- **Claim a slot when you add a test package.** `MustStartPostgres(dbName)` drops
+  and recreates that database `WITH (FORCE)`, so two packages sharing a name tear
+  each other down mid-run. `MustStartRedis(dbIndex)` takes an index from the
+  hand-maintained registry comment in `internal/testhelper/testhelper.go`;
+  indices 0–5 are taken. Nothing enforces either claim — a collision compiles,
+  passes review, and fails as a flake in an unrelated package. Update the
+  registry comment in the same commit.
+- **`t.Parallel()` buys nothing inside a package**, because subtests share one
+  database. Have each subtest seed its own data instead.
+- **Prefer subtests over table-driven tests.** One logical scenario per subtest,
+  a descriptive name, its own setup. Break large scenarios up; no monolithic
+  tests.
+- **Compare whole objects, not field by field.** `assert.Equal(t, expected,
+  result)` on the full struct or slice. For JSONB round-trips use
+  `assert.JSONEq` — Postgres normalises the whitespace.
+- **Test behaviour, not wiring.** Verify a returned value, an error, or a side
+  effect.
+- **Mocks are generated** by mockery v3 from `.mockery.yml` into `mocks/`. Run
+  `make mocks`; never hand-edit. Use the expecter API
+  (`repo.EXPECT().GetByID(mock.Anything, id).Return(...)`), never
+  `repo.On("GetByID", ...)`.
+- **Keep tests fast.** Use `bcrypt.MinCost` for password hashes in tests
+  (`DefaultCost` costs ~250ms per hash) and group the tests that exercise the
+  real `Register` path. Use `testing/synctest` for ticker- and timeout-driven
+  code — `internal/platform/jobs/runner_test.go` does. Note `synctest` cannot
+  wrap a `pgxpool` acquire, so a test holding a real pool must shrink intervals
+  and timeouts instead. Give intentionally-broken clients short timeouts
+  (`MaxRetries: 0`, `DialTimeout: 200 * time.Millisecond`) so error paths fail in
+  milliseconds rather than seconds.
 
-    ```go
-    // ✅ Correct — fails fast (~200ms)
-    brokenRedis := redis.NewClient(&redis.Options{
-        Addr:        "localhost:1",
-        MaxRetries:  0,
-        DialTimeout: 200 * time.Millisecond,
-    })
+## Security
 
-    // ❌ Wrong — retries 3× with 5s dial timeout (~20s)
-    brokenRedis := redis.NewClient(&redis.Options{Addr: "localhost:1"})
-    ```
+- Secrets come from env vars or a gitignored `.env`. Never commit real secrets.
+  `.env.example` lists every supported variable.
+- JWT auth with configurable expiry; bcrypt password hashes; RBAC via the admin
+  middleware.
+- Middleware in `internal/transport/http/middleware/`: panic recovery, request-ID
+  injection, structured request logging, CORS, rate limiting, auth, admin.
+- Field exposure is controlled by DTO omission, not by `json:"-"`. Thirteen
+  `json:"-"` tags used to be load-bearing security controls
+  (`user.PasswordHash`, `payment.GatewayResponse`, `order.RequestHash`) where
+  deleting two characters published a password hash. Rule 1 exists for that
+  reason: adding a field to a response now means naming it in a DTO
+  deliberately.
 
-## Security & Compliance
+## Guardrails
 
-- Secrets: Loaded from environment variables or `.env` file (gitignored). Never commit real secrets.
-- Authentication: JWT tokens with configurable expiration. Passwords hashed with bcrypt.
-- Authorization: Role-Based Access Control (RBAC) — admin middleware for admin-only endpoints.
-- Middleware: Panic recovery, request-ID injection, structured request logging, CORS, rate limiting.
+- Never hand-edit `mocks/` — regenerate with `make mocks`.
+- Never commit `.env`, secrets or API keys.
+- Run `make check-boundaries`, `make vet` and `make test` before calling a change
+  complete. `make all` does all three plus lint and build.
+- Do not add a third-party router.
+- Do not suppress lint or vet findings with `//nolint` without a justification
+  comment on the same line — see `NewRouter`'s for the expected form.
+- Do not make the subpackage tree uniform, and do not add a pass-through adapter
+  package to fill a slot.
+- Backward compatibility is explicitly **not** a goal here. API shapes may change
+  where the better design demands it — but say so when they do.
+- When adding a feature: create `internal/<feature>/` with its own
+  `model.go` / `service.go` / `repository.go`, put SQL in `<feature>/postgres/`
+  and handlers in `<feature>/http/`, add a row per owned table to
+  `db/OWNERSHIP.md`, register routes in `internal/transport/http/router.go`, and
+  put any cross-feature adapter in `internal/bootstrap/`. Then run
+  `make check-boundaries` — a new feature with a `postgres` adapter and no
+  ownership row fails it by design.
 
-## Agent Guardrails
+## Further reading
 
-- Never modify files in `mocks/` by hand — always regenerate with `make mocks`.
-- Never commit `.env`, secrets, or API keys.
-- Always run `make test` (or at minimum `make vet`) before considering a change complete.
-- Do not add third-party routers; the project uses `net/http` ServeMux intentionally.
-- Do not suppress lint or vet errors with `//nolint` without a justification comment.
-- Preserve the vertical-slice structure: each feature module is self-contained with handler → service → repository interface. PostgreSQL repository implementations are embedded in each feature package.
-- Cross-feature dependencies must use consumer-declared interfaces in the consumer's own `ports.go`. Never import another feature's concrete types directly.
-- Never drive an order's status from another feature with raw from/to status lists. Add or reuse a named `order.Transition` in `order/transition.go`, expose an intent method on the consumer's `OrderUpdater` interface in `ports.go`, and map it in the `internal/wiring` adapter — all status changes funnel through `order.Service.Apply`.
-- When adding a new feature, create a package under `internal/features/`, register routes in `internal/server/router.go`, and place any cross-feature adapters in `internal/wiring`.
-
-## Extensibility Hooks
-
-- Environment variables: All config is driven by env vars with sensible defaults (see `.env.example` and `internal/config/config.go`).
-- New feature modules: Add a package under `internal/features/`, define the repository interface there, implement the PostgreSQL repository in the same package, register routes in `internal/server/router.go`, and place any cross-feature adapters in `internal/wiring`.
-- Worker tuning: `WORKER_INTERVAL`, `WORKER_BATCH_SIZE`, `WORKER_LEASE_DURATION`, `WORKER_CONCURRENCY` control the payment worker without code changes.
-- Middleware chain: Add new middleware in `internal/middleware/` and wire it in `internal/server/router.go`.
-- Payment gateways: Implement the `payment.Gateway` interface in `internal/platform/payment/` and swap via `PAYMENT_GATEWAY` env var.
-
-## Further Reading
-
-- [README.md](README.md) — API endpoint reference and quick-start instructions.
-- [db/migrations/](db/migrations/) — Numbered SQL migration files.
-- [.env.example](.env.example) — All supported environment variables with defaults.
-- [.mockery.yml](.mockery.yml) — Mock generation configuration.
+- `README.md` — endpoint reference, quick start, and the full environment
+  variable table. **Its "Project Structure" section is stale**: it still shows
+  `internal/features/`, `internal/middleware/`, `internal/server/`,
+  `internal/wiring/`, `internal/platform/payment/` and
+  `internal/platform/email/`, none of which exist. Source layout from this file,
+  not from there.
+- `ARCHITECTURE.md`, `ARCHITECTURE-LIMITATIONS.md`, `db/OWNERSHIP.md` — as above.
+- `db/migrations/` — goose SQL migrations.
+- `.env.example`, `.mockery.yml`, `.golangci.yml`.
