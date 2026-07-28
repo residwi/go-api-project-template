@@ -146,8 +146,8 @@ func TestPublicHandler_UpdateProfile(t *testing.T) {
 		}, nil)
 		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil)
 
-		body, _ := json.Marshal(user.UpdateProfileRequest{
-			FirstName: "Jane",
+		body, _ := json.Marshal(map[string]any{
+			"first_name": "Jane",
 		})
 
 		w := httptest.NewRecorder()
@@ -239,7 +239,7 @@ func TestPublicHandler_UpdateProfile(t *testing.T) {
 		userID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
 
-		body, _ := json.Marshal(user.UpdateProfileRequest{FirstName: "Jane"})
+		body, _ := json.Marshal(map[string]any{"first_name": "Jane"})
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/users/me", bytes.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
@@ -407,9 +407,9 @@ func TestAdminHandler_UpdateUser(t *testing.T) {
 		}, nil)
 		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil)
 
-		body, _ := json.Marshal(user.AdminUpdateUserRequest{
-			FirstName: "Updated",
-			LastName:  "Name",
+		body, _ := json.Marshal(map[string]any{
+			"first_name": "Updated",
+			"last_name":  "Name",
 		})
 
 		w := httptest.NewRecorder()
@@ -440,7 +440,7 @@ func TestAdminHandler_UpdateUser(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		mux, _ := setupUserMux(t)
 
-		body, _ := json.Marshal(user.AdminUpdateUserRequest{FirstName: "Test"})
+		body, _ := json.Marshal(map[string]any{"first_name": "Test"})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/not-a-uuid", bytes.NewReader(body))
@@ -480,7 +480,7 @@ func TestAdminHandler_UpdateUser(t *testing.T) {
 		userID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
 
-		body, _ := json.Marshal(user.AdminUpdateUserRequest{FirstName: "Test"})
+		body, _ := json.Marshal(map[string]any{"first_name": "Test"})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+userID.String(), bytes.NewReader(body))
@@ -544,7 +544,7 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil)
 		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(nil)
 
-		body, _ := json.Marshal(user.UpdateRoleRequest{Role: "admin"})
+		body, _ := json.Marshal(map[string]any{"role": "admin"})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+targetID.String()+"/role", bytes.NewReader(body))
@@ -564,7 +564,7 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		mux, _ := setupUserMux(t)
 
-		body, _ := json.Marshal(user.UpdateRoleRequest{Role: "admin"})
+		body, _ := json.Marshal(map[string]any{"role": "admin"})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/not-a-uuid/role", bytes.NewReader(body))
@@ -584,7 +584,7 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 		mux, _ := setupUserMux(t)
 
 		targetID := uuid.New()
-		body, _ := json.Marshal(user.UpdateRoleRequest{Role: "admin"})
+		body, _ := json.Marshal(map[string]any{"role": "admin"})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+targetID.String()+"/role", bytes.NewReader(body))
@@ -629,7 +629,7 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 		mux, _ := setupUserMux(t)
 
 		sameID := uuid.New()
-		body, _ := json.Marshal(user.UpdateRoleRequest{Role: "user"})
+		body, _ := json.Marshal(map[string]any{"role": "user"})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+sameID.String()+"/role", bytes.NewReader(body))
@@ -655,7 +655,7 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
-		body, _ := json.Marshal(user.UpdateRoleRequest{Role: "superadmin"})
+		body, _ := json.Marshal(map[string]any{"role": "superadmin"})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+targetID.String()+"/role", bytes.NewReader(body))

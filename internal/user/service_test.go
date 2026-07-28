@@ -232,7 +232,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
 
 		phone := "555-9999"
-		result, err := svc.UpdateProfile(context.Background(), id, user.UpdateProfileRequest{
+		result, err := svc.UpdateProfile(context.Background(), id, user.UpdateProfileParams{
 			FirstName: "Alicia",
 			Phone:     &phone,
 		})
@@ -264,7 +264,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
 
-		result, err := svc.UpdateProfile(context.Background(), id, user.UpdateProfileRequest{
+		result, err := svc.UpdateProfile(context.Background(), id, user.UpdateProfileParams{
 			LastName: "Jones",
 		})
 		require.NoError(t, err)
@@ -279,7 +279,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
 
-		_, err := svc.UpdateProfile(context.Background(), uuid.New(), user.UpdateProfileRequest{FirstName: "X"})
+		_, err := svc.UpdateProfile(context.Background(), uuid.New(), user.UpdateProfileParams{FirstName: "X"})
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
@@ -301,7 +301,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		updateErr := errors.New("database write failed")
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*user.User")).Return(updateErr)
 
-		_, err := svc.UpdateProfile(context.Background(), id, user.UpdateProfileRequest{FirstName: "Alicia"})
+		_, err := svc.UpdateProfile(context.Background(), id, user.UpdateProfileParams{FirstName: "Alicia"})
 		assert.ErrorIs(t, err, updateErr)
 	})
 }
@@ -343,7 +343,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*user.User")).Return(nil)
 
 		active := false
-		result, err := svc.AdminUpdate(context.Background(), id, user.AdminUpdateUserRequest{
+		result, err := svc.AdminUpdate(context.Background(), id, user.AdminUpdateParams{
 			Active: &active,
 		})
 		require.NoError(t, err)
@@ -364,7 +364,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
 
-		_, err := svc.AdminUpdate(context.Background(), uuid.New(), user.AdminUpdateUserRequest{})
+		_, err := svc.AdminUpdate(context.Background(), uuid.New(), user.AdminUpdateParams{})
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
@@ -386,7 +386,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		updateErr := errors.New("database write failed")
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*user.User")).Return(updateErr)
 
-		_, err := svc.AdminUpdate(context.Background(), id, user.AdminUpdateUserRequest{FirstName: "Bob"})
+		_, err := svc.AdminUpdate(context.Background(), id, user.AdminUpdateParams{FirstName: "Bob"})
 		assert.ErrorIs(t, err, updateErr)
 	})
 
@@ -409,7 +409,7 @@ func TestService_AdminUpdate(t *testing.T) {
 
 		phone := "555-9999"
 		active := false
-		result, err := svc.AdminUpdate(context.Background(), id, user.AdminUpdateUserRequest{
+		result, err := svc.AdminUpdate(context.Background(), id, user.AdminUpdateParams{
 			FirstName: "Bob",
 			LastName:  "Jones",
 			Phone:     &phone,

@@ -151,20 +151,20 @@ func (s *Service) GetProfile(ctx context.Context, id uuid.UUID) (*User, error) {
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *Service) UpdateProfile(ctx context.Context, id uuid.UUID, req UpdateProfileRequest) (*User, error) {
+func (s *Service) UpdateProfile(ctx context.Context, id uuid.UUID, p UpdateProfileParams) (*User, error) {
 	u, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if req.FirstName != "" {
-		u.FirstName = req.FirstName
+	if p.FirstName != "" {
+		u.FirstName = p.FirstName
 	}
-	if req.LastName != "" {
-		u.LastName = req.LastName
+	if p.LastName != "" {
+		u.LastName = p.LastName
 	}
-	if req.Phone != nil {
-		u.Phone = *req.Phone
+	if p.Phone != nil {
+		u.Phone = *p.Phone
 	}
 
 	if err := s.repo.Update(ctx, u); err != nil {
@@ -182,23 +182,23 @@ func (s *Service) AdminGetByID(ctx context.Context, id uuid.UUID) (*User, error)
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *Service) AdminUpdate(ctx context.Context, id uuid.UUID, req AdminUpdateUserRequest) (*User, error) {
+func (s *Service) AdminUpdate(ctx context.Context, id uuid.UUID, p AdminUpdateParams) (*User, error) {
 	u, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if req.FirstName != "" {
-		u.FirstName = req.FirstName
+	if p.FirstName != "" {
+		u.FirstName = p.FirstName
 	}
-	if req.LastName != "" {
-		u.LastName = req.LastName
+	if p.LastName != "" {
+		u.LastName = p.LastName
 	}
-	if req.Phone != nil {
-		u.Phone = *req.Phone
+	if p.Phone != nil {
+		u.Phone = *p.Phone
 	}
-	if req.Active != nil {
-		u.Active = *req.Active
+	if p.Active != nil {
+		u.Active = *p.Active
 	}
 
 	if err := s.repo.Update(ctx, u); err != nil {
