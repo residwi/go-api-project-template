@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/payment/postgres"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -55,11 +56,10 @@ func seedPayment(t *testing.T, orderID uuid.UUID) *payment.Payment {
 	t.Helper()
 	repo := postgres.New(testPool)
 	p := &payment.Payment{
-		OrderID:  orderID,
-		Amount:   1000,
-		Currency: "USD",
-		Status:   payment.StatusPending,
-		Method:   "card",
+		OrderID: orderID,
+		Amount:  money.New(1000, "USD"),
+		Status:  payment.StatusPending,
+		Method:  "card",
 	}
 	err := repo.Create(context.Background(), p)
 	require.NoError(t, err)

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/payment"
 )
 
@@ -25,8 +26,7 @@ func TestToAdminPaymentResponse_OmitsGatewayResponse(t *testing.T) {
 	got := toAdminPaymentResponse(&payment.Payment{
 		ID:              uuid.New(),
 		OrderID:         uuid.New(),
-		Amount:          5000,
-		Currency:        "USD",
+		Amount:          money.New(5000, "USD"),
 		Status:          payment.StatusSuccess,
 		Method:          "card",
 		PaymentMethodID: "pm_test_123",

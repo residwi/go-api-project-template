@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/payment/postgres"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -60,11 +61,10 @@ func seedPayment(t *testing.T, orderID uuid.UUID) *payment.Payment {
 	t.Helper()
 	repo := postgres.New(testPool)
 	p := &payment.Payment{
-		OrderID:  orderID,
-		Amount:   1000,
-		Currency: "USD",
-		Status:   payment.StatusPending,
-		Method:   "card",
+		OrderID: orderID,
+		Amount:  money.New(1000, "USD"),
+		Status:  payment.StatusPending,
+		Method:  "card",
 	}
 	err := repo.Create(context.Background(), p)
 	require.NoError(t, err)
@@ -80,11 +80,10 @@ func TestPostgresRepository_Create(t *testing.T) {
 		repo := postgres.New(testPool)
 
 		p := &payment.Payment{
-			OrderID:  orderID,
-			Amount:   1000,
-			Currency: "USD",
-			Status:   payment.StatusPending,
-			Method:   "card",
+			OrderID: orderID,
+			Amount:  money.New(1000, "USD"),
+			Status:  payment.StatusPending,
+			Method:  "card",
 		}
 		err := repo.Create(context.Background(), p)
 		require.NoError(t, err)
@@ -92,8 +91,10 @@ func TestPostgresRepository_Create(t *testing.T) {
 
 		assert.NotEqual(t, uuid.Nil, p.ID)
 		assert.Equal(t, orderID, p.OrderID)
-		assert.Equal(t, int64(1000), p.Amount)
-		assert.Equal(t, "USD", p.Currency)
+		// One assertion, not two: Amount now carries its currency, and comparing the
+		// whole Money proves the write put the amount and the denomination in the
+		// columns that belong to each other.
+		assert.Equal(t, money.New(1000, "USD"), p.Amount)
 		assert.Equal(t, payment.StatusPending, p.Status)
 		assert.Equal(t, "card", p.Method)
 		assert.False(t, p.CreatedAt.IsZero())
@@ -443,7 +444,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Create", func(t *testing.T) {
 		setup(t)
-		p := &payment.Payment{OrderID: uuid.New(), Amount: 1000, Currency: "USD", Status: payment.StatusPending}
+		p := &payment.Payment{OrderID: uuid.New(), Amount: money.New(1000, "USD"), Status: payment.StatusPending}
 		err := repo.Create(cancelledCtx, p)
 		assert.Error(t, err)
 	})

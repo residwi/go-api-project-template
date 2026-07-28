@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
+	"github.com/residwi/go-api-project-template/internal/money"
 )
 
 // Ports this feature needs from other features. Each is declared here rather
@@ -36,10 +38,12 @@ type OrderItemsGetter interface {
 }
 
 type OrderSnapshot struct {
-	TotalAmount int64
-	Currency    string
-	Status      string
-	CouponCode  string
+	// Total is the order's charged amount. Denominated, so the finalization check
+	// against the payment's own amount is one comparison rather than two fields
+	// that a future edit could get out of step.
+	Total      money.Money
+	Status     string
+	CouponCode string
 	// StockDeducted reports whether the order's inventory was deducted from
 	// stock (vs only reserved); StockReversed reports whether the hold was
 	// already released/restocked. The order module owns these facts (persisted,

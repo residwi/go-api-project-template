@@ -11,9 +11,23 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
+
+// amountColumns is the payments table's amount and currency columns. Every read
+// of a payment goes through it, so the one place a scanned row becomes a
+// denominated money.Money is here rather than repeated at each of the five
+// queries that select them.
+type amountColumns struct {
+	amount   int64
+	currency string
+}
+
+func (a amountColumns) assignTo(p *payment.Payment) {
+	p.Amount = money.New(a.amount, a.currency)
+}
 
 type Repository struct {
 	pool *pgxpool.Pool
@@ -29,7 +43,7 @@ func (r *Repository) Create(ctx context.Context, p *payment.Payment) error {
 		`INSERT INTO payments (order_id, amount, currency, status, method, payment_method_id, payment_url, gateway_txn_id, gateway_response)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, updated_at`,
-		p.OrderID, p.Amount, p.Currency, p.Status, p.Method,
+		p.OrderID, p.Amount.Amount, p.Amount.Currency, p.Status, p.Method,
 		nilIfEmpty(p.PaymentMethodID), nilIfEmpty(p.PaymentURL),
 		nilIfEmpty(p.GatewayTxnID), p.GatewayResponse,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
@@ -42,12 +56,13 @@ func (r *Repository) Create(ctx context.Context, p *payment.Payment) error {
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*payment.Payment, error) {
 	db := database.DB(ctx, r.pool)
 	var p payment.Payment
+	var amt amountColumns
 	var paymentMethodID, paymentURL, gatewayTxnID *string
 	err := db.QueryRow(ctx,
 		`SELECT id, order_id, amount, currency, status, method, payment_method_id, payment_url,
 		        gateway_txn_id, gateway_response, paid_at, created_at, updated_at
 		FROM payments WHERE id = $1`, id,
-	).Scan(&p.ID, &p.OrderID, &p.Amount, &p.Currency, &p.Status, &p.Method,
+	).Scan(&p.ID, &p.OrderID, &amt.amount, &amt.currency, &p.Status, &p.Method,
 		&paymentMethodID, &paymentURL, &gatewayTxnID, &p.GatewayResponse,
 		&p.PaidAt, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
@@ -65,19 +80,21 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*payment.Paymen
 	if gatewayTxnID != nil {
 		p.GatewayTxnID = *gatewayTxnID
 	}
+	amt.assignTo(&p)
 	return &p, nil
 }
 
 func (r *Repository) GetActiveByOrderID(ctx context.Context, orderID uuid.UUID) (*payment.Payment, error) {
 	db := database.DB(ctx, r.pool)
 	var p payment.Payment
+	var amt amountColumns
 	var paymentMethodID, paymentURL, gatewayTxnID *string
 	err := db.QueryRow(ctx,
 		`SELECT id, order_id, amount, currency, status, method, payment_method_id, payment_url,
 		        gateway_txn_id, gateway_response, paid_at, created_at, updated_at
 		FROM payments WHERE order_id = $1 AND status IN ('pending', 'processing', 'requires_review')
 		ORDER BY created_at DESC LIMIT 1`, orderID,
-	).Scan(&p.ID, &p.OrderID, &p.Amount, &p.Currency, &p.Status, &p.Method,
+	).Scan(&p.ID, &p.OrderID, &amt.amount, &amt.currency, &p.Status, &p.Method,
 		&paymentMethodID, &paymentURL, &gatewayTxnID, &p.GatewayResponse,
 		&p.PaidAt, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
@@ -95,18 +112,20 @@ func (r *Repository) GetActiveByOrderID(ctx context.Context, orderID uuid.UUID) 
 	if gatewayTxnID != nil {
 		p.GatewayTxnID = *gatewayTxnID
 	}
+	amt.assignTo(&p)
 	return &p, nil
 }
 
 func (r *Repository) GetByGatewayTxnID(ctx context.Context, txnID string) (*payment.Payment, error) {
 	db := database.DB(ctx, r.pool)
 	var p payment.Payment
+	var amt amountColumns
 	var paymentMethodID, paymentURL, gwTxnID *string
 	err := db.QueryRow(ctx,
 		`SELECT id, order_id, amount, currency, status, method, payment_method_id, payment_url,
 		        gateway_txn_id, gateway_response, paid_at, created_at, updated_at
 		FROM payments WHERE gateway_txn_id = $1`, txnID,
-	).Scan(&p.ID, &p.OrderID, &p.Amount, &p.Currency, &p.Status, &p.Method,
+	).Scan(&p.ID, &p.OrderID, &amt.amount, &amt.currency, &p.Status, &p.Method,
 		&paymentMethodID, &paymentURL, &gwTxnID, &p.GatewayResponse,
 		&p.PaidAt, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
@@ -124,6 +143,7 @@ func (r *Repository) GetByGatewayTxnID(ctx context.Context, txnID string) (*paym
 	if gwTxnID != nil {
 		p.GatewayTxnID = *gwTxnID
 	}
+	amt.assignTo(&p)
 	return &p, nil
 }
 
@@ -197,8 +217,9 @@ func (r *Repository) MarkPaid(ctx context.Context, id uuid.UUID, fromStatuses []
 
 func scanPaymentByOrder(row pgx.CollectableRow) (payment.Payment, error) {
 	var p payment.Payment
+	var amt amountColumns
 	var paymentMethodID, paymentURL, gatewayTxnID *string
-	if err := row.Scan(&p.ID, &p.OrderID, &p.Amount, &p.Currency, &p.Status, &p.Method,
+	if err := row.Scan(&p.ID, &p.OrderID, &amt.amount, &amt.currency, &p.Status, &p.Method,
 		&paymentMethodID, &paymentURL, &gatewayTxnID, &p.PaidAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
 		return payment.Payment{}, fmt.Errorf("scanning payment: %w", err)
 	}
@@ -211,6 +232,7 @@ func scanPaymentByOrder(row pgx.CollectableRow) (payment.Payment, error) {
 	if gatewayTxnID != nil {
 		p.GatewayTxnID = *gatewayTxnID
 	}
+	amt.assignTo(&p)
 	return p, nil
 }
 
@@ -280,8 +302,9 @@ func (r *Repository) ListAdmin(ctx context.Context, params payment.AdminListPara
 
 func scanPaymentAdmin(row pgx.CollectableRow) (payment.Payment, error) {
 	var p payment.Payment
+	var amt amountColumns
 	var paymentMethodID, gatewayTxnID *string
-	if err := row.Scan(&p.ID, &p.OrderID, &p.Amount, &p.Currency, &p.Status, &p.Method,
+	if err := row.Scan(&p.ID, &p.OrderID, &amt.amount, &amt.currency, &p.Status, &p.Method,
 		&paymentMethodID, &gatewayTxnID, &p.PaidAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
 		return payment.Payment{}, fmt.Errorf("scanning payment: %w", err)
 	}
@@ -291,6 +314,7 @@ func scanPaymentAdmin(row pgx.CollectableRow) (payment.Payment, error) {
 	if gatewayTxnID != nil {
 		p.GatewayTxnID = *gatewayTxnID
 	}
+	amt.assignTo(&p)
 	return p, nil
 }
 

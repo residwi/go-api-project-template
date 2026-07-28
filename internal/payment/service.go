@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -63,8 +64,7 @@ func NewService(
 
 type InitiatePaymentParams struct {
 	OrderID         uuid.UUID
-	Amount          int64
-	Currency        string
+	Amount          money.Money
 	PaymentMethodID string
 }
 
@@ -87,7 +87,6 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 		p = &Payment{
 			OrderID:         params.OrderID,
 			Amount:          params.Amount,
-			Currency:        params.Currency,
 			Status:          StatusPending,
 			PaymentMethodID: params.PaymentMethodID,
 		}
@@ -96,11 +95,17 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 		}
 	}
 
+	// ChargeRequest is the external gateway's wire contract, and it keeps a bare
+	// int64 beside a currency string because that is the shape the gateway
+	// publishes -- see the JSON_TAG_ALLOWLIST entry in scripts/check-boundaries.sh.
+	// Unpairing the Money here is the seam, not a leak: the pairing holds
+	// everywhere this system owns the type, and stops at the point where someone
+	// else's API begins.
 	chargeReq := ChargeRequest{
 		IdempotencyKey:  p.ID.String(),
 		OrderID:         params.OrderID.String(),
-		Amount:          params.Amount,
-		Currency:        params.Currency,
+		Amount:          params.Amount.Amount,
+		Currency:        params.Amount.Currency,
 		PaymentMethodID: params.PaymentMethodID,
 		Metadata:        map[string]string{"payment_id": p.ID.String()},
 	}
@@ -189,8 +194,8 @@ func (s *Service) processChargeJob(ctx context.Context, job Job) error {
 	chargeReq := ChargeRequest{
 		IdempotencyKey:  p.ID.String(),
 		OrderID:         job.OrderID.String(),
-		Amount:          p.Amount,
-		Currency:        p.Currency,
+		Amount:          p.Amount.Amount,
+		Currency:        p.Amount.Currency,
 		PaymentMethodID: p.PaymentMethodID,
 		Metadata:        map[string]string{"payment_id": p.ID.String()},
 	}
@@ -279,7 +284,12 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 			return fmt.Errorf("getting payment for verification: %w", err)
 		}
 
-		if p.Amount != orderSnap.TotalAmount || p.Currency != orderSnap.Currency {
+		// money.Money.Equal compares amount AND currency, which is exactly the
+		// two-field check this replaces. apperror.ErrAmountMismatch is kept rather
+		// than swapped for money.ErrCurrencyMismatch: the fact worth reporting is
+		// that the charge does not match the order, and a currency disagreement here
+		// is one way for that to be true, not a different failure.
+		if !p.Amount.Equal(orderSnap.Total) {
 			return apperror.ErrAmountMismatch
 		}
 
@@ -386,15 +396,19 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 
 	slog.InfoContext(ctx, "processing refund",
 		"job_id", job.ID, "order_id", job.OrderID, "payment_id", job.PaymentID,
-		"gateway_txn_id", p.GatewayTxnID, "amount", p.Amount)
+		"gateway_txn_id", p.GatewayTxnID, "amount", p.Amount.Amount, "currency", p.Amount.Currency)
 
+	// RefundRequest carries no currency at all -- the gateway identifies the
+	// original charge by TransactionID and refunds in whatever that was
+	// denominated in. Only the amount crosses, which is the same seam as
+	// ChargeRequest above and not a place the pairing is lost.
 	resp, gwErr := s.gateway.Refund(ctx, RefundRequest{
 		// Key on the payment id: a payment is refunded once, so a job re-claimed
 		// after a crash between this call and the commit reuses the same key and
 		// the gateway dedupes it instead of refunding twice.
 		IdempotencyKey: p.ID.String(),
 		TransactionID:  p.GatewayTxnID,
-		Amount:         p.Amount,
+		Amount:         p.Amount.Amount,
 		Reason:         "auto-refund",
 	})
 

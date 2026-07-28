@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/payment/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -70,7 +71,7 @@ func TestService_ProcessIntegration(t *testing.T) {
 		m.orderUpdater.EXPECT().MarkPaymentProcessing(mock.Anything, orderID).Return(nil)
 		m.orderUpdater.EXPECT().MarkPaid(mock.Anything, orderID).Return(nil)
 		m.orderGet.EXPECT().GetByID(mock.Anything, orderID).
-			Return(payment.OrderSnapshot{TotalAmount: 1000, Currency: "USD", Status: "awaiting_payment"}, nil)
+			Return(payment.OrderSnapshot{Total: money.New(1000, "USD"), Status: "awaiting_payment"}, nil)
 		m.orderItems.EXPECT().ListItemsByOrderID(mock.Anything, orderID).
 			Return([]payment.OrderItemDTO{{ProductID: uuid.New(), Quantity: 1}}, nil)
 		m.inventoryDeduct.EXPECT().DeductBatch(mock.Anything, mock.Anything).Return(nil)

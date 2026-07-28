@@ -18,6 +18,11 @@ import (
 // include PII or card metadata. Everything else on Payment is operator-
 // facing account data, including OrderID -- an admin needs it to correlate
 // a payment back to the order it belongs to.
+//
+// Amount and Currency stay two keys even though payment.Payment now holds one
+// money.Money: this endpoint has always emitted both, so the value is flattened
+// field-by-field here rather than by a MarshalJSON that could not know which
+// endpoints want a currency key and which do not. See internal/money/doc.go.
 type adminPaymentResponse struct {
 	ID              uuid.UUID      `json:"id"`
 	OrderID         uuid.UUID      `json:"order_id"`
@@ -37,8 +42,8 @@ func toAdminPaymentResponse(p *payment.Payment) adminPaymentResponse {
 	return adminPaymentResponse{
 		ID:              p.ID,
 		OrderID:         p.OrderID,
-		Amount:          p.Amount,
-		Currency:        p.Currency,
+		Amount:          p.Amount.Amount,
+		Currency:        p.Amount.Currency,
 		Status:          p.Status,
 		Method:          p.Method,
 		PaymentMethodID: p.PaymentMethodID,

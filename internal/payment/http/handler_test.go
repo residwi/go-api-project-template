@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	paymenthttp "github.com/residwi/go-api-project-template/internal/payment/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
@@ -190,14 +191,13 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 		p := &payment.Payment{
 			ID:      paymentID,
 			OrderID: orderID,
-			Amount:  5000,
+			Amount:  money.New(5000, "USD"),
 			Status:  payment.StatusPending,
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil).Times(2)
 		orderGet.EXPECT().GetByID(mock.Anything, orderID).Return(payment.OrderSnapshot{
-			TotalAmount: 9999,
-			Currency:    "USD",
+			Total: money.New(9999, "USD"),
 		}, nil)
 
 		// Compensating refund: flag payment requires_review, mark the order
@@ -238,8 +238,7 @@ func TestAdminHandler_List(t *testing.T) {
 			{
 				ID:        uuid.New(),
 				OrderID:   uuid.New(),
-				Amount:    5000,
-				Currency:  "USD",
+				Amount:    money.New(5000, "USD"),
 				Status:    payment.StatusSuccess,
 				CreatedAt: now,
 				UpdatedAt: now,
@@ -314,8 +313,7 @@ func TestAdminHandler_Get(t *testing.T) {
 		p := &payment.Payment{
 			ID:        paymentID,
 			OrderID:   uuid.New(),
-			Amount:    10000,
-			Currency:  "USD",
+			Amount:    money.New(10000, "USD"),
 			Status:    payment.StatusSuccess,
 			CreatedAt: now,
 			UpdatedAt: now,

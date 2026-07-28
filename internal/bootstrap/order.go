@@ -108,12 +108,9 @@ func inventoryStateFor(wasDeducted bool) inventory.StockState {
 type paymentInitiatorAdapter struct{ svc *payment.Service }
 
 func (a *paymentInitiatorAdapter) InitiatePayment(ctx context.Context, params order.InitiatePaymentParams) (order.PaymentResult, error) {
-	// payment's InitiatePaymentParams still splits amount and currency into two
-	// fields; unpair them at the seam rather than reaching into payment's types.
 	result, err := a.svc.InitiatePayment(ctx, payment.InitiatePaymentParams{
 		OrderID:         params.OrderID,
-		Amount:          params.Amount.Amount,
-		Currency:        params.Amount.Currency,
+		Amount:          params.Amount,
 		PaymentMethodID: params.PaymentMethodID,
 	})
 	if err != nil {

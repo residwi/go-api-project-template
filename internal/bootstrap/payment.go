@@ -55,11 +55,8 @@ func (a *orderGetterAdapter) GetByID(ctx context.Context, orderID uuid.UUID) (pa
 	if o.CouponCode != nil {
 		couponCode = *o.CouponCode
 	}
-	// payment.OrderSnapshot keeps amount and currency as separate fields (its own
-	// money.Money adoption is a separate task), so split order's Total here.
 	return payment.OrderSnapshot{
-		TotalAmount:   o.Total.Amount,
-		Currency:      o.Total.Currency,
+		Total:         o.Total,
 		Status:        string(o.Status),
 		CouponCode:    couponCode,
 		StockDeducted: o.StockDeducted,

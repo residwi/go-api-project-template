@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	mocks "github.com/residwi/go-api-project-template/mocks/payment"
@@ -50,8 +51,7 @@ func TestService_InitiatePayment(t *testing.T) {
 	orderID := uuid.New()
 	params := payment.InitiatePaymentParams{
 		OrderID:         orderID,
-		Amount:          10000,
-		Currency:        "USD",
+		Amount:          money.New(10000, "USD"),
 		PaymentMethodID: "pm_test_123",
 	}
 
@@ -89,9 +89,8 @@ func TestService_InitiatePayment(t *testing.T) {
 		// mark payment+order paid and deduct inventory.
 		orderGet.EXPECT().GetByID(mock.Anything, orderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
-				Status:      "awaiting_payment",
+				Total:  money.New(10000, "USD"),
+				Status: "awaiting_payment",
 			}, nil)
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			RunAndReturn(func(_ context.Context, _ uuid.UUID) (*payment.Payment, error) {
@@ -115,8 +114,7 @@ func TestService_InitiatePayment(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, capturedPayment)
 		assert.Equal(t, orderID, capturedPayment.OrderID)
-		assert.Equal(t, int64(10000), capturedPayment.Amount)
-		assert.Equal(t, "USD", capturedPayment.Currency)
+		assert.Equal(t, money.New(10000, "USD"), capturedPayment.Amount)
 		assert.Equal(t, payment.StatusPending, capturedPayment.Status)
 		assert.Equal(t, "pm_test_123", capturedPayment.PaymentMethodID)
 		assert.Equal(t, capturedPayment.ID, result.PaymentID)
@@ -134,8 +132,7 @@ func TestService_InitiatePayment(t *testing.T) {
 		existing := &payment.Payment{
 			ID:              existingID,
 			OrderID:         orderID,
-			Amount:          10000,
-			Currency:        "USD",
+			Amount:          money.New(10000, "USD"),
 			Status:          payment.StatusPending,
 			PaymentMethodID: "pm_test_123",
 		}
@@ -157,9 +154,8 @@ func TestService_InitiatePayment(t *testing.T) {
 		// mark payment+order paid and deduct inventory.
 		orderGet.EXPECT().GetByID(mock.Anything, orderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
-				Status:      "awaiting_payment",
+				Total:  money.New(10000, "USD"),
+				Status: "awaiting_payment",
 			}, nil)
 		repo.EXPECT().GetByID(mock.Anything, existingID).
 			Return(existing, nil)
@@ -370,8 +366,7 @@ func TestService_Process(t *testing.T) {
 		p := &payment.Payment{
 			ID:              job.PaymentID,
 			OrderID:         job.OrderID,
-			Amount:          5000,
-			Currency:        "USD",
+			Amount:          money.New(5000, "USD"),
 			PaymentMethodID: "pm_123",
 		}
 
@@ -413,8 +408,7 @@ func TestService_Process(t *testing.T) {
 		p := &payment.Payment{
 			ID:              job.PaymentID,
 			OrderID:         job.OrderID,
-			Amount:          5000,
-			Currency:        "USD",
+			Amount:          money.New(5000, "USD"),
 			PaymentMethodID: "pm_123",
 		}
 
@@ -456,8 +450,7 @@ func TestService_Process(t *testing.T) {
 		p := &payment.Payment{
 			ID:              job.PaymentID,
 			OrderID:         job.OrderID,
-			Amount:          5000,
-			Currency:        "USD",
+			Amount:          money.New(5000, "USD"),
 			PaymentMethodID: "pm_123",
 		}
 
@@ -478,9 +471,8 @@ func TestService_Process(t *testing.T) {
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 5000,
-				Currency:    "USD",
-				Status:      "awaiting_payment",
+				Total:  money.New(5000, "USD"),
+				Status: "awaiting_payment",
 			}, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -524,8 +516,7 @@ func TestService_Process(t *testing.T) {
 		p := &payment.Payment{
 			ID:              job.PaymentID,
 			OrderID:         job.OrderID,
-			Amount:          5000,
-			Currency:        "USD",
+			Amount:          money.New(5000, "USD"),
 			PaymentMethodID: "pm_123",
 		}
 
@@ -564,8 +555,7 @@ func TestService_Process(t *testing.T) {
 		p := &payment.Payment{
 			ID:              job.PaymentID,
 			OrderID:         job.OrderID,
-			Amount:          5000,
-			Currency:        "USD",
+			Amount:          money.New(5000, "USD"),
 			PaymentMethodID: "pm_123",
 		}
 
@@ -604,8 +594,7 @@ func TestService_Process(t *testing.T) {
 		p := &payment.Payment{
 			ID:              job.PaymentID,
 			OrderID:         job.OrderID,
-			Amount:          5000,
-			Currency:        "USD",
+			Amount:          money.New(5000, "USD"),
 			PaymentMethodID: "pm_123",
 		}
 
@@ -661,8 +650,7 @@ func TestService_Process(t *testing.T) {
 		p := &payment.Payment{
 			ID:              job.PaymentID,
 			OrderID:         job.OrderID,
-			Amount:          5000,
-			Currency:        "USD",
+			Amount:          money.New(5000, "USD"),
 			PaymentMethodID: "pm_123",
 		}
 
@@ -701,8 +689,7 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 	orderID := uuid.New()
 	params := payment.InitiatePaymentParams{
 		OrderID:         orderID,
-		Amount:          10000,
-		Currency:        "USD",
+		Amount:          money.New(10000, "USD"),
 		PaymentMethodID: "pm_test_123",
 	}
 
@@ -736,9 +723,8 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 		// mark payment+order paid and deduct inventory.
 		orderGet.EXPECT().GetByID(mock.Anything, orderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
-				Status:      "awaiting_payment",
+				Total:  money.New(10000, "USD"),
+				Status: "awaiting_payment",
 			}, nil)
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			RunAndReturn(func(_ context.Context, _ uuid.UUID) (*payment.Payment, error) {
@@ -808,16 +794,14 @@ func TestService_FinalizePaymentSuccess_MultipleItems(t *testing.T) {
 		}
 
 		p := &payment.Payment{
-			ID:       job.PaymentID,
-			Amount:   20000,
-			Currency: "USD",
+			ID:     job.PaymentID,
+			Amount: money.New(20000, "USD"),
 		}
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 20000,
-				Currency:    "USD",
-				Status:      "awaiting_payment",
+				Total:  money.New(20000, "USD"),
+				Status: "awaiting_payment",
 			}, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -866,8 +850,7 @@ func TestService_RunCompensatingRefund_Error(t *testing.T) {
 		p := &payment.Payment{
 			ID:              job.PaymentID,
 			OrderID:         job.OrderID,
-			Amount:          5000,
-			Currency:        "USD",
+			Amount:          money.New(5000, "USD"),
 			PaymentMethodID: "pm_123",
 		}
 
@@ -1083,19 +1066,17 @@ func TestService_HandleWebhook(t *testing.T) {
 		productID := uuid.New()
 
 		p := &payment.Payment{
-			ID:       paymentID,
-			OrderID:  orderID,
-			Amount:   5000,
-			Currency: "USD",
-			Status:   payment.StatusPending,
+			ID:      paymentID,
+			OrderID: orderID,
+			Amount:  money.New(5000, "USD"),
+			Status:  payment.StatusPending,
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil).Times(2)
 
 		orderGet.EXPECT().GetByID(mock.Anything, orderID).Return(payment.OrderSnapshot{
-			TotalAmount: 5000,
-			Currency:    "USD",
-			Status:      "awaiting_payment",
+			Total:  money.New(5000, "USD"),
+			Status: "awaiting_payment",
 		}, nil)
 
 		repo.EXPECT().MarkPaid(mock.Anything, paymentID,
@@ -1308,17 +1289,15 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 		}
 
 		p := &payment.Payment{
-			ID:       job.PaymentID,
-			OrderID:  job.OrderID,
-			Amount:   10000,
-			Currency: "USD",
+			ID:      job.PaymentID,
+			OrderID: job.OrderID,
+			Amount:  money.New(10000, "USD"),
 		}
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
-				Status:      "awaiting_payment",
+				Total:  money.New(10000, "USD"),
+				Status: "awaiting_payment",
 			}, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -1358,15 +1337,13 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 		}
 
 		p := &payment.Payment{
-			ID:       job.PaymentID,
-			Amount:   5000,
-			Currency: "USD",
+			ID:     job.PaymentID,
+			Amount: money.New(5000, "USD"),
 		}
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
+				Total: money.New(10000, "USD"),
 			}, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -1388,15 +1365,13 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 		}
 
 		p := &payment.Payment{
-			ID:       job.PaymentID,
-			Amount:   10000,
-			Currency: "EUR",
+			ID:     job.PaymentID,
+			Amount: money.New(10000, "EUR"),
 		}
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
+				Total: money.New(10000, "USD"),
 			}, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -1418,15 +1393,13 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 		}
 
 		p := &payment.Payment{
-			ID:       job.PaymentID,
-			Amount:   10000,
-			Currency: "USD",
+			ID:     job.PaymentID,
+			Amount: money.New(10000, "USD"),
 		}
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
+				Total: money.New(10000, "USD"),
 			}, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -1457,16 +1430,14 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 		}
 
 		p := &payment.Payment{
-			ID:       job.PaymentID,
-			Amount:   10000,
-			Currency: "USD",
+			ID:     job.PaymentID,
+			Amount: money.New(10000, "USD"),
 		}
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
-				Status:      "cancelled",
+				Total:  money.New(10000, "USD"),
+				Status: "cancelled",
 			}, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -1511,16 +1482,14 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 		}
 
 		p := &payment.Payment{
-			ID:       job.PaymentID,
-			Amount:   10000,
-			Currency: "USD",
+			ID:     job.PaymentID,
+			Amount: money.New(10000, "USD"),
 		}
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
-				Status:      "awaiting_payment",
+				Total:  money.New(10000, "USD"),
+				Status: "awaiting_payment",
 			}, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -1577,8 +1546,7 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
+				Total: money.New(10000, "USD"),
 			}, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -1600,15 +1568,13 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 		}
 
 		p := &payment.Payment{
-			ID:       job.PaymentID,
-			Amount:   10000,
-			Currency: "USD",
+			ID:     job.PaymentID,
+			Amount: money.New(10000, "USD"),
 		}
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount:   10000,
-				Currency:      "USD",
+				Total:         money.New(10000, "USD"),
 				Status:        "paid",
 				StockDeducted: true,
 			}, nil)
@@ -1652,16 +1618,14 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 		}
 
 		p := &payment.Payment{
-			ID:       job.PaymentID,
-			Amount:   10000,
-			Currency: "USD",
+			ID:     job.PaymentID,
+			Amount: money.New(10000, "USD"),
 		}
 
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{
-				TotalAmount: 10000,
-				Currency:    "USD",
-				Status:      "awaiting_payment",
+				Total:  money.New(10000, "USD"),
+				Status: "awaiting_payment",
 			}, nil)
 
 		repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -1700,7 +1664,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		p := &payment.Payment{
 			ID:           job.PaymentID,
 			OrderID:      job.OrderID,
-			Amount:       5000,
+			Amount:       money.New(5000, "USD"),
 			GatewayTxnID: "txn_123",
 			Status:       payment.StatusSuccess,
 		}
@@ -1760,7 +1724,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		p := &payment.Payment{
 			ID:           job.PaymentID,
 			OrderID:      job.OrderID,
-			Amount:       8000,
+			Amount:       money.New(8000, "USD"),
 			GatewayTxnID: "txn_456",
 			Status:       payment.StatusRequiresReview,
 		}
@@ -1858,7 +1822,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 
 		p := &payment.Payment{
 			ID:           job.PaymentID,
-			Amount:       5000,
+			Amount:       money.New(5000, "USD"),
 			GatewayTxnID: "txn_789",
 			Status:       payment.StatusSuccess,
 		}
@@ -1894,7 +1858,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 
 		p := &payment.Payment{
 			ID:           job.PaymentID,
-			Amount:       5000,
+			Amount:       money.New(5000, "USD"),
 			GatewayTxnID: "txn_999",
 			Status:       payment.StatusSuccess,
 		}
@@ -1931,7 +1895,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		p := &payment.Payment{
 			ID:           job.PaymentID,
 			OrderID:      job.OrderID,
-			Amount:       5000,
+			Amount:       money.New(5000, "USD"),
 			GatewayTxnID: "txn_items_err",
 			Status:       payment.StatusSuccess,
 		}
@@ -1975,7 +1939,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		p := &payment.Payment{
 			ID:           job.PaymentID,
 			OrderID:      job.OrderID,
-			Amount:       5000,
+			Amount:       money.New(5000, "USD"),
 			GatewayTxnID: "txn_multi",
 			Status:       payment.StatusSuccess,
 		}
@@ -2030,7 +1994,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		p := &payment.Payment{
 			ID:           job.PaymentID,
 			OrderID:      job.OrderID,
-			Amount:       5000,
+			Amount:       money.New(5000, "USD"),
 			GatewayTxnID: "txn_rel_err",
 			Status:       payment.StatusSuccess,
 		}
@@ -2083,7 +2047,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		p := &payment.Payment{
 			ID:           job.PaymentID,
 			OrderID:      job.OrderID,
-			Amount:       5000,
+			Amount:       money.New(5000, "USD"),
 			GatewayTxnID: "txn_restock_err",
 			Status:       payment.StatusSuccess,
 		}
@@ -2136,7 +2100,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		p := &payment.Payment{
 			ID:           job.PaymentID,
 			OrderID:      job.OrderID,
-			Amount:       5000,
+			Amount:       money.New(5000, "USD"),
 			GatewayTxnID: "txn_coupon_err",
 			Status:       payment.StatusSuccess,
 		}
