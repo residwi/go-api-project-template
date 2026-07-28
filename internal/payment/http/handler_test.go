@@ -1,4 +1,4 @@
-package payment_test
+package http_test
 
 import (
 	"bytes"
@@ -19,6 +19,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/payment"
+	paymenthttp "github.com/residwi/go-api-project-template/internal/payment/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
@@ -48,7 +49,7 @@ func setupPaymentMux(t *testing.T) (
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	payment.RegisterRoutes(api, admin, payment.RouteDeps{Validator: v, Service: svc})
+	paymenthttp.RegisterRoutes(api, admin, paymenthttp.RouteDeps{Validator: v, Service: svc})
 
 	return mux, repo, gw, orders, orderGet
 }
@@ -69,7 +70,7 @@ func setupPaymentMuxWithSecret(t *testing.T, secret string) (*http.ServeMux, *mo
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	payment.RegisterRoutes(api, admin, payment.RouteDeps{Validator: v, Service: svc, WebhookSecret: secret})
+	paymenthttp.RegisterRoutes(api, admin, paymenthttp.RouteDeps{Validator: v, Service: svc, WebhookSecret: secret})
 
 	return mux, repo
 }

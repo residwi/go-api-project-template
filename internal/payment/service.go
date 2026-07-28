@@ -578,6 +578,17 @@ func (s *Service) CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID) er
 	return s.repo.CancelJobsByOrderID(ctx, orderID)
 }
 
+// ListAdmin lists payments for the admin dashboard. It delegates straight to
+// the repository; there is no business logic beyond the query itself.
+func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]Payment, int, error) {
+	return s.repo.ListAdmin(ctx, params)
+}
+
+// GetByID fetches a single payment by ID, delegating straight to the repository.
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Payment, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
 func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
 	p, err := s.repo.GetByID(ctx, paymentID)
 	if err != nil {

@@ -1,4 +1,4 @@
-package payment
+package http
 
 import (
 	"crypto/hmac"
@@ -9,13 +9,14 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 const webhookSignatureHeader = "X-Webhook-Signature"
 
 type webhookHandler struct {
-	service *Service
+	service *payment.Service
 	secret  string
 }
 
