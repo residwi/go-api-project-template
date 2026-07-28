@@ -12,6 +12,11 @@ type RouteDeps struct {
 	WebhookSecret string
 }
 
+type adminHandler struct {
+	service   *payment.Service
+	validator *validator.Validator
+}
+
 func RegisterRoutes(api *middleware.RouteGroup, admin *middleware.RouteGroup, deps RouteDeps) {
 	wh := &webhookHandler{service: deps.Service, secret: deps.WebhookSecret}
 	adm := &adminHandler{service: deps.Service, validator: deps.Validator}
