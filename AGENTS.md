@@ -59,9 +59,13 @@ inventory notification order payment product promotion review shipping user
 wishlist` — and **7 non-features** — `apperror bootstrap config money platform
 testhelper transport`. That split is not decorative:
 `scripts/check-boundaries.sh` derives the feature list from the tree by
-subtracting exactly those seven names, so adding a directory under `internal/`
-enrols it in the boundary checks as a feature unless it is also added to
-`NON_FEATURE_DIRS` in that script.
+subtracting exactly those seven names (`NON_FEATURE_DIRS`), so adding a
+directory under `internal/` enrols it in the boundary checks as a feature unless
+it is also added to that variable. Being a non-feature exempts a directory from
+checks 2 and 3's *ownership* questions, not from check 3 itself: only the wiring
+layer — `bootstrap` and `transport`, the script's `WIRING_DIRS` — may import a
+feature's adapter, so `internal/platform/` importing `product/postgres` still
+fails.
 
 ### Inside a feature
 
@@ -179,19 +183,25 @@ cannot violate quietly.
    `internal/platform/` by location.
 2. **A feature's `postgres` adapter only names tables it owns.** Ownership is
    read out of `db/OWNERSHIP.md` at run time, so the document and the check
-   cannot drift. The check also validates the document itself: duplicate rows,
-   rows for tables no migration creates, and tables no row claims all fail.
-   `dashboard` is exempt by name — it is a reporting read-model. Change
-   ownership in `db/OWNERSHIP.md`; there is no list in the script to keep in
-   step.
-3. **No feature imports another feature's `postgres` or `http` package.** Only
+   cannot drift. Keywords: `FROM`, `JOIN`, `INSERT INTO`, `UPDATE`, `TRUNCATE`,
+   `COPY`, matched across newlines and through quoted identifiers, over the
+   whole `postgres/` subtree. A CTE named after a real table is its own
+   violation rather than an exemption — otherwise one `WITH orders AS (...)`
+   silences every reference to `orders` in the file. The check also validates
+   the document itself: duplicate rows, rows for tables no migration creates,
+   and tables no row claims all fail. `dashboard` is exempt by name — it is a
+   reporting read-model. Change ownership in `db/OWNERSHIP.md`; there is no list
+   in the script to keep in step.
+3. **Nothing outside the wiring layer imports a feature's `postgres` or `http`
+   package.** Features and shared infrastructure alike; only
    `internal/bootstrap/` and `internal/transport/` may wire adapters together.
 
 Read the "What it does not catch" section of `db/OWNERSHIP.md` before trusting a
-green run. In short: table names must be string literals, `_test.go` files are
-skipped on purpose, `dashboard` is exempt wholesale, only
-`internal/<feature>/postgres/` is scanned, and ownership is per table so column
-coupling is invisible.
+green run. In short: table names must be string literals (`pgx.CopyFrom`
+included), `_test.go` files are skipped on purpose, `dashboard` is exempt
+wholesale, only `internal/<feature>/postgres/` is scanned, ownership is per
+table so column coupling is invisible, and prose in a production string literal
+can produce a loud false positive.
 
 ### Conventions — not checked, so they need you
 

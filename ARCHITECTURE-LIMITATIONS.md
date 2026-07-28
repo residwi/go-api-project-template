@@ -318,12 +318,18 @@ The check is three greps, not a compiler. `db/OWNERSHIP.md` documents the gaps
 in full; the ones most likely to bite:
 
 - **Table names must be literals.** The check greps for the identifier after
-  `FROM` / `JOIN` / `INSERT INTO` / `UPDATE`. Every query today has its table
-  name in the string literal, but `fmt.Sprintf` is already routine in these
-  adapters — `product/postgres`, `order/postgres` and six others build `WHERE`
-  fragments and placeholder lists that way. The habit of assembling SQL exists;
-  it simply has not reached a table name yet. The day it does, the check goes
-  quiet rather than failing.
+  `FROM` / `JOIN` / `INSERT INTO` / `UPDATE` / `TRUNCATE` / `COPY`. Every query
+  today has its table name in the string literal, but `fmt.Sprintf` is already
+  routine in these adapters — `product/postgres`, `order/postgres` and six
+  others build `WHERE` fragments and placeholder lists that way. The habit of
+  assembling SQL exists; it simply has not reached a table name yet. The day it
+  does, the check goes quiet rather than failing. `pgx.CopyFrom` would be the
+  same hole immediately: its table is a `pgx.Identifier` Go value with no
+  keyword in front of it. Nothing uses it today.
+- **Prose in a production string literal is a false positive.** Comments and
+  `_test.go` files are excluded, but `"update orders failed"` in a `postgres`
+  package still reports `orders`. It fails loudly rather than quietly, which is
+  the right direction, but it is the failure mode that gets a check disabled.
 - **Test files are skipped, deliberately.** A test seeds sibling tables to
   satisfy foreign keys, and that is fixture setup, not an architectural
   crossing. The cost is that a real violation living in a `_test.go` helper is
@@ -334,7 +340,9 @@ in full; the ones most likely to bite:
   current two tables either, so "may read anything" can become a second,
   undeclared copy of the schema without a review comment.
 - **Only `internal/<module>/postgres/` is scanned.** A stray query in a service
-  file, in `db/seeds/data.sql`, or inside a migration is not.
+  file, in `db/seeds/data.sql`, or inside a migration is not. The whole subtree
+  of that directory is scanned, though, so a `postgres/queries/` subpackage is
+  not a way out.
 - **Ownership is per table, so column coupling is invisible.** `dashboard`
   depends on `order_items.unit_price`. Rename that column and `dashboard`
   breaks at runtime, in a query only an admin runs, with `go build` unable to

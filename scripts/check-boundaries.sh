@@ -32,12 +32,32 @@ report() { printf '%s\n' "$*" >>"$VIOLATIONS"; }
 # ---------------------------------------------------------------------------
 
 # Directories under internal/ that are not feature modules. They are either
-# shared infrastructure or the wiring layer, and both checks below treat them
-# differently from features.
-NON_FEATURE_DIRS='apperror bootstrap config platform testhelper transport'
+# shared infrastructure (apperror, config, money, platform, testhelper) or the
+# wiring layer (bootstrap, transport), and the checks below treat them
+# differently from features. AGENTS.md names these seven; the feature list is
+# this tree minus exactly them, so the two must stay in step.
+#
+# `money` is here because it is a shared value object, not a module: it has no
+# adapters, imports nothing, and owns no table. Being listed here costs it
+# nothing in check 1 (which walks all of internal/ rather than the feature list)
+# and nothing in check 2 (which needs an internal/<name>/postgres directory);
+# check 3 still scans it, because that check's exemption is the wiring layer,
+# not every non-feature. See WIRING_DIRS.
+NON_FEATURE_DIRS='apperror bootstrap config money platform testhelper transport'
+
+# The subset of NON_FEATURE_DIRS whose entire job is to import adapters and wire
+# them together. Only these are exempt from check 3 as importers.
+WIRING_DIRS='bootstrap transport'
 
 is_non_feature() {
 	case " $NON_FEATURE_DIRS " in
+	*" $1 "*) return 0 ;;
+	esac
+	return 1
+}
+
+is_wiring() {
+	case " $WIRING_DIRS " in
 	*" $1 "*) return 0 ;;
 	esac
 	return 1
@@ -50,6 +70,19 @@ feature_dirs() {
 	for dir in internal/*/; do
 		name="$(basename "$dir")"
 		is_non_feature "$name" && continue
+		printf '%s\n' "$name"
+	done
+}
+
+# importer_dirs prints every directory under internal/ that may not import a
+# feature's adapter -- that is, everything except the wiring layer. It is a
+# superset of feature_dirs: internal/platform must not import product/postgres
+# either, and "not a feature" is not the same permission as "may wire adapters".
+importer_dirs() {
+	local dir name
+	for dir in internal/*/; do
+		name="$(basename "$dir")"
+		is_wiring "$name" && continue
 		printf '%s\n' "$name"
 	done
 }
@@ -152,21 +185,67 @@ check_wire_tags() {
 #   - Go `//` and SQL `--` line comments are stripped before matching. English
 #     prose in comments ("picked up from...", "assembles the...", "derived
 #     from the limit") otherwise reads as a table reference.
-#   - CTE names declared in the same file are collected and treated as
-#     legitimate, because they are not tables. Three exist today:
-#     `ancestors` (category, recursive) and `picked` (notification, payment).
+#   - Matching is NOT line-oriented. Comments are stripped per line and then all
+#     whitespace, newlines included, is collapsed to single spaces, so a keyword
+#     left at the end of a line still finds its table:
+#         INSERT INTO
+#             products (id, name)
+#     Line-oriented matching missed that entirely, and this codebase already
+#     wraps SQL mid-statement (internal/inventory/postgres/repository.go ends a
+#     line with `DO UPDATE`), so a maintainer reformatting a long column list
+#     could ship a cross-module write green. Collapsing is safe because the
+#     pattern requires whitespace *and then* a letter or underscore after the
+#     keyword: Go syntax that follows such a line -- `update(`, `from "`,
+#     `into)` -- cannot form a reference. Verified by extracting refs from every
+#     .go file under internal/, cmd/ and test/ with and without the collapse:
+#     zero differences.
+#   - CTE names are collected and exempted, because a CTE is not a table -- but
+#     ONLY when the name is not itself a table in $OWNERSHIP_DOC, and a CTE that
+#     does shadow a real table is reported as its own violation. Before that, one
+#     CTE named after a sibling table silenced every reference to the real table
+#     in the whole file, reads and writes alike: a roll-up CTE named `orders` in
+#     payment/postgres made every genuine `FROM orders` and `UPDATE orders` in
+#     that file invisible, without touching $OWNERSHIP_DOC at all.
+#     Per-*statement* CTE scoping would not have fixed it either, and is the
+#     wrong shape: SQL's own rules say a non-recursive CTE body does not see the
+#     CTE, so `WITH orders AS (SELECT id FROM orders ...)` reads the real table
+#     from inside the statement that names the CTE. Refusing the shadowing name
+#     outright is both stronger and shorter, and shadowing a table name in a CTE
+#     is confusing regardless of boundaries. Three CTEs exist today and none
+#     shadow anything: `ancestors` (category, recursive) and `picked`
+#     (notification, payment).
 #   - `FROM (` opens a subquery or a VALUES list, not a table, so it is
 #     skipped: the identifier pattern requires a letter or underscore.
-#   - `FOR UPDATE [SKIP LOCKED]` and `ON CONFLICT ... DO UPDATE SET` are the two
-#     places where `UPDATE` is not followed by a table name. Both are removed by
-#     phrase before extraction rather than by adding `set` and `skip` to a
-#     skip-list of names: a name-based skip-list is somewhere a real table can
-#     hide, and a phrase-based one is not.
-#   - Only non-test files are scanned. Test files legitimately seed and assert
-#     against sibling tables to satisfy foreign keys; that is fixture setup,
-#     not an architectural crossing. This also removes the last source of
-#     prose false positives, which lived in test names ("removes all items
-#     from cart", "returns top products from paid orders").
+#   - A quoted identifier -- `FROM "products"` -- is read as `products`. The
+#     pattern allows one optional double quote after the keyword and strips it.
+#   - A captured name of `from`, `join` or `into` is dropped. Those three are
+#     *reserved* words in Postgres, so no unquoted table can be called them, and
+#     one keyword straight after another is never a table reference -- a column
+#     named `into` in `SELECT c.into FROM carts c` otherwise reported the table
+#     `from`. This is not the name-based skip-list the paragraph below refuses:
+#     a real table cannot hide behind a name the database will not accept.
+#     `update`, `truncate` and `copy` are deliberately NOT dropped -- Postgres
+#     treats those as non-reserved, so a table really can be called `update`.
+#   - Four phrases are deleted before extraction, because in each the keyword is
+#     followed by something that is not a table: `FOR UPDATE [SKIP LOCKED]`,
+#     `ON CONFLICT ... DO UPDATE SET`, `JOIN LATERAL (`, and `COPY ... FROM
+#     STDIN`. Deleting the phrase beats adding `set`, `skip`, `lateral` and
+#     `stdin` to a skip-list of names: a name-based skip-list is somewhere a real
+#     table can hide, and a phrase-based one is not. The cost is that
+#     `FOR UPDATE OF <table>` goes unseen, which is fine -- it is a lock hint on
+#     a table the same query has already named.
+#   - Only non-test files are scanned, and the whole subtree of
+#     internal/<feature>/postgres/ is walked, not just its top level. Test files
+#     legitimately seed and assert against sibling tables to satisfy foreign
+#     keys; that is fixture setup, not an architectural crossing.
+#   - Skipping tests removed the prose false positives that lived in test names
+#     ("removes all items from cart", "returns top products from paid orders"),
+#     but not all of them: prose in a *production* string literal still trips
+#     this check. `var msg = "update orders failed"` in internal/cart/postgres/
+#     reports `orders`. Nothing here can tell that string from a query, so the
+#     failure mode is a loud false positive rather than a silent miss -- it is
+#     recorded in $OWNERSHIP_DOC rather than papered over, because a check that
+#     cries wolf gets disabled.
 #   - `pg_constraint`, a Postgres catalog table rather than a domain table,
 #     appears only in internal/cart/postgres/repository_test.go, which asserts
 #     each foreign key's ON DELETE action. Because tests are out of scope it
@@ -248,6 +327,18 @@ allowed_tables() {
 	printf '%s\n' "$OWNERSHIP_ROWS" | awk -v want="$1" '$2 == want { printf "%s ", $1 }'
 }
 
+# known_tables prints every table in $OWNERSHIP_DOC, whoever owns it. Used to
+# refuse a CTE that shadows a real table name; check_ownership_doc has already
+# proved this set equals the set db/migrations/ creates.
+known_tables() {
+	printf '%s\n' "$OWNERSHIP_ROWS" | awk '{ print $1 }' | sort -u | tr '\n' ' '
+}
+
+# owner_of prints the module owning $1, or nothing if no row claims it.
+owner_of() {
+	printf '%s\n' "$OWNERSHIP_ROWS" | awk -v t="$1" '$1 == t { print $2; exit }'
+}
+
 # check_ownership_doc validates the document itself, before anything trusts it.
 # An ownership map that is silently empty, self-contradictory, or out of step
 # with the schema would let check 2 pass vacuously, which is the failure mode
@@ -293,30 +384,41 @@ check_ownership_doc() {
 	fi
 }
 
-# strip_comments removes Go `//` and SQL `--` line comments, and lowercases
-# the result so every later pattern can be written case-sensitively (bash 3.2
-# and BSD tooling disagree about case-insensitive flags often enough to avoid
-# relying on them).
-strip_comments() {
-	sed -e 's://.*::' -e 's/--.*//' "$1" | tr '[:upper:]' '[:lower:]'
+# sql_text strips Go `//` and SQL `--` line comments, lowercases the result so
+# every later pattern can be written case-sensitively (bash 3.2 and BSD tooling
+# disagree about case-insensitive flags often enough to avoid relying on them),
+# and then collapses all whitespace -- newlines included -- into single spaces so
+# that the patterns below see whole statements instead of whole lines.
+#
+# The order matters. `//` and `--` run to end of *line*, so they must be removed
+# while lines still exist; collapsing first would swallow the rest of the file
+# into the first comment.
+sql_text() {
+	sed -e 's://.*::' -e 's/--.*//' "$1" \
+		| tr '[:upper:]' '[:lower:]' \
+		| tr -s '[:space:]' ' '
 }
 
-# sql_table_refs prints the identifier following each FROM / JOIN / INSERT INTO
-# / UPDATE. Handles LEFT/INNER/CROSS JOIN and `JOIN x ON ...` for free, because
-# it anchors on the JOIN keyword itself rather than trying to parse the clause.
+# sql_table_refs prints the identifier following each FROM / JOIN / INSERT INTO /
+# UPDATE / TRUNCATE / COPY. Handles LEFT/INNER/CROSS JOIN and `JOIN x ON ...` for
+# free, because it anchors on the JOIN keyword itself rather than trying to parse
+# the clause, and catches DELETE FROM and MERGE INTO through `from` and `into`.
 #
 # Writes count, not just reads. `INSERT INTO another_module_table` is a worse
 # violation than a join, and matching only FROM/JOIN would let it through.
+# `TRUNCATE` and `COPY` are in the set for the same reason: both write, and both
+# were outside it. (`pgx.CopyFrom` still escapes -- it names the table as a Go
+# value, not in SQL. Recorded in $OWNERSHIP_DOC.)
 #
-# `for update` and `do update` are deleted first. They are the only two places
-# where `update` is followed by something other than a table (`FOR UPDATE SKIP
-# LOCKED`, `ON CONFLICT ... DO UPDATE SET`), and removing the phrase is safer
-# than excusing the words `skip` and `set` by name -- a name-based skip-list is
-# a place a real table could hide. The cost is that `FOR UPDATE OF <table>`
-# would go unseen, which is fine: it is a lock hint on a table the same query
-# has already named.
+# Four phrases are deleted first, each a place a keyword is followed by something
+# that is not a table: `FOR UPDATE [SKIP LOCKED]`, `ON CONFLICT ... DO UPDATE
+# SET`, `JOIN LATERAL (`, and `COPY ... FROM STDIN`. Removing the phrase is safer
+# than excusing the words `set`, `skip`, `lateral` and `stdin` by name -- a
+# name-based skip-list is a place a real table could hide. The cost is that
+# `FOR UPDATE OF <table>` goes unseen, which is fine: it is a lock hint on a
+# table the same query has already named.
 #
-# That deletion spells its word boundaries as `(^|[^a-z0-9_])` and
+# Those deletions spell their word boundaries as `(^|[^a-z0-9_])` and
 # `([^a-z0-9_]|$)` rather than `\b`. BSD sed (macOS) does not implement `\b` and
 # does not complain about it either -- it just matches nothing, which would
 # quietly restore `set` and `skip` as phantom table names on one platform only.
@@ -326,17 +428,25 @@ strip_comments() {
 # nothing (a file with no SQL, or no CTEs) fails the whole pipeline, and an
 # assignment such as `x=$(sql_cte_names f)` would then trip `set -e`.
 sql_table_refs() {
-	strip_comments "$1" \
+	sql_text "$1" \
 		| sed -E -e 's/(^|[^a-z0-9_])(for|do)[[:space:]]+update([^a-z0-9_]|$)/\1 \3/g' \
-		| grep -oE '\b(from|join|into|update)[[:space:]]+[a-z_][a-z0-9_]*' \
+			-e 's/(^|[^a-z0-9_])join[[:space:]]+lateral([^a-z0-9_]|$)/\1join \2/g' \
+			-e 's/(^|[^a-z0-9_])from[[:space:]]+stdin([^a-z0-9_]|$)/\1 \2/g' \
+		| grep -oE '\b(from|join|into|update|truncate|copy)[[:space:]]+"?[a-z_][a-z0-9_]*' \
 		| awk '{print $2}' \
+		| sed -e 's/^"//' \
+		| grep -vxE 'from|join|into' \
 		| sort -u || true
 }
 
 # sql_cte_names prints CTE names declared in the file: `WITH <name> AS (`,
-# `WITH RECURSIVE <name> AS (`, and `, <name> AS (` for chained CTEs.
+# `WITH RECURSIVE <name> AS (`, and `, <name> AS (` for chained CTEs. It reads
+# the same collapsed text as sql_table_refs on purpose: if a `WITH` and its name
+# were allowed to land on separate lines for one function and not the other, the
+# CTE would be missed while its uses were still found, and a real CTE would
+# report as a cross-module reference.
 sql_cte_names() {
-	strip_comments "$1" \
+	sql_text "$1" \
 		| grep -oE '(\bwith[[:space:]]+(recursive[[:space:]]+)?|,[[:space:]]*)[a-z_][a-z0-9_]*[[:space:]]+as[[:space:]]*\(' \
 		| sed -E 's/[[:space:]]+as[[:space:]]*\($//' \
 		| sed -E 's/^(with[[:space:]]+(recursive[[:space:]]+)?|,[[:space:]]*)//' \
@@ -344,12 +454,15 @@ sql_cte_names() {
 }
 
 check_table_ownership() {
-	local feature allowed file ref legit found
+	local feature allowed file ref legit found known cte cte_names
 
 	# With no ownership data there is nothing to check, and looping anyway would
 	# bury check_ownership_doc's one accurate diagnosis under a "feature X owns
 	# no table" line for every module. Report the cause once; stop there.
 	[ -n "$OWNERSHIP_ROWS" ] || return 0
+
+	# Space-delimited on both sides so `case " $known "` cannot match a prefix.
+	known=" $(known_tables)"
 
 	while IFS= read -r feature; do
 		case " $CHECK_2_EXEMPT_FEATURES " in
@@ -366,12 +479,25 @@ check_table_ownership() {
 			continue
 		fi
 
-		for file in "internal/$feature/postgres"/*.go; do
+		while IFS= read -r file; do
 			[ -f "$file" ] || continue
-			case "$file" in *_test.go) continue ;; esac
 
-			# CTE names are file-local and are not tables.
-			legit="$allowed $(sql_cte_names "$file" | tr '\n' ' ')"
+			# A CTE is not a table, so its name must not be reported as one --
+			# but only a name that is not a table can be exempted. A CTE named
+			# after a real table is refused outright: exempting it would hide
+			# every genuine reference to that table in the file, and shadowing a
+			# table name in SQL is confusing on its own merits.
+			cte_names=''
+			for cte in $(sql_cte_names "$file"); do
+				case "$known" in
+				*" $cte "*)
+					report "$(printf 'CTE shadows a real table: %s declares a CTE named %s, which is the table owned by %s\n    Rename the CTE. A CTE named after a table hides every genuine reference\n    to that table in the file from this check, and hides the real table from\n    the reader of the query. Ownership is recorded in %s.' \
+						"$file" "$cte" "$(owner_of "$cte")" "$OWNERSHIP_DOC")"
+					;;
+				*) cte_names="$cte_names $cte" ;;
+				esac
+			done
+			legit="$allowed $cte_names"
 
 			while IFS= read -r ref; do
 				[ -n "$ref" ] || continue
@@ -384,27 +510,38 @@ check_table_ownership() {
 						"$file" "$ref" "$feature" "$feature" "${allowed% }" "$OWNERSHIP_DOC")"
 				fi
 			done < <(sql_table_refs "$file")
-		done
+			# The whole subtree, not just the top level: a query moved into
+			# internal/<feature>/postgres/queries/ is still that adapter's SQL,
+			# and both this script and the docs promise the directory is scanned.
+		done < <(find "internal/$feature/postgres" -type f -name '*.go' ! -name '*_test.go' | sort)
 	done < <(feature_dirs)
 }
 
 # ---------------------------------------------------------------------------
-# Check 3 -- no feature reaches into another feature's adapter
+# Check 3 -- nothing but the wiring layer reaches into a feature's adapter
 # ---------------------------------------------------------------------------
 #
-# Features talk to each other through consumer-declared ports (for example
-# internal/order/inventory.go), never by grabbing a sibling's concrete
-# adapter. Importing internal/<other>/postgres or internal/<other>/http
-# couples a feature to another feature's storage or transport shape.
+# Features talk to each other through consumer-declared ports -- usually
+# <feature>/ports.go, but two features name the file after the module they
+# depend on instead: internal/product/inventory.go declares InventoryReader and
+# InventoryRegistrar, and internal/category/product.go declares ProductCounter.
+# Never by grabbing a sibling's concrete adapter: importing
+# internal/<other>/postgres or internal/<other>/http couples a feature to
+# another feature's storage or transport shape.
 #
-# Exempt: the wiring layer. internal/bootstrap/ and internal/transport/ exist
-# precisely to import adapters and wire them together; they are excluded by
-# NON_FEATURE_DIRS above, which also keeps internal/transport/http/middleware
-# and internal/transport/http/response -- shared infrastructure that happens to
-# live at an `http` path -- from being mistaken for feature adapters. Test
-# files are exempt too.
+# Exempt: the wiring layer, and only the wiring layer. internal/bootstrap/ and
+# internal/transport/ exist precisely to import adapters and wire them together,
+# so they are skipped as importers via WIRING_DIRS. Everything else under
+# internal/ is scanned, features and shared infrastructure alike -- "not a
+# feature" is not the same permission as "may wire adapters", and
+# internal/platform must not import product/postgres either.
+#
+# The *target* alternation stays the feature list, which is what keeps
+# internal/transport/http/middleware and internal/transport/http/response --
+# shared infrastructure that happens to live at an `http` path -- from being
+# mistaken for feature adapters. Test files are exempt too.
 check_adapter_imports() {
-	local module module_re feature_alt feature file target hit
+	local module module_re feature_alt importer file target hit
 
 	module="$(awk '/^module /{print $2; exit}' go.mod)"
 	if [ -z "$module" ]; then
@@ -417,22 +554,23 @@ check_adapter_imports() {
 	feature_alt="$(feature_dirs | tr '\n' '|' | sed -e 's/|$//')"
 	[ -n "$feature_alt" ] || return 0
 
-	while IFS= read -r feature; do
+	while IFS= read -r importer; do
 		while IFS= read -r file; do
 			while IFS= read -r hit; do
 				[ -n "$hit" ] || continue
 				# hit looks like "12:<module>/internal/<target>/postgres"
 				target="$(printf '%s' "$hit" | sed -E 's#^.*/internal/([^/]+)/(postgres|http)$#\1#')"
-				[ "$target" = "$feature" ] && continue
-				report "feature '$feature' imports another feature's adapter: ${file}:${hit%%:*}
+				[ "$target" = "$importer" ] && continue
+				report "'$importer' imports another module's adapter: ${file}:${hit%%:*}
     ${hit#*:}
-    Features talk through consumer-declared ports (e.g. internal/order/inventory.go),
-    not by importing a sibling's postgres/http package. Only internal/bootstrap/
-    and internal/transport/ may wire adapters together."
+    Modules talk through consumer-declared ports (e.g. internal/product/inventory.go
+    or internal/category/product.go; most features group them in ports.go), not by
+    importing a sibling's postgres/http package. Only internal/bootstrap/ and
+    internal/transport/ may wire adapters together."
 			done < <(grep -noE "\"${module_re}/internal/(${feature_alt})/(postgres|http)\"" "$file" \
 				| tr -d '"' || true)
-		done < <(find "internal/$feature" -type f -name '*.go' ! -name '*_test.go' | sort)
-	done < <(feature_dirs)
+		done < <(find "internal/$importer" -type f -name '*.go' ! -name '*_test.go' | sort)
+	done < <(importer_dirs)
 }
 
 # ---------------------------------------------------------------------------

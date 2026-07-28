@@ -1,8 +1,9 @@
 # Table ownership
 
 Every table has exactly one owning module. Only that module's `postgres`
-adapter may name it in SQL — in a `FROM`, a `JOIN`, an `INSERT INTO` or an
-`UPDATE`. Every other module reads it through a consumer-declared port.
+adapter may name it in SQL — in a `FROM`, a `JOIN`, an `INSERT INTO`, an
+`UPDATE`, a `TRUNCATE` or a `COPY`. Every other module reads it through a
+consumer-declared port.
 
 19 tables, 12 owning modules, one owner each. Nothing is unowned and nothing is
 shared. `ARCHITECTURE.md` section 6 states the rule and what it costs; this file
@@ -190,8 +191,21 @@ in the script to keep in step.
 
 **What it catches.**
 
-* A production query in `internal/<module>/postgres/*.go` naming a table the
-  module does not own, via `FROM`, `JOIN`, `INSERT INTO` or `UPDATE`.
+* A production query anywhere under `internal/<module>/postgres/` — the whole
+  subtree, not just its top level — naming a table the module does not own, via
+  `FROM`, `JOIN`, `INSERT INTO`, `UPDATE`, `TRUNCATE` or `COPY`. `DELETE FROM`
+  and `MERGE INTO` come along through `FROM` and `INTO`.
+* The same, when the keyword and the table name are on different lines.
+  Whitespace is collapsed across newlines before matching, so
+  `INSERT INTO\n    products (...)` is caught. It was not, before Phase 5.
+* The same, when the table is written as a quoted identifier: `FROM "products"`.
+* A CTE named after a real table — `WITH orders AS (...)` in
+  `internal/payment/postgres/`. This is refused rather than exempted, because
+  exempting it hid every genuine reference to `orders` in that file, reads and
+  writes alike, without anyone touching this document. Per-statement CTE scoping
+  would not have been enough: SQL says a non-recursive CTE body does not see the
+  CTE, so `WITH orders AS (SELECT id FROM orders ...)` reads the real table from
+  inside the very statement that declares the name.
 * A module that has a `postgres` adapter and no row in this file.
 * A table recorded here that no `db/migrations/*.sql` creates, and a table a
   migration creates with no owner recorded here. Both directions, because a
@@ -208,13 +222,25 @@ check trusted past its reach is worse than no check.
   literal, but `fmt.Sprintf` is already routine in these adapters for `WHERE`
   fragments and placeholder lists, so the habit of assembling SQL exists — it
   simply has not reached a table name yet. The day it does, the check goes quiet
-  rather than failing.
+  rather than failing. `pgx.CopyFrom` is the same hole with no `Sprintf` in
+  sight: it names its table as a `pgx.Identifier{"orders"}` Go value, so no SQL
+  keyword precedes it and nothing here sees it. Nothing uses it today.
+* **Prose it mistakes for SQL — a false positive, not a false negative.** Go
+  `//` and SQL `--` comments are stripped, and `_test.go` files are skipped,
+  which between them removed most of it. What remains is prose in a *production*
+  string literal: `var msg = "update orders failed"` in
+  `internal/cart/postgres/` reports `orders`. Nothing available to a grep can
+  tell that string from a query. It fails loudly rather than silently, so the
+  cost is an afternoon of confusion, not a boundary crossing — but if it starts
+  happening often the answer is a SQL parser, not a wider allowlist.
 * **Test files, deliberately.** A test seeds sibling tables to satisfy foreign
   keys, and that is fixture setup, not an architectural crossing. The cost is
   that the check cannot distinguish a fixture from a real violation that happens
   to live in a `_test.go` helper.
 * **Anything outside `internal/<module>/postgres/`.** A stray query in a service
-  file, in `db/seeds/data.sql`, or in a migration is not scanned.
+  file, in `db/seeds/data.sql`, or in a migration is not scanned. Everything
+  *inside* that directory is, including subdirectories — moving a query into
+  `internal/<module>/postgres/queries/` does not hide it.
 * **Column-level coupling.** Ownership is per table. `dashboard` depending on
   `order_items.unit_price`, or any module depending on a column it does not
   control, is invisible to a table-name grep even where the table is allowed.
