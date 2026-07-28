@@ -182,10 +182,16 @@ would import its own adapter.
 ## 10. `money.Money`, not `int64` beside a `Currency string`
 
 **Why:** the codebase was hand-rolling it in two places — a currency-consistency
-loop in `order.PlaceOrder` (`service.go:109-118`) and a two-field equality check
-in `payment` (`service.go:282`) — across **12 `Currency` fields** that could each
-drift from the amount beside them. `Money` makes "amount without its currency"
-unrepresentable, and turns both hand-rolled checks into one `ErrCurrencyMismatch`.
+loop in `order.PlaceOrder`, and a two-field `Amount != … || Currency != …` compare
+in `payment`'s verification path — across **twelve `Currency string` fields** that
+could each drift from the amount beside them. `Money` makes "amount without its
+currency" unrepresentable, and collapses both hand-rolled checks into one
+`ErrCurrencyMismatch` from `Add`/`Equal`.
+
+Exactly **one** loose `Currency string` now survives outside an adapter, and it is
+the deliberate exemption in §9: `internal/payment/gateway.go`, the external
+gateway's own contract. `Money` maps down to its plain `int64`+`string` fields in
+`payment/stripe` and `payment/midtrans`, which is the correct seam.
 
 **Scope: four features — `order`, `payment`, `product`, `cart`.** Those are the
 only ones whose data model carries a currency at all. Two are deliberately
@@ -212,12 +218,38 @@ while its nested items carry `price` *and* `currency`, and `order` is inconsiste
 in the opposite direction (currency at order level, none on line items). A
 self-marshalling `Money` would simultaneously add a key to the first group and
 double-emit it for the second. One type cannot satisfy both; only the adapter can
-decide. There is also no `Div` and no float constructor — dividing money needs a
-stated rounding and remainder policy, and silently picking one is how rounding
-bugs enter a ledger.
+decide. There is also no float constructor.
 
 **No `Div`:** dividing money needs a stated rounding and remainder-allocation
-policy. Silently picking one is how rounding bugs enter a ledger.
+policy — who gets the leftover cent when splitting 10 three ways. Silently picking
+one is how rounding bugs enter a ledger. When a split is needed, add a named method
+that states its policy in its name.
+
+**Two seams where `Money` deliberately stops.** Both are places a reader will
+otherwise read as an oversight:
+
+1. **`order.CouponReserver`** (`order/ports.go`) still passes `orderSubtotal int64`
+   and returns `discountAmount int64`. Its implementer is `promotion`, which has no
+   currency to honour a `Money` with. The pairing happens on order's side of the
+   seam — `order/service.go` passes `subtotal.Amount` and rebuilds
+   `money.New(discount, subtotal.Currency)` — which is also where the clamp policy
+   lives: `max(subtotal-discount, 0)`, so an over-large coupon cannot produce a
+   negative charge. `Money.Sub` deliberately does not decide that, so the clamp is
+   plain arithmetic on amounts with a comment saying why.
+2. **`cart.Cart.Total()` returns `(money.Money, error)`.** The total used to be
+   summed inside the HTTP adapter, which is both the wrong owner for a domain
+   calculation and impossible once the sum can fail.
+
+**One observable behaviour change came out of this.** A mixed-currency cart now
+returns **400** from `GET /cart`; it previously returned 200 with the amounts added
+together, denominated in nothing. Nothing prevents such a cart — prices are
+per-product and `AddItem` does not constrain them — and checkout already rejected
+it, so this makes `GET /cart` agree with `PlaceOrder`. The error wraps
+`apperror.ErrBadRequest` alongside `money.ErrCurrencyMismatch`, because
+`ErrCurrencyMismatch` alone matches no case in `response.HandleErr` and would
+surface as a 500 for what is plainly user input. `Total()` folds **sellable lines
+only**, so an archived line in another currency still yields a clean 200 — and an
+empty cart yields `total: 0`, not an error.
 
 ## 11. Integration tests stay next to their code; only e2e is centralised
 
