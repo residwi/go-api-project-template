@@ -16,9 +16,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/notification"
 	notificationpg "github.com/residwi/go-api-project-template/internal/notification/postgres"
 	orderpg "github.com/residwi/go-api-project-template/internal/order/postgres"
-	"github.com/residwi/go-api-project-template/internal/payment"
 	mockgw "github.com/residwi/go-api-project-template/internal/payment/mock"
 	paymentpg "github.com/residwi/go-api-project-template/internal/payment/postgres"
+	paymentworker "github.com/residwi/go-api-project-template/internal/payment/worker"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
@@ -77,7 +77,7 @@ func run() error {
 		PruneLimit:    cfg.Worker.PruneLimit,
 	}
 
-	paymentProcessor := payment.NewJobProcessor(paymentSvc, bootstrap.NewOrderHousekeeper(orderSvc))
+	paymentProcessor := paymentworker.NewProcessor(paymentSvc, bootstrap.NewOrderHousekeeper(orderSvc))
 	paymentRunner := jobs.NewRunner("payment", paymentRepo, paymentProcessor, jobCfg)
 	notificationRunner := jobs.NewRunner("notification", notificationRepo, notificationSvc, jobCfg)
 
