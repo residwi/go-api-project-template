@@ -152,8 +152,22 @@ cleanup that never happened. A lie in the schema is worse than an absence.
 
 ## 9. `x/http` owns the wire format
 
-No `json` tag exists outside `internal/*/http/`. Every endpoint owns its request
-DTO, response DTO, and explicit mapping, one use case per file.
+No `json` tag exists on a type **this system owns** outside `internal/*/http/`.
+Every endpoint owns its request DTO, response DTO, and explicit mapping, one use
+case per file. `make check-boundaries` enforces this.
+
+Two exemptions, both deliberate and both allowlisted by name in the check:
+
+- **`internal/payment/gateway.go`** — `ChargeRequest`/`ChargeResponse`/`RefundRequest`/
+  `RefundResponse` are the *external* gateway's wire contract, not ours. Those tags
+  describe someone else's API, and `payment/stripe` and `payment/midtrans` marshal
+  them on the way out. Mapping `Money` down to their plain `int64`+`string` fields
+  in those adapters is the correct seam, not a leak.
+- **`internal/platform/paging/`** — the shared cursor/offset pagination envelope,
+  i.e. transport infrastructure rather than a domain model.
+
+An unexplained exemption in a lint rule is how the rule erodes, so each one is
+named in `scripts/check-boundaries.sh` with its reason next to it.
 
 **Why:** thirteen `json:"-"` tags were load-bearing security controls —
 `user.PasswordHash`, `payment.GatewayResponse`, `order.RequestHash`. Two deleted
@@ -168,13 +182,39 @@ would import its own adapter.
 ## 10. `money.Money`, not `int64` beside a `Currency string`
 
 **Why:** the codebase was hand-rolling it in two places — a currency-consistency
-loop in `order.PlaceOrder` and a two-field equality check in `payment` — across
-~50 amount fields that could drift from their currency. `Money` makes "amount
-without its currency" unrepresentable.
+loop in `order.PlaceOrder` (`service.go:109-118`) and a two-field equality check
+in `payment` (`service.go:282`) — across **12 `Currency` fields** that could each
+drift from the amount beside them. `Money` makes "amount without its currency"
+unrepresentable, and turns both hand-rolled checks into one `ErrCurrencyMismatch`.
+
+**Scope: four features — `order`, `payment`, `product`, `cart`.** Those are the
+only ones whose data model carries a currency at all. Two are deliberately
+excluded, and the reasons are load-bearing rather than bookkeeping:
+
+- **`promotion` stays on `int64`.** `Promotion.Value` is *polymorphic*: with
+  `TypePercentage` it is a percentage (`service.go:167` guards `value > 100`),
+  with `TypeFixedAmount` it is minor units. `money.New(10, "USD")` to mean "10%"
+  would be a value object asserting something false. And promotion has no
+  currency field anywhere, so even its genuinely-monetary `MinOrderAmount`,
+  `MaxDiscount` and `CouponUsage.Discount` have nothing to pair with — inventing
+  one would fabricate data the system never captured.
+- **`dashboard` stays on `int64`.** It aggregates revenue across orders and has no
+  currency field, so any single currency would be a guess.
+
+Neither exclusion is observable: both features emit zero `currency` keys on the
+wire today, exactly because the domain has none either.
 
 **Cost accepted:** explicit two-column mapping in every `postgres` adapter, and
 flattening in every response DTO. `Money` carries no `json` tag and implements no
-`sql.Scanner` on purpose: serialisation is each adapter's job.
+`sql.Scanner` on purpose: serialisation is each adapter's job. That is not
+fastidiousness — `cart`'s response has a `total` with **no** sibling currency
+while its nested items carry `price` *and* `currency`, and `order` is inconsistent
+in the opposite direction (currency at order level, none on line items). A
+self-marshalling `Money` would simultaneously add a key to the first group and
+double-emit it for the second. One type cannot satisfy both; only the adapter can
+decide. There is also no `Div` and no float constructor — dividing money needs a
+stated rounding and remainder policy, and silently picking one is how rounding
+bugs enter a ledger.
 
 **No `Div`:** dividing money needs a stated rounding and remainder-allocation
 policy. Silently picking one is how rounding bugs enter a ledger.
