@@ -7,25 +7,25 @@ import (
 )
 
 type SalesSummary struct {
-	TotalOrders       int     `json:"total_orders"`
-	TotalRevenue      int64   `json:"total_revenue"`
-	AverageOrderValue float64 `json:"average_order_value"`
+	TotalOrders       int
+	TotalRevenue      int64
+	AverageOrderValue float64
 }
 
 type TopProduct struct {
-	ProductID uuid.UUID `json:"product_id"`
-	Name      string    `json:"name"`
-	TotalSold int       `json:"total_sold"`
-	Revenue   int64     `json:"revenue"`
+	ProductID uuid.UUID
+	Name      string
+	TotalSold int
+	Revenue   int64
 }
 
 type RevenueData struct {
-	Date       time.Time `json:"date"`
-	Revenue    int64     `json:"revenue"`
-	OrderCount int       `json:"order_count"`
+	Date       time.Time
+	Revenue    int64
+	OrderCount int
 }
 
 type StatusBreakdown struct {
-	Status string `json:"status"`
-	Count  int    `json:"count"`
+	Status string
+	Count  int
 }
