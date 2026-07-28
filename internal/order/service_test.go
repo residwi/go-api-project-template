@@ -626,7 +626,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(existingOrder, nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(items, nil)
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		require.NoError(t, err)
@@ -641,7 +641,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		dbErr := errors.New("database connection error")
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, dbErr)
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
@@ -659,7 +659,7 @@ func TestService_PlaceOrder(t *testing.T) {
 			Items: []order.CartSnapshotItem{},
 		}, nil)
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
@@ -686,7 +686,7 @@ func TestService_PlaceOrder(t *testing.T) {
 			},
 		}, nil)
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
@@ -702,7 +702,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(nil, cartErr)
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
@@ -737,7 +737,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		payment.EXPECT().InitiatePayment(mock.Anything, mock.Anything).Return(order.PaymentResult{PaymentID: uuid.New()}, nil)
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		require.NoError(t, err)
@@ -775,7 +775,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		payment.EXPECT().InitiatePayment(mock.Anything, mock.Anything).Return(order.PaymentResult{PaymentID: uuid.New()}, nil)
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test", CouponCode: &couponCode}
+		req := order.PlaceParams{PaymentMethodID: "pm_test", CouponCode: &couponCode}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		require.NoError(t, err)
@@ -800,7 +800,7 @@ func TestService_PlaceOrder(t *testing.T) {
 			},
 		}, nil)
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
@@ -824,7 +824,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(existingOrder, nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(nil, dbErr)
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		// A failed items read must surface, not be swallowed into a 201 with no items.
@@ -853,7 +853,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		coupons.EXPECT().Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).Return(int64(0), errors.New("invalid coupon"))
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test", CouponCode: &couponCode}
+		req := order.PlaceParams{PaymentMethodID: "pm_test", CouponCode: &couponCode}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
@@ -883,7 +883,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		payment.EXPECT().InitiatePayment(mock.Anything, mock.Anything).Return(order.PaymentResult{PaymentID: uuid.New()}, nil)
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(errors.New("queue full"))
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		require.NoError(t, err)
@@ -908,7 +908,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
@@ -933,7 +933,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		inventory.EXPECT().ReserveBatch(mock.Anything, []order.InventoryItem{{ProductID: productA, Quantity: 1}}).Return(errors.New("insufficient stock"))
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
@@ -959,7 +959,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		inventory.EXPECT().ReserveBatch(mock.Anything, []order.InventoryItem{{ProductID: productA, Quantity: 1}}).Return(nil)
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
@@ -986,7 +986,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		cart.EXPECT().Clear(mock.Anything, userID).Return(errors.New("cache error"))
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		assert.Nil(t, resp)
@@ -1024,7 +1024,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 		_ = payment // InitiatePayment must not be called for a zero-total order
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test", CouponCode: &couponCode}
+		req := order.PlaceParams{PaymentMethodID: "pm_test", CouponCode: &couponCode}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		require.NoError(t, err)
@@ -1055,7 +1055,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		payment.EXPECT().InitiatePayment(mock.Anything, mock.Anything).Return(order.PaymentResult{}, errors.New("gateway down"))
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
-		req := order.PlaceOrderRequest{PaymentMethodID: "pm_test"}
+		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
 		require.NoError(t, err)
@@ -1419,7 +1419,7 @@ func TestService_PlaceOrder_RejectsWithdrawnProduct(t *testing.T) {
 	}, nil)
 
 	_, err := svc.PlaceOrder(context.Background(), userID,
-		order.PlaceOrderRequest{}, idempotencyKey)
+		order.PlaceParams{}, idempotencyKey)
 
 	require.ErrorIs(t, err, apperror.ErrBadRequest)
 	assert.Contains(t, err.Error(), "Withdrawn Widget",
@@ -1450,7 +1450,7 @@ func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
 	}, nil)
 
 	_, err := svc.PlaceOrder(context.Background(), userID,
-		order.PlaceOrderRequest{}, idempotencyKey)
+		order.PlaceParams{}, idempotencyKey)
 	require.ErrorIs(t, err, apperror.ErrBadRequest)
 	// Direct and intentional, rather than incidental: the guard must reject
 	// before any stock is reserved, not merely happen to fail elsewhere first.
@@ -1547,7 +1547,7 @@ func TestService_PlaceOrder_RejectsSoftDeletedProduct(t *testing.T) {
 	svc := order.NewService(orderRepo, testhelper.FakeTxRunner{},
 		realCartProvider{svc: cartSvc}, orderInventory, nil, nil, nil, nil)
 
-	_, err := svc.PlaceOrder(context.Background(), userID, order.PlaceOrderRequest{}, idempotencyKey)
+	_, err := svc.PlaceOrder(context.Background(), userID, order.PlaceParams{}, idempotencyKey)
 
 	require.ErrorIs(t, err, apperror.ErrBadRequest,
 		"a soft-deleted product (status still 'published', deleted_at set) must be flagged "+

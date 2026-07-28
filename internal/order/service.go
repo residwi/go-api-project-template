@@ -57,7 +57,7 @@ func NewService(
 	}
 }
 
-func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrderRequest, idempotencyKey string) (*PlaceResponse, error) { //nolint:gocognit,funlen // checkout orchestrates idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction
+func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, p PlaceParams, idempotencyKey string) (*PlaceResult, error) { //nolint:gocognit,funlen // checkout orchestrates idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction
 	existing, err := s.repo.GetByUserIDAndIdempotencyKey(ctx, userID, idempotencyKey)
 	if err != nil && !errors.Is(err, apperror.ErrNotFound) {
 		return nil, err
@@ -68,17 +68,17 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 			return nil, itemErr
 		}
 		existing.Items = items
-		return &PlaceResponse{Order: existing}, nil
+		return &PlaceResult{Order: existing}, nil
 	}
 
 	order := &Order{
 		UserID:          userID,
 		IdempotencyKey:  idempotencyKey,
 		Status:          StatusAwaitingPayment,
-		CouponCode:      req.CouponCode,
-		ShippingAddress: req.ShippingAddress,
-		BillingAddress:  req.BillingAddress,
-		Notes:           req.Notes,
+		CouponCode:      p.CouponCode,
+		ShippingAddress: p.ShippingAddress,
+		BillingAddress:  p.BillingAddress,
+		Notes:           p.Notes,
 	}
 
 	var orderItems []Item
@@ -147,8 +147,8 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 			return txErr
 		}
 
-		if s.coupons != nil && req.CouponCode != nil && *req.CouponCode != "" {
-			discount, txErr := s.coupons.Reserve(txCtx, *req.CouponCode, userID, order.ID, subtotal)
+		if s.coupons != nil && p.CouponCode != nil && *p.CouponCode != "" {
+			discount, txErr := s.coupons.Reserve(txCtx, *p.CouponCode, userID, order.ID, subtotal)
 			if txErr != nil {
 				return txErr
 			}
@@ -178,7 +178,7 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 			OrderID:         order.ID,
 			Amount:          order.TotalAmount,
 			Currency:        order.Currency,
-			PaymentMethodID: req.PaymentMethodID,
+			PaymentMethodID: p.PaymentMethodID,
 		}); payErr != nil {
 			slog.ErrorContext(ctx, "failed to initiate payment, order stays in awaiting_payment",
 				"order_id", order.ID, "error", payErr)
@@ -196,7 +196,7 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, req PlaceOrd
 		}
 	}
 
-	return &PlaceResponse{Order: order}, nil
+	return &PlaceResult{Order: order}, nil
 }
 
 // finalizeFreeOrder settles a zero-total order (a coupon covered the full
