@@ -19,16 +19,24 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
+// Run serves until the process receives SIGINT or SIGTERM.
 func Run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	return RunContext(ctx)
+}
+
+// RunContext serves until ctx is cancelled, so the caller owns the shutdown
+// trigger. Tests use this instead of Run to stop the server without signalling
+// the whole process.
+func RunContext(ctx context.Context) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
 	logger.Setup(cfg.Log.Level, cfg.Log.Format)
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	pool, err := database.NewPostgres(ctx, cfg.Database)
 	if err != nil {
@@ -39,7 +47,7 @@ func Run() error {
 	readerPool, err := database.NewReaderPostgres(ctx, cfg.Database)
 	if err != nil {
 		if !errors.Is(err, apperror.ErrReaderNotConfigured) {
-			slog.Warn("failed to connect reader database, using primary", "error", err)
+			slog.WarnContext(ctx, "failed to connect reader database, using primary", "error", err)
 		}
 		readerPool = nil
 	}
@@ -49,7 +57,7 @@ func Run() error {
 
 	rdb, err := cache.NewRedis(ctx, cfg.Redis)
 	if err != nil {
-		slog.Warn("failed to connect to redis, continuing without cache/rate-limiting", "error", err)
+		slog.WarnContext(ctx, "failed to connect to redis, continuing without cache/rate-limiting", "error", err)
 	}
 	if rdb != nil {
 		defer rdb.Close()
@@ -73,14 +81,14 @@ func Run() error {
 	}
 
 	go func() {
-		slog.Info("server starting", "port", cfg.App.Port, "env", cfg.App.Env)
+		slog.InfoContext(ctx, "server starting", "port", cfg.App.Port, "env", cfg.App.Env)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server error", "error", err)
+			slog.ErrorContext(ctx, "server error", "error", err)
 		}
 	}()
 
 	<-ctx.Done()
-	slog.Info("shutting down server...")
+	slog.InfoContext(ctx, "shutting down server...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.App.ShutdownTimeout)
 	defer cancel()
@@ -89,7 +97,7 @@ func Run() error {
 		return fmt.Errorf("server shutdown: %w", err)
 	}
 
-	slog.Info("server stopped gracefully")
+	slog.InfoContext(ctx, "server stopped gracefully")
 	return nil
 }
 

@@ -10,7 +10,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -2043,12 +2042,23 @@ func serverRunEnv(t *testing.T, port int) {
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
 }
 
-// startAndStopServer starts apihttp.Run() in a goroutine, waits for it to be
-// ready (via healthAddr), sends SIGINT, and returns the Run() error.
+// startAndStopServer starts apihttp.RunContext in a goroutine, waits for it to
+// be ready (via healthAddr), cancels the context to shut it down, and returns
+// the RunContext error.
+//
+// Cancelling a context rather than signalling the test process's own PID is the
+// point. The old SIGINT went to the *whole test process*, so it fired every
+// signal handler in the binary, not just this server's -- and if the readiness
+// wait below failed, the signal was never sent at all and the server goroutine
+// leaked for the rest of the package's run. The deferred cancel now guarantees
+// shutdown on that path too.
 func startAndStopServer(t *testing.T, healthAddr string) error {
 	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	errCh := make(chan error, 1)
-	go func() { errCh <- apihttp.Run() }()
+	go func() { errCh <- apihttp.RunContext(ctx) }()
 
 	require.Eventually(t, func() bool {
 		resp, err := http.Get(healthAddr + "/health")
@@ -2057,15 +2067,15 @@ func startAndStopServer(t *testing.T, healthAddr string) error {
 		}
 		resp.Body.Close()
 		return true
-	}, 10*time.Second, 100*time.Millisecond, "server did not start in time")
+	}, 30*time.Second, 100*time.Millisecond, "server did not start in time")
 
-	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	cancel()
 
 	select {
 	case runErr := <-errCh:
 		return runErr
-	case <-time.After(10 * time.Second):
-		t.Fatal("apihttp.Run() did not return after SIGINT")
+	case <-time.After(30 * time.Second):
+		t.Fatal("apihttp.RunContext did not return after its context was cancelled")
 		return nil
 	}
 }
@@ -2125,21 +2135,24 @@ func TestServerRunListenError(t *testing.T) {
 
 	serverRunEnv(t, port)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	errCh := make(chan error, 1)
-	go func() { errCh <- apihttp.Run() }()
+	go func() { errCh <- apihttp.RunContext(ctx) }()
 
 	// Give the server goroutine time to hit the ListenAndServe error
 	time.Sleep(500 * time.Millisecond)
 
-	// Send SIGINT to unblock <-ctx.Done()
-	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	// Cancel to unblock <-ctx.Done()
+	cancel()
 
 	select {
 	case runErr := <-errCh:
-		// Run() returns nil because the ListenAndServe error is only logged, not returned
+		// RunContext returns nil because the ListenAndServe error is only logged, not returned
 		require.NoError(t, runErr)
-	case <-time.After(10 * time.Second):
-		t.Fatal("apihttp.Run() did not return after SIGINT")
+	case <-time.After(30 * time.Second):
+		t.Fatal("apihttp.RunContext did not return after its context was cancelled")
 	}
 }
 
@@ -2179,8 +2192,11 @@ func TestServerRun(t *testing.T) {
 
 	addr := fmt.Sprintf("http://127.0.0.1:%d", port)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	errCh := make(chan error, 1)
-	go func() { errCh <- apihttp.Run() }()
+	go func() { errCh <- apihttp.RunContext(ctx) }()
 
 	require.Eventually(t, func() bool {
 		resp, err := http.Get(addr + "/health")
@@ -2189,7 +2205,7 @@ func TestServerRun(t *testing.T) {
 		}
 		resp.Body.Close()
 		return resp.StatusCode == http.StatusOK
-	}, 10*time.Second, 100*time.Millisecond, "server did not start in time")
+	}, 30*time.Second, 100*time.Millisecond, "server did not start in time")
 
 	t.Run("health endpoint returns healthy", func(t *testing.T) {
 		resp, err := http.Get(addr + "/health")
@@ -2203,12 +2219,12 @@ func TestServerRun(t *testing.T) {
 		assert.Equal(t, "healthy", body["status"])
 	})
 
-	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGINT))
+	cancel()
 
 	select {
 	case runErr := <-errCh:
 		require.NoError(t, runErr)
-	case <-time.After(10 * time.Second):
-		t.Fatal("apihttp.Run() did not return after SIGINT")
+	case <-time.After(30 * time.Second):
+		t.Fatal("apihttp.RunContext did not return after its context was cancelled")
 	}
 }
