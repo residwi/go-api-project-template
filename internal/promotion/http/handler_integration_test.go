@@ -1,4 +1,4 @@
-package promotion_test
+package http_test
 
 import (
 	"bytes"
@@ -17,6 +17,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/promotion"
+	promotionhttp "github.com/residwi/go-api-project-template/internal/promotion/http"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -32,7 +33,7 @@ func setupPromotionMux(t *testing.T) (*http.ServeMux, *promoMocks.MockRepository
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	promotion.RegisterRoutes(authed, admin, promotion.RouteDeps{
+	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{
 		Validator: v,
 		Service:   svc,
 	})

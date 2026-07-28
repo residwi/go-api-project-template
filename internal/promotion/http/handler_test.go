@@ -1,4 +1,4 @@
-package promotion
+package http
 
 import (
 	"encoding/json"
@@ -12,19 +12,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/promotion"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 func newTestPublicHandler() *publicHandler {
 	return &publicHandler{
-		service:   &Service{},
+		service:   &promotion.Service{},
 		validator: validator.New(),
 	}
 }
 
 func newTestAdminHandler() *adminHandler {
 	return &adminHandler{
-		service:   &Service{},
+		service:   &promotion.Service{},
 		validator: validator.New(),
 	}
 }

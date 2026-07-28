@@ -1,15 +1,16 @@
-package promotion
+package http
 
 import (
 	"net/http"
 
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/promotion"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type publicHandler struct {
-	service   *Service
+	service   *promotion.Service
 	validator *validator.Validator
 }
 
@@ -19,7 +20,7 @@ func (h *publicHandler) Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[ApplyRequest](w, r, h.validator)
+	req, ok := response.Bind[promotion.ApplyRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -30,7 +31,7 @@ func (h *publicHandler) Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.OK(w, ApplyResponse{
+	response.OK(w, promotion.ApplyResponse{
 		Code:     req.Code,
 		Discount: discount,
 	})

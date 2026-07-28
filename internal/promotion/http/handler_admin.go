@@ -1,20 +1,21 @@
-package promotion
+package http
 
 import (
 	"net/http"
 
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/promotion"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type adminHandler struct {
-	service   *Service
+	service   *promotion.Service
 	validator *validator.Validator
 }
 
 func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := response.Bind[CreateRequest](w, r, h.validator)
+	req, ok := response.Bind[promotion.CreateRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -30,7 +31,7 @@ func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
-	params := ListParams{
+	params := promotion.ListParams{
 		Page:     page.Page,
 		PageSize: page.PageSize,
 	}
@@ -50,7 +51,7 @@ func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[UpdateRequest](w, r, h.validator)
+	req, ok := response.Bind[promotion.UpdateRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
