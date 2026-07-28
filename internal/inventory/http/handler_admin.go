@@ -1,14 +1,15 @@
-package inventory
+package http
 
 import (
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/inventory"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type adminHandler struct {
-	service   *Service
+	service   *inventory.Service
 	validator *validator.Validator
 }
 
@@ -33,7 +34,7 @@ func (h *adminHandler) Restock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[RestockRequest](w, r, h.validator)
+	req, ok := response.Bind[inventory.RestockRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -53,7 +54,7 @@ func (h *adminHandler) Adjust(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[AdjustRequest](w, r, h.validator)
+	req, ok := response.Bind[inventory.AdjustRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

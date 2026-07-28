@@ -1,13 +1,14 @@
-package inventory
+package http
 
 import (
+	"github.com/residwi/go-api-project-template/internal/inventory"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
 	Validator *validator.Validator
-	Service   *Service
+	Service   *inventory.Service
 }
 
 func RegisterRoutes(adminGroup *middleware.RouteGroup, deps RouteDeps) {

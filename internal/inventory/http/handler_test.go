@@ -1,4 +1,4 @@
-package inventory_test
+package http_test
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/inventory"
+	inventoryhttp "github.com/residwi/go-api-project-template/internal/inventory/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -28,7 +29,7 @@ func setupInventoryMux(t *testing.T) (*http.ServeMux, *mocks.MockRepository) {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	inventory.RegisterRoutes(admin, inventory.RouteDeps{Validator: v, Service: svc})
+	inventoryhttp.RegisterRoutes(admin, inventoryhttp.RouteDeps{Validator: v, Service: svc})
 
 	return mux, repo
 }
