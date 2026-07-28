@@ -243,7 +243,7 @@ func TestService_Create(t *testing.T) {
 
 		startsAt := time.Now()
 		expiresAt := time.Now().Add(24 * time.Hour)
-		result, err := svc.Create(context.Background(), promotion.CreateRequest{
+		result, err := svc.Create(context.Background(), promotion.CreateParams{
 			Code:           "NEW10",
 			Type:           promotion.TypePercentage,
 			Value:          10,
@@ -275,7 +275,7 @@ func TestService_Create(t *testing.T) {
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).
 			Return(apperror.ErrConflict)
 
-		_, err := svc.Create(context.Background(), promotion.CreateRequest{
+		_, err := svc.Create(context.Background(), promotion.CreateParams{
 			Code:      "DUP",
 			Type:      promotion.TypePercentage,
 			Value:     10,
@@ -337,7 +337,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).Return(nil)
 
 		newValue := int64(750)
-		result, err := svc.Update(context.Background(), id, promotion.UpdateRequest{
+		result, err := svc.Update(context.Background(), id, promotion.UpdateParams{
 			Code:  "UPDATED",
 			Value: &newValue,
 		})
@@ -361,7 +361,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
 
-		_, err := svc.Update(context.Background(), uuid.New(), promotion.UpdateRequest{Code: "X"})
+		_, err := svc.Update(context.Background(), uuid.New(), promotion.UpdateParams{Code: "X"})
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
@@ -382,7 +382,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).Return(apperror.ErrConflict)
 
-		_, err := svc.Update(context.Background(), id, promotion.UpdateRequest{Code: "DUP"})
+		_, err := svc.Update(context.Background(), id, promotion.UpdateParams{Code: "DUP"})
 		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 
@@ -412,7 +412,7 @@ func TestService_Update(t *testing.T) {
 		newExpiresAt := time.Now().Add(2 * time.Hour)
 		newActive := false
 
-		result, err := svc.Update(context.Background(), id, promotion.UpdateRequest{
+		result, err := svc.Update(context.Background(), id, promotion.UpdateParams{
 			Code:           "NEWCODE",
 			Type:           promotion.TypePercentage,
 			Value:          &newValue,

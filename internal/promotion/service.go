@@ -80,17 +80,17 @@ func (s *Service) Release(ctx context.Context, orderID uuid.UUID) error {
 	})
 }
 
-func (s *Service) Create(ctx context.Context, req CreateRequest) (*Promotion, error) {
+func (s *Service) Create(ctx context.Context, p CreateParams) (*Promotion, error) {
 	promo := &Promotion{
-		Code:           req.Code,
-		Type:           req.Type,
-		Value:          req.Value,
-		MinOrderAmount: req.MinOrderAmount,
-		MaxDiscount:    req.MaxDiscount,
-		MaxUses:        req.MaxUses,
-		StartsAt:       req.StartsAt,
-		ExpiresAt:      req.ExpiresAt,
-		Active:         req.Active,
+		Code:           p.Code,
+		Type:           p.Type,
+		Value:          p.Value,
+		MinOrderAmount: p.MinOrderAmount,
+		MaxDiscount:    p.MaxDiscount,
+		MaxUses:        p.MaxUses,
+		StartsAt:       p.StartsAt,
+		ExpiresAt:      p.ExpiresAt,
+		Active:         p.Active,
 	}
 
 	if err := validatePercentageValue(promo.Type, promo.Value); err != nil {
@@ -108,38 +108,38 @@ func (s *Service) List(ctx context.Context, params ListParams) ([]Promotion, int
 	return s.repo.ListAdmin(ctx, params)
 }
 
-func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateRequest) (*Promotion, error) {
+func (s *Service) Update(ctx context.Context, id uuid.UUID, p UpdateParams) (*Promotion, error) {
 	promo, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if req.Code != "" {
-		promo.Code = req.Code
+	if p.Code != "" {
+		promo.Code = p.Code
 	}
-	if req.Type != "" {
-		promo.Type = req.Type
+	if p.Type != "" {
+		promo.Type = p.Type
 	}
-	if req.Value != nil {
-		promo.Value = *req.Value
+	if p.Value != nil {
+		promo.Value = *p.Value
 	}
-	if req.MinOrderAmount != nil {
-		promo.MinOrderAmount = *req.MinOrderAmount
+	if p.MinOrderAmount != nil {
+		promo.MinOrderAmount = *p.MinOrderAmount
 	}
-	if req.MaxDiscount != nil {
-		promo.MaxDiscount = req.MaxDiscount
+	if p.MaxDiscount != nil {
+		promo.MaxDiscount = p.MaxDiscount
 	}
-	if req.MaxUses != nil {
-		promo.MaxUses = req.MaxUses
+	if p.MaxUses != nil {
+		promo.MaxUses = p.MaxUses
 	}
-	if req.StartsAt != nil {
-		promo.StartsAt = *req.StartsAt
+	if p.StartsAt != nil {
+		promo.StartsAt = *p.StartsAt
 	}
-	if req.ExpiresAt != nil {
-		promo.ExpiresAt = *req.ExpiresAt
+	if p.ExpiresAt != nil {
+		promo.ExpiresAt = *p.ExpiresAt
 	}
-	if req.Active != nil {
-		promo.Active = *req.Active
+	if p.Active != nil {
+		promo.Active = *p.Active
 	}
 
 	// Type and/or Value may be partially supplied; validate the final

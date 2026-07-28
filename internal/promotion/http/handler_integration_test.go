@@ -56,9 +56,9 @@ func TestHandler_Apply_ServiceError(t *testing.T) {
 
 		repo.EXPECT().GetByCode(mock.Anything, "NOTEXIST").Return(nil, apperror.ErrNotFound)
 
-		body, _ := json.Marshal(promotion.ApplyRequest{
-			Code:     "NOTEXIST",
-			Subtotal: 5000,
+		body, _ := json.Marshal(map[string]any{
+			"code":     "NOTEXIST",
+			"subtotal": 5000,
 		})
 
 		w := httptest.NewRecorder()
@@ -84,9 +84,9 @@ func TestHandler_Apply_ServiceError(t *testing.T) {
 			ExpiresAt: time.Now().Add(time.Hour),
 		}, nil)
 
-		body, _ := json.Marshal(promotion.ApplyRequest{
-			Code:     "INACTIVE",
-			Subtotal: 5000,
+		body, _ := json.Marshal(map[string]any{
+			"code":     "INACTIVE",
+			"subtotal": 5000,
 		})
 
 		w := httptest.NewRecorder()
@@ -114,9 +114,9 @@ func TestHandler_Apply_Success(t *testing.T) {
 			ExpiresAt:      time.Now().Add(time.Hour),
 		}, nil)
 
-		body, _ := json.Marshal(promotion.ApplyRequest{
-			Code:     "SAVE10",
-			Subtotal: 5000,
+		body, _ := json.Marshal(map[string]any{
+			"code":     "SAVE10",
+			"subtotal": 5000,
 		})
 
 		w := httptest.NewRecorder()
@@ -140,13 +140,13 @@ func TestHandler_AdminCreate_Success(t *testing.T) {
 
 		startsAt := time.Now().Truncate(time.Second)
 		expiresAt := time.Now().Add(24 * time.Hour).Truncate(time.Second)
-		body, _ := json.Marshal(promotion.CreateRequest{
-			Code:      "NEW10",
-			Type:      promotion.TypePercentage,
-			Value:     10,
-			StartsAt:  startsAt,
-			ExpiresAt: expiresAt,
-			Active:    true,
+		body, _ := json.Marshal(map[string]any{
+			"code":       "NEW10",
+			"type":       promotion.TypePercentage,
+			"value":      10,
+			"starts_at":  startsAt,
+			"expires_at": expiresAt,
+			"active":     true,
 		})
 
 		w := httptest.NewRecorder()
@@ -170,13 +170,13 @@ func TestHandler_AdminCreate_ServiceError(t *testing.T) {
 
 		startsAt := time.Now().Truncate(time.Second)
 		expiresAt := time.Now().Add(24 * time.Hour).Truncate(time.Second)
-		body, _ := json.Marshal(promotion.CreateRequest{
-			Code:      "DUP",
-			Type:      promotion.TypePercentage,
-			Value:     10,
-			StartsAt:  startsAt,
-			ExpiresAt: expiresAt,
-			Active:    true,
+		body, _ := json.Marshal(map[string]any{
+			"code":       "DUP",
+			"type":       promotion.TypePercentage,
+			"value":      10,
+			"starts_at":  startsAt,
+			"expires_at": expiresAt,
+			"active":     true,
 		})
 
 		w := httptest.NewRecorder()

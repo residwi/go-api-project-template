@@ -11,6 +11,16 @@ type RouteDeps struct {
 	Service   *promotion.Service
 }
 
+type publicHandler struct {
+	service   *promotion.Service
+	validator *validator.Validator
+}
+
+type adminHandler struct {
+	service   *promotion.Service
+	validator *validator.Validator
+}
+
 func RegisterRoutes(authed *middleware.RouteGroup, admin *middleware.RouteGroup, deps RouteDeps) {
 	pub := &publicHandler{service: deps.Service, validator: deps.Validator}
 	adm := &adminHandler{service: deps.Service, validator: deps.Validator}

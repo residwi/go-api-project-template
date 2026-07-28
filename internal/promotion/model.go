@@ -14,26 +14,26 @@ const (
 )
 
 type Promotion struct {
-	ID             uuid.UUID `json:"id"`
-	Code           string    `json:"code"`
-	Type           Type      `json:"type"`
-	Value          int64     `json:"value"`
-	MinOrderAmount int64     `json:"min_order_amount"`
-	MaxDiscount    *int64    `json:"max_discount,omitempty"`
-	MaxUses        *int      `json:"max_uses,omitempty"`
-	UsedCount      int       `json:"used_count"`
-	StartsAt       time.Time `json:"starts_at"`
-	ExpiresAt      time.Time `json:"expires_at"`
-	Active         bool      `json:"active"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             uuid.UUID
+	Code           string
+	Type           Type
+	Value          int64
+	MinOrderAmount int64
+	MaxDiscount    *int64
+	MaxUses        *int
+	UsedCount      int
+	StartsAt       time.Time
+	ExpiresAt      time.Time
+	Active         bool
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type CouponUsage struct {
-	ID        uuid.UUID `json:"id"`
-	CouponID  uuid.UUID `json:"coupon_id"`
-	UserID    uuid.UUID `json:"user_id"`
-	OrderID   uuid.UUID `json:"order_id"`
-	Discount  int64     `json:"discount"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        uuid.UUID
+	CouponID  uuid.UUID
+	UserID    uuid.UUID
+	OrderID   uuid.UUID
+	Discount  int64
+	CreatedAt time.Time
 }
