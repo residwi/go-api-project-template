@@ -1,4 +1,4 @@
-package user_test
+package http_test
 
 import (
 	"bytes"
@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	"github.com/residwi/go-api-project-template/internal/user"
+	userhttp "github.com/residwi/go-api-project-template/internal/user/http"
 	userMocks "github.com/residwi/go-api-project-template/mocks/user"
 )
 
@@ -41,7 +42,7 @@ func setupUserMux(t *testing.T) (*http.ServeMux, *userMocks.MockRepository) {
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	user.RegisterRoutes(authed, admin, user.RouteDeps{
+	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{
 		Validator: v,
 		Service:   svc,
 	})

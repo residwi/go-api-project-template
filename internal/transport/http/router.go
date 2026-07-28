@@ -40,6 +40,7 @@ import (
 	shippingpg "github.com/residwi/go-api-project-template/internal/shipping/postgres"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/user"
+	userhttp "github.com/residwi/go-api-project-template/internal/user/http"
 	userpg "github.com/residwi/go-api-project-template/internal/user/postgres"
 	"github.com/residwi/go-api-project-template/internal/wishlist"
 	wishlisthttp "github.com/residwi/go-api-project-template/internal/wishlist/http"
@@ -122,7 +123,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	orderWriteLimiter := middleware.RateLimit(deps.Redis, deps.Config.App.OrderRateLimit, deps.Config.App.OrderRateWindow)
 
 	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Service: authSvc})
-	user.RegisterRoutes(authed, admin, user.RouteDeps{Validator: v, Service: userSvc})
+	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Service: userSvc})
 	category.RegisterRoutes(api, admin, category.RouteDeps{Validator: v, Service: categorySvc})
 	product.RegisterRoutes(api, admin, product.RouteDeps{Validator: v, Service: productSvc})
 	inventory.RegisterRoutes(admin, inventory.RouteDeps{Validator: v, Service: inventorySvc})

@@ -1,4 +1,4 @@
-package user
+package http
 
 import (
 	"net/http"
@@ -6,10 +6,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	"github.com/residwi/go-api-project-template/internal/user"
 )
 
 type publicHandler struct {
-	service   *Service
+	service   *user.Service
 	validator *validator.Validator
 }
 
@@ -34,7 +35,7 @@ func (h *publicHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[UpdateProfileRequest](w, r, h.validator)
+	req, ok := response.Bind[user.UpdateProfileRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

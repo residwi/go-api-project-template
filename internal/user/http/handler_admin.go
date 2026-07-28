@@ -1,4 +1,4 @@
-package user
+package http
 
 import (
 	"net/http"
@@ -7,16 +7,17 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	"github.com/residwi/go-api-project-template/internal/user"
 )
 
 type adminHandler struct {
-	service   *Service
+	service   *user.Service
 	validator *validator.Validator
 }
 
 func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
-	params := ListParams{
+	params := user.ListParams{
 		Page:     page.Page,
 		PageSize: page.PageSize,
 		Role:     r.URL.Query().Get("role"),
@@ -58,7 +59,7 @@ func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[AdminUpdateUserRequest](w, r, h.validator)
+	req, ok := response.Bind[user.AdminUpdateUserRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -83,12 +84,12 @@ func (h *adminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[UpdateRoleRequest](w, r, h.validator)
+	req, ok := response.Bind[user.UpdateRoleRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
 
-	if err := h.service.UpdateRole(r.Context(), UpdateRoleParams{
+	if err := h.service.UpdateRole(r.Context(), user.UpdateRoleParams{
 		RequesterID: uc.UserID,
 		TargetID:    id,
 		Role:        req.Role,
@@ -111,7 +112,7 @@ func (h *adminHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.Delete(r.Context(), DeleteParams{
+	if err := h.service.Delete(r.Context(), user.DeleteParams{
 		RequesterID: uc.UserID,
 		TargetID:    id,
 	}); err != nil {
