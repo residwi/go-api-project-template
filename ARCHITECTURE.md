@@ -105,7 +105,9 @@ identical mocks.
 ## 6. Modules own their data
 
 A module's SQL may only name tables it owns. Cross-module reads go through a
-port. See `./db/OWNERSHIP.md` (forthcoming).
+port. `./db/OWNERSHIP.md` lists who owns what and is the map
+`scripts/check-boundaries.sh` enforces — it is parsed at run time, so the
+document and the check cannot drift apart.
 
 **Why:** Go-level boundaries are worthless if `cart` reaches into `products`
 anyway. Before this, four modules crossed in SQL — and `cart` was the worst,
@@ -139,8 +141,9 @@ two. Total on hand is derived as `available + reserved`.
 
 ## 8. Foreign keys stay; cross-module cascades do not
 
-15 of 24 foreign keys cross module boundaries and are kept. Six cross-module
-`ON DELETE CASCADE` clauses were dropped.
+18 of the schema's 25 foreign keys cross module boundaries, and all 18 are kept.
+Six cross-module `ON DELETE CASCADE` clauses were dropped. Counts verified
+against `pg_constraint` on a migrated database; see `./db/OWNERSHIP.md`.
 
 **Why keep the FKs:** in a single database, referential integrity Postgres
 enforces beats discipline a code review enforces. `products.category_id` is
