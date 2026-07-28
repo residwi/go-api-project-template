@@ -21,9 +21,17 @@ import (
 )
 
 const (
-	postgresContainerName  = "go-api-test-postgres"
-	redisContainerName     = "go-api-test-redis"
-	containerExpireSeconds = 600
+	postgresContainerName = "go-api-test-postgres"
+	redisContainerName    = "go-api-test-redis"
+
+	// How long to wait for a shared container to become usable. Every package
+	// binary races for the same container name, so the loser of the create race
+	// waits here for the winner's container to publish its port.
+	containerReadyTimeout = 90 * time.Second
+
+	// How long a container may sit in a not-yet-running state before we stop
+	// assuming another binary is bringing it up and replace it instead.
+	transientGrace = 20 * time.Second
 )
 
 // Redis DB index per package (must be unique, 0–15):
@@ -55,7 +63,8 @@ func init() {
 // MustStartPostgres attaches to (or starts) the shared named Postgres container,
 // creates a fresh database named dbName, runs all up-migrations, and returns a
 // pool plus a cleanup func that drops the database. The container itself is left
-// running so subsequent test binaries can reuse it.
+// running so subsequent test binaries can reuse it; remove it with
+// `make test-clean`.
 func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	ctx := context.Background()
 
@@ -66,8 +75,21 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	}
 	dt.MaxWait = 60e9
 
-	resource := getOrCreatePostgres(dt)
-	_ = resource.Expire(containerExpireSeconds)
+	resource := getOrCreateContainer(dt, postgresContainerName, "5432/tcp", &dockertest.RunOptions{
+		Name:       postgresContainerName,
+		Repository: "postgres",
+		Tag:        "18-alpine",
+		Env: []string{
+			"POSTGRES_USER=test",
+			"POSTGRES_PASSWORD=test",
+			"POSTGRES_DB=postgres",
+		},
+		// Default max_connections=100 is not enough once enough packages create
+		// their own database/pool concurrently (go test's default -p is
+		// GOMAXPROCS-wide); raise the ceiling so `make test` has headroom as
+		// more packages adopt this pattern.
+		Cmd: []string{"postgres", "-c", "max_connections=300"},
+	})
 
 	port := resource.GetPort("5432/tcp")
 	adminDSN := fmt.Sprintf("postgres://test:test@localhost:%s/postgres?sslmode=disable", port)
@@ -145,7 +167,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 
 // MustStartRedis attaches to (or starts) the shared named Redis container and
 // returns a client configured to use dbIndex, plus a cleanup func. The container
-// is left running after cleanup.
+// is left running after cleanup; remove it with `make test-clean`.
 func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 	ctx := context.Background()
 
@@ -156,8 +178,11 @@ func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 	}
 	dt.MaxWait = 30e9
 
-	resource := getOrCreateRedis(dt)
-	_ = resource.Expire(containerExpireSeconds)
+	resource := getOrCreateContainer(dt, redisContainerName, "6379/tcp", &dockertest.RunOptions{
+		Name:       redisContainerName,
+		Repository: "redis",
+		Tag:        "8-alpine",
+	})
 
 	addr := fmt.Sprintf("localhost:%s", resource.GetPort("6379/tcp"))
 	var client *redis.Client
@@ -204,73 +229,79 @@ func ResetRedis(t testing.TB, client *redis.Client) {
 	}
 }
 
-func getOrCreatePostgres(dt *dockertest.Pool) *dockertest.Resource {
-	if resource, ok := dt.ContainerByName(postgresContainerName); ok {
-		if resource.Container.State.Running {
-			return resource
-		}
-		_ = dt.Purge(resource)
-	}
-
-	resource, err := dt.RunWithOptions(&dockertest.RunOptions{
-		Name:       postgresContainerName,
-		Repository: "postgres",
-		Tag:        "18-alpine",
-		Env: []string{
-			"POSTGRES_USER=test",
-			"POSTGRES_PASSWORD=test",
-			"POSTGRES_DB=postgres",
-		},
-		// Default max_connections=100 is not enough once enough packages create
-		// their own database/pool concurrently (go test's default -p is
-		// GOMAXPROCS-wide); raise the ceiling so `make test` has headroom as
-		// more packages adopt this pattern.
-		Cmd: []string{"postgres", "-c", "max_connections=300"},
-	}, func(cfg *docker.HostConfig) {
-		cfg.AutoRemove = false
-		cfg.RestartPolicy = docker.RestartPolicy{Name: "no"}
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "Conflict") || strings.Contains(err.Error(), "already exists") {
-			for attempt := 1; attempt <= 5; attempt++ {
-				time.Sleep(time.Duration(200*attempt) * time.Millisecond)
-				if r, ok := dt.ContainerByName(postgresContainerName); ok {
-					return r
-				}
+// getOrCreateContainer attaches to the shared named container, creating it if it
+// is absent, and returns it only once it is running with portID published.
+//
+// It deliberately does NOT call resource.Expire(). Expire is not a
+// keep-alive-style TTL: it issues `POST /containers/{id}/stop?t=seconds` in a
+// goroutine, which is an *immediate* stop request whose argument is only the
+// grace period Docker waits before escalating to SIGKILL. Neither container
+// exits on its stop signal while test binaries hold connections, so the effect
+// of `Expire(600)` was a guaranteed SIGKILL 600 seconds after the container was
+// created. Docker's own event log shows it exactly:
+//
+//	kill signal:9
+//	stop  (x8 -- one per still-blocked Expire goroutine)
+//	die   execDuration:600 exitCode:137
+//
+// That killed the shared container mid-run roughly every ten minutes, which was
+// every failing package in a full `make test`: `connection refused` against the
+// container port, and `FATAL: terminating connection due to unexpected
+// postmaster exit (SQLSTATE 57P01)`. Calling Expire again from a later package
+// cannot undo it either -- a pending docker stop cannot be cancelled, and the
+// earliest deadline wins. The containers are meant to outlive the run so the
+// next one can reuse them; `make test-clean` removes them.
+//
+// Every package binary runs this concurrently against the same container name,
+// so it is written to tolerate losing every race:
+//
+//   - A container in a transient state is waited for, never purged. Purging
+//     anything merely "not running" was a real hazard: a binary that inspected
+//     the container during the few milliseconds it sat in "created" would delete
+//     a container another binary had just started and was about to use.
+//   - "Conflict"/"already exists" from RunWithOptions just means another binary
+//     won the create, so we loop and attach to its container instead.
+//   - The published port is checked before returning. The previous conflict
+//     fallback returned as soon as a container existed by name, so GetPort could
+//     still be "" and yield a DSN like "postgres://test:test@localhost:/postgres".
+func getOrCreateContainer(dt *dockertest.Pool, name, portID string, opts *dockertest.RunOptions) *dockertest.Resource {
+	start := time.Now()
+	for {
+		if resource, found := dt.ContainerByName(name); found {
+			state := resource.Container.State
+			if state.Running && resource.GetPort(portID) != "" {
+				return resource
 			}
+			// Purge only a container that is genuinely dead. If it is still
+			// coming up, another binary started it moments ago and is about to
+			// use it. transientGrace bounds that patience, in case a binary died
+			// between create and start and left the container wedged.
+			if !isComingUp(state) || time.Since(start) >= transientGrace {
+				_ = dt.Purge(resource)
+			}
+		} else if _, err := dt.RunWithOptions(opts, func(cfg *docker.HostConfig) {
+			cfg.AutoRemove = false
+			cfg.RestartPolicy = docker.RestartPolicy{Name: "no"}
+		}); err != nil && !isAlreadyExists(err) {
+			slog.Error("testhelper: starting container", "name", name, "error", err)
+			os.Exit(1)
 		}
-		slog.Error("testhelper: starting postgres container", "error", err)
-		os.Exit(1)
+
+		if time.Since(start) > containerReadyTimeout {
+			slog.Error("testhelper: container never became ready", "name", name, "waited", time.Since(start))
+			os.Exit(1)
+		}
+		time.Sleep(200 * time.Millisecond)
 	}
-	return resource
 }
 
-func getOrCreateRedis(dt *dockertest.Pool) *dockertest.Resource {
-	if resource, ok := dt.ContainerByName(redisContainerName); ok {
-		if resource.Container.State.Running {
-			return resource
-		}
-		_ = dt.Purge(resource)
-	}
+func isComingUp(state docker.State) bool {
+	return state.Running || state.Restarting || state.Paused || state.Status == "created"
+}
 
-	resource, err := dt.RunWithOptions(&dockertest.RunOptions{
-		Name:       redisContainerName,
-		Repository: "redis",
-		Tag:        "8-alpine",
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "Conflict") || strings.Contains(err.Error(), "already exists") {
-			for attempt := 1; attempt <= 5; attempt++ {
-				time.Sleep(time.Duration(200*attempt) * time.Millisecond)
-				if r, ok := dt.ContainerByName(redisContainerName); ok {
-					return r
-				}
-			}
-		}
-		slog.Error("testhelper: starting redis container", "error", err)
-		os.Exit(1)
-	}
-	return resource
+func isAlreadyExists(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "Conflict") || strings.Contains(msg, "already exists")
 }
 
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) {
