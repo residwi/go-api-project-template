@@ -195,8 +195,12 @@ func getOrCreatePostgres(dt *dockertest.Pool) *dockertest.Resource {
 			"POSTGRES_USER=test",
 			"POSTGRES_PASSWORD=test",
 			"POSTGRES_DB=postgres",
-			"listen_addresses='*'",
 		},
+		// Default max_connections=100 is not enough once enough packages create
+		// their own database/pool concurrently (go test's default -p is
+		// GOMAXPROCS-wide); raise the ceiling so `make test` has headroom as
+		// more packages adopt this pattern.
+		Cmd: []string{"postgres", "-c", "max_connections=300"},
 	}, func(cfg *docker.HostConfig) {
 		cfg.AutoRemove = false
 		cfg.RestartPolicy = docker.RestartPolicy{Name: "no"}
