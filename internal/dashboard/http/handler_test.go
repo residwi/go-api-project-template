@@ -1,4 +1,4 @@
-package dashboard_test
+package http_test
 
 import (
 	"encoding/json"
@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/dashboard"
+	dashboardhttp "github.com/residwi/go-api-project-template/internal/dashboard/http"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	mocks "github.com/residwi/go-api-project-template/mocks/dashboard"
 )
@@ -23,7 +24,7 @@ func setupDashboardMux(t *testing.T) (*http.ServeMux, *mocks.MockRepository) {
 	svc := dashboard.NewService(repo)
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	dashboard.RegisterRoutes(admin, dashboard.RouteDeps{Service: svc})
+	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Service: svc})
 	return mux, repo
 }
 

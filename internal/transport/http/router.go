@@ -18,6 +18,7 @@ import (
 	categoryhttp "github.com/residwi/go-api-project-template/internal/category/http"
 	categorypg "github.com/residwi/go-api-project-template/internal/category/postgres"
 	"github.com/residwi/go-api-project-template/internal/dashboard"
+	dashboardhttp "github.com/residwi/go-api-project-template/internal/dashboard/http"
 	dashboardpg "github.com/residwi/go-api-project-template/internal/dashboard/postgres"
 	"github.com/residwi/go-api-project-template/internal/inventory"
 	inventorypg "github.com/residwi/go-api-project-template/internal/inventory/postgres"
@@ -135,7 +136,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	promotion.RegisterRoutes(authed, admin, promotion.RouteDeps{Validator: v, Service: promotionSvc})
 	wishlisthttp.RegisterRoutes(authed, wishlisthttp.RouteDeps{Validator: v, Service: wishlistSvc})
 	notification.RegisterRoutes(authed, notification.RouteDeps{Service: notificationSvc})
-	dashboard.RegisterRoutes(admin, dashboard.RouteDeps{Service: dashboardSvc})
+	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Service: dashboardSvc})
 
 	if deps.Config.App.Env == "development" {
 		mockgateway.RegisterRoutes(mux, mockgateway.WithWebhookSecret(cfg.Payment.WebhookSecret))

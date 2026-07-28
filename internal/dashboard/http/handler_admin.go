@@ -1,15 +1,16 @@
-package dashboard
+package http
 
 import (
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/residwi/go-api-project-template/internal/dashboard"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type adminHandler struct {
-	service *Service
+	service *dashboard.Service
 }
 
 func (h *adminHandler) Summary(w http.ResponseWriter, r *http.Request) {
@@ -24,7 +25,7 @@ func (h *adminHandler) Summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.OK(w, SummaryResponse{Sales: sales, StatusBreakdown: breakdown})
+	response.OK(w, dashboard.SummaryResponse{Sales: sales, StatusBreakdown: breakdown})
 }
 
 func (h *adminHandler) TopProducts(w http.ResponseWriter, r *http.Request) {

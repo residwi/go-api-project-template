@@ -1,11 +1,12 @@
-package dashboard
+package http
 
 import (
+	"github.com/residwi/go-api-project-template/internal/dashboard"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
-	Service *Service
+	Service *dashboard.Service
 }
 
 func RegisterRoutes(admin *middleware.RouteGroup, deps RouteDeps) {
