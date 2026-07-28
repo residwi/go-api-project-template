@@ -96,7 +96,7 @@ func TestHandler_AddItem_Success(t *testing.T) {
 		repo.EXPECT().GetOrCreate(mock.Anything, uc.UserID).Return(wishlistID, nil)
 		repo.EXPECT().AddItem(mock.Anything, wishlistID, productID).Return(nil)
 
-		body, _ := json.Marshal(wishlist.AddItemRequest{ProductID: productID})
+		body, _ := json.Marshal(map[string]any{"product_id": productID})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/wishlist/items", bytes.NewReader(body))
@@ -115,7 +115,7 @@ func TestHandler_AddItem_ServiceError(t *testing.T) {
 		productID := uuid.New()
 		repo.EXPECT().GetOrCreate(mock.Anything, uc.UserID).Return(uuid.Nil, assert.AnError)
 
-		body, _ := json.Marshal(wishlist.AddItemRequest{ProductID: productID})
+		body, _ := json.Marshal(map[string]any{"product_id": productID})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/wishlist/items", bytes.NewReader(body))
