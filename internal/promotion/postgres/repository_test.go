@@ -33,14 +33,7 @@ func setup(t *testing.T) {
 
 func seedUser(t *testing.T) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
-	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO users (id, email, password_hash, first_name, last_name) VALUES ($1, $2, 'x', 'A', 'B')`,
-		id, id.String()+"@test.com",
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, id) })
-	return id
+	return testhelper.SeedUser(t, testPool)
 }
 
 func newPromotion(code string) *promotion.Promotion {

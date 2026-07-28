@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
@@ -38,15 +37,7 @@ func TestMain(m *testing.M) {
 
 func seedUser(t *testing.T) *user.User {
 	t.Helper()
-	id := uuid.New()
-	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO users (id, email, password_hash, first_name, last_name) VALUES ($1, $2, 'x', 'A', 'B')`,
-		id, id.String()+"@test.com",
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		testPool.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, id)
-	})
+	id := testhelper.SeedUser(t, testPool)
 
 	repo := postgres.New(testPool)
 	u, err := repo.GetByID(context.Background(), id)

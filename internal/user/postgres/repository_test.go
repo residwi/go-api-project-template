@@ -42,15 +42,7 @@ func setup(t *testing.T) {
 
 func seedUser(t *testing.T) *user.User {
 	t.Helper()
-	id := uuid.New()
-	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO users (id, email, password_hash, first_name, last_name) VALUES ($1, $2, 'x', 'A', 'B')`,
-		id, id.String()+"@test.com",
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		testPool.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, id)
-	})
+	id := testhelper.SeedUser(t, testPool)
 
 	repo := postgres.New(testPool)
 	u, err := repo.GetByID(context.Background(), id)
@@ -309,15 +301,10 @@ func TestPostgresRepository_CountAdmins(t *testing.T) {
 		before, err := repo.CountAdmins(ctx)
 		require.NoError(t, err)
 
-		adminID := uuid.New()
-		_, err = testPool.Exec(ctx,
-			`INSERT INTO users (id, email, password_hash, first_name, last_name, role, active)
-			 VALUES ($1, $2, 'x', 'Admin', 'User', 'admin', true)`,
-			adminID, adminID.String()+"@admin.com",
-		)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			testPool.Exec(ctx, `DELETE FROM users WHERE id = $1`, adminID)
+		testhelper.SeedUserWith(t, testPool, testhelper.SeedUserOpts{
+			FirstName: "Admin",
+			LastName:  "User",
+			Role:      "admin",
 		})
 
 		after, err := repo.CountAdmins(ctx)
