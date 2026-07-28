@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/order"
 )
 
@@ -53,13 +54,13 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 		IdempotencyKey: "idem-key-1",
 		RequestHash:    "distinguishable-request-hash", // internal -- must not reach the wire
 		Status:         order.StatusPaid,
-		SubtotalAmount: 1000,
-		TotalAmount:    1000,
-		Currency:       "USD",
+		Subtotal:       money.New(1000, "USD"),
+		Discount:       money.New(0, "USD"),
+		Total:          money.New(1000, "USD"),
 		StockDeducted:  true, // internal -- must not reach the wire
 		StockReversed:  true, // internal -- must not reach the wire
 		Items: []order.Item{
-			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: 1000, Quantity: 1, Subtotal: 1000, CreatedAt: now},
+			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: money.New(1000, "USD"), Quantity: 1, Subtotal: money.New(1000, "USD"), CreatedAt: now},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -77,6 +78,13 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 		},
 		keysOf(fields),
 		"idempotency_key, request_hash, stock_deducted, and stock_reversed must not appear")
+
+	// Each money.Money is flattened to its minor-unit amount, with the currency
+	// emitted once at order level. A nested {"Amount":..,"Currency":..} object
+	// here -- i.e. a Money that marshalled itself -- would fail both assertions.
+	assert.JSONEq(t, `1000`, string(fields["total_amount"]))
+	assert.JSONEq(t, `"USD"`, string(fields["currency"]),
+		"the order's single currency is emitted from Total")
 
 	assert.NotContains(t, string(raw), "distinguishable-request-hash",
 		"RequestHash is an idempotency internal and must not be serialised")

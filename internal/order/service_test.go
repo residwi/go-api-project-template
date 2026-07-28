@@ -15,6 +15,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/cart"
 	"github.com/residwi/go-api-project-template/internal/inventory"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/product"
@@ -96,11 +97,10 @@ func TestService_RetryPayment(t *testing.T) {
 		svc, repo, _, _, payment, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
-			ID:          orderID,
-			UserID:      userID,
-			Status:      order.StatusAwaitingPayment,
-			TotalAmount: 5000,
-			Currency:    "USD",
+			ID:     orderID,
+			UserID: userID,
+			Status: order.StatusAwaitingPayment,
+			Total:  money.New(5000, "USD"),
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
@@ -112,8 +112,7 @@ func TestService_RetryPayment(t *testing.T) {
 		}
 		payment.EXPECT().InitiatePayment(mock.Anything, order.InitiatePaymentParams{
 			OrderID:         orderID,
-			Amount:          5000,
-			Currency:        "USD",
+			Amount:          money.New(5000, "USD"),
 			PaymentMethodID: paymentMethodID,
 		}).Return(expectedResult, nil)
 
@@ -190,11 +189,10 @@ func TestService_RetryPayment(t *testing.T) {
 		svc, repo, _, _, payment, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
-			ID:          orderID,
-			UserID:      userID,
-			Status:      order.StatusAwaitingPayment,
-			TotalAmount: 5000,
-			Currency:    "USD",
+			ID:     orderID,
+			UserID: userID,
+			Status: order.StatusAwaitingPayment,
+			Total:  money.New(5000, "USD"),
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
@@ -220,14 +218,13 @@ func TestService_GetByID(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
-			ID:          orderID,
-			UserID:      userID,
-			Status:      order.StatusPaid,
-			TotalAmount: 10000,
-			Currency:    "USD",
+			ID:     orderID,
+			UserID: userID,
+			Status: order.StatusPaid,
+			Total:  money.New(10000, "USD"),
 		}
 		items := []order.Item{
-			{ID: uuid.New(), OrderID: orderID, ProductName: "Widget", Price: 5000, Quantity: 2, Subtotal: 10000},
+			{ID: uuid.New(), OrderID: orderID, ProductName: "Widget", Price: money.New(5000, "USD"), Quantity: 2, Subtotal: money.New(10000, "USD")},
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
@@ -241,13 +238,12 @@ func TestService_GetByID(t *testing.T) {
 			result.Items[i].ID = uuid.Nil
 		}
 		assert.Equal(t, &order.Order{
-			ID:          orderID,
-			UserID:      userID,
-			Status:      order.StatusPaid,
-			TotalAmount: 10000,
-			Currency:    "USD",
+			ID:     orderID,
+			UserID: userID,
+			Status: order.StatusPaid,
+			Total:  money.New(10000, "USD"),
 			Items: []order.Item{
-				{OrderID: orderID, ProductName: "Widget", Price: 5000, Quantity: 2, Subtotal: 10000},
+				{OrderID: orderID, ProductName: "Widget", Price: money.New(5000, "USD"), Quantity: 2, Subtotal: money.New(10000, "USD")},
 			},
 		}, result)
 	})
@@ -388,15 +384,14 @@ func TestService_AdminGetByID(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
-			ID:          orderID,
-			UserID:      uuid.New(),
-			Status:      order.StatusShipped,
-			TotalAmount: 15000,
-			Currency:    "USD",
+			ID:     orderID,
+			UserID: uuid.New(),
+			Status: order.StatusShipped,
+			Total:  money.New(15000, "USD"),
 		}
 		items := []order.Item{
-			{ID: uuid.New(), OrderID: orderID, ProductName: "Gadget A", Price: 7500, Quantity: 1, Subtotal: 7500},
-			{ID: uuid.New(), OrderID: orderID, ProductName: "Gadget B", Price: 7500, Quantity: 1, Subtotal: 7500},
+			{ID: uuid.New(), OrderID: orderID, ProductName: "Gadget A", Price: money.New(7500, "USD"), Quantity: 1, Subtotal: money.New(7500, "USD")},
+			{ID: uuid.New(), OrderID: orderID, ProductName: "Gadget B", Price: money.New(7500, "USD"), Quantity: 1, Subtotal: money.New(7500, "USD")},
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
@@ -576,8 +571,8 @@ func TestService_ListItemsByOrderID(t *testing.T) {
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		expected := []order.Item{
-			{ID: uuid.New(), OrderID: orderID, ProductName: "Item A", Price: 1000, Quantity: 2, Subtotal: 2000},
-			{ID: uuid.New(), OrderID: orderID, ProductName: "Item B", Price: 3000, Quantity: 1, Subtotal: 3000},
+			{ID: uuid.New(), OrderID: orderID, ProductName: "Item A", Price: money.New(1000, "USD"), Quantity: 2, Subtotal: money.New(2000, "USD")},
+			{ID: uuid.New(), OrderID: orderID, ProductName: "Item B", Price: money.New(3000, "USD"), Quantity: 1, Subtotal: money.New(3000, "USD")},
 		}
 
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(expected, nil)
@@ -616,11 +611,10 @@ func TestService_PlaceOrder(t *testing.T) {
 			UserID:         userID,
 			IdempotencyKey: idempotencyKey,
 			Status:         order.StatusAwaitingPayment,
-			TotalAmount:    5000,
-			Currency:       "USD",
+			Total:          money.New(5000, "USD"),
 		}
 		items := []order.Item{
-			{ID: uuid.New(), OrderID: orderID, ProductName: "Widget", Price: 5000, Quantity: 1, Subtotal: 5000},
+			{ID: uuid.New(), OrderID: orderID, ProductName: "Widget", Price: money.New(5000, "USD"), Quantity: 1, Subtotal: money.New(5000, "USD")},
 		}
 
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(existingOrder, nil)
@@ -679,8 +673,7 @@ func TestService_PlaceOrder(t *testing.T) {
 					ProductID: uuid.New(),
 					Quantity:  1,
 					Name:      "Draft Widget",
-					Price:     1000,
-					Currency:  "USD",
+					Price:     money.New(1000, "USD"),
 					Status:    "draft",
 				},
 			},
@@ -721,8 +714,8 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: productA, Quantity: 2, Name: "Widget A", Price: 3000, Currency: "USD", Status: "published"},
-				{ProductID: productB, Quantity: 1, Name: "Widget B", Price: 4000, Currency: "USD", Status: "published"},
+				{ProductID: productA, Quantity: 2, Name: "Widget A", Price: money.New(3000, "USD"), Status: "published"},
+				{ProductID: productB, Quantity: 1, Name: "Widget B", Price: money.New(4000, "USD"), Status: "published"},
 			},
 		}, nil)
 
@@ -743,9 +736,9 @@ func TestService_PlaceOrder(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, order.StatusAwaitingPayment, resp.Order.Status)
-		assert.Equal(t, int64(10000), resp.Order.TotalAmount)
-		assert.Equal(t, int64(10000), resp.Order.SubtotalAmount)
-		assert.Equal(t, int64(0), resp.Order.DiscountAmount)
+		assert.Equal(t, money.New(10000, "USD"), resp.Order.Total)
+		assert.Equal(t, money.New(10000, "USD"), resp.Order.Subtotal)
+		assert.Equal(t, money.New(0, "USD"), resp.Order.Discount)
 		assert.Len(t, resp.Order.Items, 2)
 	})
 
@@ -761,7 +754,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: 5000, Currency: "USD", Status: "published"},
+				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: money.New(5000, "USD"), Status: "published"},
 			},
 		}, nil)
 
@@ -780,9 +773,9 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Equal(t, int64(5000), resp.Order.SubtotalAmount)
-		assert.Equal(t, int64(1000), resp.Order.DiscountAmount)
-		assert.Equal(t, int64(4000), resp.Order.TotalAmount)
+		assert.Equal(t, money.New(5000, "USD"), resp.Order.Subtotal)
+		assert.Equal(t, money.New(1000, "USD"), resp.Order.Discount)
+		assert.Equal(t, money.New(4000, "USD"), resp.Order.Total)
 		assert.Equal(t, &couponCode, resp.Order.CouponCode)
 	})
 
@@ -795,8 +788,8 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: uuid.New(), Quantity: 1, Name: "USD item", Price: 5000, Currency: "USD", Status: "published"},
-				{ProductID: uuid.New(), Quantity: 1, Name: "EUR item", Price: 5000, Currency: "EUR", Status: "published"},
+				{ProductID: uuid.New(), Quantity: 1, Name: "USD item", Price: money.New(5000, "USD"), Status: "published"},
+				{ProductID: uuid.New(), Quantity: 1, Name: "EUR item", Price: money.New(5000, "EUR"), Status: "published"},
 			},
 		}, nil)
 
@@ -816,8 +809,7 @@ func TestService_PlaceOrder(t *testing.T) {
 			UserID:         userID,
 			IdempotencyKey: idempotencyKey,
 			Status:         order.StatusAwaitingPayment,
-			TotalAmount:    5000,
-			Currency:       "USD",
+			Total:          money.New(5000, "USD"),
 		}
 
 		dbErr := errors.New("db error")
@@ -844,7 +836,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: 5000, Currency: "USD", Status: "published"},
+				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: money.New(5000, "USD"), Status: "published"},
 			},
 		}, nil)
 
@@ -871,7 +863,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: 5000, Currency: "USD", Status: "published"},
+				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: money.New(5000, "USD"), Status: "published"},
 			},
 		}, nil)
 
@@ -902,7 +894,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: 5000, Currency: "USD", Status: "published"},
+				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: money.New(5000, "USD"), Status: "published"},
 			},
 		}, nil)
 
@@ -926,7 +918,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: 5000, Currency: "USD", Status: "published"},
+				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: money.New(5000, "USD"), Status: "published"},
 			},
 		}, nil)
 
@@ -951,7 +943,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: 5000, Currency: "USD", Status: "published"},
+				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: money.New(5000, "USD"), Status: "published"},
 			},
 		}, nil)
 
@@ -977,7 +969,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: 5000, Currency: "USD", Status: "published"},
+				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: money.New(5000, "USD"), Status: "published"},
 			},
 		}, nil)
 
@@ -1005,7 +997,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: 5000, Currency: "USD", Status: "published"},
+				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: money.New(5000, "USD"), Status: "published"},
 			},
 		}, nil)
 
@@ -1029,7 +1021,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Equal(t, int64(0), resp.Order.TotalAmount)
+		assert.Equal(t, money.New(0, "USD"), resp.Order.Total)
 	})
 
 	t.Run("success with payment initiation failure logs but returns order", func(t *testing.T) {
@@ -1043,7 +1035,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: 5000, Currency: "USD", Status: "published"},
+				{ProductID: productA, Quantity: 1, Name: "Widget A", Price: money.New(5000, "USD"), Status: "published"},
 			},
 		}, nil)
 
@@ -1061,7 +1053,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, order.StatusAwaitingPayment, resp.Order.Status)
-		assert.Equal(t, int64(5000), resp.Order.TotalAmount)
+		assert.Equal(t, money.New(5000, "USD"), resp.Order.Total)
 	})
 }
 
@@ -1181,8 +1173,8 @@ func TestService_CancelOrder(t *testing.T) {
 
 		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{
-			{ID: uuid.New(), OrderID: orderID, ProductID: productA, ProductName: "Widget A", Price: 3000, Quantity: 2, Subtotal: 6000},
-			{ID: uuid.New(), OrderID: orderID, ProductID: productB, ProductName: "Widget B", Price: 4000, Quantity: 1, Subtotal: 4000},
+			{ID: uuid.New(), OrderID: orderID, ProductID: productA, ProductName: "Widget A", Price: money.New(3000, "USD"), Quantity: 2, Subtotal: money.New(6000, "USD")},
+			{ID: uuid.New(), OrderID: orderID, ProductID: productB, ProductName: "Widget B", Price: money.New(4000, "USD"), Quantity: 1, Subtotal: money.New(4000, "USD")},
 		}, nil)
 		inventory.EXPECT().Restore(mock.Anything, []order.InventoryItem{
 			{ProductID: productA, Quantity: 2},
@@ -1210,7 +1202,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{
-			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: 5000, Quantity: 1, Subtotal: 5000},
+			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: money.New(5000, "USD"), Quantity: 1, Subtotal: money.New(5000, "USD")},
 		}, nil)
 		inventory.EXPECT().Restore(mock.Anything, mock.Anything, false).Return(nil)
 		coupons.EXPECT().Release(mock.Anything, orderID).Return(nil)
@@ -1255,7 +1247,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{
-			{ID: uuid.New(), OrderID: orderID, ProductID: productA, ProductName: "Widget", Price: 5000, Quantity: 1, Subtotal: 5000},
+			{ID: uuid.New(), OrderID: orderID, ProductID: productA, ProductName: "Widget", Price: money.New(5000, "USD"), Quantity: 1, Subtotal: money.New(5000, "USD")},
 		}, nil)
 		inventory.EXPECT().Restore(mock.Anything, mock.Anything, false).Return(errors.New("inventory error"))
 		// The release failure rolls back the cancellation (the tx returns the error),
@@ -1282,7 +1274,7 @@ func TestService_CancelOrder(t *testing.T) {
 
 		repo.EXPECT().Apply(mock.Anything, orderID, order.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{
-			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: 5000, Quantity: 1, Subtotal: 5000},
+			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: money.New(5000, "USD"), Quantity: 1, Subtotal: money.New(5000, "USD")},
 		}, nil)
 		inventory.EXPECT().Restore(mock.Anything, mock.Anything, false).Return(nil)
 		coupons.EXPECT().Release(mock.Anything, orderID).Return(errors.New("coupon service down"))
@@ -1377,11 +1369,10 @@ func TestService_SetPaymentDeps(t *testing.T) {
 		orderID := uuid.New()
 
 		existingOrder := &order.Order{
-			ID:          orderID,
-			UserID:      userID,
-			Status:      order.StatusAwaitingPayment,
-			TotalAmount: 5000,
-			Currency:    "USD",
+			ID:     orderID,
+			UserID: userID,
+			Status: order.StatusAwaitingPayment,
+			Total:  money.New(5000, "USD"),
 		}
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
 
@@ -1413,7 +1404,7 @@ func TestService_PlaceOrder_RejectsWithdrawnProduct(t *testing.T) {
 		Items: []order.CartSnapshotItem{
 			{
 				ProductID: productID, Quantity: 1, Name: "Withdrawn Widget",
-				Price: 1000, Currency: "USD", Status: "archived",
+				Price: money.New(1000, "USD"), Status: "archived",
 			},
 		},
 	}, nil)
@@ -1443,8 +1434,7 @@ func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
 		ID: uuid.New(),
 		Items: []order.CartSnapshotItem{
 			{
-				ProductID: uuid.New(), Quantity: 1, Name: "", Price: 0,
-				Currency: "USD", Status: "unavailable",
+				ProductID: uuid.New(), Quantity: 1, Name: "", Price: money.New(0, "USD"), Status: "unavailable",
 			},
 		},
 	}, nil)
@@ -1478,8 +1468,7 @@ func (a realCartProvider) GetCart(ctx context.Context, userID uuid.UUID) (*order
 		si := order.CartSnapshotItem{ProductID: item.ProductID, Quantity: item.Quantity}
 		if item.Product != nil {
 			si.Name = item.Product.Name
-			si.Price = item.Product.Price
-			si.Currency = item.Product.Currency
+			si.Price = money.New(item.Product.Price, item.Product.Currency)
 			si.Status = item.Product.Status
 		}
 		snap.Items = append(snap.Items, si)
@@ -1553,4 +1542,37 @@ func TestService_PlaceOrder_RejectsSoftDeletedProduct(t *testing.T) {
 		"a soft-deleted product (status still 'published', deleted_at set) must be flagged "+
 			"unavailable by cart's adapter and rejected here, not pass through as sellable")
 	orderInventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
+}
+
+// TestService_PlaceOrder_RejectsMixedCurrencyCart pins BOTH sentinels on the
+// rejection. money.ErrCurrencyMismatch names the cause, but it is not a case in
+// response.HandleErr, so surfacing it alone would fall through to a 500 -- and a
+// mixed-currency cart is user input. apperror.ErrBadRequest is what keeps the
+// 400 the hand-rolled currency loop used to produce.
+//
+// Beyond the idempotency lookup PlaceOrder always does first, only LockCart and
+// GetCart are expected: the mocks are strict, so the bare set forbids
+// ReserveBatch, Create, InitiatePayment and the coupon path. That is what proves
+// the rejection happens in the fold, before any of them, rather than merely
+// eventually.
+func TestService_PlaceOrder_RejectsMixedCurrencyCart(t *testing.T) {
+	svc, repo, cartProvider, _, _, _, _, _ := newTestService(t)
+
+	userID := uuid.New()
+
+	repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, "idem-mixed-1").
+		Return(nil, apperror.ErrNotFound)
+	cartProvider.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+	cartProvider.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
+		ID: uuid.New(),
+		Items: []order.CartSnapshotItem{
+			{ProductID: uuid.New(), Quantity: 1, Name: "A", Price: money.New(1000, "USD"), Status: "published"},
+			{ProductID: uuid.New(), Quantity: 1, Name: "B", Price: money.New(1000, "IDR"), Status: "published"},
+		},
+	}, nil)
+
+	_, err := svc.PlaceOrder(context.Background(), userID, order.PlaceParams{}, "idem-mixed-1")
+	require.Error(t, err)
+	require.ErrorIs(t, err, money.ErrCurrencyMismatch, "the cause must be identifiable")
+	require.ErrorIs(t, err, apperror.ErrBadRequest, "a mixed-currency cart is user input -- 400, not 500")
 }

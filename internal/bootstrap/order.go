@@ -7,6 +7,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/cart"
 	"github.com/residwi/go-api-project-template/internal/inventory"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/notification"
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/payment"
@@ -61,8 +62,10 @@ func (a *cartProviderAdapter) GetCart(ctx context.Context, userID uuid.UUID) (*o
 		}
 		if item.Product != nil {
 			si.Name = item.Product.Name
-			si.Price = item.Product.Price
-			si.Currency = item.Product.Currency
+			// product still stores its price as an int64 beside a Currency string
+			// (its own money.Money adoption is a separate task); pair them here so
+			// order only ever sees a denominated price.
+			si.Price = money.New(item.Product.Price, item.Product.Currency)
 			si.Status = item.Product.Status
 		}
 		snap.Items = append(snap.Items, si)
@@ -109,10 +112,12 @@ func inventoryStateFor(wasDeducted bool) inventory.StockState {
 type paymentInitiatorAdapter struct{ svc *payment.Service }
 
 func (a *paymentInitiatorAdapter) InitiatePayment(ctx context.Context, params order.InitiatePaymentParams) (order.PaymentResult, error) {
+	// payment's InitiatePaymentParams still splits amount and currency into two
+	// fields; unpair them at the seam rather than reaching into payment's types.
 	result, err := a.svc.InitiatePayment(ctx, payment.InitiatePaymentParams{
 		OrderID:         params.OrderID,
-		Amount:          params.Amount,
-		Currency:        params.Currency,
+		Amount:          params.Amount.Amount,
+		Currency:        params.Amount.Currency,
 		PaymentMethodID: params.PaymentMethodID,
 	})
 	if err != nil {

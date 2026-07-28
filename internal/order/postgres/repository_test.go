@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
@@ -64,10 +65,9 @@ func newOrder(userID uuid.UUID) *order.Order {
 		IdempotencyKey: key,
 		RequestHash:    "hash-" + key,
 		Status:         order.StatusAwaitingPayment,
-		SubtotalAmount: 1000,
-		DiscountAmount: 0,
-		TotalAmount:    1000,
-		Currency:       "USD",
+		Subtotal:       money.New(1000, "USD"),
+		Discount:       money.New(0, "USD"),
+		Total:          money.New(1000, "USD"),
 	}
 }
 
@@ -117,7 +117,7 @@ func TestPostgresRepository_CreateItems(t *testing.T) {
 		ctx := context.Background()
 
 		items := []order.Item{
-			{OrderID: o.ID, ProductID: productID, ProductName: "Widget", Price: 1000, Quantity: 2, Subtotal: 2000},
+			{OrderID: o.ID, ProductID: productID, ProductName: "Widget", Price: money.New(1000, "USD"), Quantity: 2, Subtotal: money.New(2000, "USD")},
 		}
 		err := repo.CreateItems(ctx, items)
 		require.NoError(t, err)
@@ -127,6 +127,12 @@ func TestPostgresRepository_CreateItems(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, got, 1)
 		assert.Equal(t, productID, got[0].ProductID)
+		// order_items has no currency column: the amounts round-trip through the
+		// two int columns, and the currency comes back off the joined orders row.
+		// Drop that join and these read back as money.New(n, "") -- which would
+		// then refuse to Add into the order's total.
+		assert.Equal(t, money.New(1000, "USD"), got[0].Price)
+		assert.Equal(t, money.New(2000, "USD"), got[0].Subtotal)
 	})
 }
 
@@ -310,7 +316,7 @@ func TestPostgresRepository_ListItemsByOrderID(t *testing.T) {
 		ctx := context.Background()
 
 		items := []order.Item{
-			{OrderID: o.ID, ProductID: productID, ProductName: "Widget", Price: 500, Quantity: 1, Subtotal: 500},
+			{OrderID: o.ID, ProductID: productID, ProductName: "Widget", Price: money.New(500, "USD"), Quantity: 1, Subtotal: money.New(500, "USD")},
 		}
 		require.NoError(t, repo.CreateItems(ctx, items))
 
@@ -401,7 +407,7 @@ func TestPostgresRepository_CreateItems_CancelledContext(t *testing.T) {
 		cancel()
 
 		items := []order.Item{
-			{OrderID: o.ID, ProductID: productID, ProductName: "Widget", Price: 1000, Quantity: 1, Subtotal: 1000},
+			{OrderID: o.ID, ProductID: productID, ProductName: "Widget", Price: money.New(1000, "USD"), Quantity: 1, Subtotal: money.New(1000, "USD")},
 		}
 		err := repo.CreateItems(ctx, items)
 		assert.Error(t, err)

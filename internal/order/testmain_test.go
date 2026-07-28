@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -64,10 +65,9 @@ func newOrder(userID uuid.UUID) *order.Order {
 		IdempotencyKey: key,
 		RequestHash:    "hash-" + key,
 		Status:         order.StatusAwaitingPayment,
-		SubtotalAmount: 1000,
-		DiscountAmount: 0,
-		TotalAmount:    1000,
-		Currency:       "USD",
+		Subtotal:       money.New(1000, "USD"),
+		Discount:       money.New(0, "USD"),
+		Total:          money.New(1000, "USD"),
 	}
 }
 

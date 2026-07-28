@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/order"
 	orderhttp "github.com/residwi/go-api-project-template/internal/order/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
@@ -76,14 +77,13 @@ func TestPublicHandler_ListOrders(t *testing.T) {
 		now := time.Now()
 		orders := []order.Order{
 			{
-				ID:             uuid.New(),
-				UserID:         userID,
-				Status:         order.StatusAwaitingPayment,
-				SubtotalAmount: 5000,
-				TotalAmount:    5000,
-				Currency:       "USD",
-				CreatedAt:      now,
-				UpdatedAt:      now,
+				ID:        uuid.New(),
+				UserID:    userID,
+				Status:    order.StatusAwaitingPayment,
+				Subtotal:  money.New(5000, "USD"),
+				Total:     money.New(5000, "USD"),
+				CreatedAt: now,
+				UpdatedAt: now,
 			},
 		}
 		repo.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).Return(orders, nil)
@@ -136,14 +136,13 @@ func TestPublicHandler_ListOrders(t *testing.T) {
 		orders := make([]order.Order, 21)
 		for i := range orders {
 			orders[i] = order.Order{
-				ID:             uuid.New(),
-				UserID:         userID,
-				Status:         order.StatusAwaitingPayment,
-				SubtotalAmount: 5000,
-				TotalAmount:    5000,
-				Currency:       "USD",
-				CreatedAt:      now.Add(-time.Duration(i) * time.Minute),
-				UpdatedAt:      now,
+				ID:        uuid.New(),
+				UserID:    userID,
+				Status:    order.StatusAwaitingPayment,
+				Subtotal:  money.New(5000, "USD"),
+				Total:     money.New(5000, "USD"),
+				CreatedAt: now.Add(-time.Duration(i) * time.Minute),
+				UpdatedAt: now,
 			}
 		}
 		repo.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).Return(orders, nil)
@@ -179,14 +178,13 @@ func TestPublicHandler_GetOrder(t *testing.T) {
 		orderID := uuid.New()
 		now := time.Now()
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(&order.Order{
-			ID:             orderID,
-			UserID:         userID,
-			Status:         order.StatusPaid,
-			SubtotalAmount: 5000,
-			TotalAmount:    5000,
-			Currency:       "USD",
-			CreatedAt:      now,
-			UpdatedAt:      now,
+			ID:        orderID,
+			UserID:    userID,
+			Status:    order.StatusPaid,
+			Subtotal:  money.New(5000, "USD"),
+			Total:     money.New(5000, "USD"),
+			CreatedAt: now,
+			UpdatedAt: now,
 		}, nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{}, nil)
 
@@ -339,6 +337,43 @@ func TestPublicHandler_PlaceOrder(t *testing.T) {
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
+
+	// A mixed-currency cart is rejected by money.Money's Add inside the service,
+	// which returns money.ErrCurrencyMismatch. That sentinel is NOT a case in
+	// response.HandleErr, so if the service surfaced it alone the client would see
+	// a 500 for what is plainly bad input. The service wraps apperror.ErrBadRequest
+	// alongside it; this test asserts the status a client actually observes, which
+	// an errors.Is check in the service test cannot do.
+	t.Run("mixed-currency cart is a 400, not a 500", func(t *testing.T) {
+		mux, repo, cart, _, _, _, _, _ := setupOrderMux(t)
+
+		userID := uuid.New()
+		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, mock.AnythingOfType("string")).
+			Return(nil, apperror.ErrNotFound)
+		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
+			ID: uuid.New(),
+			Items: []order.CartSnapshotItem{
+				{ProductID: uuid.New(), Quantity: 1, Name: "USD item", Price: money.New(5000, "USD"), Status: "published"},
+				{ProductID: uuid.New(), Quantity: 1, Name: "IDR item", Price: money.New(5000, "IDR"), Status: "published"},
+			},
+		}, nil)
+
+		w := httptest.NewRecorder()
+		body := `{"payment_method_id":"pm_test_123"}`
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders", strings.NewReader(body))
+		r = setAuthContext(r, userID)
+		r.Header.Set("Idempotency-Key", uuid.NewString())
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.False(t, resp.Success)
+		assert.Contains(t, resp.Error.Message, "mixed currencies")
+	})
 }
 
 // --- Public Handler: RetryPayment ---
@@ -351,13 +386,12 @@ func TestPublicHandler_RetryPayment(t *testing.T) {
 		orderID := uuid.New()
 		now := time.Now()
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(&order.Order{
-			ID:          orderID,
-			UserID:      userID,
-			Status:      order.StatusAwaitingPayment,
-			TotalAmount: 5000,
-			Currency:    "USD",
-			CreatedAt:   now,
-			UpdatedAt:   now,
+			ID:        orderID,
+			UserID:    userID,
+			Status:    order.StatusAwaitingPayment,
+			Total:     money.New(5000, "USD"),
+			CreatedAt: now,
+			UpdatedAt: now,
 		}, nil)
 		payment.EXPECT().InitiatePayment(mock.Anything, mock.AnythingOfType("order.InitiatePaymentParams")).
 			Return(order.PaymentResult{PaymentID: uuid.New()}, nil)
@@ -522,14 +556,13 @@ func TestAdminHandler_ListAll(t *testing.T) {
 		now := time.Now()
 		orders := []order.Order{
 			{
-				ID:             uuid.New(),
-				UserID:         uuid.New(),
-				Status:         order.StatusPaid,
-				SubtotalAmount: 10000,
-				TotalAmount:    10000,
-				Currency:       "USD",
-				CreatedAt:      now,
-				UpdatedAt:      now,
+				ID:        uuid.New(),
+				UserID:    uuid.New(),
+				Status:    order.StatusPaid,
+				Subtotal:  money.New(10000, "USD"),
+				Total:     money.New(10000, "USD"),
+				CreatedAt: now,
+				UpdatedAt: now,
 			},
 		}
 		repo.EXPECT().ListAdmin(mock.Anything, mock.AnythingOfType("order.AdminListParams")).Return(orders, 1, nil)
@@ -566,14 +599,13 @@ func TestAdminHandler_GetOrder(t *testing.T) {
 		orderID := uuid.New()
 		now := time.Now()
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(&order.Order{
-			ID:             orderID,
-			UserID:         uuid.New(),
-			Status:         order.StatusPaid,
-			SubtotalAmount: 5000,
-			TotalAmount:    5000,
-			Currency:       "USD",
-			CreatedAt:      now,
-			UpdatedAt:      now,
+			ID:        orderID,
+			UserID:    uuid.New(),
+			Status:    order.StatusPaid,
+			Subtotal:  money.New(5000, "USD"),
+			Total:     money.New(5000, "USD"),
+			CreatedAt: now,
+			UpdatedAt: now,
 		}, nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{}, nil)
 

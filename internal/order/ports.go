@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
+	"github.com/residwi/go-api-project-template/internal/money"
 )
 
 // Ports this feature needs from other features. Each is declared here rather
@@ -27,8 +29,7 @@ type CartSnapshotItem struct {
 	ProductID uuid.UUID
 	Quantity  int
 	Name      string
-	Price     int64
-	Currency  string
+	Price     money.Money
 	Status    string
 }
 
@@ -50,8 +51,7 @@ type PaymentInitiator interface {
 
 type InitiatePaymentParams struct {
 	OrderID         uuid.UUID
-	Amount          int64
-	Currency        string
+	Amount          money.Money
 	PaymentMethodID string
 }
 

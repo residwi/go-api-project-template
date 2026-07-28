@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
@@ -105,26 +106,33 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, p PlaceParam
 			return apperror.ErrCartEmpty
 		}
 
-		var subtotal int64
-		currency := snapshot.Items[0].Currency
 		reservations := make([]InventoryItem, len(snapshot.Items))
 		orderItems = make([]Item, len(snapshot.Items))
+		// Seed the running subtotal with a zero denominated in the first item's
+		// currency, so that item 0 goes through the loop -- and its availability
+		// check -- exactly like every other item. Money.Add then enforces the
+		// single-currency rule that used to be a hand-rolled comparison: summing
+		// across currencies would produce a meaningless total, and an arbitrary
+		// order currency. The empty-cart guard above makes Items[0] safe.
+		subtotal := money.New(0, snapshot.Items[0].Price.Currency)
 		for i, item := range snapshot.Items {
 			if item.Status != productStatusPublished {
 				return fmt.Errorf("%w: product %s is not available", apperror.ErrBadRequest, item.Name)
 			}
-			// All cart items must share one currency; summing across currencies
-			// would produce a meaningless total (and an arbitrary order currency).
-			if item.Currency != currency {
-				return fmt.Errorf("%w: cart contains mixed currencies", apperror.ErrBadRequest)
+			sum, addErr := subtotal.Add(item.Price.MulQty(item.Quantity))
+			if addErr != nil {
+				// Both sentinels: ErrBadRequest keeps the 400 the old hand-rolled
+				// check produced (a mixed-currency cart is user input, not a server
+				// fault), ErrCurrencyMismatch names the actual cause.
+				return fmt.Errorf("%w: cart contains mixed currencies: %w", apperror.ErrBadRequest, addErr)
 			}
-			subtotal += item.Price * int64(item.Quantity)
+			subtotal = sum
 			reservations[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
 		}
 
-		order.SubtotalAmount = subtotal
-		order.TotalAmount = subtotal
-		order.Currency = currency
+		order.Subtotal = subtotal
+		order.Total = subtotal
+		order.Discount = money.New(0, subtotal.Currency)
 		if txErr := s.repo.Create(txCtx, order); txErr != nil {
 			return txErr
 		}
@@ -133,6 +141,9 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, p PlaceParam
 			return fmt.Errorf("reserving stock: %w", txErr)
 		}
 
+		// A second pass, not a merge into the one above: the items need order.ID,
+		// which only exists after repo.Create. Price carries the cart item's own
+		// currency, which the fold above has already proved equal to the order's.
 		for i, item := range snapshot.Items {
 			orderItems[i] = Item{
 				OrderID:     order.ID,
@@ -140,7 +151,7 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, p PlaceParam
 				ProductName: item.Name,
 				Price:       item.Price,
 				Quantity:    item.Quantity,
-				Subtotal:    item.Price * int64(item.Quantity),
+				Subtotal:    item.Price.MulQty(item.Quantity),
 			}
 		}
 		if txErr := s.repo.CreateItems(txCtx, orderItems); txErr != nil {
@@ -148,16 +159,20 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, p PlaceParam
 		}
 
 		if s.coupons != nil && p.CouponCode != nil && *p.CouponCode != "" {
-			discount, txErr := s.coupons.Reserve(txCtx, *p.CouponCode, userID, order.ID, subtotal)
+			discount, txErr := s.coupons.Reserve(txCtx, *p.CouponCode, userID, order.ID, subtotal.Amount)
 			if txErr != nil {
 				return txErr
 			}
-			order.DiscountAmount = discount
-			order.TotalAmount = max(subtotal-discount, 0)
+			// A discount is denominated in the order's currency by construction, so
+			// the clamp stays plain arithmetic on the amounts: Sub cannot fail here
+			// and max(..., 0) is the policy (an over-large coupon does not produce a
+			// negative charge), which money.Sub deliberately does not decide.
+			order.Discount = money.New(discount, subtotal.Currency)
+			order.Total = money.New(max(subtotal.Amount-discount, 0), subtotal.Currency)
 			// The order row was inserted with the pre-discount total; persist the
 			// discounted amounts so the DB matches what we charge and what payment
 			// finalization verifies against.
-			if txErr := s.repo.UpdateTotals(txCtx, order.ID, order.DiscountAmount, order.TotalAmount); txErr != nil {
+			if txErr := s.repo.UpdateTotals(txCtx, order.ID, order.Discount.Amount, order.Total.Amount); txErr != nil {
 				return txErr
 			}
 		}
@@ -170,14 +185,13 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, p PlaceParam
 
 	order.Items = orderItems
 
-	if order.TotalAmount > 0 {
+	if order.Total.Amount > 0 {
 		// Discard the result: the order stays awaiting_payment and the gateway
 		// webhook (or the charge job) drives it to paid. A failure here is logged,
 		// not fatal — the order can be retried or will expire.
 		if _, payErr := s.payment.InitiatePayment(ctx, InitiatePaymentParams{
 			OrderID:         order.ID,
-			Amount:          order.TotalAmount,
-			Currency:        order.Currency,
+			Amount:          order.Total,
 			PaymentMethodID: p.PaymentMethodID,
 		}); payErr != nil {
 			slog.ErrorContext(ctx, "failed to initiate payment, order stays in awaiting_payment",
@@ -232,8 +246,7 @@ func (s *Service) RetryPayment(ctx context.Context, userID, orderID uuid.UUID, p
 
 	result, err := s.payment.InitiatePayment(ctx, InitiatePaymentParams{
 		OrderID:         order.ID,
-		Amount:          order.TotalAmount,
-		Currency:        order.Currency,
+		Amount:          order.Total,
 		PaymentMethodID: paymentMethodID,
 	})
 	if err != nil {

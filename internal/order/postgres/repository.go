@@ -12,21 +12,41 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
+// amountColumns is the orders table's three amount columns plus the single
+// currency column all three share. The schema stores the currency once, so a
+// scan reads it once and denominates all three money.Money values from it --
+// this struct is the one place that fan-out lives.
+type amountColumns struct {
+	subtotal int64
+	discount int64
+	total    int64
+	currency string
+}
+
+func (a amountColumns) assignTo(o *order.Order) {
+	o.Subtotal = money.New(a.subtotal, a.currency)
+	o.Discount = money.New(a.discount, a.currency)
+	o.Total = money.New(a.total, a.currency)
+}
+
 func scanOrder(row pgx.CollectableRow) (order.Order, error) {
 	var o order.Order
 	var idempotencyKey *string
+	var amt amountColumns
 	err := row.Scan(&o.ID, &o.UserID, &idempotencyKey, &o.Status,
-		&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
-		&o.CouponCode, &o.Currency, &o.ShippingAddress, &o.BillingAddress,
+		&amt.subtotal, &amt.discount, &amt.total,
+		&o.CouponCode, &amt.currency, &o.ShippingAddress, &o.BillingAddress,
 		&o.Notes, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		return o, err
 	}
+	amt.assignTo(&o)
 	if idempotencyKey != nil {
 		o.IdempotencyKey = *idempotencyKey
 	}
@@ -36,24 +56,38 @@ func scanOrder(row pgx.CollectableRow) (order.Order, error) {
 func scanOrderSummary(row pgx.CollectableRow) (order.Order, error) {
 	var o order.Order
 	var idempotencyKey *string
+	var amt amountColumns
 	err := row.Scan(&o.ID, &o.UserID, &idempotencyKey, &o.Status,
-		&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
-		&o.CouponCode, &o.Currency, &o.StockDeducted, &o.StockReversed,
+		&amt.subtotal, &amt.discount, &amt.total,
+		&o.CouponCode, &amt.currency, &o.StockDeducted, &o.StockReversed,
 		&o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		return o, err
 	}
+	amt.assignTo(&o)
 	if idempotencyKey != nil {
 		o.IdempotencyKey = *idempotencyKey
 	}
 	return o, nil
 }
 
+// scanItem expects the parent order's currency as the last column. order_items
+// has no currency column of its own -- the currency belongs to the order, and
+// storing it per row could only ever disagree with it -- so every query feeding
+// this scanner joins orders for it. Without that the items would come back
+// denominated in nothing and refuse to sum against the order's total.
 func scanItem(row pgx.CollectableRow) (order.Item, error) {
 	var item order.Item
+	var price, subtotal int64
+	var currency string
 	err := row.Scan(&item.ID, &item.OrderID, &item.ProductID, &item.ProductName,
-		&item.Price, &item.Quantity, &item.Subtotal, &item.CreatedAt)
-	return item, err
+		&price, &item.Quantity, &subtotal, &item.CreatedAt, &currency)
+	if err != nil {
+		return item, err
+	}
+	item.Price = money.New(price, currency)
+	item.Subtotal = money.New(subtotal, currency)
+	return item, nil
 }
 
 type Repository struct {
@@ -71,8 +105,10 @@ func (r *Repository) Create(ctx context.Context, order *order.Order) error {
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id, created_at, updated_at`,
 		order.UserID, order.IdempotencyKey, order.RequestHash, order.Status,
-		order.SubtotalAmount, order.DiscountAmount, order.TotalAmount,
-		order.CouponCode, order.Currency,
+		order.Subtotal.Amount, order.Discount.Amount, order.Total.Amount,
+		// One currency column for all three amounts; Total's is authoritative
+		// because it is what gets charged.
+		order.CouponCode, order.Total.Currency,
 		order.ShippingAddress, order.BillingAddress, order.Notes,
 	).Scan(&order.ID, &order.CreatedAt, &order.UpdatedAt)
 	if err != nil {
@@ -103,7 +139,9 @@ func (r *Repository) CreateItems(ctx context.Context, items []order.Item) error 
 
 		placeholders[i] = "(" + strings.Join(parts, ",") + ")"
 
-		args = append(args, item.OrderID, item.ProductID, item.ProductName, item.Price, item.Quantity, item.Subtotal)
+		// Only the amounts are written: the item's currency is the order's, already
+		// stored on the orders row, and the service guarantees they agree.
+		args = append(args, item.OrderID, item.ProductID, item.ProductName, item.Price.Amount, item.Quantity, item.Subtotal.Amount)
 	}
 
 	rows, err := db.Query(ctx,
@@ -141,13 +179,14 @@ func (r *Repository) CreateItems(ctx context.Context, items []order.Item) error 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*order.Order, error) {
 	db := database.DB(ctx, r.pool)
 	var o order.Order
+	var amt amountColumns
 	err := db.QueryRow(ctx,
 		`SELECT id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount,
 		        coupon_code, currency, shipping_address, billing_address, notes, stock_deducted, stock_reversed, created_at, updated_at
 		FROM orders WHERE id = $1`, id,
 	).Scan(&o.ID, &o.UserID, &o.IdempotencyKey, &o.RequestHash, &o.Status,
-		&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
-		&o.CouponCode, &o.Currency, &o.ShippingAddress, &o.BillingAddress,
+		&amt.subtotal, &amt.discount, &amt.total,
+		&o.CouponCode, &amt.currency, &o.ShippingAddress, &o.BillingAddress,
 		&o.Notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -155,19 +194,21 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*order.Order, e
 		}
 		return nil, fmt.Errorf("getting order by id: %w", err)
 	}
+	amt.assignTo(&o)
 	return &o, nil
 }
 
 func (r *Repository) GetByUserIDAndIdempotencyKey(ctx context.Context, userID uuid.UUID, key string) (*order.Order, error) {
 	db := database.DB(ctx, r.pool)
 	var o order.Order
+	var amt amountColumns
 	err := db.QueryRow(ctx,
 		`SELECT id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount,
 		        coupon_code, currency, shipping_address, billing_address, notes, stock_deducted, stock_reversed, created_at, updated_at
 		FROM orders WHERE user_id = $1 AND idempotency_key = $2`, userID, key,
 	).Scan(&o.ID, &o.UserID, &o.IdempotencyKey, &o.RequestHash, &o.Status,
-		&o.SubtotalAmount, &o.DiscountAmount, &o.TotalAmount,
-		&o.CouponCode, &o.Currency, &o.ShippingAddress, &o.BillingAddress,
+		&amt.subtotal, &amt.discount, &amt.total,
+		&o.CouponCode, &amt.currency, &o.ShippingAddress, &o.BillingAddress,
 		&o.Notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -175,6 +216,7 @@ func (r *Repository) GetByUserIDAndIdempotencyKey(ctx context.Context, userID uu
 		}
 		return nil, fmt.Errorf("getting order by idempotency key: %w", err)
 	}
+	amt.assignTo(&o)
 	return &o, nil
 }
 
@@ -311,9 +353,13 @@ func (r *Repository) Apply(ctx context.Context, id uuid.UUID, t order.Transition
 
 func (r *Repository) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]order.Item, error) {
 	db := database.DB(ctx, r.pool)
+	// Joined for o.currency only: an item's amounts are denominated in its order's
+	// currency, and order_items has no column of its own to read it from. Both
+	// tables belong to this module, so the join crosses no boundary.
 	rows, err := db.Query(ctx,
-		`SELECT id, order_id, product_id, product_name, price, quantity, subtotal, created_at
-		FROM order_items WHERE order_id = $1 ORDER BY created_at`, orderID,
+		`SELECT oi.id, oi.order_id, oi.product_id, oi.product_name, oi.price, oi.quantity, oi.subtotal, oi.created_at, o.currency
+		FROM order_items oi JOIN orders o ON o.id = oi.order_id
+		WHERE oi.order_id = $1 ORDER BY oi.created_at`, orderID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("listing order items: %w", err)

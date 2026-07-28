@@ -39,6 +39,12 @@ func toAddressResponse(a *order.Address) *addressResponse {
 // orderItemResponse drops OrderID: it is an internal join key (the item is
 // always returned nested inside its order), and a client already knows
 // which order it asked for.
+//
+// Price and Subtotal are int64 minor units with no sibling currency key, even
+// though order.Item now holds them as money.Money: this endpoint publishes the
+// currency once, on the parent order. Flattening each money.Money to its Amount
+// here -- rather than letting the type marshal itself -- is what keeps that
+// asymmetry the adapter's decision. See internal/money/doc.go.
 type orderItemResponse struct {
 	ID          uuid.UUID `json:"id"`
 	ProductID   uuid.UUID `json:"product_id"`
@@ -54,9 +60,9 @@ func toOrderItemResponse(i order.Item) orderItemResponse {
 		ID:          i.ID,
 		ProductID:   i.ProductID,
 		ProductName: i.ProductName,
-		Price:       i.Price,
+		Price:       i.Price.Amount,
 		Quantity:    i.Quantity,
-		Subtotal:    i.Subtotal,
+		Subtotal:    i.Subtotal.Amount,
 		CreatedAt:   i.CreatedAt,
 	}
 }
@@ -90,14 +96,18 @@ func toOrderResponse(o *order.Order) orderResponse {
 	}
 
 	return orderResponse{
-		ID:              o.ID,
-		UserID:          o.UserID,
-		Status:          o.Status,
-		SubtotalAmount:  o.SubtotalAmount,
-		DiscountAmount:  o.DiscountAmount,
-		TotalAmount:     o.TotalAmount,
+		ID:     o.ID,
+		UserID: o.UserID,
+		Status: o.Status,
+		// The order's three money.Money values are flattened to their amounts, and
+		// the currency is emitted once, from Total -- the amount actually charged.
+		// All three share a currency by construction, so any of them would do; Total
+		// is named because it is the one the client is being billed.
+		SubtotalAmount:  o.Subtotal.Amount,
+		DiscountAmount:  o.Discount.Amount,
+		TotalAmount:     o.Total.Amount,
 		CouponCode:      o.CouponCode,
-		Currency:        o.Currency,
+		Currency:        o.Total.Currency,
 		ShippingAddress: toAddressResponse(o.ShippingAddress),
 		BillingAddress:  toAddressResponse(o.BillingAddress),
 		Notes:           o.Notes,

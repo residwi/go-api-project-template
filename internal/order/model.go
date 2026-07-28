@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/residwi/go-api-project-template/internal/money"
 )
 
 type Status string
@@ -22,16 +24,20 @@ const (
 )
 
 type Order struct {
-	ID              uuid.UUID
-	UserID          uuid.UUID
-	IdempotencyKey  string
-	RequestHash     string
-	Status          Status
-	SubtotalAmount  int64
-	DiscountAmount  int64
-	TotalAmount     int64
+	ID             uuid.UUID
+	UserID         uuid.UUID
+	IdempotencyKey string
+	RequestHash    string
+	Status         Status
+	// Subtotal, Discount and Total each carry their own currency, but all three
+	// are always denominated the same: an order is placed from a single-currency
+	// cart, and the orders table stores one currency column for all three amounts.
+	// Pairing each amount with it means arithmetic across them cannot silently mix
+	// currencies, and the http adapter reads the order's currency off Total.
+	Subtotal        money.Money
+	Discount        money.Money
+	Total           money.Money
 	CouponCode      *string
-	Currency        string
 	ShippingAddress *Address
 	BillingAddress  *Address
 	Notes           string
@@ -60,8 +66,14 @@ type Item struct {
 	OrderID     uuid.UUID
 	ProductID   uuid.UUID
 	ProductName string
-	Price       int64
-	Quantity    int
-	Subtotal    int64
-	CreatedAt   time.Time
+	// Price and Subtotal are denominated in the parent order's currency. The
+	// order_items table has no currency column of its own -- the currency is
+	// stored once, on the order -- so every construction site has to supply it
+	// explicitly: at checkout from the cart item's price, and on read from the
+	// joined orders row. An Item left with an empty currency would fail to Add
+	// into the order total rather than quietly contributing a wrong number.
+	Price     money.Money
+	Quantity  int
+	Subtotal  money.Money
+	CreatedAt time.Time
 }
