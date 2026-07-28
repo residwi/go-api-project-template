@@ -16,14 +16,14 @@ const (
 )
 
 type Notification struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Type      Type      `json:"type"`
-	Title     string    `json:"title"`
-	Body      string    `json:"body,omitempty"`
-	IsRead    bool      `json:"is_read"`
-	Data      []byte    `json:"-"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Type      Type
+	Title     string
+	Body      string
+	IsRead    bool
+	Data      []byte
+	CreatedAt time.Time
 }
 
 type JobStatus string
@@ -36,15 +36,15 @@ const (
 )
 
 type Job struct {
-	ID          uuid.UUID `json:"id"`
-	UserID      uuid.UUID `json:"user_id"`
-	Type        string    `json:"type"`
-	Title       string    `json:"title"`
-	Body        string    `json:"body"`
-	Data        []byte    `json:"-"`
-	Status      JobStatus `json:"status"`
-	Attempts    int       `json:"attempts"`
-	MaxAttempts int       `json:"max_attempts"`
-	LastError   string    `json:"last_error,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          uuid.UUID
+	UserID      uuid.UUID
+	Type        string
+	Title       string
+	Body        string
+	Data        []byte
+	Status      JobStatus
+	Attempts    int
+	MaxAttempts int
+	LastError   string
+	CreatedAt   time.Time
 }
