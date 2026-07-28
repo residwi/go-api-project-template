@@ -23,6 +23,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/inventory"
 	inventorypg "github.com/residwi/go-api-project-template/internal/inventory/postgres"
 	"github.com/residwi/go-api-project-template/internal/notification"
+	notificationhttp "github.com/residwi/go-api-project-template/internal/notification/http"
 	notificationpg "github.com/residwi/go-api-project-template/internal/notification/postgres"
 	"github.com/residwi/go-api-project-template/internal/order"
 	orderpg "github.com/residwi/go-api-project-template/internal/order/postgres"
@@ -135,7 +136,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{Validator: v, Service: reviewSvc})
 	promotion.RegisterRoutes(authed, admin, promotion.RouteDeps{Validator: v, Service: promotionSvc})
 	wishlisthttp.RegisterRoutes(authed, wishlisthttp.RouteDeps{Validator: v, Service: wishlistSvc})
-	notification.RegisterRoutes(authed, notification.RouteDeps{Service: notificationSvc})
+	notificationhttp.RegisterRoutes(authed, notificationhttp.RouteDeps{Service: notificationSvc})
 	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Service: dashboardSvc})
 
 	if deps.Config.App.Env == "development" {

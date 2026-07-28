@@ -1,11 +1,12 @@
-package notification
+package http
 
 import (
+	"github.com/residwi/go-api-project-template/internal/notification"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
-	Service *Service
+	Service *notification.Service
 }
 
 func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {

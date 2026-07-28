@@ -1,4 +1,4 @@
-package notification
+package http
 
 import (
 	"encoding/json"
@@ -10,12 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/notification"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 func newTestHandler() *handler {
 	return &handler{
-		service: &Service{},
+		service: &notification.Service{},
 	}
 }
 

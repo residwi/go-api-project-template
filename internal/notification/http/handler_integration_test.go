@@ -1,4 +1,4 @@
-package notification_test
+package http_test
 
 import (
 	"encoding/json"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/notification"
+	notificationhttp "github.com/residwi/go-api-project-template/internal/notification/http"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	notifMocks "github.com/residwi/go-api-project-template/mocks/notification"
@@ -26,7 +27,7 @@ func setupNotificationMux(t *testing.T) (*http.ServeMux, *notifMocks.MockReposit
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	notification.RegisterRoutes(authed, notification.RouteDeps{
+	notificationhttp.RegisterRoutes(authed, notificationhttp.RouteDeps{
 		Service: svc,
 	})
 

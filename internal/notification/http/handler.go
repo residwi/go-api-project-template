@@ -1,4 +1,4 @@
-package notification
+package http
 
 import (
 	"net/http"
@@ -6,13 +6,14 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/residwi/go-api-project-template/internal/notification"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type handler struct {
-	service *Service
+	service *notification.Service
 }
 
 func (h *handler) List(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +30,7 @@ func (h *handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.CursorPage(w, notifications, cursor.Limit, func(n Notification) (time.Time, uuid.UUID) {
+	response.CursorPage(w, notifications, cursor.Limit, func(n notification.Notification) (time.Time, uuid.UUID) {
 		return n.CreatedAt, n.ID
 	})
 }
@@ -79,5 +80,5 @@ func (h *handler) UnreadCount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.OK(w, UnreadCountResponse{Count: count})
+	response.OK(w, notification.UnreadCountResponse{Count: count})
 }
