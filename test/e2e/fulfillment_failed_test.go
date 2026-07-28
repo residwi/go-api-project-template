@@ -1,0 +1,218 @@
+package e2e_test
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
+	"github.com/residwi/go-api-project-template/internal/config"
+	"github.com/residwi/go-api-project-template/internal/payment"
+	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
+)
+
+// TestE2ELatePaymentSuccessOnCancelledOrder drives the *transition into*
+// fulfillment_failed end to end. TestE2ERefundWithCouponAndRelease starts from
+// that state but writes it with a direct UPDATE, so nothing covered how an
+// order gets there.
+//
+// The route in is the real "late payment success on a terminal order" race:
+// place an order whose synchronous charge declines (the mock gateway fails any
+// amount ending in 99), cancel it, then have the gateway report success anyway.
+// FinalizePaymentSuccess can mark the payment paid but cannot mark a cancelled
+// order paid -- PaidTransition does not accept `cancelled` -- so it parks the
+// payment in requires_review, flags the order fulfillment_failed and enqueues
+// the compensating refund. Every step is an HTTP request; no test SQL sets
+// order or payment status.
+func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
+	setup(t)
+	mockMux := http.NewServeMux()
+	mockgatewayserver.RegisterRoutes(mockMux)
+	mockServer := httptest.NewServer(mockMux)
+	defer mockServer.Close()
+
+	deps := &apihttp.Deps{
+		Config: &config.Config{
+			App:  testDeps.Config.App,
+			JWT:  testDeps.Config.JWT,
+			CORS: testDeps.Config.CORS,
+			Payment: config.PaymentConfig{
+				Gateway:        "mock",
+				GatewayURL:     mockServer.URL + "/mock/payment",
+				GatewayTimeout: 5 * time.Second,
+			},
+		},
+		Pool:  testPool,
+		Redis: testRedis,
+	}
+	router := apihttp.NewRouter(deps)
+	handler := router.Handler
+	ctx := context.Background()
+
+	// Seed category + product
+	catID := uuid.New()
+	_, err := testPool.Exec(ctx,
+		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'LateSuccess Cat', $2, true)`,
+		catID, "latesuccess-cat-"+catID.String()[:8])
+	require.NoError(t, err)
+	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
+
+	// 4099 x1 makes the order total end in 99, so the mock gateway declines the
+	// synchronous charge and the order stays awaiting_payment -- which is what
+	// makes it cancellable, and therefore terminal when the webhook lands.
+	prodID := uuid.New()
+	_, err = testPool.Exec(ctx,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'LateSuccess Product', $2, 'desc', 4099, 'USD', 'published', $3)`,
+		prodID, "latesuccess-prod-"+prodID.String()[:8], catID)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
+	})
+	seedInventoryLevel(t, prodID, 100, 0)
+
+	// Register user
+	email := "latesuccess-flow@example.com"
+	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"Late","last_name":"User"}`
+	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
+	regReq.Header.Set("Content-Type", "application/json")
+	regW := httptest.NewRecorder()
+	handler.ServeHTTP(regW, regReq)
+	require.Equal(t, http.StatusCreated, regW.Code)
+
+	var regResp map[string]any
+	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+	token := regResp["data"].(map[string]any)["access_token"].(string)
+
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(ctx, `DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(ctx, `DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
+		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(ctx, `DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(ctx, `DELETE FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
+		testPool.Exec(ctx, `DELETE FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
+		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
+	})
+
+	// Add to cart
+	cartBody := `{"product_id":"` + prodID.String() + `","quantity":1}`
+	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
+	cartReq.Header.Set("Content-Type", "application/json")
+	cartReq.Header.Set("Authorization", "Bearer "+token)
+	cartW := httptest.NewRecorder()
+	handler.ServeHTTP(cartW, cartReq)
+	require.Equal(t, http.StatusCreated, cartW.Code)
+
+	// Place order. The charge declines, so the order stays awaiting_payment.
+	orderBody := `{"payment_method_id":"pm_test_123"}`
+	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
+	orderReq.Header.Set("Content-Type", "application/json")
+	orderReq.Header.Set("Authorization", "Bearer "+token)
+	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderW := httptest.NewRecorder()
+	handler.ServeHTTP(orderW, orderReq)
+	require.Equal(t, http.StatusCreated, orderW.Code)
+
+	var orderResp map[string]any
+	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
+	orderID := orderResp["data"].(map[string]any)["order"].(map[string]any)["id"].(string)
+
+	var paymentID uuid.UUID
+	err = testPool.QueryRow(ctx, `SELECT id FROM payments WHERE order_id = $1`, orderID).Scan(&paymentID)
+	require.NoError(t, err)
+
+	var orderStatus string
+	require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatus))
+	require.Equal(t, "awaiting_payment", orderStatus, "the declined charge must leave the order cancellable")
+
+	// Cancel the order through the API, making it terminal.
+	cancelReq := httptest.NewRequest(http.MethodPost, "/api/orders/"+orderID+"/cancel", nil)
+	cancelReq.Header.Set("Authorization", "Bearer "+token)
+	cancelW := httptest.NewRecorder()
+	handler.ServeHTTP(cancelW, cancelReq)
+	require.Equal(t, http.StatusNoContent, cancelW.Code)
+
+	require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatus))
+	require.Equal(t, "cancelled", orderStatus)
+
+	t.Run("late success webhook flags the cancelled order fulfillment_failed", func(t *testing.T) {
+		webhookBody := fmt.Sprintf(`{"event":"success","metadata":{"payment_id":"%s"},"transaction_id":"txn_late_success"}`, paymentID)
+		req := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", strings.NewReader(webhookBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code, "the webhook is acked so the gateway stops retrying")
+
+		// The order reaches fulfillment_failed through production code, not SQL.
+		var status string
+		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&status))
+		assert.Equal(t, "fulfillment_failed", status)
+
+		// The payment is parked for review rather than left looking successful:
+		// funds are captured but the order can never be fulfilled.
+		var paymentStatus string
+		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatus))
+		assert.Equal(t, "requires_review", paymentStatus)
+
+		// The charge job is closed out and a refund job takes its place.
+		var pendingCharges int
+		require.NoError(t, testPool.QueryRow(ctx,
+			`SELECT COUNT(*) FROM payment_jobs
+			 WHERE order_id = $1 AND action = 'charge' AND status IN ('pending','processing')`,
+			orderID).Scan(&pendingCharges))
+		assert.Equal(t, 0, pendingCharges)
+
+		var pendingRefunds int
+		require.NoError(t, testPool.QueryRow(ctx,
+			`SELECT COUNT(*) FROM payment_jobs
+			 WHERE order_id = $1 AND action = 'refund' AND status = 'pending'`,
+			orderID).Scan(&pendingRefunds))
+		assert.Equal(t, 1, pendingRefunds)
+	})
+
+	t.Run("the enqueued refund job then refunds the order", func(t *testing.T) {
+		// Cancelling already released the reservation, so the refund's inventory
+		// reversal must be a no-op rather than a second release.
+		stockBefore, reservedBefore := inventoryLevelOf(t, prodID)
+		require.Equal(t, 100, stockBefore)
+		require.Equal(t, 0, reservedBefore)
+
+		var job payment.Job
+		require.NoError(t, testPool.QueryRow(ctx,
+			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
+			        COALESCE(last_error, ''), locked_until, next_retry_at,
+			        created_at, updated_at
+			 FROM payment_jobs
+			 WHERE order_id = $1 AND action = 'refund' AND status = 'pending'
+			 LIMIT 1`, orderID).Scan(
+			&job.ID, &job.PaymentID, &job.OrderID, &job.Action, &job.Status,
+			&job.Attempts, &job.MaxAttempts, &job.LastError, &job.LockedUntil,
+			&job.NextRetryAt, &job.CreatedAt, &job.UpdatedAt,
+		))
+
+		require.NoError(t, router.PaymentSvc.Process(ctx, job))
+
+		var status string
+		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&status))
+		assert.Equal(t, "refunded", status)
+
+		var paymentStatus string
+		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatus))
+		assert.Equal(t, "refunded", paymentStatus)
+
+		stockAfter, reservedAfter := inventoryLevelOf(t, prodID)
+		assert.Equal(t, 100, stockAfter, "cancel already released the hold; the refund must not release it twice")
+		assert.Equal(t, 0, reservedAfter)
+	})
+}
