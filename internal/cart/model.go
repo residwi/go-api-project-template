@@ -7,27 +7,35 @@ import (
 )
 
 type Cart struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Items     []Item    `json:"items"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Items     []Item
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type Item struct {
-	ID        uuid.UUID `json:"id"`
-	CartID    uuid.UUID `json:"-"`
-	ProductID uuid.UUID `json:"product_id"`
-	Quantity  int       `json:"quantity"`
-	Product   *Product  `json:"product,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uuid.UUID
+	CartID    uuid.UUID
+	ProductID uuid.UUID
+	Quantity  int
+	Product   *Product
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type Product struct {
-	Name     string `json:"name"`
-	Price    int64  `json:"price"`
-	Currency string `json:"currency"`
-	Stock    int    `json:"available_stock"`
-	Status   string `json:"status"`
+	Name     string
+	Price    int64
+	Currency string
+	Stock    int
+	Status   string
+}
+
+// Sellable reports whether this line can still be purchased. A product that
+// was archived, unpublished, or removed after being added to the cart stops
+// being sellable, but the line stays visible -- callers decide how to show
+// that, not whether to hide it.
+func (p *Product) Sellable() bool {
+	return p.Status == productStatusPublished
 }

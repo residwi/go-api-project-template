@@ -28,16 +28,16 @@ func NewService(repo Repository, tx database.TxRunner, products ProductLookup, m
 	}
 }
 
-func (s *Service) AddItem(ctx context.Context, userID uuid.UUID, req AddItemRequest) error {
-	p, err := s.products.GetByID(ctx, req.ProductID)
+func (s *Service) AddItem(ctx context.Context, userID uuid.UUID, p AddItemParams) error {
+	info, err := s.products.GetByID(ctx, p.ProductID)
 	if err != nil {
 		return err
 	}
 
-	if p.Status != productStatusPublished {
+	if info.Status != productStatusPublished {
 		return fmt.Errorf("%w: product is not available", apperror.ErrBadRequest)
 	}
-	if p.Available < req.Quantity {
+	if info.Available < p.Quantity {
 		return apperror.ErrInsufficientStock
 	}
 
@@ -47,7 +47,7 @@ func (s *Service) AddItem(ctx context.Context, userID uuid.UUID, req AddItemRequ
 			return err
 		}
 
-		count, hasItem, err := s.repo.CountAndHasItem(txCtx, cartID, req.ProductID)
+		count, hasItem, err := s.repo.CountAndHasItem(txCtx, cartID, p.ProductID)
 		if err != nil {
 			return err
 		}
@@ -57,7 +57,7 @@ func (s *Service) AddItem(ctx context.Context, userID uuid.UUID, req AddItemRequ
 			return fmt.Errorf("%w: cart cannot have more than %d items", apperror.ErrBadRequest, s.maxCartItems)
 		}
 
-		return s.repo.AddItem(txCtx, cartID, req.ProductID, req.Quantity)
+		return s.repo.AddItem(txCtx, cartID, p.ProductID, p.Quantity)
 	})
 }
 
@@ -70,18 +70,18 @@ func (s *Service) RemoveItem(ctx context.Context, userID, productID uuid.UUID) e
 	return s.repo.RemoveItem(ctx, cartID, productID)
 }
 
-func (s *Service) UpdateQuantity(ctx context.Context, userID, productID uuid.UUID, req UpdateItemRequest) error {
+func (s *Service) UpdateQuantity(ctx context.Context, userID, productID uuid.UUID, p UpdateQuantityParams) error {
 	// Mirror AddItem's guards: setting a quantity must respect product
 	// availability and published status, otherwise AddItem's stock check is
 	// trivially bypassed by following it with an UpdateQuantity.
-	p, err := s.products.GetByID(ctx, productID)
+	info, err := s.products.GetByID(ctx, productID)
 	if err != nil {
 		return err
 	}
-	if p.Status != productStatusPublished {
+	if info.Status != productStatusPublished {
 		return fmt.Errorf("%w: product is not available", apperror.ErrBadRequest)
 	}
-	if p.Available < req.Quantity {
+	if info.Available < p.Quantity {
 		return apperror.ErrInsufficientStock
 	}
 
@@ -90,7 +90,7 @@ func (s *Service) UpdateQuantity(ctx context.Context, userID, productID uuid.UUI
 		return err
 	}
 
-	return s.repo.UpdateItemQuantity(ctx, cartID, productID, req.Quantity)
+	return s.repo.UpdateItemQuantity(ctx, cartID, productID, p.Quantity)
 }
 
 // LockCart takes a row lock on the user's cart for the current transaction so

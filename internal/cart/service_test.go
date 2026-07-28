@@ -37,7 +37,7 @@ func TestService_AddItem_RunsInsideTxRunner(t *testing.T) {
 	repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).Return(0, false, nil)
 	repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).Return(nil)
 
-	err := svc.AddItem(context.Background(), userID, cart.AddItemRequest{
+	err := svc.AddItem(context.Background(), userID, cart.AddItemParams{
 		ProductID: productID,
 		Quantity:  2,
 	})
@@ -64,7 +64,7 @@ func TestService_AddItem(t *testing.T) {
 		repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).
 			Return(nil)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 2})
+		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 2})
 		require.NoError(t, err)
 	})
 
@@ -80,7 +80,7 @@ func TestService_AddItem(t *testing.T) {
 		products.EXPECT().GetByID(mock.Anything, productID).
 			Return(&cart.ProductInfo{ID: productID, Name: "Draft Item", Price: 500, Currency: "USD", Status: "draft", Available: 10}, nil)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 1})
+		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
@@ -97,7 +97,7 @@ func TestService_AddItem(t *testing.T) {
 		products.EXPECT().GetByID(mock.Anything, productID).
 			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 1}, nil)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 5})
+		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 5})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, apperror.ErrInsufficientStock)
 	})
@@ -120,7 +120,7 @@ func TestService_AddItem(t *testing.T) {
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
 			Return(3, false, nil)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 1})
+		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
@@ -147,7 +147,7 @@ func TestService_AddItem(t *testing.T) {
 		repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).
 			Return(nil)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 2})
+		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 2})
 		require.NoError(t, err)
 	})
 
@@ -162,7 +162,7 @@ func TestService_AddItem(t *testing.T) {
 
 		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 1})
+		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -181,7 +181,7 @@ func TestService_AddItem(t *testing.T) {
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(uuid.Nil, errors.New("db error"))
 
-		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 1})
+		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
 	})
 
@@ -202,7 +202,7 @@ func TestService_AddItem(t *testing.T) {
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
 			Return(0, false, errors.New("db error"))
 
-		err := svc.AddItem(ctx, userID, cart.AddItemRequest{ProductID: productID, Quantity: 1})
+		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
 	})
 }
@@ -272,7 +272,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
 		repo.EXPECT().UpdateItemQuantity(mock.Anything, cartID, productID, 3).Return(nil)
 
-		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateItemRequest{Quantity: 3})
+		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateQuantityParams{Quantity: 3})
 		require.NoError(t, err)
 	})
 
@@ -288,7 +288,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 		products.EXPECT().GetByID(mock.Anything, productID).
 			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 2}, nil)
 
-		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateItemRequest{Quantity: 5})
+		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateQuantityParams{Quantity: 5})
 		assert.ErrorIs(t, err, apperror.ErrInsufficientStock)
 	})
 
@@ -304,7 +304,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 		products.EXPECT().GetByID(mock.Anything, productID).
 			Return(&cart.ProductInfo{ID: productID, Status: "draft", Available: 100}, nil)
 
-		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateItemRequest{Quantity: 1})
+		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateQuantityParams{Quantity: 1})
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
@@ -319,7 +319,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 
 		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, errors.New("db error"))
 
-		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateItemRequest{Quantity: 3})
+		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateQuantityParams{Quantity: 3})
 		require.Error(t, err)
 	})
 
@@ -336,7 +336,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, errors.New("db error"))
 
-		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateItemRequest{Quantity: 3})
+		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateQuantityParams{Quantity: 3})
 		require.Error(t, err)
 	})
 }
