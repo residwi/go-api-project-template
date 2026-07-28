@@ -1,4 +1,4 @@
-package review
+package http
 
 import (
 	"net/http"
@@ -8,12 +8,13 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/review"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type publicHandler struct {
-	service   *Service
+	service   *review.Service
 	validator *validator.Validator
 }
 
@@ -31,7 +32,7 @@ func (h *publicHandler) ListByProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.CursorPage(w, reviews, cursor.Limit, func(rv Review) (time.Time, uuid.UUID) {
+	response.CursorPage(w, reviews, cursor.Limit, func(rv review.Review) (time.Time, uuid.UUID) {
 		return rv.CreatedAt, rv.ID
 	})
 }
@@ -47,7 +48,7 @@ func (h *publicHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[CreateReviewRequest](w, r, h.validator)
+	req, ok := response.Bind[review.CreateReviewRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

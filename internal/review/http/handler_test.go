@@ -1,4 +1,4 @@
-package review_test
+package http_test
 
 import (
 	"bytes"
@@ -17,6 +17,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/review"
+	reviewhttp "github.com/residwi/go-api-project-template/internal/review/http"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	revMocks "github.com/residwi/go-api-project-template/mocks/review"
@@ -33,7 +34,7 @@ func setupReviewMux(t *testing.T) (*http.ServeMux, *revMocks.MockRepository, *re
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	review.RegisterRoutes(api, authed, admin, review.RouteDeps{
+	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{
 		Validator: v,
 		Service:   svc,
 	})

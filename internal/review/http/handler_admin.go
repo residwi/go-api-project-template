@@ -1,13 +1,14 @@
-package review
+package http
 
 import (
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/review"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type adminHandler struct {
-	service *Service
+	service *review.Service
 }
 
 func (h *adminHandler) Delete(w http.ResponseWriter, r *http.Request) {
