@@ -42,7 +42,8 @@ only has the ones it needs, so the tree is deliberately **non-uniform**.
 │   │   ├── service.go          # use cases; takes database.TxRunner, never a pool
 │   │   ├── repository.go       # the interface; the implementation is in postgres/
 │   │   ├── params.go           # service inputs (tag-free)
-│   │   ├── <consumer>.go       # ports THIS module needs (e.g. order/inventory.go)
+│   │   ├── ports.go            # ports THIS module needs, or one file per
+│   │   │                       # dependency (product/inventory.go, category/product.go)
 │   │   ├── /postgres           # SQL adapter -- may only name tables it owns
 │   │   └── /http               # wire DTOs + handlers, one file per endpoint
 │   │                           # payment also has /stripe /midtrans /mock /worker
@@ -519,7 +520,7 @@ This template follows **Feature-Based Clean Architecture** (Vertical Slicing):
 - Each feature (auth, user, product, order, etc.) is self-contained with its own handler, service, repository, and DTOs
 - Dependencies flow inward (handlers → services → repositories)
 - PostgreSQL repositories live in each feature's `postgres/` subpackage, so a feature *cannot* import its own SQL adapter without a compile-time import cycle
-- Cross-feature dependencies use interfaces declared by the **consumer** (e.g. `order/inventory.go` declares what `order` needs; `inventory` publishes nothing), which keeps the dependency graph acyclic by construction; the concrete adapters that satisfy them live in `internal/bootstrap`, shared by the API server and worker so they are defined once
+- Cross-feature dependencies use interfaces declared by the **consumer** (e.g. `internal/product/inventory.go` declares what `product` needs from inventory; `inventory` publishes nothing), which keeps the dependency graph acyclic by construction; the concrete adapters that satisfy them live in `internal/bootstrap`, shared by the API server and worker so they are defined once. Modules with several dependencies group them in `ports.go` instead — `order` does
 - Order status changes from other features go through named `order.Transition` values applied via `order.Service.Apply` — payment and shipping express intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) and the `bootstrap` adapters map each intent to its transition, keeping the order state machine's allowed transitions defined in one place (`order/transition.go`)
 - Monetary amounts are `money.Money` (amount paired with currency) in `order`, `payment`, `product` and `cart`, so an amount cannot drift from the currency beside it. `promotion` and `dashboard` stay on `int64` for reasons recorded in `ARCHITECTURE.md` §10
 - Configuration is validated at startup (`config.Config.validate()`); invalid settings (e.g. a sub-second `AUTH_RATE_WINDOW` or `WORKER_CONCURRENCY < 1`) fail fast on boot

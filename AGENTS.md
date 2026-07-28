@@ -354,12 +354,11 @@ coupling is invisible.
 
 ## Further reading
 
-- `README.md` — endpoint reference, quick start, and the full environment
-  variable table. **Its "Project Structure" section is stale**: it still shows
-  `internal/features/`, `internal/middleware/`, `internal/server/`,
-  `internal/wiring/`, `internal/platform/payment/` and
-  `internal/platform/email/`, none of which exist. Source layout from this file,
-  not from there.
+- `README.md` — endpoint reference and quick start. Its "Project Structure"
+  section agrees with this file; both were rewritten against the real tree. Its
+  environment table is a **curated subset** — 11 variables are absent, including
+  the whole Redis pool group. `.env.example` is the exhaustive list; it is
+  verified against `internal/config/config.go`'s `envconfig` tags.
 - `ARCHITECTURE.md`, `ARCHITECTURE-LIMITATIONS.md`, `db/OWNERSHIP.md` — as above.
 - `db/migrations/` — goose SQL migrations.
 - `.env.example`, `.mockery.yml`, `.golangci.yml`.

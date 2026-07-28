@@ -47,8 +47,10 @@ one change across three directories.
 
 ## 2. Ports live with the consumer
 
-`order/inventory.go` declares `InventoryReserver` — the interface *order* needs.
-`inventory` does not publish it. `bootstrap` supplies an adapter.
+`order/ports.go` declares `InventoryReserver` — the interface *order* needs.
+`inventory` does not publish it. `bootstrap` supplies an adapter. A module with a
+single dependency names the file after it instead (`product/inventory.go`,
+`category/product.go`); `order` has seven, so they are grouped.
 
 **Why:** no module imports another, so the dependency graph has no cycles by
 construction and each module's port list is exactly the API it would need if
