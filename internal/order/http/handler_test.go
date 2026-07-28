@@ -1,4 +1,4 @@
-package order_test
+package http_test
 
 import (
 	"encoding/json"
@@ -16,6 +16,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/order"
+	orderhttp "github.com/residwi/go-api-project-template/internal/order/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
@@ -48,7 +49,7 @@ func setupOrderMux(t *testing.T) (
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	order.RegisterRoutes(authed, admin, order.RouteDeps{
+	orderhttp.RegisterRoutes(authed, admin, orderhttp.RouteDeps{
 		Validator: v,
 		Service:   svc,
 	})

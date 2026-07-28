@@ -1,4 +1,4 @@
-package order
+package http
 
 import (
 	"net/http"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
@@ -13,7 +14,7 @@ import (
 )
 
 type publicHandler struct {
-	service   *Service
+	service   *order.Service
 	validator *validator.Validator
 }
 
@@ -29,7 +30,7 @@ func (h *publicHandler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[PlaceOrderRequest](w, r, h.validator)
+	req, ok := response.Bind[order.PlaceOrderRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -57,7 +58,7 @@ func (h *publicHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.CursorPage(w, orders, cursor.Limit, func(o Order) (time.Time, uuid.UUID) {
+	response.CursorPage(w, orders, cursor.Limit, func(o order.Order) (time.Time, uuid.UUID) {
 		return o.CreatedAt, o.ID
 	})
 }
@@ -93,7 +94,7 @@ func (h *publicHandler) RetryPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[PayRequest](w, r, h.validator)
+	req, ok := response.Bind[order.PayRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

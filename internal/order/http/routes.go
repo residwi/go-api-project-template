@@ -1,15 +1,16 @@
-package order
+package http
 
 import (
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
 	Validator *validator.Validator
-	Service   *Service
+	Service   *order.Service
 	// WriteLimiter throttles the expensive write endpoints (placement, payment
 	// retry); nil leaves them unthrottled (e.g. in handler tests).
 	WriteLimiter middleware.Middleware

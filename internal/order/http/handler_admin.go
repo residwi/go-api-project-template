@@ -1,21 +1,22 @@
-package order
+package http
 
 import (
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type adminHandler struct {
-	service   *Service
+	service   *order.Service
 	validator *validator.Validator
 }
 
 func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
-	params := AdminListParams{
+	params := order.AdminListParams{
 		Page:     page.Page,
 		PageSize: page.PageSize,
 		Status:   r.URL.Query().Get("status"),
@@ -51,12 +52,12 @@ func (h *adminHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[AdminUpdateStatusRequest](w, r, h.validator)
+	req, ok := response.Bind[order.AdminUpdateStatusRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
 
-	if err := h.service.AdminUpdateStatus(r.Context(), id, Status(req.Status)); err != nil {
+	if err := h.service.AdminUpdateStatus(r.Context(), id, order.Status(req.Status)); err != nil {
 		response.HandleErr(w, err)
 		return
 	}
