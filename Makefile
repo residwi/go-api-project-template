@@ -81,6 +81,10 @@ lint: ## Run linter
 		golangci-lint run ./...; \
 	fi
 
+.PHONY: check-boundaries
+check-boundaries: ## Check architectural boundaries (wire tags, table ownership, adapter imports)
+	@./scripts/check-boundaries.sh
+
 .PHONY: fmt
 fmt: ## Format code
 	@echo "Formatting..."
@@ -210,7 +214,7 @@ mocks: ## Generate mocks
 	mockery
 
 .PHONY: all
-all: fmt vet lint test build ## Run all checks and build
+all: fmt vet check-boundaries lint test build ## Run all checks and build
 
 .PHONY: ci
 ci: deps fmt vet lint test ## Run CI pipeline
