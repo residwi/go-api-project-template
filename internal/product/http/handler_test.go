@@ -237,9 +237,9 @@ func TestAdminHandler_CreateProduct(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
-		body, _ := json.Marshal(product.CreateProductRequest{
-			Name:  "New Product",
-			Price: 2999,
+		body, _ := json.Marshal(map[string]any{
+			"name":  "New Product",
+			"price": 2999,
 		})
 
 		w := httptest.NewRecorder()
@@ -270,9 +270,9 @@ func TestAdminHandler_CreateProduct(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
-		body, _ := json.Marshal(product.CreateProductRequest{
-			Name:  "Duplicate",
-			Price: 1000,
+		body, _ := json.Marshal(map[string]any{
+			"name":  "Duplicate",
+			"price": 1000,
 		})
 
 		w := httptest.NewRecorder()
@@ -556,8 +556,8 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil)
 
 		newName := "New Name"
-		body, _ := json.Marshal(product.UpdateProductRequest{
-			Name: &newName,
+		body, _ := json.Marshal(map[string]any{
+			"name": newName,
 		})
 
 		w := httptest.NewRecorder()
@@ -610,8 +610,8 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 
 		prodID := uuid.New()
 		badStatus := "invalid_status"
-		body, _ := json.Marshal(product.UpdateProductRequest{
-			Status: &badStatus,
+		body, _ := json.Marshal(map[string]any{
+			"status": badStatus,
 		})
 
 		w := httptest.NewRecorder()
@@ -635,8 +635,8 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, prodID).Return(nil, apperror.ErrNotFound)
 
 		newName := "Updated"
-		body, _ := json.Marshal(product.UpdateProductRequest{
-			Name: &newName,
+		body, _ := json.Marshal(map[string]any{
+			"name": newName,
 		})
 
 		w := httptest.NewRecorder()

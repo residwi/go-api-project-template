@@ -41,41 +41,41 @@ func (s *Service) enrich(ctx context.Context, products []Product) error {
 	return nil
 }
 
-func (s *Service) Create(ctx context.Context, req CreateProductRequest) (*Product, error) {
-	p := &Product{
-		CategoryID:     req.CategoryID,
-		Name:           req.Name,
-		Slug:           slug.MakeOrFallback(req.Name, "product-"+uuid.New().String()[:8]),
-		Description:    req.Description,
-		Price:          req.Price,
-		CompareAtPrice: req.CompareAtPrice,
+func (s *Service) Create(ctx context.Context, p CreateParams) (*Product, error) {
+	prod := &Product{
+		CategoryID:     p.CategoryID,
+		Name:           p.Name,
+		Slug:           slug.MakeOrFallback(p.Name, "product-"+uuid.New().String()[:8]),
+		Description:    p.Description,
+		Price:          p.Price,
+		CompareAtPrice: p.CompareAtPrice,
 		Currency:       "USD",
-		SKU:            req.SKU,
+		SKU:            p.SKU,
 		Status:         StatusDraft,
 	}
 
-	if req.Currency != "" {
-		p.Currency = req.Currency
+	if p.Currency != "" {
+		prod.Currency = p.Currency
 	}
-	if req.Status != "" {
-		p.Status = req.Status
+	if p.Status != "" {
+		prod.Status = p.Status
 	}
 
-	if err := s.repo.Create(ctx, p); err != nil {
+	if err := s.repo.Create(ctx, prod); err != nil {
 		return nil, err
 	}
 
 	// A product with no level row can never be reserved against, so a failure
 	// here must not be swallowed into an unsellable product.
-	if err := s.reg.EnsureLevel(ctx, p.ID); err != nil {
+	if err := s.reg.EnsureLevel(ctx, prod.ID); err != nil {
 		return nil, err
 	}
 
 	// Availability is (0,0) by construction: EnsureLevel just wrote that row, and
 	// nothing can hold a reservation against a product that did not exist a
 	// moment ago. Querying inventory back would be a round trip for a known value.
-	p.Availability = Availability{}
-	return p, nil
+	prod.Availability = Availability{}
+	return prod, nil
 }
 
 func (s *Service) GetBySlug(ctx context.Context, slug string) (*Product, error) {
@@ -156,61 +156,61 @@ func (s *Service) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UUID)
 	return products, nil
 }
 
-func (s *Service) Update(ctx context.Context, id uuid.UUID, req UpdateProductRequest) (*Product, error) {
-	p, err := s.repo.GetByID(ctx, id)
+func (s *Service) Update(ctx context.Context, id uuid.UUID, p UpdateParams) (*Product, error) {
+	prod, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if req.CategoryID != nil {
-		p.CategoryID = req.CategoryID
+	if p.CategoryID != nil {
+		prod.CategoryID = p.CategoryID
 	}
-	if req.Name != nil {
-		p.Name = *req.Name
-		p.Slug = slug.MakeOrFallback(p.Name, "product-"+p.ID.String()[:8])
+	if p.Name != nil {
+		prod.Name = *p.Name
+		prod.Slug = slug.MakeOrFallback(prod.Name, "product-"+prod.ID.String()[:8])
 	}
-	if req.Description != nil {
-		p.Description = req.Description
+	if p.Description != nil {
+		prod.Description = p.Description
 	}
-	if req.Price != nil {
-		p.Price = *req.Price
+	if p.Price != nil {
+		prod.Price = *p.Price
 	}
-	if req.CompareAtPrice != nil {
-		p.CompareAtPrice = req.CompareAtPrice
+	if p.CompareAtPrice != nil {
+		prod.CompareAtPrice = p.CompareAtPrice
 	}
-	if req.Currency != nil {
-		p.Currency = *req.Currency
+	if p.Currency != nil {
+		prod.Currency = *p.Currency
 	}
-	if req.SKU != nil {
-		p.SKU = req.SKU
+	if p.SKU != nil {
+		prod.SKU = p.SKU
 	}
-	if req.Status != nil {
-		p.Status = *req.Status
+	if p.Status != nil {
+		prod.Status = *p.Status
 	}
 
-	if err := s.repo.Update(ctx, p); err != nil {
+	if err := s.repo.Update(ctx, prod); err != nil {
 		return nil, err
 	}
 
-	return p, nil
+	return prod, nil
 }
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *Service) AddImage(ctx context.Context, productID uuid.UUID, req AddImageRequest) (*Image, error) {
+func (s *Service) AddImage(ctx context.Context, productID uuid.UUID, p AddImageParams) (*Image, error) {
 	if _, err := s.repo.GetByID(ctx, productID); err != nil {
 		return nil, err
 	}
 
 	img := &Image{
 		ProductID: productID,
-		URL:       req.URL,
-		AltText:   req.AltText,
+		URL:       p.URL,
+		AltText:   p.AltText,
 	}
-	if req.SortOrder != nil {
-		img.SortOrder = *req.SortOrder
+	if p.SortOrder != nil {
+		img.SortOrder = *p.SortOrder
 	}
 
 	if err := s.repo.AddImage(ctx, img); err != nil {

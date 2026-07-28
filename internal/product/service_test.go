@@ -32,7 +32,7 @@ func TestService_Create(t *testing.T) {
 			Return(nil)
 		reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
 
-		result, err := svc.Create(context.Background(), product.CreateProductRequest{
+		result, err := svc.Create(context.Background(), product.CreateParams{
 			Name:  "Cool Widget",
 			Price: 1999,
 		})
@@ -65,7 +65,7 @@ func TestService_Create(t *testing.T) {
 		}).Return(nil)
 		reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
 
-		result, err := svc.Create(context.Background(), product.CreateProductRequest{
+		result, err := svc.Create(context.Background(), product.CreateParams{
 			Name:     "Widget",
 			Price:    1000,
 			Currency: "EUR",
@@ -93,7 +93,7 @@ func TestService_Create(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
-		p, err := svc.Create(context.Background(), product.CreateProductRequest{
+		p, err := svc.Create(context.Background(), product.CreateParams{
 			Name:  "Widget",
 			Price: 1000,
 		})
@@ -310,7 +310,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*product.Product")).Return(nil)
 
 		newName := "New Name"
-		p, err := svc.Update(context.Background(), id, product.UpdateProductRequest{
+		p, err := svc.Update(context.Background(), id, product.UpdateParams{
 			Name: &newName,
 		})
 		require.NoError(t, err)
@@ -350,7 +350,7 @@ func TestService_Update(t *testing.T) {
 		newCurrency := "EUR"
 		newSKU := "SKU-001"
 		newStatus := product.StatusPublished
-		result, err := svc.Update(context.Background(), id, product.UpdateProductRequest{
+		result, err := svc.Update(context.Background(), id, product.UpdateParams{
 			CategoryID:     &catID,
 			Name:           &newName,
 			Description:    &newDesc,
@@ -387,7 +387,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
 
-		_, err := svc.Update(context.Background(), uuid.New(), product.UpdateProductRequest{})
+		_, err := svc.Update(context.Background(), uuid.New(), product.UpdateParams{})
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
@@ -410,7 +410,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
 		newName := "New"
-		p, err := svc.Update(context.Background(), id, product.UpdateProductRequest{
+		p, err := svc.Update(context.Background(), id, product.UpdateParams{
 			Name: &newName,
 		})
 		assert.Nil(t, p)
@@ -465,7 +465,7 @@ func TestService_AddImage(t *testing.T) {
 
 		altText := "front view"
 		sortOrder := 1
-		img, err := svc.AddImage(context.Background(), productID, product.AddImageRequest{
+		img, err := svc.AddImage(context.Background(), productID, product.AddImageParams{
 			URL:       "https://img.example.com/front.jpg",
 			AltText:   &altText,
 			SortOrder: &sortOrder,
@@ -485,7 +485,7 @@ func TestService_AddImage(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
 
-		_, err := svc.AddImage(context.Background(), uuid.New(), product.AddImageRequest{
+		_, err := svc.AddImage(context.Background(), uuid.New(), product.AddImageParams{
 			URL: "https://img.example.com/x.jpg",
 		})
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -502,7 +502,7 @@ func TestService_AddImage(t *testing.T) {
 			Return(&product.Product{ID: productID}, nil)
 		repo.EXPECT().AddImage(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
-		_, err := svc.AddImage(context.Background(), productID, product.AddImageRequest{
+		_, err := svc.AddImage(context.Background(), productID, product.AddImageParams{
 			URL: "https://img.example.com/x.jpg",
 		})
 		require.Error(t, err)
@@ -702,7 +702,7 @@ func TestService_Create_RegistersZeroInventoryLevel(t *testing.T) {
 	// value it already knows by construction. inv has no expectation set, so
 	// mockery fails this test immediately if Create calls it anyway.
 
-	p, err := svc.Create(context.Background(), product.CreateProductRequest{
+	p, err := svc.Create(context.Background(), product.CreateParams{
 		Name:  "Widget",
 		Price: 1500,
 	})
