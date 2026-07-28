@@ -16,7 +16,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/notification"
 	notificationpg "github.com/residwi/go-api-project-template/internal/notification/postgres"
 	orderpg "github.com/residwi/go-api-project-template/internal/order/postgres"
-	mockgw "github.com/residwi/go-api-project-template/internal/payment/mock"
+	mockgateway "github.com/residwi/go-api-project-template/internal/payment/mock"
 	paymentpg "github.com/residwi/go-api-project-template/internal/payment/postgres"
 	paymentworker "github.com/residwi/go-api-project-template/internal/payment/worker"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -64,7 +64,7 @@ func run() error {
 
 	orderSvc := bootstrap.NewOrderService(orderRepo, txRunner, nil, inventorySvc, promotionSvc, nil)
 
-	gw := mockgw.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
+	gw := mockgateway.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 
 	paymentSvc := bootstrap.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc)
 

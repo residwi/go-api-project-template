@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/payment"
-	mockgw "github.com/residwi/go-api-project-template/internal/payment/mock"
+	mockgateway "github.com/residwi/go-api-project-template/internal/payment/mock"
 )
 
 func TestGateway_Charge(t *testing.T) {
@@ -39,7 +39,7 @@ func TestGateway_Charge(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		gw := mockgw.New(ts.URL, 5*time.Second)
+		gw := mockgateway.New(ts.URL, 5*time.Second)
 		got, err := gw.Charge(context.Background(), payment.ChargeRequest{
 			IdempotencyKey:  "key_1",
 			OrderID:         "order_1",
@@ -58,7 +58,7 @@ func TestGateway_Charge(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		gw := mockgw.New(ts.URL, 5*time.Second)
+		gw := mockgateway.New(ts.URL, 5*time.Second)
 		_, err := gw.Charge(context.Background(), payment.ChargeRequest{
 			OrderID: "order_1",
 			Amount:  5000,
@@ -75,7 +75,7 @@ func TestGateway_Charge(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		gw := mockgw.New(ts.URL, 5*time.Second)
+		gw := mockgateway.New(ts.URL, 5*time.Second)
 		_, err := gw.Charge(context.Background(), payment.ChargeRequest{
 			OrderID: "order_1",
 			Amount:  5000,
@@ -86,7 +86,7 @@ func TestGateway_Charge(t *testing.T) {
 	})
 
 	t.Run("connection error", func(t *testing.T) {
-		gw := mockgw.New("http://127.0.0.1:1", 1*time.Second)
+		gw := mockgateway.New("http://127.0.0.1:1", 1*time.Second)
 		_, err := gw.Charge(context.Background(), payment.ChargeRequest{
 			OrderID: "order_1",
 			Amount:  5000,
@@ -97,7 +97,7 @@ func TestGateway_Charge(t *testing.T) {
 	})
 
 	t.Run("invalid URL returns request creation error", func(t *testing.T) {
-		gw := mockgw.New("http://invalid\x7furl", 1*time.Second)
+		gw := mockgateway.New("http://invalid\x7furl", 1*time.Second)
 		_, err := gw.Charge(context.Background(), payment.ChargeRequest{
 			OrderID: "order_1",
 			Amount:  5000,
@@ -131,7 +131,7 @@ func TestGateway_Refund(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		gw := mockgw.New(ts.URL, 5*time.Second)
+		gw := mockgateway.New(ts.URL, 5*time.Second)
 		got, err := gw.Refund(context.Background(), payment.RefundRequest{
 			TransactionID: "txn_123",
 			Amount:        2500,
@@ -148,7 +148,7 @@ func TestGateway_Refund(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		gw := mockgw.New(ts.URL, 5*time.Second)
+		gw := mockgateway.New(ts.URL, 5*time.Second)
 		_, err := gw.Refund(context.Background(), payment.RefundRequest{
 			TransactionID: "txn_123",
 			Amount:        2500,
@@ -165,7 +165,7 @@ func TestGateway_Refund(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		gw := mockgw.New(ts.URL, 5*time.Second)
+		gw := mockgateway.New(ts.URL, 5*time.Second)
 		_, err := gw.Refund(context.Background(), payment.RefundRequest{
 			TransactionID: "txn_123",
 			Amount:        2500,
@@ -176,7 +176,7 @@ func TestGateway_Refund(t *testing.T) {
 	})
 
 	t.Run("connection error", func(t *testing.T) {
-		gw := mockgw.New("http://127.0.0.1:1", 1*time.Second)
+		gw := mockgateway.New("http://127.0.0.1:1", 1*time.Second)
 		_, err := gw.Refund(context.Background(), payment.RefundRequest{
 			TransactionID: "txn_123",
 			Amount:        2500,
@@ -187,7 +187,7 @@ func TestGateway_Refund(t *testing.T) {
 	})
 
 	t.Run("invalid URL returns request creation error", func(t *testing.T) {
-		gw := mockgw.New("http://invalid\x7furl", 1*time.Second)
+		gw := mockgateway.New("http://invalid\x7furl", 1*time.Second)
 		_, err := gw.Refund(context.Background(), payment.RefundRequest{
 			TransactionID: "txn_123",
 			Amount:        2500,

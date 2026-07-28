@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	mockgw "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
+	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -837,7 +837,7 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	setup(t)
 	// Start a mock payment gateway server
 	mockMux := http.NewServeMux()
-	mockgw.RegisterRoutes(mockMux)
+	mockgatewayserver.RegisterRoutes(mockMux)
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -957,7 +957,7 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	setup(t)
 	mockMux := http.NewServeMux()
-	mockgw.RegisterRoutes(mockMux)
+	mockgatewayserver.RegisterRoutes(mockMux)
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -1128,7 +1128,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	setup(t)
 	// Start a mock payment gateway server
 	mockMux := http.NewServeMux()
-	mockgw.RegisterRoutes(mockMux)
+	mockgatewayserver.RegisterRoutes(mockMux)
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -1320,7 +1320,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	setup(t)
 	// Start a mock payment gateway server
 	mockMux := http.NewServeMux()
-	mockgw.RegisterRoutes(mockMux)
+	mockgatewayserver.RegisterRoutes(mockMux)
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -1493,7 +1493,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 func TestE2ECouponOrderFlow(t *testing.T) {
 	setup(t)
 	mockMux := http.NewServeMux()
-	mockgw.RegisterRoutes(mockMux)
+	mockgatewayserver.RegisterRoutes(mockMux)
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -1638,7 +1638,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	// This test covers inventoryRestorerAdapter.Restore and promotion.Service.Release
 	// by processing a refund job with inventory_action='release' on an order with a coupon.
 	mockMux := http.NewServeMux()
-	mockgw.RegisterRoutes(mockMux)
+	mockgatewayserver.RegisterRoutes(mockMux)
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -1868,7 +1868,7 @@ func TestAdapterErrorPaths(t *testing.T) {
 func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	setup(t)
 	mockMux := http.NewServeMux()
-	mockgw.RegisterRoutes(mockMux)
+	mockgatewayserver.RegisterRoutes(mockMux)
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
