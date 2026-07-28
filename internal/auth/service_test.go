@@ -24,7 +24,7 @@ func TestService_Register(t *testing.T) {
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		userID := uuid.New()
-		req := auth.RegisterRequest{
+		req := auth.RegisterParams{
 			Email:     "test@example.com",
 			Password:  "password123",
 			FirstName: "John",
@@ -52,12 +52,11 @@ func TestService_Register(t *testing.T) {
 		assert.NotEmpty(t, resp.AccessToken)
 		assert.NotEmpty(t, resp.RefreshToken)
 		assert.Equal(t, int(15*time.Minute/time.Second), resp.ExpiresIn)
-		assert.Equal(t, auth.UserBrief{
-			ID:    userID,
-			Email: req.Email,
-			Name:  "John Doe",
-			Role:  "customer",
-		}, resp.User)
+		assert.Equal(t, userID, resp.User.ID)
+		assert.Equal(t, req.Email, resp.User.Email)
+		assert.Equal(t, "John", resp.User.FirstName)
+		assert.Equal(t, "Doe", resp.User.LastName)
+		assert.Equal(t, "customer", resp.User.Role)
 	})
 
 	t.Run("Create error propagates", func(t *testing.T) {
@@ -67,7 +66,7 @@ func TestService_Register(t *testing.T) {
 		users.EXPECT().Create(mock.Anything, mock.Anything).
 			Return(auth.UserResult{}, apperror.ErrConflict)
 
-		resp, err := svc.Register(context.Background(), auth.RegisterRequest{
+		resp, err := svc.Register(context.Background(), auth.RegisterParams{
 			Email:     "dup@example.com",
 			Password:  "password123",
 			FirstName: "John",
@@ -82,7 +81,7 @@ func TestService_Register(t *testing.T) {
 		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		longPassword := strings.Repeat("a", 73)
-		resp, err := svc.Register(context.Background(), auth.RegisterRequest{
+		resp, err := svc.Register(context.Background(), auth.RegisterParams{
 			Email:     "test@example.com",
 			Password:  longPassword,
 			FirstName: "John",
@@ -114,7 +113,7 @@ func TestService_Login(t *testing.T) {
 			TokenVersion: 1,
 		}, nil)
 
-		resp, err := svc.Login(context.Background(), auth.LoginRequest{
+		resp, err := svc.Login(context.Background(), auth.LoginParams{
 			Email:    "test@example.com",
 			Password: "password123",
 		})
@@ -138,7 +137,7 @@ func TestService_Login(t *testing.T) {
 			Active:       false,
 		}, nil)
 
-		resp, err := svc.Login(context.Background(), auth.LoginRequest{
+		resp, err := svc.Login(context.Background(), auth.LoginParams{
 			Email:    "inactive@example.com",
 			Password: "password123",
 		})
@@ -160,7 +159,7 @@ func TestService_Login(t *testing.T) {
 			Active:       true,
 		}, nil)
 
-		resp, err := svc.Login(context.Background(), auth.LoginRequest{
+		resp, err := svc.Login(context.Background(), auth.LoginParams{
 			Email:    "test@example.com",
 			Password: "wrong-password",
 		})
@@ -175,7 +174,7 @@ func TestService_Login(t *testing.T) {
 
 		users.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").Return(auth.UserCredentials{}, errors.New("not found"))
 
-		resp, err := svc.Login(context.Background(), auth.LoginRequest{
+		resp, err := svc.Login(context.Background(), auth.LoginParams{
 			Email:    "notfound@example.com",
 			Password: "password123",
 		})

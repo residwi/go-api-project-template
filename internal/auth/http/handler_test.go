@@ -56,11 +56,11 @@ func TestHandler_Register(t *testing.T) {
 			Active:    true,
 		}, nil)
 
-		body, _ := json.Marshal(auth.RegisterRequest{
-			Email:     "test@example.com",
-			Password:  "password123",
-			FirstName: "John",
-			LastName:  "Doe",
+		body, _ := json.Marshal(map[string]any{
+			"email":      "test@example.com",
+			"password":   "password123",
+			"first_name": "John",
+			"last_name":  "Doe",
 		})
 
 		w := httptest.NewRecorder()
@@ -136,11 +136,11 @@ func TestHandler_Register(t *testing.T) {
 
 		users.EXPECT().Create(mock.Anything, mock.Anything).Return(auth.UserResult{}, apperror.ErrConflict)
 
-		body, _ := json.Marshal(auth.RegisterRequest{
-			Email:     "test@example.com",
-			Password:  "password123",
-			FirstName: "John",
-			LastName:  "Doe",
+		body, _ := json.Marshal(map[string]any{
+			"email":      "test@example.com",
+			"password":   "password123",
+			"first_name": "John",
+			"last_name":  "Doe",
 		})
 
 		w := httptest.NewRecorder()
@@ -176,9 +176,9 @@ func TestHandler_Login(t *testing.T) {
 			TokenVersion: 1,
 		}, nil)
 
-		body, _ := json.Marshal(auth.LoginRequest{
-			Email:    "test@example.com",
-			Password: "password123",
+		body, _ := json.Marshal(map[string]any{
+			"email":    "test@example.com",
+			"password": "password123",
 		})
 
 		w := httptest.NewRecorder()
@@ -243,9 +243,9 @@ func TestHandler_Login(t *testing.T) {
 
 		users.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").Return(auth.UserCredentials{}, apperror.ErrNotFound)
 
-		body, _ := json.Marshal(auth.LoginRequest{
-			Email:    "notfound@example.com",
-			Password: "password123",
+		body, _ := json.Marshal(map[string]any{
+			"email":    "notfound@example.com",
+			"password": "password123",
 		})
 
 		w := httptest.NewRecorder()
@@ -286,7 +286,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 			TokenVersion: 1,
 		}, nil)
 
-		body, _ := json.Marshal(auth.RefreshRequest{RefreshToken: refreshToken})
+		body, _ := json.Marshal(map[string]any{"refresh_token": refreshToken})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", bytes.NewReader(body))
@@ -346,7 +346,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 	t.Run("service error invalid token", func(t *testing.T) {
 		mux, _ := newTestMux(t)
 
-		body, _ := json.Marshal(auth.RefreshRequest{RefreshToken: "invalid-token"})
+		body, _ := json.Marshal(map[string]any{"refresh_token": "invalid-token"})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", bytes.NewReader(body))

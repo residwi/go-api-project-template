@@ -20,11 +20,22 @@ type Claims struct {
 type jwtClaims struct {
 	jwt.RegisteredClaims
 
-	UserID       uuid.UUID `json:"user_id"`
-	Email        string    `json:"email"`
-	Role         string    `json:"role"`
-	Type         string    `json:"typ"`
-	TokenVersion int       `json:"token_version"`
+	UserID       uuid.UUID
+	Email        string
+	Role         string
+	Type         string
+	TokenVersion int
+}
+
+// TokenPair is the result of a successful register, login, or refresh. It is
+// a core type, not a wire type: it carries the full UserResult (including
+// Active and TokenVersion) so that http's mapper -- not this package --
+// decides which of those fields, if any, reach a client.
+type TokenPair struct {
+	AccessToken  string
+	RefreshToken string
+	ExpiresIn    int
+	User         UserResult
 }
 
 func GenerateTokenPair(secret string, issuer string, accessTTL, refreshTTL time.Duration, claims Claims) (accessToken, refreshToken string, err error) {

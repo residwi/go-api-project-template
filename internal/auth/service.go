@@ -52,38 +52,38 @@ func (s *Service) SetBcryptCost(cost int) {
 	s.dummyHash, _ = bcrypt.GenerateFromPassword([]byte(dummyPassword), cost)
 }
 
-func (s *Service) Register(ctx context.Context, req RegisterRequest) (*TokenResponse, error) {
+func (s *Service) Register(ctx context.Context, p RegisterParams) (*TokenPair, error) {
 	// bcrypt only consumes the first 72 bytes and errors beyond that; validator's
 	// max=72 counts runes, so reject overlong multibyte passwords as a 400 here
 	// rather than letting bcrypt surface a 500.
-	if len(req.Password) > maxPasswordBytes {
+	if len(p.Password) > maxPasswordBytes {
 		return nil, fmt.Errorf("%w: password must not exceed %d bytes", apperror.ErrBadRequest, maxPasswordBytes)
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), s.bcryptCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(p.Password), s.bcryptCost)
 	if err != nil {
 		return nil, fmt.Errorf("hashing password: %w", err)
 	}
 
 	result, err := s.users.Create(ctx, CreateUserParams{
-		Email:        req.Email,
+		Email:        p.Email,
 		PasswordHash: string(hash),
-		FirstName:    req.FirstName,
-		LastName:     req.LastName,
+		FirstName:    p.FirstName,
+		LastName:     p.LastName,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return s.generateTokenResponse(result)
+	return s.buildTokenPair(result)
 }
 
-func (s *Service) Login(ctx context.Context, req LoginRequest) (*TokenResponse, error) {
-	creds, err := s.users.GetByEmail(ctx, req.Email)
+func (s *Service) Login(ctx context.Context, p LoginParams) (*TokenPair, error) {
+	creds, err := s.users.GetByEmail(ctx, p.Email)
 	if err != nil {
 		// Run a dummy comparison so an unknown email takes about as long as a
 		// wrong password, removing the timing oracle for account enumeration.
-		_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(req.Password))
+		_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(p.Password))
 		return nil, apperror.ErrInvalidCredentials
 	}
 
@@ -91,11 +91,11 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*TokenResponse, 
 		return nil, apperror.ErrUnauthorized
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(creds.PasswordHash), []byte(req.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(creds.PasswordHash), []byte(p.Password)); err != nil {
 		return nil, apperror.ErrInvalidCredentials
 	}
 
-	return s.generateTokenResponse(UserResult{
+	return s.buildTokenPair(UserResult{
 		ID:           creds.ID,
 		Email:        creds.Email,
 		FirstName:    creds.FirstName,
@@ -106,7 +106,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*TokenResponse, 
 	})
 }
 
-func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error) {
+func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*TokenPair, error) {
 	claims, err := ValidateToken(refreshToken, s.jwtSecret, s.jwtIssuer)
 	if err != nil {
 		return nil, apperror.ErrInvalidToken
@@ -129,7 +129,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*Token
 		return nil, apperror.ErrInvalidToken
 	}
 
-	return s.generateTokenResponse(result)
+	return s.buildTokenPair(result)
 }
 
 func (s *Service) ValidateAccessToken(tokenString string) (*Claims, error) {
@@ -159,7 +159,7 @@ func (a *TokenValidatorAdapter) ValidateToken(tokenString string) (*middleware.T
 	}, nil
 }
 
-func (s *Service) generateTokenResponse(user UserResult) (*TokenResponse, error) {
+func (s *Service) buildTokenPair(user UserResult) (*TokenPair, error) {
 	claims := Claims{
 		UserID:       user.ID,
 		Email:        user.Email,
@@ -172,15 +172,10 @@ func (s *Service) generateTokenResponse(user UserResult) (*TokenResponse, error)
 		return nil, err
 	}
 
-	return &TokenResponse{
+	return &TokenPair{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    int(s.accessTTL.Seconds()),
-		User: UserBrief{
-			ID:    user.ID,
-			Email: user.Email,
-			Name:  user.FirstName + " " + user.LastName,
-			Role:  user.Role,
-		},
+		User:         user,
 	}, nil
 }
