@@ -23,44 +23,54 @@ A production-ready Go API template with Feature-Based Clean Architecture (Vertic
 
 ## Project Structure
 
+Feature modules sit **directly** under `/internal` — there is no `/features`
+wrapper — and each owns its domain types, service, repository interface, and the
+ports it needs. Adapters are subpackages named for their technology, and a feature
+only has the ones it needs, so the tree is deliberately **non-uniform**.
+
 ```text
 /go-api-project-template
 ├── /cmd
 │   ├── /api                    # API server entry point
-│   └── /worker                 # Payment job worker entry point
+│   ├── /worker                 # Payment job worker entry point
+│   └── /mockgateway            # Dev-only mock payment gateway
 ├── /internal
+│   ├── /auth /user /category /product /inventory /cart /order /payment
+│   ├── /shipping /review /promotion /wishlist /notification /dashboard
+│   │                           # ^ the 14 feature modules
+│   │   ├── model.go            # domain types -- no json tags, no SQL
+│   │   ├── service.go          # use cases; takes database.TxRunner, never a pool
+│   │   ├── repository.go       # the interface; the implementation is in postgres/
+│   │   ├── params.go           # service inputs (tag-free)
+│   │   ├── <consumer>.go       # ports THIS module needs (e.g. order/inventory.go)
+│   │   ├── /postgres           # SQL adapter -- may only name tables it owns
+│   │   └── /http               # wire DTOs + handlers, one file per endpoint
+│   │                           # payment also has /stripe /midtrans /mock /worker
+│   ├── /money                  # Money value object (amount + currency, paired)
+│   ├── /apperror               # Error vocabulary (ErrNotFound, ErrBadRequest, ...)
 │   ├── /config                 # Configuration management
-│   ├── /apperror               # Application error vocabulary (ErrNotFound, ErrBadRequest, ...)
-│   ├── /features               # Feature modules (vertical slices)
-│   │   ├── /auth               # Authentication (register, login, JWT)
-│   │   ├── /user               # User management & profiles
-│   │   ├── /category           # Product categories
-│   │   ├── /product            # Product catalog
-│   │   ├── /inventory          # Stock management
-│   │   ├── /cart               # Shopping cart
-│   │   ├── /order              # Order lifecycle
-│   │   ├── /payment            # Payment processing + worker jobs
-│   │   ├── /shipping           # Shipment tracking
-│   │   ├── /review             # Product reviews
-│   │   ├── /promotion          # Coupons & promotions
-│   │   ├── /wishlist           # User wishlists
-│   │   ├── /notification       # User notifications
-│   │   └── /dashboard          # Admin analytics
-│   ├── /middleware              # HTTP middleware
-│   ├── /platform               # Infrastructure layer
-│   │   ├── /database           # PostgreSQL connection & transactions
-│   │   ├── /cache              # Redis client
-│   │   ├── /payment            # Payment gateway interface & implementations
-│   │   ├── /validator          # Request validation
-│   │   ├── /logger             # Structured logging
-│   │   ├── /email              # Email service
-│   │   └── /storage            # File storage
-│   ├── /server                 # HTTP server bootstrap & router
-│   └── /wiring                 # Cross-feature adapters (shared by API & worker)
-├── /db/migrations              # Database migration files (goose)
+│   ├── /bootstrap              # Cross-feature adapters (shared by API & worker)
+│   ├── /transport
+│   │   └── /http               # Router, server, middleware, response envelope
+│   ├── /platform               # Infrastructure, no domain knowledge
+│   │   ├── /database           # Postgres pools, transactions, TxRunner
+│   │   ├── /cache /jobs /logger /paging /slug /storage /validator
+│   └── /testhelper             # Shared container plumbing for tests
+├── /test/e2e                   # Cross-module sagas through the real router
+├── /db
+│   ├── /migrations             # goose migrations
+│   ├── /seeds                  # Seed data
+│   └── OWNERSHIP.md            # Which module owns which table (machine-checked)
+├── /scripts                    # check-boundaries.sh
 ├── /mocks                      # Generated mocks (mockery v3)
-└── ...
+├── ARCHITECTURE.md             # Why the codebase is shaped this way
+└── ARCHITECTURE-LIMITATIONS.md # What that shape costs you
 ```
+
+`make check-boundaries` enforces three of these rules as build failures: no `json`
+tag outside a feature's `http/`, no SQL naming another module's table, and no
+feature importing another feature's adapter. See `AGENTS.md` for the full list and
+which rules are conventions rather than checks.
 
 ## Getting Started
 
@@ -508,9 +518,10 @@ This template follows **Feature-Based Clean Architecture** (Vertical Slicing):
 
 - Each feature (auth, user, product, order, etc.) is self-contained with its own handler, service, repository, and DTOs
 - Dependencies flow inward (handlers → services → repositories)
-- PostgreSQL repositories are embedded within each feature package
-- Cross-feature dependencies use consumer-declared interfaces in each feature's `ports.go` to maintain loose coupling; the concrete adapters that satisfy them live in `internal/wiring`, shared by the API server and worker so they are defined once
-- Order status changes from other features go through named `order.Transition` values applied via `order.Service.Apply` — payment and shipping express intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) and the `wiring` adapters map each intent to its transition, keeping the order state machine's allowed transitions defined in one place (`order/transition.go`)
+- PostgreSQL repositories live in each feature's `postgres/` subpackage, so a feature *cannot* import its own SQL adapter without a compile-time import cycle
+- Cross-feature dependencies use interfaces declared by the **consumer** (e.g. `order/inventory.go` declares what `order` needs; `inventory` publishes nothing), which keeps the dependency graph acyclic by construction; the concrete adapters that satisfy them live in `internal/bootstrap`, shared by the API server and worker so they are defined once
+- Order status changes from other features go through named `order.Transition` values applied via `order.Service.Apply` — payment and shipping express intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) and the `bootstrap` adapters map each intent to its transition, keeping the order state machine's allowed transitions defined in one place (`order/transition.go`)
+- Monetary amounts are `money.Money` (amount paired with currency) in `order`, `payment`, `product` and `cart`, so an amount cannot drift from the currency beside it. `promotion` and `dashboard` stay on `int64` for reasons recorded in `ARCHITECTURE.md` §10
 - Configuration is validated at startup (`config.Config.validate()`); invalid settings (e.g. a sub-second `AUTH_RATE_WINDOW` or `WORKER_CONCURRENCY < 1`) fail fast on boot
 - The error vocabulary lives in `internal/apperror`; generic utilities (`response`, `paging`, `slug`) live in `internal/platform`
 

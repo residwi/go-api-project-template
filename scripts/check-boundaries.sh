@@ -399,8 +399,8 @@ check_table_ownership() {
 #
 # Exempt: the wiring layer. internal/bootstrap/ and internal/transport/ exist
 # precisely to import adapters and wire them together; they are excluded by
-# NON_FEATURE_DIRS above, which also keeps internal/platform/http and
-# internal/transport/http/middleware -- shared infrastructure that happens to
+# NON_FEATURE_DIRS above, which also keeps internal/transport/http/middleware
+# and internal/transport/http/response -- shared infrastructure that happens to
 # live at an `http` path -- from being mistaken for feature adapters. Test
 # files are exempt too.
 check_adapter_imports() {

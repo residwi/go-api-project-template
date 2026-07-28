@@ -9,7 +9,7 @@
 --
 -- Keyed by product_id alone -- no warehouse column. Multi-warehouse is not a
 -- column, it is an allocation strategy plus per-line reservation records plus
--- split shipments; see docs/ for the extension note.
+-- split shipments; see ARCHITECTURE-LIMITATIONS.md for what extending this costs.
 CREATE TABLE IF NOT EXISTS inventory_levels (
     product_id      UUID PRIMARY KEY REFERENCES products(id),
     available_stock INT NOT NULL DEFAULT 0,

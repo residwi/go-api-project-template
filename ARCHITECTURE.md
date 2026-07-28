@@ -69,9 +69,9 @@ mapping adapter where the shapes differ.
 `payment` cannot import `payment/postgres` without a cycle, so SQL physically
 cannot leak into the core.
 
-**Cost accepted:** 13 packages named `postgres` and 13 named `http`, so every
-composition site needs import aliases (`paymentpg`, `paymenthttp`). The cost
-concentrates in one file, deliberately.
+**Cost accepted:** 13 packages named `postgres` and 14 named `http` (15 if you
+count `transport/http`), so every composition site needs import aliases
+(`paymentpg`, `paymenthttp`). The cost concentrates in one file, deliberately.
 
 ## 4. Adapter subpackages exist only where adaptation is needed
 
