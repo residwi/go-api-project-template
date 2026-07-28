@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	dockertest "github.com/ory/dockertest/v3"
@@ -71,47 +72,61 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	port := resource.GetPort("5432/tcp")
 	adminDSN := fmt.Sprintf("postgres://test:test@localhost:%s/postgres?sslmode=disable", port)
 
-	var adminPool *pgxpool.Pool
+	// Always drop-then-recreate so we start with a clean schema.
+	//
+	// The retry is around *establishing a connection*, and deliberately not
+	// around the DROP/CREATE pair. Both halves of that split are load-bearing:
+	//
+	//   - Retrying the connect is the actual fix. `go test` starts one binary
+	//     per package, GOMAXPROCS of them at a time, and they all dial this
+	//     container at once, so individual dials come back "connection reset by
+	//     peer" / "unexpected EOF". The previous code proved liveness with
+	//     pgxpool.Ping, which is not enough: a pool acquires lazily, so Ping
+	//     shows that *a* connection worked at that instant and the following
+	//     Exec was still free to open a new one and lose the race. pgx.Connect
+	//     hands back an established connection, and holding that one connection
+	//     across both statements means no dial can happen between them.
+	//
+	//   - Retrying the DROP/CREATE pair was measured to make a full `make test`
+	//     worse and was reverted in 51ec7c8. DROP DATABASE ... WITH (FORCE)
+	//     calls pg_terminate_backend, so re-running the pair turns one
+	//     transient error into a backend-termination storm against a container
+	//     every other package is using. Never repeat the DROP.
+	var adminConn *pgx.Conn
 	if retryErr := dt.Retry(func() error {
-		var e error
-		adminPool, e = pgxpool.New(ctx, adminDSN)
+		conn, e := pgx.Connect(ctx, adminDSN)
 		if e != nil {
 			return e
 		}
-		return adminPool.Ping(ctx)
+		adminConn = conn
+		return nil
 	}); retryErr != nil {
 		slog.Error("testhelper: waiting for postgres", "error", retryErr)
 		os.Exit(1)
 	}
 
-	// Always drop-then-recreate so we start with a clean schema.
-	//
-	// Deliberately NOT retried. Wrapping this in dockertest's Retry looks like an
-	// obvious hardening -- a transient dial failure here fails the whole package
-	// -- but it was measured to make a full `make test` worse, not better: 0
-	// deadlock/termination errors before, 6 after. CREATE DATABASE on a shared
-	// cluster commonly fails with "template1 is being accessed by other users",
-	// and retrying turns that into a DROP DATABASE ... WITH (FORCE) storm that
-	// force-terminates backends for up to MaxWait, destabilising the container
-	// for every other package. Fail fast and loud is the better trade here.
-	// See SUMMARY.md for the flake this leaves unresolved.
-	_, _ = adminPool.Exec(ctx, "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)")
-	if _, execErr := adminPool.Exec(ctx, "CREATE DATABASE "+dbName); execErr != nil {
+	// A failing DROP is not fatal by itself -- IF EXISTS makes it a no-op on a
+	// clean cluster -- but it must not be swallowed either, because it is the
+	// usual explanation for the CREATE below failing with "already exists".
+	if _, dropErr := adminConn.Exec(ctx, "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)"); dropErr != nil {
+		slog.Warn("testhelper: dropping stale database", "db", dbName, "error", dropErr)
+	}
+	if _, execErr := adminConn.Exec(ctx, "CREATE DATABASE "+dbName); execErr != nil {
 		slog.Error("testhelper: creating database", "db", dbName, "error", execErr)
 		os.Exit(1)
 	}
-	adminPool.Close()
+	_ = adminConn.Close(ctx)
 
 	dsn := fmt.Sprintf("postgres://test:test@localhost:%s/%s?sslmode=disable", port, dbName)
-	var pool *pgxpool.Pool
-	if retryErr := dt.Retry(func() error {
-		var e error
-		pool, e = pgxpool.New(ctx, dsn)
-		if e != nil {
-			return e
-		}
-		return pool.Ping(ctx)
-	}); retryErr != nil {
+	// Built once, outside the retry: pgxpool.New only parses the DSN and cannot
+	// fail transiently, so retrying it leaked a pool (and its background
+	// goroutines) on every attempt.
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		slog.Error("testhelper: building package pool", "db", dbName, "error", err)
+		os.Exit(1)
+	}
+	if retryErr := dt.Retry(func() error { return pool.Ping(ctx) }); retryErr != nil {
 		slog.Error("testhelper: connecting to package db", "db", dbName, "error", retryErr)
 		os.Exit(1)
 	}
@@ -120,10 +135,10 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 
 	return pool, func() {
 		pool.Close()
-		admin, adminErr := pgxpool.New(ctx, adminDSN)
-		if adminErr == nil {
-			_, _ = admin.Exec(ctx, "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)")
-			admin.Close()
+		conn, connErr := pgx.Connect(ctx, adminDSN)
+		if connErr == nil {
+			_, _ = conn.Exec(ctx, "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)")
+			_ = conn.Close(ctx)
 		}
 	}
 }
