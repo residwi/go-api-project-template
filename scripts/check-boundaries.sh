@@ -4,7 +4,8 @@
 # instead of a paragraph in a plan document.
 #
 #   Check 1  Wire (`json:`) tags live only in a feature's http adapter.
-#   Check 2  A feature's postgres adapter only queries tables it owns.
+#   Check 2  A feature's postgres adapter only queries tables it owns,
+#            where "owns" is read out of db/OWNERSHIP.md at run time.
 #   Check 3  No feature imports another feature's postgres/http adapter.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
@@ -141,11 +142,11 @@ check_wire_tags() {
 # only name tables it owns. Cross-module reads go through a port." Go-level
 # boundaries are worthless if cart reaches into products in SQL anyway.
 #
-# The per-feature sets below are deliberately derived from what the current
-# tree actually references, and will be tightened against db/OWNERSHIP.md in
-# Phase 5, where the ownership table gets written down properly. The purpose
-# of this check is to catch an *accidental new* cross-module join in review,
-# not to relitigate the documented Phase 2 exceptions.
+# The ownership map is NOT in this file. It is parsed out of db/OWNERSHIP.md
+# every run, so the document a human reads and the list CI enforces cannot
+# drift apart -- there is only one list. A doc that merely agreed with a shell
+# array today would disagree with it in six months, and then the doc is a lie
+# and the check is the only truth. See the parsing contract in that document.
 #
 # Notes on the extraction:
 #   - Go `//` and SQL `--` line comments are stripped before matching. English
@@ -156,6 +157,11 @@ check_wire_tags() {
 #     `ancestors` (category, recursive) and `picked` (notification, payment).
 #   - `FROM (` opens a subquery or a VALUES list, not a table, so it is
 #     skipped: the identifier pattern requires a letter or underscore.
+#   - `FOR UPDATE [SKIP LOCKED]` and `ON CONFLICT ... DO UPDATE SET` are the two
+#     places where `UPDATE` is not followed by a table name. Both are removed by
+#     phrase before extraction rather than by adding `set` and `skip` to a
+#     skip-list of names: a name-based skip-list is somewhere a real table can
+#     hide, and a phrase-based one is not.
 #   - Only non-test files are scanned. Test files legitimately seed and assert
 #     against sibling tables to satisfy foreign keys; that is fixture setup,
 #     not an architectural crossing. This also removes the last source of
@@ -175,25 +181,116 @@ check_wire_tags() {
 # correct."
 CHECK_2_EXEMPT_FEATURES='dashboard'
 
-# allowed_tables prints the tables a feature's postgres adapter may name.
-# An empty result means the feature is not known to this check, which is
-# itself a failure: a new postgres adapter must declare what it owns.
+# The single source of truth for who owns what. Prose for a human, parseable by
+# the awk below; the contract binding the two together is written down in the
+# document, beside the table, so that whoever reformats it is looking at the
+# rules while they do it.
+OWNERSHIP_DOC='db/OWNERSHIP.md'
+
+# parse_ownership_doc prints "<table> <owner>" for each row of the table between
+# the BEGIN/END OWNERSHIP TABLE markers in $OWNERSHIP_DOC. Rows are split on
+# `|`; backticks and surrounding whitespace are stripped; the header and `---`
+# separator rows are recognised and dropped.
+parse_ownership_doc() {
+	awk '
+		/^<!-- BEGIN OWNERSHIP TABLE -->/ { inside = 1; next }
+		/^<!-- END OWNERSHIP TABLE -->/   { inside = 0; next }
+		inside && /^\|/ {
+			gsub(/`/, "")
+			split($0, cell, "|")
+			table = cell[2]
+			owner = cell[3]
+			gsub(/^[ \t]+|[ \t]+$/, "", table)
+			gsub(/^[ \t]+|[ \t]+$/, "", owner)
+			if (table == "" || owner == "") next
+			if (table == "Table" && owner == "Owner") next
+			if (table ~ /^-+$/) next
+			print table, owner
+		}
+	' "$OWNERSHIP_DOC"
+}
+
+# Parsed once, up front: every later lookup reads this variable, so a malformed
+# document produces one clear failure instead of twelve confusing ones.
+if [ -f "$OWNERSHIP_DOC" ]; then
+	OWNERSHIP_ROWS="$(parse_ownership_doc)"
+else
+	OWNERSHIP_ROWS=''
+	report "$OWNERSHIP_DOC is missing
+    Check 2 reads the table→module map from that file. Without it there is no
+    ownership to enforce."
+fi
+
+# migration_tables prints every table db/migrations/ creates. Only each file's
+# `-- +goose Up` section is read: a Down section's DROP TABLE list mirrors the
+# Up's CREATE TABLE list, and counting both would make every table look like it
+# had been created twice. Table names are matched literally in uppercase,
+# because every migration writes `CREATE TABLE IF NOT EXISTS <name>`.
+migration_tables() {
+	awk '
+		/^-- \+goose Up/   { section = "up";   next }
+		/^-- \+goose Down/ { section = "down"; next }
+		section == "up" && /CREATE TABLE/ {
+			if (match($0, /CREATE TABLE[[:space:]]+(IF NOT EXISTS[[:space:]]+)?[a-z_][a-z0-9_]*/)) {
+				name = substr($0, RSTART, RLENGTH)
+				sub(/^CREATE TABLE[[:space:]]+(IF NOT EXISTS[[:space:]]+)?/, "", name)
+				print name
+			}
+		}
+	' db/migrations/*.sql | sort -u
+}
+
+# allowed_tables prints the tables a feature's postgres adapter may name,
+# straight out of $OWNERSHIP_DOC. An empty result means the feature has no row
+# in the document, which is itself a failure: a new postgres adapter must
+# declare what it owns somewhere a human will read it.
 allowed_tables() {
-	case "$1" in
-	cart) echo 'carts cart_items' ;;
-	category) echo 'categories' ;;
-	inventory) echo 'inventory_levels' ;;
-	notification) echo 'notifications notification_jobs' ;;
-	order) echo 'orders order_items' ;;
-	payment) echo 'payments payment_jobs' ;;
-	product) echo 'products product_images' ;;
-	promotion) echo 'promotions coupon_usages' ;;
-	review) echo 'reviews' ;;
-	shipping) echo 'shipments' ;;
-	user) echo 'users' ;;
-	wishlist) echo 'wishlists wishlist_items' ;;
-	*) echo '' ;;
-	esac
+	printf '%s\n' "$OWNERSHIP_ROWS" | awk -v want="$1" '$2 == want { printf "%s ", $1 }'
+}
+
+# check_ownership_doc validates the document itself, before anything trusts it.
+# An ownership map that is silently empty, self-contradictory, or out of step
+# with the schema would let check 2 pass vacuously, which is the failure mode
+# this whole arrangement exists to avoid.
+check_ownership_doc() {
+	local dupes only_doc only_schema
+
+	[ -f "$OWNERSHIP_DOC" ] || return 0
+
+	if [ -z "$OWNERSHIP_ROWS" ]; then
+		report "no ownership rows parsed out of $OWNERSHIP_DOC
+    Check 2 reads the rows between the BEGIN/END OWNERSHIP TABLE markers.
+    See the parsing contract in that document; it is stated beside the table."
+		return 0
+	fi
+
+	# Two rows for one table means two owners, which the model does not allow.
+	# Catching it here beats letting whichever row awk saw last decide.
+	dupes="$(printf '%s\n' "$OWNERSHIP_ROWS" | awk '{print $1}' | sort | uniq -d | tr '\n' ' ')"
+	if [ -n "${dupes// /}" ]; then
+		report "table listed more than once in $OWNERSHIP_DOC: ${dupes% }
+    Each table has exactly one owning module, so exactly one row."
+	fi
+
+	# Drift against the schema, in both directions. A row for a table that no
+	# longer exists quietly widens its owner's allowlist; a table with no row
+	# narrows everyone's, including its owner's, so its own queries fail.
+	only_doc="$(comm -23 \
+		<(printf '%s\n' "$OWNERSHIP_ROWS" | awk '{print $1}' | sort -u) \
+		<(migration_tables) | tr '\n' ' ')"
+	if [ -n "${only_doc// /}" ]; then
+		report "$OWNERSHIP_DOC records a table no migration creates: ${only_doc% }
+    Either db/migrations/ dropped or renamed it, or the row is a typo. A stale
+    row silently widens what its owner is allowed to name."
+	fi
+
+	only_schema="$(comm -13 \
+		<(printf '%s\n' "$OWNERSHIP_ROWS" | awk '{print $1}' | sort -u) \
+		<(migration_tables) | tr '\n' ' ')"
+	if [ -n "${only_schema// /}" ]; then
+		report "table created by a migration with no owner in $OWNERSHIP_DOC: ${only_schema% }
+    Every table has exactly one owning module. Add a row saying which."
+	fi
 }
 
 # strip_comments removes Go `//` and SQL `--` line comments, and lowercases
@@ -204,15 +301,34 @@ strip_comments() {
 	sed -e 's://.*::' -e 's/--.*//' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
-# sql_table_refs prints the identifier following each FROM / JOIN. Handles
-# LEFT/INNER/CROSS JOIN and `JOIN x ON ...` for free, because it anchors on
-# the JOIN keyword itself rather than trying to parse the clause.
+# sql_table_refs prints the identifier following each FROM / JOIN / INSERT INTO
+# / UPDATE. Handles LEFT/INNER/CROSS JOIN and `JOIN x ON ...` for free, because
+# it anchors on the JOIN keyword itself rather than trying to parse the clause.
+#
+# Writes count, not just reads. `INSERT INTO another_module_table` is a worse
+# violation than a join, and matching only FROM/JOIN would let it through.
+#
+# `for update` and `do update` are deleted first. They are the only two places
+# where `update` is followed by something other than a table (`FOR UPDATE SKIP
+# LOCKED`, `ON CONFLICT ... DO UPDATE SET`), and removing the phrase is safer
+# than excusing the words `skip` and `set` by name -- a name-based skip-list is
+# a place a real table could hide. The cost is that `FOR UPDATE OF <table>`
+# would go unseen, which is fine: it is a lock hint on a table the same query
+# has already named.
+#
+# That deletion spells its word boundaries as `(^|[^a-z0-9_])` and
+# `([^a-z0-9_]|$)` rather than `\b`. BSD sed (macOS) does not implement `\b` and
+# does not complain about it either -- it just matches nothing, which would
+# quietly restore `set` and `skip` as phantom table names on one platform only.
+# `grep -E` below is fine with `\b` on both platforms; sed is not.
+#
 # The trailing `|| true` matters: under `set -o pipefail` a grep that matches
 # nothing (a file with no SQL, or no CTEs) fails the whole pipeline, and an
 # assignment such as `x=$(sql_cte_names f)` would then trip `set -e`.
 sql_table_refs() {
 	strip_comments "$1" \
-		| grep -oE '\b(from|join)[[:space:]]+[a-z_][a-z0-9_]*' \
+		| sed -E -e 's/(^|[^a-z0-9_])(for|do)[[:space:]]+update([^a-z0-9_]|$)/\1 \3/g' \
+		| grep -oE '\b(from|join|into|update)[[:space:]]+[a-z_][a-z0-9_]*' \
 		| awk '{print $2}' \
 		| sort -u || true
 }
@@ -230,6 +346,11 @@ sql_cte_names() {
 check_table_ownership() {
 	local feature allowed file ref legit found
 
+	# With no ownership data there is nothing to check, and looping anyway would
+	# bury check_ownership_doc's one accurate diagnosis under a "feature X owns
+	# no table" line for every module. Report the cause once; stop there.
+	[ -n "$OWNERSHIP_ROWS" ] || return 0
+
 	while IFS= read -r feature; do
 		case " $CHECK_2_EXEMPT_FEATURES " in
 		*" $feature "*) continue ;;
@@ -237,9 +358,11 @@ check_table_ownership() {
 		[ -d "internal/$feature/postgres" ] || continue
 
 		allowed="$(allowed_tables "$feature")"
-		if [ -z "$allowed" ]; then
-			report "feature '$feature' has a postgres adapter but no entry in allowed_tables()
-    Declare the tables it owns in scripts/check-boundaries.sh."
+		if [ -z "${allowed// /}" ]; then
+			report "feature '$feature' has a postgres adapter but owns no table in $OWNERSHIP_DOC
+    Add a row per table it owns. If it genuinely owns none, it is either a
+    reporting read-model (see the carve-out in $OWNERSHIP_DOC) or it should not
+    have a postgres adapter at all."
 			continue
 		fi
 
@@ -257,8 +380,8 @@ check_table_ownership() {
 				*" $ref "*) found=0 ;;
 				esac
 				if [ "$found" = 1 ]; then
-					report "$(printf 'cross-module table reference: %s names table %s, which %s does not own\n    %s may query: %s\n    Cross-module reads go through a port (see ARCHITECTURE.md section 6).' \
-						"$file" "$ref" "$feature" "$feature" "$allowed")"
+					report "$(printf 'cross-module table reference: %s names table %s, which %s does not own\n    %s may query: %s\n    Ownership is recorded in %s; cross-module reads go through a port\n    (see ARCHITECTURE.md section 6). Widen the document only to record a\n    decision, never to silence this message.' \
+						"$file" "$ref" "$feature" "$feature" "${allowed% }" "$OWNERSHIP_DOC")"
 				fi
 			done < <(sql_table_refs "$file")
 		done
@@ -315,6 +438,7 @@ check_adapter_imports() {
 # ---------------------------------------------------------------------------
 
 check_wire_tags
+check_ownership_doc
 check_table_ownership
 check_adapter_imports
 
