@@ -1,5 +1,15 @@
 package http
 
+// This package is the composition root: it is the one place that assembles
+// every feature module into a single HTTP server, so it is also the one place
+// that has to see all of them at once. Each feature names its adapters after
+// their technology, not their feature — there are 14 packages called http and
+// 13 called postgres under internal/<feature>/ — which is the right call
+// inside a module (cart/postgres says what it is without stuttering
+// "cartpostgres"). The cost of that choice is that every one of those imports
+// needs a disambiguating alias here, following the <feature>http /
+// <feature>pg convention. That is a deliberate trade, not accidental clutter:
+// it pays the cost once, in this file, instead of in every module.
 import (
 	"context"
 	"encoding/json"
@@ -9,7 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
-	mockgateway "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
+	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/auth"
 	authhttp "github.com/residwi/go-api-project-template/internal/auth/http"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
@@ -30,7 +40,7 @@ import (
 	orderpg "github.com/residwi/go-api-project-template/internal/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/payment"
 	paymenthttp "github.com/residwi/go-api-project-template/internal/payment/http"
-	mockgw "github.com/residwi/go-api-project-template/internal/payment/mock"
+	mockgateway "github.com/residwi/go-api-project-template/internal/payment/mock"
 	paymentpg "github.com/residwi/go-api-project-template/internal/payment/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
@@ -101,7 +111,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	orderSvc := bootstrap.NewOrderService(orderRepo, txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc)
 
 	cfg := deps.Config
-	gw := mockgw.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
+	gw := mockgateway.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 
 	paymentSvc := bootstrap.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc)
 	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
@@ -143,7 +153,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Service: dashboardSvc})
 
 	if deps.Config.App.Env == "development" {
-		mockgateway.RegisterRoutes(mux, mockgateway.WithWebhookSecret(cfg.Payment.WebhookSecret))
+		mockgatewayserver.RegisterRoutes(mux, mockgatewayserver.WithWebhookSecret(cfg.Payment.WebhookSecret))
 	}
 
 	return &Router{
