@@ -7,7 +7,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/cart"
 	"github.com/residwi/go-api-project-template/internal/inventory"
-	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/notification"
 	"github.com/residwi/go-api-project-template/internal/order"
 	"github.com/residwi/go-api-project-template/internal/payment"
@@ -62,10 +61,7 @@ func (a *cartProviderAdapter) GetCart(ctx context.Context, userID uuid.UUID) (*o
 		}
 		if item.Product != nil {
 			si.Name = item.Product.Name
-			// product still stores its price as an int64 beside a Currency string
-			// (its own money.Money adoption is a separate task); pair them here so
-			// order only ever sees a denominated price.
-			si.Price = money.New(item.Product.Price, item.Product.Currency)
+			si.Price = item.Product.Price
 			si.Status = item.Product.Status
 		}
 		snap.Items = append(snap.Items, si)

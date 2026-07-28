@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/cart"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
@@ -48,13 +49,13 @@ func (s *stubRepo) GetCartForLock(context.Context, uuid.UUID) (uuid.UUID, error)
 type stubProducts struct{}
 
 func (s *stubProducts) GetByID(_ context.Context, id uuid.UUID) (*cart.ProductInfo, error) {
-	return &cart.ProductInfo{ID: id, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil
+	return &cart.ProductInfo{ID: id, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil
 }
 
 func (s *stubProducts) GetByIDs(_ context.Context, ids []uuid.UUID) (map[uuid.UUID]cart.ProductInfo, error) {
 	out := make(map[uuid.UUID]cart.ProductInfo, len(ids))
 	for _, id := range ids {
-		out[id] = cart.ProductInfo{ID: id, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}
+		out[id] = cart.ProductInfo{ID: id, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}
 	}
 	return out, nil
 }

@@ -128,11 +128,10 @@ func (s *Service) GetCart(ctx context.Context, userID uuid.UUID) (*Cart, error) 
 			continue
 		}
 		c.Items[i].Product = &Product{
-			Name:     info.Name,
-			Price:    info.Price,
-			Currency: info.Currency,
-			Stock:    info.Available,
-			Status:   info.Status,
+			Name:   info.Name,
+			Price:  info.Price,
+			Stock:  info.Available,
+			Status: info.Status,
 		}
 	}
 	return c, nil

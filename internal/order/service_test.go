@@ -1468,7 +1468,7 @@ func (a realCartProvider) GetCart(ctx context.Context, userID uuid.UUID) (*order
 		si := order.CartSnapshotItem{ProductID: item.ProductID, Quantity: item.Quantity}
 		if item.Product != nil {
 			si.Name = item.Product.Name
-			si.Price = money.New(item.Product.Price, item.Product.Currency)
+			si.Price = item.Product.Price
 			si.Status = item.Product.Status
 		}
 		snap.Items = append(snap.Items, si)

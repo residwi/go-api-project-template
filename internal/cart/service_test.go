@@ -12,6 +12,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/cart"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	cartMocks "github.com/residwi/go-api-project-template/mocks/cart"
 )
@@ -28,8 +29,7 @@ func TestService_AddItem_RunsInsideTxRunner(t *testing.T) {
 	products.EXPECT().GetByID(mock.Anything, productID).Return(&cart.ProductInfo{
 		ID:        productID,
 		Name:      "Widget",
-		Price:     1500,
-		Currency:  "USD",
+		Price:     money.New(1500, "USD"),
 		Status:    "published",
 		Available: 10,
 	}, nil)
@@ -56,7 +56,7 @@ func TestService_AddItem(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
+			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -78,7 +78,7 @@ func TestService_AddItem(t *testing.T) {
 		productID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Draft Item", Price: 500, Currency: "USD", Status: "draft", Available: 10}, nil)
+			Return(&cart.ProductInfo{ID: productID, Name: "Draft Item", Price: money.New(500, "USD"), Status: "draft", Available: 10}, nil)
 
 		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
@@ -95,7 +95,7 @@ func TestService_AddItem(t *testing.T) {
 		productID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 1}, nil)
+			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 1}, nil)
 
 		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 5})
 		require.Error(t, err)
@@ -114,7 +114,7 @@ func TestService_AddItem(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
+			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -137,7 +137,7 @@ func TestService_AddItem(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
+			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		// Product is already in the cart (hasProduct=true), so even though the
@@ -177,7 +177,7 @@ func TestService_AddItem(t *testing.T) {
 		productID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
+			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(uuid.Nil, errors.New("db error"))
 
@@ -196,7 +196,7 @@ func TestService_AddItem(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
+			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -268,7 +268,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: 1000, Currency: "USD", Status: "published", Available: 10}, nil)
+			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
 		repo.EXPECT().UpdateItemQuantity(mock.Anything, cartID, productID, 3).Return(nil)
 
@@ -396,8 +396,8 @@ func TestService_GetCart_FlagsUnavailableLines(t *testing.T) {
 	// carrying its status -- cart, not product, decides how to show it.
 	products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{liveID, goneID}).
 		Return(map[uuid.UUID]cart.ProductInfo{
-			liveID: {ID: liveID, Name: "Widget", Price: 1500, Currency: "USD", Status: "published", Available: 5},
-			goneID: {ID: goneID, Name: "Gone", Price: 900, Currency: "USD", Status: "archived", Available: 0},
+			liveID: {ID: liveID, Name: "Widget", Price: money.New(1500, "USD"), Status: "published", Available: 5},
+			goneID: {ID: goneID, Name: "Gone", Price: money.New(900, "USD"), Status: "archived", Available: 0},
 		}, nil)
 
 	c, err := svc.GetCart(context.Background(), userID)

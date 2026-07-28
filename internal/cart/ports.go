@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
+	"github.com/residwi/go-api-project-template/internal/money"
 )
 
 // Ports this feature needs from other features. Each is declared here rather
@@ -20,8 +22,7 @@ type ProductLookup interface {
 type ProductInfo struct {
 	ID        uuid.UUID
 	Name      string
-	Price     int64
-	Currency  string
+	Price     money.Money
 	Status    string
 	Available int
 }

@@ -8,7 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/cart"
+	"github.com/residwi/go-api-project-template/internal/money"
 )
 
 func TestToCartResponse_FlagsUnsellableLineAndExcludesItFromTotal(t *testing.T) {
@@ -21,7 +23,7 @@ func TestToCartResponse_FlagsUnsellableLineAndExcludesItFromTotal(t *testing.T) 
 				ID:        uuid.New(),
 				ProductID: sellableID,
 				Quantity:  2,
-				Product:   &cart.Product{Name: "Widget", Price: 1000, Currency: "USD", Stock: 5, Status: "published"},
+				Product:   &cart.Product{Name: "Widget", Price: money.New(1000, "USD"), Stock: 5, Status: "published"},
 			},
 			{
 				ID:        uuid.New(),
@@ -29,12 +31,13 @@ func TestToCartResponse_FlagsUnsellableLineAndExcludesItFromTotal(t *testing.T) 
 				Quantity:  3,
 				// Archived after being added to the cart -- Phase 2's decision: keep
 				// the line visible instead of dropping it silently.
-				Product: &cart.Product{Name: "Gone", Price: 900, Currency: "USD", Stock: 0, Status: "archived"},
+				Product: &cart.Product{Name: "Gone", Price: money.New(900, "USD"), Stock: 0, Status: "archived"},
 			},
 		},
 	}
 
-	out := toCartResponse(c)
+	out, err := toCartResponse(c)
+	require.NoError(t, err)
 
 	require.Len(t, out.Items, 2, "an unsellable line must still be returned, not hidden")
 	assert.True(t, out.Items[0].Sellable, "a published product's line must be sellable")
@@ -59,11 +62,52 @@ func TestToCartResponse_MissingProductIsUnsellable(t *testing.T) {
 		},
 	}
 
-	out := toCartResponse(c)
+	out, err := toCartResponse(c)
+	require.NoError(t, err)
 
 	require.Len(t, out.Items, 1)
 	assert.False(t, out.Items[0].Sellable)
 	assert.Equal(t, int64(0), out.Total)
+}
+
+// TestToCartResponse_MixedCurrenciesRefusesToTotal pins the two sentinels the
+// failure carries, which the mux-level test in handler_integration_test.go
+// cannot see: apperror.ErrBadRequest is what makes the status a 400 rather than
+// the 500 an unrecognised error would produce, and money.ErrCurrencyMismatch is
+// what names the cause for a log. Dropping either leaves the other test passing
+// for the wrong reason -- or not passing at all -- so both are asserted here.
+//
+// It also pins that no response is built on the way out: publishing the items
+// with a zero total would be worse than the 400, since a client cannot tell an
+// empty cart from one that could not be added up.
+func TestToCartResponse_MixedCurrenciesRefusesToTotal(t *testing.T) {
+	c := &cart.Cart{
+		ID: uuid.New(),
+		Items: []cart.Item{
+			{
+				ID:        uuid.New(),
+				ProductID: uuid.New(),
+				Quantity:  1,
+				Product:   &cart.Product{Name: "Dollar Widget", Price: money.New(1000, "USD"), Stock: 5, Status: "published"},
+			},
+			{
+				ID:        uuid.New(),
+				ProductID: uuid.New(),
+				Quantity:  1,
+				Product:   &cart.Product{Name: "Euro Widget", Price: money.New(1000, "EUR"), Stock: 5, Status: "published"},
+			},
+		},
+	}
+
+	out, err := toCartResponse(c)
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, apperror.ErrBadRequest,
+		"a cart's contents are user input, so an unsummable cart is a 400 and not a 500")
+	require.ErrorIs(t, err, money.ErrCurrencyMismatch,
+		"the cause must stay matchable, not be flattened into a generic bad request")
+	assert.Equal(t, cartResponse{}, out,
+		"no partial response: a total that could not be computed must not ship as one that could")
 }
 
 // TestToCartResponse_OmitsUserID pins cartResponse's top-level wire shape.
@@ -79,7 +123,8 @@ func TestToCartResponse_OmitsUserID(t *testing.T) {
 		Items:  []cart.Item{},
 	}
 
-	out := toCartResponse(c)
+	out, err := toCartResponse(c)
+	require.NoError(t, err)
 
 	raw, err := json.Marshal(out)
 	require.NoError(t, err)

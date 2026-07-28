@@ -14,6 +14,11 @@ import (
 // cartResponse is this endpoint's wire contract. UserID is deliberately
 // dropped -- the caller is always the authenticated user, so echoing it back
 // tells the client nothing it doesn't already know.
+//
+// Total is a bare amount with no sibling currency key, unlike the per-item
+// price/currency pair below. That asymmetry predates money.Money and is
+// preserved by flattening Cart.Total() to its Amount here rather than letting
+// the type marshal itself -- see internal/money/doc.go.
 type cartResponse struct {
 	ID    uuid.UUID          `json:"id"`
 	Items []cartItemResponse `json:"items"`
@@ -35,31 +40,39 @@ type cartItemResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// toCartResponse maps the domain cart onto the wire shape and computes the
-// total from sellable lines only. item.Product is guaranteed non-nil here:
-// Service.GetCart sets it to either the looked-up product or a synthetic
-// &Product{Status: "unavailable"} placeholder when the product record is
-// gone entirely, so this mapper never has to nil-check it.
-func toCartResponse(c *cart.Cart) cartResponse {
+// toCartResponse maps the domain cart onto the wire shape. item.Product is
+// guaranteed non-nil here: Service.GetCart sets it to either the looked-up
+// product or a synthetic &Product{Status: "unavailable"} placeholder when the
+// product record is gone entirely, so this mapper never has to nil-check it.
+//
+// The total is asked of the cart rather than accumulated in this loop. Summing
+// money.Money values can fail -- a cart may hold lines priced in different
+// currencies -- and neither the sum nor its failure is a transport concern; see
+// cart.Cart.Total. The error is returned rather than swallowed into a zero,
+// because a total this adapter could not compute must not be published as one it
+// could.
+func toCartResponse(c *cart.Cart) (cartResponse, error) {
 	out := cartResponse{ID: c.ID, Items: make([]cartItemResponse, len(c.Items))}
 	for i, it := range c.Items {
-		sellable := it.Product.Sellable()
 		out.Items[i] = cartItemResponse{
 			ID:        it.ID,
 			ProductID: it.ProductID,
 			Name:      it.Product.Name,
-			Price:     it.Product.Price,
-			Currency:  it.Product.Currency,
+			Price:     it.Product.Price.Amount,
+			Currency:  it.Product.Price.Currency,
 			Quantity:  it.Quantity,
 			Available: it.Product.Stock,
-			Sellable:  sellable,
+			Sellable:  it.Product.Sellable(),
 			CreatedAt: it.CreatedAt,
 		}
-		if sellable {
-			out.Total += it.Product.Price * int64(it.Quantity)
-		}
 	}
-	return out
+
+	total, err := c.Total()
+	if err != nil {
+		return cartResponse{}, err
+	}
+	out.Total = total.Amount
+	return out, nil
 }
 
 func (h *handler) GetCart(w http.ResponseWriter, r *http.Request) {
@@ -74,5 +87,13 @@ func (h *handler) GetCart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.OK(w, toCartResponse(c))
+	out, err := toCartResponse(c)
+	if err != nil {
+		// A mixed-currency cart lands here as a wrapped apperror.ErrBadRequest, so
+		// the client sees the 400 checkout would give it rather than a 500.
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.OK(w, out)
 }
