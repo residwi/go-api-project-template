@@ -1,4 +1,4 @@
-package shipping_test
+package http_test
 
 import (
 	"bytes"
@@ -18,6 +18,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/shipping"
+	shippinghttp "github.com/residwi/go-api-project-template/internal/shipping/http"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -35,7 +36,7 @@ func setupShippingMux(t *testing.T) (*http.ServeMux, *shipMocks.MockRepository, 
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	shipping.RegisterRoutes(authed, admin, shipping.RouteDeps{
+	shippinghttp.RegisterRoutes(authed, admin, shippinghttp.RouteDeps{
 		Validator: v,
 		Service:   svc,
 		Orders:    orderProv,

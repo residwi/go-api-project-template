@@ -1,14 +1,15 @@
-package shipping
+package http
 
 import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/shipping"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
 	Validator *validator.Validator
-	Service   *Service
-	Orders    OrderProvider
+	Service   *shipping.Service
+	Orders    shipping.OrderProvider
 }
 
 func RegisterRoutes(authed *middleware.RouteGroup, admin *middleware.RouteGroup, deps RouteDeps) {

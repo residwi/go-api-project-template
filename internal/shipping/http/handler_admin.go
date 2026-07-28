@@ -1,14 +1,15 @@
-package shipping
+package http
 
 import (
 	"net/http"
 
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/shipping"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type adminHandler struct {
-	service   *Service
+	service   *shipping.Service
 	validator *validator.Validator
 }
 
@@ -18,7 +19,7 @@ func (h *adminHandler) CreateShipment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[CreateShipmentRequest](w, r, h.validator)
+	req, ok := response.Bind[shipping.CreateShipmentRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -38,7 +39,7 @@ func (h *adminHandler) UpdateTracking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[UpdateTrackingRequest](w, r, h.validator)
+	req, ok := response.Bind[shipping.UpdateTrackingRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

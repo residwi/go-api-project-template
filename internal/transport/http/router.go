@@ -39,7 +39,7 @@ import (
 	promotionpg "github.com/residwi/go-api-project-template/internal/promotion/postgres"
 	reviewhttp "github.com/residwi/go-api-project-template/internal/review/http"
 	reviewpg "github.com/residwi/go-api-project-template/internal/review/postgres"
-	"github.com/residwi/go-api-project-template/internal/shipping"
+	shippinghttp "github.com/residwi/go-api-project-template/internal/shipping/http"
 	shippingpg "github.com/residwi/go-api-project-template/internal/shipping/postgres"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/user"
@@ -133,7 +133,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	cart.RegisterRoutes(authed, cart.RouteDeps{Validator: v, Service: cartSvc})
 	order.RegisterRoutes(authed, admin, order.RouteDeps{Validator: v, Service: orderSvc, WriteLimiter: orderWriteLimiter})
 	payment.RegisterRoutes(api, admin, payment.RouteDeps{Validator: v, Service: paymentSvc, WebhookSecret: cfg.Payment.WebhookSecret})
-	shipping.RegisterRoutes(authed, admin, shipping.RouteDeps{Validator: v, Service: shippingSvc, Orders: shippingOrderProvider})
+	shippinghttp.RegisterRoutes(authed, admin, shippinghttp.RouteDeps{Validator: v, Service: shippingSvc, Orders: shippingOrderProvider})
 	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{Validator: v, Service: reviewSvc})
 	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{Validator: v, Service: promotionSvc})
 	wishlisthttp.RegisterRoutes(authed, wishlisthttp.RouteDeps{Validator: v, Service: wishlistSvc})

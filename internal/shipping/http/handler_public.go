@@ -1,16 +1,17 @@
-package shipping
+package http
 
 import (
 	"net/http"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/shipping"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type publicHandler struct {
-	service *Service
-	orders  OrderProvider
+	service *shipping.Service
+	orders  shipping.OrderProvider
 }
 
 func (h *publicHandler) GetShipping(w http.ResponseWriter, r *http.Request) {
