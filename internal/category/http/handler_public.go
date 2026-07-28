@@ -1,14 +1,15 @@
-package category
+package http
 
 import (
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/category"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type publicHandler struct {
-	service   *Service
+	service   *category.Service
 	validator *validator.Validator
 }
 

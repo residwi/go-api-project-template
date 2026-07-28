@@ -1,19 +1,20 @@
-package category
+package http
 
 import (
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/category"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type adminHandler struct {
-	service   *Service
+	service   *category.Service
 	validator *validator.Validator
 }
 
 func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := response.Bind[CreateCategoryRequest](w, r, h.validator)
+	req, ok := response.Bind[category.CreateCategoryRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -33,7 +34,7 @@ func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[UpdateCategoryRequest](w, r, h.validator)
+	req, ok := response.Bind[category.UpdateCategoryRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

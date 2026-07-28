@@ -1,4 +1,4 @@
-package category
+package http
 
 import (
 	"encoding/json"
@@ -9,13 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/category"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 func TestPublicHandler_GetBySlug_EmptySlug(t *testing.T) {
 	h := &publicHandler{
-		service:   &Service{},
+		service:   &category.Service{},
 		validator: validator.New(),
 	}
 

@@ -1,13 +1,14 @@
-package category
+package http
 
 import (
+	"github.com/residwi/go-api-project-template/internal/category"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
 	Validator *validator.Validator
-	Service   *Service
+	Service   *category.Service
 }
 
 func RegisterRoutes(api *middleware.RouteGroup, adminGroup *middleware.RouteGroup, deps RouteDeps) {

@@ -15,7 +15,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/cart"
 	cartpg "github.com/residwi/go-api-project-template/internal/cart/postgres"
-	"github.com/residwi/go-api-project-template/internal/category"
+	categoryhttp "github.com/residwi/go-api-project-template/internal/category/http"
 	categorypg "github.com/residwi/go-api-project-template/internal/category/postgres"
 	"github.com/residwi/go-api-project-template/internal/dashboard"
 	dashboardpg "github.com/residwi/go-api-project-template/internal/dashboard/postgres"
@@ -124,7 +124,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 
 	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Service: authSvc})
 	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Service: userSvc})
-	category.RegisterRoutes(api, admin, category.RouteDeps{Validator: v, Service: categorySvc})
+	categoryhttp.RegisterRoutes(api, admin, categoryhttp.RouteDeps{Validator: v, Service: categorySvc})
 	product.RegisterRoutes(api, admin, product.RouteDeps{Validator: v, Service: productSvc})
 	inventory.RegisterRoutes(admin, inventory.RouteDeps{Validator: v, Service: inventorySvc})
 	cart.RegisterRoutes(authed, cart.RouteDeps{Validator: v, Service: cartSvc})

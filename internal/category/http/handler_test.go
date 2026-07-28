@@ -1,4 +1,4 @@
-package category_test
+package http_test
 
 import (
 	"bytes"
@@ -17,6 +17,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/category"
+	categoryhttp "github.com/residwi/go-api-project-template/internal/category/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -33,7 +34,7 @@ func setupCategoryMux(t *testing.T) (*http.ServeMux, *catMocks.MockRepository, *
 	api := middleware.NewRouteGroup(mux, "/api/v1")
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	category.RegisterRoutes(api, admin, category.RouteDeps{
+	categoryhttp.RegisterRoutes(api, admin, categoryhttp.RouteDeps{
 		Validator: v,
 		Service:   svc,
 	})
