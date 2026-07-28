@@ -12,9 +12,15 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// productResponse is shared by every endpoint that returns a product --
-// public and admin alike expose the identical shape, so this is declared
-// once here rather than duplicated per file.
+// productResponse is this endpoint's public wire contract, shared by the
+// public list and get-by-slug endpoints. SKU is dropped: it is a
+// merchandising/inventory detail a shopper has no use for. Status is
+// dropped for the same reason review deliberately dropped its own Status --
+// every product List can return is already product.StatusPublished
+// (ListPublished filters WHERE status = 'published'), so on that path the
+// field would be a constant, not information. Admin endpoints get the
+// fuller adminProductResponse (see list_products_admin.go), which keeps
+// both.
 //
 // StockQuantity is Availability.OnHand, not Availability.Available: OnHand
 // only reflects overall inventory depth (it moves on a restock or a manual
@@ -32,8 +38,6 @@ type productResponse struct {
 	Price          int64           `json:"price"`
 	CompareAtPrice *int64          `json:"compare_at_price,omitempty"`
 	Currency       string          `json:"currency"`
-	SKU            *string         `json:"sku,omitempty"`
-	Status         string          `json:"status"`
 	StockQuantity  int             `json:"stock_quantity"`
 	Images         []imageResponse `json:"images,omitempty"`
 	CreatedAt      time.Time       `json:"created_at"`
@@ -49,10 +53,13 @@ type imageResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func toProductResponse(p *product.Product) productResponse {
-	images := make([]imageResponse, len(p.Images))
-	for i, img := range p.Images {
-		images[i] = imageResponse{
+// toImageResponses maps a product's images onto the wire shape. Shared by
+// the public and admin product responses (list_products_admin.go) -- an
+// image carries no field that needs hiding from either audience.
+func toImageResponses(images []product.Image) []imageResponse {
+	out := make([]imageResponse, len(images))
+	for i, img := range images {
+		out[i] = imageResponse{
 			ID:        img.ID,
 			ProductID: img.ProductID,
 			URL:       img.URL,
@@ -61,7 +68,10 @@ func toProductResponse(p *product.Product) productResponse {
 			CreatedAt: img.CreatedAt,
 		}
 	}
+	return out
+}
 
+func toProductResponse(p *product.Product) productResponse {
 	return productResponse{
 		ID:             p.ID,
 		CategoryID:     p.CategoryID,
@@ -71,10 +81,8 @@ func toProductResponse(p *product.Product) productResponse {
 		Price:          p.Price,
 		CompareAtPrice: p.CompareAtPrice,
 		Currency:       p.Currency,
-		SKU:            p.SKU,
-		Status:         p.Status,
 		StockQuantity:  p.Availability.OnHand,
-		Images:         images,
+		Images:         toImageResponses(p.Images),
 		CreatedAt:      p.CreatedAt,
 		UpdatedAt:      p.UpdatedAt,
 	}

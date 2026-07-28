@@ -2,7 +2,6 @@ package http
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -10,19 +9,22 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// categoryResponse is shared by every endpoint that returns a category --
-// public list/get and the admin mutations alike expose the identical shape,
-// so this is declared once here rather than duplicated per file.
+// categoryResponse is the public wire contract, shared by the public list
+// and get-by-slug endpoints. It deliberately omits SortOrder, Active, and
+// the audit timestamps: those are merchandising/moderation details for admin
+// tooling, not something an anonymous shopper needs. Active matters most --
+// GET /categories and GET /categories/{slug} sit on the unauthenticated
+// route group with no WHERE active filter in the repository (see
+// category/postgres/repository.go's List), so naming Active here would let
+// an anonymous caller enumerate staged/unpublished categories. Admin
+// mutation endpoints get the fuller adminCategoryResponse (see
+// create_category.go) with every field intact.
 type categoryResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Name        string     `json:"name"`
 	Slug        string     `json:"slug"`
 	Description *string    `json:"description,omitempty"`
 	ParentID    *uuid.UUID `json:"parent_id,omitempty"`
-	SortOrder   int        `json:"sort_order"`
-	Active      bool       `json:"active"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 func toCategoryResponse(c *category.Category) categoryResponse {
@@ -32,10 +34,6 @@ func toCategoryResponse(c *category.Category) categoryResponse {
 		Slug:        c.Slug,
 		Description: c.Description,
 		ParentID:    c.ParentID,
-		SortOrder:   c.SortOrder,
-		Active:      c.Active,
-		CreatedAt:   c.CreatedAt,
-		UpdatedAt:   c.UpdatedAt,
 	}
 }
 

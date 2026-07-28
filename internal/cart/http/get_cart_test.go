@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/google/uuid"
@@ -63,4 +64,38 @@ func TestToCartResponse_MissingProductIsUnsellable(t *testing.T) {
 	require.Len(t, out.Items, 1)
 	assert.False(t, out.Items[0].Sellable)
 	assert.Equal(t, int64(0), out.Total)
+}
+
+// TestToCartResponse_OmitsUserID pins cartResponse's top-level wire shape.
+// cart is the only one of 14 features whose response drops a field
+// (UserID) without a test pinning the key set -- this closes that gap the
+// same way wishlist's TestToItemResponse_OmitsInternalFields pins WishlistID.
+func TestToCartResponse_OmitsUserID(t *testing.T) {
+	userID := uuid.New()
+
+	c := &cart.Cart{
+		ID:     uuid.New(),
+		UserID: userID, // internal -- the caller is always the authenticated user
+		Items:  []cart.Item{},
+	}
+
+	out := toCartResponse(c)
+
+	raw, err := json.Marshal(out)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t, []string{"id", "items", "total"}, keysOf(fields),
+		"the response must expose exactly these fields")
+	assert.NotContains(t, string(raw), userID.String(),
+		"the caller is always the authenticated user; echoing user_id back adds nothing")
+}
+
+func keysOf(m map[string]json.RawMessage) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
 }

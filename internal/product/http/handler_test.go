@@ -50,6 +50,7 @@ func TestPublicHandler_ListProducts(t *testing.T) {
 		mux, repo := setupProductMux(t)
 
 		now := time.Now()
+		sku := "SKU-123"
 		repo.EXPECT().ListPublished(mock.Anything, mock.Anything).Return([]product.Product{
 			{
 				ID:        uuid.New(),
@@ -57,6 +58,7 @@ func TestPublicHandler_ListProducts(t *testing.T) {
 				Slug:      "widget",
 				Price:     1999,
 				Currency:  "USD",
+				SKU:       &sku,
 				Status:    "published",
 				CreatedAt: now,
 				UpdatedAt: now,
@@ -86,7 +88,10 @@ func TestPublicHandler_ListProducts(t *testing.T) {
 		assert.Equal(t, "widget", item["slug"])
 		assert.InDelta(t, float64(1999), item["price"], 0.0001)
 		assert.Equal(t, "USD", item["currency"])
-		assert.Equal(t, "published", item["status"])
+		// sku and status are merchandising/inventory details the public endpoint
+		// must not expose -- see TestToProductResponse_OmitsReservationAndSoftDeleteState.
+		assert.NotContains(t, item, "sku")
+		assert.NotContains(t, item, "status")
 
 		pagination, ok := data["pagination"].(map[string]any)
 		require.True(t, ok)
@@ -177,12 +182,14 @@ func TestPublicHandler_GetBySlug(t *testing.T) {
 
 		prodID := uuid.New()
 		now := time.Now()
+		sku := "SKU-123"
 		repo.EXPECT().GetBySlug(mock.Anything, "widget").Return(&product.Product{
 			ID:        prodID,
 			Name:      "Widget",
 			Slug:      "widget",
 			Price:     1999,
 			Currency:  "USD",
+			SKU:       &sku,
 			Status:    "published",
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -211,6 +218,13 @@ func TestPublicHandler_GetBySlug(t *testing.T) {
 			Name string `json:"name"`
 			Slug string `json:"slug"`
 		}{Name: "Widget", Slug: "widget"}, got)
+
+		// sku and status are merchandising/inventory details the public endpoint
+		// must not expose, even though the fixture set both above.
+		var fields map[string]any
+		require.NoError(t, json.Unmarshal(dataJSON, &fields))
+		assert.NotContains(t, fields, "sku")
+		assert.NotContains(t, fields, "status")
 	})
 
 	t.Run("not found", func(t *testing.T) {
@@ -240,6 +254,7 @@ func TestAdminHandler_CreateProduct(t *testing.T) {
 		body, _ := json.Marshal(map[string]any{
 			"name":  "New Product",
 			"price": 2999,
+			"sku":   "SKU-999",
 		})
 
 		w := httptest.NewRecorder()
@@ -263,6 +278,12 @@ func TestAdminHandler_CreateProduct(t *testing.T) {
 		assert.Equal(t, struct {
 			Name string `json:"name"`
 		}{Name: "New Product"}, got)
+
+		// The admin endpoint keeps the fuller adminProductResponse shape.
+		var fields map[string]any
+		require.NoError(t, json.Unmarshal(dataJSON, &fields))
+		assert.Contains(t, fields, "sku")
+		assert.Contains(t, fields, "status")
 	})
 
 	t.Run("service error", func(t *testing.T) {
@@ -558,6 +579,7 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 		newName := "New Name"
 		body, _ := json.Marshal(map[string]any{
 			"name": newName,
+			"sku":  "SKU-999",
 		})
 
 		w := httptest.NewRecorder()
@@ -571,6 +593,12 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.True(t, resp.Success)
+
+		// The admin endpoint keeps the fuller adminProductResponse shape.
+		fields, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		assert.Contains(t, fields, "sku")
+		assert.Contains(t, fields, "status")
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {

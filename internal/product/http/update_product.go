@@ -50,5 +50,5 @@ func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.OK(w, toProductResponse(p))
+	response.OK(w, toAdminProductResponse(p))
 }

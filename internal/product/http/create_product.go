@@ -45,5 +45,5 @@ func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.Created(w, toProductResponse(p))
+	response.Created(w, toAdminProductResponse(p))
 }

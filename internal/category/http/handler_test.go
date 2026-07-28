@@ -77,8 +77,8 @@ func TestPublicHandler_ListCategories(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, "Electronics", item["name"])
 		assert.Equal(t, "electronics", item["slug"])
-		assert.Equal(t, true, item["active"])
-		assert.InDelta(t, float64(0), item["sort_order"], 0.0001)
+		assert.NotContains(t, item, "active")
+		assert.NotContains(t, item, "sort_order")
 		assert.NotContains(t, item, "parent_id")
 		assert.NotContains(t, item, "description")
 	})
@@ -126,18 +126,21 @@ func TestPublicHandler_GetBySlug(t *testing.T) {
 		dataJSON, err := json.Marshal(resp.Data)
 		require.NoError(t, err)
 		var got struct {
-			Name      string `json:"name"`
-			Slug      string `json:"slug"`
-			Active    bool   `json:"active"`
-			SortOrder int    `json:"sort_order"`
+			Name string `json:"name"`
+			Slug string `json:"slug"`
 		}
 		require.NoError(t, json.Unmarshal(dataJSON, &got))
 		assert.Equal(t, struct {
-			Name      string `json:"name"`
-			Slug      string `json:"slug"`
-			Active    bool   `json:"active"`
-			SortOrder int    `json:"sort_order"`
-		}{Name: "Electronics", Slug: "electronics", Active: true, SortOrder: 0}, got)
+			Name string `json:"name"`
+			Slug string `json:"slug"`
+		}{Name: "Electronics", Slug: "electronics"}, got)
+
+		// active and sort_order are moderation/merchandising details the public
+		// endpoint must not expose, even though the fixture set Active: true above.
+		var fields map[string]any
+		require.NoError(t, json.Unmarshal(dataJSON, &fields))
+		assert.NotContains(t, fields, "active")
+		assert.NotContains(t, fields, "sort_order")
 	})
 
 	t.Run("not found", func(t *testing.T) {
@@ -202,6 +205,14 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 		assert.Equal(t, struct {
 			Name string `json:"name"`
 		}{Name: "New Category"}, got)
+
+		// The admin endpoint keeps the fuller adminCategoryResponse shape.
+		var fields map[string]any
+		require.NoError(t, json.Unmarshal(dataJSON, &fields))
+		assert.Contains(t, fields, "active")
+		assert.Contains(t, fields, "sort_order")
+		assert.Contains(t, fields, "created_at")
+		assert.Contains(t, fields, "updated_at")
 	})
 
 	t.Run("service error", func(t *testing.T) {
@@ -290,6 +301,14 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.True(t, resp.Success)
+
+		// The admin endpoint keeps the fuller adminCategoryResponse shape.
+		fields, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		assert.Contains(t, fields, "active")
+		assert.Contains(t, fields, "sort_order")
+		assert.Contains(t, fields, "created_at")
+		assert.Contains(t, fields, "updated_at")
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {

@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -9,6 +10,48 @@ import (
 	"github.com/residwi/go-api-project-template/internal/product"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
+
+// adminProductResponse is the admin wire contract -- unlike the public
+// productResponse (list_products.go), it keeps SKU and Status: an operator
+// needs a SKU to reconcile inventory and needs to see draft/archived
+// products distinctly from published ones. Used by every admin endpoint
+// that returns a product body: this file's List, get_product_admin.go's
+// Get, create_product.go's Create, and update_product.go's Update.
+type adminProductResponse struct {
+	ID             uuid.UUID       `json:"id"`
+	CategoryID     *uuid.UUID      `json:"category_id,omitempty"`
+	Name           string          `json:"name"`
+	Slug           string          `json:"slug"`
+	Description    *string         `json:"description,omitempty"`
+	Price          int64           `json:"price"`
+	CompareAtPrice *int64          `json:"compare_at_price,omitempty"`
+	Currency       string          `json:"currency"`
+	SKU            *string         `json:"sku,omitempty"`
+	Status         string          `json:"status"`
+	StockQuantity  int             `json:"stock_quantity"`
+	Images         []imageResponse `json:"images,omitempty"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+}
+
+func toAdminProductResponse(p *product.Product) adminProductResponse {
+	return adminProductResponse{
+		ID:             p.ID,
+		CategoryID:     p.CategoryID,
+		Name:           p.Name,
+		Slug:           p.Slug,
+		Description:    p.Description,
+		Price:          p.Price,
+		CompareAtPrice: p.CompareAtPrice,
+		Currency:       p.Currency,
+		SKU:            p.SKU,
+		Status:         p.Status,
+		StockQuantity:  p.Availability.OnHand,
+		Images:         toImageResponses(p.Images),
+		CreatedAt:      p.CreatedAt,
+		UpdatedAt:      p.UpdatedAt,
+	}
+}
 
 func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
@@ -35,9 +78,9 @@ func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out := make([]productResponse, len(products))
+	out := make([]adminProductResponse, len(products))
 	for i, p := range products {
-		out[i] = toProductResponse(&p)
+		out[i] = toAdminProductResponse(&p)
 	}
 
 	response.Paginated(w, paging.NewOffsetPageResult(out, page, total))

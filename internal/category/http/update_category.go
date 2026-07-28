@@ -44,5 +44,5 @@ func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.OK(w, toCategoryResponse(cat))
+	response.OK(w, toAdminCategoryResponse(cat))
 }
