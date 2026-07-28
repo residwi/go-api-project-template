@@ -76,4 +76,21 @@
 // The ceiling is roughly 9.2e18 minor units — about 92 quadrillion currency
 // units — which no order in this system approaches. If that ever stops being
 // true, the fix is a checked variant, not a silent wrap.
+//
+// # Two methods with no production caller
+//
+// [Money.Sub] and [Money.IsZero] are currently unused outside tests, which is
+// worth stating rather than leaving as a puzzle for whoever greps for callers.
+// Both are kept deliberately: they are the natural complements of [Money.Add]
+// and the arithmetic a monetary type is expected to offer, and this package is
+// a template others will copy.
+//
+// Their absence at the two sites you would expect them is also deliberate, and
+// instructive. order.Service.PlaceOrder computes a discounted total with plain
+// arithmetic — max(subtotal-discount, 0) — rather than Sub, because clamping at
+// zero is a policy Sub refuses to choose: an over-large coupon must not produce
+// a negative charge, but a refund legitimately is negative, so the caller has to
+// say which it means. And it tests Total.Amount > 0 rather than !IsZero(),
+// because those differ on a negative total and only the first is the question
+// being asked. Two cases where the value object stops short on purpose.
 package money

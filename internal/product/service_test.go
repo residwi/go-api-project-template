@@ -344,6 +344,11 @@ func TestService_Update(t *testing.T) {
 		// Deliberately denominated in the old currency: products stores one currency
 		// column for both amounts, so Update must restate the compare-at price in the
 		// new price's currency rather than let the row carry two denominations.
+		//
+		// Note this pins only the branch where the caller SUPPLIES a compare-at
+		// price. The branch where the price changes currency and the caller sends
+		// no compare-at price is pinned by
+		// TestService_Update_RepricesStoredCompareAtPriceIntoTheNewCurrency below.
 		newCompare := money.New(2500, "USD")
 		newSKU := "SKU-001"
 		newStatus := product.StatusPublished
@@ -703,4 +708,57 @@ func TestService_Create_RegistersZeroInventoryLevel(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, p)
+}
+
+// TestService_Update_RepricesStoredCompareAtPriceIntoTheNewCurrency pins the
+// half of the re-denomination rule that the "success partial update" subtest
+// cannot: repricing into a new currency while sending NO compare-at price.
+//
+// Before this, Update copied the new Price but left the STORED CompareAtPrice
+// in the old currency, returning a Product whose two amounts disagree even
+// though the row is self-consistent -- `products` has a single currency column,
+// so the database reads both back in the new currency. The visible symptom is
+// that Price.Sub(*CompareAtPrice) yields ErrCurrencyMismatch on a row the
+// database says is entirely EUR, which is exactly the amount/currency drift
+// money.Money exists to make unrepresentable.
+//
+// The assertion is on the value passed to repo.Update, not just the return, so
+// this pins what gets persisted rather than only what the caller sees.
+func TestService_Update_RepricesStoredCompareAtPriceIntoTheNewCurrency(t *testing.T) {
+	repo := mocks.NewMockRepository(t)
+	inv := mocks.NewMockInventoryReader(t)
+	reg := mocks.NewMockInventoryRegistrar(t)
+	svc := product.NewService(repo, inv, reg)
+
+	id := uuid.New()
+	storedCompare := money.New(1500, "USD")
+	repo.EXPECT().GetByID(mock.Anything, id).
+		Return(&product.Product{
+			ID:             id,
+			Name:           "Widget",
+			Slug:           "widget",
+			Price:          money.New(1000, "USD"),
+			CompareAtPrice: &storedCompare,
+			Status:         product.StatusPublished,
+		}, nil)
+
+	var persisted *product.Product
+	repo.EXPECT().Update(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, p *product.Product) { persisted = p }).
+		Return(nil)
+
+	newPrice := money.New(900, "EUR")
+	result, err := svc.Update(context.Background(), id, product.UpdateParams{Price: &newPrice})
+	require.NoError(t, err)
+
+	require.NotNil(t, persisted)
+	require.NotNil(t, persisted.CompareAtPrice)
+	assert.Equal(t, money.New(1500, "EUR"), *persisted.CompareAtPrice,
+		"the stored compare-at price keeps its amount but must be restated in the new currency")
+	assert.Equal(t, money.New(900, "EUR"), persisted.Price)
+
+	require.NotNil(t, result.CompareAtPrice)
+	_, subErr := result.Price.Sub(*result.CompareAtPrice)
+	require.NoError(t, subErr,
+		"both amounts must share a currency -- the row does, so the returned struct must too")
 }

@@ -149,6 +149,41 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		assert.Equal(t, order.StatusAwaitingPayment, got.Status)
 	})
 
+	// The three amounts are read from three columns but share ONE currency
+	// column, and amountColumns.assignTo is the single place that fan-out
+	// happens. Nothing used to pin it: two mutations to assignTo survived the
+	// whole 58-package suite -- denominating Subtotal/Discount as money.New(n,
+	// "") (giving every order two amounts denominated in nothing), and swapping
+	// subtotal with discount (transposing them on every GET /orders/{id}).
+	//
+	// Three DISTINCT amounts and a non-USD currency are both load-bearing here:
+	// equal amounts cannot detect a transposition, and a USD fixture cannot
+	// detect a dropped currency, since money.New(n, "") != money.New(n, "USD")
+	// is the only thing that catches it. Inserted with raw SQL rather than via
+	// the newOrder fixture so the order's currency can differ from the USD used
+	// by the order_items tests, which read their currency back through the join
+	// on this same row.
+	t.Run("denominates all three amounts from the row's single currency", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		repo := postgres.New(testPool)
+		ctx := context.Background()
+
+		o := newOrder(userID)
+		o.Subtotal = money.New(9500, "IDR")
+		o.Discount = money.New(1500, "IDR")
+		o.Total = money.New(8000, "IDR")
+		require.NoError(t, repo.Create(ctx, o))
+		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM orders WHERE id = $1`, o.ID) })
+
+		got, err := repo.GetByID(ctx, o.ID)
+		require.NoError(t, err)
+
+		assert.Equal(t, money.New(9500, "IDR"), got.Subtotal, "subtotal must carry the row's currency")
+		assert.Equal(t, money.New(1500, "IDR"), got.Discount, "discount must carry the row's currency")
+		assert.Equal(t, money.New(8000, "IDR"), got.Total, "total must carry the row's currency")
+	})
+
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
 		repo := postgres.New(testPool)

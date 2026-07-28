@@ -83,8 +83,13 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 	// emitted once at order level. A nested {"Amount":..,"Currency":..} object
 	// here -- i.e. a Money that marshalled itself -- would fail both assertions.
 	assert.JSONEq(t, `1000`, string(fields["total_amount"]))
-	assert.JSONEq(t, `"USD"`, string(fields["currency"]),
-		"the order's single currency is emitted from Total")
+	// Pins that a currency is emitted, not that it comes from Total specifically:
+	// the fixture denominates all three amounts "USD", so Subtotal's or
+	// Discount's would satisfy this identically. That is fine -- the mapper's own
+	// comment says any of the three would do, because PlaceOrder builds them from
+	// one currency and the row stores one column. Stated so nobody reads this as
+	// a guarantee about which field the mapper reads.
+	assert.JSONEq(t, `"USD"`, string(fields["currency"]))
 
 	assert.NotContains(t, string(raw), "distinguishable-request-hash",
 		"RequestHash is an idempotency internal and must not be serialised")

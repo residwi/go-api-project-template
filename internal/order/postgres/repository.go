@@ -108,6 +108,15 @@ func (r *Repository) Create(ctx context.Context, order *order.Order) error {
 		order.Subtotal.Amount, order.Discount.Amount, order.Total.Amount,
 		// One currency column for all three amounts; Total's is authoritative
 		// because it is what gets charged.
+		//
+		// This silently ignores whether Subtotal and Discount agree with it, which
+		// would re-denominate them on the next read. Not a live defect: the sole
+		// caller (order.Service.PlaceOrder) builds all three from subtotal's
+		// currency, and Money makes a disagreement unrepresentable upstream of
+		// here since the fold that produces subtotal already refuses mixed
+		// currencies. Flagged rather than guarded because it is the one write in
+		// the four Money features that could re-denominate an amount, so a second
+		// caller would need to preserve that invariant itself.
 		order.CouponCode, order.Total.Currency,
 		order.ShippingAddress, order.BillingAddress, order.Notes,
 	).Scan(&order.ID, &order.CreatedAt, &order.UpdatedAt)

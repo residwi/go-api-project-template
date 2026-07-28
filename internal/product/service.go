@@ -200,6 +200,15 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, p UpdateParams) (*Pr
 	}
 	if p.Price != nil {
 		prod.Price = *p.Price
+		// Re-denominate the *stored* compare-at price too. Repricing into another
+		// currency while leaving CompareAtPrice in the old one returns a Product
+		// whose two amounts disagree, even though the row is self-consistent --
+		// `products` has a single currency column, so the database reads both back
+		// in the new currency. Without this, Price.Sub(*CompareAtPrice) yields
+		// ErrCurrencyMismatch on a row the database says is entirely one currency.
+		// If p.CompareAtPrice was also supplied, the branch below overwrites this
+		// with the caller's value.
+		prod.CompareAtPrice = denominateLike(prod.CompareAtPrice, prod.Price)
 	}
 	if p.CompareAtPrice != nil {
 		prod.CompareAtPrice = denominateLike(p.CompareAtPrice, prod.Price)
