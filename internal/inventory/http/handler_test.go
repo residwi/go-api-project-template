@@ -114,7 +114,7 @@ func TestAdminHandler_Restock(t *testing.T) {
 		expected := &inventory.Stock{ProductID: productID, Quantity: 150, Reserved: 5, Available: 145}
 		repo.EXPECT().Restock(mock.Anything, productID, 50).Return(expected, nil)
 
-		body, _ := json.Marshal(inventory.RestockRequest{Quantity: 50})
+		body, _ := json.Marshal(map[string]any{"quantity": 50})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/admin/inventory/"+productID.String()+"/restock", bytes.NewReader(body))
@@ -148,7 +148,7 @@ func TestAdminHandler_Restock(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		mux, _ := setupInventoryMux(t)
 
-		body, _ := json.Marshal(inventory.RestockRequest{Quantity: 50})
+		body, _ := json.Marshal(map[string]any{"quantity": 50})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/admin/inventory/not-a-uuid/restock", bytes.NewReader(body))
@@ -187,7 +187,7 @@ func TestAdminHandler_Restock(t *testing.T) {
 		mux, _ := setupInventoryMux(t)
 
 		productID := uuid.New()
-		body, _ := json.Marshal(inventory.RestockRequest{Quantity: 0})
+		body, _ := json.Marshal(map[string]any{"quantity": 0})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/admin/inventory/"+productID.String()+"/restock", bytes.NewReader(body))
@@ -209,7 +209,7 @@ func TestAdminHandler_Restock(t *testing.T) {
 		productID := uuid.New()
 		repo.EXPECT().Restock(mock.Anything, productID, 50).Return(nil, fmt.Errorf("%w: product not found", apperror.ErrNotFound))
 
-		body, _ := json.Marshal(inventory.RestockRequest{Quantity: 50})
+		body, _ := json.Marshal(map[string]any{"quantity": 50})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/admin/inventory/"+productID.String()+"/restock", bytes.NewReader(body))
@@ -234,7 +234,7 @@ func TestAdminHandler_Adjust(t *testing.T) {
 		expected := &inventory.Stock{ProductID: productID, Quantity: 200, Reserved: 10, Available: 190}
 		repo.EXPECT().AdjustStock(mock.Anything, productID, 200).Return(expected, nil)
 
-		body, _ := json.Marshal(inventory.AdjustRequest{Quantity: 200})
+		body, _ := json.Marshal(map[string]any{"quantity": 200})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/admin/inventory/"+productID.String()+"/adjust", bytes.NewReader(body))
@@ -268,7 +268,7 @@ func TestAdminHandler_Adjust(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		mux, _ := setupInventoryMux(t)
 
-		body, _ := json.Marshal(inventory.AdjustRequest{Quantity: 200})
+		body, _ := json.Marshal(map[string]any{"quantity": 200})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/admin/inventory/not-a-uuid/adjust", bytes.NewReader(body))
@@ -329,7 +329,7 @@ func TestAdminHandler_Adjust(t *testing.T) {
 		productID := uuid.New()
 		repo.EXPECT().AdjustStock(mock.Anything, productID, 200).Return(nil, fmt.Errorf("%w: cannot set stock below reserved quantity", apperror.ErrBadRequest))
 
-		body, _ := json.Marshal(inventory.AdjustRequest{Quantity: 200})
+		body, _ := json.Marshal(map[string]any{"quantity": 200})
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/admin/inventory/"+productID.String()+"/adjust", bytes.NewReader(body))
