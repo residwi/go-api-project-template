@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/product"
 )
 
@@ -35,8 +36,7 @@ func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
 		ID:        uuid.New(),
 		Name:      "Widget",
 		Slug:      "widget",
-		Price:     1999,
-		Currency:  "USD",
+		Price:     money.New(1999, "USD"),
 		SKU:       &sku,
 		Status:    "published",
 		DeletedAt: &deletedAt,
@@ -88,7 +88,7 @@ func TestToAdminProductResponse_KeepsSKUAndStatus(t *testing.T) {
 	sku := "SKU-123"
 	description := "A widget"
 	categoryID := uuid.New()
-	compareAtPrice := int64(2999)
+	compareAtPrice := money.New(2999, "USD")
 
 	got := toAdminProductResponse(&product.Product{
 		ID:             uuid.New(),
@@ -96,9 +96,8 @@ func TestToAdminProductResponse_KeepsSKUAndStatus(t *testing.T) {
 		Slug:           "widget",
 		Description:    &description,
 		CategoryID:     &categoryID,
-		Price:          1999,
+		Price:          money.New(1999, "USD"),
 		CompareAtPrice: &compareAtPrice,
-		Currency:       "USD",
 		SKU:            &sku,
 		Status:         "draft",
 		Availability: product.Availability{

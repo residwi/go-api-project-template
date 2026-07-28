@@ -10,16 +10,53 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/product"
 )
 
+// amountColumns is the products table's two amount columns plus the single
+// currency column they share. The schema stores the currency once, so a scan
+// reads it once and denominates both money.Money values from it -- this struct
+// is the one place that fan-out lives. compare_at_price is nullable and stays
+// nil, rather than becoming a zero amount, so an absent compare-at price is
+// still absent after the round trip.
+type amountColumns struct {
+	price          int64
+	compareAtPrice *int64
+	currency       string
+}
+
+func (a amountColumns) assignTo(p *product.Product) {
+	p.Price = money.New(a.price, a.currency)
+	p.CompareAtPrice = nil
+	if a.compareAtPrice != nil {
+		compareAt := money.New(*a.compareAtPrice, a.currency)
+		p.CompareAtPrice = &compareAt
+	}
+}
+
+// compareAtPriceAmount unpacks the optional compare-at price for the nullable
+// column: NULL stays NULL, and only the amount is written because the currency
+// column it would otherwise need is shared with price and written from there.
+func compareAtPriceAmount(p *product.Product) *int64 {
+	if p.CompareAtPrice == nil {
+		return nil
+	}
+	return &p.CompareAtPrice.Amount
+}
+
 func scanProduct(row pgx.CollectableRow) (product.Product, error) {
 	var p product.Product
-	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &p.Price, &p.CompareAtPrice,
-		&p.Currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
-	return p, err
+	var amt amountColumns
+	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &amt.price, &amt.compareAtPrice,
+		&amt.currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+	if err != nil {
+		return p, err
+	}
+	amt.assignTo(&p)
+	return p, nil
 }
 
 // scanProductIncludingDeleted additionally scans deleted_at, unlike scanProduct:
@@ -29,9 +66,14 @@ func scanProduct(row pgx.CollectableRow) (product.Product, error) {
 // (untouched) status column.
 func scanProductIncludingDeleted(row pgx.CollectableRow) (product.Product, error) {
 	var p product.Product
-	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &p.Price, &p.CompareAtPrice,
-		&p.Currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt)
-	return p, err
+	var amt amountColumns
+	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &amt.price, &amt.compareAtPrice,
+		&amt.currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt)
+	if err != nil {
+		return p, err
+	}
+	amt.assignTo(&p)
+	return p, nil
 }
 
 func scanImage(row pgx.CollectableRow) (product.Image, error) {
@@ -54,8 +96,11 @@ func (r *Repository) Create(ctx context.Context, p *product.Product) error {
 		`INSERT INTO products (category_id, name, slug, description, price, compare_at_price, currency, sku, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, updated_at`,
-		p.CategoryID, p.Name, p.Slug, p.Description, p.Price, p.CompareAtPrice,
-		p.Currency, p.SKU, p.Status,
+		p.CategoryID, p.Name, p.Slug, p.Description, p.Price.Amount, compareAtPriceAmount(p),
+		// One currency column for both amounts; Price's is authoritative because it
+		// is what the product actually sells for, and Service guarantees
+		// CompareAtPrice agrees with it.
+		p.Price.Currency, p.SKU, p.Status,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
@@ -69,36 +114,40 @@ func (r *Repository) Create(ctx context.Context, p *product.Product) error {
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*product.Product, error) {
 	db := database.DB(ctx, r.pool)
 	var p product.Product
+	var amt amountColumns
 	err := db.QueryRow(ctx,
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,
 		        status, created_at, updated_at
 		FROM products WHERE id = $1 AND deleted_at IS NULL`, id,
-	).Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &p.Price, &p.CompareAtPrice,
-		&p.Currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+	).Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &amt.price, &amt.compareAtPrice,
+		&amt.currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting product by id: %w", err)
 	}
+	amt.assignTo(&p)
 	return &p, nil
 }
 
 func (r *Repository) GetBySlug(ctx context.Context, slug string) (*product.Product, error) {
 	db := database.DB(ctx, r.pool)
 	var p product.Product
+	var amt amountColumns
 	err := db.QueryRow(ctx,
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,
 		        status, created_at, updated_at
 		FROM products WHERE slug = $1 AND deleted_at IS NULL`, slug,
-	).Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &p.Price, &p.CompareAtPrice,
-		&p.Currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+	).Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &amt.price, &amt.compareAtPrice,
+		&amt.currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, apperror.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting product by slug: %w", err)
 	}
+	amt.assignTo(&p)
 	return &p, nil
 }
 
@@ -108,8 +157,8 @@ func (r *Repository) Update(ctx context.Context, p *product.Product) error {
 		`UPDATE products SET category_id=$1, name=$2, slug=$3, description=$4, price=$5,
 		        compare_at_price=$6, currency=$7, sku=$8, status=$9
 		WHERE id = $10 AND deleted_at IS NULL`,
-		p.CategoryID, p.Name, p.Slug, p.Description, p.Price, p.CompareAtPrice,
-		p.Currency, p.SKU, p.Status, p.ID,
+		p.CategoryID, p.Name, p.Slug, p.Description, p.Price.Amount, compareAtPriceAmount(p),
+		p.Price.Currency, p.SKU, p.Status, p.ID,
 	)
 	if err != nil {
 		if database.IsUniqueViolation(err) {

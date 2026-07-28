@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/product"
 	mocks "github.com/residwi/go-api-project-template/mocks/product"
 )
@@ -34,7 +35,7 @@ func TestService_Create(t *testing.T) {
 
 		result, err := svc.Create(context.Background(), product.CreateParams{
 			Name:  "Cool Widget",
-			Price: 1999,
+			Price: money.New(1999, ""),
 		})
 		require.NoError(t, err)
 		assert.NotEqual(t, uuid.Nil, result.ID)
@@ -42,11 +43,10 @@ func TestService_Create(t *testing.T) {
 		result.CreatedAt = time.Time{}
 		result.UpdatedAt = time.Time{}
 		assert.Equal(t, &product.Product{
-			Name:     "Cool Widget",
-			Slug:     "cool-widget",
-			Price:    1999,
-			Currency: "USD",
-			Status:   product.StatusDraft,
+			Name:   "Cool Widget",
+			Slug:   "cool-widget",
+			Price:  money.New(1999, "USD"),
+			Status: product.StatusDraft,
 		}, result)
 	})
 
@@ -57,7 +57,7 @@ func TestService_Create(t *testing.T) {
 		svc := product.NewService(repo, inv, reg)
 
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p *product.Product) bool {
-			return p.Currency == "EUR" && p.Status == product.StatusPublished
+			return p.Price.Currency == "EUR" && p.Status == product.StatusPublished
 		})).Run(func(_ context.Context, p *product.Product) {
 			p.ID = uuid.New()
 			p.CreatedAt = time.Now()
@@ -66,10 +66,9 @@ func TestService_Create(t *testing.T) {
 		reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
 
 		result, err := svc.Create(context.Background(), product.CreateParams{
-			Name:     "Widget",
-			Price:    1000,
-			Currency: "EUR",
-			Status:   product.StatusPublished,
+			Name:   "Widget",
+			Price:  money.New(1000, "EUR"),
+			Status: product.StatusPublished,
 		})
 		require.NoError(t, err)
 		assert.NotEqual(t, uuid.Nil, result.ID)
@@ -77,11 +76,10 @@ func TestService_Create(t *testing.T) {
 		result.CreatedAt = time.Time{}
 		result.UpdatedAt = time.Time{}
 		assert.Equal(t, &product.Product{
-			Name:     "Widget",
-			Slug:     "widget",
-			Price:    1000,
-			Currency: "EUR",
-			Status:   product.StatusPublished,
+			Name:   "Widget",
+			Slug:   "widget",
+			Price:  money.New(1000, "EUR"),
+			Status: product.StatusPublished,
 		}, result)
 	})
 
@@ -95,7 +93,7 @@ func TestService_Create(t *testing.T) {
 
 		p, err := svc.Create(context.Background(), product.CreateParams{
 			Name:  "Widget",
-			Price: 1000,
+			Price: money.New(1000, ""),
 		})
 		assert.Nil(t, p)
 		assert.ErrorIs(t, err, apperror.ErrConflict)
@@ -300,12 +298,11 @@ func TestService_Update(t *testing.T) {
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
 			Return(&product.Product{
-				ID:       id,
-				Name:     "Old Name",
-				Slug:     "old-name",
-				Price:    1000,
-				Currency: "USD",
-				Status:   product.StatusDraft,
+				ID:     id,
+				Name:   "Old Name",
+				Slug:   "old-name",
+				Price:  money.New(1000, "USD"),
+				Status: product.StatusDraft,
 			}, nil)
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*product.Product")).Return(nil)
 
@@ -315,12 +312,11 @@ func TestService_Update(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, &product.Product{
-			ID:       id,
-			Name:     "New Name",
-			Slug:     "new-name",
-			Price:    1000,
-			Currency: "USD",
-			Status:   product.StatusDraft,
+			ID:     id,
+			Name:   "New Name",
+			Slug:   "new-name",
+			Price:  money.New(1000, "USD"),
+			Status: product.StatusDraft,
 		}, p)
 	})
 
@@ -334,20 +330,21 @@ func TestService_Update(t *testing.T) {
 		catID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
 			Return(&product.Product{
-				ID:       id,
-				Name:     "Old",
-				Slug:     "old",
-				Price:    1000,
-				Currency: "USD",
-				Status:   product.StatusDraft,
+				ID:     id,
+				Name:   "Old",
+				Slug:   "old",
+				Price:  money.New(1000, "USD"),
+				Status: product.StatusDraft,
 			}, nil)
 		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(nil)
 
 		newName := "New"
 		newDesc := "A description"
-		newPrice := int64(2000)
-		newCompare := int64(2500)
-		newCurrency := "EUR"
+		newPrice := money.New(2000, "EUR")
+		// Deliberately denominated in the old currency: products stores one currency
+		// column for both amounts, so Update must restate the compare-at price in the
+		// new price's currency rather than let the row carry two denominations.
+		newCompare := money.New(2500, "USD")
 		newSKU := "SKU-001"
 		newStatus := product.StatusPublished
 		result, err := svc.Update(context.Background(), id, product.UpdateParams{
@@ -356,7 +353,6 @@ func TestService_Update(t *testing.T) {
 			Description:    &newDesc,
 			Price:          &newPrice,
 			CompareAtPrice: &newCompare,
-			Currency:       &newCurrency,
 			SKU:            &newSKU,
 			Status:         &newStatus,
 		})
@@ -365,14 +361,14 @@ func TestService_Update(t *testing.T) {
 		result.ID = uuid.Nil
 		result.CreatedAt = time.Time{}
 		result.UpdatedAt = time.Time{}
+		expectedCompare := money.New(2500, "EUR")
 		assert.Equal(t, &product.Product{
 			CategoryID:     &catID,
 			Name:           "New",
 			Slug:           "new",
 			Description:    &newDesc,
-			Price:          2000,
-			CompareAtPrice: &newCompare,
-			Currency:       "EUR",
+			Price:          money.New(2000, "EUR"),
+			CompareAtPrice: &expectedCompare,
 			SKU:            &newSKU,
 			Status:         product.StatusPublished,
 		}, result)
@@ -400,12 +396,11 @@ func TestService_Update(t *testing.T) {
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
 			Return(&product.Product{
-				ID:       id,
-				Name:     "Old",
-				Slug:     "old",
-				Price:    1000,
-				Currency: "USD",
-				Status:   product.StatusDraft,
+				ID:     id,
+				Name:   "Old",
+				Slug:   "old",
+				Price:  money.New(1000, "USD"),
+				Status: product.StatusDraft,
 			}, nil)
 		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
@@ -704,7 +699,7 @@ func TestService_Create_RegistersZeroInventoryLevel(t *testing.T) {
 
 	p, err := svc.Create(context.Background(), product.CreateParams{
 		Name:  "Widget",
-		Price: 1500,
+		Price: money.New(1500, ""),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, p)

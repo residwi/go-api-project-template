@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/product"
 	"github.com/residwi/go-api-project-template/internal/product/postgres"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -58,8 +59,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 			Name:        "New Product",
 			Slug:        "new-product-" + uuid.New().String(),
 			Description: &desc,
-			Price:       1000,
-			Currency:    "USD",
+			Price:       money.New(1000, "USD"),
 			Status:      product.StatusPublished,
 		}
 
@@ -72,17 +72,54 @@ func TestPostgresRepository_Create(t *testing.T) {
 		})
 	})
 
+	// Pins the two-column mapping the products table forces on money.Money: one
+	// currency column covers both amounts, and compare_at_price is nullable.
+	// Nothing else in this package writes a compare-at price, so without this the
+	// scanner's nil branch is never exercised -- and an absent compare-at price
+	// coming back as a denominated zero would put `compare_at_price: 0` on the
+	// wire under a key that used to be missing entirely.
+	t.Run("round-trips both amounts under the row's single currency", func(t *testing.T) {
+		setup(t)
+		repo := postgres.New(testPool)
+		compareAt := money.New(2999, "EUR")
+		p := &product.Product{
+			Name:           "Denominated Product",
+			Slug:           "denominated-" + uuid.New().String(),
+			Price:          money.New(1999, "EUR"),
+			CompareAtPrice: &compareAt,
+			Status:         product.StatusPublished,
+		}
+		require.NoError(t, repo.Create(context.Background(), p))
+		t.Cleanup(func() {
+			testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, p.ID)
+		})
+
+		got, err := repo.GetByID(context.Background(), p.ID)
+		require.NoError(t, err)
+		assert.Equal(t, money.New(1999, "EUR"), got.Price)
+		require.NotNil(t, got.CompareAtPrice)
+		assert.Equal(t, money.New(2999, "EUR"), *got.CompareAtPrice,
+			"compare_at_price has no currency column of its own, so it must read back denominated from the row's")
+
+		// The NULL case: an absent compare-at price stays absent rather than
+		// becoming a denominated zero.
+		p.CompareAtPrice = nil
+		require.NoError(t, repo.Update(context.Background(), p))
+		got, err = repo.GetByID(context.Background(), p.ID)
+		require.NoError(t, err)
+		assert.Nil(t, got.CompareAtPrice)
+	})
+
 	t.Run("returns conflict on duplicate slug", func(t *testing.T) {
 		setup(t)
 		existing := seedProduct(t)
 		repo := postgres.New(testPool)
 
 		dup := &product.Product{
-			Name:     "Duplicate",
-			Slug:     existing.Slug,
-			Price:    500,
-			Currency: "USD",
-			Status:   product.StatusDraft,
+			Name:   "Duplicate",
+			Slug:   existing.Slug,
+			Price:  money.New(500, "USD"),
+			Status: product.StatusDraft,
 		}
 		err := repo.Create(context.Background(), dup)
 		assert.ErrorIs(t, err, apperror.ErrConflict)
@@ -138,7 +175,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		repo := postgres.New(testPool)
 
 		p.Name = "Updated Product"
-		p.Price = 2000
+		p.Price = money.New(2000, "EUR")
 		p.Status = product.StatusArchived
 		err := repo.Update(context.Background(), p)
 		require.NoError(t, err)
@@ -146,7 +183,10 @@ func TestPostgresRepository_Update(t *testing.T) {
 		got, err := repo.GetByID(context.Background(), p.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "Updated Product", got.Name)
-		assert.Equal(t, int64(2000), got.Price)
+		// Compare the whole Money: the currency travels to the row's single currency
+		// column and back, so asserting only the amount would pass even if Update
+		// wrote the price under the wrong denomination.
+		assert.Equal(t, money.New(2000, "EUR"), got.Price)
 		assert.Equal(t, product.StatusArchived, got.Status)
 	})
 
@@ -155,12 +195,11 @@ func TestPostgresRepository_Update(t *testing.T) {
 		repo := postgres.New(testPool)
 
 		p := &product.Product{
-			ID:       uuid.New(),
-			Name:     "Ghost",
-			Slug:     "ghost-" + uuid.New().String(),
-			Price:    100,
-			Currency: "USD",
-			Status:   product.StatusDraft,
+			ID:     uuid.New(),
+			Name:   "Ghost",
+			Slug:   "ghost-" + uuid.New().String(),
+			Price:  money.New(100, "USD"),
+			Status: product.StatusDraft,
 		}
 		err := repo.Update(context.Background(), p)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -303,8 +342,12 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, products)
 		for _, p := range products {
-			assert.GreaterOrEqual(t, p.Price, minPrice)
-			assert.LessOrEqual(t, p.Price, maxPrice)
+			// Compared against the amount: PublishedListParams.MinPrice/MaxPrice are
+			// bare int64 bounds on the price column, with no currency of their own, so
+			// they stay int64 rather than becoming a Money that would claim a
+			// denomination the `min_price`/`max_price` query params never carry.
+			assert.GreaterOrEqual(t, p.Price.Amount, minPrice)
+			assert.LessOrEqual(t, p.Price.Amount, maxPrice)
 		}
 	})
 
@@ -558,7 +601,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Create", func(t *testing.T) {
 		setup(t)
-		p := &product.Product{Name: "X", Slug: "x-" + uuid.New().String(), Price: 100, Currency: "USD", Status: product.StatusDraft}
+		p := &product.Product{Name: "X", Slug: "x-" + uuid.New().String(), Price: money.New(100, "USD"), Status: product.StatusDraft}
 		err := repo.Create(cancelledCtx, p)
 		assert.Error(t, err)
 	})
@@ -577,7 +620,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Update", func(t *testing.T) {
 		setup(t)
-		p := &product.Product{ID: uuid.New(), Name: "X", Slug: "x-" + uuid.New().String(), Price: 100, Currency: "USD", Status: product.StatusDraft}
+		p := &product.Product{ID: uuid.New(), Name: "X", Slug: "x-" + uuid.New().String(), Price: money.New(100, "USD"), Status: product.StatusDraft}
 		err := repo.Update(cancelledCtx, p)
 		assert.Error(t, err)
 	})

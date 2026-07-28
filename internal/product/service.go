@@ -7,8 +7,33 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
+
+// defaultCurrency denominates a product whose create request named no currency.
+// It is a business default, so it stays here rather than in a transport: the
+// service is reachable from a seeder or a CLI that has no request to default.
+const defaultCurrency = "USD"
+
+// denominateLike restates an optional amount in price's currency, passing nil
+// through unchanged.
+//
+// products has one currency column covering both price and compare_at_price, so
+// the two cannot disagree on a row. A caller that supplied a compare-at price in
+// some other currency would otherwise have that currency dropped on the way to
+// the database and the amount silently re-read as the price's -- the exact
+// mismatch money.Money exists to make impossible. Forcing it here keeps the
+// invariant the schema already imposes, and costs nothing on the http path,
+// where both amounts are built from the request's single `currency` key and
+// already agree.
+func denominateLike(amount *money.Money, price money.Money) *money.Money {
+	if amount == nil {
+		return nil
+	}
+	restated := money.New(amount.Amount, price.Currency)
+	return &restated
+}
 
 type Service struct {
 	repo Repository
@@ -42,21 +67,22 @@ func (s *Service) enrich(ctx context.Context, products []Product) error {
 }
 
 func (s *Service) Create(ctx context.Context, p CreateParams) (*Product, error) {
+	price := p.Price
+	if price.Currency == "" {
+		price.Currency = defaultCurrency
+	}
+
 	prod := &Product{
 		CategoryID:     p.CategoryID,
 		Name:           p.Name,
 		Slug:           slug.MakeOrFallback(p.Name, "product-"+uuid.New().String()[:8]),
 		Description:    p.Description,
-		Price:          p.Price,
-		CompareAtPrice: p.CompareAtPrice,
-		Currency:       "USD",
+		Price:          price,
+		CompareAtPrice: denominateLike(p.CompareAtPrice, price),
 		SKU:            p.SKU,
 		Status:         StatusDraft,
 	}
 
-	if p.Currency != "" {
-		prod.Currency = p.Currency
-	}
 	if p.Status != "" {
 		prod.Status = p.Status
 	}
@@ -176,10 +202,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, p UpdateParams) (*Pr
 		prod.Price = *p.Price
 	}
 	if p.CompareAtPrice != nil {
-		prod.CompareAtPrice = p.CompareAtPrice
-	}
-	if p.Currency != nil {
-		prod.Currency = *p.Currency
+		prod.CompareAtPrice = denominateLike(p.CompareAtPrice, prod.Price)
 	}
 	if p.SKU != nil {
 		prod.SKU = p.SKU

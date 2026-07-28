@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/product"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -29,6 +30,11 @@ import (
 // never even computed onto product.Availability (see product/inventory.go).
 // DeletedAt never appears: a soft-deleted product should not be
 // distinguishable on the wire from one that simply 404s.
+//
+// Price and CompareAtPrice are int64 minor units even though product.Product
+// now holds them as money.Money, and `currency` is emitted once for both:
+// flattening each value here -- rather than letting the type marshal itself --
+// is what keeps that shape the adapter's decision. See internal/money/doc.go.
 type productResponse struct {
 	ID             uuid.UUID       `json:"id"`
 	CategoryID     *uuid.UUID      `json:"category_id,omitempty"`
@@ -51,6 +57,23 @@ type imageResponse struct {
 	AltText   *string   `json:"alt_text,omitempty"`
 	SortOrder int       `json:"sort_order"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// compareAtPriceAmount flattens an optional compare-at price to its amount.
+// Shared by the public and admin mappers (list_products_admin.go).
+//
+// The return type stays *int64, not money.Money, because `compare_at_price` is
+// `omitempty` and has always been absent from the body when a product has no
+// compare-at price. A money.Money would be a struct -- never empty as far as
+// encoding/json is concerned -- so the key would appear as 0 on every product
+// that used to omit it, which is a wire change dressed up as a type change.
+// The currency is not repeated either: it is the product's, published once
+// under `currency`.
+func compareAtPriceAmount(m *money.Money) *int64 {
+	if m == nil {
+		return nil
+	}
+	return &m.Amount
 }
 
 // toImageResponses maps a product's images onto the wire shape. Shared by
@@ -78,9 +101,9 @@ func toProductResponse(p *product.Product) productResponse {
 		Name:           p.Name,
 		Slug:           p.Slug,
 		Description:    p.Description,
-		Price:          p.Price,
-		CompareAtPrice: p.CompareAtPrice,
-		Currency:       p.Currency,
+		Price:          p.Price.Amount,
+		CompareAtPrice: compareAtPriceAmount(p.CompareAtPrice),
+		Currency:       p.Price.Currency,
 		StockQuantity:  p.Availability.OnHand,
 		Images:         toImageResponses(p.Images),
 		CreatedAt:      p.CreatedAt,

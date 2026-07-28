@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/product"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
@@ -20,17 +21,26 @@ type createProductRequest struct {
 	Status         string     `json:"status" validate:"omitempty,oneof=draft published archived"`
 }
 
+// toCreateParams pairs the request's two amounts with its single `currency`
+// key, so both arrive at the service denominated and agreeing with each other.
+//
+// `currency` is optional on the wire and stays so: an empty currency reaches
+// product.Service.Create, which denominates the product in its default. The
+// default is a business rule, not a transport one, so it is not applied here.
 func (r createProductRequest) toCreateParams() product.CreateParams {
-	return product.CreateParams{
-		CategoryID:     r.CategoryID,
-		Name:           r.Name,
-		Description:    r.Description,
-		Price:          r.Price,
-		CompareAtPrice: r.CompareAtPrice,
-		Currency:       r.Currency,
-		SKU:            r.SKU,
-		Status:         r.Status,
+	p := product.CreateParams{
+		CategoryID:  r.CategoryID,
+		Name:        r.Name,
+		Description: r.Description,
+		Price:       money.New(r.Price, r.Currency),
+		SKU:         r.SKU,
+		Status:      r.Status,
 	}
+	if r.CompareAtPrice != nil {
+		compareAt := money.New(*r.CompareAtPrice, r.Currency)
+		p.CompareAtPrice = &compareAt
+	}
+	return p
 }
 
 func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {

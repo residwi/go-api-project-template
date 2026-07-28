@@ -22,10 +22,13 @@ func (a *productLookupAdapter) GetByID(ctx context.Context, id uuid.UUID) (*cart
 		return nil, err
 	}
 	return &cart.ProductInfo{
-		ID:        p.ID,
-		Name:      p.Name,
-		Price:     p.Price,
-		Currency:  p.Currency,
+		ID:   p.ID,
+		Name: p.Name,
+		// cart.ProductInfo still splits amount and currency into two fields (its own
+		// money.Money adoption is a separate task); unpair product's price here
+		// rather than reaching into cart's types.
+		Price:     p.Price.Amount,
+		Currency:  p.Price.Currency,
 		Status:    p.Status,
 		Available: p.Availability.Available,
 	}, nil
@@ -50,8 +53,8 @@ func (a *productLookupAdapter) GetByIDs(ctx context.Context, ids []uuid.UUID) (m
 		out[p.ID] = cart.ProductInfo{
 			ID:        p.ID,
 			Name:      p.Name,
-			Price:     p.Price,
-			Currency:  p.Currency,
+			Price:     p.Price.Amount,
+			Currency:  p.Price.Currency,
 			Status:    status,
 			Available: p.Availability.Available,
 		}

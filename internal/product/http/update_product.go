@@ -1,10 +1,13 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
 
+	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/product"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
@@ -20,17 +23,52 @@ type updateProductRequest struct {
 	Status         *string    `json:"status" validate:"omitempty,oneof=draft published archived"`
 }
 
-func (r updateProductRequest) toUpdateParams() product.UpdateParams {
-	return product.UpdateParams{
-		CategoryID:     r.CategoryID,
-		Name:           r.Name,
-		Description:    r.Description,
-		Price:          r.Price,
-		CompareAtPrice: r.CompareAtPrice,
-		Currency:       r.Currency,
-		SKU:            r.SKU,
-		Status:         r.Status,
+// toUpdateParams maps the request onto product.UpdateParams, whose amounts are
+// now money.Money and therefore inseparable from their currency.
+//
+// The three monetary keys move as one group: supply `price` and `currency`
+// together (optionally with `compare_at_price`), or none of the three. Anything
+// in between is rejected here as a 400 rather than completed with a guess:
+//
+//   - `price` without `currency` used to inherit the stored currency, which
+//     means a client could re-price a product in a denomination it never named
+//     and get a 200 back. Silently inheriting hides that bug; refusing surfaces
+//     it at the one moment someone is looking.
+//   - `currency` without `price` is the same mistake read backwards -- a
+//     re-denomination that leaves the old amount standing. products stores one
+//     currency for the whole row, so this quietly re-labels compare_at_price too.
+//   - `compare_at_price` without `price` would be written under the price's
+//     currency rather than the one it was sent with, for the same reason.
+//
+// The validate tags cannot express this: `omitempty` makes each field
+// independently optional, and a `required_with` group would surface as a 422
+// from response.Bind, not the 400 a contradictory-but-well-formed body deserves.
+func (r updateProductRequest) toUpdateParams() (product.UpdateParams, error) {
+	p := product.UpdateParams{
+		CategoryID:  r.CategoryID,
+		Name:        r.Name,
+		Description: r.Description,
+		SKU:         r.SKU,
+		Status:      r.Status,
 	}
+
+	switch {
+	case r.Price == nil && r.Currency == nil && r.CompareAtPrice == nil:
+		// No monetary key at all: the product's price is left exactly as stored.
+		return p, nil
+	case r.Price == nil || r.Currency == nil:
+		return product.UpdateParams{}, fmt.Errorf(
+			"%w: price and currency must be supplied together, and compare_at_price requires both",
+			apperror.ErrBadRequest)
+	}
+
+	price := money.New(*r.Price, *r.Currency)
+	p.Price = &price
+	if r.CompareAtPrice != nil {
+		compareAt := money.New(*r.CompareAtPrice, *r.Currency)
+		p.CompareAtPrice = &compareAt
+	}
+	return p, nil
 }
 
 func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +82,13 @@ func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := h.service.Update(r.Context(), id, req.toUpdateParams())
+	params, err := req.toUpdateParams()
+	if err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	p, err := h.service.Update(r.Context(), id, params)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

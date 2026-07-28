@@ -1501,7 +1501,7 @@ func TestService_PlaceOrder_RejectsSoftDeletedProduct(t *testing.T) {
 	productRepo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, []uuid.UUID{productID}).
 		Return([]product.Product{
 			{
-				ID: productID, Name: "Withdrawn Widget", Price: 0, Currency: "USD",
+				ID: productID, Name: "Withdrawn Widget", Price: money.New(0, "USD"),
 				Status: product.StatusPublished, DeletedAt: &deletedAt,
 			},
 		}, nil)

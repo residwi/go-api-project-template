@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/product"
 	producthttp "github.com/residwi/go-api-project-template/internal/product/http"
@@ -56,8 +57,7 @@ func TestPublicHandler_ListProducts(t *testing.T) {
 				ID:        uuid.New(),
 				Name:      "Widget",
 				Slug:      "widget",
-				Price:     1999,
-				Currency:  "USD",
+				Price:     money.New(1999, "USD"),
 				SKU:       &sku,
 				Status:    "published",
 				CreatedAt: now,
@@ -187,8 +187,7 @@ func TestPublicHandler_GetBySlug(t *testing.T) {
 			ID:        prodID,
 			Name:      "Widget",
 			Slug:      "widget",
-			Price:     1999,
-			Currency:  "USD",
+			Price:     money.New(1999, "USD"),
 			SKU:       &sku,
 			Status:    "published",
 			CreatedAt: now,
@@ -353,8 +352,7 @@ func TestAdminHandler_GetProduct(t *testing.T) {
 			ID:        prodID,
 			Name:      "Widget",
 			Slug:      "widget",
-			Price:     1999,
-			Currency:  "USD",
+			Price:     money.New(1999, "USD"),
 			Status:    "draft",
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -470,8 +468,7 @@ func TestAdminHandler_ListProducts(t *testing.T) {
 				ID:        uuid.New(),
 				Name:      "Widget",
 				Slug:      "widget",
-				Price:     1999,
-				Currency:  "USD",
+				Price:     money.New(1999, "USD"),
 				Status:    "draft",
 				CreatedAt: now,
 				UpdatedAt: now,
@@ -568,8 +565,7 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 			ID:        prodID,
 			Name:      "Old Name",
 			Slug:      "old-name",
-			Price:     1000,
-			Currency:  "USD",
+			Price:     money.New(1000, "USD"),
 			Status:    "draft",
 			CreatedAt: now,
 			UpdatedAt: now,
@@ -654,6 +650,86 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "validation failed", resp.Error.Message)
+	})
+
+	// An amount and its currency are one value in product.UpdateParams, so the
+	// three monetary keys move as a group. Each case below was accepted before
+	// Money and now is not: silently completing them means a client re-prices a
+	// product in a denomination it never named (or re-labels one without
+	// restating the amount) and gets a 200 back.
+	//
+	// 400, not 422: the body is well-formed and every field passes its own
+	// validate tag -- `omitempty` cannot express "these three travel together",
+	// and response.Bind's validation failures are 422. The contradiction is
+	// between the fields, which is why it is caught after binding.
+	for _, tc := range []struct {
+		name string
+		body map[string]any
+	}{
+		{"price without currency", map[string]any{"price": 2000}},
+		{"currency without price", map[string]any{"currency": "EUR"}},
+		{"compare_at_price without price", map[string]any{"compare_at_price": 2500, "currency": "EUR"}},
+	} {
+		t.Run("rejects "+tc.name+" with 400", func(t *testing.T) {
+			// No repo expectation: the request must be rejected before the service is
+			// reached, so the product is never even loaded. mockery fails the test if
+			// GetByID or Update is called anyway.
+			mux, _ := setupProductMux(t)
+
+			prodID := uuid.New()
+			body, _ := json.Marshal(tc.body)
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/products/"+prodID.String(), bytes.NewReader(body))
+			r.Header.Set("Content-Type", "application/json")
+
+			mux.ServeHTTP(w, r)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+
+			var resp response.Response
+			require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+			assert.False(t, resp.Success)
+			assert.Contains(t, resp.Error.Message, "price and currency must be supplied together")
+		})
+	}
+
+	// The complementary accept case: price and currency together are fine, and
+	// the pair reaches the service as one denominated value.
+	t.Run("accepts price and currency together", func(t *testing.T) {
+		mux, repo := setupProductMux(t)
+
+		prodID := uuid.New()
+		now := time.Now()
+		repo.EXPECT().GetByID(mock.Anything, prodID).Return(&product.Product{
+			ID:        prodID,
+			Name:      "Widget",
+			Slug:      "widget",
+			Price:     money.New(1000, "USD"),
+			Status:    "draft",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}, nil)
+		repo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(p *product.Product) bool {
+			return p.Price == money.New(2000, "EUR")
+		})).Return(nil)
+
+		body, _ := json.Marshal(map[string]any{"price": 2000, "currency": "EUR"})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/products/"+prodID.String(), bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		require.Equal(t, http.StatusOK, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		fields, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		assert.InDelta(t, float64(2000), fields["price"], 0.0001)
+		assert.Equal(t, "EUR", fields["currency"])
 	})
 
 	t.Run("service error not found", func(t *testing.T) {

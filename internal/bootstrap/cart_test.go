@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/product"
 	productMocks "github.com/residwi/go-api-project-template/mocks/product"
 )
@@ -27,8 +28,8 @@ func TestProductLookupAdapter_GetByIDs(t *testing.T) {
 		ids := []uuid.UUID{liveID, archivedID}
 		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, ids).
 			Return([]product.Product{
-				{ID: liveID, Name: "Widget", Price: 1500, Currency: "USD", Status: product.StatusPublished},
-				{ID: archivedID, Name: "Gone", Price: 900, Currency: "USD", Status: product.StatusArchived},
+				{ID: liveID, Name: "Widget", Price: money.New(1500, "USD"), Status: product.StatusPublished},
+				{ID: archivedID, Name: "Gone", Price: money.New(900, "USD"), Status: product.StatusArchived},
 			}, nil)
 		inv.EXPECT().GetAvailability(mock.Anything, ids).
 			Return(map[uuid.UUID]product.Availability{
@@ -59,7 +60,7 @@ func TestProductLookupAdapter_GetByIDs(t *testing.T) {
 		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, ids).
 			Return([]product.Product{
 				{
-					ID: deletedID, Name: "Withdrawn Widget", Price: 1200, Currency: "USD",
+					ID: deletedID, Name: "Withdrawn Widget", Price: money.New(1200, "USD"),
 					Status: product.StatusPublished, DeletedAt: &deletedAt,
 				},
 			}, nil)
