@@ -86,21 +86,18 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 
 	// Always drop-then-recreate so we start with a clean schema.
 	//
-	// Retried, and the retry is load-bearing rather than defensive. The Ping
-	// above proves *a* connection works, but pgxpool acquires lazily, so this
-	// Exec may open a fresh one -- and when `go test` starts ~15 package
-	// binaries at once they all dial the container simultaneously, so some of
-	// those dials come back "connection reset by peer" / "unexpected EOF".
-	// Without the retry that is an immediate os.Exit(1), which is what made
-	// order/postgres and payment fail together at the same instant on a full
-	// `make test` while passing in isolation. Drop-then-create is idempotent as
-	// a pair, so re-running the whole block is safe.
-	if retryErr := dt.Retry(func() error {
-		_, _ = adminPool.Exec(ctx, "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)")
-		_, execErr := adminPool.Exec(ctx, "CREATE DATABASE "+dbName)
-		return execErr
-	}); retryErr != nil {
-		slog.Error("testhelper: creating database", "db", dbName, "error", retryErr)
+	// Deliberately NOT retried. Wrapping this in dockertest's Retry looks like an
+	// obvious hardening -- a transient dial failure here fails the whole package
+	// -- but it was measured to make a full `make test` worse, not better: 0
+	// deadlock/termination errors before, 6 after. CREATE DATABASE on a shared
+	// cluster commonly fails with "template1 is being accessed by other users",
+	// and retrying turns that into a DROP DATABASE ... WITH (FORCE) storm that
+	// force-terminates backends for up to MaxWait, destabilising the container
+	// for every other package. Fail fast and loud is the better trade here.
+	// See SUMMARY.md for the flake this leaves unresolved.
+	_, _ = adminPool.Exec(ctx, "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)")
+	if _, execErr := adminPool.Exec(ctx, "CREATE DATABASE "+dbName); execErr != nil {
+		slog.Error("testhelper: creating database", "db", dbName, "error", execErr)
 		os.Exit(1)
 	}
 	adminPool.Close()
