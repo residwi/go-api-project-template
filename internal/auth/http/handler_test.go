@@ -1,4 +1,4 @@
-package auth_test
+package http_test
 
 import (
 	"bytes"
@@ -16,6 +16,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/auth"
+	authhttp "github.com/residwi/go-api-project-template/internal/auth/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -29,7 +30,7 @@ func newTestMux(t *testing.T) (http.Handler, *authMocks.MockUserProvider) {
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
-	auth.RegisterRoutes(api, auth.RouteDeps{
+	authhttp.RegisterRoutes(api, authhttp.RouteDeps{
 		Validator: v,
 		Service:   svc,
 	})

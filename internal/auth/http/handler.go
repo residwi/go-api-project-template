@@ -1,23 +1,24 @@
-package auth
+package http
 
 import (
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/auth"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type Handler struct {
-	service   *Service
+	service   *auth.Service
 	validator *validator.Validator
 }
 
-func NewHandler(service *Service, v *validator.Validator) *Handler {
+func NewHandler(service *auth.Service, v *validator.Validator) *Handler {
 	return &Handler{service: service, validator: v}
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	req, ok := response.Bind[RegisterRequest](w, r, h.validator)
+	req, ok := response.Bind[auth.RegisterRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -32,7 +33,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	req, ok := response.Bind[LoginRequest](w, r, h.validator)
+	req, ok := response.Bind[auth.LoginRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -47,7 +48,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	req, ok := response.Bind[RefreshRequest](w, r, h.validator)
+	req, ok := response.Bind[auth.RefreshRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

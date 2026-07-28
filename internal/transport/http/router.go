@@ -11,6 +11,7 @@ import (
 
 	mockgateway "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/auth"
+	authhttp "github.com/residwi/go-api-project-template/internal/auth/http"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/cart"
 	cartpg "github.com/residwi/go-api-project-template/internal/cart/postgres"
@@ -120,7 +121,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	// charge); wired into order routes for the write endpoints only.
 	orderWriteLimiter := middleware.RateLimit(deps.Redis, deps.Config.App.OrderRateLimit, deps.Config.App.OrderRateWindow)
 
-	auth.RegisterRoutes(authPublic, auth.RouteDeps{Validator: v, Service: authSvc})
+	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Service: authSvc})
 	user.RegisterRoutes(authed, admin, user.RouteDeps{Validator: v, Service: userSvc})
 	category.RegisterRoutes(api, admin, category.RouteDeps{Validator: v, Service: categorySvc})
 	product.RegisterRoutes(api, admin, product.RouteDeps{Validator: v, Service: productSvc})
