@@ -21,7 +21,7 @@ func NewService(repo Repository, tx database.TxRunner, orders OrderProvider, upd
 	return &Service{repo: repo, tx: tx, orders: orders, updater: updater}
 }
 
-func (s *Service) CreateShipment(ctx context.Context, orderID uuid.UUID, req CreateShipmentRequest) (*Shipment, error) {
+func (s *Service) CreateShipment(ctx context.Context, orderID uuid.UUID, p CreateParams) (*Shipment, error) {
 	order, err := s.orders.GetByID(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -33,8 +33,8 @@ func (s *Service) CreateShipment(ctx context.Context, orderID uuid.UUID, req Cre
 
 	shipment := &Shipment{
 		OrderID:        orderID,
-		Carrier:        req.Carrier,
-		TrackingNumber: req.TrackingNumber,
+		Carrier:        p.Carrier,
+		TrackingNumber: p.TrackingNumber,
 		Status:         StatusShipped,
 	}
 
@@ -56,17 +56,17 @@ func (s *Service) GetByOrderID(ctx context.Context, orderID uuid.UUID) (*Shipmen
 	return s.repo.GetByOrderID(ctx, orderID)
 }
 
-func (s *Service) UpdateTracking(ctx context.Context, shipmentID uuid.UUID, req UpdateTrackingRequest) (*Shipment, error) {
+func (s *Service) UpdateTracking(ctx context.Context, shipmentID uuid.UUID, p UpdateTrackingParams) (*Shipment, error) {
 	shipment, err := s.repo.GetByID(ctx, shipmentID)
 	if err != nil {
 		return nil, err
 	}
 
-	if req.Carrier != "" {
-		shipment.Carrier = req.Carrier
+	if p.Carrier != "" {
+		shipment.Carrier = p.Carrier
 	}
-	if req.TrackingNumber != "" {
-		shipment.TrackingNumber = req.TrackingNumber
+	if p.TrackingNumber != "" {
+		shipment.TrackingNumber = p.TrackingNumber
 	}
 
 	if err := s.repo.Update(ctx, shipment); err != nil {

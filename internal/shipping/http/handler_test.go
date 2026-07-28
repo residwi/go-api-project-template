@@ -225,9 +225,9 @@ func TestHandler_CreateShipment(t *testing.T) {
 			}).Return(nil)
 		orderUpd.EXPECT().MarkShipped(mock.Anything, orderID).Return(nil)
 
-		body, _ := json.Marshal(shipping.CreateShipmentRequest{
-			Carrier:        "FedEx",
-			TrackingNumber: "TRACK123",
+		body, _ := json.Marshal(map[string]any{
+			"carrier":         "FedEx",
+			"tracking_number": "TRACK123",
 		})
 
 		w := httptest.NewRecorder()
@@ -309,9 +309,9 @@ func TestHandler_CreateShipment(t *testing.T) {
 		orderID := uuid.New()
 		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{}, apperror.ErrNotFound)
 
-		body, _ := json.Marshal(shipping.CreateShipmentRequest{
-			Carrier:        "FedEx",
-			TrackingNumber: "TRACK123",
+		body, _ := json.Marshal(map[string]any{
+			"carrier":         "FedEx",
+			"tracking_number": "TRACK123",
 		})
 
 		w := httptest.NewRecorder()
@@ -352,9 +352,9 @@ func TestHandler_UpdateTracking(t *testing.T) {
 			UpdatedAt:      now,
 		}, nil).Once()
 
-		body, _ := json.Marshal(shipping.UpdateTrackingRequest{
-			Carrier:        "UPS",
-			TrackingNumber: "NEW456",
+		body, _ := json.Marshal(map[string]any{
+			"carrier":         "UPS",
+			"tracking_number": "NEW456",
 		})
 
 		w := httptest.NewRecorder()
@@ -438,9 +438,9 @@ func TestHandler_UpdateTracking(t *testing.T) {
 		shipmentID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
 
-		body, _ := json.Marshal(shipping.UpdateTrackingRequest{
-			Carrier:        "UPS",
-			TrackingNumber: "TRACK789",
+		body, _ := json.Marshal(map[string]any{
+			"carrier":         "UPS",
+			"tracking_number": "TRACK789",
 		})
 
 		w := httptest.NewRecorder()

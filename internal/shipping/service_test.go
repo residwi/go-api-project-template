@@ -49,7 +49,7 @@ func TestService_CreateShipment(t *testing.T) {
 			Return(nil)
 
 		ctx := context.Background()
-		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateShipmentRequest{
+		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateParams{
 			Carrier:        "FedEx",
 			TrackingNumber: "TRACK123",
 		})
@@ -80,7 +80,7 @@ func TestService_CreateShipment(t *testing.T) {
 				Status: "pending",
 			}, nil)
 
-		_, err := svc.CreateShipment(context.Background(), orderID, shipping.CreateShipmentRequest{
+		_, err := svc.CreateShipment(context.Background(), orderID, shipping.CreateParams{
 			Carrier:        "UPS",
 			TrackingNumber: "UPS123",
 		})
@@ -97,7 +97,7 @@ func TestService_CreateShipment(t *testing.T) {
 		orders.EXPECT().GetByID(mock.Anything, orderID).
 			Return(shipping.OrderInfo{}, apperror.ErrNotFound)
 
-		_, err := svc.CreateShipment(context.Background(), orderID, shipping.CreateShipmentRequest{
+		_, err := svc.CreateShipment(context.Background(), orderID, shipping.CreateParams{
 			Carrier:        "DHL",
 			TrackingNumber: "DHL456",
 		})
@@ -121,7 +121,7 @@ func TestService_CreateShipment(t *testing.T) {
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*shipping.Shipment")).Return(dbErr)
 
 		ctx := context.Background()
-		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateShipmentRequest{
+		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateParams{
 			Carrier:        "FedEx",
 			TrackingNumber: "TRACK123",
 		})
@@ -151,7 +151,7 @@ func TestService_CreateShipment(t *testing.T) {
 		updater.EXPECT().MarkShipped(mock.Anything, orderID).Return(updateErr)
 
 		ctx := context.Background()
-		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateShipmentRequest{
+		result, err := svc.CreateShipment(ctx, orderID, shipping.CreateParams{
 			Carrier:        "FedEx",
 			TrackingNumber: "TRACK123",
 		})
@@ -225,7 +225,7 @@ func TestService_UpdateTracking(t *testing.T) {
 		}
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(updated, nil).Once()
 
-		result, err := svc.UpdateTracking(context.Background(), shipmentID, shipping.UpdateTrackingRequest{
+		result, err := svc.UpdateTracking(context.Background(), shipmentID, shipping.UpdateTrackingParams{
 			Carrier:        "UPS",
 			TrackingNumber: "NEW456",
 		})
@@ -243,7 +243,7 @@ func TestService_UpdateTracking(t *testing.T) {
 		shipmentID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
 
-		result, err := svc.UpdateTracking(context.Background(), shipmentID, shipping.UpdateTrackingRequest{
+		result, err := svc.UpdateTracking(context.Background(), shipmentID, shipping.UpdateTrackingParams{
 			Carrier: "UPS",
 		})
 		assert.Nil(t, result)
@@ -267,7 +267,7 @@ func TestService_UpdateTracking(t *testing.T) {
 		dbErr := errors.New("update failed")
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*shipping.Shipment")).Return(dbErr)
 
-		result, err := svc.UpdateTracking(context.Background(), shipmentID, shipping.UpdateTrackingRequest{
+		result, err := svc.UpdateTracking(context.Background(), shipmentID, shipping.UpdateTrackingParams{
 			Carrier: "UPS",
 		})
 		assert.Nil(t, result)

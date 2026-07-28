@@ -17,13 +17,13 @@ const (
 )
 
 type Shipment struct {
-	ID             uuid.UUID      `json:"id"`
-	OrderID        uuid.UUID      `json:"order_id"`
-	Carrier        string         `json:"carrier,omitempty"`
-	TrackingNumber string         `json:"tracking_number,omitempty"`
-	Status         ShipmentStatus `json:"status"`
-	ShippedAt      *time.Time     `json:"shipped_at,omitempty"`
-	DeliveredAt    *time.Time     `json:"delivered_at,omitempty"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
+	ID             uuid.UUID
+	OrderID        uuid.UUID
+	Carrier        string
+	TrackingNumber string
+	Status         ShipmentStatus
+	ShippedAt      *time.Time
+	DeliveredAt    *time.Time
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
