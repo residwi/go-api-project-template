@@ -75,17 +75,36 @@ func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
 // shape: an operator does need SKU (to reconcile inventory) and Status (to
 // distinguish draft/archived from published), so adminProductResponse
 // (used by the admin Create/Update/Get/List endpoints) must keep both.
+//
+// It also pins the twelve field mappings duplicated between this mapper and
+// toProductResponse. The fixture sets Description, CategoryID and
+// CompareAtPrice -- all `omitempty` -- and asserts stock_quantity's source,
+// because with them left nil and Availability zero-valued, deleting
+// `Description: p.Description` or flipping StockQuantity from OnHand to
+// Available broke nothing here even though the public counterpart catches
+// exactly that. Duplicated mappings need the guard duplicated too, or the two
+// halves drift silently.
 func TestToAdminProductResponse_KeepsSKUAndStatus(t *testing.T) {
 	sku := "SKU-123"
+	description := "A widget"
+	categoryID := uuid.New()
+	compareAtPrice := int64(2999)
 
 	got := toAdminProductResponse(&product.Product{
-		ID:       uuid.New(),
-		Name:     "Widget",
-		Slug:     "widget",
-		Price:    1999,
-		Currency: "USD",
-		SKU:      &sku,
-		Status:   "draft",
+		ID:             uuid.New(),
+		Name:           "Widget",
+		Slug:           "widget",
+		Description:    &description,
+		CategoryID:     &categoryID,
+		Price:          1999,
+		CompareAtPrice: &compareAtPrice,
+		Currency:       "USD",
+		SKU:            &sku,
+		Status:         "draft",
+		Availability: product.Availability{
+			OnHand:    50,
+			Available: 424242, // distinguishable -- proves StockQuantity reads OnHand, not Available
+		},
 	})
 
 	raw, err := json.Marshal(got)
@@ -95,12 +114,25 @@ func TestToAdminProductResponse_KeepsSKUAndStatus(t *testing.T) {
 	require.NoError(t, json.Unmarshal(raw, &fields))
 	assert.ElementsMatch(t,
 		[]string{
-			"id", "name", "slug", "price", "currency", "sku", "status", "stock_quantity",
-			"created_at", "updated_at",
+			"id", "name", "slug", "description", "category_id", "price", "compare_at_price",
+			"currency", "sku", "status", "stock_quantity", "created_at", "updated_at",
 		},
 		keysOf(fields),
-		"description, category_id, compare_at_price, and images are omitempty and absent when nil/empty; "+
-			"every other field, including sku and status, must be present for admin tooling")
+		"images is omitempty and absent when empty; every other field, including sku and status, must be "+
+			"present for admin tooling")
+
+	assert.JSONEq(t, `"A widget"`, string(fields["description"]),
+		"description must carry the product's own value, not be dropped or defaulted")
+	assert.JSONEq(t, `2999`, string(fields["compare_at_price"]),
+		"compare_at_price must carry the product's own value")
+
+	var admin struct {
+		StockQuantity int `json:"stock_quantity"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &admin))
+	assert.Equal(t, 50, admin.StockQuantity,
+		"stock_quantity must come from Availability.OnHand -- Available is reservation-adjusted and would "+
+			"report a different depth under the same key")
 }
 
 func keysOf(m map[string]json.RawMessage) []string {

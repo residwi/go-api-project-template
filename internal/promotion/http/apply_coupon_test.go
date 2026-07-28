@@ -11,9 +11,17 @@ import (
 // TestApplyResponse_OmitsUsageCountersAndLimits pins the plan's callout: the
 // public apply response returns only the computed discount, never the
 // promotion's internal usage counters or per-user limits. It goes through
-// toApplyResponse -- the same construction path the handler uses -- with a
-// fixture whose fields are all non-zero, so a field re-added to applyResponse
-// with `,omitempty` can't slip past this by coincidentally being zero-valued.
+// toApplyResponse -- the same construction path the handler uses -- so the key
+// set below is the real wire contract rather than a hand-built struct literal.
+//
+// What this does and does not guarantee: the ElementsMatch below catches any
+// field added to applyResponse without `,omitempty`. It does NOT catch one added
+// *with* `,omitempty`, because toApplyResponse takes only a code and a discount
+// -- any new field is never assigned, so it is always zero and always omitted.
+// The backstop for that case is the compiler: widening the response means
+// widening this mapper's signature, which breaks every call site. Said plainly
+// because a test comment that overclaims is worse than no comment -- it stops
+// the next person looking.
 func TestApplyResponse_OmitsUsageCountersAndLimits(t *testing.T) {
 	got := toApplyResponse("SAVE10", 424242)
 
