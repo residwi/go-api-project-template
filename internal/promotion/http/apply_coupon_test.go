@@ -10,13 +10,12 @@ import (
 
 // TestApplyResponse_OmitsUsageCountersAndLimits pins the plan's callout: the
 // public apply response returns only the computed discount, never the
-// promotion's internal usage counters or per-user limits. There is no
-// mapper here (applyResponse is built directly from the request code and
-// the computed discount, never from a promotion.Promotion), so this test
-// pins the type's field set directly -- a field added to applyResponse to
-// echo back MinOrderAmount/MaxDiscount/MaxUses/UsedCount must fail this.
+// promotion's internal usage counters or per-user limits. It goes through
+// toApplyResponse -- the same construction path the handler uses -- with a
+// fixture whose fields are all non-zero, so a field re-added to applyResponse
+// with `,omitempty` can't slip past this by coincidentally being zero-valued.
 func TestApplyResponse_OmitsUsageCountersAndLimits(t *testing.T) {
-	got := applyResponse{Code: "SAVE10", Discount: 424242}
+	got := toApplyResponse("SAVE10", 424242)
 
 	raw, err := json.Marshal(got)
 	require.NoError(t, err)

@@ -24,6 +24,17 @@ type applyResponse struct {
 	Discount int64  `json:"discount"`
 }
 
+// toApplyResponse is the explicit mapping, named rather than built inline in
+// the handler -- so the leak-check test exercises the same construction path
+// a real request goes through, matching every other feature's toXResponse
+// convention.
+func toApplyResponse(code string, discount int64) applyResponse {
+	return applyResponse{
+		Code:     code,
+		Discount: discount,
+	}
+}
+
 func (h *publicHandler) Apply(w http.ResponseWriter, r *http.Request) {
 	_, ok := middleware.RequireUser(w, r)
 	if !ok {
@@ -41,8 +52,5 @@ func (h *publicHandler) Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.OK(w, applyResponse{
-		Code:     req.Code,
-		Discount: discount,
-	})
+	response.OK(w, toApplyResponse(req.Code, discount))
 }

@@ -2,7 +2,6 @@ package http
 
 import (
 	"encoding/json"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -42,8 +41,4 @@ func keysOf(m map[string]json.RawMessage) []string {
 		out = append(out, k)
 	}
 	return out
-}
-
-func TestGetWishlist_ResponseShape(_ *testing.T) {
-	_ = httptest.NewRecorder() // handler wiring covered by the existing handler tests
 }

@@ -9,16 +9,10 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 const webhookSignatureHeader = "X-Webhook-Signature"
-
-type webhookHandler struct {
-	service *payment.Service
-	secret  string
-}
 
 func (h *webhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
