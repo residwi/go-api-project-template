@@ -4,8 +4,9 @@ Why this codebase is shaped the way it is — including the things it deliberate
 does **not** do, because a structure is only teachable if the roads not taken are
 visible.
 
-Read `./ARCHITECTURE-LIMITATIONS.md` (forthcoming) for the bills these decisions
-come with, and `./db/OWNERSHIP.md` (forthcoming) for the table ownership map.
+Read `./ARCHITECTURE-LIMITATIONS.md` for the bills these decisions
+come with, and `./db/OWNERSHIP.md` for the table ownership map — which
+`make check-boundaries` parses, so it is enforced rather than merely asserted.
 
 ---
 
