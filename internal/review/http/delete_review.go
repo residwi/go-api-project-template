@@ -3,13 +3,8 @@ package http
 import (
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/review"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
-
-type adminHandler struct {
-	service *review.Service
-}
 
 func (h *adminHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")

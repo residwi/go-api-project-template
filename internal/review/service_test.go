@@ -51,7 +51,7 @@ func TestService_Create(t *testing.T) {
 				rv.Status == "published"
 		})).Return(nil)
 
-		req := review.CreateReviewRequest{
+		req := review.CreateParams{
 			OrderID: orderID,
 			Rating:  5,
 			Title:   "Great product",
@@ -82,7 +82,7 @@ func TestService_Create(t *testing.T) {
 
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(false, nil)
 
-		req := review.CreateReviewRequest{
+		req := review.CreateParams{
 			OrderID: uuid.New(),
 			Rating:  4,
 			Title:   "Good",
@@ -106,7 +106,7 @@ func TestService_Create(t *testing.T) {
 		verifyErr := errors.New("purchase check failed")
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(false, verifyErr)
 
-		req := review.CreateReviewRequest{OrderID: uuid.New(), Rating: 5, Title: "Great"}
+		req := review.CreateParams{OrderID: uuid.New(), Rating: 5, Title: "Great"}
 		result, err := svc.Create(ctx, userID, productID, req)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, verifyErr)
@@ -125,7 +125,7 @@ func TestService_Create(t *testing.T) {
 		dbErr := errors.New("database error")
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, dbErr)
 
-		req := review.CreateReviewRequest{OrderID: uuid.New(), Rating: 4, Title: "Good"}
+		req := review.CreateParams{OrderID: uuid.New(), Rating: 4, Title: "Good"}
 		result, err := svc.Create(ctx, userID, productID, req)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, dbErr)
@@ -145,7 +145,7 @@ func TestService_Create(t *testing.T) {
 		createErr := errors.New("insert failed")
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*review.Review")).Return(createErr)
 
-		req := review.CreateReviewRequest{OrderID: uuid.New(), Rating: 3, Title: "OK"}
+		req := review.CreateParams{OrderID: uuid.New(), Rating: 3, Title: "OK"}
 		result, err := svc.Create(ctx, userID, productID, req)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, createErr)
@@ -163,7 +163,7 @@ func TestService_Create(t *testing.T) {
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(true, nil)
 
-		req := review.CreateReviewRequest{
+		req := review.CreateParams{
 			OrderID: uuid.New(),
 			Rating:  3,
 			Title:   "OK",
@@ -290,7 +290,7 @@ func TestService_Create_PassesNamedPurchaseFields(t *testing.T) {
 		ProductID: productID,
 	}).Return(false, nil)
 
-	_, err := svc.Create(context.Background(), userID, productID, review.CreateReviewRequest{
+	_, err := svc.Create(context.Background(), userID, productID, review.CreateParams{
 		OrderID: orderID,
 		Rating:  5,
 		Title:   "Great",

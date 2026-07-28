@@ -22,13 +22,13 @@ func NewService(repo Repository, purchase PurchaseVerifier) *Service {
 	}
 }
 
-func (s *Service) Create(ctx context.Context, userID, productID uuid.UUID, req CreateReviewRequest) (*Review, error) {
+func (s *Service) Create(ctx context.Context, userID, productID uuid.UUID, p CreateParams) (*Review, error) {
 	// Verify the SPECIFIC client-supplied order is delivered, owned by this user,
-	// and contains the product — otherwise req.OrderID could be any existing
+	// and contains the product — otherwise p.OrderID could be any existing
 	// order, forging the review's provenance.
 	delivered, err := s.purchase.HasDeliveredOrder(ctx, DeliveredPurchase{
 		UserID:    userID,
-		OrderID:   req.OrderID,
+		OrderID:   p.OrderID,
 		ProductID: productID,
 	})
 	if err != nil {
@@ -49,10 +49,10 @@ func (s *Service) Create(ctx context.Context, userID, productID uuid.UUID, req C
 	rv := &Review{
 		UserID:    userID,
 		ProductID: productID,
-		OrderID:   req.OrderID,
-		Rating:    req.Rating,
-		Title:     req.Title,
-		Body:      req.Body,
+		OrderID:   p.OrderID,
+		Rating:    p.Rating,
+		Title:     p.Title,
+		Body:      p.Body,
 		Status:    StatusPublished,
 	}
 

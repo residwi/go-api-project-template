@@ -85,7 +85,8 @@ func TestHandler_ListByProduct(t *testing.T) {
 		assert.InDelta(t, float64(5), item["rating"], 0.0001)
 		assert.Equal(t, "Great product", item["title"])
 		assert.Equal(t, "Love it", item["body"])
-		assert.Equal(t, "published", item["status"])
+		assert.NotContains(t, item, "status", "status is dropped: every review this endpoint can return is already published")
+		assert.NotContains(t, item, "user_id", "user_id is dropped to avoid correlating purchases to accounts")
 
 		pagination, ok := data["pagination"].(map[string]any)
 		require.True(t, ok)
@@ -179,11 +180,11 @@ func TestHandler_Create(t *testing.T) {
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, nil)
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
-		body, _ := json.Marshal(review.CreateReviewRequest{
-			OrderID: orderID,
-			Rating:  5,
-			Title:   "Great",
-			Body:    "Love it",
+		body, _ := json.Marshal(map[string]any{
+			"order_id": orderID,
+			"rating":   5,
+			"title":    "Great",
+			"body":     "Love it",
 		})
 
 		w := httptest.NewRecorder()
@@ -220,11 +221,11 @@ func TestHandler_Create(t *testing.T) {
 	t.Run("invalid product_id", func(t *testing.T) {
 		mux, _, _ := setupReviewMux(t)
 
-		body, _ := json.Marshal(review.CreateReviewRequest{
-			OrderID: uuid.New(),
-			Rating:  5,
-			Title:   "Great",
-			Body:    "Love it",
+		body, _ := json.Marshal(map[string]any{
+			"order_id": uuid.New(),
+			"rating":   5,
+			"title":    "Great",
+			"body":     "Love it",
 		})
 
 		w := httptest.NewRecorder()
@@ -322,11 +323,11 @@ func TestHandler_Create(t *testing.T) {
 			ProductID: productID,
 		}).Return(false, nil)
 
-		body, _ := json.Marshal(review.CreateReviewRequest{
-			OrderID: orderID,
-			Rating:  5,
-			Title:   "Great",
-			Body:    "Love it",
+		body, _ := json.Marshal(map[string]any{
+			"order_id": orderID,
+			"rating":   5,
+			"title":    "Great",
+			"body":     "Love it",
 		})
 
 		w := httptest.NewRecorder()
