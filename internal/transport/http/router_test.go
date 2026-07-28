@@ -279,7 +279,8 @@ func TestAuthEndpoints(t *testing.T) {
 		user, ok := data["user"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "test-router@example.com", user["email"])
-		assert.Equal(t, "Test User", user["name"])
+		assert.Equal(t, "Test", user["first_name"])
+		assert.Equal(t, "User", user["last_name"])
 		assert.Equal(t, "user", user["role"])
 
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = 'test-router@example.com'`)
@@ -322,7 +323,8 @@ func TestAuthEndpoints(t *testing.T) {
 		user, ok := data["user"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "test-login@example.com", user["email"])
-		assert.Equal(t, "Login User", user["name"])
+		assert.Equal(t, "Login", user["first_name"])
+		assert.Equal(t, "User", user["last_name"])
 		assert.Equal(t, "user", user["role"])
 
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = 'test-login@example.com'`)
