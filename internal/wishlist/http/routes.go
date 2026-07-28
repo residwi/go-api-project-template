@@ -1,13 +1,14 @@
-package wishlist
+package http
 
 import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
+	"github.com/residwi/go-api-project-template/internal/wishlist"
 )
 
 type RouteDeps struct {
 	Validator *validator.Validator
-	Service   *Service
+	Service   *wishlist.Service
 }
 
 func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {

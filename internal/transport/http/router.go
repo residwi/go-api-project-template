@@ -41,6 +41,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/user"
 	userpg "github.com/residwi/go-api-project-template/internal/user/postgres"
 	"github.com/residwi/go-api-project-template/internal/wishlist"
+	wishlisthttp "github.com/residwi/go-api-project-template/internal/wishlist/http"
 	wishlistpg "github.com/residwi/go-api-project-template/internal/wishlist/postgres"
 )
 
@@ -130,7 +131,7 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 	shipping.RegisterRoutes(authed, admin, shipping.RouteDeps{Validator: v, Service: shippingSvc, Orders: shippingOrderProvider})
 	review.RegisterRoutes(api, authed, admin, review.RouteDeps{Validator: v, Service: reviewSvc})
 	promotion.RegisterRoutes(authed, admin, promotion.RouteDeps{Validator: v, Service: promotionSvc})
-	wishlist.RegisterRoutes(authed, wishlist.RouteDeps{Validator: v, Service: wishlistSvc})
+	wishlisthttp.RegisterRoutes(authed, wishlisthttp.RouteDeps{Validator: v, Service: wishlistSvc})
 	notification.RegisterRoutes(authed, notification.RouteDeps{Service: notificationSvc})
 	dashboard.RegisterRoutes(admin, dashboard.RouteDeps{Service: dashboardSvc})
 

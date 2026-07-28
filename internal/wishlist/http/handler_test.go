@@ -1,4 +1,4 @@
-package wishlist
+package http
 
 import (
 	"encoding/json"
@@ -13,11 +13,12 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
+	"github.com/residwi/go-api-project-template/internal/wishlist"
 )
 
 func newTestHandler() *handler {
 	return &handler{
-		service:   &Service{},
+		service:   &wishlist.Service{},
 		validator: validator.New(),
 	}
 }

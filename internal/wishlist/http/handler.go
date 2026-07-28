@@ -1,4 +1,4 @@
-package wishlist
+package http
 
 import (
 	"net/http"
@@ -10,10 +10,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	"github.com/residwi/go-api-project-template/internal/wishlist"
 )
 
 type handler struct {
-	service   *Service
+	service   *wishlist.Service
 	validator *validator.Validator
 }
 
@@ -31,7 +32,7 @@ func (h *handler) GetWishlist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.CursorPage(w, items, cursor.Limit, func(it Item) (time.Time, uuid.UUID) {
+	response.CursorPage(w, items, cursor.Limit, func(it wishlist.Item) (time.Time, uuid.UUID) {
 		return it.CreatedAt, it.ID
 	})
 }
@@ -42,7 +43,7 @@ func (h *handler) AddItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[AddItemRequest](w, r, h.validator)
+	req, ok := response.Bind[wishlist.AddItemRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

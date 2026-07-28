@@ -1,4 +1,4 @@
-package wishlist_test
+package http_test
 
 import (
 	"bytes"
@@ -18,6 +18,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	"github.com/residwi/go-api-project-template/internal/wishlist"
+	wishlisthttp "github.com/residwi/go-api-project-template/internal/wishlist/http"
 	wishMocks "github.com/residwi/go-api-project-template/mocks/wishlist"
 )
 
@@ -29,7 +30,7 @@ func setupWishlistMux(t *testing.T) (*http.ServeMux, *wishMocks.MockRepository, 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	wishlist.RegisterRoutes(authed, wishlist.RouteDeps{
+	wishlisthttp.RegisterRoutes(authed, wishlisthttp.RouteDeps{
 		Validator: v,
 		Service:   svc,
 	})
