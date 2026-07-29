@@ -107,6 +107,34 @@ The 7 that do not cross are aggregate-internal and unremarkable:
 `coupon_usages→promotions`, `order_items→orders`, `payment_jobs→payments`,
 `product_images→products`, `wishlist_items→wishlists`.
 
+The 18 that do cross, in full — because "step one of any split is dropping 18
+constraints" is not actionable without the list:
+
+| Referencing table | → | Referenced table | Crosses |
+| --- | --- | --- | --- |
+| `cart_items` | → | `products` | cart → product |
+| `carts` | → | `users` | cart → user |
+| `coupon_usages` | → | `orders` | promotion → order |
+| `coupon_usages` | → | `users` | promotion → user |
+| `inventory_levels` | → | `products` | inventory → product |
+| `notification_jobs` | → | `users` | notification → user |
+| `notifications` | → | `users` | notification → user |
+| `order_items` | → | `products` | order → product |
+| `orders` | → | `users` | order → user |
+| `payment_jobs` | → | `orders` | payment → order |
+| `payments` | → | `orders` | payment → order |
+| `products` | → | `categories` | product → category |
+| `reviews` | → | `orders` | review → order |
+| `reviews` | → | `products` | review → product |
+| `reviews` | → | `users` | review → user |
+| `shipments` | → | `orders` | shipping → order |
+| `wishlist_items` | → | `products` | wishlist → product |
+| `wishlists` | → | `users` | wishlist → user |
+
+All 18 are `NO ACTION`. The only 4 `ON DELETE CASCADE` constraints in the schema
+are within-module: `cart_items→carts`, `order_items→orders`,
+`product_images→products`, `wishlist_items→wishlists`.
+
 **What they buy.** Postgres refuses an `order_items` row pointing at a product
 id that never existed. A port cannot give you that: it checks at a different
 moment than the one the write commits in, so between the check and the insert
@@ -133,13 +161,24 @@ backstop goes with it.
 
 Inbound foreign keys, by referenced table:
 
+Every referenced table, so the column sums to all 25 rather than to a selection:
+
 | Table | Inbound FKs | Inbound ports |
 | --- | --- | --- |
 | `users` | 7 | 1 |
 | `orders` | 6 | 7 |
 | `products` | 6 | 2 |
 | `categories` | 2 | — |
+| `carts` | 1 | — |
+| `payments` | 1 | — |
+| `promotions` | 1 | — |
+| `wishlists` | 1 | — |
 | `inventory_levels` | 0 | 5 |
+| **total** | **25** | |
+
+The four tables with a single inbound FK each have it from their *own* module's
+child table, which is why they carry no ports: nothing outside asks them
+anything.
 
 ("Inbound ports" counts interfaces other modules declare that this module's
 service satisfies — `auth.UserProvider`, `payment.OrderGetter`,
@@ -149,7 +188,8 @@ It is tempting to read the first column as a module dependency ranking. It is
 not one. `users` is the most-referenced table in the schema and almost nothing
 calls into `user`: seven tables carry a `user_id`, and a caller writing one
 already has the id, so it has nothing to ask. `inventory_levels` has no inbound
-foreign keys at all and five modules declare ports against `inventory`, because
+foreign keys at all and five interfaces across three modules (`order`,
+`payment`, `product`) declare ports against `inventory`, because
 stock is an answer that changes and must be asked for every time.
 
 Foreign-key fan-in measures how many tables carry an identity. Port fan-in

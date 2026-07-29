@@ -1,6 +1,6 @@
 # Limitations this architecture creates
 
-`ARCHITECTURE.md` records eleven decisions and fourteen things this codebase
+`ARCHITECTURE.md` records twelve decisions and thirteen things this codebase
 deliberately does not do. Every one of them bought something and charged for it.
 This file is the invoice.
 
@@ -293,7 +293,8 @@ count interfaces *other* modules declare that this module's service satisfies �
 `users` is the most-referenced table in the schema and almost nothing calls into
 `user`: seven tables carry a `user_id`, and a caller writing one already **has**
 the id, so it has nothing to ask. `inventory_levels` has no inbound foreign keys
-whatsoever and five modules declare ports against `inventory`, because stock is
+whatsoever and five interfaces across three modules declare ports against
+`inventory`, because stock is
 an answer that *changes* and must be asked for every time.
 
 **Foreign-key fan-in measures how many tables carry an identity. Port fan-in
@@ -503,8 +504,8 @@ Do not copy this if:
 - **You need cross-module queries more often than not.** Every join across a
   boundary becomes two queries and a port, and reporting is the *only*
   carve-out. If most of your reads are aggregates over many entities, you want
-  a schema you can join, or a read model from the start — not fourteen
-  ownership fences and one exception.
+  a schema you can join, or a read model from the start — not a dozen ownership
+  fences and one exception.
 - **You are prototyping.** The rules cost most at the beginning, when the
   boundaries are still guesses. Ports declared around a domain you do not
   understand yet are wrong ports, and they are harder to move than functions.
@@ -524,7 +525,7 @@ That is the whole trade, and every section above is a line item in it.
 
 Read alongside:
 
-- `ARCHITECTURE.md` — the eleven decisions and fourteen rejections these are the
+- `ARCHITECTURE.md` — the twelve decisions and thirteen rejections these are the
   shadow of.
 - `db/OWNERSHIP.md` — the table-ownership map, the foreign-key inventory, and
   the full blind-spot list for `make check-boundaries`.

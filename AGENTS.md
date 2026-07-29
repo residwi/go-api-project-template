@@ -6,8 +6,8 @@ which rules are **machine-checked** and which are only conventions.
 
 Three documents carry the reasoning; this one does not duplicate them:
 
-- **`ARCHITECTURE.md`** — the eleven decisions that shaped this codebase and the
-  fourteen things it deliberately does not do, each with its cost.
+- **`ARCHITECTURE.md`** — the twelve decisions that shaped this codebase and the
+  thirteen things it deliberately does not do, each with its cost.
 - **`ARCHITECTURE-LIMITATIONS.md`** — what those decisions make hard or
   impossible, and what you would have to build to get past each one. Read this
   before proposing a feature that crosses a module boundary.
@@ -334,7 +334,7 @@ can produce a loud false positive.
   middleware.
 - Middleware in `internal/transport/http/middleware/`: panic recovery, request-ID
   injection, structured request logging, CORS, rate limiting, auth, admin.
-- Field exposure is controlled by DTO omission, not by `json:"-"`. Thirteen
+- Field exposure is controlled by DTO omission, not by `json:"-"`. Fourteen
   `json:"-"` tags used to be load-bearing security controls
   (`user.PasswordHash`, `payment.GatewayResponse`, `order.RequestHash`) where
   deleting two characters published a password hash. Rule 1 exists for that
