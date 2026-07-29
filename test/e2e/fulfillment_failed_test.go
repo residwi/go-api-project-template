@@ -165,7 +165,15 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatus))
 		assert.Equal(t, "requires_review", paymentStatus)
 
-		// The charge job is closed out and a refund job takes its place.
+		// No charge job is left pending. Note what this does and does not prove:
+		// nothing in production ever *creates* a payment_jobs row with
+		// action='charge' -- all three CreateJob call sites use ActionRefund -- so
+		// this count is 0 before the webhook too, and deleting the
+		// MarkJobCompleted/MarkJobCompletedByPaymentID bookkeeping in
+		// FinalizePaymentSuccess would leave it passing. It is kept as a
+		// regression guard for the day charge jobs are enqueued (Service.Process
+		// already dispatches ActionCharge), not as evidence that path works.
+		// See ARCHITECTURE-LIMITATIONS.md on the never-enqueued charge job.
 		var pendingCharges int
 		require.NoError(t, testPool.QueryRow(ctx,
 			`SELECT COUNT(*) FROM payment_jobs

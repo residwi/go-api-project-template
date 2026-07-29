@@ -271,6 +271,23 @@ func (s *Service) handleChargeFailure(ctx context.Context, job *Job, lastError s
 	}
 }
 
+// FinalizePaymentSuccess marks the payment and order paid and deducts stock, in
+// one transaction.
+//
+// Two of its three callers pass a **synthetic** Job carrying only PaymentID,
+// OrderID and Action -- the synchronous-charge path (InitiatePayment) and the
+// webhook -- because neither has a persisted job row to work from. Only the
+// worker passes a Job with a real ID. That means the `MarkJobCompleted(job.ID)`
+// calls below are deliberately no-ops for those two callers: the id is
+// uuid.Nil, so the UPDATE matches zero rows. It is not a lost write. The
+// webhook additionally calls MarkJobCompletedByPaymentID afterwards, and no
+// charge job exists to complete in the first place -- every CreateJob call site
+// in this package enqueues ActionRefund. See ARCHITECTURE-LIMITATIONS.md.
+//
+// Stated here because a zero-row UPDATE is invisible: MarkJobCompleted
+// discards its rows-affected count, so nothing distinguishes "no such job" from
+// "job completed" at runtime.
+//
 //nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches
 func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {

@@ -384,6 +384,45 @@ replica. Removing it means deleting the config field, the pool, the `Deps`
 field, and the two helpers. Leaving it as it is means the next person to hit a
 read-throughput problem will believe they already have a replica.
 
+## The charge job is dispatched but never enqueued
+
+**Where you hit it:** you read `payment.Service.Process`, see it switch on
+`job.Action` with a `case ActionCharge: return s.processChargeJob(...)`, and
+reasonably conclude charges run through the job queue like refunds do. They do
+not. **No production code ever creates a `payment_jobs` row with
+`action='charge'`** — all three `CreateJob` call sites in `payment/service.go`
+enqueue `ActionRefund`. So `processChargeJob` is unreachable outside tests.
+
+**Why it looks otherwise.** Charging happens inline instead, on two paths:
+`InitiatePayment` finalises synchronously when the gateway captures funds
+immediately, and the webhook finalises when it does not. Both call
+`FinalizePaymentSuccess` with a **synthetic** `Job` carrying only `PaymentID`,
+`OrderID` and `Action` — no `ID`, because there is no row. Three consequences
+that are individually invisible:
+
+- `MarkJobCompleted(job.ID)` inside `FinalizePaymentSuccess` runs
+  `WHERE id = '00000000-0000-0000-0000-000000000000'` for those two callers. It
+  is a deliberate no-op, not a lost write — but `MarkJobCompleted` discards its
+  rows-affected count, so nothing at runtime distinguishes that from success.
+- The webhook's follow-up `MarkJobCompletedByPaymentID(p.ID, ActionCharge)` also
+  matches zero rows, always.
+- A test asserting "no pending charge job remains" passes whether or not the
+  bookkeeping runs, because the count is zero either way.
+  `test/e2e/fulfillment_failed_test.go` says so in a comment rather than
+  implying coverage it does not have.
+
+**What you would do about it.** If charges should be queued — the honest reading
+of `Process` — then `InitiatePayment` needs to enqueue an `ActionCharge` job and
+the inline finalisation becomes the worker's job, which also gets you retry and
+backoff for free on the most failure-prone call in the system. If they should
+not, delete `processChargeJob`, the `ActionCharge` case, and the two
+`MarkJobCompleted*` calls that can only ever match nothing. Either is a
+half-day. What costs more is the current state, where a reader has to trace three
+call sites to discover that a queue they can see is not used.
+
+This is the same shape as the read-replica seam above: a mechanism that exists,
+compiles, is dispatched, and never runs.
+
 ## The test suite shares one Postgres and one Redis, and slots are hand-assigned
 
 **Where you hit it:** you add a test package, copy a `TestMain` from a
