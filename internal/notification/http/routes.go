@@ -9,10 +9,6 @@ type RouteDeps struct {
 	Service *notification.Service
 }
 
-type handler struct {
-	service *notification.Service
-}
-
 func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {
 	h := &handler{service: deps.Service}
 

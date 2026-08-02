@@ -12,6 +12,10 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
+type handler struct {
+	service *notification.Service
+}
+
 // notificationResponse omits UserID -- the caller is always the
 // authenticated user, so echoing it back adds nothing -- and Data, the raw
 // payload behind the notification's job. If a client ever needs a piece of
@@ -59,4 +63,56 @@ func (h *handler) List(w http.ResponseWriter, r *http.Request) {
 	response.CursorPage(w, out, cursor.Limit, func(n notificationResponse) (time.Time, uuid.UUID) {
 		return n.CreatedAt, n.ID
 	})
+}
+
+func (h *handler) MarkRead(w http.ResponseWriter, r *http.Request) {
+	uc, ok := middleware.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	id, ok := response.ParseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	if err := h.service.MarkRead(r.Context(), uc.UserID, id); err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.NoContent(w)
+}
+
+func (h *handler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
+	uc, ok := middleware.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	if err := h.service.MarkAllRead(r.Context(), uc.UserID); err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.NoContent(w)
+}
+
+type unreadCountResponse struct {
+	Count int `json:"count"`
+}
+
+func (h *handler) UnreadCount(w http.ResponseWriter, r *http.Request) {
+	uc, ok := middleware.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	count, err := h.service.CountUnread(r.Context(), uc.UserID)
+	if err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.OK(w, unreadCountResponse{Count: count})
 }
