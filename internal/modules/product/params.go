@@ -29,7 +29,7 @@ type CreateParams struct {
 // means "leave it alone" -- but an amount is no longer separable from its
 // currency, so there is no way to re-price a product without saying what the new
 // price is denominated in. That is deliberate;
-// internal/product/http/update_product.go rejects the requests it makes
+// internal/modules/product/http/admin_handler.go rejects the requests it makes
 // unrepresentable rather than guessing a currency.
 type UpdateParams struct {
 	CategoryID     *uuid.UUID

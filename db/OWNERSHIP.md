@@ -159,9 +159,8 @@ backstop goes with it.
 
 ## The FK graph is not the dependency graph
 
-Inbound foreign keys, by referenced table:
-
-Every referenced table, so the column sums to all 25 rather than to a selection:
+Inbound foreign keys, by referenced table — every referenced table, so the
+column sums to all 25 rather than to a selection:
 
 | Table | Inbound FKs | Inbound ports |
 | --- | --- | --- |
