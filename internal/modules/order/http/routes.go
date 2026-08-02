@@ -17,7 +17,7 @@ type RouteDeps struct {
 }
 
 func RegisterRoutes(authed *middleware.RouteGroup, adminGroup *middleware.RouteGroup, deps RouteDeps) {
-	pub := &publicHandler{service: deps.Service, validator: deps.Validator}
+	pub := &handler{service: deps.Service, validator: deps.Validator}
 	admin := &adminHandler{service: deps.Service, validator: deps.Validator}
 
 	// Throttle only the costly write endpoints; listing/get/cancel stay unthrottled.

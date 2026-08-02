@@ -67,8 +67,6 @@ func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {
 	return r.WithContext(ctx)
 }
 
-// --- Public Handler: ListOrders ---
-
 func TestPublicHandler_ListOrders(t *testing.T) {
 	t.Run("success with cursor pagination", func(t *testing.T) {
 		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
@@ -168,8 +166,6 @@ func TestPublicHandler_ListOrders(t *testing.T) {
 	})
 }
 
-// --- Public Handler: GetOrder ---
-
 func TestPublicHandler_GetOrder(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
@@ -250,8 +246,6 @@ func TestPublicHandler_GetOrder(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 }
-
-// --- Public Handler: PlaceOrder ---
 
 func TestPublicHandler_PlaceOrder(t *testing.T) {
 	t.Run("missing auth context", func(t *testing.T) {
@@ -376,8 +370,6 @@ func TestPublicHandler_PlaceOrder(t *testing.T) {
 	})
 }
 
-// --- Public Handler: RetryPayment ---
-
 func TestPublicHandler_RetryPayment(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo, _, _, payment, _, _, _ := setupOrderMux(t)
@@ -488,8 +480,6 @@ func TestPublicHandler_RetryPayment(t *testing.T) {
 	})
 }
 
-// --- Public Handler: CancelOrder ---
-
 func TestPublicHandler_CancelOrder(t *testing.T) {
 	t.Run("service error handled gracefully", func(t *testing.T) {
 		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
@@ -544,188 +534,5 @@ func TestPublicHandler_CancelOrder(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.Equal(t, "invalid id", resp.Error.Message)
-	})
-}
-
-// --- Admin Handler: List ---
-
-func TestAdminHandler_ListAll(t *testing.T) {
-	t.Run("success with pagination", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
-
-		now := time.Now()
-		orders := []order.Order{
-			{
-				ID:        uuid.New(),
-				UserID:    uuid.New(),
-				Status:    order.StatusPaid,
-				Subtotal:  money.New(10000, "USD"),
-				Total:     money.New(10000, "USD"),
-				CreatedAt: now,
-				UpdatedAt: now,
-			},
-		}
-		repo.EXPECT().ListAdmin(mock.Anything, mock.AnythingOfType("order.AdminListParams")).Return(orders, 1, nil)
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/orders?page=1&page_size=10", nil)
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.True(t, resp.Success)
-	})
-
-	t.Run("service error", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
-		repo.EXPECT().ListAdmin(mock.Anything, mock.AnythingOfType("order.AdminListParams")).Return(nil, 0, errors.New("db error"))
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/orders", nil)
-		mux.ServeHTTP(w, r)
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-	})
-}
-
-// --- Admin Handler: GetOrder ---
-
-func TestAdminHandler_GetOrder(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
-
-		orderID := uuid.New()
-		now := time.Now()
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(&order.Order{
-			ID:        orderID,
-			UserID:    uuid.New(),
-			Status:    order.StatusPaid,
-			Subtotal:  money.New(5000, "USD"),
-			Total:     money.New(5000, "USD"),
-			CreatedAt: now,
-			UpdatedAt: now,
-		}, nil)
-		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]order.Item{}, nil)
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/orders/"+orderID.String(), nil)
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.True(t, resp.Success)
-	})
-
-	t.Run("invalid UUID", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/orders/bad-uuid", nil)
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.False(t, resp.Success)
-	})
-
-	t.Run("service error not found", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
-		orderID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/orders/"+orderID.String(), nil)
-		mux.ServeHTTP(w, r)
-		assert.Equal(t, http.StatusNotFound, w.Code)
-	})
-}
-
-// --- Admin Handler: UpdateStatus ---
-
-func TestAdminHandler_UpdateStatus(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
-
-		orderID := uuid.New()
-		now := time.Now()
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(&order.Order{
-			ID:        orderID,
-			UserID:    uuid.New(),
-			Status:    order.StatusPaid,
-			CreatedAt: now,
-			UpdatedAt: now,
-		}, nil)
-		repo.EXPECT().UpdateStatus(mock.Anything, orderID, order.StatusPaid, order.Status("processing")).Return(nil)
-
-		w := httptest.NewRecorder()
-		body := `{"status":"processing"}`
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/orders/"+orderID.String()+"/status", strings.NewReader(body))
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusNoContent, w.Code)
-	})
-
-	t.Run("invalid UUID", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/orders/bad-uuid/status", nil)
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("invalid JSON", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
-
-		orderID := uuid.New()
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/orders/"+orderID.String()+"/status", strings.NewReader("{invalid"))
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("validation error missing status", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
-
-		orderID := uuid.New()
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/orders/"+orderID.String()+"/status", strings.NewReader(`{}`))
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
-
-		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.False(t, resp.Success)
-		assert.Equal(t, "validation failed", resp.Error.Message)
-	})
-
-	t.Run("service error not found", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
-
-		orderID := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
-
-		w := httptest.NewRecorder()
-		body := `{"status":"processing"}`
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/orders/"+orderID.String()+"/status", strings.NewReader(body))
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 }

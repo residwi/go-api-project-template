@@ -13,7 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type publicHandler struct {
+type handler struct {
 	service   *order.Service
 	validator *validator.Validator
 }
@@ -183,7 +183,7 @@ func toPlaceOrderResponse(r *order.PlaceResult) placeOrderResponse {
 	return placeOrderResponse{Order: toOrderResponse(r.Order)}
 }
 
-func (h *publicHandler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
+func (h *handler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
@@ -209,7 +209,7 @@ func (h *publicHandler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
 	response.Created(w, toPlaceOrderResponse(result))
 }
 
-func (h *publicHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
+func (h *handler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
@@ -233,7 +233,7 @@ func (h *publicHandler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *publicHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
+func (h *handler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
@@ -278,7 +278,7 @@ func toPayResultResponse(r *order.PaymentResult) payResultResponse {
 	}
 }
 
-func (h *publicHandler) RetryPayment(w http.ResponseWriter, r *http.Request) {
+func (h *handler) RetryPayment(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
@@ -303,7 +303,7 @@ func (h *publicHandler) RetryPayment(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toPayResultResponse(result))
 }
 
-func (h *publicHandler) CancelOrder(w http.ResponseWriter, r *http.Request) {
+func (h *handler) CancelOrder(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
