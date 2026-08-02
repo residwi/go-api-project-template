@@ -9,8 +9,14 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
+
+type webhookHandler struct {
+	service *payment.Service
+	secret  string
+}
 
 const webhookSignatureHeader = "X-Webhook-Signature"
 

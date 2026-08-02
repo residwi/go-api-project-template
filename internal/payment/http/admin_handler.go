@@ -8,8 +8,14 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
+
+type adminHandler struct {
+	service   *payment.Service
+	validator *validator.Validator
+}
 
 // adminPaymentResponse is admin-only -- there is no public payment response
 // to collide with, since a shopper never sees a payment object directly
@@ -76,4 +82,42 @@ func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Paginated(w, paging.NewOffsetPageResult(out, page, total))
+}
+
+func (h *adminHandler) Get(w http.ResponseWriter, r *http.Request) {
+	id, ok := response.ParseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	p, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.OK(w, toAdminPaymentResponse(p))
+}
+
+// refundResponse replaces the pre-refactor inline map[string]string literal
+// with a named type -- same wire shape, now typed. Refund has no request
+// params.go counterpart: payment.Service.Refund already takes a plain
+// uuid.UUID, not a request struct (a partial-amount/reasoned refund isn't
+// implemented today, so there is nothing to bind from a body).
+type refundResponse struct {
+	Status string `json:"status"`
+}
+
+func (h *adminHandler) Refund(w http.ResponseWriter, r *http.Request) {
+	id, ok := response.ParseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	if err := h.service.Refund(r.Context(), id); err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.OK(w, refundResponse{Status: "refund_enqueued"})
 }
