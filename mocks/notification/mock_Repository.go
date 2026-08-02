@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/notification"
+	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	mock "github.com/stretchr/testify/mock"
 )

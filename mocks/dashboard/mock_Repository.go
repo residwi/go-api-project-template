@@ -8,7 +8,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/residwi/go-api-project-template/internal/dashboard"
+	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
 	mock "github.com/stretchr/testify/mock"
 )
 

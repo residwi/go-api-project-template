@@ -7,7 +7,7 @@ package mocks
 import (
 	"context"
 
-	"github.com/residwi/go-api-project-template/internal/review"
+	"github.com/residwi/go-api-project-template/internal/modules/review"
 	mock "github.com/stretchr/testify/mock"
 )
 

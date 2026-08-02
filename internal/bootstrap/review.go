@@ -3,8 +3,8 @@ package bootstrap
 import (
 	"context"
 
-	"github.com/residwi/go-api-project-template/internal/order"
-	"github.com/residwi/go-api-project-template/internal/review"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
+	"github.com/residwi/go-api-project-template/internal/modules/review"
 )
 
 // purchaseVerifierAdapter maps review's locally-declared DeliveredPurchase onto

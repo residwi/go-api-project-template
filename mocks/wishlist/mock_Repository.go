@@ -8,8 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/wishlist"
 	mock "github.com/stretchr/testify/mock"
 )
 

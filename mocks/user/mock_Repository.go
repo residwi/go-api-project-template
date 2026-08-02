@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/user"
+	"github.com/residwi/go-api-project-template/internal/modules/user"
 	mock "github.com/stretchr/testify/mock"
 )
 
