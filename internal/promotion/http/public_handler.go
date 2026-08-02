@@ -3,9 +3,16 @@ package http
 import (
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/promotion"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
+
+type publicHandler struct {
+	service   *promotion.Service
+	validator *validator.Validator
+}
 
 // applyRequest has no params.go counterpart: promotion.Service.Validate
 // already takes plain (code, orderAmount) arguments, not a request struct,

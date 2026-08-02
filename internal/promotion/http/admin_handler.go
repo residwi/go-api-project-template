@@ -6,9 +6,16 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/promotion"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
+
+type adminHandler struct {
+	service   *promotion.Service
+	validator *validator.Validator
+}
 
 type createPromotionRequest struct {
 	Code           string         `json:"code" validate:"required,min=1,max=50"`
@@ -87,4 +94,85 @@ func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Created(w, toAdminPromotionResponse(promo))
+}
+
+func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
+	page := paging.ParseOffsetPage(r)
+	params := promotion.ListParams{
+		Page:     page.Page,
+		PageSize: page.PageSize,
+	}
+
+	promotions, total, err := h.service.List(r.Context(), params)
+	if err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	out := make([]adminPromotionResponse, len(promotions))
+	for i, p := range promotions {
+		out[i] = toAdminPromotionResponse(&p)
+	}
+
+	response.Paginated(w, paging.NewOffsetPageResult(out, page, total))
+}
+
+type updatePromotionRequest struct {
+	Code           string         `json:"code" validate:"omitempty,min=1,max=50"`
+	Type           promotion.Type `json:"type" validate:"omitempty,oneof=percentage fixed_amount"`
+	Value          *int64         `json:"value" validate:"omitempty,min=1"`
+	MinOrderAmount *int64         `json:"min_order_amount" validate:"omitempty,min=0"`
+	MaxDiscount    *int64         `json:"max_discount"`
+	MaxUses        *int           `json:"max_uses"`
+	StartsAt       *time.Time     `json:"starts_at"`
+	ExpiresAt      *time.Time     `json:"expires_at"`
+	Active         *bool          `json:"active"`
+}
+
+func (r updatePromotionRequest) toUpdateParams() promotion.UpdateParams {
+	return promotion.UpdateParams{
+		Code:           r.Code,
+		Type:           r.Type,
+		Value:          r.Value,
+		MinOrderAmount: r.MinOrderAmount,
+		MaxDiscount:    r.MaxDiscount,
+		MaxUses:        r.MaxUses,
+		StartsAt:       r.StartsAt,
+		ExpiresAt:      r.ExpiresAt,
+		Active:         r.Active,
+	}
+}
+
+func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
+	id, ok := response.ParseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	req, ok := response.Bind[updatePromotionRequest](w, r, h.validator)
+	if !ok {
+		return
+	}
+
+	promo, err := h.service.Update(r.Context(), id, req.toUpdateParams())
+	if err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.OK(w, toAdminPromotionResponse(promo))
+}
+
+func (h *adminHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, ok := response.ParseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	if err := h.service.Delete(r.Context(), id); err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.NoContent(w)
 }
