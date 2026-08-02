@@ -14,7 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type publicHandler struct {
+type handler struct {
 	service   *product.Service
 	validator *validator.Validator
 }
@@ -116,7 +116,7 @@ func toProductResponse(p *product.Product) productResponse {
 	}
 }
 
-func (h *publicHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *handler) List(w http.ResponseWriter, r *http.Request) {
 	cursor := paging.ParseCursorPage(r)
 
 	params := product.PublishedListParams{
@@ -164,7 +164,7 @@ func (h *publicHandler) List(w http.ResponseWriter, r *http.Request) {
 	response.Paginated(w, paging.NewCursorPageResult(out, nextCursor, hasMore))
 }
 
-func (h *publicHandler) GetBySlug(w http.ResponseWriter, r *http.Request) {
+func (h *handler) GetBySlug(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	if slug == "" {
 		response.BadRequest(w, "slug is required")

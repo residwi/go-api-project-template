@@ -12,7 +12,7 @@ type RouteDeps struct {
 }
 
 func RegisterRoutes(api *middleware.RouteGroup, adminGroup *middleware.RouteGroup, deps RouteDeps) {
-	pub := &publicHandler{service: deps.Service, validator: deps.Validator}
+	pub := &handler{service: deps.Service, validator: deps.Validator}
 	admin := &adminHandler{service: deps.Service, validator: deps.Validator}
 
 	api.HandleFunc("GET /products", pub.List)
