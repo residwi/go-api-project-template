@@ -441,8 +441,8 @@ to whichever already exists. Isolation is by **claimed slot**, not by container:
   is not even a polite failure.
 - **Redis: a hand-assigned integer.** `MustStartRedis(dbIndex)` takes the index
   from a comment block in `internal/testhelper/testhelper.go`. Indices 0–5 are
-  claimed today (`platform/cache`, `transport/http/middleware`, `user/postgres`,
-  `transport/http`, `user`, `test/e2e`). `ResetRedis` calls `FlushDB`, so
+  claimed today (`platform/cache`, `transport/http/middleware`, `modules/user/postgres`,
+  `transport/http`, `modules/user`, `test/e2e`). `ResetRedis` calls `FlushDB`, so
   reusing an index flushes the other package's fixtures.
 
 Nothing enforces either claim. A duplicate name or index compiles, passes
