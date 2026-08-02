@@ -11,14 +11,6 @@ type RouteDeps struct {
 	Service   *wishlist.Service
 }
 
-// handler holds the dependencies shared by every endpoint in this package.
-// Each endpoint's request/response DTOs and mapper live in their own file
-// alongside the method that uses them; only this shared struct lives here.
-type handler struct {
-	service   *wishlist.Service
-	validator *validator.Validator
-}
-
 func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {
 	h := &handler{service: deps.Service, validator: deps.Validator}
 
