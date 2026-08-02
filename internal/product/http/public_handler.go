@@ -9,9 +9,15 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/product"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
+
+type publicHandler struct {
+	service   *product.Service
+	validator *validator.Validator
+}
 
 // productResponse is this endpoint's public wire contract, shared by the
 // public list and get-by-slug endpoints. SKU is dropped: it is a
@@ -20,8 +26,7 @@ import (
 // every product List can return is already product.StatusPublished
 // (ListPublished filters WHERE status = 'published'), so on that path the
 // field would be a constant, not information. Admin endpoints get the
-// fuller adminProductResponse (see list_products_admin.go), which keeps
-// both.
+// fuller adminProductResponse (see admin_handler.go), which keeps both.
 //
 // StockQuantity is Availability.OnHand, not Availability.Available: OnHand
 // only reflects overall inventory depth (it moves on a restock or a manual
@@ -60,7 +65,7 @@ type imageResponse struct {
 }
 
 // compareAtPriceAmount flattens an optional compare-at price to its amount.
-// Shared by the public and admin mappers (list_products_admin.go).
+// Shared by the public and admin mappers (admin_handler.go).
 //
 // The return type stays *int64, not money.Money, because `compare_at_price` is
 // `omitempty` and has always been absent from the body when a product has no
@@ -77,7 +82,7 @@ func compareAtPriceAmount(m *money.Money) *int64 {
 }
 
 // toImageResponses maps a product's images onto the wire shape. Shared by
-// the public and admin product responses (list_products_admin.go) -- an
+// the public and admin product responses (admin_handler.go) -- an
 // image carries no field that needs hiding from either audience.
 func toImageResponses(images []product.Image) []imageResponse {
 	out := make([]imageResponse, len(images))
@@ -157,4 +162,20 @@ func (h *publicHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Paginated(w, paging.NewCursorPageResult(out, nextCursor, hasMore))
+}
+
+func (h *publicHandler) GetBySlug(w http.ResponseWriter, r *http.Request) {
+	slug := r.PathValue("slug")
+	if slug == "" {
+		response.BadRequest(w, "slug is required")
+		return
+	}
+
+	p, err := h.service.GetBySlug(r.Context(), slug)
+	if err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.OK(w, toProductResponse(p))
 }
