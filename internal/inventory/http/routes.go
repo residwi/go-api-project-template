@@ -11,11 +11,6 @@ type RouteDeps struct {
 	Service   *inventory.Service
 }
 
-type handler struct {
-	service   *inventory.Service
-	validator *validator.Validator
-}
-
 func RegisterRoutes(adminGroup *middleware.RouteGroup, deps RouteDeps) {
 	h := &handler{service: deps.Service, validator: deps.Validator}
 
