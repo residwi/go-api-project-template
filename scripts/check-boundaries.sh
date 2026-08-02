@@ -63,18 +63,55 @@ feature_dirs() {
 	done
 }
 
-# importer_dirs prints the path of every directory under internal/ that may not
-# import a feature's adapter -- that is, everything except the wiring layer. It
-# is a superset of feature_dirs: internal/platform must not import
-# product/postgres either, and "not a feature" is not the same permission as
-# "may wire adapters", which is why shared infrastructure is scanned too.
+# $MODULES_ROOT is asserted, not assumed. Checks 2 and 3 are both driven by
+# feature_dirs, and both fail *open* when it yields nothing: check_table_ownership
+# loops zero times, and check_adapter_imports returns early on an empty feature
+# alternation. Rename or empty this directory and those two report nothing at
+# all, whatever is in the tree -- verified by moving internal/modules aside with
+# a cross-module `INSERT INTO orders` and a sibling postgres import planted:
+# neither was mentioned. (That run still exited 1, but only because check 1's
+# path-keyed allowlist stopped matching the moved payment/gateway.go and
+# reported 17 of its own exempt tags. Noise about the move, not the violations,
+# and nothing to rely on: check 1 is location-based, so where the tree lands
+# decides whether anything is said at all.) It is the failure mode check 1c's
+# old -maxdepth bound had, now on the two checks that carry the most weight.
+# There is no legitimately empty state here: a tree with no feature modules is a
+# broken checkout or a move this script has not been told about, so it is a hard
+# error rather than a violation report.
+if [ -z "$(feature_dirs)" ]; then
+	echo "check-boundaries: MODULES_ROOT ($MODULES_ROOT) holds no feature module directories." >&2
+	echo >&2
+	echo "  Checks 2 (table ownership) and 3 (adapter imports) enumerate every feature" >&2
+	echo "  out of MODULES_ROOT. With nothing there they would pass while checking" >&2
+	echo "  nothing, so this is refused instead." >&2
+	echo >&2
+	echo "  If the modules moved, update MODULES_ROOT in scripts/check-boundaries.sh." >&2
+	exit 1
+fi
+
+# importer_roots prints every path check 3 walks: everything under internal/
+# that may not import a feature's adapter -- that is, everything except the
+# wiring layer. It is a superset of feature_dirs: internal/platform must not
+# import product/postgres either, and "not a feature" is not the same permission
+# as "may wire adapters", which is why shared infrastructure is scanned too.
 #
 # It prints paths rather than bare names because the two kinds of directory now
 # sit at different depths: internal/platform against internal/modules/product.
 # $MODULES_ROOT itself is expanded into its children rather than scanned as one
-# directory, so that check 3 can tell which module an offending file belongs to.
-importer_dirs() {
-	local dir name
+# directory, so that check 3 can tell which module an offending file belongs to:
+# the caller takes the basename of what it is given, and walking the root as one
+# directory would call every module's file "modules" and report each feature's
+# own adapter imports as violations.
+#
+# That expansion leaves a hole, which is why this prints roots and not only
+# directories: a .go file sitting *directly* at $MODULES_ROOT/ is in neither the
+# first loop (which skips the root) nor the second (which lists only children),
+# so nothing would scan it. Such a file belongs to no module -- it is not wiring
+# either -- so each one is handed to the caller by name. `find` accepts a file
+# argument, and the basename of foo.go can never equal a module name, so an
+# adapter import in it is always reported.
+importer_roots() {
+	local dir name file
 	for dir in internal/*/; do
 		name="$(basename "$dir")"
 		[ "internal/$name" = "$MODULES_ROOT" ] && continue
@@ -84,6 +121,10 @@ importer_dirs() {
 	for dir in "$MODULES_ROOT"/*/; do
 		[ -d "$dir" ] || continue
 		printf '%s\n' "${dir%/}"
+	done
+	for file in "$MODULES_ROOT"/*.go; do
+		[ -f "$file" ] || continue
+		printf '%s\n' "$file"
 	done
 }
 
@@ -241,7 +282,7 @@ check_wire_tags() {
 #     `FOR UPDATE OF <table>` goes unseen, which is fine -- it is a lock hint on
 #     a table the same query has already named.
 #   - Only non-test files are scanned, and the whole subtree of
-#     internal/<feature>/postgres/ is walked, not just its top level. Test files
+#     internal/modules/<feature>/postgres/ is walked, not just its top level. Test files
 #     legitimately seed and assert against sibling tables to satisfy foreign
 #     keys; that is fixture setup, not an architectural crossing.
 #   - Skipping tests removed the prose false positives that lived in test names
@@ -561,6 +602,12 @@ check_adapter_imports() {
 	# $MODULES_ROOT is a path with slashes; escape it for the sed below too.
 	modules_re="$(printf '%s' "$MODULES_ROOT" | sed -e 's/[.[\*^$\/]/\\&/g')"
 
+	# feature_dirs cannot be empty by the time this runs -- the guard beside its
+	# definition exits the script first -- and that guard is what makes this bail
+	# safe to keep as belt and braces. On its own it was the silent death of this
+	# check: with no features the alternation collapses to `()`, which matches the
+	# empty string, so the pattern would demand `internal/modules//postgres`, match
+	# nothing, and contribute no violations.
 	feature_alt="$(feature_dirs | tr '\n' '|' | sed -e 's/|$//')"
 	[ -n "$feature_alt" ] || return 0
 
@@ -581,7 +628,7 @@ check_adapter_imports() {
 			done < <(grep -noE "\"${module_re}/${modules_re}/(${feature_alt})/(postgres|http)\"" "$file" \
 				| tr -d '"' || true)
 		done < <(find "$importer" -type f -name '*.go' ! -name '*_test.go' | sort)
-	done < <(importer_dirs)
+	done < <(importer_roots)
 }
 
 # ---------------------------------------------------------------------------
