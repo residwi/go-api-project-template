@@ -187,8 +187,9 @@ action. Do not re-add the `JOIN` filter.
 the endpoint that used to return 200 now returns 400.
 
 `money.Money.Add` refuses to sum across currencies, so `cart.Cart.Total()`
-returns `(money.Money, error)`, and `cart/http/get_cart.go` propagates that
-error rather than publishing a total it could not compute. The error wraps
+returns `(money.Money, error)`, and `internal/modules/cart/http/handler.go`'s
+`GetCart` propagates that error rather than publishing a total it could not
+compute. The error wraps
 `apperror.ErrBadRequest` alongside `money.ErrCurrencyMismatch`, because
 `ErrCurrencyMismatch` on its own matches no case in `response.HandleErr` and
 would surface as a 500 for what is plainly user input.
@@ -337,7 +338,7 @@ in full; the ones most likely to bite:
   invisible.
 - **`dashboard` is exempt wholesale.** Nothing verifies it stays read-only —
   no grant, no separate role, no check. An `UPDATE` in
-  `internal/dashboard/postgres` passes CI today. Nothing bounds it to its
+  `internal/modules/dashboard/postgres` passes CI today. Nothing bounds it to its
   current two tables either, so "may read anything" can become a second,
   undeclared copy of the schema without a review comment.
 - **Only `internal/<module>/postgres/` is scanned.** A stray query in a service

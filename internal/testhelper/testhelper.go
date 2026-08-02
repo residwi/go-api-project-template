@@ -38,9 +38,9 @@ const (
 //
 //	0 — internal/platform/cache
 //	1 — internal/transport/http/middleware
-//	2 — internal/user/postgres
+//	2 — internal/modules/user/postgres
 //	3 — internal/transport/http
-//	4 — internal/user
+//	4 — internal/modules/user
 //	5 — test/e2e
 
 func init() {

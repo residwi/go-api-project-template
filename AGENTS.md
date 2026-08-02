@@ -45,7 +45,7 @@ internal/
   platform/               generic infrastructure, no feature deps:
                           cache/ database/ jobs/ logger/ paging/ slug/ storage/ validator/
   testhelper/             shared dockertest harness (Postgres + Redis containers)
-  <feature>/              14 feature modules (see below)
+  modules/<feature>/      14 feature modules (see below)
 db/migrations/            goose SQL migrations
 db/seeds/data.sql         seed data, applied by `make seed`
 db/OWNERSHIP.md           table -> owning module, read by the boundary check
@@ -54,18 +54,17 @@ scripts/check-boundaries.sh   the architectural checks
 mocks/                    generated (mockery v3), one subdir per source package
 ```
 
-`internal/` has 21 directories: **14 features** — `auth cart category dashboard
+`internal/modules/` holds the **14 features** — `auth cart category dashboard
 inventory notification order payment product promotion review shipping user
-wishlist` — and **7 non-features** — `apperror bootstrap config money platform
-testhelper transport`. That split is not decorative:
-`scripts/check-boundaries.sh` derives the feature list from the tree by
-subtracting exactly those seven names (`NON_FEATURE_DIRS`), so adding a
-directory under `internal/` enrols it in the boundary checks as a feature unless
-it is also added to that variable. Being a non-feature exempts a directory from
-checks 2 and 3's *ownership* questions, not from check 3 itself: only the wiring
-layer — `bootstrap` and `transport`, the script's `WIRING_DIRS` — may import a
-feature's adapter, so `internal/platform/` importing `product/postgres` still
-fails.
+wishlist`. Everything else under `internal/` is infrastructure —
+`apperror bootstrap config money platform testhelper transport`.
+`scripts/check-boundaries.sh` derives the feature list structurally, by reading
+the directory names under `internal/modules/`, so adding a feature is enough to
+enrol it in the boundary checks; there is no denylist to remember to update.
+Being infrastructure exempts a directory from checks 2 and 3's *ownership*
+questions, not from check 3 itself: only the wiring layer — `bootstrap` and
+`transport`, the script's `WIRING_DIRS` — may import a feature's adapter, so
+`internal/platform/` importing `internal/modules/product/postgres` still fails.
 
 ### Inside a feature
 
@@ -73,7 +72,7 @@ A feature holds its domain types, its service, its repository *interface*, and
 the ports it needs from other features. Adapters are subpackages.
 
 ```text
-internal/order/
+internal/modules/order/
   model.go        domain types
   params.go       input structs for service methods
   ports.go        interfaces order needs from other features
@@ -82,16 +81,18 @@ internal/order/
   transition.go   order's state machine (feature-specific file)
   address.go      feature-specific file
   postgres/       the Postgres repository — the only place order's tables are named
-  http/           one file per endpoint, each owning its request/response DTOs, plus routes.go
+  http/           routes.go plus one file per handler role: order's is split into
+                  public_handler.go and admin_handler.go, each owning the
+                  request/response DTOs and mapping for its own handlers
 ```
 
 Every feature has `model.go`, `service.go` and `repository.go` except `auth`,
 which has no storage of its own. There is **no** `handler.go`, `dto.go` or
-`routes.go` at a feature root — those live in `<feature>/http/`.
+`routes.go` at a feature root — those live in `internal/modules/<feature>/http/`.
 
 Ports are usually in `ports.go`, but two features name the file after the module
-they depend on instead: `category/product.go` declares `ProductCounter`, and
-`product/inventory.go` declares `InventoryReader` and `InventoryRegistrar`.
+they depend on instead: `internal/modules/category/product.go` declares `ProductCounter`, and
+`internal/modules/product/inventory.go` declares `InventoryReader` and `InventoryRegistrar`.
 Either is fine. The rule is about *who declares the interface* (the consumer),
 not the filename.
 
@@ -110,6 +111,14 @@ uniformity.** A feature has a subpackage only where adaptation is needed:
 decision 4 — not an omission to fix. There are 13 packages named `postgres` and
 14 feature packages named `http`, which is why
 `internal/transport/http/router.go` needs 27 aliased adapter imports.
+
+Inside `http/`, the file split is by **handler role**, not by endpoint: a
+single-handler feature has one `handler.go`; a feature whose routes split by
+caller role has `public_handler.go` and `admin_handler.go` instead; `payment`
+additionally has `webhook_handler.go` for the gateway callback. `routes.go`
+holds only `RouteDeps` and `RegisterRoutes` — no DTOs, no logic. Counted across
+`internal/modules/*/http/`: `routes.go` ×14, `admin_handler.go` ×8,
+`public_handler.go` ×7, `handler.go` ×6, `webhook_handler.go` ×1.
 
 ## Commands
 
@@ -172,13 +181,13 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 any of these. This is the part worth memorising, because these are the rules you
 cannot violate quietly.
 
-1. **No `json` tag outside `internal/<feature>/http/`.** Domain models carry no
+1. **No `json` tag outside `internal/modules/<feature>/http/`.** Domain models carry no
    transport concerns; every endpoint owns its request DTO, response DTO and
    explicit mapping. A field is private unless a DTO names it. Also checked:
    `json:"-"` must not appear anywhere under `internal/` outside an http adapter
-   (no exemption at all, including tests), and `internal/<feature>/dto.go` must
+   (no exemption at all, including tests), and `internal/modules/<feature>/dto.go` must
    not come back. Exemptions are allowlisted by path *with a stated reason* in
-   the script — `internal/payment/gateway.go`, which is the external gateway's
+   the script — `internal/modules/payment/gateway.go`, which is the external gateway's
    wire contract rather than ours — plus `internal/config/` and
    `internal/platform/` by location.
 2. **A feature's `postgres` adapter only names tables it owns.** Ownership is
@@ -199,14 +208,14 @@ cannot violate quietly.
 Read the "What it does not catch" section of `db/OWNERSHIP.md` before trusting a
 green run. In short: table names must be string literals (`pgx.CopyFrom`
 included), `_test.go` files are skipped on purpose, `dashboard` is exempt
-wholesale, only `internal/<feature>/postgres/` is scanned, ownership is per
+wholesale, only `internal/modules/<feature>/postgres/` is scanned, ownership is per
 table so column coupling is invisible, and prose in a production string literal
 can produce a loud false positive.
 
 ### Conventions — not checked, so they need you
 
 4. **A feature never imports another feature.** Declare the interface *the
-   consumer* needs in the consumer's own package (`order/ports.go` declares what
+   consumer* needs in the consumer's own package (`internal/modules/order/ports.go` declares what
    `order` needs from inventory), and let `internal/bootstrap/` supply the
    adapter. Often the other module's service satisfies the interface directly and
    no adapter is written — `promotion.Service` already satisfies
@@ -233,7 +242,7 @@ can produce a loud false positive.
    one unit of work via its `TxRunner`, and the transaction propagates to every
    repository — its own and other features' — through the `ctx`.
 8. **Order status changes only through `order.Service.Apply`.** Every guarded
-   transition is a named `order.Transition` value in `order/transition.go`
+   transition is a named `order.Transition` value in `internal/modules/order/transition.go`
    (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other
    features depend on *intent* methods on their own port interface
    (`payment.OrderUpdater.MarkPaid`, `shipping.OrderUpdater.MarkShipped`), and
@@ -287,8 +296,8 @@ can produce a loud false positive.
   (`go-api-test-postgres`, `go-api-test-redis`) and every test binary attaches to
   whichever already exists. Remove them with `make test-clean`.
 - **Integration tests stay colocated** with the code they test
-  (`internal/<feature>/postgres/repository_test.go`, and
-  `internal/<feature>/*_integration_test.go`). `go test ./...` runs package
+  (`internal/modules/<feature>/postgres/repository_test.go`, and
+  `internal/modules/<feature>/*_integration_test.go`). `go test ./...` runs package
   binaries concurrently; collapsing them into one `test/integration` package
   would make them sequential. `ARCHITECTURE.md` decision 11 rejects that
   directory explicitly.
@@ -354,9 +363,9 @@ can produce a loud false positive.
   package to fill a slot.
 - Backward compatibility is explicitly **not** a goal here. API shapes may change
   where the better design demands it — but say so when they do.
-- When adding a feature: create `internal/<feature>/` with its own
-  `model.go` / `service.go` / `repository.go`, put SQL in `<feature>/postgres/`
-  and handlers in `<feature>/http/`, add a row per owned table to
+- When adding a feature: create `internal/modules/<feature>/` with its own
+  `model.go` / `service.go` / `repository.go`, put SQL in `internal/modules/<feature>/postgres/`
+  and handlers in `internal/modules/<feature>/http/`, add a row per owned table to
   `db/OWNERSHIP.md`, register routes in `internal/transport/http/router.go`, and
   put any cross-feature adapter in `internal/bootstrap/`. Then run
   `make check-boundaries` — a new feature with a `postgres` adapter and no

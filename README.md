@@ -23,10 +23,10 @@ A production-ready Go API template with Feature-Based Clean Architecture (Vertic
 
 ## Project Structure
 
-Feature modules sit **directly** under `/internal` — there is no `/features`
-wrapper — and each owns its domain types, service, repository interface, and the
-ports it needs. Adapters are subpackages named for their technology, and a feature
-only has the ones it needs, so the tree is deliberately **non-uniform**.
+Feature modules sit under `/internal/modules` — one subdirectory per feature —
+and each owns its domain types, service, repository interface, and the ports it
+needs. Adapters are subpackages named for their technology, and a feature only
+has the ones it needs, so the tree is deliberately **non-uniform**.
 
 ```text
 /go-api-project-template
@@ -35,18 +35,21 @@ only has the ones it needs, so the tree is deliberately **non-uniform**.
 │   ├── /worker                 # Payment job worker entry point
 │   └── /mockgateway            # Dev-only mock payment gateway
 ├── /internal
-│   ├── /auth /user /category /product /inventory /cart /order /payment
-│   ├── /shipping /review /promotion /wishlist /notification /dashboard
-│   │                           # ^ the 14 feature modules
-│   │   ├── model.go            # domain types -- no json tags, no SQL
-│   │   ├── service.go          # use cases; takes database.TxRunner, never a pool
-│   │   ├── repository.go       # the interface; the implementation is in postgres/
-│   │   ├── params.go           # service inputs (tag-free)
-│   │   ├── ports.go            # ports THIS module needs, or one file per
-│   │   │                       # dependency (product/inventory.go, category/product.go)
-│   │   ├── /postgres           # SQL adapter -- may only name tables it owns
-│   │   └── /http               # wire DTOs + handlers, one file per endpoint
-│   │                           # payment also has /stripe /midtrans /mock /worker
+│   ├── /modules
+│   │   ├── /auth /user /category /product /inventory /cart /order /payment
+│   │   ├── /shipping /review /promotion /wishlist /notification /dashboard
+│   │   │                       # ^ the 14 feature modules
+│   │   │   ├── model.go            # domain types -- no json tags, no SQL
+│   │   │   ├── service.go          # use cases; takes database.TxRunner, never a pool
+│   │   │   ├── repository.go       # the interface; the implementation is in postgres/
+│   │   │   ├── params.go           # service inputs (tag-free)
+│   │   │   ├── ports.go            # ports THIS module needs, or one file per
+│   │   │   │                       # dependency (product/inventory.go, category/product.go)
+│   │   │   ├── /postgres           # SQL adapter -- may only name tables it owns
+│   │   │   └── /http               # routes.go plus one file per handler role --
+│   │   │                           # handler.go, or public_handler.go +
+│   │   │                           # admin_handler.go where roles differ
+│   │   │                           # (payment also has /stripe /midtrans /mock /worker)
 │   ├── /money                  # Money value object (amount + currency, paired)
 │   ├── /apperror               # Error vocabulary (ErrNotFound, ErrBadRequest, ...)
 │   ├── /config                 # Configuration management
@@ -520,8 +523,8 @@ This template follows **Feature-Based Clean Architecture** (Vertical Slicing):
 - Each feature (auth, user, product, order, etc.) is self-contained with its own handler, service, repository, and DTOs
 - Dependencies flow inward (handlers → services → repositories)
 - PostgreSQL repositories live in each feature's `postgres/` subpackage, so a feature *cannot* import its own SQL adapter without a compile-time import cycle
-- Cross-feature dependencies use interfaces declared by the **consumer** (e.g. `internal/product/inventory.go` declares what `product` needs from inventory; `inventory` publishes nothing), which keeps the dependency graph acyclic by construction; the concrete adapters that satisfy them live in `internal/bootstrap`, shared by the API server and worker so they are defined once. Modules with several dependencies group them in `ports.go` instead — `order` does
-- Order status changes from other features go through named `order.Transition` values applied via `order.Service.Apply` — payment and shipping express intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) and the `bootstrap` adapters map each intent to its transition, keeping the order state machine's allowed transitions defined in one place (`order/transition.go`)
+- Cross-feature dependencies use interfaces declared by the **consumer** (e.g. `internal/modules/product/inventory.go` declares what `product` needs from inventory; `inventory` publishes nothing), which keeps the dependency graph acyclic by construction; the concrete adapters that satisfy them live in `internal/bootstrap`, shared by the API server and worker so they are defined once. Modules with several dependencies group them in `ports.go` instead — `order` does
+- Order status changes from other features go through named `order.Transition` values applied via `order.Service.Apply` — payment and shipping express intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) and the `bootstrap` adapters map each intent to its transition, keeping the order state machine's allowed transitions defined in one place (`internal/modules/order/transition.go`)
 - Monetary amounts are `money.Money` (amount paired with currency) in `order`, `payment`, `product` and `cart`, so an amount cannot drift from the currency beside it. `promotion` and `dashboard` stay on `int64` for reasons recorded in `ARCHITECTURE.md` §10
 - Configuration is validated at startup (`config.Config.validate()`); invalid settings (e.g. a sub-second `AUTH_RATE_WINDOW` or `WORKER_CONCURRENCY < 1`) fail fast on boot
 - The error vocabulary lives in `internal/apperror`; generic utilities (`response`, `paging`, `slug`) live in `internal/platform`

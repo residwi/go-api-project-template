@@ -34,9 +34,9 @@ freely where the better design demanded it.
 
 ## 1. Feature modules, not layers
 
-`internal/order/` holds order's domain types, service, repository interface, and
-the ports it needs — not `internal/domain/order` plus `internal/application/order`
-plus `internal/infrastructure/order`.
+`internal/modules/order/` holds order's domain types, service, repository
+interface, and the ports it needs — not `internal/domain/order` plus
+`internal/application/order` plus `internal/infrastructure/order`.
 
 **Why:** `payment.NewService()` and `payment.Repository` read naturally in Go;
 `application.NewService()` and `domain.Repository` put a layer name in every
@@ -45,12 +45,22 @@ one change across three directories.
 
 **Cost accepted:** a feature package is larger than any single layer file would be.
 
+**Why the `modules/` wrapper:** the 14 feature packages sit under
+`internal/modules/`, one directory below where they used to live, so that
+`scripts/check-boundaries.sh` can read the feature list straight off the
+filesystem instead of maintaining a denylist of everything under `internal/`
+that is *not* a feature. The denylist it replaced had already drifted once —
+`money` was missing from it, so a shared value object was briefly being treated
+as a module subject to the ownership checks. A directory that is right by
+construction cannot drift the way a list of exceptions can.
+
 ## 2. Ports live with the consumer
 
-`order/ports.go` declares `InventoryReserver` — the interface *order* needs.
-`inventory` does not publish it. `bootstrap` supplies an adapter. A module with a
-single dependency names the file after it instead (`product/inventory.go`,
-`category/product.go`); `order` has seven, so they are grouped.
+`internal/modules/order/ports.go` declares `InventoryReserver` — the interface
+*order* needs. `inventory` does not publish it. `bootstrap` supplies an
+adapter. A module with a single dependency names the file after it instead
+(`internal/modules/product/inventory.go`, `internal/modules/category/product.go`);
+`order` has seven, so they are grouped.
 
 **Why:** no module imports another, so the dependency graph has no cycles by
 construction and each module's port list is exactly the API it would need if
@@ -64,8 +74,9 @@ mapping adapter where the shapes differ.
 
 ## 3. Adapters are subpackages named for their technology
 
-`payment/postgres`, `payment/http`, `payment/stripe`, `payment/midtrans`,
-`payment/worker`.
+`internal/modules/payment/postgres`, `internal/modules/payment/http`,
+`internal/modules/payment/stripe`, `internal/modules/payment/midtrans`,
+`internal/modules/payment/worker`.
 
 **Why:** the dependency rule becomes a compile error rather than a convention —
 `payment` cannot import `payment/postgres` without a cycle, so SQL physically
@@ -158,13 +169,14 @@ cleanup that never happened. A lie in the schema is worse than an absence.
 
 ## 9. `x/http` owns the wire format
 
-No `json` tag exists on a type **this system owns** outside `internal/*/http/`.
-Every endpoint owns its request DTO, response DTO, and explicit mapping, one use
-case per file. `make check-boundaries` enforces this.
+No `json` tag exists on a type **this system owns** outside
+`internal/modules/*/http/`. Every endpoint owns its request DTO, response DTO,
+and explicit mapping, one use case per file. `make check-boundaries` enforces
+this.
 
 Two exemptions, both deliberate and both allowlisted by name in the check:
 
-- **`internal/payment/gateway.go`** — `ChargeRequest`/`ChargeResponse`/`RefundRequest`/
+- **`internal/modules/payment/gateway.go`** — `ChargeRequest`/`ChargeResponse`/`RefundRequest`/
   `RefundResponse` are the *external* gateway's wire contract, not ours. Those tags
   describe someone else's API, and `payment/stripe` and `payment/midtrans` marshal
   them on the way out. Mapping `Money` down to their plain `int64`+`string` fields
@@ -195,7 +207,7 @@ currency" unrepresentable, and collapses both hand-rolled checks into one
 `ErrCurrencyMismatch` from `Add`/`Equal`.
 
 Exactly **one** loose `Currency string` now survives outside an adapter, and it is
-the deliberate exemption in §9: `internal/payment/gateway.go`, the external
+the deliberate exemption in §9: `internal/modules/payment/gateway.go`, the external
 gateway's own contract. `Money` maps down to its plain `int64`+`string` fields in
 `payment/stripe` and `payment/midtrans`, which is the correct seam.
 
@@ -234,10 +246,10 @@ that states its policy in its name.
 **Two seams where `Money` deliberately stops.** Both are places a reader will
 otherwise read as an oversight:
 
-1. **`order.CouponReserver`** (`order/ports.go`) still passes `orderSubtotal int64`
+1. **`order.CouponReserver`** (`internal/modules/order/ports.go`) still passes `orderSubtotal int64`
    and returns `discountAmount int64`. Its implementer is `promotion`, which has no
    currency to honour a `Money` with. The pairing happens on order's side of the
-   seam — `order/service.go` passes `subtotal.Amount` and rebuilds
+   seam — `internal/modules/order/service.go` passes `subtotal.Amount` and rebuilds
    `money.New(discount, subtotal.Currency)` — which is also where the clamp policy
    lives: `max(subtotal-discount, 0)`, so an over-large coupon cannot produce a
    negative charge. `Money.Sub` deliberately does not decide that, so the clamp is
@@ -310,7 +322,7 @@ shared kernel.
 
 ## `shared/address`
 
-**Rejected.** Exactly one module defines an address type (`order/address.go`), and
+**Rejected.** Exactly one module defines an address type (`internal/modules/order/address.go`), and
 `shipping` has none — shipments key off `order_id`. Promoting a single-consumer
 type to a shared package is the opposite of what "shared" should mean.
 
@@ -341,7 +353,7 @@ never fill. Add it when there is a proto.
 
 ## `x/webhook/` as a package
 
-**Rejected** in favour of `payment/http/webhook.go`. A webhook *is* HTTP;
+**Rejected** in favour of `internal/modules/payment/http/webhook_handler.go`. A webhook *is* HTTP;
 splitting it out fragments route registration across two packages for one feature.
 The things that actually need protecting — no JWT middleware, raw body access,
 signature verification — are already handled by the route group.

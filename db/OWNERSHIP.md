@@ -95,7 +95,7 @@ protect, because `dashboard` never writes.
    answer is a real read model — a projection `dashboard` owns and other modules
    write to — not a wider exemption.
 3. Read-only is a convention here, not a constraint. No grant, no separate role,
-   and no check enforces it. An `UPDATE` in `internal/dashboard/postgres` would
+   and no check enforces it. An `UPDATE` in `internal/modules/dashboard/postgres` would
    pass CI today.
 
 ## Cross-module foreign keys are kept
@@ -231,7 +231,7 @@ in the script to keep in step.
 
 **What it catches.**
 
-* A production query anywhere under `internal/<module>/postgres/` — the whole
+* A production query anywhere under `internal/modules/<module>/postgres/` — the whole
   subtree, not just its top level — naming a table the module does not own, via
   `FROM`, `JOIN`, `INSERT INTO`, `UPDATE`, `TRUNCATE` or `COPY`. `DELETE FROM`
   and `MERGE INTO` come along through `FROM` and `INTO`.
@@ -240,7 +240,7 @@ in the script to keep in step.
   `INSERT INTO\n    products (...)` is caught. It was not, before Phase 5.
 * The same, when the table is written as a quoted identifier: `FROM "products"`.
 * A CTE named after a real table — `WITH orders AS (...)` in
-  `internal/payment/postgres/`. This is refused rather than exempted, because
+  `internal/modules/payment/postgres/`. This is refused rather than exempted, because
   exempting it hid every genuine reference to `orders` in that file, reads and
   writes alike, without anyone touching this document. Per-statement CTE scoping
   would not have been enough: SQL says a non-recursive CTE body does not see the
@@ -269,7 +269,7 @@ check trusted past its reach is worse than no check.
   `//` and SQL `--` comments are stripped, and `_test.go` files are skipped,
   which between them removed most of it. What remains is prose in a *production*
   string literal: `var msg = "update orders failed"` in
-  `internal/cart/postgres/` reports `orders`. Nothing available to a grep can
+  `internal/modules/cart/postgres/` reports `orders`. Nothing available to a grep can
   tell that string from a query. It fails loudly rather than silently, so the
   cost is an afternoon of confusion, not a boundary crossing — but if it starts
   happening often the answer is a SQL parser, not a wider allowlist.
@@ -277,10 +277,10 @@ check trusted past its reach is worse than no check.
   keys, and that is fixture setup, not an architectural crossing. The cost is
   that the check cannot distinguish a fixture from a real violation that happens
   to live in a `_test.go` helper.
-* **Anything outside `internal/<module>/postgres/`.** A stray query in a service
+* **Anything outside `internal/modules/<module>/postgres/`.** A stray query in a service
   file, in `db/seeds/data.sql`, or in a migration is not scanned. Everything
   *inside* that directory is, including subdirectories — moving a query into
-  `internal/<module>/postgres/queries/` does not hide it.
+  `internal/modules/<module>/postgres/queries/` does not hide it.
 * **Column-level coupling.** Ownership is per table. `dashboard` depending on
   `order_items.unit_price`, or any module depending on a column it does not
   control, is invisible to a table-name grep even where the table is allowed.
