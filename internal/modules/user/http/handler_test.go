@@ -39,7 +39,7 @@ func setupUserMux(t *testing.T) (*http.ServeMux, *userMocks.MockRepository) {
 	return mux, repo
 }
 
-func TestPublicHandler_GetProfile(t *testing.T) {
+func TestHandler_GetProfile(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo := setupUserMux(t)
 
@@ -117,7 +117,7 @@ func TestPublicHandler_GetProfile(t *testing.T) {
 	})
 }
 
-func TestPublicHandler_UpdateProfile(t *testing.T) {
+func TestHandler_UpdateProfile(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo := setupUserMux(t)
 

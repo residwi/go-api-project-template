@@ -67,7 +67,7 @@ func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {
 	return r.WithContext(ctx)
 }
 
-func TestPublicHandler_ListOrders(t *testing.T) {
+func TestHandler_ListOrders(t *testing.T) {
 	t.Run("success with cursor pagination", func(t *testing.T) {
 		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
 
@@ -166,7 +166,7 @@ func TestPublicHandler_ListOrders(t *testing.T) {
 	})
 }
 
-func TestPublicHandler_GetOrder(t *testing.T) {
+func TestHandler_GetOrder(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
 
@@ -247,7 +247,7 @@ func TestPublicHandler_GetOrder(t *testing.T) {
 	})
 }
 
-func TestPublicHandler_PlaceOrder(t *testing.T) {
+func TestHandler_PlaceOrder(t *testing.T) {
 	t.Run("missing auth context", func(t *testing.T) {
 		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
 
@@ -370,7 +370,7 @@ func TestPublicHandler_PlaceOrder(t *testing.T) {
 	})
 }
 
-func TestPublicHandler_RetryPayment(t *testing.T) {
+func TestHandler_RetryPayment(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo, _, _, payment, _, _, _ := setupOrderMux(t)
 
@@ -480,7 +480,7 @@ func TestPublicHandler_RetryPayment(t *testing.T) {
 	})
 }
 
-func TestPublicHandler_CancelOrder(t *testing.T) {
+func TestHandler_CancelOrder(t *testing.T) {
 	t.Run("service error handled gracefully", func(t *testing.T) {
 		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
 

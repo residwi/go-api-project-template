@@ -17,7 +17,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-func TestPublicHandler_GetBySlug_EmptySlug(t *testing.T) {
+func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
 	h := &handler{
 		service:   &product.Service{},
 		validator: validator.New(),

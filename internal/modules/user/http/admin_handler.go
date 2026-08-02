@@ -20,7 +20,7 @@ type adminHandler struct {
 
 // adminUserResponse is the admin shape of a user. It legitimately carries
 // role, active, and the timestamps -- fields the public userResponse
-// (public_handler.go) must not -- because an operator managing accounts needs
+// (handler.go) must not -- because an operator managing accounts needs
 // them and a self-service caller does not. PasswordHash, TokenVersion, and
 // DeletedAt still never appear: they are auth/lifecycle internals, not
 // operator-facing account data.

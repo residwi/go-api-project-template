@@ -17,7 +17,7 @@ type adminHandler struct {
 }
 
 // adminCategoryResponse is the admin wire contract -- unlike the public
-// categoryResponse (public_handler.go), it keeps SortOrder, Active, and the
+// categoryResponse (handler.go), it keeps SortOrder, Active, and the
 // audit timestamps: an operator needs to see a category's moderation state
 // and merchandising order to manage it. Used by every admin endpoint that
 // returns a category body: this file's Create and Update.

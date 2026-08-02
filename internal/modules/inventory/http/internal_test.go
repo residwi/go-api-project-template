@@ -14,7 +14,7 @@ import (
 // TestToStockResponse_ExposesExactFieldSet pins stockResponse's wire shape.
 // Every inventory route is admin-only, so Reserved is deliberately present
 // here -- the reservation-count leak this phase closes is on product's
-// public response (see product/http/list_products_test.go), not this one.
+// public response (see product/http/internal_test.go), not this one.
 func TestToStockResponse_ExposesExactFieldSet(t *testing.T) {
 	got := toStockResponse(&inventory.Stock{
 		ProductID: uuid.New(),

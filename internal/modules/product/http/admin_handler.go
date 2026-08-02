@@ -21,7 +21,7 @@ type adminHandler struct {
 }
 
 // adminProductResponse is the admin wire contract -- unlike the public
-// productResponse (public_handler.go), it keeps SKU and Status: an operator
+// productResponse (handler.go), it keeps SKU and Status: an operator
 // needs a SKU to reconcile inventory and needs to see draft/archived
 // products distinctly from published ones. Used by every admin endpoint
 // that returns a product body: this file's Create, List, Get, and Update.

@@ -40,7 +40,7 @@ func setupCategoryMux(t *testing.T) (*http.ServeMux, *catMocks.MockRepository, *
 	return mux, repo, counter
 }
 
-func TestPublicHandler_ListCategories(t *testing.T) {
+func TestHandler_ListCategories(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo, _ := setupCategoryMux(t)
 
@@ -95,7 +95,7 @@ func TestPublicHandler_ListCategories(t *testing.T) {
 	})
 }
 
-func TestPublicHandler_GetBySlug(t *testing.T) {
+func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo, _ := setupCategoryMux(t)
 

@@ -45,7 +45,7 @@ func setupProductMux(t *testing.T) (*http.ServeMux, *prodMocks.MockRepository) {
 	return mux, repo
 }
 
-func TestPublicHandler_ListProducts(t *testing.T) {
+func TestHandler_ListProducts(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo := setupProductMux(t)
 
@@ -175,7 +175,7 @@ func TestPublicHandler_ListProducts(t *testing.T) {
 	})
 }
 
-func TestPublicHandler_GetBySlug(t *testing.T) {
+func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo := setupProductMux(t)
 

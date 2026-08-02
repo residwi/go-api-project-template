@@ -327,7 +327,7 @@ func TestToCartResponse_MissingProductIsUnsellable(t *testing.T) {
 }
 
 // TestToCartResponse_MixedCurrenciesRefusesToTotal pins the two sentinels the
-// failure carries, which the mux-level test in handler_integration_test.go
+// failure carries, which the mux-level test in handler_test.go
 // cannot see: apperror.ErrBadRequest is what makes the status a 400 rather than
 // the 500 an unrecognised error would produce, and money.ErrCurrencyMismatch is
 // what names the cause for a log. Dropping either leaves the other test passing
