@@ -5,9 +5,7 @@ import (
 	"fmt"
 )
 
-// ErrCurrencyMismatch is returned by operations that combine two Money values
-// of different currencies. Wrapped errors name both operands, so callers can
-// match with [errors.Is] and still log which pair collided.
+// ErrCurrencyMismatch is returned when an operation combines two Money values of different currencies.
 var ErrCurrencyMismatch = errors.New("currency mismatch")
 
 // Money is an exact amount in a single currency.
@@ -23,8 +21,7 @@ func New(amount int64, currency string) Money {
 	return Money{Amount: amount, Currency: currency}
 }
 
-// Add returns the sum of m and other. It fails with [ErrCurrencyMismatch]
-// unless both operands share a currency.
+// Add returns the sum of m and other, or [ErrCurrencyMismatch] if their currencies differ.
 func (m Money) Add(other Money) (Money, error) {
 	if m.Currency != other.Currency {
 		return Money{}, fmt.Errorf("%w: %s + %s", ErrCurrencyMismatch, m.Currency, other.Currency)
@@ -33,9 +30,7 @@ func (m Money) Add(other Money) (Money, error) {
 	return Money{Amount: m.Amount + other.Amount, Currency: m.Currency}, nil
 }
 
-// Sub returns m minus other. It fails with [ErrCurrencyMismatch] unless both
-// operands share a currency. The result may be negative: a refund, a credit and
-// an over-payment are all legitimate negative amounts, so Sub does not clamp.
+// Sub returns m minus other, or [ErrCurrencyMismatch] if their currencies differ.
 func (m Money) Sub(other Money) (Money, error) {
 	if m.Currency != other.Currency {
 		return Money{}, fmt.Errorf("%w: %s - %s", ErrCurrencyMismatch, m.Currency, other.Currency)
@@ -64,13 +59,7 @@ func (m Money) Equal(other Money) bool {
 	return m.Amount == other.Amount && m.Currency == other.Currency
 }
 
-// IsZero reports whether m has an amount of zero.
-//
-// This is a question about the amount only, so the currency is not consulted:
-// both a denominated zero (Money{0, "USD"}) and the zero value of the struct
-// (Money{0, ""}) report true. Callers ask IsZero to decide whether there is
-// anything to charge, discount or refund, and in neither case is there. Use
-// [Money.Equal] instead when the currency must also match.
+// IsZero reports whether m's amount is zero; the currency is not consulted.
 func (m Money) IsZero() bool {
 	return m.Amount == 0
 }
