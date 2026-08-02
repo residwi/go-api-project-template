@@ -12,7 +12,7 @@ type RouteDeps struct {
 }
 
 func RegisterRoutes(authed *middleware.RouteGroup, admin *middleware.RouteGroup, deps RouteDeps) {
-	pub := &publicHandler{service: deps.Service, validator: deps.Validator}
+	pub := &handler{service: deps.Service, validator: deps.Validator}
 	adm := &adminHandler{service: deps.Service, validator: deps.Validator}
 
 	authed.HandleFunc("POST /promotions/apply", pub.Apply)

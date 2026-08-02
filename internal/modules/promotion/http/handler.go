@@ -9,7 +9,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type publicHandler struct {
+type handler struct {
 	service   *promotion.Service
 	validator *validator.Validator
 }
@@ -42,7 +42,7 @@ func toApplyResponse(code string, discount int64) applyResponse {
 	}
 }
 
-func (h *publicHandler) Apply(w http.ResponseWriter, r *http.Request) {
+func (h *handler) Apply(w http.ResponseWriter, r *http.Request) {
 	_, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
