@@ -11,11 +11,6 @@ type RouteDeps struct {
 	Service   *auth.Service
 }
 
-type handler struct {
-	service   *auth.Service
-	validator *validator.Validator
-}
-
 func RegisterRoutes(api *middleware.RouteGroup, deps RouteDeps) {
 	h := &handler{service: deps.Service, validator: deps.Validator}
 	api.HandleFunc("POST /auth/register", h.Register)
