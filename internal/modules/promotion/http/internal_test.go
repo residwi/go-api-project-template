@@ -16,7 +16,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-func newTestPublicHandler() *handler {
+func newTestHandler() *handler {
 	return &handler{
 		service:   &promotion.Service{},
 		validator: validator.New(),
@@ -40,7 +40,7 @@ func setAuthContext(r *http.Request) *http.Request {
 }
 
 func TestHandler_Apply(t *testing.T) {
-	h := newTestPublicHandler()
+	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPost, "/promotions/apply", nil)
