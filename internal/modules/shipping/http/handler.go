@@ -12,7 +12,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type publicHandler struct {
+type handler struct {
 	service *shipping.Service
 	orders  shipping.OrderProvider
 }
@@ -48,7 +48,7 @@ func toShipmentResponse(s *shipping.Shipment) shipmentResponse {
 	}
 }
 
-func (h *publicHandler) GetShipping(w http.ResponseWriter, r *http.Request) {
+func (h *handler) GetShipping(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
