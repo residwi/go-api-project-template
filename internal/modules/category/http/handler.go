@@ -10,7 +10,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type publicHandler struct {
+type handler struct {
 	service   *category.Service
 	validator *validator.Validator
 }
@@ -43,7 +43,7 @@ func toCategoryResponse(c *category.Category) categoryResponse {
 	}
 }
 
-func (h *publicHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *handler) List(w http.ResponseWriter, r *http.Request) {
 	categories, err := h.service.List(r.Context())
 	if err != nil {
 		response.HandleErr(w, err)
@@ -58,7 +58,7 @@ func (h *publicHandler) List(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, out)
 }
 
-func (h *publicHandler) GetBySlug(w http.ResponseWriter, r *http.Request) {
+func (h *handler) GetBySlug(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	if slug == "" {
 		response.BadRequest(w, "slug is required")
