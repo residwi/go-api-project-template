@@ -6,8 +6,14 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/category"
+	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
+
+type publicHandler struct {
+	service   *category.Service
+	validator *validator.Validator
+}
 
 // categoryResponse is the public wire contract, shared by the public list
 // and get-by-slug endpoints. It deliberately omits SortOrder, Active, and
@@ -18,7 +24,7 @@ import (
 // category/postgres/repository.go's List), so naming Active here would let
 // an anonymous caller enumerate staged/unpublished categories. Admin
 // mutation endpoints get the fuller adminCategoryResponse (see
-// create_category.go) with every field intact.
+// admin_handler.go) with every field intact.
 type categoryResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Name        string     `json:"name"`
@@ -50,4 +56,20 @@ func (h *publicHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, out)
+}
+
+func (h *publicHandler) GetBySlug(w http.ResponseWriter, r *http.Request) {
+	slug := r.PathValue("slug")
+	if slug == "" {
+		response.BadRequest(w, "slug is required")
+		return
+	}
+
+	cat, err := h.service.GetBySlug(r.Context(), slug)
+	if err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.OK(w, toCategoryResponse(cat))
 }
