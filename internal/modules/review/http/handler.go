@@ -13,7 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type publicHandler struct {
+type handler struct {
 	service   *review.Service
 	validator *validator.Validator
 }
@@ -46,7 +46,7 @@ func toReviewResponse(rv review.Review) reviewResponse {
 	}
 }
 
-func (h *publicHandler) ListByProduct(w http.ResponseWriter, r *http.Request) {
+func (h *handler) ListByProduct(w http.ResponseWriter, r *http.Request) {
 	productID, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
@@ -86,7 +86,7 @@ func (r createReviewRequest) toCreateParams() review.CreateParams {
 	}
 }
 
-func (h *publicHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *handler) Create(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
