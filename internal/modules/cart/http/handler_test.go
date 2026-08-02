@@ -1,8 +1,8 @@
-package http
+package http_test
 
 import (
-	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,259 +11,315 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
+	carthttp "github.com/residwi/go-api-project-template/internal/modules/cart/http"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
+	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	cartMocks "github.com/residwi/go-api-project-template/mocks/cart"
 )
 
-type stubRepo struct {
-	getOrCreateID uuid.UUID
+func setupCartMux(t *testing.T) (*http.ServeMux, *cartMocks.MockRepository, *cartMocks.MockProductLookup) {
+	repo := cartMocks.NewMockRepository(t)
+	products := cartMocks.NewMockProductLookup(t)
+	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	authed := middleware.NewRouteGroup(mux, "/api/v1")
+
+	carthttp.RegisterRoutes(authed, carthttp.RouteDeps{
+		Validator: v,
+		Service:   svc,
+	})
+
+	return mux, repo, products
 }
 
-func (s *stubRepo) GetOrCreate(_ context.Context, _ uuid.UUID) (uuid.UUID, error) {
-	return s.getOrCreateID, nil
-}
-func (s *stubRepo) GetCart(context.Context, uuid.UUID) (*cart.Cart, error) { return nil, nil } //nolint:nilnil // test stub
-func (s *stubRepo) AddItem(_ context.Context, _, _ uuid.UUID, _ int) error {
-	return nil
-}
-
-func (s *stubRepo) UpdateItemQuantity(_ context.Context, _, _ uuid.UUID, _ int) error {
-	return nil
-}
-func (s *stubRepo) RemoveItem(context.Context, uuid.UUID, uuid.UUID) error { return nil }
-func (s *stubRepo) Clear(context.Context, uuid.UUID) error                 { return nil }
-func (s *stubRepo) CountItems(context.Context, uuid.UUID) (int, error)     { return 0, nil }
-func (s *stubRepo) CountAndHasItem(context.Context, uuid.UUID, uuid.UUID) (int, bool, error) {
-	return 0, false, nil
-}
-
-func (s *stubRepo) GetCartForLock(context.Context, uuid.UUID) (uuid.UUID, error) {
-	return uuid.Nil, nil
-}
-
-type stubProducts struct{}
-
-func (s *stubProducts) GetByID(_ context.Context, id uuid.UUID) (*cart.ProductInfo, error) {
-	return &cart.ProductInfo{ID: id, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil
-}
-
-func (s *stubProducts) GetByIDs(_ context.Context, ids []uuid.UUID) (map[uuid.UUID]cart.ProductInfo, error) {
-	out := make(map[uuid.UUID]cart.ProductInfo, len(ids))
-	for _, id := range ids {
-		out[id] = cart.ProductInfo{ID: id, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}
-	}
-	return out, nil
-}
-
-func newTestHandler() *handler {
-	return &handler{
-		service:   &cart.Service{},
-		validator: validator.New(),
-	}
-}
-
-func setAuthContext(r *http.Request) *http.Request {
+func authRequest(r *http.Request, userID uuid.UUID) *http.Request {
 	ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-		UserID: uuid.New(),
+		UserID: userID,
 		Email:  "test@example.com",
 		Role:   "user",
 	})
 	return r.WithContext(ctx)
 }
 
-func TestHandler_GetCart(t *testing.T) {
-	h := newTestHandler()
+func TestCartHandler_GetCart(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mux, repo, _ := setupCartMux(t)
 
-	t.Run("missing auth", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodGet, "/cart", nil)
+		userID := uuid.New()
+		cartID := uuid.New()
+		repo.EXPECT().GetCart(mock.Anything, userID).Return(&cart.Cart{
+			ID:     cartID,
+			UserID: userID,
+			Items:  []cart.Item{},
+		}, nil)
+
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/cart", nil)
+		r = authRequest(r, userID)
 		w := httptest.NewRecorder()
 
-		h.GetCart(w, r)
+		mux.ServeHTTP(w, r)
 
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		var resp map[string]any
+		assert.Equal(t, http.StatusOK, w.Code)
+		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		success, ok := resp["success"].(bool)
+		assert.True(t, resp.Success)
+	})
+
+	// An empty cart has always answered `total: 0` with a 200, and must keep doing
+	// so now that the total comes from Cart.Total(): with no sellable lines there
+	// is no currency to denominate the sum in, so Total returns the zero Money.
+	// Publishing its bare Amount gives the 0 clients already expect -- what must
+	// not happen is the missing currency being treated as a mismatch and turning
+	// an empty cart into a 400.
+	t.Run("empty cart returns total 0 with 200", func(t *testing.T) {
+		mux, repo, _ := setupCartMux(t)
+
+		userID := uuid.New()
+		repo.EXPECT().GetCart(mock.Anything, userID).Return(&cart.Cart{
+			ID:     uuid.New(),
+			UserID: userID,
+			Items:  []cart.Item{},
+		}, nil)
+
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/cart", nil)
+		r = authRequest(r, userID)
+		w := httptest.NewRecorder()
+
+		mux.ServeHTTP(w, r)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		data, ok := resp.Data.(map[string]any)
 		require.True(t, ok)
-		assert.False(t, success)
+		assert.InDelta(t, float64(0), data["total"], 0.0001)
+	})
+
+	// THE ONE DELIBERATE BEHAVIOUR CHANGE IN THIS TASK.
+	//
+	// A cart can hold lines priced in different currencies: prices are
+	// per-product, AddItem does not constrain them, and checkout is where the
+	// combination is rejected. Before money.Money, GET /cart answered 200 with the
+	// two amounts added together -- a number denominated in nothing, which is not a
+	// total of anything. It is now a 400, matching what PlaceOrder already returns
+	// for the same cart.
+	//
+	// Asserted at the mux, not with errors.Is, because the status code is what a
+	// client observes: money.ErrCurrencyMismatch is not a case in
+	// response.HandleErr, so surfacing it alone would be a 500. The wrapped
+	// apperror.ErrBadRequest is what makes it a 400.
+	t.Run("mixed-currency cart returns 400", func(t *testing.T) {
+		mux, repo, products := setupCartMux(t)
+
+		userID := uuid.New()
+		usdID, eurID := uuid.New(), uuid.New()
+		repo.EXPECT().GetCart(mock.Anything, userID).Return(&cart.Cart{
+			ID:     uuid.New(),
+			UserID: userID,
+			Items: []cart.Item{
+				{ID: uuid.New(), ProductID: usdID, Quantity: 1},
+				{ID: uuid.New(), ProductID: eurID, Quantity: 1},
+			},
+		}, nil)
+		products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{usdID, eurID}).
+			Return(map[uuid.UUID]cart.ProductInfo{
+				usdID: {ID: usdID, Name: "Dollar Widget", Price: money.New(1000, "USD"), Status: "published", Available: 5},
+				eurID: {ID: eurID, Name: "Euro Widget", Price: money.New(1000, "EUR"), Status: "published", Available: 5},
+			}, nil)
+
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/cart", nil)
+		r = authRequest(r, userID)
+		w := httptest.NewRecorder()
+
+		mux.ServeHTTP(w, r)
+
+		require.Equal(t, http.StatusBadRequest, w.Code,
+			"a cart whose lines cannot be summed must not answer 200 with a meaningless number")
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.False(t, resp.Success)
+		assert.Contains(t, resp.Error.Message, "mixed currencies")
+	})
+
+	// The complement: one unsellable line in another currency must NOT trip the
+	// mismatch, because it never contributed to the total in the first place. This
+	// is the case that makes "sellable lines only" load-bearing rather than
+	// incidental -- fold every line and this cart becomes a 400 that used to be a
+	// perfectly good 200.
+	t.Run("unsellable line in another currency does not break the total", func(t *testing.T) {
+		mux, repo, products := setupCartMux(t)
+
+		userID := uuid.New()
+		liveID, goneID := uuid.New(), uuid.New()
+		repo.EXPECT().GetCart(mock.Anything, userID).Return(&cart.Cart{
+			ID:     uuid.New(),
+			UserID: userID,
+			Items: []cart.Item{
+				{ID: uuid.New(), ProductID: liveID, Quantity: 2},
+				{ID: uuid.New(), ProductID: goneID, Quantity: 3},
+			},
+		}, nil)
+		products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{liveID, goneID}).
+			Return(map[uuid.UUID]cart.ProductInfo{
+				liveID: {ID: liveID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 5},
+				goneID: {ID: goneID, Name: "Archived", Price: money.New(900, "EUR"), Status: "archived", Available: 0},
+			}, nil)
+
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/cart", nil)
+		r = authRequest(r, userID)
+		w := httptest.NewRecorder()
+
+		mux.ServeHTTP(w, r)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		data, ok := resp.Data.(map[string]any)
+		require.True(t, ok)
+		assert.InDelta(t, float64(2000), data["total"], 0.0001,
+			"only the sellable USD line counts: 1000*2, with the archived EUR line excluded")
+	})
+
+	t.Run("service error", func(t *testing.T) {
+		mux, repo, _ := setupCartMux(t)
+
+		userID := uuid.New()
+		repo.EXPECT().GetCart(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
+
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/cart", nil)
+		r = authRequest(r, userID)
+		w := httptest.NewRecorder()
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.False(t, resp.Success)
 	})
 }
 
-func TestHandler_AddItem(t *testing.T) {
-	h := newTestHandler()
-
-	t.Run("missing auth", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/cart/items", nil)
-		w := httptest.NewRecorder()
-
-		h.AddItem(w, r)
-
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-	})
-
-	t.Run("invalid JSON", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/cart/items", strings.NewReader("{bad"))
-		r = setAuthContext(r)
-		w := httptest.NewRecorder()
-
-		h.AddItem(w, r)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("validation error missing fields", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPost, "/cart/items", strings.NewReader(`{}`))
-		r = setAuthContext(r)
-		w := httptest.NewRecorder()
-
-		h.AddItem(w, r)
-
-		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
-		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		success, ok := resp["success"].(bool)
-		require.True(t, ok)
-		assert.False(t, success)
-		errBody, ok := resp["error"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "validation failed", errBody["message"])
-	})
-
-	t.Run("success", func(t *testing.T) {
-		repo := &stubRepo{getOrCreateID: uuid.New()}
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, &stubProducts{}, 50)
-		h := &handler{service: svc, validator: validator.New()}
+func TestCartHandler_AddItem(t *testing.T) {
+	t.Run("service error product not found", func(t *testing.T) {
+		mux, _, products := setupCartMux(t)
 
 		userID := uuid.New()
 		productID := uuid.New()
 
-		body := fmt.Sprintf(`{"product_id":"%s","quantity":2}`, productID)
-		r := httptest.NewRequest(http.MethodPost, "/cart/items", strings.NewReader(body))
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-			UserID: userID, Email: "test@example.com", Role: "user",
-		})
-		r = r.WithContext(ctx)
+		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
+
+		body := fmt.Sprintf(`{"product_id":"%s","quantity":1}`, productID)
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/cart/items", strings.NewReader(body))
+		r = authRequest(r, userID)
 		w := httptest.NewRecorder()
 
-		h.AddItem(w, r)
+		mux.ServeHTTP(w, r)
 
-		assert.Equal(t, http.StatusCreated, w.Code)
+		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 }
 
-func TestHandler_UpdateItem(t *testing.T) {
-	h := newTestHandler()
-
-	t.Run("missing auth", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPut, "/cart/items/"+uuid.NewString(), nil)
-		w := httptest.NewRecorder()
-
-		h.UpdateItem(w, r)
-
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-	})
-
-	t.Run("invalid product UUID", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodPut, "/cart/items/bad", nil)
-		r = setAuthContext(r)
-		r.SetPathValue("product_id", "bad")
-		w := httptest.NewRecorder()
-
-		h.UpdateItem(w, r)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		errBody, ok := resp["error"].(map[string]any)
-		require.True(t, ok)
-		assert.Contains(t, errBody["message"], "invalid product_id")
-	})
-
-	t.Run("validation error missing quantity", func(t *testing.T) {
-		productID := uuid.NewString()
-		r := httptest.NewRequest(http.MethodPut, "/cart/items/"+productID, strings.NewReader(`{}`))
-		r = setAuthContext(r)
-		r.SetPathValue("product_id", productID)
-		w := httptest.NewRecorder()
-
-		h.UpdateItem(w, r)
-
-		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
-	})
-
-	t.Run("invalid JSON", func(t *testing.T) {
-		h := newTestHandler()
-		productID := uuid.NewString()
-		r := httptest.NewRequest(http.MethodPut, "/cart/items/"+productID, strings.NewReader("{bad"))
-		r = setAuthContext(r)
-		r.SetPathValue("product_id", productID)
-		w := httptest.NewRecorder()
-
-		h.UpdateItem(w, r)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("success", func(t *testing.T) {
-		repo := &stubRepo{getOrCreateID: uuid.New()}
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, &stubProducts{}, 50)
-		h := &handler{service: svc, validator: validator.New()}
+func TestCartHandler_UpdateItem(t *testing.T) {
+	t.Run("service error", func(t *testing.T) {
+		mux, repo, products := setupCartMux(t)
 
 		userID := uuid.New()
 		productID := uuid.New()
 
-		r := httptest.NewRequest(http.MethodPut, "/cart/items/"+productID.String(), strings.NewReader(`{"quantity":5}`))
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-			UserID: userID, Email: "test@example.com", Role: "user",
-		})
-		r = r.WithContext(ctx)
-		r.SetPathValue("product_id", productID.String())
+		// UpdateQuantity now validates the product (published + in stock) before
+		// touching the cart; let that pass so GetOrCreate is what fails here.
+		products.EXPECT().GetByID(mock.Anything, productID).
+			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 10}, nil)
+		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, apperror.ErrNotFound)
+
+		body := `{"quantity":3}`
+		r := httptest.NewRequest(http.MethodPut, "/api/v1/cart/items/"+productID.String(), strings.NewReader(body))
+		r = authRequest(r, userID)
 		w := httptest.NewRecorder()
 
-		h.UpdateItem(w, r)
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+}
+
+func TestCartHandler_RemoveItem(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mux, repo, _ := setupCartMux(t)
+
+		userID := uuid.New()
+		productID := uuid.New()
+		cartID := uuid.New()
+
+		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
+		repo.EXPECT().RemoveItem(mock.Anything, cartID, productID).Return(nil)
+
+		r := httptest.NewRequest(http.MethodDelete, "/api/v1/cart/items/"+productID.String(), nil)
+		r = authRequest(r, userID)
+		w := httptest.NewRecorder()
+
+		mux.ServeHTTP(w, r)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
-}
 
-func TestHandler_RemoveItem(t *testing.T) {
-	h := newTestHandler()
+	t.Run("service error", func(t *testing.T) {
+		mux, repo, _ := setupCartMux(t)
 
-	t.Run("missing auth", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodDelete, "/cart/items/"+uuid.NewString(), nil)
+		userID := uuid.New()
+		productID := uuid.New()
+
+		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, apperror.ErrNotFound)
+
+		r := httptest.NewRequest(http.MethodDelete, "/api/v1/cart/items/"+productID.String(), nil)
+		r = authRequest(r, userID)
 		w := httptest.NewRecorder()
 
-		h.RemoveItem(w, r)
+		mux.ServeHTTP(w, r)
 
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-	})
-
-	t.Run("invalid product UUID", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodDelete, "/cart/items/bad", nil)
-		r = setAuthContext(r)
-		r.SetPathValue("product_id", "bad")
-		w := httptest.NewRecorder()
-
-		h.RemoveItem(w, r)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 }
 
-func TestHandler_Clear(t *testing.T) {
-	h := newTestHandler()
+func TestCartHandler_Clear(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mux, repo, _ := setupCartMux(t)
 
-	t.Run("missing auth", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodDelete, "/cart", nil)
+		userID := uuid.New()
+
+		repo.EXPECT().Clear(mock.Anything, userID).Return(nil)
+
+		r := httptest.NewRequest(http.MethodDelete, "/api/v1/cart", nil)
+		r = authRequest(r, userID)
 		w := httptest.NewRecorder()
 
-		h.Clear(w, r)
+		mux.ServeHTTP(w, r)
 
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("service error", func(t *testing.T) {
+		mux, repo, _ := setupCartMux(t)
+
+		userID := uuid.New()
+		repo.EXPECT().Clear(mock.Anything, userID).Return(errors.New("db down"))
+
+		r := httptest.NewRequest(http.MethodDelete, "/api/v1/cart", nil)
+		r = authRequest(r, userID)
+		w := httptest.NewRecorder()
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
