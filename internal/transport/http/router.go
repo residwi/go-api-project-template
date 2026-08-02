@@ -4,7 +4,7 @@ package http
 // every feature module into a single HTTP server, so it is also the one place
 // that has to see all of them at once. Each feature names its adapters after
 // their technology, not their feature — there are 14 packages called http and
-// 13 called postgres under internal/<feature>/ — which is the right call
+// 13 called postgres under internal/modules/<feature>/ — which is the right call
 // inside a module (cart/postgres says what it is without stuttering
 // "cartpostgres"). The cost of that choice is that every one of those imports
 // needs a disambiguating alias here, following the <feature>http /

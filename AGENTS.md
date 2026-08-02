@@ -87,8 +87,11 @@ internal/modules/order/
 ```
 
 Every feature has `model.go`, `service.go` and `repository.go` except `auth`,
-which has no storage of its own. There is **no** `handler.go`, `dto.go` or
-`routes.go` at a feature root — those live in `internal/modules/<feature>/http/`.
+which has no storage of its own. There is **no** `handler.go` or `routes.go` at
+a feature root — those live in `internal/modules/<feature>/http/`. A `dto.go`
+belongs nowhere at all: check 1c refuses that filename **anywhere** under
+`internal/`, `http/` included. Wire types live in the handler file that
+serialises them.
 
 Ports are usually in `ports.go`, but two features name the file after the module
 they depend on instead: `internal/modules/category/product.go` declares `ProductCounter`, and
@@ -115,10 +118,15 @@ decision 4 — not an omission to fix. There are 13 packages named `postgres` an
 Inside `http/`, the file split is by **handler role**, not by endpoint: a
 single-handler feature has one `handler.go`; a feature whose routes split by
 caller role has `public_handler.go` and `admin_handler.go` instead; `payment`
-additionally has `webhook_handler.go` for the gateway callback. `routes.go`
+has `admin_handler.go` and `webhook_handler.go` — the gateway callback is its
+only non-admin route, so it has no `public_handler.go`. `routes.go`
 holds only `RouteDeps` and `RegisterRoutes` — no DTOs, no logic. Counted across
-`internal/modules/*/http/`: `routes.go` ×14, `admin_handler.go` ×8,
-`public_handler.go` ×7, `handler.go` ×6, `webhook_handler.go` ×1.
+`internal/modules/*/http/`, **non-test files only**: `routes.go` ×14,
+`admin_handler.go` ×8, `public_handler.go` ×7, `handler.go` ×6,
+`webhook_handler.go` ×1. The 15 test files still named after the deleted
+per-endpoint files (`list_categories_test.go`, `get_order_test.go`, …) are
+deliberate: renaming them is churn that costs `git log --follow`. Their names
+are history, not the convention.
 
 ## Commands
 
@@ -185,10 +193,13 @@ cannot violate quietly.
    transport concerns; every endpoint owns its request DTO, response DTO and
    explicit mapping. A field is private unless a DTO names it. Also checked:
    `json:"-"` must not appear anywhere under `internal/` outside an http adapter
-   (no exemption at all, including tests), and `internal/modules/<feature>/dto.go` must
-   not come back. Exemptions are allowlisted by path *with a stated reason* in
-   the script — `internal/modules/payment/gateway.go`, which is the external gateway's
-   wire contract rather than ours — plus `internal/config/` and
+   (no exemption at all, including tests), and no file named `dto.go` may exist
+   anywhere under `internal/` — the check is not scoped to a feature directory or
+   to a depth, so `internal/modules/<feature>/http/dto.go` and
+   `internal/platform/dto.go` fail it just as `internal/modules/<feature>/dto.go`
+   does. Exemptions are allowlisted by path *with a stated reason* in the
+   script — `internal/modules/payment/gateway.go`, which is the external
+   gateway's wire contract rather than ours — plus `internal/config/` and
    `internal/platform/` by location.
 2. **A feature's `postgres` adapter only names tables it owns.** Ownership is
    read out of `db/OWNERSHIP.md` at run time, so the document and the check

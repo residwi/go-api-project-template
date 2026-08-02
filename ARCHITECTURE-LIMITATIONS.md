@@ -341,10 +341,10 @@ in full; the ones most likely to bite:
   `internal/modules/dashboard/postgres` passes CI today. Nothing bounds it to its
   current two tables either, so "may read anything" can become a second,
   undeclared copy of the schema without a review comment.
-- **Only `internal/<module>/postgres/` is scanned.** A stray query in a service
-  file, in `db/seeds/data.sql`, or inside a migration is not. The whole subtree
-  of that directory is scanned, though, so a `postgres/queries/` subpackage is
-  not a way out.
+- **Only `internal/modules/<module>/postgres/` is scanned.** A stray query in a
+  service file, in `db/seeds/data.sql`, or inside a migration is not. The whole
+  subtree of that directory is scanned, though, so a `postgres/queries/`
+  subpackage is not a way out.
 - **Ownership is per table, so column coupling is invisible.** `dashboard`
   depends on `order_items.unit_price`. Rename that column and `dashboard`
   breaks at runtime, in a query only an admin runs, with `go build` unable to

@@ -170,9 +170,19 @@ cleanup that never happened. A lie in the schema is worse than an absence.
 ## 9. `x/http` owns the wire format
 
 No `json` tag exists on a type **this system owns** outside
-`internal/modules/*/http/`. Every endpoint owns its request DTO, response DTO,
-and explicit mapping, one use case per file. `make check-boundaries` enforces
-this.
+`internal/modules/*/http/`. Every endpoint owns its request DTO, response DTO
+and explicit mapping; those live beside the handler that serialises them. The
+files inside `http/` are split by **handler role**, not one per use case:
+`handler.go` for a single-handler feature, `public_handler.go` plus
+`admin_handler.go` where the routes split by caller role, and
+`webhook_handler.go` in `payment`, whose public surface is the gateway callback
+rather than a public handler. `routes.go` holds only `RouteDeps` and
+`RegisterRoutes`.
+
+`make check-boundaries` enforces the tag rule, not the file layout. Nothing
+checks how the handlers are distributed across files; what the script does
+check is `json` tags outside an `http` adapter, cross-module table references
+in SQL, and one feature importing another's `postgres`/`http` package.
 
 Two exemptions, both deliberate and both allowlisted by name in the check:
 
