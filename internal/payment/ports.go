@@ -8,9 +8,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/money"
 )
 
-// Ports this feature needs from other features. Each is declared here rather
-// than imported, so no feature depends on another's package.
-
 // OrderUpdater drives order-status changes from the payment domain via intent
 // methods, so payment never imports the order package; the bootstrap adapter maps
 // each method to the corresponding order.Transition (which owns the allowed-from

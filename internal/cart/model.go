@@ -49,10 +49,9 @@ func (p *Product) Sellable() bool {
 
 // Total is what the cart's sellable lines come to.
 //
-// This is the cart's rule, not its transport's. It lived in the http adapter
-// until money.Money made the sum fallible, and an adapter is the wrong owner
-// both for deciding what a cart is worth and for discovering that it cannot be
-// added up. Product.Sellable() moved back here for the same reason.
+// This is the cart's rule, not its transport's; see ARCHITECTURE.md §10 for why
+// it moved out of the http adapter. Product.Sellable() moved back here for the
+// same reason.
 //
 // Only sellable lines count, exactly as before. A product archived, unpublished
 // or withdrawn after being added stays visible so the customer can see why their
@@ -67,13 +66,9 @@ func (p *Product) Sellable() bool {
 // publishing the bare amount gets the `total: 0` an empty cart has always
 // returned.
 //
-// Mixed currencies are reachable (prices are per-product; nothing here or in
-// AddItem constrains them to one), and this is where they are refused rather
-// than added together into a plausible-looking wrong number. The error wraps
-// both sentinels: apperror.ErrBadRequest because a cart's contents are user
-// input and not a server fault, money.ErrCurrencyMismatch because it names the
-// actual cause. order.Service.PlaceOrder rejects the same cart the same way, so
-// viewing and checking out now agree.
+// Mixed currencies are refused rather than summed into a plausible-looking wrong
+// number; see ARCHITECTURE.md §10 for why the error wraps two sentinels and how
+// this keeps GET /cart and PlaceOrder in agreement.
 func (c *Cart) Total() (money.Money, error) {
 	var total money.Money
 	seeded := false
