@@ -11,7 +11,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type publicHandler struct {
+type handler struct {
 	service   *user.Service
 	validator *validator.Validator
 }
@@ -44,7 +44,7 @@ func toUserResponse(u *user.User) userResponse {
 	}
 }
 
-func (h *publicHandler) Me(w http.ResponseWriter, r *http.Request) {
+func (h *handler) Me(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
@@ -73,7 +73,7 @@ func (r updateProfileRequest) toUpdateProfileParams() user.UpdateProfileParams {
 	}
 }
 
-func (h *publicHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+func (h *handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
