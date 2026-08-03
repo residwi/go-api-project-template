@@ -24,7 +24,21 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/config"
+	cartpg "github.com/residwi/go-api-project-template/internal/modules/cart/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory"
+	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/notification"
+	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/postgres"
+	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	mockgateway "github.com/residwi/go-api-project-template/internal/modules/payment/mock"
+	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
+	productpg "github.com/residwi/go-api-project-template/internal/modules/product/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/promotion"
+	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 )
@@ -81,6 +95,32 @@ func setup(t *testing.T) {
 	t.Helper()
 	testhelper.ResetDB(t, testPool)
 	testhelper.ResetRedis(t, testRedis)
+}
+
+// newPaymentService composes a payment service the way cmd/worker does, so a
+// saga test can drive a job directly. gatewayURL points at the test's mock
+// gateway server. The order⇄payment cycle is closed by SetOrderPaymentDeps,
+// exactly as NewRouter does it.
+func newPaymentService(t *testing.T, gatewayURL string) *payment.Service {
+	t.Helper()
+
+	txRunner := database.NewTxRunner(testPool)
+	inventorySvc := inventory.NewService(inventorypg.New(testPool))
+	productSvc := bootstrap.NewProductService(productpg.New(testPool), inventorySvc)
+	cartSvc := bootstrap.NewCartService(cartpg.New(testPool), txRunner, productSvc, testDeps.Config.App.MaxCartItems)
+	promotionSvc := promotion.NewService(promotionpg.New(testPool), txRunner)
+	notificationSvc := notification.NewService(notificationpg.New(testPool))
+
+	orderSvc := bootstrap.NewOrderService(
+		orderpg.New(testPool), txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc,
+	)
+	gw := mockgateway.New(gatewayURL, 5*time.Second)
+	paymentSvc := bootstrap.NewPaymentService(
+		paymentpg.New(testPool), txRunner, gw, orderSvc, inventorySvc, promotionSvc,
+	)
+	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
+
+	return paymentSvc
 }
 
 // seedInventoryLevel gives a product an inventory_levels row so ReserveBatch/

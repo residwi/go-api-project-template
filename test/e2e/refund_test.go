@@ -183,8 +183,8 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		// Record stock before refund
 		stockBefore, _ := inventoryLevelOf(t, prodID)
 
-		// Process the refund job via the router's payment service
-		processErr := router.PaymentSvc.Process(ctx, job)
+		// Process the refund job via a composed payment service
+		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").Process(ctx, job)
 		require.NoError(t, processErr)
 
 		// Verify order status changed to "refunded"
@@ -372,7 +372,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		processErr := router.PaymentSvc.Process(ctx, job)
+		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").Process(ctx, job)
 		require.NoError(t, processErr)
 
 		// Verify inventory was RESTOCKED: available_stock returns to its original

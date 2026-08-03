@@ -209,7 +209,7 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 			&job.NextRetryAt, &job.CreatedAt, &job.UpdatedAt,
 		))
 
-		require.NoError(t, router.PaymentSvc.Process(ctx, job))
+		require.NoError(t, newPaymentService(t, mockServer.URL+"/mock/payment").Process(ctx, job))
 
 		var status string
 		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&status))

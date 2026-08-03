@@ -20,8 +20,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
+	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/config"
+	cartpg "github.com/residwi/go-api-project-template/internal/modules/cart/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory"
+	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/notification"
+	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/postgres"
+	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	mockgateway "github.com/residwi/go-api-project-template/internal/modules/payment/mock"
+	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
+	productpg "github.com/residwi/go-api-project-template/internal/modules/product/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/promotion"
+	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 )
@@ -78,6 +91,30 @@ func setup(t *testing.T) {
 	t.Helper()
 	testhelper.ResetDB(t, testPool)
 	testhelper.ResetRedis(t, testRedis)
+}
+
+// newPaymentServiceForTest composes a payment service the way cmd/worker does.
+// test/e2e carries its own copy in testmain_test.go; keep the two in step.
+func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Service {
+	t.Helper()
+
+	txRunner := database.NewTxRunner(testPool)
+	inventorySvc := inventory.NewService(inventorypg.New(testPool))
+	productSvc := bootstrap.NewProductService(productpg.New(testPool), inventorySvc)
+	cartSvc := bootstrap.NewCartService(cartpg.New(testPool), txRunner, productSvc, 50)
+	promotionSvc := promotion.NewService(promotionpg.New(testPool), txRunner)
+	notificationSvc := notification.NewService(notificationpg.New(testPool))
+
+	orderSvc := bootstrap.NewOrderService(
+		orderpg.New(testPool), txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc,
+	)
+	gw := mockgateway.New(gatewayURL, 5*time.Second)
+	paymentSvc := bootstrap.NewPaymentService(
+		paymentpg.New(testPool), txRunner, gw, orderSvc, inventorySvc, promotionSvc,
+	)
+	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
+
+	return paymentSvc
 }
 
 // seedInventoryLevel gives a product an inventory_levels row so ReserveBatch/
@@ -747,7 +784,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 
 		// The outcome is not asserted: this exists to drive the order-facing adapters
 		// with an order whose items are gone.
-		_ = router.PaymentSvc.Process(ctx, job)
+		_ = newPaymentServiceForTest(t, mockServer.URL+"/mock/payment").Process(ctx, job)
 
 		// Cleanup the job
 		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, refundJobID)
@@ -762,7 +799,6 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 
 func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	setup(t)
-	router := apihttp.NewRouter(testDeps)
 
 	// A missing order drives orderGetterAdapter.GetByID down its error path.
 	fakeJob := payment.Job{
@@ -772,7 +808,7 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 		Action:    payment.ActionCharge,
 	}
 
-	err := router.PaymentSvc.FinalizePaymentSuccess(context.Background(), fakeJob)
+	err := newPaymentServiceForTest(t, testDeps.Config.Payment.GatewayURL).FinalizePaymentSuccess(context.Background(), fakeJob)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "getting order for verification")
 }

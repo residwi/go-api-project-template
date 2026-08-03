@@ -38,7 +38,6 @@ import (
 	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/postgres"
 	orderhttp "github.com/residwi/go-api-project-template/internal/modules/order/http"
 	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	paymenthttp "github.com/residwi/go-api-project-template/internal/modules/payment/http"
 	mockgateway "github.com/residwi/go-api-project-template/internal/modules/payment/mock"
 	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
@@ -64,8 +63,7 @@ import (
 )
 
 type Router struct {
-	Handler    http.Handler
-	PaymentSvc *payment.Service
+	Handler http.Handler
 }
 
 func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: length is inherent to registering every feature's routes in one place
@@ -168,7 +166,6 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 			middleware.Recovery,
 			middleware.CORS(deps.Config.CORS),
 		)(mux),
-		PaymentSvc: paymentSvc,
 	}
 }
 
