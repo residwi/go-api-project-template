@@ -1,10 +1,12 @@
-package http_test
+package http
 
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -15,30 +17,11 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/category"
-	categoryhttp "github.com/residwi/go-api-project-template/internal/modules/category/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	catMocks "github.com/residwi/go-api-project-template/mocks/category"
 )
-
-func setupCategoryMux(t *testing.T) (*http.ServeMux, *catMocks.MockRepository, *catMocks.MockProductCounter) {
-	repo := catMocks.NewMockRepository(t)
-	counter := catMocks.NewMockProductCounter(t)
-	svc := category.NewService(repo, counter)
-	v := validator.New()
-
-	mux := http.NewServeMux()
-	api := middleware.NewRouteGroup(mux, "/api/v1")
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-
-	categoryhttp.RegisterRoutes(api, admin, categoryhttp.RouteDeps{
-		Validator: v,
-		Service:   svc,
-	})
-
-	return mux, repo, counter
-}
 
 func TestHandler_ListCategories(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
@@ -170,4 +153,73 @@ func TestHandler_GetBySlug(t *testing.T) {
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
+}
+
+func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
+	h := &handler{
+		service:   &category.Service{},
+		validator: validator.New(),
+	}
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/categories/", nil)
+
+	h.GetBySlug(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	var resp response.Response
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	assert.False(t, resp.Success)
+	assert.Equal(t, "slug is required", resp.Error.Message)
+}
+
+// GET /categories and GET /categories/{slug} are unauthenticated, and the
+// repository's List has no WHERE active filter -- this assertion is the
+// only thing stopping an anonymous caller from enumerating unpublished
+// categories.
+func TestToCategoryResponse_OmitsModerationAndAuditFields(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	description := "Phones, laptops and audio"
+	parentID := uuid.New()
+	got := toCategoryResponse(&category.Category{
+		ID:          uuid.New(),
+		Name:        "Electronics",
+		Slug:        "electronics",
+		Description: &description,
+		ParentID:    &parentID,
+		SortOrder:   3,
+		Active:      true,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	})
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t, []string{"id", "name", "slug", "description", "parent_id"}, slices.Collect(maps.Keys(fields)),
+		"description and parent_id belong to the public shape and must be mapped; sort_order, active, and "+
+			"the audit timestamps must never reach the public endpoint")
+	assert.JSONEq(t, `"Phones, laptops and audio"`, string(fields["description"]),
+		"description must carry the category's own value, not be dropped or defaulted")
+}
+
+func setupCategoryMux(t *testing.T) (*http.ServeMux, *catMocks.MockRepository, *catMocks.MockProductCounter) {
+	repo := catMocks.NewMockRepository(t)
+	counter := catMocks.NewMockProductCounter(t)
+	svc := category.NewService(repo, counter)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	api := middleware.NewRouteGroup(mux, "/api/v1")
+	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+
+	RegisterRoutes(api, admin, RouteDeps{
+		Validator: v,
+		Service:   svc,
+	})
+
+	return mux, repo, counter
 }

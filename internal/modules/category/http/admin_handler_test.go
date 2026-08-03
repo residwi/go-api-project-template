@@ -1,10 +1,12 @@
-package http_test
+package http
 
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -279,4 +281,39 @@ func TestAdminHandler_DeleteCategory(t *testing.T) {
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+}
+
+func TestToAdminCategoryResponse_KeepsModerationAndAuditFields(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	description := "Phones, laptops and audio"
+	parentID := uuid.New()
+	got := toAdminCategoryResponse(&category.Category{
+		ID:          uuid.New(),
+		Name:        "Electronics",
+		Slug:        "electronics",
+		Description: &description,
+		ParentID:    &parentID,
+		SortOrder:   3,
+		Active:      true,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	})
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t,
+		[]string{
+			"id", "name", "slug", "description", "parent_id",
+			"sort_order", "active", "created_at", "updated_at",
+		},
+		slices.Collect(maps.Keys(fields)),
+		"every Category field must be present for admin tooling")
+	assert.JSONEq(t, `"Phones, laptops and audio"`, string(fields["description"]),
+		"description must carry the category's own value -- this is one of the five field mappings "+
+			"duplicated between toCategoryResponse and toAdminCategoryResponse, so it needs pinning on both")
+	assert.JSONEq(t, `"`+parentID.String()+`"`, string(fields["parent_id"]),
+		"parent_id must carry the category's own value")
 }
