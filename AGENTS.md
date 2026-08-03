@@ -338,12 +338,17 @@ can produce a loud false positive.
   `internal/testhelper` starts two long-lived containers by fixed name
   (`go-api-test-postgres`, `go-api-test-redis`) and every test binary attaches to
   whichever already exists. Remove them with `make test-clean`.
-- **Integration tests stay colocated** with the code they test
-  (`internal/modules/<feature>/postgres/repository_test.go`, and
-  `internal/modules/<feature>/*_integration_test.go`). `go test ./...` runs package
-  binaries concurrently; collapsing them into one `test/integration` package
-  would make them sequential. `ARCHITECTURE.md` decision 11 rejects that
-  directory explicitly.
+- **SQL semantics stay in the adapter's own test.** Recursive CTEs, keyset
+  pagination, unique constraints — anything only the database can prove —
+  belong in `internal/modules/<feature>/postgres/repository_test.go` (or a
+  `redis/` adapter's own `cache_test.go`) against a real container. Anything a
+  mock can express — a service's reaction to a value, an error branch —
+  belongs in `service_test.go` instead, and a saga spanning tables no single
+  feature owns goes to `test/e2e/` (below). No feature root starts its own
+  container any more. `go test ./...` runs package binaries concurrently;
+  collapsing per-package tests into one `test/integration` package would make
+  them sequential. `ARCHITECTURE.md` decision 11 rejects that directory
+  explicitly.
 - **`test/e2e/` is for sagas no single feature can own** — checkout, payment,
   refund, fulfilment failure, admin flows — driven through the real
   `apihttp.NewRouter`, a real Postgres, and the mock gateway on an
@@ -352,9 +357,9 @@ can produce a loud false positive.
   and recreates that database `WITH (FORCE)`, so two packages sharing a name tear
   each other down mid-run. `MustStartRedis(dbIndex)` takes an index from the
   hand-maintained registry comment in `internal/testhelper/testhelper.go`;
-  indices 0–5 are taken. Nothing enforces either claim — a collision compiles,
-  passes review, and fails as a flake in an unrelated package. Update the
-  registry comment in the same commit.
+  indices 0, 1, 2, 3, 5, and 6 are taken, and 4 is free. Nothing enforces
+  either claim — a collision compiles, passes review, and fails as a flake in
+  an unrelated package. Update the registry comment in the same commit.
 - **`t.Parallel()` buys nothing inside a package**, because subtests share one
   database. Have each subtest seed its own data instead.
 - **Prefer subtests over table-driven tests.** One logical scenario per subtest,
