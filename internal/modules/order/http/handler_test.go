@@ -1,10 +1,12 @@
-package http_test
+package http
 
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -16,7 +18,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
-	orderhttp "github.com/residwi/go-api-project-template/internal/modules/order/http"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -24,48 +25,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	orderMocks "github.com/residwi/go-api-project-template/mocks/order"
 )
-
-func setupOrderMux(t *testing.T) (
-	*http.ServeMux,
-	*orderMocks.MockRepository,
-	*orderMocks.MockCartProvider,
-	*orderMocks.MockInventoryReserver,
-	*orderMocks.MockPaymentInitiator,
-	*orderMocks.MockPaymentJobCanceller,
-	*orderMocks.MockCouponReserver,
-	*orderMocks.MockNotificationEnqueuer,
-) {
-	repo := orderMocks.NewMockRepository(t)
-	cart := orderMocks.NewMockCartProvider(t)
-	inventory := orderMocks.NewMockInventoryReserver(t)
-	payment := orderMocks.NewMockPaymentInitiator(t)
-	paymentCancel := orderMocks.NewMockPaymentJobCanceller(t)
-	coupons := orderMocks.NewMockCouponReserver(t)
-	notifications := orderMocks.NewMockNotificationEnqueuer(t)
-
-	svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, payment, paymentCancel, coupons, notifications)
-	v := validator.New()
-
-	mux := http.NewServeMux()
-	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-
-	orderhttp.RegisterRoutes(authed, admin, orderhttp.RouteDeps{
-		Validator: v,
-		Service:   svc,
-	})
-
-	return mux, repo, cart, inventory, payment, paymentCancel, coupons, notifications
-}
-
-func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {
-	ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-		UserID: userID,
-		Email:  "test@example.com",
-		Role:   "user",
-	})
-	return r.WithContext(ctx)
-}
 
 func TestHandler_ListOrders(t *testing.T) {
 	t.Run("success with cursor pagination", func(t *testing.T) {
@@ -535,4 +494,126 @@ func TestHandler_CancelOrder(t *testing.T) {
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.Equal(t, "invalid id", resp.Error.Message)
 	})
+}
+
+func TestAddressResponse_JSONRoundTrip(t *testing.T) {
+	got := toAddressResponse(&order.Address{
+		Street:  "123 Main St",
+		City:    "Springfield",
+		State:   "IL",
+		ZipCode: "62701",
+		Country: "US",
+	})
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{
+		"street":"123 Main St",
+		"city":"Springfield",
+		"state":"IL",
+		"zip_code":"62701",
+		"country":"US"
+	}`, string(raw))
+}
+
+func TestAddressResponse_NilIsNil(t *testing.T) {
+	assert.Nil(t, toAddressResponse(nil))
+}
+
+func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
+	orderID := uuid.New()
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	got := toOrderResponse(&order.Order{
+		ID:             orderID,
+		UserID:         uuid.New(),
+		IdempotencyKey: "idem-key-1",
+		RequestHash:    "distinguishable-request-hash",
+		Status:         order.StatusPaid,
+		Subtotal:       money.New(1000, "USD"),
+		Discount:       money.New(0, "USD"),
+		Total:          money.New(1000, "USD"),
+		StockDeducted:  true,
+		StockReversed:  true,
+		Items: []order.Item{
+			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: money.New(1000, "USD"), Quantity: 1, Subtotal: money.New(1000, "USD"), CreatedAt: now},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	})
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t,
+		[]string{
+			"id", "user_id", "status", "subtotal_amount", "discount_amount", "total_amount",
+			"currency", "items", "created_at", "updated_at",
+		},
+		slices.Collect(maps.Keys(fields)),
+		"idempotency_key, request_hash, stock_deducted, and stock_reversed must not appear")
+
+	assert.JSONEq(t, `1000`, string(fields["total_amount"]))
+	assert.JSONEq(t, `"USD"`, string(fields["currency"]))
+
+	assert.NotContains(t, string(raw), "distinguishable-request-hash",
+		"RequestHash is an idempotency internal and must not be serialised")
+	assert.NotContains(t, string(raw), "idem-key-1",
+		"IdempotencyKey must not be serialised")
+	assert.NotContains(t, string(raw), "stock_deducted",
+		"StockDeducted is saga state and must not be serialised")
+	assert.NotContains(t, string(raw), "stock_reversed",
+		"StockReversed is saga state and must not be serialised")
+
+	var itemFields []map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(fields["items"], &itemFields))
+	require.Len(t, itemFields, 1)
+	assert.ElementsMatch(t,
+		[]string{"id", "product_id", "product_name", "price", "quantity", "subtotal", "created_at"},
+		slices.Collect(maps.Keys(itemFields[0])),
+		"order_id must not appear on a line item -- it's an internal join key")
+}
+
+func setupOrderMux(t *testing.T) (
+	*http.ServeMux,
+	*orderMocks.MockRepository,
+	*orderMocks.MockCartProvider,
+	*orderMocks.MockInventoryReserver,
+	*orderMocks.MockPaymentInitiator,
+	*orderMocks.MockPaymentJobCanceller,
+	*orderMocks.MockCouponReserver,
+	*orderMocks.MockNotificationEnqueuer,
+) {
+	repo := orderMocks.NewMockRepository(t)
+	cart := orderMocks.NewMockCartProvider(t)
+	inventory := orderMocks.NewMockInventoryReserver(t)
+	payment := orderMocks.NewMockPaymentInitiator(t)
+	paymentCancel := orderMocks.NewMockPaymentJobCanceller(t)
+	coupons := orderMocks.NewMockCouponReserver(t)
+	notifications := orderMocks.NewMockNotificationEnqueuer(t)
+
+	svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, payment, paymentCancel, coupons, notifications)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	authed := middleware.NewRouteGroup(mux, "/api/v1")
+	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+
+	RegisterRoutes(authed, admin, RouteDeps{
+		Validator: v,
+		Service:   svc,
+	})
+
+	return mux, repo, cart, inventory, payment, paymentCancel, coupons, notifications
+}
+
+func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {
+	ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		UserID: userID,
+		Email:  "test@example.com",
+		Role:   "user",
+	})
+	return r.WithContext(ctx)
 }
