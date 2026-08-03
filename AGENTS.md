@@ -82,8 +82,9 @@ internal/modules/order/
   address.go      feature-specific file
   postgres/       the Postgres repository — the only place order's tables are named
   http/           routes.go plus one file per handler role: order's is split into
-                  public_handler.go and admin_handler.go, each owning the
-                  request/response DTOs and mapping for its own handlers
+                  handler.go and admin_handler.go, each owning the
+                  request/response DTOs and mapping for its own handlers,
+                  and each with a _test.go beside it
 ```
 
 Every feature has `model.go`, `service.go` and `repository.go` except `auth`,
@@ -115,18 +116,33 @@ decision 4 — not an omission to fix. There are 13 packages named `postgres` an
 14 feature packages named `http`, which is why
 `internal/transport/http/router.go` needs 27 aliased adapter imports.
 
-Inside `http/`, the file split is by **handler role**, not by endpoint: a
-single-handler feature has one `handler.go`; a feature whose routes split by
-caller role has `public_handler.go` and `admin_handler.go` instead; `payment`
-has `admin_handler.go` and `webhook_handler.go` — the gateway callback is its
-only non-admin route, so it has no `public_handler.go`. `routes.go`
-holds only `RouteDeps` and `RegisterRoutes` — no DTOs, no logic. Counted across
-`internal/modules/*/http/`, **non-test files only**: `routes.go` ×14,
-`admin_handler.go` ×8, `public_handler.go` ×7, `handler.go` ×6,
-`webhook_handler.go` ×1. The 15 test files still named after the deleted
-per-endpoint files (`list_categories_test.go`, `get_order_test.go`, …) are
-deliberate: renaming them is churn that costs `git log --follow`. Their names
-are history, not the convention.
+Inside `http/`, the file split is by **handler role**, not by endpoint. The
+unqualified name is the default handler; `admin_` and `webhook_` are the
+qualified exceptions. Every feature holds a subset of exactly these eight names
+and nothing else:
+
+| File | Package | Holds |
+| --- | --- | --- |
+| `routes.go` | `http` | `RouteDeps` and `RegisterRoutes` only — no DTOs, no logic |
+| `handler.go` | `http` | the default (public or authed) handler, its DTOs and mappers |
+| `handler_test.go` | `http_test` | its route-level tests, driven through a mux |
+| `admin_handler.go` | `http` | the admin handler, where routes split by caller role |
+| `admin_handler_test.go` | `http_test` | its route-level tests |
+| `webhook_handler.go` | `http` | `payment` only — the gateway callback |
+| `webhook_handler_test.go` | `http_test` | its route-level tests |
+| `internal_test.go` | `http` | unit tests that reach unexported mappers and handlers |
+
+Counted across `internal/modules/*/http/`: `routes.go` ×14, `internal_test.go`
+×14, `handler.go` and `handler_test.go` ×13, `admin_handler.go` and
+`admin_handler_test.go` ×8, `webhook_handler.go` and `webhook_handler_test.go`
+×1. `payment` is the one feature with no `handler.go` — it has no public role.
+
+**`internal_test.go` is not optional.** It is `package http`, and it holds the
+leak tests that call unexported mappers (`toProductResponse`, …) directly. Those
+are what stop a domain field reaching an unauthenticated response body, and an
+external `package http_test` file cannot reach them — Go forbids one file being
+both packages, so the second file is a language constraint, not a style choice.
+Put a new test where its access requires, then name the file for that.
 
 ## Commands
 

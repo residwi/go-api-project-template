@@ -173,10 +173,11 @@ No `json` tag exists on a type **this system owns** outside
 `internal/modules/*/http/`. Every endpoint owns its request DTO, response DTO
 and explicit mapping; those live beside the handler that serialises them. The
 files inside `http/` are split by **handler role**, not one per use case:
-`handler.go` for a single-handler feature, `public_handler.go` plus
-`admin_handler.go` where the routes split by caller role, and
-`webhook_handler.go` in `payment`, whose public surface is the gateway callback
-rather than a public handler. `routes.go` holds only `RouteDeps` and
+`handler.go` for the default handler, `admin_handler.go` where the routes split
+by caller role, and `webhook_handler.go` in `payment`, whose only non-admin
+route is the gateway callback and which therefore has no `handler.go` at all.
+Each has a `_test.go` beside it, plus one `internal_test.go` per feature for the
+tests that must reach unexported mappers. `routes.go` holds only `RouteDeps` and
 `RegisterRoutes`.
 
 `make check-boundaries` enforces the tag rule, not the file layout. Nothing

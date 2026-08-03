@@ -47,8 +47,9 @@ has the ones it needs, so the tree is deliberately **non-uniform**.
 │   │   │   │                       # dependency (product/inventory.go, category/product.go)
 │   │   │   ├── /postgres           # SQL adapter -- may only name tables it owns
 │   │   │   └── /http               # routes.go plus one file per handler role --
-│   │   │                           # handler.go, or public_handler.go +
-│   │   │                           # admin_handler.go where roles differ
+│   │   │                           # handler.go, plus admin_handler.go where
+│   │   │                           # roles differ; a _test.go beside each, and
+│   │   │                           # internal_test.go for unexported-mapper tests
 │   │   │                           # (payment also has /stripe /midtrans /mock /worker)
 │   ├── /money                  # Money value object (amount + currency, paired)
 │   ├── /apperror               # Error vocabulary (ErrNotFound, ErrBadRequest, ...)
