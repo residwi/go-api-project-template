@@ -1,10 +1,12 @@
-package http_test
+package http
 
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -15,35 +17,12 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
-	producthttp "github.com/residwi/go-api-project-template/internal/modules/product/http"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	prodMocks "github.com/residwi/go-api-project-template/mocks/product"
 )
-
-func setupProductMux(t *testing.T) (*http.ServeMux, *prodMocks.MockRepository) {
-	repo := prodMocks.NewMockRepository(t)
-	inv := prodMocks.NewMockInventoryReader(t)
-	inv.EXPECT().GetAvailability(mock.Anything, mock.Anything).
-		Return(map[uuid.UUID]product.Availability{}, nil).Maybe()
-	reg := prodMocks.NewMockInventoryRegistrar(t)
-	reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil).Maybe()
-	svc := product.NewService(repo, inv, reg)
-	v := validator.New()
-
-	mux := http.NewServeMux()
-	api := middleware.NewRouteGroup(mux, "/api/v1")
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-
-	producthttp.RegisterRoutes(api, admin, producthttp.RouteDeps{
-		Validator: v,
-		Service:   svc,
-	})
-
-	return mux, repo
-}
 
 func TestHandler_ListProducts(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
@@ -241,4 +220,88 @@ func TestHandler_GetBySlug(t *testing.T) {
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
 	})
+}
+
+func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
+	h := &handler{
+		service:   &product.Service{},
+		validator: validator.New(),
+	}
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/products/", nil)
+
+	h.GetBySlug(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	var resp response.Response
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	assert.False(t, resp.Success)
+	assert.Equal(t, "slug is required", resp.Error.Message)
+}
+
+func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
+	deletedAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	sku := "SKU-DISTINGUISHABLE-424242"
+
+	got := toProductResponse(&product.Product{
+		ID:        uuid.New(),
+		Name:      "Widget",
+		Slug:      "widget",
+		Price:     money.New(1999, "USD"),
+		SKU:       &sku,
+		Status:    "published",
+		DeletedAt: &deletedAt,
+		Availability: product.Availability{
+			OnHand:    50,
+			Available: 424242,
+		},
+	})
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t,
+		[]string{"id", "name", "slug", "price", "currency", "stock_quantity", "created_at", "updated_at"},
+		slices.Collect(maps.Keys(fields)),
+		"description, category_id, compare_at_price, and images are omitempty and absent when nil/empty; "+
+			"sku and status must never reach the public endpoint")
+
+	assert.NotContains(t, string(raw), "424242",
+		"reserved/available stock is live order velocity per SKU and must never be serialised")
+	assert.NotContains(t, string(raw), "2026-01-01",
+		"a soft-deleted product must not be distinguishable on the wire from one that 404s")
+	assert.NotContains(t, string(raw), sku,
+		"sku is a merchandising/inventory detail a shopper has no use for")
+
+	var stock struct {
+		StockQuantity int `json:"stock_quantity"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &stock))
+	assert.Equal(t, 50, stock.StockQuantity, "stock_quantity must come from Availability.OnHand")
+}
+
+func setupProductMux(t *testing.T) (*http.ServeMux, *prodMocks.MockRepository) {
+	repo := prodMocks.NewMockRepository(t)
+	inv := prodMocks.NewMockInventoryReader(t)
+	inv.EXPECT().GetAvailability(mock.Anything, mock.Anything).
+		Return(map[uuid.UUID]product.Availability{}, nil).Maybe()
+	reg := prodMocks.NewMockInventoryRegistrar(t)
+	reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil).Maybe()
+	svc := product.NewService(repo, inv, reg)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	api := middleware.NewRouteGroup(mux, "/api/v1")
+	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+
+	RegisterRoutes(api, admin, RouteDeps{
+		Validator: v,
+		Service:   svc,
+	})
+
+	return mux, repo
 }

@@ -1,11 +1,13 @@
-package http_test
+package http
 
 import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -527,4 +529,59 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+}
+
+// toAdminProductResponse (this file) duplicates all twelve of
+// toProductResponse's field mappings (handler.go) by hand rather than
+// sharing code, so the fixture below also sets Description, CategoryID, and
+// CompareAtPrice -- fields otherwise unrelated to SKU/Status -- to guard
+// that duplication from drifting silently.
+func TestToAdminProductResponse_KeepsSKUAndStatus(t *testing.T) {
+	sku := "SKU-123"
+	description := "A widget"
+	categoryID := uuid.New()
+	compareAtPrice := money.New(2999, "USD")
+
+	got := toAdminProductResponse(&product.Product{
+		ID:             uuid.New(),
+		Name:           "Widget",
+		Slug:           "widget",
+		Description:    &description,
+		CategoryID:     &categoryID,
+		Price:          money.New(1999, "USD"),
+		CompareAtPrice: &compareAtPrice,
+		SKU:            &sku,
+		Status:         "draft",
+		Availability: product.Availability{
+			OnHand:    50,
+			Available: 424242,
+		},
+	})
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t,
+		[]string{
+			"id", "name", "slug", "description", "category_id", "price", "compare_at_price",
+			"currency", "sku", "status", "stock_quantity", "created_at", "updated_at",
+		},
+		slices.Collect(maps.Keys(fields)),
+		"images is omitempty and absent when empty; every other field, including sku and status, must be "+
+			"present for admin tooling")
+
+	assert.JSONEq(t, `"A widget"`, string(fields["description"]),
+		"description must carry the product's own value, not be dropped or defaulted")
+	assert.JSONEq(t, `2999`, string(fields["compare_at_price"]),
+		"compare_at_price must carry the product's own value")
+
+	var admin struct {
+		StockQuantity int `json:"stock_quantity"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &admin))
+	assert.Equal(t, 50, admin.StockQuantity,
+		"stock_quantity must come from Availability.OnHand -- Available is reservation-adjusted and would "+
+			"report a different depth under the same key")
 }
