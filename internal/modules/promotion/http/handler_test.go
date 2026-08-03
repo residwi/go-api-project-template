@@ -1,10 +1,13 @@
-package http_test
+package http
 
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,39 +18,12 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
-	promotionhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	promoMocks "github.com/residwi/go-api-project-template/mocks/promotion"
 )
-
-func setupPromotionMux(t *testing.T) (*http.ServeMux, *promoMocks.MockRepository) {
-	repo := promoMocks.NewMockRepository(t)
-	svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
-	v := validator.New()
-
-	mux := http.NewServeMux()
-	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-
-	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{
-		Validator: v,
-		Service:   svc,
-	})
-
-	return mux, repo
-}
-
-func setPromoAuthContext(r *http.Request) *http.Request {
-	ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-		UserID: uuid.New(),
-		Email:  "test@example.com",
-		Role:   "user",
-	})
-	return r.WithContext(ctx)
-}
 
 func TestHandler_Apply_ServiceError(t *testing.T) {
 	t.Run("service returns not found", func(t *testing.T) {
@@ -129,4 +105,111 @@ func TestHandler_Apply_Success(t *testing.T) {
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.True(t, resp.Success)
 	})
+}
+
+func TestHandler_Apply(t *testing.T) {
+	h := newTestHandler()
+
+	t.Run("missing auth", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/promotions/apply", nil)
+		w := httptest.NewRecorder()
+
+		h.Apply(w, r)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		success, ok := resp["success"].(bool)
+		require.True(t, ok)
+		assert.False(t, success)
+	})
+
+	t.Run("invalid JSON", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/promotions/apply", strings.NewReader("{bad"))
+		r = setAuthContext(r)
+		w := httptest.NewRecorder()
+
+		h.Apply(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error missing fields", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/promotions/apply", strings.NewReader(`{}`))
+		r = setAuthContext(r)
+		w := httptest.NewRecorder()
+
+		h.Apply(w, r)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		success, ok := resp["success"].(bool)
+		require.True(t, ok)
+		assert.False(t, success)
+		errBody, ok := resp["error"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "validation failed", errBody["message"])
+	})
+}
+
+// What this does and does not guarantee: ElementsMatch below catches any
+// field added to applyResponse without `,omitempty`. It does not catch one
+// added with `,omitempty`, because toApplyResponse takes only a code and a
+// discount -- any new field is never assigned, so it stays zero and omitted.
+// The backstop for that case is the compiler: actually populating a new
+// field means widening this mapper's signature, which breaks its one call
+// site in handler.go's Apply.
+func TestApplyResponse_OmitsUsageCountersAndLimits(t *testing.T) {
+	got := toApplyResponse("SAVE10", 424242)
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t, []string{"code", "discount"}, slices.Collect(maps.Keys(fields)),
+		"the apply response must expose exactly the code and the computed discount")
+}
+
+func newTestHandler() *handler {
+	return &handler{
+		service:   &promotion.Service{},
+		validator: validator.New(),
+	}
+}
+
+func setAuthContext(r *http.Request) *http.Request {
+	ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		UserID: uuid.New(),
+		Email:  "test@example.com",
+		Role:   "user",
+	})
+	return r.WithContext(ctx)
+}
+
+func setupPromotionMux(t *testing.T) (*http.ServeMux, *promoMocks.MockRepository) {
+	repo := promoMocks.NewMockRepository(t)
+	svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	authed := middleware.NewRouteGroup(mux, "/api/v1")
+	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+
+	RegisterRoutes(authed, admin, RouteDeps{
+		Validator: v,
+		Service:   svc,
+	})
+
+	return mux, repo
+}
+
+func setPromoAuthContext(r *http.Request) *http.Request {
+	ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		UserID: uuid.New(),
+		Email:  "test@example.com",
+		Role:   "user",
+	})
+	return r.WithContext(ctx)
 }

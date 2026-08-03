@@ -1,4 +1,4 @@
-package http_test
+package http
 
 import (
 	"bytes"
@@ -16,6 +16,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
+	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -248,4 +249,87 @@ func TestAdminHandler_Delete_ServiceError(t *testing.T) {
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+}
+
+func TestHandler_AdminCreate(t *testing.T) {
+	h := newTestAdminHandler()
+
+	t.Run("invalid JSON", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/promotions", strings.NewReader("{bad"))
+		w := httptest.NewRecorder()
+
+		h.Create(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error missing fields", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/promotions", strings.NewReader(`{}`))
+		w := httptest.NewRecorder()
+
+		h.Create(w, r)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		errBody, ok := resp["error"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "validation failed", errBody["message"])
+	})
+}
+
+func TestHandler_AdminUpdate(t *testing.T) {
+	h := newTestAdminHandler()
+
+	t.Run("invalid UUID", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPut, "/promotions/bad", nil)
+		r.SetPathValue("id", "bad")
+		w := httptest.NewRecorder()
+
+		h.Update(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		errBody, ok := resp["error"].(map[string]any)
+		require.True(t, ok)
+		assert.Contains(t, errBody["message"], "invalid id")
+	})
+
+	t.Run("invalid JSON", func(t *testing.T) {
+		id := uuid.NewString()
+		r := httptest.NewRequest(http.MethodPut, "/promotions/"+id, strings.NewReader("{bad"))
+		r.SetPathValue("id", id)
+		w := httptest.NewRecorder()
+
+		h.Update(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+func TestHandler_AdminDelete(t *testing.T) {
+	h := newTestAdminHandler()
+
+	t.Run("invalid UUID", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodDelete, "/promotions/bad", nil)
+		r.SetPathValue("id", "bad")
+		w := httptest.NewRecorder()
+
+		h.Delete(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		errBody, ok := resp["error"].(map[string]any)
+		require.True(t, ok)
+		assert.Contains(t, errBody["message"], "invalid id")
+	})
+}
+
+func newTestAdminHandler() *adminHandler {
+	return &adminHandler{
+		service:   &promotion.Service{},
+		validator: validator.New(),
+	}
 }
