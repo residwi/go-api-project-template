@@ -268,3 +268,64 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestPostgresRepository_AncestorDepthAndCycle(t *testing.T) {
+	ctx := context.Background()
+
+	seedChild := func(t *testing.T, parentID *uuid.UUID) *category.Category {
+		t.Helper()
+		repo := postgres.New(testPool)
+		cat := &category.Category{
+			Name:      "Cat-" + uuid.New().String()[:8],
+			Slug:      "slug-" + uuid.New().String(),
+			ParentID:  parentID,
+			SortOrder: 0,
+			Active:    true,
+		}
+		require.NoError(t, repo.Create(ctx, cat))
+		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, cat.ID) })
+		return cat
+	}
+
+	t.Run("reports depth one for a root parent", func(t *testing.T) {
+		setup(t)
+		repo := postgres.New(testPool)
+		root := seedChild(t, nil)
+
+		depth, formsCycle, err := repo.AncestorDepthAndCycle(ctx, root.ID, uuid.New(), 5)
+
+		require.NoError(t, err)
+		assert.Equal(t, 1, depth)
+		assert.False(t, formsCycle)
+	})
+
+	t.Run("counts every ancestor in a five-deep chain", func(t *testing.T) {
+		setup(t)
+		repo := postgres.New(testPool)
+		l1 := seedChild(t, nil)
+		l2 := seedChild(t, &l1.ID)
+		l3 := seedChild(t, &l2.ID)
+		l4 := seedChild(t, &l3.ID)
+		l5 := seedChild(t, &l4.ID)
+
+		depth, formsCycle, err := repo.AncestorDepthAndCycle(ctx, l5.ID, uuid.New(), 10)
+
+		require.NoError(t, err)
+		assert.Equal(t, 5, depth)
+		assert.False(t, formsCycle)
+	})
+
+	t.Run("flags a cycle when selfID is among the prospective parent's ancestors", func(t *testing.T) {
+		setup(t)
+		repo := postgres.New(testPool)
+		catA := seedChild(t, nil)
+		catB := seedChild(t, &catA.ID)
+		catC := seedChild(t, &catB.ID)
+
+		// Re-parenting A under C would close the loop A -> B -> C -> A.
+		_, formsCycle, err := repo.AncestorDepthAndCycle(ctx, catC.ID, catA.ID, 10)
+
+		require.NoError(t, err)
+		assert.True(t, formsCycle)
+	})
+}

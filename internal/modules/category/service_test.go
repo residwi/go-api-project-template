@@ -389,3 +389,134 @@ func TestService_Delete_RefusesCategoryWithPublishedProducts(t *testing.T) {
 	err := svc.Delete(context.Background(), categoryID)
 	require.ErrorIs(t, err, apperror.ErrBadRequest)
 }
+
+func TestService_ValidateParent(t *testing.T) {
+	t.Run("rejects a parent that does not exist", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		counter := mocks.NewMockProductCounter(t)
+		parentID := uuid.New()
+		// A non-existent parentID makes the recursive CTE match zero rows, so
+		// AncestorDepthAndCycle reports depth 0 rather than returning ErrNotFound.
+		// validateParent never loads the parent via GetByID.
+		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, mock.Anything).
+			Return(0, false, nil)
+		svc := category.NewService(repo, counter)
+
+		_, err := svc.Create(context.Background(), category.CreateParams{
+			Name:     "Orphan",
+			ParentID: &parentID,
+		})
+
+		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorContains(t, err, "parent category not found")
+	})
+
+	t.Run("rejects a chain deeper than five", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		counter := mocks.NewMockProductCounter(t)
+		parentID := uuid.New()
+		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, mock.Anything).
+			Return(5, false, nil)
+		svc := category.NewService(repo, counter)
+
+		_, err := svc.Create(context.Background(), category.CreateParams{
+			Name:     "L6",
+			ParentID: &parentID,
+		})
+
+		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorContains(t, err, "depth exceeds maximum of 5")
+	})
+
+	t.Run("rejects a move that the repository reports as circular", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		counter := mocks.NewMockProductCounter(t)
+		selfID, parentID := uuid.New(), uuid.New()
+		// Update loads the category being moved via GetByID(id) before it ever
+		// validates the new parent; validateParent itself never calls GetByID.
+		repo.EXPECT().GetByID(mock.Anything, selfID).
+			Return(&category.Category{ID: selfID, Name: "A"}, nil)
+		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, selfID, mock.Anything).
+			Return(2, true, nil)
+		svc := category.NewService(repo, counter)
+
+		_, err := svc.Update(context.Background(), selfID, category.UpdateParams{ParentID: &parentID})
+
+		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorContains(t, err, "circular parent reference")
+	})
+
+	t.Run("rejects a category set as its own parent", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		counter := mocks.NewMockProductCounter(t)
+		selfID := uuid.New()
+		// Update loads the category via GetByID(id) unconditionally, as its
+		// first step, before it ever looks at ParentID - so this call always
+		// happens here, regardless of the identity check below.
+		repo.EXPECT().GetByID(mock.Anything, selfID).
+			Return(&category.Category{ID: selfID, Name: "A"}, nil)
+		svc := category.NewService(repo, counter)
+
+		_, err := svc.Update(context.Background(), selfID, category.UpdateParams{ParentID: &selfID})
+
+		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorContains(t, err, "cannot be its own parent")
+	})
+
+	t.Run("propagates a repository failure from the depth check", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		counter := mocks.NewMockProductCounter(t)
+		parentID := uuid.New()
+		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, mock.Anything).
+			Return(0, false, errors.New("connection refused"))
+		svc := category.NewService(repo, counter)
+
+		_, err := svc.Create(context.Background(), category.CreateParams{
+			Name:     "Child",
+			ParentID: &parentID,
+		})
+
+		assert.Error(t, err)
+	})
+
+	t.Run("creates a child under a valid parent", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		counter := mocks.NewMockProductCounter(t)
+		parentID := uuid.New()
+		// A root parent one level deep, no cycle: validateParent falls
+		// through to nil and Create proceeds to repo.Create.
+		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, mock.Anything).
+			Return(1, false, nil)
+		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *category.Category) bool {
+			return c.Name == "Child" && c.ParentID != nil && *c.ParentID == parentID
+		})).Return(nil)
+		svc := category.NewService(repo, counter)
+
+		result, err := svc.Create(context.Background(), category.CreateParams{
+			Name:     "Child",
+			ParentID: &parentID,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, &parentID, result.ParentID)
+	})
+
+	t.Run("moves a category to a valid new parent", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		counter := mocks.NewMockProductCounter(t)
+		selfID, parentID := uuid.New(), uuid.New()
+		existing := &category.Category{ID: selfID, Name: "Child", Slug: "child"}
+		repo.EXPECT().GetByID(mock.Anything, selfID).Return(existing, nil)
+		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, selfID, mock.Anything).
+			Return(1, false, nil)
+		repo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *category.Category) bool {
+			return c.ID == selfID && c.ParentID != nil && *c.ParentID == parentID
+		})).Return(nil)
+		svc := category.NewService(repo, counter)
+
+		result, err := svc.Update(context.Background(), selfID, category.UpdateParams{ParentID: &parentID})
+
+		require.NoError(t, err)
+		assert.Equal(t, &parentID, result.ParentID)
+	})
+}
