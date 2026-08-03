@@ -1,11 +1,13 @@
-package http_test
+package http
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -15,24 +17,11 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	inventoryhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	mocks "github.com/residwi/go-api-project-template/mocks/inventory"
 )
-
-func setupInventoryMux(t *testing.T) (*http.ServeMux, *mocks.MockRepository) {
-	repo := mocks.NewMockRepository(t)
-	svc := inventory.NewService(repo)
-	v := validator.New()
-
-	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	inventoryhttp.RegisterRoutes(admin, inventoryhttp.RouteDeps{Validator: v, Service: svc})
-
-	return mux, repo
-}
 
 func TestAdminHandler_GetStock(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
@@ -344,4 +333,35 @@ func TestAdminHandler_Adjust(t *testing.T) {
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
 	})
+}
+
+// Every inventory route is admin-only, so Reserved is deliberately present
+// here -- the reservation-count leak this phase closes is on product's
+// public response (see product/http/internal_test.go), not this one.
+func TestToStockResponse_ExposesExactFieldSet(t *testing.T) {
+	got := toStockResponse(&inventory.Stock{
+		ProductID: uuid.New(),
+		Quantity:  100,
+		Reserved:  30,
+		Available: 70,
+	})
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t, []string{"product_id", "quantity", "reserved", "available"}, slices.Collect(maps.Keys(fields)))
+}
+
+func setupInventoryMux(t *testing.T) (*http.ServeMux, *mocks.MockRepository) {
+	repo := mocks.NewMockRepository(t)
+	svc := inventory.NewService(repo)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	admin := middleware.NewRouteGroup(mux, "/api/admin")
+	RegisterRoutes(admin, RouteDeps{Validator: v, Service: svc})
+
+	return mux, repo
 }
