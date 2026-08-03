@@ -1,11 +1,13 @@
-package http_test
+package http
 
 import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -15,31 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/modules/review"
-	reviewhttp "github.com/residwi/go-api-project-template/internal/modules/review/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	revMocks "github.com/residwi/go-api-project-template/mocks/review"
 )
-
-func setupReviewMux(t *testing.T) (*http.ServeMux, *revMocks.MockRepository, *revMocks.MockPurchaseVerifier) {
-	repo := revMocks.NewMockRepository(t)
-	purchase := revMocks.NewMockPurchaseVerifier(t)
-	svc := review.NewService(repo, purchase)
-	v := validator.New()
-
-	mux := http.NewServeMux()
-	api := middleware.NewRouteGroup(mux, "/api/v1")
-	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-
-	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{
-		Validator: v,
-		Service:   svc,
-	})
-
-	return mux, repo, purchase
-}
 
 func TestHandler_ListByProduct(t *testing.T) {
 	t.Run("success with pagination", func(t *testing.T) {
@@ -343,4 +325,61 @@ func TestHandler_Create(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
+}
+
+// GET /products/{id}/reviews runs on the unauthenticated `api` route group
+// (router.go), so this assertion is the only thing stopping an anonymous
+// scraper from reading UserID and correlating purchases to accounts. Status
+// and UpdatedAt are dropped too: postgres/repository.go's ListByProduct
+// filters WHERE status = 'published', so exposing them would add no
+// information.
+func TestToReviewResponse_OmitsReviewerAndInternalFields(t *testing.T) {
+	userID := uuid.New()
+	orderID := uuid.New()
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	got := toReviewResponse(review.Review{
+		ID:        uuid.New(),
+		UserID:    userID,
+		ProductID: uuid.New(),
+		OrderID:   orderID,
+		Rating:    5,
+		Title:     "Great",
+		Body:      "Love it",
+		Status:    "published",
+		CreatedAt: now,
+		UpdatedAt: now,
+	})
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t, []string{"id", "product_id", "rating", "title", "body", "created_at"}, slices.Collect(maps.Keys(fields)),
+		"the response must expose exactly these fields")
+
+	assert.NotContains(t, string(raw), userID.String(),
+		"a review response naming the reviewer's id lets a scraper correlate purchases to accounts")
+	assert.NotContains(t, string(raw), orderID.String(),
+		"order_id exists only to verify provenance at creation time; a client has no use for it back")
+}
+
+func setupReviewMux(t *testing.T) (*http.ServeMux, *revMocks.MockRepository, *revMocks.MockPurchaseVerifier) {
+	repo := revMocks.NewMockRepository(t)
+	purchase := revMocks.NewMockPurchaseVerifier(t)
+	svc := review.NewService(repo, purchase)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	api := middleware.NewRouteGroup(mux, "/api/v1")
+	authed := middleware.NewRouteGroup(mux, "/api/v1")
+	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+
+	RegisterRoutes(api, authed, admin, RouteDeps{
+		Validator: v,
+		Service:   svc,
+	})
+
+	return mux, repo, purchase
 }
