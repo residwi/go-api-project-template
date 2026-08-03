@@ -8,7 +8,7 @@ A production-ready Go API template with Feature-Based Clean Architecture (Vertic
 - **Feature-Based Clean Architecture** (Vertical Slicing) — 14 feature modules
 - **Two binaries**: API server (`cmd/api`) and Payment Job Worker (`cmd/worker`)
 - **PostgreSQL 16+** with `pgx/v5` driver (requires `gen_random_uuid()`)
-- **Redis** caching with `go-redis/v9`
+- **Redis 8.0+** caching with `go-redis/v9` (requires `HSETEX`)
 - **JWT Authentication** with RBAC (Role-Based Access Control)
 - **Database Migrations** with `goose`
 - **Structured Logging** with `log/slog`
@@ -83,6 +83,7 @@ which rules are conventions rather than checks.
 
 - Go 1.26 or later
 - PostgreSQL 16+
+- Redis 8.0+
 - Docker & Docker Compose
 - Make (optional but recommended)
 

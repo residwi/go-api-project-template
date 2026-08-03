@@ -194,7 +194,7 @@ tests that must reach unexported mappers. `routes.go` holds only `RouteDeps` and
 `make check-boundaries` enforces the tag rule, not the file layout. Nothing
 checks how the handlers are distributed across files; what the script does
 check is `json` tags outside an `http` adapter, cross-module table references
-in SQL, and one feature importing another's `postgres`/`http` package.
+in SQL, and one feature importing another's `postgres`/`http`/`redis` package.
 
 Two exemptions, both deliberate and both allowlisted by name in the check:
 

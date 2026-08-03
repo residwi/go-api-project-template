@@ -99,6 +99,7 @@ func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
 	}
 }
 
+// CheckStatus satisfies middleware.UserStatusChecker. Cached for 30s, fails open.
 func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware.UserStatusResult, error) {
 	snap, found, err := s.cache.Get(ctx, userID)
 	if err != nil {

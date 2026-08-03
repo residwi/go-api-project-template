@@ -65,6 +65,22 @@ func TestCache_Get(t *testing.T) {
 		assert.False(t, found)
 		assert.Equal(t, user.StatusSnapshot{}, got)
 	})
+
+	t.Run("reports found=false for a hash missing the active field", func(t *testing.T) {
+		ctx := context.Background()
+		id := uuid.New()
+		t.Cleanup(func() { testRedis.Del(ctx, statusKey(id)) })
+
+		// Write a partial hash directly, bypassing Put, to simulate the state
+		// Get must not trust: token_version present, active missing.
+		require.NoError(t, testRedis.HSet(ctx, statusKey(id), "token_version", "1").Err())
+
+		got, found, err := New(testRedis).Get(ctx, id)
+
+		require.NoError(t, err)
+		assert.False(t, found)
+		assert.Equal(t, user.StatusSnapshot{}, got)
+	})
 }
 
 func TestCache_Put(t *testing.T) {

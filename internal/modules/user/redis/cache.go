@@ -30,6 +30,12 @@ func (c *Cache) Get(ctx context.Context, userID uuid.UUID) (user.StatusSnapshot,
 	if len(fields) == 0 {
 		return user.StatusSnapshot{}, false, nil
 	}
+	activeField, ok := fields["active"]
+	if !ok {
+		// A hash missing `active` is a partial write, not a valid entry: treat
+		// it as a miss rather than defaulting Active to false.
+		return user.StatusSnapshot{}, false, nil
+	}
 
 	tokenVersion, err := strconv.Atoi(fields["token_version"])
 	if err != nil {
@@ -38,7 +44,7 @@ func (c *Cache) Get(ctx context.Context, userID uuid.UUID) (user.StatusSnapshot,
 		return user.StatusSnapshot{}, false, nil //nolint:nilerr // malformed cache entry is a deliberate miss, not a propagated error
 	}
 
-	return user.StatusSnapshot{Active: fields["active"] == "1", TokenVersion: tokenVersion}, true, nil
+	return user.StatusSnapshot{Active: activeField == "1", TokenVersion: tokenVersion}, true, nil
 }
 
 func (c *Cache) Put(ctx context.Context, userID uuid.UUID, snap user.StatusSnapshot, ttl time.Duration) error {

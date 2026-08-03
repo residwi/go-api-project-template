@@ -105,5 +105,6 @@ type Deps struct {
 	Config     *config.Config
 	Pool       *pgxpool.Pool
 	ReaderPool *pgxpool.Pool
-	Cache      *redis.Client
+	// Cache is the shared Redis connection, named for its principal consumer.
+	Cache *redis.Client
 }
