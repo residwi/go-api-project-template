@@ -1,10 +1,13 @@
-package http_test
+package http
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -15,7 +18,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	paymenthttp "github.com/residwi/go-api-project-template/internal/modules/payment/http"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -23,33 +25,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	mocks "github.com/residwi/go-api-project-template/mocks/payment"
 )
-
-func setupPaymentMux(t *testing.T) (
-	*http.ServeMux,
-	*mocks.MockRepository,
-	*mocks.MockGateway,
-	*mocks.MockOrderUpdater,
-	*mocks.MockOrderGetter,
-) {
-	repo := mocks.NewMockRepository(t)
-	gw := mocks.NewMockGateway(t)
-	orders := mocks.NewMockOrderUpdater(t)
-	orderGet := mocks.NewMockOrderGetter(t)
-	orderItems := mocks.NewMockOrderItemsGetter(t)
-	inv := mocks.NewMockInventoryDeductor(t)
-	invRestore := mocks.NewMockInventoryRestorer(t)
-	couponRel := mocks.NewMockCouponReleaser(t)
-
-	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
-	v := validator.New()
-
-	mux := http.NewServeMux()
-	api := middleware.NewRouteGroup(mux, "/api")
-	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	paymenthttp.RegisterRoutes(api, admin, paymenthttp.RouteDeps{Validator: v, Service: svc})
-
-	return mux, repo, gw, orders, orderGet
-}
 
 func TestAdminHandler_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
@@ -281,4 +256,77 @@ func TestAdminHandler_Refund(t *testing.T) {
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
 	})
+}
+
+// payment.Payment.GatewayResponse is populated by service.go marshaling the
+// gateway's ChargeResponse and persisting it via repo.UpdateGateway -- it
+// carries no json:"-" tag, so toAdminPaymentResponse's explicit field list
+// is the only thing keeping it off the wire.
+func TestToAdminPaymentResponse_OmitsGatewayResponse(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	gatewayResponse := []byte(`{"card_number":"4242424242424242","cvv":"123"}`)
+
+	got := toAdminPaymentResponse(&payment.Payment{
+		ID:              uuid.New(),
+		OrderID:         uuid.New(),
+		Amount:          money.New(5000, "USD"),
+		Status:          payment.StatusSuccess,
+		Method:          "card",
+		PaymentMethodID: "pm_test_123",
+		GatewayTxnID:    "txn_123",
+		GatewayResponse: gatewayResponse,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	})
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t,
+		[]string{
+			"id", "order_id", "amount", "currency", "status", "method", "payment_method_id",
+			"gateway_txn_id", "created_at", "updated_at",
+		},
+		slices.Collect(maps.Keys(fields)),
+		"payment_url and paid_at are omitempty and absent when unset; every other field must be present -- "+
+			"this key-set assertion is the real control against GatewayResponse leaking back in, since it is a "+
+			"[]byte and would marshal to base64 rather than the plaintext checked below")
+
+	// []byte marshals to base64, not plaintext, so a plaintext NotContains check
+	// can never fire even if GatewayResponse were re-added to the DTO. Assert
+	// against the base64 encoding instead so this check is actually capable of
+	// catching that regression.
+	assert.NotContains(t, string(raw), base64.StdEncoding.EncodeToString(gatewayResponse),
+		"GatewayResponse may carry PII or card metadata and must never be serialised, even to an admin")
+	assert.NotContains(t, string(raw), "gateway_response",
+		"the GatewayResponse field must not appear under any key")
+}
+
+func setupPaymentMux(t *testing.T) (
+	*http.ServeMux,
+	*mocks.MockRepository,
+	*mocks.MockGateway,
+	*mocks.MockOrderUpdater,
+	*mocks.MockOrderGetter,
+) {
+	repo := mocks.NewMockRepository(t)
+	gw := mocks.NewMockGateway(t)
+	orders := mocks.NewMockOrderUpdater(t)
+	orderGet := mocks.NewMockOrderGetter(t)
+	orderItems := mocks.NewMockOrderItemsGetter(t)
+	inv := mocks.NewMockInventoryDeductor(t)
+	invRestore := mocks.NewMockInventoryRestorer(t)
+	couponRel := mocks.NewMockCouponReleaser(t)
+
+	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	api := middleware.NewRouteGroup(mux, "/api")
+	admin := middleware.NewRouteGroup(mux, "/api/admin")
+	RegisterRoutes(api, admin, RouteDeps{Validator: v, Service: svc})
+
+	return mux, repo, gw, orders, orderGet
 }

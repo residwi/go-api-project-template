@@ -1,4 +1,4 @@
-package http_test
+package http
 
 import (
 	"bytes"
@@ -16,34 +16,12 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	paymenthttp "github.com/residwi/go-api-project-template/internal/modules/payment/http"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	mocks "github.com/residwi/go-api-project-template/mocks/payment"
 )
-
-func setupPaymentMuxWithSecret(t *testing.T, secret string) (*http.ServeMux, *mocks.MockRepository) {
-	repo := mocks.NewMockRepository(t)
-	gw := mocks.NewMockGateway(t)
-	orders := mocks.NewMockOrderUpdater(t)
-	orderGet := mocks.NewMockOrderGetter(t)
-	orderItems := mocks.NewMockOrderItemsGetter(t)
-	inv := mocks.NewMockInventoryDeductor(t)
-	invRestore := mocks.NewMockInventoryRestorer(t)
-	couponRel := mocks.NewMockCouponReleaser(t)
-
-	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
-	v := validator.New()
-
-	mux := http.NewServeMux()
-	api := middleware.NewRouteGroup(mux, "/api")
-	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	paymenthttp.RegisterRoutes(api, admin, paymenthttp.RouteDeps{Validator: v, Service: svc, WebhookSecret: secret})
-
-	return mux, repo
-}
 
 func TestWebhookHandler_SignatureVerification(t *testing.T) {
 	const secret = "whsec_test"
@@ -196,4 +174,25 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
+}
+
+func setupPaymentMuxWithSecret(t *testing.T, secret string) (*http.ServeMux, *mocks.MockRepository) {
+	repo := mocks.NewMockRepository(t)
+	gw := mocks.NewMockGateway(t)
+	orders := mocks.NewMockOrderUpdater(t)
+	orderGet := mocks.NewMockOrderGetter(t)
+	orderItems := mocks.NewMockOrderItemsGetter(t)
+	inv := mocks.NewMockInventoryDeductor(t)
+	invRestore := mocks.NewMockInventoryRestorer(t)
+	couponRel := mocks.NewMockCouponReleaser(t)
+
+	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	api := middleware.NewRouteGroup(mux, "/api")
+	admin := middleware.NewRouteGroup(mux, "/api/admin")
+	RegisterRoutes(api, admin, RouteDeps{Validator: v, Service: svc, WebhookSecret: secret})
+
+	return mux, repo
 }
