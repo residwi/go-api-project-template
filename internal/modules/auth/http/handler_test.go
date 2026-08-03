@@ -1,10 +1,12 @@
-package http_test
+package http
 
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -16,26 +18,11 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	authhttp "github.com/residwi/go-api-project-template/internal/modules/auth/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	authMocks "github.com/residwi/go-api-project-template/mocks/auth"
 )
-
-func newTestMux(t *testing.T) (http.Handler, *authMocks.MockUserProvider) {
-	users := authMocks.NewMockUserProvider(t)
-	svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
-	v := validator.New()
-
-	mux := http.NewServeMux()
-	api := middleware.NewRouteGroup(mux, "/api")
-	authhttp.RegisterRoutes(api, authhttp.RouteDeps{
-		Validator: v,
-		Service:   svc,
-	})
-	return mux, users
-}
 
 func TestHandler_Register(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
@@ -361,4 +348,58 @@ func TestHandler_RefreshToken(t *testing.T) {
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
 	})
+}
+
+// TokenVersion doubles as revocation state: auth.Service.RefreshToken rejects
+// a refresh token whose version no longer matches the user's.
+func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
+	userID := uuid.New()
+	tp := &auth.TokenPair{
+		AccessToken:  "access-token-value",
+		RefreshToken: "refresh-token-value",
+		ExpiresIn:    900,
+		User: auth.UserResult{
+			ID:           userID,
+			Email:        "user@example.com",
+			FirstName:    "John",
+			LastName:     "Doe",
+			Role:         "user",
+			Active:       false,
+			TokenVersion: 424242,
+		},
+	}
+
+	got := toTokenResponse(tp)
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t, []string{"access_token", "refresh_token", "expires_in", "user"}, slices.Collect(maps.Keys(fields)),
+		"the token response must expose exactly these fields")
+
+	var userFields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(fields["user"], &userFields))
+	assert.ElementsMatch(t, []string{"id", "email", "first_name", "last_name", "role"}, slices.Collect(maps.Keys(userFields)),
+		"the embedded user must expose exactly these fields")
+
+	assert.NotContains(t, string(raw), "424242",
+		"token_version is auth-internal revocation state and must not be serialised")
+	assert.NotContains(t, string(raw), `"active"`,
+		"active is auth-internal and must not be serialised")
+}
+
+func newTestMux(t *testing.T) (http.Handler, *authMocks.MockUserProvider) {
+	users := authMocks.NewMockUserProvider(t)
+	svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	api := middleware.NewRouteGroup(mux, "/api")
+	RegisterRoutes(api, RouteDeps{
+		Validator: v,
+		Service:   svc,
+	})
+	return mux, users
 }
