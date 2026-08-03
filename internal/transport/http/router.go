@@ -54,6 +54,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	userhttp "github.com/residwi/go-api-project-template/internal/modules/user/http"
 	userpg "github.com/residwi/go-api-project-template/internal/modules/user/postgres"
+	userredis "github.com/residwi/go-api-project-template/internal/modules/user/redis"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	wishlisthttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/http"
 	wishlistpg "github.com/residwi/go-api-project-template/internal/modules/wishlist/postgres"
@@ -70,7 +71,7 @@ type Router struct {
 func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: length is inherent to registering every feature's routes in one place
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /health", healthHandler(deps.Pool, deps.Redis))
+	mux.HandleFunc("GET /health", healthHandler(deps.Pool, deps.Cache))
 
 	v := validator.New()
 
@@ -90,7 +91,11 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 
 	txRunner := database.NewTxRunner(deps.Pool)
 
-	userSvc := user.NewService(userRepo, deps.Redis)
+	var userCache user.StatusCache = user.NoCache{}
+	if deps.Cache != nil {
+		userCache = userredis.New(deps.Cache)
+	}
+	userSvc := user.NewService(userRepo, userCache)
 	inventorySvc := inventory.NewService(inventoryRepo)
 	productSvc := bootstrap.NewProductService(productRepo, inventorySvc)
 	categorySvc := bootstrap.NewCategoryService(categoryRepo, productSvc)
@@ -130,12 +135,12 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 
 	// Auth endpoints run synchronous bcrypt and are unauthenticated, so they get
 	// a dedicated per-IP rate limiter to blunt credential-stuffing / CPU exhaustion.
-	authLimiter := middleware.RateLimit(deps.Redis, deps.Config.App.AuthRateLimit, deps.Config.App.AuthRateWindow)
+	authLimiter := middleware.RateLimit(deps.Cache, deps.Config.App.AuthRateLimit, deps.Config.App.AuthRateWindow)
 	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
 
 	// Throttle order placement/payment-retry (each runs a cart-lock + reserve +
 	// charge); wired into order routes for the write endpoints only.
-	orderWriteLimiter := middleware.RateLimit(deps.Redis, deps.Config.App.OrderRateLimit, deps.Config.App.OrderRateWindow)
+	orderWriteLimiter := middleware.RateLimit(deps.Cache, deps.Config.App.OrderRateLimit, deps.Config.App.OrderRateWindow)
 
 	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Service: authSvc})
 	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Service: userSvc})

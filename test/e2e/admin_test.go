@@ -118,7 +118,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 			},
 		},
 		Pool:  testPool,
-		Redis: testRedis,
+		Cache: testRedis,
 	}
 	handler := apihttp.NewRouter(deps).Handler
 	ctx := context.Background()

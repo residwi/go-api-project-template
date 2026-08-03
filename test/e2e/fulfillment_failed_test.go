@@ -52,7 +52,7 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 			},
 		},
 		Pool:  testPool,
-		Redis: testRedis,
+		Cache: testRedis,
 	}
 	router := apihttp.NewRouter(deps)
 	handler := router.Handler

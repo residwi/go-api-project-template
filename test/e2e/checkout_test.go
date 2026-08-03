@@ -208,7 +208,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 			},
 		},
 		Pool:  testPool,
-		Redis: testRedis,
+		Cache: testRedis,
 	}
 	handler := apihttp.NewRouter(deps).Handler
 	ctx := context.Background()

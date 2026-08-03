@@ -13,6 +13,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/user/postgres"
+	userredis "github.com/residwi/go-api-project-template/internal/modules/user/redis"
 )
 
 func TestService_CheckStatus_Integration(t *testing.T) {
@@ -23,7 +24,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 		t.Cleanup(func() { testRedis.Del(ctx, key) })
 
 		repo := postgres.New(testPool)
-		svc := user.NewService(repo, testRedis)
+		svc := user.NewService(repo, userredis.New(testRedis))
 
 		result, err := svc.CheckStatus(ctx, u.ID)
 		require.NoError(t, err)
@@ -45,7 +46,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 		testRedis.HSet(ctx, key, "active", "1", "token_version", "42")
 
 		repo := postgres.New(testPool)
-		svc := user.NewService(repo, testRedis)
+		svc := user.NewService(repo, userredis.New(testRedis))
 
 		result, err := svc.CheckStatus(ctx, u.ID)
 		require.NoError(t, err)
@@ -68,7 +69,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 		defer brokenRedis.Close()
 
 		repo := postgres.New(testPool)
-		svc := user.NewService(repo, brokenRedis)
+		svc := user.NewService(repo, userredis.New(brokenRedis))
 
 		result, err := svc.CheckStatus(ctx, u.ID)
 		require.NoError(t, err)
@@ -86,7 +87,7 @@ func TestService_CheckStatus_Integration(t *testing.T) {
 		require.NoError(t, err)
 
 		repo := postgres.New(testPool)
-		svc := user.NewService(repo, testRedis)
+		svc := user.NewService(repo, userredis.New(testRedis))
 
 		result, err := svc.CheckStatus(ctx, u.ID)
 		require.NoError(t, err)

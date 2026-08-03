@@ -18,10 +18,111 @@ import (
 	mocks "github.com/residwi/go-api-project-template/mocks/user"
 )
 
+func TestService_CheckStatus(t *testing.T) {
+	userID := uuid.New()
+
+	t.Run("returns the cached snapshot without touching the repository", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		c := mocks.NewMockStatusCache(t)
+		c.EXPECT().Get(mock.Anything, userID).
+			Return(user.StatusSnapshot{Active: true, TokenVersion: 42}, true, nil)
+		svc := user.NewService(repo, c)
+
+		got, err := svc.CheckStatus(context.Background(), userID)
+
+		require.NoError(t, err)
+		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 42}, got)
+	})
+
+	t.Run("reads the repository on a miss and writes the snapshot back", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 7, nil)
+		c := mocks.NewMockStatusCache(t)
+		c.EXPECT().Get(mock.Anything, userID).Return(user.StatusSnapshot{}, false, nil)
+		c.EXPECT().Put(mock.Anything, userID,
+			user.StatusSnapshot{Active: true, TokenVersion: 7}, 30*time.Second).Return(nil)
+		svc := user.NewService(repo, c)
+
+		got, err := svc.CheckStatus(context.Background(), userID)
+
+		require.NoError(t, err)
+		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 7}, got)
+	})
+
+	t.Run("falls back to the repository when the cache read errors", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 3, nil)
+		c := mocks.NewMockStatusCache(t)
+		c.EXPECT().Get(mock.Anything, userID).
+			Return(user.StatusSnapshot{}, false, errors.New("backend down"))
+		c.EXPECT().Put(mock.Anything, userID, mock.Anything, mock.Anything).Return(nil)
+		svc := user.NewService(repo, c)
+
+		got, err := svc.CheckStatus(context.Background(), userID)
+
+		require.NoError(t, err)
+		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 3}, got)
+	})
+
+	t.Run("caches an inactive user as inactive", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 4, nil)
+		c := mocks.NewMockStatusCache(t)
+		c.EXPECT().Get(mock.Anything, userID).Return(user.StatusSnapshot{}, false, nil)
+		c.EXPECT().Put(mock.Anything, userID,
+			user.StatusSnapshot{Active: false, TokenVersion: 4}, 30*time.Second).Return(nil)
+		svc := user.NewService(repo, c)
+
+		got, err := svc.CheckStatus(context.Background(), userID)
+
+		require.NoError(t, err)
+		assert.Equal(t, middleware.UserStatusResult{Active: false, TokenVersion: 4}, got)
+	})
+
+	t.Run("reports a deleted user as inactive rather than an error", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 0, apperror.ErrNotFound)
+		c := mocks.NewMockStatusCache(t)
+		c.EXPECT().Get(mock.Anything, userID).Return(user.StatusSnapshot{}, false, nil)
+		svc := user.NewService(repo, c)
+
+		got, err := svc.CheckStatus(context.Background(), userID)
+
+		require.NoError(t, err)
+		assert.Equal(t, middleware.UserStatusResult{Active: false, TokenVersion: 0}, got)
+	})
+
+	t.Run("still returns the result when the cache write fails", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 1, nil)
+		c := mocks.NewMockStatusCache(t)
+		c.EXPECT().Get(mock.Anything, userID).Return(user.StatusSnapshot{}, false, nil)
+		c.EXPECT().Put(mock.Anything, userID, mock.Anything, mock.Anything).
+			Return(errors.New("backend down"))
+		svc := user.NewService(repo, c)
+
+		got, err := svc.CheckStatus(context.Background(), userID)
+
+		require.NoError(t, err)
+		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 1}, got)
+	})
+
+	t.Run("works with NoCache, always reading through to the repository", func(t *testing.T) {
+		repo := mocks.NewMockRepository(t)
+		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 9, nil)
+		svc := user.NewService(repo, user.NoCache{})
+
+		got, err := svc.CheckStatus(context.Background(), userID)
+
+		require.NoError(t, err)
+		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 9}, got)
+	})
+}
+
 func TestService_GetByEmail(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		id := uuid.New()
 		repo.EXPECT().GetByEmail(mock.Anything, "alice@example.com").
@@ -52,7 +153,7 @@ func TestService_GetByEmail(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		repo.EXPECT().GetByEmail(mock.Anything, "nobody@example.com").
 			Return(nil, apperror.ErrNotFound)
@@ -65,7 +166,7 @@ func TestService_GetByEmail(t *testing.T) {
 func TestService_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*user.User")).
 			Run(func(_ context.Context, u *user.User) {
@@ -95,7 +196,7 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("conflict error", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*user.User")).
 			Return(apperror.ErrConflict)
@@ -113,7 +214,7 @@ func TestService_Create(t *testing.T) {
 func TestService_GetByID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -142,7 +243,7 @@ func TestService_GetByID(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -152,23 +253,10 @@ func TestService_GetByID(t *testing.T) {
 	})
 }
 
-func TestService_CheckStatus(t *testing.T) {
-	t.Run("success with no redis falls through to DB", func(t *testing.T) {
-		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
-
-		id := uuid.New()
-		repo.EXPECT().GetStatusByID(mock.Anything, id).
-			Return(true, 5, nil)
-
-		result, err := svc.CheckStatus(context.Background(), id)
-		require.NoError(t, err)
-		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 5}, result)
-	})
-
+func TestService_CheckStatus_RepoErrorPropagates(t *testing.T) {
 	t.Run("repo GetStatusByID error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		dbErr := errors.New("database timeout")
 		repo.EXPECT().GetStatusByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
@@ -182,7 +270,7 @@ func TestService_CheckStatus(t *testing.T) {
 func TestService_GetProfile(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		id := uuid.New()
 		expected := &user.User{
@@ -203,7 +291,7 @@ func TestService_GetProfile(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -216,7 +304,7 @@ func TestService_GetProfile(t *testing.T) {
 func TestService_UpdateProfile(t *testing.T) {
 	t.Run("success partial update", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		id := uuid.New()
 		existing := &user.User{
@@ -250,7 +338,7 @@ func TestService_UpdateProfile(t *testing.T) {
 
 	t.Run("updates last name", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		id := uuid.New()
 		existing := &user.User{
@@ -274,7 +362,7 @@ func TestService_UpdateProfile(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -285,7 +373,7 @@ func TestService_UpdateProfile(t *testing.T) {
 
 	t.Run("repo Update error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		id := uuid.New()
 		existing := &user.User{
@@ -309,7 +397,7 @@ func TestService_UpdateProfile(t *testing.T) {
 func TestService_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		params := user.ListParams{Page: 1, PageSize: 10}
 		users := []user.User{
@@ -328,7 +416,7 @@ func TestService_List(t *testing.T) {
 func TestService_AdminUpdate(t *testing.T) {
 	t.Run("success updates active status", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		id := uuid.New()
 		existing := &user.User{
@@ -359,7 +447,7 @@ func TestService_AdminUpdate(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -370,7 +458,7 @@ func TestService_AdminUpdate(t *testing.T) {
 
 	t.Run("repo Update error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		id := uuid.New()
 		existing := &user.User{
@@ -392,7 +480,7 @@ func TestService_AdminUpdate(t *testing.T) {
 
 	t.Run("partial update with all fields", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		id := uuid.New()
 		existing := &user.User{
@@ -431,7 +519,7 @@ func TestService_AdminUpdate(t *testing.T) {
 func TestService_UpdateRole(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -454,7 +542,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("self-demotion blocked", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		sameID := uuid.New()
 
@@ -468,7 +556,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("last admin blocked", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -490,7 +578,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("CountAdmins error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -514,7 +602,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("multiple admins allows demotion", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -538,7 +626,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -553,7 +641,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 	t.Run("Update error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -579,7 +667,7 @@ func TestService_UpdateRole(t *testing.T) {
 func TestService_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -600,7 +688,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("self-deletion blocked", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		sameID := uuid.New()
 
@@ -613,7 +701,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("last admin blocked", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -634,7 +722,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -648,7 +736,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("CountAdmins error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -671,7 +759,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("multiple admins allows delete", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -693,7 +781,7 @@ func TestService_Delete(t *testing.T) {
 
 	t.Run("Delete repo error propagates", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, nil)
+		svc := user.NewService(repo, user.NoCache{})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -717,7 +805,7 @@ func TestService_Delete(t *testing.T) {
 
 func TestService_Delete_RejectsSelfDeleteByName(t *testing.T) {
 	repo := mocks.NewMockRepository(t)
-	svc := user.NewService(repo, nil)
+	svc := user.NewService(repo, user.NoCache{})
 
 	actorID := uuid.New()
 

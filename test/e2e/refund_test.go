@@ -40,7 +40,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 			},
 		},
 		Pool:  testPool,
-		Redis: testRedis,
+		Cache: testRedis,
 	}
 	router := apihttp.NewRouter(webhookDeps)
 	handler := router.Handler
@@ -233,7 +233,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 			},
 		},
 		Pool:  testPool,
-		Redis: testRedis,
+		Cache: testRedis,
 	}
 	router := apihttp.NewRouter(webhookDeps)
 	handler := router.Handler

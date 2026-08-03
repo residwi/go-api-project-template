@@ -68,7 +68,7 @@ func TestMain(m *testing.M) {
 			},
 		},
 		Pool:  pool,
-		Redis: rdb,
+		Cache: rdb,
 	}
 
 	os.Exit(m.Run())
@@ -138,7 +138,7 @@ func TestHealthHandler(t *testing.T) {
 		badDeps := &apihttp.Deps{
 			Config: testDeps.Config,
 			Pool:   badPool,
-			Redis:  testRedis,
+			Cache:  testRedis,
 		}
 		h := apihttp.NewRouter(badDeps).Handler
 
@@ -168,7 +168,7 @@ func TestHealthHandler(t *testing.T) {
 		badDeps := &apihttp.Deps{
 			Config: testDeps.Config,
 			Pool:   testPool,
-			Redis:  badRedis,
+			Cache:  badRedis,
 		}
 		h := apihttp.NewRouter(badDeps).Handler
 
@@ -190,7 +190,7 @@ func TestHealthHandler(t *testing.T) {
 		nilRedisDeps := &apihttp.Deps{
 			Config: testDeps.Config,
 			Pool:   testPool,
-			Redis:  nil,
+			Cache:  nil,
 		}
 		h := apihttp.NewRouter(nilRedisDeps).Handler
 
@@ -546,7 +546,7 @@ func TestHealthHandler_NilRedis(t *testing.T) {
 	nilRedisDeps := &apihttp.Deps{
 		Config: testDeps.Config,
 		Pool:   testDeps.Pool,
-		Redis:  nil,
+		Cache:  nil,
 	}
 	handler := apihttp.NewRouter(nilRedisDeps).Handler
 
@@ -640,7 +640,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 			},
 		},
 		Pool:  testPool,
-		Redis: testRedis,
+		Cache: testRedis,
 	}
 	router := apihttp.NewRouter(deps)
 	handler := router.Handler

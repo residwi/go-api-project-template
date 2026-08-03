@@ -13,6 +13,7 @@ packages:
   github.com/residwi/go-api-project-template/internal/modules/user:
     interfaces:
       Repository:
+      StatusCache:
   github.com/residwi/go-api-project-template/internal/modules/category:
     interfaces:
       Repository:

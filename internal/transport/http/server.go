@@ -67,7 +67,7 @@ func RunContext(ctx context.Context) error {
 		Config:     cfg,
 		Pool:       pool,
 		ReaderPool: readerPool,
-		Redis:      rdb,
+		Cache:      rdb,
 	}
 
 	router := NewRouter(deps)
@@ -105,5 +105,5 @@ type Deps struct {
 	Config     *config.Config
 	Pool       *pgxpool.Pool
 	ReaderPool *pgxpool.Pool
-	Redis      *redis.Client
+	Cache      *redis.Client
 }

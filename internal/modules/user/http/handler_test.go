@@ -24,7 +24,7 @@ import (
 
 func setupUserMux(t *testing.T) (*http.ServeMux, *userMocks.MockRepository) {
 	repo := userMocks.NewMockRepository(t)
-	svc := user.NewService(repo, nil)
+	svc := user.NewService(repo, user.NoCache{})
 	v := validator.New()
 
 	mux := http.NewServeMux()

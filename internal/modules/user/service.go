@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
@@ -17,12 +15,12 @@ import (
 )
 
 type Service struct {
-	repo Repository
-	rdb  *redis.Client
+	repo  Repository
+	cache StatusCache
 }
 
-func NewService(repo Repository, rdb *redis.Client) *Service {
-	return &Service{repo: repo, rdb: rdb}
+func NewService(repo Repository, c StatusCache) *Service {
+	return &Service{repo: repo, cache: c}
 }
 
 // GetByEmail satisfies auth.UserProvider
@@ -86,9 +84,9 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (auth.UserResult, e
 	}, nil
 }
 
-func userStatusCacheKey(userID uuid.UUID) string {
-	return fmt.Sprintf("user:status:%s", userID.String())
-}
+// userStatusCacheTTL bounds how long a revoked token keeps working: the auth
+// middleware reads this cache on every authenticated request.
+const userStatusCacheTTL = 30 * time.Second
 
 // invalidateStatusCache drops the cached active/token_version for a user so a
 // status change (deactivation, deletion, role change, token revocation) takes
@@ -96,26 +94,17 @@ func userStatusCacheKey(userID uuid.UUID) string {
 // revoked or deactivated user keeps access for up to 30s. Best-effort: a failure
 // is logged and the entry still expires on its own.
 func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
-	if s.rdb == nil {
-		return
-	}
-	if err := s.rdb.Del(ctx, userStatusCacheKey(userID)).Err(); err != nil {
+	if err := s.cache.Invalidate(ctx, userID); err != nil {
 		slog.WarnContext(ctx, "failed to invalidate user status cache", "user_id", userID, "error", err)
 	}
 }
 
-// CheckStatus satisfies middleware.UserStatusChecker. Uses Redis cache (30s TTL), fails-open.
 func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware.UserStatusResult, error) {
-	if s.rdb != nil {
-		key := userStatusCacheKey(userID)
-		cached, err := s.rdb.HGetAll(ctx, key).Result()
-		if err != nil {
-			slog.WarnContext(ctx, "user status cache read failed, falling back to DB", "error", err)
-		} else if len(cached) > 0 {
-			active := cached["active"] == "1"
-			tokenVersion, _ := strconv.Atoi(cached["token_version"])
-			return middleware.UserStatusResult{Active: active, TokenVersion: tokenVersion}, nil
-		}
+	snap, found, err := s.cache.Get(ctx, userID)
+	if err != nil {
+		slog.WarnContext(ctx, "user status cache read failed, falling back to DB", "error", err)
+	} else if found {
+		return middleware.UserStatusResult{Active: snap.Active, TokenVersion: snap.TokenVersion}, nil
 	}
 
 	active, tokenVersion, err := s.repo.GetStatusByID(ctx, userID)
@@ -128,23 +117,12 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware
 		return middleware.UserStatusResult{}, err
 	}
 
-	result := middleware.UserStatusResult{Active: active, TokenVersion: tokenVersion}
-
-	if s.rdb != nil {
-		key := userStatusCacheKey(userID)
-		activeStr := "0"
-		if active {
-			activeStr = "1"
-		}
-		pipe := s.rdb.Pipeline()
-		pipe.HSet(ctx, key, "active", activeStr, "token_version", strconv.Itoa(tokenVersion))
-		pipe.Expire(ctx, key, 30*time.Second)
-		if _, err := pipe.Exec(ctx); err != nil {
-			slog.WarnContext(ctx, "user status cache write failed", "error", err)
-		}
+	if err := s.cache.Put(ctx, userID,
+		StatusSnapshot{Active: active, TokenVersion: tokenVersion}, userStatusCacheTTL); err != nil {
+		slog.WarnContext(ctx, "user status cache write failed", "error", err)
 	}
 
-	return result, nil
+	return middleware.UserStatusResult{Active: active, TokenVersion: tokenVersion}, nil
 }
 
 func (s *Service) GetProfile(ctx context.Context, id uuid.UUID) (*User, error) {

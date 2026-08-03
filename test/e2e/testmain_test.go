@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 			},
 		},
 		Pool:  pool,
-		Redis: rdb,
+		Cache: rdb,
 	}
 
 	os.Exit(m.Run())

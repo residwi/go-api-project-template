@@ -39,7 +39,7 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 			},
 		},
 		Pool:  testPool,
-		Redis: testRedis,
+		Cache: testRedis,
 	}
 	handler := apihttp.NewRouter(webhookDeps).Handler
 	ctx := context.Background()
@@ -159,7 +159,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 			},
 		},
 		Pool:  testPool,
-		Redis: testRedis,
+		Cache: testRedis,
 	}
 	handler := apihttp.NewRouter(deps).Handler
 	ctx := context.Background()
