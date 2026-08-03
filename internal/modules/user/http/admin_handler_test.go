@@ -1,11 +1,13 @@
-package http_test
+package http
 
 import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -19,16 +21,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
-
-// listedUserItem is the subset of the admin user-list JSON shape the list tests
-// assert on (the fields the endpoint serializes from user.User).
-type listedUserItem struct {
-	Email     string `json:"email"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Role      string `json:"role"`
-	Active    bool   `json:"active"`
-}
 
 func TestAdminHandler_ListUsers(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
@@ -672,4 +664,55 @@ func TestAdminHandler_ListUsers_WithActiveFilter(t *testing.T) {
 		assert.False(t, got.Pagination.HasPrevious)
 		assert.False(t, got.Pagination.HasNext)
 	})
+}
+
+// Like toUserResponse, toAdminUserResponse maps from user.User (model.go),
+// which carries no json:"-" tags -- this explicit field list is the only
+// thing keeping PasswordHash, TokenVersion, and DeletedAt off the wire, even
+// though this response deliberately exposes role, active, and the
+// timestamps. No other test in this file decodes created_at, updated_at, or
+// the full item shape, so this is also the only assertion pinning the
+// complete admin field set.
+func TestToAdminUserResponse_ExposesOperatorFieldsButNotCredentials(t *testing.T) {
+	userID := uuid.New()
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	deletedAt := now.Add(time.Hour)
+
+	got := toAdminUserResponse(&user.User{
+		ID:           userID,
+		Email:        "user@example.com",
+		PasswordHash: "$2a$10$distinguishablebcryptvalue",
+		FirstName:    "John",
+		LastName:     "Doe",
+		Phone:        "+15551234567",
+		Role:         "admin",
+		Active:       true,
+		TokenVersion: 424242,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		DeletedAt:    &deletedAt,
+	})
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t,
+		[]string{"id", "email", "first_name", "last_name", "phone", "role", "active", "created_at", "updated_at"},
+		slices.Collect(maps.Keys(fields)),
+		"the admin response must expose exactly these fields")
+
+	assert.NotContains(t, string(raw), "distinguishablebcryptvalue",
+		"PasswordHash is credential material and must never be serialised, even to an admin")
+	assert.NotContains(t, string(raw), "424242",
+		"TokenVersion is auth-internal revocation state and must never be serialised")
+}
+
+type listedUserItem struct {
+	Email     string `json:"email"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Role      string `json:"role"`
+	Active    bool   `json:"active"`
 }

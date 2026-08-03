@@ -1,10 +1,12 @@
-package http_test
+package http
 
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -15,29 +17,11 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
-	userhttp "github.com/residwi/go-api-project-template/internal/modules/user/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	userMocks "github.com/residwi/go-api-project-template/mocks/user"
 )
-
-func setupUserMux(t *testing.T) (*http.ServeMux, *userMocks.MockRepository) {
-	repo := userMocks.NewMockRepository(t)
-	svc := user.NewService(repo, user.NoCache{})
-	v := validator.New()
-
-	mux := http.NewServeMux()
-	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-
-	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{
-		Validator: v,
-		Service:   svc,
-	})
-
-	return mux, repo
-}
 
 func TestHandler_GetProfile(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
@@ -239,4 +223,66 @@ func TestHandler_UpdateProfile(t *testing.T) {
 		mux.ServeHTTP(w, r)
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+}
+
+// user.User (model.go) carries no json:"-" tags at all, so PasswordHash and
+// TokenVersion would serialize under their own names if ever marshaled
+// directly -- toUserResponse's explicit field list is the only thing
+// keeping them off the wire. No other test in this file decodes more than a
+// couple of userResponse's fields, so this is also the only assertion
+// pinning the full public field set.
+func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
+	userID := uuid.New()
+	deletedAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	got := toUserResponse(&user.User{
+		ID:           userID,
+		Email:        "user@example.com",
+		PasswordHash: "$2a$10$distinguishablebcryptvalue",
+		FirstName:    "John",
+		LastName:     "Doe",
+		Phone:        "+15551234567",
+		Role:         "admin",
+		Active:       false,
+		TokenVersion: 424242,
+		CreatedAt:    deletedAt,
+		UpdatedAt:    deletedAt,
+		DeletedAt:    &deletedAt,
+	})
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t, []string{"id", "email", "first_name", "last_name", "phone"}, slices.Collect(maps.Keys(fields)),
+		"the public profile must expose exactly these fields")
+
+	assert.NotContains(t, string(raw), "distinguishablebcryptvalue",
+		"PasswordHash is credential material and must never be serialised")
+	assert.NotContains(t, string(raw), "424242",
+		"TokenVersion is auth-internal revocation state and must never be serialised")
+	assert.NotContains(t, string(raw), `"role"`,
+		"role is reserved for the admin response")
+	assert.NotContains(t, string(raw), `"active"`,
+		"active is reserved for the admin response")
+	assert.NotContains(t, string(raw), "2026-01-01",
+		"timestamps are reserved for the admin response")
+}
+
+func setupUserMux(t *testing.T) (*http.ServeMux, *userMocks.MockRepository) {
+	repo := userMocks.NewMockRepository(t)
+	svc := user.NewService(repo, user.NoCache{})
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	authed := middleware.NewRouteGroup(mux, "/api/v1")
+	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+
+	RegisterRoutes(authed, admin, RouteDeps{
+		Validator: v,
+		Service:   svc,
+	})
+
+	return mux, repo
 }
