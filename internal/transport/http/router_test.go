@@ -808,6 +808,9 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 		Action:    payment.ActionCharge,
 	}
 
+	// GatewayURL is the placeholder from TestMain (never a real listener):
+	// FinalizePaymentSuccess fails inside orderGetterAdapter.GetByID before it
+	// ever reaches the gateway, so no URL here is actually dialled.
 	err := newPaymentServiceForTest(t, testDeps.Config.Payment.GatewayURL).FinalizePaymentSuccess(context.Background(), fakeJob)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "getting order for verification")
@@ -830,6 +833,11 @@ func serverRunEnv(t *testing.T, port int) {
 	t.Setenv("DB_SSLMODE", "disable")
 	t.Setenv("REDIS_HOST", strings.Split(redisAddr, ":")[0])
 	t.Setenv("REDIS_PORT", strings.Split(redisAddr, ":")[1])
+	// Without this, REDIS_DB defaults to 0 -- the index internal/platform/cache
+	// owns and flushes -- which would race this package's own index (3, per the
+	// registry in internal/testhelper/testhelper.go) the moment a TestServerRun*
+	// test drives a rate-limited route.
+	t.Setenv("REDIS_DB", "3")
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
 }
 

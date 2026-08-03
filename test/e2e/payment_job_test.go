@@ -139,17 +139,11 @@ func seedChargeJob(t *testing.T, maxAttempts int) chargeJobFixture {
 
 	userID := testhelper.SeedUser(t, testPool)
 
-	catID := uuid.New()
-	_, err := testPool.Exec(ctx,
-		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Charge Cat', $2, true)`,
-		catID, "charge-cat-"+catID.String()[:8])
-	require.NoError(t, err)
-
 	prodID := uuid.New()
-	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
-		 VALUES ($1, 'Charge Product', $2, 'desc', $3, 'USD', 'published', $4)`,
-		prodID, "charge-prod-"+prodID.String()[:8], chargeAmount, catID)
+	_, err := testPool.Exec(ctx,
+		`INSERT INTO products (id, name, slug, description, price, currency, status)
+		 VALUES ($1, 'Charge Product', $2, 'desc', $3, 'USD', 'published')`,
+		prodID, "charge-prod-"+prodID.String()[:8], chargeAmount)
 	require.NoError(t, err)
 	seedInventoryLevel(t, prodID, chargeAvailableStock, chargeReservedStock)
 

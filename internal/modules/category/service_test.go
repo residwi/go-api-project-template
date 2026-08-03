@@ -398,7 +398,7 @@ func TestService_ValidateParent(t *testing.T) {
 		// A non-existent parentID makes the recursive CTE match zero rows, so
 		// AncestorDepthAndCycle reports depth 0 rather than returning ErrNotFound.
 		// validateParent never loads the parent via GetByID.
-		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, mock.Anything).
+		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(0, false, nil)
 		svc := category.NewService(repo, counter)
 
@@ -415,7 +415,7 @@ func TestService_ValidateParent(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		parentID := uuid.New()
-		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, mock.Anything).
+		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(5, false, nil)
 		svc := category.NewService(repo, counter)
 
@@ -467,7 +467,7 @@ func TestService_ValidateParent(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		parentID := uuid.New()
-		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, mock.Anything).
+		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(0, false, errors.New("connection refused"))
 		svc := category.NewService(repo, counter)
 
@@ -485,7 +485,7 @@ func TestService_ValidateParent(t *testing.T) {
 		parentID := uuid.New()
 		// A root parent one level deep, no cycle: validateParent falls
 		// through to nil and Create proceeds to repo.Create.
-		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, mock.Anything).
+		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(1, false, nil)
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *category.Category) bool {
 			return c.Name == "Child" && c.ParentID != nil && *c.ParentID == parentID

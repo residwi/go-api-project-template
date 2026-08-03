@@ -100,7 +100,8 @@ func TestE2EOrderExpiry(t *testing.T) {
 
 		assert.Equal(t, order.StatusExpired, orderStatusOf(t, o.ID))
 
-		_, reserved := inventoryLevelOf(t, productID)
+		available, reserved := inventoryLevelOf(t, productID)
+		assert.Equal(t, 10, available) // 7 seeded + 3 released back
 		assert.Equal(t, 0, reserved)
 	})
 
