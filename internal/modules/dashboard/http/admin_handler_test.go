@@ -1,10 +1,12 @@
-package http_test
+package http
 
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -14,19 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
-	dashboardhttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/http"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	mocks "github.com/residwi/go-api-project-template/mocks/dashboard"
 )
-
-func setupDashboardMux(t *testing.T) (*http.ServeMux, *mocks.MockRepository) {
-	repo := mocks.NewMockRepository(t)
-	svc := dashboard.NewService(repo)
-	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Service: svc})
-	return mux, repo
-}
 
 func TestAdminHandler_Summary(t *testing.T) {
 	t.Run("success with from and to params", func(t *testing.T) {
@@ -453,4 +445,39 @@ func TestAdminHandler_Revenue(t *testing.T) {
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
+}
+
+// dashboard's domain types are already the reporting read-model, purpose-built
+// for this admin UI and not reused by any other feature, so this test is what
+// catches a field silently added to SalesSummary or StatusBreakdown later.
+func TestToSummaryResponse_ExposesExactFieldSet(t *testing.T) {
+	got := toSummaryResponse(
+		dashboard.SalesSummary{TotalOrders: 10, TotalRevenue: 50000, AverageOrderValue: 5000},
+		[]dashboard.StatusBreakdown{{Status: "paid", Count: 7}},
+	)
+
+	raw, err := json.Marshal(got)
+	require.NoError(t, err)
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &fields))
+	assert.ElementsMatch(t, []string{"sales", "status_breakdown"}, slices.Collect(maps.Keys(fields)))
+
+	var sales map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(fields["sales"], &sales))
+	assert.ElementsMatch(t, []string{"total_orders", "total_revenue", "average_order_value"}, slices.Collect(maps.Keys(sales)))
+
+	var breakdown []map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(fields["status_breakdown"], &breakdown))
+	require.Len(t, breakdown, 1)
+	assert.ElementsMatch(t, []string{"status", "count"}, slices.Collect(maps.Keys(breakdown[0])))
+}
+
+func setupDashboardMux(t *testing.T) (*http.ServeMux, *mocks.MockRepository) {
+	repo := mocks.NewMockRepository(t)
+	svc := dashboard.NewService(repo)
+	mux := http.NewServeMux()
+	admin := middleware.NewRouteGroup(mux, "/api/admin")
+	RegisterRoutes(admin, RouteDeps{Service: svc})
+	return mux, repo
 }
