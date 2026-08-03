@@ -108,13 +108,23 @@ uniformity.** A feature has a subpackage only where adaptation is needed:
 | `payment` | `postgres/ http/ stripe/ midtrans/ mock/ worker/` |
 | `auth` | `http/` only — no storage; it asks `user` via `auth.UserProvider` |
 | `dashboard` | `postgres/ http/` — but owns no table (see the reporting carve-out) |
-| the other 11 | `postgres/ http/` |
+| `user` | `postgres/ http/ redis/` — the only feature with a second backing store |
+| the other 10 | `postgres/ http/` |
 
 `notification` has no `worker/` package because `notification.Service` satisfies
 `jobs.Processor` directly. That absence is the lesson — `ARCHITECTURE.md`
-decision 4 — not an omission to fix. There are 13 packages named `postgres` and
-14 feature packages named `http`, which is why
-`internal/transport/http/router.go` needs 27 aliased adapter imports.
+decision 4 — not an omission to fix. `user/redis/` is the positive case of the
+same rule: a subpackage exists where a feature has that kind of backing store,
+and `user` is the only feature caching, so `ls internal/modules/user/` still
+tells the truth about which features do. A feature declares one port per
+store — `repository.go` for Postgres, `cache.go` for a cache — and gets one
+adapter subpackage per port: `user.Repository` pairs with `postgres/`,
+`user.StatusCache` with `redis/`. That adapter requires Redis 8.0 or later; it
+is built on `HSETEX`, which sets a hash's fields and their expiry in a single
+atomic command, and that command does not exist on earlier Redis. There are 13
+packages named `postgres`, 14 feature packages named `http`, and one named
+`redis`, which is why `internal/transport/http/router.go` needs 28 aliased
+adapter imports.
 
 Inside `http/`, the file split is by **handler role**, not by endpoint. The
 unqualified name is the default handler; `admin_` and `webhook_` are the
@@ -234,8 +244,8 @@ cannot violate quietly.
    and tables no row claims all fail. `dashboard` is exempt by name — it is a
    reporting read-model. Change ownership in `db/OWNERSHIP.md`; there is no list
    in the script to keep in step.
-3. **Nothing outside the wiring layer imports a feature's `postgres` or `http`
-   package.** Features and shared infrastructure alike; only
+3. **Nothing outside the wiring layer imports a feature's `postgres`, `http` or
+   `redis` package.** Features and shared infrastructure alike; only
    `internal/bootstrap/` and `internal/transport/` may wire adapters together.
 
 Read the "What it does not catch" section of `db/OWNERSHIP.md` before trusting a

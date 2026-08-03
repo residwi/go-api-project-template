@@ -6,7 +6,7 @@
 #   Check 1  Wire (`json:`) tags live only in a feature's http adapter.
 #   Check 2  A feature's postgres adapter only queries tables it owns,
 #            where "owns" is read out of db/OWNERSHIP.md at run time.
-#   Check 3  No feature imports another feature's postgres/http adapter.
+#   Check 3  No feature imports another feature's postgres/http/redis adapter.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
 # clean; on failure it prints every violation as file:line and exits 1.
@@ -616,8 +616,8 @@ check_adapter_imports() {
 		while IFS= read -r file; do
 			while IFS= read -r hit; do
 				[ -n "$hit" ] || continue
-				# hit looks like "12:<module>/internal/modules/<target>/postgres"
-				target="$(printf '%s' "$hit" | sed -E "s#^.*/${modules_re}/([^/]+)/(postgres|http)\$#\1#")"
+				# hit looks like "12:<module>/internal/modules/<target>/postgres" (also http, redis)
+				target="$(printf '%s' "$hit" | sed -E "s#^.*/${modules_re}/([^/]+)/(postgres|http|redis)\$#\1#")"
 				[ "$target" = "$importer_name" ] && continue
 				report "'$importer_name' imports another module's adapter: ${file}:${hit%%:*}
     ${hit#*:}
@@ -625,7 +625,7 @@ check_adapter_imports() {
     or internal/modules/category/product.go; most features group them in ports.go), not by
     importing a sibling's postgres/http package. Only internal/bootstrap/ and
     internal/transport/ may wire adapters together."
-			done < <(grep -noE "\"${module_re}/${modules_re}/(${feature_alt})/(postgres|http)\"" "$file" \
+			done < <(grep -noE "\"${module_re}/${modules_re}/(${feature_alt})/(postgres|http|redis)\"" "$file" \
 				| tr -d '"' || true)
 		done < <(find "$importer" -type f -name '*.go' ! -name '*_test.go' | sort)
 	done < <(importer_roots)

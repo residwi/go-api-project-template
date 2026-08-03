@@ -116,6 +116,17 @@ rather than per-consumer like every other port. Features already import
 dependency — only duplicated the interface five times and generated five
 identical mocks.
 
+**One port per backing store:** `TxRunner` narrows what a service holds for
+*atomicity*; it says nothing about how many stores a feature talks to, and
+nothing stops that number from being more than one. `user` is the first
+feature where it is: `user.Repository` is its Postgres port, adapted by
+`postgres/`, and `user.StatusCache` is a second, independent port over Redis,
+adapted by `redis/`. The rule generalises the same way decision 3's
+subpackage-per-technology split does — one port per backing store
+(`repository.go`, `cache.go`), one adapter subpackage per port — rather than
+widening `Repository` to also cover caching, which would have coupled two
+stores' failure modes into one interface.
+
 ## 6. Modules own their data
 
 A module's SQL may only name tables it owns. Cross-module reads go through a
