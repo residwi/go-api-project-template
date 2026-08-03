@@ -20,7 +20,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-func TestHandler_CreateShipment(t *testing.T) {
+func TestAdminHandler_CreateShipment(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo, orderProv, orderUpd := setupShippingMux(t)
 
@@ -140,7 +140,7 @@ func TestHandler_CreateShipment(t *testing.T) {
 	})
 }
 
-func TestHandler_UpdateTracking(t *testing.T) {
+func TestAdminHandler_UpdateTracking(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo, _, _ := setupShippingMux(t)
 
@@ -269,7 +269,7 @@ func TestHandler_UpdateTracking(t *testing.T) {
 	})
 }
 
-func TestHandler_MarkDelivered(t *testing.T) {
+func TestAdminHandler_MarkDelivered(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo, _, orderUpd := setupShippingMux(t)
 

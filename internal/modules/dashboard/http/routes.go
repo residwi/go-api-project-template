@@ -10,7 +10,7 @@ type RouteDeps struct {
 }
 
 func RegisterRoutes(admin *middleware.RouteGroup, deps RouteDeps) {
-	h := &handler{service: deps.Service}
+	h := &adminHandler{service: deps.Service}
 
 	admin.HandleFunc("GET /dashboard/summary", h.Summary)
 	admin.HandleFunc("GET /dashboard/top-products", h.TopProducts)

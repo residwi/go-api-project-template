@@ -34,7 +34,7 @@ func setupInventoryMux(t *testing.T) (*http.ServeMux, *mocks.MockRepository) {
 	return mux, repo
 }
 
-func TestHandler_GetStock(t *testing.T) {
+func TestAdminHandler_GetStock(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo := setupInventoryMux(t)
 
@@ -106,7 +106,7 @@ func TestHandler_GetStock(t *testing.T) {
 	})
 }
 
-func TestHandler_Restock(t *testing.T) {
+func TestAdminHandler_Restock(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo := setupInventoryMux(t)
 
@@ -226,7 +226,7 @@ func TestHandler_Restock(t *testing.T) {
 	})
 }
 
-func TestHandler_Adjust(t *testing.T) {
+func TestAdminHandler_Adjust(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo := setupInventoryMux(t)
 

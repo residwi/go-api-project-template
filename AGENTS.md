@@ -133,9 +133,15 @@ and nothing else:
 | `internal_test.go` | `http` | unit tests that reach unexported mappers and handlers |
 
 Counted across `internal/modules/*/http/`: `routes.go` ×14, `internal_test.go`
-×14, `handler.go` and `handler_test.go` ×13, `admin_handler.go` and
-`admin_handler_test.go` ×8, `webhook_handler.go` and `webhook_handler_test.go`
-×1. `payment` is the one feature with no `handler.go` — it has no public role.
+×14, `handler.go` and `handler_test.go` ×11, `admin_handler.go` and
+`admin_handler_test.go` ×10, `webhook_handler.go` and `webhook_handler_test.go`
+×1.
+
+Three features have **no** `handler.go`, and that is the naming rule working
+rather than an omission: `payment`, `dashboard` and `inventory` register every
+route on the admin group, so their only handler is an `adminHandler`. If a
+feature's `http/` has no `handler.go`, it has no non-admin surface — which is a
+fact worth being able to read off `ls`.
 
 **`internal_test.go` is not optional.** It is `package http`, and it holds the
 leak tests that call unexported mappers (`toProductResponse`, …) directly. Those

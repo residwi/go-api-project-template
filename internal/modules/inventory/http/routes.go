@@ -12,7 +12,7 @@ type RouteDeps struct {
 }
 
 func RegisterRoutes(adminGroup *middleware.RouteGroup, deps RouteDeps) {
-	h := &handler{service: deps.Service, validator: deps.Validator}
+	h := &adminHandler{service: deps.Service, validator: deps.Validator}
 
 	adminGroup.HandleFunc("GET /inventory/{product_id}", h.GetStock)
 	adminGroup.HandleFunc("PUT /inventory/{product_id}/restock", h.Restock)

@@ -19,7 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-func TestHandler_AdminCreate_Success(t *testing.T) {
+func TestAdminHandler_Create_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo := setupPromotionMux(t)
 
@@ -49,7 +49,7 @@ func TestHandler_AdminCreate_Success(t *testing.T) {
 	})
 }
 
-func TestHandler_AdminCreate_ServiceError(t *testing.T) {
+func TestAdminHandler_Create_ServiceError(t *testing.T) {
 	t.Run("repo conflict", func(t *testing.T) {
 		mux, repo := setupPromotionMux(t)
 
@@ -76,7 +76,7 @@ func TestHandler_AdminCreate_ServiceError(t *testing.T) {
 	})
 }
 
-func TestHandler_AdminList(t *testing.T) {
+func TestAdminHandler_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo := setupPromotionMux(t)
 
@@ -111,7 +111,7 @@ func TestHandler_AdminList(t *testing.T) {
 	})
 }
 
-func TestHandler_AdminUpdate_Success(t *testing.T) {
+func TestAdminHandler_Update_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo := setupPromotionMux(t)
 
@@ -142,7 +142,7 @@ func TestHandler_AdminUpdate_Success(t *testing.T) {
 	})
 }
 
-func TestHandler_AdminUpdate_ServiceError(t *testing.T) {
+func TestAdminHandler_Update_ServiceError(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		mux, repo := setupPromotionMux(t)
 
@@ -161,7 +161,7 @@ func TestHandler_AdminUpdate_ServiceError(t *testing.T) {
 	})
 }
 
-func TestHandler_AdminUpdate_ValidationError(t *testing.T) {
+func TestAdminHandler_Update_ValidationError(t *testing.T) {
 	t.Run("invalid type value", func(t *testing.T) {
 		mux, _ := setupPromotionMux(t)
 
@@ -183,7 +183,7 @@ func TestHandler_AdminUpdate_ValidationError(t *testing.T) {
 	})
 }
 
-func TestHandler_AdminUpdate_InvalidJSON(t *testing.T) {
+func TestAdminHandler_Update_InvalidJSON(t *testing.T) {
 	t.Run("invalid JSON via mux", func(t *testing.T) {
 		mux, _ := setupPromotionMux(t)
 
@@ -199,7 +199,7 @@ func TestHandler_AdminUpdate_InvalidJSON(t *testing.T) {
 	})
 }
 
-func TestHandler_AdminUpdate_InvalidUUID(t *testing.T) {
+func TestAdminHandler_Update_InvalidUUID(t *testing.T) {
 	t.Run("invalid UUID via mux", func(t *testing.T) {
 		mux, _ := setupPromotionMux(t)
 
@@ -218,7 +218,7 @@ func TestHandler_AdminUpdate_InvalidUUID(t *testing.T) {
 	})
 }
 
-func TestHandler_AdminDelete_Success(t *testing.T) {
+func TestAdminHandler_Delete_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo := setupPromotionMux(t)
 
@@ -234,7 +234,7 @@ func TestHandler_AdminDelete_Success(t *testing.T) {
 	})
 }
 
-func TestHandler_AdminDelete_ServiceError(t *testing.T) {
+func TestAdminHandler_Delete_ServiceError(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		mux, repo := setupPromotionMux(t)
 

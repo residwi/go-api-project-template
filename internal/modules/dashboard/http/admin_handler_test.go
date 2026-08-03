@@ -28,7 +28,7 @@ func setupDashboardMux(t *testing.T) (*http.ServeMux, *mocks.MockRepository) {
 	return mux, repo
 }
 
-func TestHandler_Summary(t *testing.T) {
+func TestAdminHandler_Summary(t *testing.T) {
 	t.Run("success with from and to params", func(t *testing.T) {
 		mux, repo := setupDashboardMux(t)
 
@@ -191,7 +191,7 @@ func TestHandler_Summary(t *testing.T) {
 	})
 }
 
-func TestHandler_TopProducts(t *testing.T) {
+func TestAdminHandler_TopProducts(t *testing.T) {
 	t.Run("success with from to and limit params", func(t *testing.T) {
 		mux, repo := setupDashboardMux(t)
 
@@ -360,7 +360,7 @@ func TestHandler_TopProducts(t *testing.T) {
 	})
 }
 
-func TestHandler_Revenue(t *testing.T) {
+func TestAdminHandler_Revenue(t *testing.T) {
 	t.Run("success with from and to params", func(t *testing.T) {
 		mux, repo := setupDashboardMux(t)
 

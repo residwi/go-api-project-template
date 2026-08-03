@@ -10,7 +10,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type handler struct {
+type adminHandler struct {
 	service   *inventory.Service
 	validator *validator.Validator
 }
@@ -35,7 +35,7 @@ func toStockResponse(s *inventory.Stock) stockResponse {
 	}
 }
 
-func (h *handler) GetStock(w http.ResponseWriter, r *http.Request) {
+func (h *adminHandler) GetStock(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "product_id")
 	if !ok {
 		return
@@ -58,7 +58,7 @@ type restockRequest struct {
 	Quantity int `json:"quantity" validate:"required,min=1"`
 }
 
-func (h *handler) Restock(w http.ResponseWriter, r *http.Request) {
+func (h *adminHandler) Restock(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "product_id")
 	if !ok {
 		return
@@ -82,7 +82,7 @@ type adjustRequest struct {
 	Quantity int `json:"quantity" validate:"required,min=0"`
 }
 
-func (h *handler) Adjust(w http.ResponseWriter, r *http.Request) {
+func (h *adminHandler) Adjust(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "product_id")
 	if !ok {
 		return

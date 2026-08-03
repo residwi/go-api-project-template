@@ -11,7 +11,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type handler struct {
+type adminHandler struct {
 	service *dashboard.Service
 }
 
@@ -81,7 +81,7 @@ func toSummaryResponse(sales dashboard.SalesSummary, breakdown []dashboard.Statu
 	}
 }
 
-func (h *handler) Summary(w http.ResponseWriter, r *http.Request) {
+func (h *adminHandler) Summary(w http.ResponseWriter, r *http.Request) {
 	from, to, ok := parseDateRange(w, r)
 	if !ok {
 		return
@@ -112,7 +112,7 @@ func toTopProductResponse(p dashboard.TopProduct) topProductResponse {
 	}
 }
 
-func (h *handler) TopProducts(w http.ResponseWriter, r *http.Request) {
+func (h *adminHandler) TopProducts(w http.ResponseWriter, r *http.Request) {
 	from, to, ok := parseDateRange(w, r)
 	if !ok {
 		return
@@ -151,7 +151,7 @@ func toRevenueDataResponse(d dashboard.RevenueData) revenueDataResponse {
 	}
 }
 
-func (h *handler) Revenue(w http.ResponseWriter, r *http.Request) {
+func (h *adminHandler) Revenue(w http.ResponseWriter, r *http.Request) {
 	from, to, ok := parseDateRange(w, r)
 	if !ok {
 		return

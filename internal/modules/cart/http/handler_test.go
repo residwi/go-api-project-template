@@ -1,3 +1,14 @@
+// The tests here are prefixed TestCartHandler_ rather than TestHandler_, which
+// every other feature's handler_test.go uses. That is deliberate, not drift.
+//
+// cart is the only feature whose internal tests cover the same five methods as
+// its route-level ones -- internal_test.go calls handler.GetCart and friends
+// directly, this file drives the same endpoints through a mux. Both compile
+// into one test binary, so identical names would be legal but indistinguishable:
+// `go test -v` prints two `=== RUN TestHandler_GetCart` lines with no way to
+// tell which one failed. The prefix is what keeps them apart.
+//
+// Rename these only if internal_test.go's direct-call tests go away first.
 package http_test
 
 import (

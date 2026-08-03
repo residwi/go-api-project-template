@@ -15,7 +15,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-func TestHandler_Delete(t *testing.T) {
+func TestAdminHandler_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		mux, repo, _ := setupReviewMux(t)
 
