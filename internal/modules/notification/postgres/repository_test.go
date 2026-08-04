@@ -1,4 +1,4 @@
-package postgres_test
+package postgres
 
 import (
 	"context"
@@ -13,7 +13,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
-	"github.com/residwi/go-api-project-template/internal/modules/notification/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -27,32 +26,11 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func setup(t *testing.T) {
-	t.Helper()
-	testhelper.ResetDB(t, testPool)
-}
-
-func seedUser(t *testing.T) uuid.UUID {
-	t.Helper()
-	return testhelper.SeedUser(t, testPool)
-}
-
-func seedNotification(t *testing.T, userID uuid.UUID) *notification.Notification {
-	t.Helper()
-	repo := postgres.New(testPool)
-	n := &notification.Notification{
-		UserID: userID, Type: "test", Title: "T", Body: "m",
-	}
-	err := repo.Create(context.Background(), n)
-	require.NoError(t, err)
-	return n
-}
-
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates notification with correct fields", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		n := &notification.Notification{
 			UserID: userID, Type: "order_placed", Title: "Order placed", Body: "Your order is confirmed",
@@ -72,7 +50,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 	t.Run("returns all notifications for user", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		for range 3 {
@@ -88,7 +66,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 	t.Run("returns paginated results when results exceed limit", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		for range 5 {
@@ -105,7 +83,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 	t.Run("cursor pagination returns next page", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		for range 5 {
@@ -135,7 +113,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		n := seedNotification(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		require.NoError(t, repo.MarkRead(context.Background(), userID, n.ID))
 
@@ -148,7 +126,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		userID := seedUser(t)
 		otherUserID := seedUser(t)
 		n := seedNotification(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		err := repo.MarkRead(context.Background(), otherUserID, n.ID)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -157,7 +135,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 	t.Run("returns not found for a missing notification id", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		err := repo.MarkRead(context.Background(), userID, uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -167,7 +145,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		n := seedNotification(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		require.NoError(t, repo.MarkRead(ctx, userID, n.ID))
@@ -185,7 +163,7 @@ func TestPostgresRepository_MarkAllRead(t *testing.T) {
 	t.Run("marks all user notifications as read", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		for range 3 {
@@ -203,7 +181,7 @@ func TestPostgresRepository_CountUnread(t *testing.T) {
 	t.Run("returns zero when no notifications", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		count, err := repo.CountUnread(context.Background(), userID)
 		require.NoError(t, err)
@@ -213,7 +191,7 @@ func TestPostgresRepository_CountUnread(t *testing.T) {
 	t.Run("returns correct count of unread notifications", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		seedNotification(t, userID)
@@ -230,7 +208,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		n := seedNotification(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		job := &notification.Job{
@@ -260,7 +238,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 
 	t.Run("claim returns empty when no pending jobs", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		// Use a fresh context — no pending jobs for a brand-new user
 		jobs, err := repo.Claim(context.Background(), 1, 2*time.Minute)
 		require.NoError(t, err)
@@ -269,7 +247,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 
 	t.Run("update returns not found for missing job", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		job := &notification.Job{
 			ID:       uuid.New(),
 			Status:   "completed",
@@ -284,7 +262,7 @@ func TestPostgresRepository_Prune(t *testing.T) {
 	t.Run("deletes completed jobs older than threshold", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		job := &notification.Job{
@@ -309,7 +287,7 @@ func TestPostgresRepository_Prune(t *testing.T) {
 	t.Run("deletes failed jobs older than threshold", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		job := &notification.Job{
@@ -338,7 +316,7 @@ func TestPostgresRepository_Prune(t *testing.T) {
 	t.Run("does not delete pending jobs", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		job := &notification.Job{
@@ -361,7 +339,7 @@ func TestPostgresRepository_Prune(t *testing.T) {
 func TestPostgresRepository_Create_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -376,7 +354,7 @@ func TestPostgresRepository_Create_CancelledContext(t *testing.T) {
 func TestPostgresRepository_ListByUser_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -388,7 +366,7 @@ func TestPostgresRepository_ListByUser_CancelledContext(t *testing.T) {
 func TestPostgresRepository_MarkRead_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -400,7 +378,7 @@ func TestPostgresRepository_MarkRead_CancelledContext(t *testing.T) {
 func TestPostgresRepository_MarkAllRead_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -412,7 +390,7 @@ func TestPostgresRepository_MarkAllRead_CancelledContext(t *testing.T) {
 func TestPostgresRepository_CountUnread_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -424,7 +402,7 @@ func TestPostgresRepository_CountUnread_CancelledContext(t *testing.T) {
 func TestPostgresRepository_CreateJob_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -440,7 +418,7 @@ func TestPostgresRepository_CreateJob_CancelledContext(t *testing.T) {
 func TestPostgresRepository_Claim_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -452,7 +430,7 @@ func TestPostgresRepository_Claim_CancelledContext(t *testing.T) {
 func TestPostgresRepository_UpdateJob_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -467,11 +445,32 @@ func TestPostgresRepository_UpdateJob_CancelledContext(t *testing.T) {
 func TestPostgresRepository_Prune_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
 		_, err := repo.Prune(ctx, 1*time.Hour, 100)
 		assert.Error(t, err)
 	})
+}
+
+func setup(t *testing.T) {
+	t.Helper()
+	testhelper.ResetDB(t, testPool)
+}
+
+func seedUser(t *testing.T) uuid.UUID {
+	t.Helper()
+	return testhelper.SeedUser(t, testPool)
+}
+
+func seedNotification(t *testing.T, userID uuid.UUID) *notification.Notification {
+	t.Helper()
+	repo := New(testPool)
+	n := &notification.Notification{
+		UserID: userID, Type: "test", Title: "T", Body: "m",
+	}
+	err := repo.Create(context.Background(), n)
+	require.NoError(t, err)
+	return n
 }
