@@ -70,3 +70,21 @@ packages:
   github.com/residwi/go-api-project-template/internal/modules/dashboard:
     interfaces:
       Repository:
+  # TokenValidator and UserStatusChecker have exactly one consumer: the
+  # declaring package's own in-package test file. Generating them out to
+  # mocks/middleware (this file's default dir/pkgname/filename) would recreate
+  # the middleware -> mocks/middleware -> middleware import cycle that led to
+  # hand-rolled test doubles in the first place (see 61fcb81). Overriding back
+  # to mockery's own defaults here generates the mock in-package instead, so it
+  # references TokenValidator/UserStatusChecker directly with no self-import.
+  # Do not copy this pattern to other entries: every other mocked interface in
+  # this file has multiple consumers, including sibling packages that cannot
+  # import another package's _test.go files.
+  github.com/residwi/go-api-project-template/internal/transport/http/middleware:
+    config:
+      dir: "{{.InterfaceDir}}"
+      pkgname: "{{.SrcPackageName}}"
+      filename: "mocks_test.go"
+    interfaces:
+      TokenValidator:
+      UserStatusChecker:
