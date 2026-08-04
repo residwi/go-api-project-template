@@ -20,7 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	catMocks "github.com/residwi/go-api-project-template/mocks/category"
 )
 
 func TestHandler_ListCategories(t *testing.T) {
@@ -228,9 +227,9 @@ func TestToCategoryResponse_OmitsModerationAndAuditFields(t *testing.T) {
 		"description must carry the category's own value, not be dropped or defaulted")
 }
 
-func setupCategoryMux(t *testing.T) (*http.ServeMux, *catMocks.MockRepository, *catMocks.MockProductCounter) {
-	repo := catMocks.NewMockRepository(t)
-	counter := catMocks.NewMockProductCounter(t)
+func setupCategoryMux(t *testing.T) (*http.ServeMux, *MockRepository, *MockProductCounter) {
+	repo := NewMockRepository(t)
+	counter := NewMockProductCounter(t)
 	svc := category.NewService(repo, counter)
 	v := validator.New()
 

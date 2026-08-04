@@ -1,4 +1,4 @@
-package category_test
+package category
 
 import (
 	"context"
@@ -12,8 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/category"
-	mocks "github.com/residwi/go-api-project-template/mocks/category"
 )
 
 func TestService_Create(t *testing.T) {
@@ -22,19 +20,19 @@ func TestService_Create(t *testing.T) {
 	t.Run("success without parent", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
-		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *category.Category) bool {
+		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *Category) bool {
 			return c.Name == "Electronics" && c.Slug == "electronics" && c.Active
-		})).Run(func(_ context.Context, c *category.Category) {
+		})).Run(func(_ context.Context, c *Category) {
 			c.ID = uuid.New()
 			c.CreatedAt = time.Now()
 			c.UpdatedAt = time.Now()
 		}).Return(nil)
 
-		result, err := svc.Create(context.Background(), category.CreateParams{
+		result, err := svc.Create(context.Background(), CreateParams{
 			Name: "Electronics",
 		})
 
@@ -43,7 +41,7 @@ func TestService_Create(t *testing.T) {
 		result.ID = uuid.Nil
 		result.CreatedAt = time.Time{}
 		result.UpdatedAt = time.Time{}
-		assert.Equal(t, &category.Category{
+		assert.Equal(t, &Category{
 			Name:   "Electronics",
 			Slug:   "electronics",
 			Active: true,
@@ -53,13 +51,13 @@ func TestService_Create(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
-		result, err := svc.Create(context.Background(), category.CreateParams{
+		result, err := svc.Create(context.Background(), CreateParams{
 			Name: "Electronics",
 		})
 
@@ -70,21 +68,21 @@ func TestService_Create(t *testing.T) {
 	t.Run("sets sort order and active from request", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		sortOrder := 5
 		active := false
-		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *category.Category) bool {
+		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *Category) bool {
 			return c.Name == "Books" && c.SortOrder == 5 && !c.Active
-		})).Run(func(_ context.Context, c *category.Category) {
+		})).Run(func(_ context.Context, c *Category) {
 			c.ID = uuid.New()
 			c.CreatedAt = time.Now()
 			c.UpdatedAt = time.Now()
 		}).Return(nil)
 
-		result, err := svc.Create(context.Background(), category.CreateParams{
+		result, err := svc.Create(context.Background(), CreateParams{
 			Name:      "Books",
 			SortOrder: &sortOrder,
 			Active:    &active,
@@ -95,7 +93,7 @@ func TestService_Create(t *testing.T) {
 		result.ID = uuid.Nil
 		result.CreatedAt = time.Time{}
 		result.UpdatedAt = time.Time{}
-		assert.Equal(t, &category.Category{
+		assert.Equal(t, &Category{
 			Name:      "Books",
 			Slug:      "books",
 			SortOrder: 5,
@@ -110,11 +108,11 @@ func TestService_GetBySlug(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
-		expected := &category.Category{
+		expected := &Category{
 			ID:   uuid.New(),
 			Name: "Electronics",
 			Slug: "electronics",
@@ -130,9 +128,9 @@ func TestService_GetBySlug(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 
@@ -149,11 +147,11 @@ func TestService_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
-		expected := []category.Category{
+		expected := []Category{
 			{ID: uuid.New(), Name: "Electronics", Slug: "electronics"},
 			{ID: uuid.New(), Name: "Books", Slug: "books"},
 		}
@@ -169,9 +167,9 @@ func TestService_List(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		repo.EXPECT().List(mock.Anything).Return(nil, errors.New("db error"))
 
@@ -187,12 +185,12 @@ func TestService_GetByID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		id := uuid.New()
-		expected := &category.Category{ID: id, Name: "Electronics", Slug: "electronics"}
+		expected := &Category{ID: id, Name: "Electronics", Slug: "electronics"}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(expected, nil)
 
 		result, err := svc.GetByID(context.Background(), id)
@@ -204,9 +202,9 @@ func TestService_GetByID(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
@@ -224,24 +222,24 @@ func TestService_Update(t *testing.T) {
 	t.Run("success partial update", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		id := uuid.New()
-		existing := &category.Category{
+		existing := &Category{
 			ID:     id,
 			Name:   "Electronics",
 			Slug:   "electronics",
 			Active: true,
 		}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
-		repo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *category.Category) bool {
+		repo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *Category) bool {
 			return c.Name == "Gadgets" && c.Slug == "gadgets"
 		})).Return(nil)
 
 		newName := "Gadgets"
-		result, err := svc.Update(context.Background(), id, category.UpdateParams{
+		result, err := svc.Update(context.Background(), id, UpdateParams{
 			Name: &newName,
 		})
 
@@ -249,7 +247,7 @@ func TestService_Update(t *testing.T) {
 		result.ID = uuid.Nil
 		result.CreatedAt = time.Time{}
 		result.UpdatedAt = time.Time{}
-		assert.Equal(t, &category.Category{
+		assert.Equal(t, &Category{
 			Name:   "Gadgets",
 			Slug:   "gadgets",
 			Active: true,
@@ -259,15 +257,15 @@ func TestService_Update(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
 
 		newName := "Gadgets"
-		result, err := svc.Update(context.Background(), id, category.UpdateParams{
+		result, err := svc.Update(context.Background(), id, UpdateParams{
 			Name: &newName,
 		})
 
@@ -278,12 +276,12 @@ func TestService_Update(t *testing.T) {
 	t.Run("update repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		id := uuid.New()
-		existing := &category.Category{
+		existing := &Category{
 			ID:     id,
 			Name:   "Electronics",
 			Slug:   "electronics",
@@ -293,7 +291,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
 		newName := "Gadgets"
-		result, err := svc.Update(context.Background(), id, category.UpdateParams{
+		result, err := svc.Update(context.Background(), id, UpdateParams{
 			Name: &newName,
 		})
 
@@ -304,12 +302,12 @@ func TestService_Update(t *testing.T) {
 	t.Run("updates all optional fields", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		id := uuid.New()
-		existing := &category.Category{
+		existing := &Category{
 			ID:     id,
 			Name:   "Old",
 			Slug:   "old",
@@ -322,7 +320,7 @@ func TestService_Update(t *testing.T) {
 		newDesc := "A description"
 		newSort := 10
 		newActive := false
-		result, err := svc.Update(context.Background(), id, category.UpdateParams{
+		result, err := svc.Update(context.Background(), id, UpdateParams{
 			Name:        &newName,
 			Description: &newDesc,
 			SortOrder:   &newSort,
@@ -333,7 +331,7 @@ func TestService_Update(t *testing.T) {
 		result.ID = uuid.Nil
 		result.CreatedAt = time.Time{}
 		result.UpdatedAt = time.Time{}
-		assert.Equal(t, &category.Category{
+		assert.Equal(t, &Category{
 			Name:        "New",
 			Slug:        "new",
 			Description: &newDesc,
@@ -349,9 +347,9 @@ func TestService_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		id := uuid.New()
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
@@ -365,9 +363,9 @@ func TestService_Delete(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		id := uuid.New()
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
@@ -381,9 +379,9 @@ func TestService_Delete(t *testing.T) {
 	t.Run("has published products returns ErrBadRequest", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		id := uuid.New()
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(3, nil)
@@ -396,9 +394,9 @@ func TestService_Delete(t *testing.T) {
 	t.Run("count published products error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		id := uuid.New()
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, errors.New("db error"))
@@ -411,9 +409,9 @@ func TestService_Delete(t *testing.T) {
 	t.Run("delete repo error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
-		svc := category.NewService(repo, counter)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
+		svc := NewService(repo, counter)
 
 		id := uuid.New()
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
@@ -429,9 +427,9 @@ func TestService_Delete(t *testing.T) {
 func TestService_Delete_RefusesCategoryWithPublishedProducts(t *testing.T) {
 	t.Parallel()
 
-	repo := mocks.NewMockRepository(t)
-	counter := mocks.NewMockProductCounter(t)
-	svc := category.NewService(repo, counter)
+	repo := NewMockRepository(t)
+	counter := NewMockProductCounter(t)
+	svc := NewService(repo, counter)
 
 	categoryID := uuid.New()
 	counter.EXPECT().CountPublished(mock.Anything, categoryID).Return(3, nil)
@@ -446,17 +444,17 @@ func TestService_ValidateParent(t *testing.T) {
 	t.Run("rejects a parent that does not exist", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
 		parentID := uuid.New()
 		// A non-existent parentID makes the recursive CTE match zero rows, so
 		// AncestorDepthAndCycle reports depth 0 rather than returning ErrNotFound.
 		// validateParent never loads the parent via GetByID.
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(0, false, nil)
-		svc := category.NewService(repo, counter)
+		svc := NewService(repo, counter)
 
-		_, err := svc.Create(context.Background(), category.CreateParams{
+		_, err := svc.Create(context.Background(), CreateParams{
 			Name:     "Orphan",
 			ParentID: &parentID,
 		})
@@ -468,14 +466,14 @@ func TestService_ValidateParent(t *testing.T) {
 	t.Run("rejects a chain deeper than five", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
 		parentID := uuid.New()
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(5, false, nil)
-		svc := category.NewService(repo, counter)
+		svc := NewService(repo, counter)
 
-		_, err := svc.Create(context.Background(), category.CreateParams{
+		_, err := svc.Create(context.Background(), CreateParams{
 			Name:     "L6",
 			ParentID: &parentID,
 		})
@@ -487,18 +485,18 @@ func TestService_ValidateParent(t *testing.T) {
 	t.Run("rejects a move that the repository reports as circular", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
 		selfID, parentID := uuid.New(), uuid.New()
 		// Update loads the category being moved via GetByID(id) before it ever
 		// validates the new parent; validateParent itself never calls GetByID.
 		repo.EXPECT().GetByID(mock.Anything, selfID).
-			Return(&category.Category{ID: selfID, Name: "A"}, nil)
+			Return(&Category{ID: selfID, Name: "A"}, nil)
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, selfID, mock.Anything).
 			Return(2, true, nil)
-		svc := category.NewService(repo, counter)
+		svc := NewService(repo, counter)
 
-		_, err := svc.Update(context.Background(), selfID, category.UpdateParams{ParentID: &parentID})
+		_, err := svc.Update(context.Background(), selfID, UpdateParams{ParentID: &parentID})
 
 		require.ErrorIs(t, err, apperror.ErrBadRequest)
 		assert.ErrorContains(t, err, "circular parent reference")
@@ -507,17 +505,17 @@ func TestService_ValidateParent(t *testing.T) {
 	t.Run("rejects a category set as its own parent", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
 		selfID := uuid.New()
 		// Update loads the category via GetByID(id) unconditionally, as its
 		// first step, before it ever looks at ParentID - so this call always
 		// happens here, regardless of the identity check below.
 		repo.EXPECT().GetByID(mock.Anything, selfID).
-			Return(&category.Category{ID: selfID, Name: "A"}, nil)
-		svc := category.NewService(repo, counter)
+			Return(&Category{ID: selfID, Name: "A"}, nil)
+		svc := NewService(repo, counter)
 
-		_, err := svc.Update(context.Background(), selfID, category.UpdateParams{ParentID: &selfID})
+		_, err := svc.Update(context.Background(), selfID, UpdateParams{ParentID: &selfID})
 
 		require.ErrorIs(t, err, apperror.ErrBadRequest)
 		assert.ErrorContains(t, err, "cannot be its own parent")
@@ -526,14 +524,14 @@ func TestService_ValidateParent(t *testing.T) {
 	t.Run("propagates a repository failure from the depth check", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
 		parentID := uuid.New()
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(0, false, errors.New("connection refused"))
-		svc := category.NewService(repo, counter)
+		svc := NewService(repo, counter)
 
-		_, err := svc.Create(context.Background(), category.CreateParams{
+		_, err := svc.Create(context.Background(), CreateParams{
 			Name:     "Child",
 			ParentID: &parentID,
 		})
@@ -544,17 +542,17 @@ func TestService_ValidateParent(t *testing.T) {
 	t.Run("creates a child under a valid parent", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
 		parentID := uuid.New()
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(1, false, nil)
-		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *category.Category) bool {
+		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *Category) bool {
 			return c.Name == "Child" && c.ParentID != nil && *c.ParentID == parentID
 		})).Return(nil)
-		svc := category.NewService(repo, counter)
+		svc := NewService(repo, counter)
 
-		result, err := svc.Create(context.Background(), category.CreateParams{
+		result, err := svc.Create(context.Background(), CreateParams{
 			Name:     "Child",
 			ParentID: &parentID,
 		})
@@ -566,19 +564,19 @@ func TestService_ValidateParent(t *testing.T) {
 	t.Run("moves a category to a valid new parent", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		counter := mocks.NewMockProductCounter(t)
+		repo := NewMockRepository(t)
+		counter := NewMockProductCounter(t)
 		selfID, parentID := uuid.New(), uuid.New()
-		existing := &category.Category{ID: selfID, Name: "Child", Slug: "child"}
+		existing := &Category{ID: selfID, Name: "Child", Slug: "child"}
 		repo.EXPECT().GetByID(mock.Anything, selfID).Return(existing, nil)
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, selfID, mock.Anything).
 			Return(1, false, nil)
-		repo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *category.Category) bool {
+		repo.EXPECT().Update(mock.Anything, mock.MatchedBy(func(c *Category) bool {
 			return c.ID == selfID && c.ParentID != nil && *c.ParentID == parentID
 		})).Return(nil)
-		svc := category.NewService(repo, counter)
+		svc := NewService(repo, counter)
 
-		result, err := svc.Update(context.Background(), selfID, category.UpdateParams{ParentID: &parentID})
+		result, err := svc.Update(context.Background(), selfID, UpdateParams{ParentID: &parentID})
 
 		require.NoError(t, err)
 		assert.Equal(t, &parentID, result.ParentID)
