@@ -1,4 +1,4 @@
-package auth_test
+package auth
 
 import (
 	"testing"
@@ -8,8 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
 )
 
 func TestGenerateTokenPair(t *testing.T) {
@@ -18,7 +16,7 @@ func TestGenerateTokenPair(t *testing.T) {
 	accessTTL := 15 * time.Minute
 	refreshTTL := 24 * time.Hour
 	userID := uuid.New()
-	claims := auth.Claims{
+	claims := Claims{
 		UserID:       userID,
 		Email:        "user@example.com",
 		Role:         "customer",
@@ -27,14 +25,14 @@ func TestGenerateTokenPair(t *testing.T) {
 	}
 
 	t.Run("success produces valid tokens", func(t *testing.T) {
-		accessToken, refreshToken, err := auth.GenerateTokenPair(secret, issuer, accessTTL, refreshTTL, claims)
+		accessToken, refreshToken, err := GenerateTokenPair(secret, issuer, accessTTL, refreshTTL, claims)
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken)
 		assert.NotEmpty(t, refreshToken)
 
-		accessClaims, err := auth.ValidateToken(accessToken, secret, issuer)
+		accessClaims, err := ValidateToken(accessToken, secret, issuer)
 		require.NoError(t, err)
-		assert.Equal(t, &auth.Claims{
+		assert.Equal(t, &Claims{
 			UserID:       userID,
 			Email:        "user@example.com",
 			Role:         "customer",
@@ -42,9 +40,9 @@ func TestGenerateTokenPair(t *testing.T) {
 			TokenVersion: 1,
 		}, accessClaims)
 
-		refreshClaims, err := auth.ValidateToken(refreshToken, secret, issuer)
+		refreshClaims, err := ValidateToken(refreshToken, secret, issuer)
 		require.NoError(t, err)
-		assert.Equal(t, &auth.Claims{
+		assert.Equal(t, &Claims{
 			UserID:       userID,
 			Email:        "user@example.com",
 			Role:         "customer",
@@ -54,13 +52,13 @@ func TestGenerateTokenPair(t *testing.T) {
 	})
 
 	t.Run("claims roundtrip preserves all fields", func(t *testing.T) {
-		accessToken, _, err := auth.GenerateTokenPair(secret, issuer, accessTTL, refreshTTL, claims)
+		accessToken, _, err := GenerateTokenPair(secret, issuer, accessTTL, refreshTTL, claims)
 		require.NoError(t, err)
 
-		got, err := auth.ValidateToken(accessToken, secret, issuer)
+		got, err := ValidateToken(accessToken, secret, issuer)
 		require.NoError(t, err)
 
-		expected := &auth.Claims{
+		expected := &Claims{
 			UserID:       userID,
 			Email:        "user@example.com",
 			Role:         "customer",
@@ -75,7 +73,7 @@ func TestValidateToken(t *testing.T) {
 	secret := "test-secret-key"
 	issuer := "test-issuer"
 	ttl := 15 * time.Minute
-	claims := auth.Claims{
+	claims := Claims{
 		UserID:       uuid.New(),
 		Email:        "user@example.com",
 		Role:         "customer",
@@ -83,36 +81,36 @@ func TestValidateToken(t *testing.T) {
 	}
 
 	t.Run("wrong secret returns error", func(t *testing.T) {
-		accessToken, _, err := auth.GenerateTokenPair(secret, issuer, ttl, ttl, claims)
+		accessToken, _, err := GenerateTokenPair(secret, issuer, ttl, ttl, claims)
 		require.NoError(t, err)
 
-		got, err := auth.ValidateToken(accessToken, "wrong-secret", issuer)
+		got, err := ValidateToken(accessToken, "wrong-secret", issuer)
 		assert.Nil(t, got)
 		assert.Error(t, err)
 	})
 
 	t.Run("expired token returns error", func(t *testing.T) {
-		accessToken, _, err := auth.GenerateTokenPair(secret, issuer, -1*time.Second, ttl, claims)
+		accessToken, _, err := GenerateTokenPair(secret, issuer, -1*time.Second, ttl, claims)
 		require.NoError(t, err)
 
-		got, err := auth.ValidateToken(accessToken, secret, issuer)
+		got, err := ValidateToken(accessToken, secret, issuer)
 		assert.Nil(t, got)
 		assert.Error(t, err)
 	})
 
 	t.Run("tampered token returns error", func(t *testing.T) {
-		accessToken, _, err := auth.GenerateTokenPair(secret, issuer, ttl, ttl, claims)
+		accessToken, _, err := GenerateTokenPair(secret, issuer, ttl, ttl, claims)
 		require.NoError(t, err)
 
 		tampered := accessToken[:len(accessToken)-5] + "XXXXX"
 
-		got, err := auth.ValidateToken(tampered, secret, issuer)
+		got, err := ValidateToken(tampered, secret, issuer)
 		assert.Nil(t, got)
 		assert.Error(t, err)
 	})
 
 	t.Run("completely invalid token string", func(t *testing.T) {
-		got, err := auth.ValidateToken("not-a-token", secret, issuer)
+		got, err := ValidateToken("not-a-token", secret, issuer)
 		assert.Nil(t, got)
 		assert.Error(t, err)
 	})
@@ -128,7 +126,7 @@ func TestValidateToken(t *testing.T) {
 		tokenString, err := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
 		require.NoError(t, err)
 
-		got, err := auth.ValidateToken(tokenString, secret, issuer)
+		got, err := ValidateToken(tokenString, secret, issuer)
 		assert.Nil(t, got)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "unexpected signing method")

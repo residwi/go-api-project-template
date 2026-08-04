@@ -43,7 +43,7 @@ func GenerateTokenPair(secret string, issuer string, accessTTL, refreshTTL time.
 		UserID:       claims.UserID,
 		Email:        claims.Email,
 		Role:         claims.Role,
-		Type:         "access",
+		Type:         "access", //nolint:goconst // shared with token-type fixtures in this package's now in-package tests; a token-type constant isn't worth it for one comparison
 		TokenVersion: claims.TokenVersion,
 	})
 	if err != nil {
@@ -54,7 +54,7 @@ func GenerateTokenPair(secret string, issuer string, accessTTL, refreshTTL time.
 		UserID:       claims.UserID,
 		Email:        claims.Email,
 		Role:         claims.Role,
-		Type:         "refresh",
+		Type:         "refresh", //nolint:goconst // shared with token-type fixtures in this package's now in-package tests; a token-type constant isn't worth it for one comparison
 		TokenVersion: claims.TokenVersion,
 	})
 	if err != nil {
