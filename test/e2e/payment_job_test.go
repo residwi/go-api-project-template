@@ -130,9 +130,10 @@ type chargeJobFixture struct {
 //   - an order_items row over a product with reserved stock, so the DeductBatch
 //     inside the finalizing transaction has a reservation to consume.
 //
-// The nullable text columns are written as empty strings rather than left NULL
-// to match what the order repository's own INSERT stores; its GetByID scans
-// them into plain Go strings, which a NULL cannot fill.
+// The nullable text columns are written as empty strings, matching what the
+// order repository's own Create stores for them, even though its readers now
+// tolerate NULL there too -- this is for consistency with Create's
+// convention, not to dodge a scan error.
 func seedChargeJob(t *testing.T, maxAttempts int) chargeJobFixture {
 	t.Helper()
 	ctx := context.Background()

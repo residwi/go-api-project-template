@@ -51,3 +51,7 @@ temp/
 
 # Worktrees
 .worktrees/
+
+# Agent scratch (harness worktrees, task reports)
+.claude/
+.superpowers/

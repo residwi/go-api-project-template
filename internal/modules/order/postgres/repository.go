@@ -37,18 +37,21 @@ func (a amountColumns) assignTo(o *order.Order) {
 
 func scanOrder(row pgx.CollectableRow) (order.Order, error) {
 	var o order.Order
-	var idempotencyKey *string
+	var idempotencyKey, notes *string
 	var amt amountColumns
 	err := row.Scan(&o.ID, &o.UserID, &idempotencyKey, &o.Status,
 		&amt.subtotal, &amt.discount, &amt.total,
 		&o.CouponCode, &amt.currency, &o.ShippingAddress, &o.BillingAddress,
-		&o.Notes, &o.CreatedAt, &o.UpdatedAt)
+		&notes, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		return o, err
 	}
 	amt.assignTo(&o)
 	if idempotencyKey != nil {
 		o.IdempotencyKey = *idempotencyKey
+	}
+	if notes != nil {
+		o.Notes = *notes
 	}
 	return o, nil
 }
@@ -188,15 +191,16 @@ func (r *Repository) CreateItems(ctx context.Context, items []order.Item) error 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*order.Order, error) {
 	db := database.DB(ctx, r.pool)
 	var o order.Order
+	var idempotencyKey, requestHash, notes *string
 	var amt amountColumns
 	err := db.QueryRow(ctx,
 		`SELECT id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount,
 		        coupon_code, currency, shipping_address, billing_address, notes, stock_deducted, stock_reversed, created_at, updated_at
 		FROM orders WHERE id = $1`, id,
-	).Scan(&o.ID, &o.UserID, &o.IdempotencyKey, &o.RequestHash, &o.Status,
+	).Scan(&o.ID, &o.UserID, &idempotencyKey, &requestHash, &o.Status,
 		&amt.subtotal, &amt.discount, &amt.total,
 		&o.CouponCode, &amt.currency, &o.ShippingAddress, &o.BillingAddress,
-		&o.Notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
+		&notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, apperror.ErrNotFound
@@ -204,21 +208,31 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*order.Order, e
 		return nil, fmt.Errorf("getting order by id: %w", err)
 	}
 	amt.assignTo(&o)
+	if idempotencyKey != nil {
+		o.IdempotencyKey = *idempotencyKey
+	}
+	if requestHash != nil {
+		o.RequestHash = *requestHash
+	}
+	if notes != nil {
+		o.Notes = *notes
+	}
 	return &o, nil
 }
 
 func (r *Repository) GetByUserIDAndIdempotencyKey(ctx context.Context, userID uuid.UUID, key string) (*order.Order, error) {
 	db := database.DB(ctx, r.pool)
 	var o order.Order
+	var idempotencyKey, requestHash, notes *string
 	var amt amountColumns
 	err := db.QueryRow(ctx,
 		`SELECT id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount,
 		        coupon_code, currency, shipping_address, billing_address, notes, stock_deducted, stock_reversed, created_at, updated_at
 		FROM orders WHERE user_id = $1 AND idempotency_key = $2`, userID, key,
-	).Scan(&o.ID, &o.UserID, &o.IdempotencyKey, &o.RequestHash, &o.Status,
+	).Scan(&o.ID, &o.UserID, &idempotencyKey, &requestHash, &o.Status,
 		&amt.subtotal, &amt.discount, &amt.total,
 		&o.CouponCode, &amt.currency, &o.ShippingAddress, &o.BillingAddress,
-		&o.Notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
+		&notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, apperror.ErrNotFound
@@ -226,6 +240,15 @@ func (r *Repository) GetByUserIDAndIdempotencyKey(ctx context.Context, userID uu
 		return nil, fmt.Errorf("getting order by idempotency key: %w", err)
 	}
 	amt.assignTo(&o)
+	if idempotencyKey != nil {
+		o.IdempotencyKey = *idempotencyKey
+	}
+	if requestHash != nil {
+		o.RequestHash = *requestHash
+	}
+	if notes != nil {
+		o.Notes = *notes
+	}
 	return &o, nil
 }
 

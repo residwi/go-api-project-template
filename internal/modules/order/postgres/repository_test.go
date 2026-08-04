@@ -137,6 +137,35 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
+
+	// idempotency_key, request_hash and notes are all nullable columns, but
+	// Create always writes non-empty values for them, so a row inserted via
+	// the repository itself never exercises the NULL path. Only a row seeded
+	// with raw SQL -- like an admin script or a hand-written fixture -- can
+	// reach this state, and scanning SQL NULL into a plain Go string is a
+	// runtime error. Inserted directly rather than via newOrder/Create so all
+	// three can be left NULL.
+	t.Run("returns empty strings when idempotency_key, request_hash, and notes are NULL", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		repo := New(testPool)
+		ctx := context.Background()
+
+		orderID := uuid.New()
+		_, err := testPool.Exec(ctx,
+			`INSERT INTO orders (id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency, notes)
+			VALUES ($1, $2, NULL, NULL, 'awaiting_payment', 1000, 0, 1000, 'USD', NULL)`,
+			orderID, userID,
+		)
+		require.NoError(t, err)
+		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })
+
+		got, err := repo.GetByID(ctx, orderID)
+		require.NoError(t, err)
+		assert.Empty(t, got.IdempotencyKey)
+		assert.Empty(t, got.RequestHash)
+		assert.Empty(t, got.Notes)
+	})
 }
 
 func TestPostgresRepository_GetByUserIDAndIdempotencyKey(t *testing.T) {
@@ -160,6 +189,34 @@ func TestPostgresRepository_GetByUserIDAndIdempotencyKey(t *testing.T) {
 		got, err := repo.GetByUserIDAndIdempotencyKey(context.Background(), userID, "nonexistent-key")
 		require.ErrorIs(t, err, apperror.ErrNotFound)
 		assert.Nil(t, got)
+	})
+
+	// A row with a NULL idempotency_key can never be found through this
+	// lookup -- it looks up BY idempotency_key -- so this seeds a non-NULL key
+	// alongside NULL request_hash and notes to reach the same NULL-scan bug
+	// through this query's own reader.
+	t.Run("returns empty strings for request_hash and notes when NULL", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		repo := New(testPool)
+		ctx := context.Background()
+
+		orderID := uuid.New()
+		key := "key-" + orderID.String()
+		_, err := testPool.Exec(ctx,
+			`INSERT INTO orders (id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency, notes)
+			VALUES ($1, $2, $3, NULL, 'awaiting_payment', 1000, 0, 1000, 'USD', NULL)`,
+			orderID, userID, key,
+		)
+		require.NoError(t, err)
+		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })
+
+		got, err := repo.GetByUserIDAndIdempotencyKey(ctx, userID, key)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, key, got.IdempotencyKey)
+		assert.Empty(t, got.RequestHash)
+		assert.Empty(t, got.Notes)
 	})
 }
 
@@ -209,6 +266,31 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 		orders, err := repo.ListByUser(context.Background(), userID, paging.CursorPage{Limit: 10})
 		require.NoError(t, err)
 		assert.Empty(t, orders)
+	})
+
+	// ListByUser reads through scanOrder, which already nil-checks
+	// idempotency_key but scans notes directly into a plain string. A row
+	// with NULL notes reaches that bug through this reader.
+	t.Run("returns empty notes when NULL", func(t *testing.T) {
+		setup(t)
+		userID := seedUser(t)
+		repo := New(testPool)
+		ctx := context.Background()
+
+		orderID := uuid.New()
+		_, err := testPool.Exec(ctx,
+			`INSERT INTO orders (id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency, notes)
+			VALUES ($1, $2, NULL, NULL, 'awaiting_payment', 1000, 0, 1000, 'USD', NULL)`,
+			orderID, userID,
+		)
+		require.NoError(t, err)
+		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })
+
+		orders, err := repo.ListByUser(ctx, userID, paging.CursorPage{Limit: 10})
+		require.NoError(t, err)
+		require.Len(t, orders, 1)
+		assert.Empty(t, orders[0].IdempotencyKey)
+		assert.Empty(t, orders[0].Notes)
 	})
 }
 
