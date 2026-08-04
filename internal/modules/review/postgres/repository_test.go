@@ -1,4 +1,4 @@
-package postgres_test
+package postgres
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/review"
-	"github.com/residwi/go-api-project-template/internal/modules/review/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -26,49 +25,13 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func setup(t *testing.T) {
-	t.Helper()
-	testhelper.ResetDB(t, testPool)
-}
-
-func seedUser(t *testing.T) uuid.UUID {
-	t.Helper()
-	return testhelper.SeedUser(t, testPool)
-}
-
-func seedProduct(t *testing.T) uuid.UUID {
-	t.Helper()
-	id := uuid.New()
-	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO products (id, name, slug, description, price, currency)
-		 VALUES ($1, 'Test Product', $2, 'desc', 1000, 'USD')`,
-		id, "slug-"+id.String(),
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
-	return id
-}
-
-func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
-	t.Helper()
-	id := uuid.New()
-	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency)
-		 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD')`,
-		id, userID,
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, id) })
-	return id
-}
-
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates review", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		rv := &review.Review{
 			UserID:    userID,
@@ -97,7 +60,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		first := &review.Review{
@@ -129,7 +92,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		rv := &review.Review{
@@ -152,7 +115,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -167,7 +130,7 @@ func TestPostgresRepository_ListByProduct(t *testing.T) {
 		productID := seedProduct(t)
 		orderA := seedOrder(t, userA)
 		orderB := seedOrder(t, userB)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		published := &review.Review{
@@ -204,7 +167,7 @@ func TestPostgresRepository_ListByProduct(t *testing.T) {
 	t.Run("cursor pagination returns next page", func(t *testing.T) {
 		setup(t)
 		productID := seedProduct(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		for range 4 {
@@ -235,7 +198,7 @@ func TestPostgresRepository_GetStats(t *testing.T) {
 	t.Run("returns zero stats when no reviews", func(t *testing.T) {
 		setup(t)
 		productID := seedProduct(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		stats, err := repo.GetStats(context.Background(), productID)
 		require.NoError(t, err)
@@ -248,7 +211,7 @@ func TestPostgresRepository_GetStats(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		rv := &review.Review{
@@ -274,7 +237,7 @@ func TestPostgresRepository_HasUserReviewed(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		has, err := repo.HasUserReviewed(context.Background(), userID, productID)
 		require.NoError(t, err)
@@ -286,7 +249,7 @@ func TestPostgresRepository_HasUserReviewed(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		rv := &review.Review{
@@ -312,7 +275,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		rv := &review.Review{
@@ -334,7 +297,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		err := repo.Delete(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -345,7 +308,7 @@ func TestPostgresRepository_ListByProduct_InvalidCursor(t *testing.T) {
 	t.Run("returns error for invalid cursor", func(t *testing.T) {
 		setup(t)
 		productID := seedProduct(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		_, err := repo.ListByProduct(context.Background(), productID, paging.CursorPage{Cursor: "!!!invalid!!!", Limit: 10})
 		assert.Error(t, err)
@@ -356,7 +319,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	repo := postgres.New(testPool)
+	repo := New(testPool)
 
 	t.Run("Create", func(t *testing.T) {
 		setup(t)
@@ -400,4 +363,40 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		err := repo.Delete(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
+}
+
+func setup(t *testing.T) {
+	t.Helper()
+	testhelper.ResetDB(t, testPool)
+}
+
+func seedUser(t *testing.T) uuid.UUID {
+	t.Helper()
+	return testhelper.SeedUser(t, testPool)
+}
+
+func seedProduct(t *testing.T) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO products (id, name, slug, description, price, currency)
+		 VALUES ($1, 'Test Product', $2, 'desc', 1000, 'USD')`,
+		id, "slug-"+id.String(),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
+	return id
+}
+
+func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency)
+		 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD')`,
+		id, userID,
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, id) })
+	return id
 }
