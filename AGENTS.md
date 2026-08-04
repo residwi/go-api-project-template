@@ -164,22 +164,28 @@ constraint that split them, which is why the separate leak-test file per
 feature is gone — its contents moved beside the implementation file declaring
 what they test.
 
-Two carve-outs remain, both cycles rather than preferences, and together they
-are the whole exception: 26 external test files, no more.
-`internal/modules/<feature>/*_test.go` (18 files, `package <feature>_test`)
-import `mocks/<feature>`, which imports `<feature>`: flip
-`category/service_test.go`'s package clause to `category` and `go test -c
-./internal/modules/category/` fails with an import cycle. `test/e2e` (8
-files, `package e2e_test`) imports concrete adapters —
+Three carve-outs remain, all cycles rather than preferences, and together
+they are the whole exception: 23 external test files, no more.
+`internal/modules/<feature>/service_test.go` (14 files, one per feature,
+`package <feature>_test`) import `mocks/<feature>`, which imports
+`<feature>`: flip `category/service_test.go`'s package clause to `category`
+and `go test -c ./internal/modules/category/` fails with an import cycle —
+every other feature-root `_test.go` file is in-package now, since the mock
+import is what forces the split and only the service test needs the mock.
+`test/e2e` (8 files, `package e2e_test`) imports concrete adapters —
 `internal/modules/*/postgres`, `internal/bootstrap`,
 `internal/transport/http` — across every module the saga touches; no single
 feature package can own that without becoming a dependent of its siblings,
-which `make check-boundaries` forbids. Go's own standard library draws this
-line the same way, file by file rather than package by package: `net/http`
-ships 19 in-package test files (`package http`) beside 18 external `package
-http_test` files in the same directory, choosing per file by the access the
-test needs, not one package-wide policy. Put a new test where its access
-requires, then name the file for that.
+which `make check-boundaries` forbids. `internal/testhelper/txrunner_test.go`
+(1 file, `package testhelper_test`) asserts `database.TxRunner` is satisfied
+from outside `testhelper`, which cannot import `platform/database` itself —
+`platform/database`'s own in-package tests import `testhelper` for
+`MustStartPostgres`, so the dependency can only run the other way in an
+external file. Go's own standard library draws the per-file line the same
+way: `net/http` ships 19 in-package test files (`package http`) beside 18
+external `package http_test` files in the same directory, choosing per file
+by the access the test needs, not one package-wide policy. Put a new test
+where its access requires, then name the file for that.
 
 ## Commands
 

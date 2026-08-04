@@ -1,25 +1,23 @@
-package order_test
+package order
 
 import (
 	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/residwi/go-api-project-template/internal/modules/order"
 )
 
-var allStatuses = []order.Status{
-	order.StatusAwaitingPayment,
-	order.StatusPaymentProcessing,
-	order.StatusPaid,
-	order.StatusProcessing,
-	order.StatusShipped,
-	order.StatusDelivered,
-	order.StatusCancelled,
-	order.StatusExpired,
-	order.StatusRefunded,
-	order.StatusFulfillmentFailed,
+var allStatuses = []Status{
+	StatusAwaitingPayment,
+	StatusPaymentProcessing,
+	StatusPaid,
+	StatusProcessing,
+	StatusShipped,
+	StatusDelivered,
+	StatusCancelled,
+	StatusExpired,
+	StatusRefunded,
+	StatusFulfillmentFailed,
 }
 
 // TestCanTransition_Graph locks down the entire state machine derived from the
@@ -27,32 +25,32 @@ var allStatuses = []order.Status{
 // changes which (from,to) pairs are legal, and this test will catch it — every
 // pair not listed here must be rejected.
 func TestCanTransition_Graph(t *testing.T) {
-	allowed := map[order.Status][]order.Status{
-		order.StatusAwaitingPayment: {
-			order.StatusPaymentProcessing, order.StatusPaid,
-			order.StatusFulfillmentFailed, order.StatusCancelled, order.StatusExpired,
+	allowed := map[Status][]Status{
+		StatusAwaitingPayment: {
+			StatusPaymentProcessing, StatusPaid,
+			StatusFulfillmentFailed, StatusCancelled, StatusExpired,
 		},
-		order.StatusPaymentProcessing: {
-			order.StatusPaymentProcessing, order.StatusAwaitingPayment, order.StatusPaid,
-			order.StatusFulfillmentFailed, order.StatusCancelled,
+		StatusPaymentProcessing: {
+			StatusPaymentProcessing, StatusAwaitingPayment, StatusPaid,
+			StatusFulfillmentFailed, StatusCancelled,
 		},
-		order.StatusPaid: {
-			order.StatusFulfillmentFailed, order.StatusRefunded,
-			order.StatusShipped, order.StatusProcessing,
+		StatusPaid: {
+			StatusFulfillmentFailed, StatusRefunded,
+			StatusShipped, StatusProcessing,
 		},
-		order.StatusProcessing:        {order.StatusShipped, order.StatusRefunded},
-		order.StatusShipped:           {order.StatusDelivered, order.StatusRefunded},
-		order.StatusDelivered:         {order.StatusRefunded},
-		order.StatusCancelled:         {order.StatusFulfillmentFailed},
-		order.StatusExpired:           {order.StatusFulfillmentFailed},
-		order.StatusRefunded:          {},
-		order.StatusFulfillmentFailed: {order.StatusRefunded, order.StatusCancelled},
+		StatusProcessing:        {StatusShipped, StatusRefunded},
+		StatusShipped:           {StatusDelivered, StatusRefunded},
+		StatusDelivered:         {StatusRefunded},
+		StatusCancelled:         {StatusFulfillmentFailed},
+		StatusExpired:           {StatusFulfillmentFailed},
+		StatusRefunded:          {},
+		StatusFulfillmentFailed: {StatusRefunded, StatusCancelled},
 	}
 
 	for _, from := range allStatuses {
 		for _, to := range allStatuses {
 			want := slices.Contains(allowed[from], to)
-			assert.Equalf(t, want, order.CanTransition(from, to),
+			assert.Equalf(t, want, CanTransition(from, to),
 				"CanTransition(%s, %s) should be %v", from, to, want)
 		}
 	}
