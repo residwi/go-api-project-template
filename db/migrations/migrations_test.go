@@ -1,8 +1,8 @@
-// Package migrations_test drives goose's Down against a real database.
+// Package migrations drives goose's Down against a real database.
 // Nothing else in the suite ever rolls a migration back -- testhelper only
 // calls goose.Up -- so a Down script can be wrong from the day it's written
 // and nothing notices until someone actually needs the rollback.
-package migrations_test
+package migrations
 
 import (
 	"context"
