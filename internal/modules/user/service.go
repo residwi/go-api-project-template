@@ -88,17 +88,6 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (auth.UserResult, e
 // middleware reads this cache on every authenticated request.
 const userStatusCacheTTL = 30 * time.Second
 
-// invalidateStatusCache drops the cached active/token_version for a user so a
-// status change (deactivation, deletion, role change, token revocation) takes
-// effect on the next request instead of only after the 30s TTL — otherwise a
-// revoked or deactivated user keeps access for up to 30s. Best-effort: a failure
-// is logged and the entry still expires on its own.
-func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
-	if err := s.cache.Invalidate(ctx, userID); err != nil {
-		slog.WarnContext(ctx, "failed to invalidate user status cache", "user_id", userID, "error", err)
-	}
-}
-
 // CheckStatus satisfies middleware.UserStatusChecker. Cached for 30s, fails open.
 func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware.UserStatusResult, error) {
 	snap, found, err := s.cache.Get(ctx, userID)
@@ -265,4 +254,15 @@ func (s *Service) Delete(ctx context.Context, p DeleteParams) error {
 	}
 	s.invalidateStatusCache(ctx, p.TargetID)
 	return nil
+}
+
+// invalidateStatusCache drops the cached active/token_version for a user so a
+// status change (deactivation, deletion, role change, token revocation) takes
+// effect on the next request instead of only after the 30s TTL — otherwise a
+// revoked or deactivated user keeps access for up to 30s. Best-effort: a failure
+// is logged and the entry still expires on its own.
+func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
+	if err := s.cache.Invalidate(ctx, userID); err != nil {
+		slog.WarnContext(ctx, "failed to invalidate user status cache", "user_id", userID, "error", err)
+	}
 }

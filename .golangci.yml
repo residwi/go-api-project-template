@@ -279,9 +279,9 @@ linters:
       allow-empty-returns: true
 
     funcorder:
-      # Checks if the exported methods of a structure are placed before the non-exported ones.
-      # Default: true
-      struct-method: false
+      # Checks that exported functions are placed before unexported functions.
+      # Default: false
+      function: true
 
     funlen:
       # Checks the number of lines in a function.

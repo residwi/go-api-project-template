@@ -45,27 +45,6 @@ func NewService(repo Repository, inv InventoryReader, reg InventoryRegistrar) *S
 	return &Service{repo: repo, inv: inv, reg: reg}
 }
 
-// enrich fills Availability for a page of products in one call to inventory.
-// Products with no level row (never registered) read as zero rather than
-// erroring, so a missing row cannot take down a listing.
-func (s *Service) enrich(ctx context.Context, products []Product) error {
-	if len(products) == 0 {
-		return nil
-	}
-	ids := make([]uuid.UUID, len(products))
-	for i := range products {
-		ids[i] = products[i].ID
-	}
-	levels, err := s.inv.GetAvailability(ctx, ids)
-	if err != nil {
-		return fmt.Errorf("reading availability: %w", err)
-	}
-	for i := range products {
-		products[i].Availability = levels[products[i].ID]
-	}
-	return nil
-}
-
 func (s *Service) Create(ctx context.Context, p CreateParams) (*Product, error) {
 	price := p.Price
 	if price.Currency == "" {
@@ -281,4 +260,25 @@ func (s *Service) AvailableQuantity(ctx context.Context, id uuid.UUID) (int, err
 // no products table access of its own, so it asks here before deleting.
 func (s *Service) CountPublishedByCategory(ctx context.Context, categoryID uuid.UUID) (int, error) {
 	return s.repo.CountPublishedByCategory(ctx, categoryID)
+}
+
+// enrich fills Availability for a page of products in one call to inventory.
+// Products with no level row (never registered) read as zero rather than
+// erroring, so a missing row cannot take down a listing.
+func (s *Service) enrich(ctx context.Context, products []Product) error {
+	if len(products) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(products))
+	for i := range products {
+		ids[i] = products[i].ID
+	}
+	levels, err := s.inv.GetAvailability(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("reading availability: %w", err)
+	}
+	for i := range products {
+		products[i].Availability = levels[products[i].ID]
+	}
+	return nil
 }

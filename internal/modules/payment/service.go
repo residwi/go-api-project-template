@@ -173,6 +173,236 @@ func (s *Service) Process(ctx context.Context, job Job) error {
 	}
 }
 
+// FinalizePaymentSuccess marks the payment and order paid and deducts stock, in
+// one transaction.
+//
+// Two of its three callers pass a **synthetic** Job carrying only PaymentID,
+// OrderID and Action -- the synchronous-charge path (InitiatePayment) and the
+// webhook -- because neither has a persisted job row to work from. Only the
+// worker passes a Job with a real ID. That means the `MarkJobCompleted(job.ID)`
+// calls below are deliberately no-ops for those two callers: the id is
+// uuid.Nil, so the UPDATE matches zero rows. It is not a lost write. The
+// webhook additionally calls MarkJobCompletedByPaymentID afterwards, and no
+// charge job exists to complete in the first place -- every CreateJob call site
+// in this package enqueues ActionRefund. See ARCHITECTURE-LIMITATIONS.md.
+//
+// Stated here because a zero-row UPDATE is invisible: MarkJobCompleted
+// discards its rows-affected count, so nothing distinguishes "no such job" from
+// "job completed" at runtime.
+//
+//nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches
+func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
+	return s.tx.Run(ctx, func(txCtx context.Context) error {
+		orderSnap, err := s.orderGet.GetByID(txCtx, job.OrderID)
+		if err != nil {
+			return fmt.Errorf("getting order for verification: %w", err)
+		}
+
+		p, err := s.repo.GetByID(txCtx, job.PaymentID)
+		if err != nil {
+			return fmt.Errorf("getting payment for verification: %w", err)
+		}
+
+		// money.Money.Equal compares amount AND currency, which is exactly the
+		// two-field check this replaces. apperror.ErrAmountMismatch is kept rather
+		// than swapped for money.ErrCurrencyMismatch: the fact worth reporting is
+		// that the charge does not match the order, and a currency disagreement here
+		// is one way for that to be true, not a different failure.
+		if !p.Amount.Equal(orderSnap.Total) {
+			return apperror.ErrAmountMismatch
+		}
+
+		paymentErr := s.repo.MarkPaid(txCtx, job.PaymentID,
+			[]Status{StatusPending, StatusProcessing, StatusRequiresReview, StatusCancelled})
+
+		orderErr := s.orders.MarkPaid(txCtx, job.OrderID)
+
+		if paymentErr != nil && orderErr != nil {
+			slog.InfoContext(txCtx, "job completed: already finalized by external actor (webhook)",
+				"job_id", job.ID, "order_id", job.OrderID, "payment_id", job.PaymentID)
+			if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
+				slog.ErrorContext(txCtx, "failed to mark job completed", "job_id", job.ID, "error", markErr)
+			}
+			return apperror.ErrAlreadyFinalized
+		}
+
+		if orderErr != nil {
+			slog.ErrorContext(txCtx, "late payment success on terminal order, auto-refund enqueued",
+				"order_id", job.OrderID, "payment_id", job.PaymentID,
+				"order_status", orderSnap.Status)
+			if statusErr := s.repo.UpdateStatus(txCtx, job.PaymentID, StatusRequiresReview,
+				[]Status{StatusSuccess}); statusErr != nil {
+				slog.ErrorContext(txCtx, "failed to update payment status to requires_review", "payment_id", job.PaymentID, "error", statusErr)
+			}
+			if orderStatusErr := s.orders.MarkFulfillmentFailedAfterCharge(txCtx, job.OrderID); orderStatusErr != nil {
+				slog.ErrorContext(txCtx, "failed to update order status to fulfillment_failed", "order_id", job.OrderID, "error", orderStatusErr)
+			}
+
+			refundJob := &Job{
+				PaymentID:   job.PaymentID,
+				OrderID:     job.OrderID,
+				Action:      ActionRefund,
+				Status:      JobStatusPending,
+				NextRetryAt: time.Now(),
+			}
+			if createErr := s.repo.CreateJob(txCtx, refundJob); createErr != nil {
+				slog.ErrorContext(txCtx, "failed to create refund job", "order_id", job.OrderID, "error", createErr)
+			}
+			if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
+				slog.ErrorContext(txCtx, "failed to mark job completed", "job_id", job.ID, "error", markErr)
+			}
+			return nil
+		}
+
+		items, err := s.orderItems.ListItemsByOrderID(txCtx, job.OrderID)
+		if err != nil {
+			return fmt.Errorf("listing order items: %w", err)
+		}
+
+		if err := s.inventory.DeductBatch(txCtx, toInventoryChanges(items)); err != nil {
+			return fmt.Errorf("deducting inventory: %w", err)
+		}
+
+		if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
+			slog.ErrorContext(txCtx, "failed to mark job completed", "job_id", job.ID, "error", markErr)
+		}
+		return nil
+	})
+}
+
+func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) error { //nolint:gocognit // resolves the payment then dispatches success/failed/cancelled/expired event branches
+	event, _ := payload["event"].(string)
+	metadata, _ := payload["metadata"].(map[string]any)
+	txnID, _ := payload["transaction_id"].(string)
+
+	var p *Payment
+
+	if metadata != nil { //nolint:nestif // webhook payload parsing
+		if pidStr, ok := metadata["payment_id"].(string); ok {
+			pid, parseErr := uuid.Parse(pidStr)
+			if parseErr == nil {
+				found, getErr := s.repo.GetByID(ctx, pid)
+				if getErr != nil {
+					slog.ErrorContext(ctx, "webhook: failed to get payment by id", "payment_id", pid, "error", getErr)
+				} else {
+					p = found
+				}
+			}
+		}
+	}
+
+	if p == nil && txnID != "" {
+		found, getErr := s.repo.GetByGatewayTxnID(ctx, txnID)
+		if getErr != nil {
+			if !errors.Is(getErr, apperror.ErrNotFound) {
+				slog.ErrorContext(ctx, "webhook: failed to get payment by gateway txn id", "txn_id", txnID, "error", getErr)
+			}
+		} else {
+			p = found
+		}
+	}
+
+	if p == nil {
+		slog.ErrorContext(ctx, "webhook: unknown payment_id", "payload_event", event)
+		return nil
+	}
+
+	// requires_review means a compensating refund already owns this payment, so a
+	// late/replayed webhook must not re-drive it (a failed event would cancel the
+	// in-flight refund job; a duplicate success would re-finalize it).
+	if p.Status == StatusSuccess || p.Status == StatusRefunded || p.Status == StatusRequiresReview {
+		return nil
+	}
+
+	switch event {
+	case string(StatusSuccess):
+		job := Job{
+			PaymentID: p.ID,
+			OrderID:   p.OrderID,
+			Action:    ActionCharge,
+		}
+		if err := s.FinalizePaymentSuccess(ctx, job); err != nil {
+			if errors.Is(err, apperror.ErrAlreadyFinalized) {
+				break
+			}
+			// The gateway has already captured funds, so a finalization failure
+			// (e.g. inventory deduction failed) must not just 5xx and leave money
+			// captured with the order unpaid forever. Compensate the same way the
+			// worker charge path does: flag the order fulfillment_failed and enqueue
+			// a refund. Ack the webhook so the gateway stops retrying into a failure
+			// we've already handled.
+			slog.ErrorContext(ctx, "webhook finalization failed, running compensating refund",
+				"payment_id", p.ID, "order_id", p.OrderID, "error", err)
+			s.runCompensatingRefund(ctx, job)
+			return nil
+		}
+		if err := s.repo.MarkJobCompletedByPaymentID(ctx, p.ID, ActionCharge); err != nil {
+			slog.ErrorContext(ctx, "webhook: failed to mark job completed by payment id", "payment_id", p.ID, "error", err)
+		}
+
+	case "failed", "cancelled", "expired":
+		if err := s.repo.UpdateStatus(ctx, p.ID, StatusCancelled,
+			[]Status{StatusPending, StatusProcessing}); err != nil {
+			slog.ErrorContext(ctx, "webhook: failed to update payment status to cancelled", "payment_id", p.ID, "error", err)
+		}
+		if err := s.repo.ClearPaymentURL(ctx, p.ID); err != nil {
+			slog.ErrorContext(ctx, "webhook: failed to clear payment url", "payment_id", p.ID, "error", err)
+		}
+		if err := s.repo.CancelJobsByOrderID(ctx, p.OrderID); err != nil {
+			slog.ErrorContext(ctx, "webhook: failed to cancel jobs", "order_id", p.OrderID, "error", err)
+		}
+		// Cancel the order and release its reserved stock now rather than leaving it
+		// reserved until the expiry sweep (which can't touch a payment_processing
+		// order at all). ErrBadRequest means the order is no longer cancellable
+		// (e.g. a concurrent charge already paid it) — leave it for that flow.
+		if err := s.orders.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, apperror.ErrBadRequest) {
+			slog.ErrorContext(ctx, "webhook: failed to cancel order after payment failure", "order_id", p.OrderID, "error", err)
+		}
+		slog.InfoContext(ctx, "webhook payment failed",
+			"payment_id", p.ID, "gateway_event", event)
+	}
+
+	return nil
+}
+
+func (s *Service) CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID) error {
+	return s.repo.CancelJobsByOrderID(ctx, orderID)
+}
+
+// ListAdmin lists payments for the admin dashboard. It delegates straight to
+// the repository; there is no business logic beyond the query itself.
+func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]Payment, int, error) {
+	return s.repo.ListAdmin(ctx, params)
+}
+
+// GetByID fetches a single payment by ID, delegating straight to the repository.
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Payment, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
+func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
+	p, err := s.repo.GetByID(ctx, paymentID)
+	if err != nil {
+		return err
+	}
+
+	if p.Status != StatusSuccess && p.Status != StatusRequiresReview {
+		return fmt.Errorf("%w: payment is not refundable", apperror.ErrBadRequest)
+	}
+
+	// The refund worker recomputes release-vs-restock from the order when it runs,
+	// so enqueue is just intent — no need to resolve the inventory action here.
+	job := &Job{
+		PaymentID:   paymentID,
+		OrderID:     p.OrderID,
+		Action:      ActionRefund,
+		Status:      JobStatusPending,
+		NextRetryAt: time.Now(),
+	}
+
+	return s.repo.CreateJob(ctx, job)
+}
+
 func (s *Service) processChargeJob(ctx context.Context, job Job) error {
 	err := s.orders.MarkPaymentProcessing(ctx, job.OrderID)
 	if err != nil {
@@ -269,103 +499,6 @@ func (s *Service) handleChargeFailure(ctx context.Context, job *Job, lastError s
 		slog.ErrorContext(ctx, "failed to update job after failure",
 			"job_id", job.ID, "error", err)
 	}
-}
-
-// FinalizePaymentSuccess marks the payment and order paid and deducts stock, in
-// one transaction.
-//
-// Two of its three callers pass a **synthetic** Job carrying only PaymentID,
-// OrderID and Action -- the synchronous-charge path (InitiatePayment) and the
-// webhook -- because neither has a persisted job row to work from. Only the
-// worker passes a Job with a real ID. That means the `MarkJobCompleted(job.ID)`
-// calls below are deliberately no-ops for those two callers: the id is
-// uuid.Nil, so the UPDATE matches zero rows. It is not a lost write. The
-// webhook additionally calls MarkJobCompletedByPaymentID afterwards, and no
-// charge job exists to complete in the first place -- every CreateJob call site
-// in this package enqueues ActionRefund. See ARCHITECTURE-LIMITATIONS.md.
-//
-// Stated here because a zero-row UPDATE is invisible: MarkJobCompleted
-// discards its rows-affected count, so nothing distinguishes "no such job" from
-// "job completed" at runtime.
-//
-//nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches
-func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
-	return s.tx.Run(ctx, func(txCtx context.Context) error {
-		orderSnap, err := s.orderGet.GetByID(txCtx, job.OrderID)
-		if err != nil {
-			return fmt.Errorf("getting order for verification: %w", err)
-		}
-
-		p, err := s.repo.GetByID(txCtx, job.PaymentID)
-		if err != nil {
-			return fmt.Errorf("getting payment for verification: %w", err)
-		}
-
-		// money.Money.Equal compares amount AND currency, which is exactly the
-		// two-field check this replaces. apperror.ErrAmountMismatch is kept rather
-		// than swapped for money.ErrCurrencyMismatch: the fact worth reporting is
-		// that the charge does not match the order, and a currency disagreement here
-		// is one way for that to be true, not a different failure.
-		if !p.Amount.Equal(orderSnap.Total) {
-			return apperror.ErrAmountMismatch
-		}
-
-		paymentErr := s.repo.MarkPaid(txCtx, job.PaymentID,
-			[]Status{StatusPending, StatusProcessing, StatusRequiresReview, StatusCancelled})
-
-		orderErr := s.orders.MarkPaid(txCtx, job.OrderID)
-
-		if paymentErr != nil && orderErr != nil {
-			slog.InfoContext(txCtx, "job completed: already finalized by external actor (webhook)",
-				"job_id", job.ID, "order_id", job.OrderID, "payment_id", job.PaymentID)
-			if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
-				slog.ErrorContext(txCtx, "failed to mark job completed", "job_id", job.ID, "error", markErr)
-			}
-			return apperror.ErrAlreadyFinalized
-		}
-
-		if orderErr != nil {
-			slog.ErrorContext(txCtx, "late payment success on terminal order, auto-refund enqueued",
-				"order_id", job.OrderID, "payment_id", job.PaymentID,
-				"order_status", orderSnap.Status)
-			if statusErr := s.repo.UpdateStatus(txCtx, job.PaymentID, StatusRequiresReview,
-				[]Status{StatusSuccess}); statusErr != nil {
-				slog.ErrorContext(txCtx, "failed to update payment status to requires_review", "payment_id", job.PaymentID, "error", statusErr)
-			}
-			if orderStatusErr := s.orders.MarkFulfillmentFailedAfterCharge(txCtx, job.OrderID); orderStatusErr != nil {
-				slog.ErrorContext(txCtx, "failed to update order status to fulfillment_failed", "order_id", job.OrderID, "error", orderStatusErr)
-			}
-
-			refundJob := &Job{
-				PaymentID:   job.PaymentID,
-				OrderID:     job.OrderID,
-				Action:      ActionRefund,
-				Status:      JobStatusPending,
-				NextRetryAt: time.Now(),
-			}
-			if createErr := s.repo.CreateJob(txCtx, refundJob); createErr != nil {
-				slog.ErrorContext(txCtx, "failed to create refund job", "order_id", job.OrderID, "error", createErr)
-			}
-			if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
-				slog.ErrorContext(txCtx, "failed to mark job completed", "job_id", job.ID, "error", markErr)
-			}
-			return nil
-		}
-
-		items, err := s.orderItems.ListItemsByOrderID(txCtx, job.OrderID)
-		if err != nil {
-			return fmt.Errorf("listing order items: %w", err)
-		}
-
-		if err := s.inventory.DeductBatch(txCtx, toInventoryChanges(items)); err != nil {
-			return fmt.Errorf("deducting inventory: %w", err)
-		}
-
-		if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
-			slog.ErrorContext(txCtx, "failed to mark job completed", "job_id", job.ID, "error", markErr)
-		}
-		return nil
-	})
 }
 
 func (s *Service) runCompensatingRefund(ctx context.Context, job Job) {
@@ -508,137 +641,4 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		return fmt.Errorf("refund finalization failed: %w", txErr)
 	}
 	return nil
-}
-
-func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) error { //nolint:gocognit // resolves the payment then dispatches success/failed/cancelled/expired event branches
-	event, _ := payload["event"].(string)
-	metadata, _ := payload["metadata"].(map[string]any)
-	txnID, _ := payload["transaction_id"].(string)
-
-	var p *Payment
-
-	if metadata != nil { //nolint:nestif // webhook payload parsing
-		if pidStr, ok := metadata["payment_id"].(string); ok {
-			pid, parseErr := uuid.Parse(pidStr)
-			if parseErr == nil {
-				found, getErr := s.repo.GetByID(ctx, pid)
-				if getErr != nil {
-					slog.ErrorContext(ctx, "webhook: failed to get payment by id", "payment_id", pid, "error", getErr)
-				} else {
-					p = found
-				}
-			}
-		}
-	}
-
-	if p == nil && txnID != "" {
-		found, getErr := s.repo.GetByGatewayTxnID(ctx, txnID)
-		if getErr != nil {
-			if !errors.Is(getErr, apperror.ErrNotFound) {
-				slog.ErrorContext(ctx, "webhook: failed to get payment by gateway txn id", "txn_id", txnID, "error", getErr)
-			}
-		} else {
-			p = found
-		}
-	}
-
-	if p == nil {
-		slog.ErrorContext(ctx, "webhook: unknown payment_id", "payload_event", event)
-		return nil
-	}
-
-	// requires_review means a compensating refund already owns this payment, so a
-	// late/replayed webhook must not re-drive it (a failed event would cancel the
-	// in-flight refund job; a duplicate success would re-finalize it).
-	if p.Status == StatusSuccess || p.Status == StatusRefunded || p.Status == StatusRequiresReview {
-		return nil
-	}
-
-	switch event {
-	case string(StatusSuccess):
-		job := Job{
-			PaymentID: p.ID,
-			OrderID:   p.OrderID,
-			Action:    ActionCharge,
-		}
-		if err := s.FinalizePaymentSuccess(ctx, job); err != nil {
-			if errors.Is(err, apperror.ErrAlreadyFinalized) {
-				break
-			}
-			// The gateway has already captured funds, so a finalization failure
-			// (e.g. inventory deduction failed) must not just 5xx and leave money
-			// captured with the order unpaid forever. Compensate the same way the
-			// worker charge path does: flag the order fulfillment_failed and enqueue
-			// a refund. Ack the webhook so the gateway stops retrying into a failure
-			// we've already handled.
-			slog.ErrorContext(ctx, "webhook finalization failed, running compensating refund",
-				"payment_id", p.ID, "order_id", p.OrderID, "error", err)
-			s.runCompensatingRefund(ctx, job)
-			return nil
-		}
-		if err := s.repo.MarkJobCompletedByPaymentID(ctx, p.ID, ActionCharge); err != nil {
-			slog.ErrorContext(ctx, "webhook: failed to mark job completed by payment id", "payment_id", p.ID, "error", err)
-		}
-
-	case "failed", "cancelled", "expired":
-		if err := s.repo.UpdateStatus(ctx, p.ID, StatusCancelled,
-			[]Status{StatusPending, StatusProcessing}); err != nil {
-			slog.ErrorContext(ctx, "webhook: failed to update payment status to cancelled", "payment_id", p.ID, "error", err)
-		}
-		if err := s.repo.ClearPaymentURL(ctx, p.ID); err != nil {
-			slog.ErrorContext(ctx, "webhook: failed to clear payment url", "payment_id", p.ID, "error", err)
-		}
-		if err := s.repo.CancelJobsByOrderID(ctx, p.OrderID); err != nil {
-			slog.ErrorContext(ctx, "webhook: failed to cancel jobs", "order_id", p.OrderID, "error", err)
-		}
-		// Cancel the order and release its reserved stock now rather than leaving it
-		// reserved until the expiry sweep (which can't touch a payment_processing
-		// order at all). ErrBadRequest means the order is no longer cancellable
-		// (e.g. a concurrent charge already paid it) — leave it for that flow.
-		if err := s.orders.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, apperror.ErrBadRequest) {
-			slog.ErrorContext(ctx, "webhook: failed to cancel order after payment failure", "order_id", p.OrderID, "error", err)
-		}
-		slog.InfoContext(ctx, "webhook payment failed",
-			"payment_id", p.ID, "gateway_event", event)
-	}
-
-	return nil
-}
-
-func (s *Service) CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID) error {
-	return s.repo.CancelJobsByOrderID(ctx, orderID)
-}
-
-// ListAdmin lists payments for the admin dashboard. It delegates straight to
-// the repository; there is no business logic beyond the query itself.
-func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]Payment, int, error) {
-	return s.repo.ListAdmin(ctx, params)
-}
-
-// GetByID fetches a single payment by ID, delegating straight to the repository.
-func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Payment, error) {
-	return s.repo.GetByID(ctx, id)
-}
-
-func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
-	p, err := s.repo.GetByID(ctx, paymentID)
-	if err != nil {
-		return err
-	}
-
-	if p.Status != StatusSuccess && p.Status != StatusRequiresReview {
-		return fmt.Errorf("%w: payment is not refundable", apperror.ErrBadRequest)
-	}
-
-	// The refund worker recomputes release-vs-restock from the order when it runs,
-	// so enqueue is just intent — no need to resolve the inventory action here.
-	job := &Job{
-		PaymentID:   paymentID,
-		OrderID:     p.OrderID,
-		Action:      ActionRefund,
-		Status:      JobStatusPending,
-		NextRetryAt: time.Now(),
-	}
-
-	return s.repo.CreateJob(ctx, job)
 }

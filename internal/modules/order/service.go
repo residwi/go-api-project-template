@@ -213,25 +213,6 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, p PlaceParam
 	return &PlaceResult{Order: order}, nil
 }
 
-// finalizeFreeOrder settles a zero-total order (a coupon covered the full
-// subtotal) that has no payment: it marks the order paid and deducts the
-// reserved stock in one transaction, mirroring FinalizePaymentSuccess for a
-// charged order. Apply(PaidTransition) also sets the order's stock_deducted flag
-// atomically. Without this the order would sit in awaiting_payment and be
-// cancelled by the expiry sweep, so a legitimately free order could never ship.
-func (s *Service) finalizeFreeOrder(ctx context.Context, order *Order) error {
-	return s.tx.Run(ctx, func(txCtx context.Context) error {
-		if err := s.repo.Apply(txCtx, order.ID, PaidTransition); err != nil {
-			return err
-		}
-		deductions := make([]InventoryItem, len(order.Items))
-		for i, item := range order.Items {
-			deductions[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
-		}
-		return s.inventory.DeductBatch(txCtx, deductions)
-	})
-}
-
 func (s *Service) RetryPayment(ctx context.Context, userID, orderID uuid.UUID, paymentMethodID string) (*PaymentResult, error) {
 	order, err := s.repo.GetByID(ctx, orderID)
 	if err != nil {
@@ -294,48 +275,6 @@ func (s *Service) CancelUnpaidByID(ctx context.Context, orderID uuid.UUID) error
 	return s.cancelWithReversal(ctx, order)
 }
 
-// cancelWithReversal moves an order to cancelled and reverses its inventory hold
-// and coupon in one transaction — the single cancel path shared by the
-// user-facing CancelOrder and the system-facing CancelUnpaidByID. Routing the
-// status change through CancelledTransition keeps the allowed-from set in one
-// place, and the reversal honors the order's persisted stock state (release vs
-// restock vs skip-if-already-reversed). A reversal failure rolls back the cancel
-// too, so an order is never committed cancelled while its stock stays held.
-//
-//nolint:gocognit // the single cancel path: guarded status CAS, conditional stock reversal (release vs restock vs skip), and best-effort coupon release
-func (s *Service) cancelWithReversal(ctx context.Context, order *Order) error {
-	return s.tx.Run(ctx, func(txCtx context.Context) error {
-		if txErr := s.repo.Apply(txCtx, order.ID, CancelledTransition); txErr != nil {
-			if errors.Is(txErr, apperror.ErrConflict) {
-				return fmt.Errorf("%w: cannot cancel order in status %s", apperror.ErrBadRequest, order.Status)
-			}
-			return txErr
-		}
-
-		items, txErr := s.repo.ListItemsByOrderID(txCtx, order.ID)
-		if txErr != nil {
-			return txErr
-		}
-		if len(items) > 0 && !order.StockReversed {
-			releases := make([]InventoryItem, len(items))
-			for i, item := range items {
-				releases[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
-			}
-			if releaseErr := s.inventory.Restore(txCtx, releases, order.StockDeducted); releaseErr != nil {
-				return fmt.Errorf("restoring inventory on cancel: %w", releaseErr)
-			}
-		}
-
-		if s.coupons != nil && order.CouponCode != nil && *order.CouponCode != "" {
-			if releaseErr := s.coupons.Release(txCtx, order.ID); releaseErr != nil {
-				slog.WarnContext(txCtx, "failed to release coupon on cancel", "error", releaseErr)
-			}
-		}
-
-		return nil
-	})
-}
-
 // ExpireStale expires awaiting_payment orders whose payment window has lapsed,
 // releasing the stock and coupon each reserved — the time-triggered sibling of
 // CancelOrder. It is the per-tick housekeeping the payment job runner invokes
@@ -349,44 +288,6 @@ func (s *Service) ExpireStale(ctx context.Context) error {
 	for _, o := range orders {
 		if err := s.expireOne(ctx, o); err != nil {
 			slog.ErrorContext(ctx, "failed to expire order", "order_id", o.ID, "error", err)
-		}
-	}
-	return nil
-}
-
-func (s *Service) expireOne(ctx context.Context, o Order) error {
-	return s.tx.Run(ctx, func(txCtx context.Context) error {
-		if err := s.repo.Apply(txCtx, o.ID, ExpiredTransition); err != nil {
-			if errors.Is(err, apperror.ErrConflict) {
-				return nil // another worker already moved it out of awaiting_payment
-			}
-			return err
-		}
-		return s.releaseOrderHolds(txCtx, o)
-	})
-}
-
-// releaseOrderHolds returns an order's reserved stock and coupon usage. Shared
-// by the expire path; expiry only applies to awaiting_payment orders, whose
-// stock is reserved-only and not yet reversed, so this releases the reservation.
-func (s *Service) releaseOrderHolds(ctx context.Context, o Order) error {
-	items, err := s.repo.ListItemsByOrderID(ctx, o.ID)
-	if err != nil {
-		return err
-	}
-	if len(items) > 0 && !o.StockReversed {
-		releases := make([]InventoryItem, len(items))
-		for i, item := range items {
-			releases[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
-		}
-		if err := s.inventory.Restore(ctx, releases, o.StockDeducted); err != nil {
-			return fmt.Errorf("restoring inventory on expire: %w", err)
-		}
-	}
-
-	if s.coupons != nil && o.CouponCode != nil && *o.CouponCode != "" {
-		if err := s.coupons.Release(ctx, o.ID); err != nil {
-			slog.WarnContext(ctx, "failed to release coupon on expire", "order_id", o.ID, "error", err)
 		}
 	}
 	return nil
@@ -531,4 +432,103 @@ func (s *Service) HasDeliveredOrder(ctx context.Context, p DeliveredPurchasePara
 func (s *Service) SetPaymentDeps(payment PaymentInitiator, paymentCancel PaymentJobCanceller) {
 	s.payment = payment
 	s.paymentCancel = paymentCancel
+}
+
+// finalizeFreeOrder settles a zero-total order (a coupon covered the full
+// subtotal) that has no payment: it marks the order paid and deducts the
+// reserved stock in one transaction, mirroring FinalizePaymentSuccess for a
+// charged order. Apply(PaidTransition) also sets the order's stock_deducted flag
+// atomically. Without this the order would sit in awaiting_payment and be
+// cancelled by the expiry sweep, so a legitimately free order could never ship.
+func (s *Service) finalizeFreeOrder(ctx context.Context, order *Order) error {
+	return s.tx.Run(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Apply(txCtx, order.ID, PaidTransition); err != nil {
+			return err
+		}
+		deductions := make([]InventoryItem, len(order.Items))
+		for i, item := range order.Items {
+			deductions[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
+		}
+		return s.inventory.DeductBatch(txCtx, deductions)
+	})
+}
+
+// cancelWithReversal moves an order to cancelled and reverses its inventory hold
+// and coupon in one transaction — the single cancel path shared by the
+// user-facing CancelOrder and the system-facing CancelUnpaidByID. Routing the
+// status change through CancelledTransition keeps the allowed-from set in one
+// place, and the reversal honors the order's persisted stock state (release vs
+// restock vs skip-if-already-reversed). A reversal failure rolls back the cancel
+// too, so an order is never committed cancelled while its stock stays held.
+//
+//nolint:gocognit // the single cancel path: guarded status CAS, conditional stock reversal (release vs restock vs skip), and best-effort coupon release
+func (s *Service) cancelWithReversal(ctx context.Context, order *Order) error {
+	return s.tx.Run(ctx, func(txCtx context.Context) error {
+		if txErr := s.repo.Apply(txCtx, order.ID, CancelledTransition); txErr != nil {
+			if errors.Is(txErr, apperror.ErrConflict) {
+				return fmt.Errorf("%w: cannot cancel order in status %s", apperror.ErrBadRequest, order.Status)
+			}
+			return txErr
+		}
+
+		items, txErr := s.repo.ListItemsByOrderID(txCtx, order.ID)
+		if txErr != nil {
+			return txErr
+		}
+		if len(items) > 0 && !order.StockReversed {
+			releases := make([]InventoryItem, len(items))
+			for i, item := range items {
+				releases[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
+			}
+			if releaseErr := s.inventory.Restore(txCtx, releases, order.StockDeducted); releaseErr != nil {
+				return fmt.Errorf("restoring inventory on cancel: %w", releaseErr)
+			}
+		}
+
+		if s.coupons != nil && order.CouponCode != nil && *order.CouponCode != "" {
+			if releaseErr := s.coupons.Release(txCtx, order.ID); releaseErr != nil {
+				slog.WarnContext(txCtx, "failed to release coupon on cancel", "error", releaseErr)
+			}
+		}
+
+		return nil
+	})
+}
+
+func (s *Service) expireOne(ctx context.Context, o Order) error {
+	return s.tx.Run(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Apply(txCtx, o.ID, ExpiredTransition); err != nil {
+			if errors.Is(err, apperror.ErrConflict) {
+				return nil // another worker already moved it out of awaiting_payment
+			}
+			return err
+		}
+		return s.releaseOrderHolds(txCtx, o)
+	})
+}
+
+// releaseOrderHolds returns an order's reserved stock and coupon usage. Shared
+// by the expire path; expiry only applies to awaiting_payment orders, whose
+// stock is reserved-only and not yet reversed, so this releases the reservation.
+func (s *Service) releaseOrderHolds(ctx context.Context, o Order) error {
+	items, err := s.repo.ListItemsByOrderID(ctx, o.ID)
+	if err != nil {
+		return err
+	}
+	if len(items) > 0 && !o.StockReversed {
+		releases := make([]InventoryItem, len(items))
+		for i, item := range items {
+			releases[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
+		}
+		if err := s.inventory.Restore(ctx, releases, o.StockDeducted); err != nil {
+			return fmt.Errorf("restoring inventory on expire: %w", err)
+		}
+	}
+
+	if s.coupons != nil && o.CouponCode != nil && *o.CouponCode != "" {
+		if err := s.coupons.Release(ctx, o.ID); err != nil {
+			slog.WarnContext(ctx, "failed to release coupon on expire", "order_id", o.ID, "error", err)
+		}
+	}
+	return nil
 }
