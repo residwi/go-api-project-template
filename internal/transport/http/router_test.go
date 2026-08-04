@@ -86,56 +86,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func setup(t *testing.T) {
-	t.Helper()
-	testhelper.ResetDB(t, testPool)
-	testhelper.ResetRedis(t, testRedis)
-}
-
-// newPaymentServiceForTest composes a payment service the way cmd/worker does.
-// test/e2e carries its own copy in testmain_test.go; keep the two in step.
-func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Service {
-	t.Helper()
-
-	txRunner := database.NewTxRunner(testPool)
-	inventorySvc := inventory.NewService(inventorypg.New(testPool))
-	productSvc := bootstrap.NewProductService(productpg.New(testPool), inventorySvc)
-	cartSvc := bootstrap.NewCartService(cartpg.New(testPool), txRunner, productSvc, 50)
-	promotionSvc := promotion.NewService(promotionpg.New(testPool), txRunner)
-	notificationSvc := notification.NewService(notificationpg.New(testPool))
-
-	orderSvc := bootstrap.NewOrderService(
-		orderpg.New(testPool), txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc,
-	)
-	gw := mockgateway.New(gatewayURL, 5*time.Second)
-	paymentSvc := bootstrap.NewPaymentService(
-		paymentpg.New(testPool), txRunner, gw, orderSvc, inventorySvc, promotionSvc,
-	)
-	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
-
-	return paymentSvc
-}
-
-// seedInventoryLevel gives a product an inventory_levels row so ReserveBatch/
-// DeductBatch have something to update. product.Service.Create does register a
-// new product with inventory (via EnsureLevel), but the row it writes is zeroed,
-// and the tests here insert products with raw SQL anyway, bypassing Create
-// entirely -- so there is no row at all. Either way the stock is seeded here.
-//
-// test/e2e/testmain_test.go carries its own copy for the saga flows. Keep the
-// two in step.
-func seedInventoryLevel(t *testing.T, productID uuid.UUID, available, reserved int) {
-	t.Helper()
-	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
-		 VALUES ($1, $2, $3)
-		 ON CONFLICT (product_id) DO UPDATE
-		 SET available_stock = EXCLUDED.available_stock,
-		     reserved_stock  = EXCLUDED.reserved_stock`,
-		productID, available, reserved)
-	require.NoError(t, err)
-}
-
 func TestNewRouter(t *testing.T) {
 	setup(t)
 	t.Run("initializes without error", func(t *testing.T) {
@@ -815,69 +765,6 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	assert.Contains(t, err.Error(), "getting order for verification")
 }
 
-// serverRunEnv sets the base env vars for a Run() test using the dockertest containers.
-func serverRunEnv(t *testing.T, port int) {
-	t.Helper()
-	pgCfg := testPool.Config().ConnConfig
-	redisAddr := testRedis.Options().Addr
-
-	t.Setenv("APP_PORT", strconv.Itoa(port))
-	t.Setenv("APP_ENV", "development")
-	t.Setenv("APP_SHUTDOWN_TIMEOUT", "2s")
-	t.Setenv("DB_HOST", pgCfg.Host)
-	t.Setenv("DB_PORT", strconv.FormatUint(uint64(pgCfg.Port), 10))
-	t.Setenv("DB_USER", pgCfg.User)
-	t.Setenv("DB_PASSWORD", pgCfg.Password)
-	t.Setenv("DB_NAME", pgCfg.Database)
-	t.Setenv("DB_SSLMODE", "disable")
-	t.Setenv("REDIS_HOST", strings.Split(redisAddr, ":")[0])
-	t.Setenv("REDIS_PORT", strings.Split(redisAddr, ":")[1])
-	// Without this, REDIS_DB defaults to 0 -- the index internal/platform/cache
-	// owns and flushes -- which would race this package's own index (3, per the
-	// registry in internal/testhelper/testhelper.go) the moment a TestServerRun*
-	// test drives a rate-limited route.
-	t.Setenv("REDIS_DB", "3")
-	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
-}
-
-// startAndStopServer starts RunContext in a goroutine, waits for it to
-// be ready (via healthAddr), cancels the context to shut it down, and returns
-// the RunContext error.
-//
-// Cancelling a context rather than signalling the test process's own PID is the
-// point. The old SIGINT went to the *whole test process*, so it fired every
-// signal handler in the binary, not just this server's -- and if the readiness
-// wait below failed, the signal was never sent at all and the server goroutine
-// leaked for the rest of the package's run. The deferred cancel now guarantees
-// shutdown on that path too.
-func startAndStopServer(t *testing.T, healthAddr string) error {
-	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	errCh := make(chan error, 1)
-	go func() { errCh <- RunContext(ctx) }()
-
-	require.Eventually(t, func() bool {
-		resp, err := http.Get(healthAddr + "/health")
-		if err != nil {
-			return false
-		}
-		resp.Body.Close()
-		return true
-	}, 30*time.Second, 100*time.Millisecond, "server did not start in time")
-
-	cancel()
-
-	select {
-	case runErr := <-errCh:
-		return runErr
-	case <-time.After(30 * time.Second):
-		t.Fatal("apihttp.RunContext did not return after its context was cancelled")
-		return nil
-	}
-}
-
 func TestServerRunReaderDBFailure(t *testing.T) {
 	setup(t)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -1024,5 +911,118 @@ func TestServerRun(t *testing.T) {
 		require.NoError(t, runErr)
 	case <-time.After(30 * time.Second):
 		t.Fatal("apihttp.RunContext did not return after its context was cancelled")
+	}
+}
+
+func setup(t *testing.T) {
+	t.Helper()
+	testhelper.ResetDB(t, testPool)
+	testhelper.ResetRedis(t, testRedis)
+}
+
+// newPaymentServiceForTest composes a payment service the way cmd/worker does.
+// test/e2e carries its own copy in testmain_test.go; keep the two in step.
+func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Service {
+	t.Helper()
+
+	txRunner := database.NewTxRunner(testPool)
+	inventorySvc := inventory.NewService(inventorypg.New(testPool))
+	productSvc := bootstrap.NewProductService(productpg.New(testPool), inventorySvc)
+	cartSvc := bootstrap.NewCartService(cartpg.New(testPool), txRunner, productSvc, 50)
+	promotionSvc := promotion.NewService(promotionpg.New(testPool), txRunner)
+	notificationSvc := notification.NewService(notificationpg.New(testPool))
+
+	orderSvc := bootstrap.NewOrderService(
+		orderpg.New(testPool), txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc,
+	)
+	gw := mockgateway.New(gatewayURL, 5*time.Second)
+	paymentSvc := bootstrap.NewPaymentService(
+		paymentpg.New(testPool), txRunner, gw, orderSvc, inventorySvc, promotionSvc,
+	)
+	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
+
+	return paymentSvc
+}
+
+// seedInventoryLevel gives a product an inventory_levels row so ReserveBatch/
+// DeductBatch have something to update. product.Service.Create does register a
+// new product with inventory (via EnsureLevel), but the row it writes is zeroed,
+// and the tests here insert products with raw SQL anyway, bypassing Create
+// entirely -- so there is no row at all. Either way the stock is seeded here.
+//
+// test/e2e/testmain_test.go carries its own copy for the saga flows. Keep the
+// two in step.
+func seedInventoryLevel(t *testing.T, productID uuid.UUID, available, reserved int) {
+	t.Helper()
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (product_id) DO UPDATE
+		 SET available_stock = EXCLUDED.available_stock,
+		     reserved_stock  = EXCLUDED.reserved_stock`,
+		productID, available, reserved)
+	require.NoError(t, err)
+}
+
+// serverRunEnv sets the base env vars for a Run() test using the dockertest containers.
+func serverRunEnv(t *testing.T, port int) {
+	t.Helper()
+	pgCfg := testPool.Config().ConnConfig
+	redisAddr := testRedis.Options().Addr
+
+	t.Setenv("APP_PORT", strconv.Itoa(port))
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("APP_SHUTDOWN_TIMEOUT", "2s")
+	t.Setenv("DB_HOST", pgCfg.Host)
+	t.Setenv("DB_PORT", strconv.FormatUint(uint64(pgCfg.Port), 10))
+	t.Setenv("DB_USER", pgCfg.User)
+	t.Setenv("DB_PASSWORD", pgCfg.Password)
+	t.Setenv("DB_NAME", pgCfg.Database)
+	t.Setenv("DB_SSLMODE", "disable")
+	t.Setenv("REDIS_HOST", strings.Split(redisAddr, ":")[0])
+	t.Setenv("REDIS_PORT", strings.Split(redisAddr, ":")[1])
+	// Without this, REDIS_DB defaults to 0 -- the index internal/platform/cache
+	// owns and flushes -- which would race this package's own index (3, per the
+	// registry in internal/testhelper/testhelper.go) the moment a TestServerRun*
+	// test drives a rate-limited route.
+	t.Setenv("REDIS_DB", "3")
+	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
+}
+
+// startAndStopServer starts RunContext in a goroutine, waits for it to
+// be ready (via healthAddr), cancels the context to shut it down, and returns
+// the RunContext error.
+//
+// Cancelling a context rather than signalling the test process's own PID is the
+// point. The old SIGINT went to the *whole test process*, so it fired every
+// signal handler in the binary, not just this server's -- and if the readiness
+// wait below failed, the signal was never sent at all and the server goroutine
+// leaked for the rest of the package's run. The deferred cancel now guarantees
+// shutdown on that path too.
+func startAndStopServer(t *testing.T, healthAddr string) error {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- RunContext(ctx) }()
+
+	require.Eventually(t, func() bool {
+		resp, err := http.Get(healthAddr + "/health")
+		if err != nil {
+			return false
+		}
+		resp.Body.Close()
+		return true
+	}, 30*time.Second, 100*time.Millisecond, "server did not start in time")
+
+	cancel()
+
+	select {
+	case runErr := <-errCh:
+		return runErr
+	case <-time.After(30 * time.Second):
+		t.Fatal("apihttp.RunContext did not return after its context was cancelled")
+		return nil
 	}
 }

@@ -17,14 +17,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-// seedFilePath resolves data.sql relative to this source file rather than a
-// hardcoded absolute path, mirroring how testhelper locates the migrations
-// directory from [runtime.Caller].
-func seedFilePath() string {
-	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "data.sql")
-}
-
 func TestDataSQL_Applies(t *testing.T) {
 	pool, cleanup := testhelper.MustStartPostgres("test_db_seeds")
 	defer cleanup()
@@ -54,4 +46,12 @@ func TestDataSQL_Applies(t *testing.T) {
 	// same way running `make seed` twice against an existing database would.
 	_, err = pool.Exec(ctx, string(seedSQL))
 	require.NoError(t, err, "re-applying db/seeds/data.sql must also succeed")
+}
+
+// seedFilePath resolves data.sql relative to this source file rather than a
+// hardcoded absolute path, mirroring how testhelper locates the migrations
+// directory from [runtime.Caller].
+func seedFilePath() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(file), "data.sql")
 }

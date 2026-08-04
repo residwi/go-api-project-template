@@ -19,11 +19,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-func migrationsDir() string {
-	_, file, _, _ := runtime.Caller(0)
-	return filepath.Dir(file)
-}
-
 // TestDropProductsStockColumns_DownRoundTrip proves 20260424120018's Down
 // migration reconstructs stock_quantity/reserved_quantity correctly for both
 // a product with an inventory_levels row and one without, then that
@@ -88,4 +83,9 @@ func TestDropProductsStockColumns_DownRoundTrip(t *testing.T) {
 		 WHERE table_name = 'products' AND column_name IN ('stock_quantity', 'reserved_quantity')`,
 	).Scan(&columnCount))
 	assert.Equal(t, 0, columnCount, "re-applying Up must drop the columns again")
+}
+
+func migrationsDir() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Dir(file)
 }

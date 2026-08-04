@@ -8,12 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type testStruct struct {
-	Name  string `validate:"required,min=2,max=50"`
-	Email string `validate:"required,email"`
-	Role  string `validate:"required,oneof=admin user"`
-}
-
 func TestValidator_ValidStruct(t *testing.T) {
 	v := New()
 	s := testStruct{Name: "John", Email: "john@example.com", Role: "admin"}
@@ -145,4 +139,10 @@ func TestValidator_NonStructInput(t *testing.T) {
 	errs := v.Validate("not a struct")
 	require.NotNil(t, errs)
 	assert.Contains(t, errs, "error")
+}
+
+type testStruct struct {
+	Name  string `validate:"required,min=2,max=50"`
+	Email string `validate:"required,email"`
+	Role  string `validate:"required,oneof=admin user"`
 }

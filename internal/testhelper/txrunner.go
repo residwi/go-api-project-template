@@ -8,10 +8,11 @@ import (
 // for unit tests by running fn inline. A service under unit test needs
 // atomicity to be a no-op, not a fake connection smuggled into the context.
 //
-// It does not import that package to assert this: platform/database's own
-// in-package tests use testhelper (for MustStartPostgres), so an import back
-// from here would cycle. Every NewService(..., FakeTxRunner{}) call site
-// across the modules already enforces the interface match structurally.
+// This package does not import platform/database to assert that here:
+// platform/database's own in-package tests use testhelper (for
+// MustStartPostgres), so an import back from here would cycle. The
+// compile-time assertion instead lives in txrunner_test.go's external test
+// package (testhelper_test), which can import platform/database freely.
 type FakeTxRunner struct{}
 
 func (FakeTxRunner) Run(ctx context.Context, fn func(ctx context.Context) error) error {
