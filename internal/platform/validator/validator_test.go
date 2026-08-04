@@ -1,4 +1,4 @@
-package validator_test
+package validator
 
 import (
 	"strings"
@@ -6,8 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 )
 
 type testStruct struct {
@@ -17,7 +15,7 @@ type testStruct struct {
 }
 
 func TestValidator_ValidStruct(t *testing.T) {
-	v := validator.New()
+	v := New()
 	s := testStruct{Name: "John", Email: "john@example.com", Role: "admin"}
 
 	errs := v.Validate(s)
@@ -25,7 +23,7 @@ func TestValidator_ValidStruct(t *testing.T) {
 }
 
 func TestValidator_RequiredFieldMissing(t *testing.T) {
-	v := validator.New()
+	v := New()
 	s := testStruct{}
 
 	errs := v.Validate(s)
@@ -36,7 +34,7 @@ func TestValidator_RequiredFieldMissing(t *testing.T) {
 }
 
 func TestValidator_InvalidEmail(t *testing.T) {
-	v := validator.New()
+	v := New()
 	s := testStruct{Name: "John", Email: "not-an-email", Role: "user"}
 
 	errs := v.Validate(s)
@@ -45,7 +43,7 @@ func TestValidator_InvalidEmail(t *testing.T) {
 }
 
 func TestValidator_MinLength(t *testing.T) {
-	v := validator.New()
+	v := New()
 	s := testStruct{Name: "J", Email: "john@example.com", Role: "user"}
 
 	errs := v.Validate(s)
@@ -54,7 +52,7 @@ func TestValidator_MinLength(t *testing.T) {
 }
 
 func TestValidator_MaxLength(t *testing.T) {
-	v := validator.New()
+	v := New()
 	longName := ""
 	var longNameSb57 strings.Builder
 	for range 51 {
@@ -69,7 +67,7 @@ func TestValidator_MaxLength(t *testing.T) {
 }
 
 func TestValidator_OneOf(t *testing.T) {
-	v := validator.New()
+	v := New()
 	s := testStruct{Name: "John", Email: "john@example.com", Role: "moderator"}
 
 	errs := v.Validate(s)
@@ -82,7 +80,7 @@ type uuidStruct struct {
 }
 
 func TestValidator_UUID(t *testing.T) {
-	v := validator.New()
+	v := New()
 	s := uuidStruct{ID: "not-a-uuid"}
 
 	errs := v.Validate(s)
@@ -95,7 +93,7 @@ type urlStruct struct {
 }
 
 func TestValidator_URL(t *testing.T) {
-	v := validator.New()
+	v := New()
 	s := urlStruct{Website: "not-a-url"}
 
 	errs := v.Validate(s)
@@ -108,7 +106,7 @@ type gteStruct struct {
 }
 
 func TestValidator_GTE(t *testing.T) {
-	v := validator.New()
+	v := New()
 	s := gteStruct{Age: 10}
 
 	errs := v.Validate(s)
@@ -121,7 +119,7 @@ type lteStruct struct {
 }
 
 func TestValidator_LTE(t *testing.T) {
-	v := validator.New()
+	v := New()
 	s := lteStruct{Score: 150}
 
 	errs := v.Validate(s)
@@ -134,7 +132,7 @@ type defaultTagStruct struct {
 }
 
 func TestValidator_DefaultTag(t *testing.T) {
-	v := validator.New()
+	v := New()
 	s := defaultTagStruct{Value: "hello world!"}
 
 	errs := v.Validate(s)
@@ -143,7 +141,7 @@ func TestValidator_DefaultTag(t *testing.T) {
 }
 
 func TestValidator_NonStructInput(t *testing.T) {
-	v := validator.New()
+	v := New()
 	errs := v.Validate("not a struct")
 	require.NotNil(t, errs)
 	assert.Contains(t, errs, "error")
