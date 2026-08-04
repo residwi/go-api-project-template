@@ -1,4 +1,4 @@
-package review_test
+package review
 
 import (
 	"context"
@@ -11,9 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/review"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	mocks "github.com/residwi/go-api-project-template/mocks/review"
 )
 
 func TestService_Create(t *testing.T) {
@@ -22,22 +20,22 @@ func TestService_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		purchase := mocks.NewMockPurchaseVerifier(t)
-		svc := review.NewService(repo, purchase)
+		repo := NewMockRepository(t)
+		purchase := NewMockPurchaseVerifier(t)
+		svc := NewService(repo, purchase)
 
 		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 		orderID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, review.DeliveredPurchase{
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, DeliveredPurchase{
 			UserID:    userID,
 			OrderID:   orderID,
 			ProductID: productID,
 		}).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, nil)
-		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(rv *review.Review) bool {
+		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(rv *Review) bool {
 			return rv.UserID == userID &&
 				rv.ProductID == productID &&
 				rv.OrderID == orderID &&
@@ -47,7 +45,7 @@ func TestService_Create(t *testing.T) {
 				rv.Status == "published"
 		})).Return(nil)
 
-		req := review.CreateParams{
+		req := CreateParams{
 			OrderID: orderID,
 			Rating:  5,
 			Title:   "Great product",
@@ -56,7 +54,7 @@ func TestService_Create(t *testing.T) {
 
 		result, err := svc.Create(ctx, userID, productID, req)
 		require.NoError(t, err)
-		assert.Equal(t, &review.Review{
+		assert.Equal(t, &Review{
 			UserID:    userID,
 			ProductID: productID,
 			OrderID:   orderID,
@@ -70,9 +68,9 @@ func TestService_Create(t *testing.T) {
 	t.Run("not delivered", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		purchase := mocks.NewMockPurchaseVerifier(t)
-		svc := review.NewService(repo, purchase)
+		repo := NewMockRepository(t)
+		purchase := NewMockPurchaseVerifier(t)
+		svc := NewService(repo, purchase)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -80,7 +78,7 @@ func TestService_Create(t *testing.T) {
 
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(false, nil)
 
-		req := review.CreateParams{
+		req := CreateParams{
 			OrderID: uuid.New(),
 			Rating:  4,
 			Title:   "Good",
@@ -95,9 +93,9 @@ func TestService_Create(t *testing.T) {
 	t.Run("purchase verifier error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		purchase := mocks.NewMockPurchaseVerifier(t)
-		svc := review.NewService(repo, purchase)
+		repo := NewMockRepository(t)
+		purchase := NewMockPurchaseVerifier(t)
+		svc := NewService(repo, purchase)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -106,7 +104,7 @@ func TestService_Create(t *testing.T) {
 		verifyErr := errors.New("purchase check failed")
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(false, verifyErr)
 
-		req := review.CreateParams{OrderID: uuid.New(), Rating: 5, Title: "Great"}
+		req := CreateParams{OrderID: uuid.New(), Rating: 5, Title: "Great"}
 		result, err := svc.Create(ctx, userID, productID, req)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, verifyErr)
@@ -115,9 +113,9 @@ func TestService_Create(t *testing.T) {
 	t.Run("HasUserReviewed error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		purchase := mocks.NewMockPurchaseVerifier(t)
-		svc := review.NewService(repo, purchase)
+		repo := NewMockRepository(t)
+		purchase := NewMockPurchaseVerifier(t)
+		svc := NewService(repo, purchase)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -127,7 +125,7 @@ func TestService_Create(t *testing.T) {
 		dbErr := errors.New("database error")
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, dbErr)
 
-		req := review.CreateParams{OrderID: uuid.New(), Rating: 4, Title: "Good"}
+		req := CreateParams{OrderID: uuid.New(), Rating: 4, Title: "Good"}
 		result, err := svc.Create(ctx, userID, productID, req)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, dbErr)
@@ -136,9 +134,9 @@ func TestService_Create(t *testing.T) {
 	t.Run("repo create error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		purchase := mocks.NewMockPurchaseVerifier(t)
-		svc := review.NewService(repo, purchase)
+		repo := NewMockRepository(t)
+		purchase := NewMockPurchaseVerifier(t)
+		svc := NewService(repo, purchase)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -149,7 +147,7 @@ func TestService_Create(t *testing.T) {
 		createErr := errors.New("insert failed")
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*review.Review")).Return(createErr)
 
-		req := review.CreateParams{OrderID: uuid.New(), Rating: 3, Title: "OK"}
+		req := CreateParams{OrderID: uuid.New(), Rating: 3, Title: "OK"}
 		result, err := svc.Create(ctx, userID, productID, req)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, createErr)
@@ -158,9 +156,9 @@ func TestService_Create(t *testing.T) {
 	t.Run("already reviewed", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		purchase := mocks.NewMockPurchaseVerifier(t)
-		svc := review.NewService(repo, purchase)
+		repo := NewMockRepository(t)
+		purchase := NewMockPurchaseVerifier(t)
+		svc := NewService(repo, purchase)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -169,7 +167,7 @@ func TestService_Create(t *testing.T) {
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(true, nil)
 
-		req := review.CreateParams{
+		req := CreateParams{
 			OrderID: uuid.New(),
 			Rating:  3,
 			Title:   "OK",
@@ -188,13 +186,13 @@ func TestService_ListByProduct(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := review.NewService(repo, nil)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, nil)
 
 		ctx := context.Background()
 		productID := uuid.New()
 		cursor := paging.CursorPage{Limit: 20}
-		expected := []review.Review{
+		expected := []Review{
 			{ID: uuid.New(), ProductID: productID, Rating: 5, Title: "Great"},
 			{ID: uuid.New(), ProductID: productID, Rating: 4, Title: "Good"},
 		}
@@ -209,8 +207,8 @@ func TestService_ListByProduct(t *testing.T) {
 	t.Run("error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := review.NewService(repo, nil)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, nil)
 
 		ctx := context.Background()
 		productID := uuid.New()
@@ -231,12 +229,12 @@ func TestService_GetStats(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := review.NewService(repo, nil)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, nil)
 
 		ctx := context.Background()
 		productID := uuid.New()
-		expected := review.Stats{AverageRating: 4.5, TotalReviews: 10}
+		expected := Stats{AverageRating: 4.5, TotalReviews: 10}
 
 		repo.EXPECT().GetStats(mock.Anything, productID).Return(expected, nil)
 
@@ -248,17 +246,17 @@ func TestService_GetStats(t *testing.T) {
 	t.Run("error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := review.NewService(repo, nil)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, nil)
 
 		ctx := context.Background()
 		productID := uuid.New()
 		dbErr := errors.New("stats query failed")
 
-		repo.EXPECT().GetStats(mock.Anything, productID).Return(review.Stats{}, dbErr)
+		repo.EXPECT().GetStats(mock.Anything, productID).Return(Stats{}, dbErr)
 
 		result, err := svc.GetStats(ctx, productID)
-		assert.Equal(t, review.Stats{}, result)
+		assert.Equal(t, Stats{}, result)
 		assert.ErrorIs(t, err, dbErr)
 	})
 }
@@ -269,8 +267,8 @@ func TestService_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := review.NewService(repo, nil)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, nil)
 
 		ctx := context.Background()
 		id := uuid.New()
@@ -284,8 +282,8 @@ func TestService_Delete(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := review.NewService(repo, nil)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, nil)
 
 		ctx := context.Background()
 		id := uuid.New()
@@ -300,21 +298,21 @@ func TestService_Delete(t *testing.T) {
 func TestService_Create_PassesNamedPurchaseFields(t *testing.T) {
 	t.Parallel()
 
-	repo := mocks.NewMockRepository(t)
-	verifier := mocks.NewMockPurchaseVerifier(t)
-	svc := review.NewService(repo, verifier)
+	repo := NewMockRepository(t)
+	verifier := NewMockPurchaseVerifier(t)
+	svc := NewService(repo, verifier)
 
 	userID := uuid.New()
 	productID := uuid.New()
 	orderID := uuid.New()
 
-	verifier.EXPECT().HasDeliveredOrder(mock.Anything, review.DeliveredPurchase{
+	verifier.EXPECT().HasDeliveredOrder(mock.Anything, DeliveredPurchase{
 		UserID:    userID,
 		OrderID:   orderID,
 		ProductID: productID,
 	}).Return(false, nil)
 
-	_, err := svc.Create(context.Background(), userID, productID, review.CreateParams{
+	_, err := svc.Create(context.Background(), userID, productID, CreateParams{
 		OrderID: orderID,
 		Rating:  5,
 		Title:   "Great",
@@ -324,7 +322,7 @@ func TestService_Create_PassesNamedPurchaseFields(t *testing.T) {
 }
 
 func matchDelivery(userID, productID uuid.UUID) any {
-	return mock.MatchedBy(func(p review.DeliveredPurchase) bool {
+	return mock.MatchedBy(func(p DeliveredPurchase) bool {
 		return p.UserID == userID && p.ProductID == productID
 	})
 }

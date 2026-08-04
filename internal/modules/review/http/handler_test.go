@@ -20,7 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	revMocks "github.com/residwi/go-api-project-template/mocks/review"
 )
 
 func TestHandler_ListByProduct(t *testing.T) {
@@ -416,9 +415,9 @@ func TestToReviewResponse_OmitsReviewerAndInternalFields(t *testing.T) {
 		"order_id exists only to verify provenance at creation time; a client has no use for it back")
 }
 
-func setupReviewMux(t *testing.T) (*http.ServeMux, *revMocks.MockRepository, *revMocks.MockPurchaseVerifier) {
-	repo := revMocks.NewMockRepository(t)
-	purchase := revMocks.NewMockPurchaseVerifier(t)
+func setupReviewMux(t *testing.T) (*http.ServeMux, *MockRepository, *MockPurchaseVerifier) {
+	repo := NewMockRepository(t)
+	purchase := NewMockPurchaseVerifier(t)
 	svc := review.NewService(repo, purchase)
 	v := validator.New()
 
