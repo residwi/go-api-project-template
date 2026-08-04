@@ -389,6 +389,13 @@ can produce a loud false positive.
   an unrelated package. Update the registry comment in the same commit.
 - **`t.Parallel()` buys nothing inside a package**, because subtests share one
   database. Have each subtest seed its own data instead.
+- **Order a test file so the tests come first.** Package-level `var`s and
+  `TestMain` at the top, then every `func TestXxx`, then the stub types with
+  their own methods grouped under them, then the plain helpers last.
+  `internal/platform/jobs/runner_test.go` is the shape. Someone opening the
+  file came for the scenarios, not for the fakes that serve them. `funcorder`
+  only orders methods against their struct, so nothing lints the rest of this
+  — it is on you.
 - **Prefer subtests over table-driven tests.** One logical scenario per subtest,
   a descriptive name, its own setup. Break large scenarios up; no monolithic
   tests.
