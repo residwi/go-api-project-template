@@ -1,4 +1,4 @@
-package postgres_test
+package postgres
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/category"
-	"github.com/residwi/go-api-project-template/internal/modules/category/postgres"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -25,33 +24,10 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func setup(t *testing.T) {
-	t.Helper()
-	testhelper.ResetDB(t, testPool)
-}
-
-func seedCategory(t *testing.T) *category.Category {
-	t.Helper()
-	repo := postgres.New(testPool)
-	desc := "Test description"
-	cat := &category.Category{
-		Name:        "Category-" + uuid.New().String()[:8],
-		Slug:        "slug-" + uuid.New().String(),
-		Description: &desc,
-		SortOrder:   0,
-		Active:      true,
-	}
-	require.NoError(t, repo.Create(context.Background(), cat))
-	t.Cleanup(func() {
-		testPool.Exec(context.Background(), `DELETE FROM categories WHERE id = $1`, cat.ID)
-	})
-	return cat
-}
-
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates category", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		desc := "A description"
 		cat := &category.Category{
 			Name:        "New Category",
@@ -73,7 +49,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("returns conflict on duplicate slug", func(t *testing.T) {
 		setup(t)
 		existing := seedCategory(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		dup := &category.Category{
 			Name:      "Duplicate",
@@ -90,7 +66,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns category", func(t *testing.T) {
 		setup(t)
 		cat := seedCategory(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		got, err := repo.GetByID(context.Background(), cat.ID)
 		require.NoError(t, err)
@@ -101,7 +77,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -112,7 +88,7 @@ func TestPostgresRepository_GetBySlug(t *testing.T) {
 	t.Run("returns category by slug", func(t *testing.T) {
 		setup(t)
 		cat := seedCategory(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		got, err := repo.GetBySlug(context.Background(), cat.Slug)
 		require.NoError(t, err)
@@ -122,7 +98,7 @@ func TestPostgresRepository_GetBySlug(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		_, err := repo.GetBySlug(context.Background(), "nonexistent-slug")
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -133,7 +109,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 	t.Run("updates category fields", func(t *testing.T) {
 		setup(t)
 		cat := seedCategory(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		cat.Name = "Updated Name"
 		cat.Active = false
@@ -148,7 +124,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		cat := &category.Category{
 			ID:        uuid.New(),
@@ -165,7 +141,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		setup(t)
 		cat1 := seedCategory(t)
 		cat2 := seedCategory(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		cat2.Slug = cat1.Slug
 		err := repo.Update(context.Background(), cat2)
@@ -177,7 +153,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("deletes category", func(t *testing.T) {
 		setup(t)
 		cat := seedCategory(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		err := repo.Delete(context.Background(), cat.ID)
 		require.NoError(t, err)
@@ -188,7 +164,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		err := repo.Delete(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -200,7 +176,7 @@ func TestPostgresRepository_List(t *testing.T) {
 		setup(t)
 		seedCategory(t)
 		seedCategory(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		categories, err := repo.List(context.Background())
 		require.NoError(t, err)
@@ -209,7 +185,7 @@ func TestPostgresRepository_List(t *testing.T) {
 }
 
 func TestPostgresRepository_CancelledContext(t *testing.T) {
-	repo := postgres.New(testPool)
+	repo := New(testPool)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -274,7 +250,7 @@ func TestPostgresRepository_AncestorDepthAndCycle(t *testing.T) {
 
 	seedChild := func(t *testing.T, parentID *uuid.UUID) *category.Category {
 		t.Helper()
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		cat := &category.Category{
 			Name:      "Cat-" + uuid.New().String()[:8],
 			Slug:      "slug-" + uuid.New().String(),
@@ -289,7 +265,7 @@ func TestPostgresRepository_AncestorDepthAndCycle(t *testing.T) {
 
 	t.Run("reports depth one for a root parent", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		root := seedChild(t, nil)
 
 		depth, formsCycle, err := repo.AncestorDepthAndCycle(ctx, root.ID, uuid.New(), 5)
@@ -301,7 +277,7 @@ func TestPostgresRepository_AncestorDepthAndCycle(t *testing.T) {
 
 	t.Run("counts every ancestor in a five-deep chain", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		l1 := seedChild(t, nil)
 		l2 := seedChild(t, &l1.ID)
 		l3 := seedChild(t, &l2.ID)
@@ -317,7 +293,7 @@ func TestPostgresRepository_AncestorDepthAndCycle(t *testing.T) {
 
 	t.Run("flags a cycle when selfID is among the prospective parent's ancestors", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		catA := seedChild(t, nil)
 		catB := seedChild(t, &catA.ID)
 		catC := seedChild(t, &catB.ID)
@@ -328,4 +304,27 @@ func TestPostgresRepository_AncestorDepthAndCycle(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, formsCycle)
 	})
+}
+
+func setup(t *testing.T) {
+	t.Helper()
+	testhelper.ResetDB(t, testPool)
+}
+
+func seedCategory(t *testing.T) *category.Category {
+	t.Helper()
+	repo := New(testPool)
+	desc := "Test description"
+	cat := &category.Category{
+		Name:        "Category-" + uuid.New().String()[:8],
+		Slug:        "slug-" + uuid.New().String(),
+		Description: &desc,
+		SortOrder:   0,
+		Active:      true,
+	}
+	require.NoError(t, repo.Create(context.Background(), cat))
+	t.Cleanup(func() {
+		testPool.Exec(context.Background(), `DELETE FROM categories WHERE id = $1`, cat.ID)
+	})
+	return cat
 }
