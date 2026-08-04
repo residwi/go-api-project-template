@@ -56,7 +56,11 @@ func (r *Repository) Create(ctx context.Context, n *notification.Notification) e
 	return nil
 }
 
-func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]notification.Notification, error) {
+func (r *Repository) ListByUser(
+	ctx context.Context,
+	userID uuid.UUID,
+	cursor paging.CursorPage,
+) ([]notification.Notification, error) {
 	db := database.DB(ctx, r.pool)
 
 	args := []any{userID}

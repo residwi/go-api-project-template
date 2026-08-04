@@ -62,7 +62,10 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table: length is inherent to registering every feature's routes in one place
+//nolint:funlen // central route table: length is inherent to registering every feature's routes in one place
+func NewRouter(
+	deps *Deps,
+) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", healthHandler(deps.Logger, deps.Pool, deps.Cache))
@@ -107,12 +110,28 @@ func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table
 	wishlistSvc := wishlist.NewService(wishlistRepo)
 	dashboardSvc := dashboard.NewService(dashboardRepo)
 
-	orderSvc := bootstrap.NewOrderService(orderRepo, txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc, deps.Logger)
+	orderSvc := bootstrap.NewOrderService(
+		orderRepo,
+		txRunner,
+		cartSvc,
+		inventorySvc,
+		promotionSvc,
+		notificationSvc,
+		deps.Logger,
+	)
 
 	cfg := deps.Config
 	gw := mockgateway.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 
-	paymentSvc := bootstrap.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc, deps.Logger)
+	paymentSvc := bootstrap.NewPaymentService(
+		paymentRepo,
+		txRunner,
+		gw,
+		orderSvc,
+		inventorySvc,
+		promotionSvc,
+		deps.Logger,
+	)
 	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
 
 	shippingSvc, shippingOrderProvider := bootstrap.NewShippingService(shippingRepo, txRunner, orderSvc)
@@ -129,12 +148,22 @@ func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table
 
 	// Auth endpoints run synchronous bcrypt and are unauthenticated, so they get
 	// a dedicated per-IP rate limiter to blunt credential-stuffing / CPU exhaustion.
-	authLimiter := middleware.RateLimit(deps.Logger, deps.Cache, deps.Config.App.AuthRateLimit, deps.Config.App.AuthRateWindow)
+	authLimiter := middleware.RateLimit(
+		deps.Logger,
+		deps.Cache,
+		deps.Config.App.AuthRateLimit,
+		deps.Config.App.AuthRateWindow,
+	)
 	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
 
 	// Throttle order placement/payment-retry (each runs a cart-lock + reserve +
 	// charge); wired into order routes for the write endpoints only.
-	orderWriteLimiter := middleware.RateLimit(deps.Logger, deps.Cache, deps.Config.App.OrderRateLimit, deps.Config.App.OrderRateWindow)
+	orderWriteLimiter := middleware.RateLimit(
+		deps.Logger,
+		deps.Cache,
+		deps.Config.App.OrderRateLimit,
+		deps.Config.App.OrderRateWindow,
+	)
 
 	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Service: authSvc})
 	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Service: userSvc})
@@ -142,9 +171,26 @@ func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table
 	producthttp.RegisterRoutes(api, admin, producthttp.RouteDeps{Validator: v, Service: productSvc})
 	inventoryhttp.RegisterRoutes(admin, inventoryhttp.RouteDeps{Validator: v, Service: inventorySvc})
 	carthttp.RegisterRoutes(authed, carthttp.RouteDeps{Validator: v, Service: cartSvc})
-	orderhttp.RegisterRoutes(authed, admin, orderhttp.RouteDeps{Validator: v, Service: orderSvc, WriteLimiter: orderWriteLimiter})
-	paymenthttp.RegisterRoutes(api, admin, paymenthttp.RouteDeps{Validator: v, Service: paymentSvc, WebhookSecret: cfg.Payment.WebhookSecret, Logger: deps.Logger})
-	shippinghttp.RegisterRoutes(authed, admin, shippinghttp.RouteDeps{Validator: v, Service: shippingSvc, Orders: shippingOrderProvider})
+	orderhttp.RegisterRoutes(
+		authed,
+		admin,
+		orderhttp.RouteDeps{Validator: v, Service: orderSvc, WriteLimiter: orderWriteLimiter},
+	)
+	paymenthttp.RegisterRoutes(
+		api,
+		admin,
+		paymenthttp.RouteDeps{
+			Validator:     v,
+			Service:       paymentSvc,
+			WebhookSecret: cfg.Payment.WebhookSecret,
+			Logger:        deps.Logger,
+		},
+	)
+	shippinghttp.RegisterRoutes(
+		authed,
+		admin,
+		shippinghttp.RouteDeps{Validator: v, Service: shippingSvc, Orders: shippingOrderProvider},
+	)
 	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{Validator: v, Service: reviewSvc})
 	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{Validator: v, Service: promotionSvc})
 	wishlisthttp.RegisterRoutes(authed, wishlisthttp.RouteDeps{Validator: v, Service: wishlistSvc})
@@ -152,7 +198,11 @@ func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table
 	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Service: dashboardSvc})
 
 	if deps.Config.App.Env == "development" {
-		mockgatewayserver.RegisterRoutes(mux, deps.Logger, mockgatewayserver.WithWebhookSecret(cfg.Payment.WebhookSecret))
+		mockgatewayserver.RegisterRoutes(
+			mux,
+			deps.Logger,
+			mockgatewayserver.WithWebhookSecret(cfg.Payment.WebhookSecret),
+		)
 	}
 
 	return middleware.Chain(
@@ -189,7 +239,14 @@ func healthHandler(log *slog.Logger, pool *pgxpool.Pool, rdb *redis.Client) http
 	}
 }
 
-func checkRedis(ctx context.Context, log *slog.Logger, rdb *redis.Client, status *string, httpStatus *int, details map[string]string) {
+func checkRedis(
+	ctx context.Context,
+	log *slog.Logger,
+	rdb *redis.Client,
+	status *string,
+	httpStatus *int,
+	details map[string]string,
+) {
 	if rdb == nil {
 		details["redis"] = "not configured"
 		return

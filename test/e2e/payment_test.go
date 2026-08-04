@@ -81,12 +81,32 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 
 	t.Cleanup(func() {
-		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM shipments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM shipments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
-		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
@@ -122,7 +142,10 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("webhook success updates order to paid", func(t *testing.T) {
-		webhookBody := fmt.Sprintf(`{"event":"success","metadata":{"payment_id":"%s"},"transaction_id":"txn_test"}`, paymentID)
+		webhookBody := fmt.Sprintf(
+			`{"event":"success","metadata":{"payment_id":"%s"},"transaction_id":"txn_test"}`,
+			paymentID,
+		)
 		req := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", strings.NewReader(webhookBody))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
@@ -218,12 +241,32 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 
 	t.Cleanup(func() {
-		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM shipments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM shipments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
-		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
@@ -282,7 +325,10 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "pending", paymentStatusBefore)
 
-		webhookBody := fmt.Sprintf(`{"event":"failed","metadata":{"payment_id":"%s"},"transaction_id":"txn_fail"}`, paymentID)
+		webhookBody := fmt.Sprintf(
+			`{"event":"failed","metadata":{"payment_id":"%s"},"transaction_id":"txn_fail"}`,
+			paymentID,
+		)
 		req := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", strings.NewReader(webhookBody))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
@@ -297,8 +343,11 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 
 		// Verify charge jobs were cancelled
 		var pendingJobs int
-		err = testPool.QueryRow(ctx,
-			`SELECT COUNT(*) FROM payment_jobs WHERE order_id = $1 AND status IN ('pending','processing')`, orderID).Scan(&pendingJobs)
+		err = testPool.QueryRow(
+			ctx,
+			`SELECT COUNT(*) FROM payment_jobs WHERE order_id = $1 AND status IN ('pending','processing')`,
+			orderID,
+		).Scan(&pendingJobs)
 		require.NoError(t, err)
 		assert.Equal(t, 0, pendingJobs)
 

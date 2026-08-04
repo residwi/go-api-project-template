@@ -186,7 +186,10 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *Repository) ListPublished(ctx context.Context, params product.PublishedListParams) ([]product.Product, string, bool, error) {
+func (r *Repository) ListPublished(
+	ctx context.Context,
+	params product.PublishedListParams,
+) ([]product.Product, string, bool, error) {
 	db := database.DB(ctx, r.pool)
 
 	where := "deleted_at IS NULL AND status = 'published'"

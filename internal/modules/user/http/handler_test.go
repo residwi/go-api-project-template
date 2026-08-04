@@ -279,8 +279,12 @@ func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 
 	var fields map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(raw, &fields))
-	assert.ElementsMatch(t, []string{"id", "email", "first_name", "last_name", "phone"}, slices.Collect(maps.Keys(fields)),
-		"the public profile must expose exactly these fields")
+	assert.ElementsMatch(
+		t,
+		[]string{"id", "email", "first_name", "last_name", "phone"},
+		slices.Collect(maps.Keys(fields)),
+		"the public profile must expose exactly these fields",
+	)
 
 	assert.NotContains(t, string(raw), "distinguishablebcryptvalue",
 		"PasswordHash is credential material and must never be serialised")

@@ -103,12 +103,18 @@ func New(pool *pgxpool.Pool) *Repository {
 
 func (r *Repository) Create(ctx context.Context, order *order.Order) error {
 	db := database.DB(ctx, r.pool)
-	err := db.QueryRow(ctx,
+	err := db.QueryRow(
+		ctx,
 		`INSERT INTO orders (user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, coupon_code, currency, shipping_address, billing_address, notes)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING id, created_at, updated_at`,
-		order.UserID, order.IdempotencyKey, order.RequestHash, order.Status,
-		order.Subtotal.Amount, order.Discount.Amount, order.Total.Amount,
+		order.UserID,
+		order.IdempotencyKey,
+		order.RequestHash,
+		order.Status,
+		order.Subtotal.Amount,
+		order.Discount.Amount,
+		order.Total.Amount,
 		// One currency column for all three amounts; Total's is authoritative
 		// because it is what gets charged.
 		//
@@ -120,8 +126,11 @@ func (r *Repository) Create(ctx context.Context, order *order.Order) error {
 		// currencies. Flagged rather than guarded because it is the one write in
 		// the four Money features that could re-denominate an amount, so a second
 		// caller would need to preserve that invariant itself.
-		order.CouponCode, order.Total.Currency,
-		order.ShippingAddress, order.BillingAddress, order.Notes,
+		order.CouponCode,
+		order.Total.Currency,
+		order.ShippingAddress,
+		order.BillingAddress,
+		order.Notes,
 	).Scan(&order.ID, &order.CreatedAt, &order.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
@@ -153,7 +162,15 @@ func (r *Repository) CreateItems(ctx context.Context, items []order.Item) error 
 
 		// Only the amounts are written: the item's currency is the order's, already
 		// stored on the orders row, and the service guarantees they agree.
-		args = append(args, item.OrderID, item.ProductID, item.ProductName, item.Price.Amount, item.Quantity, item.Subtotal.Amount)
+		args = append(
+			args,
+			item.OrderID,
+			item.ProductID,
+			item.ProductName,
+			item.Price.Amount,
+			item.Quantity,
+			item.Subtotal.Amount,
+		)
 	}
 
 	rows, err := db.Query(ctx,
@@ -220,7 +237,11 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*order.Order, e
 	return &o, nil
 }
 
-func (r *Repository) GetByUserIDAndIdempotencyKey(ctx context.Context, userID uuid.UUID, key string) (*order.Order, error) {
+func (r *Repository) GetByUserIDAndIdempotencyKey(
+	ctx context.Context,
+	userID uuid.UUID,
+	key string,
+) (*order.Order, error) {
 	db := database.DB(ctx, r.pool)
 	var o order.Order
 	var idempotencyKey, requestHash, notes *string
@@ -252,7 +273,11 @@ func (r *Repository) GetByUserIDAndIdempotencyKey(ctx context.Context, userID uu
 	return &o, nil
 }
 
-func (r *Repository) ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]order.Order, error) {
+func (r *Repository) ListByUser(
+	ctx context.Context,
+	userID uuid.UUID,
+	cursor paging.CursorPage,
+) ([]order.Order, error) {
 	db := database.DB(ctx, r.pool)
 
 	args := []any{userID}
@@ -388,10 +413,12 @@ func (r *Repository) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) 
 	// Joined for o.currency only: an item's amounts are denominated in its order's
 	// currency, and order_items has no column of its own to read it from. Both
 	// tables belong to this module, so the join crosses no boundary.
-	rows, err := db.Query(ctx,
+	rows, err := db.Query(
+		ctx,
 		`SELECT oi.id, oi.order_id, oi.product_id, oi.product_name, oi.price, oi.quantity, oi.subtotal, oi.created_at, o.currency
 		FROM order_items oi JOIN orders o ON o.id = oi.order_id
-		WHERE oi.order_id = $1 ORDER BY oi.created_at`, orderID,
+		WHERE oi.order_id = $1 ORDER BY oi.created_at`,
+		orderID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("listing order items: %w", err)
@@ -421,7 +448,11 @@ func (r *Repository) GetExpiredOrders(ctx context.Context, limit int) ([]order.O
 	return orders, nil
 }
 
-func (r *Repository) GetStaleProcessingOrders(ctx context.Context, threshold time.Duration, limit int) ([]order.Order, error) {
+func (r *Repository) GetStaleProcessingOrders(
+	ctx context.Context,
+	threshold time.Duration,
+	limit int,
+) ([]order.Order, error) {
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
 		`SELECT id, user_id, idempotency_key, status, subtotal_amount, discount_amount, total_amount,

@@ -153,7 +153,7 @@ func (r *addressRequest) toAddress() *order.Address {
 }
 
 type placeOrderRequest struct {
-	PaymentMethodID string          `json:"payment_method_id" validate:"required"`
+	PaymentMethodID string          `json:"payment_method_id"          validate:"required"`
 	CouponCode      *string         `json:"coupon_code,omitempty"`
 	ShippingAddress *addressRequest `json:"shipping_address,omitempty"`
 	BillingAddress  *addressRequest `json:"billing_address,omitempty"`

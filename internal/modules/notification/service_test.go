@@ -38,7 +38,14 @@ func TestService_Send(t *testing.T) {
 				n.IsRead == false
 		})).Return(nil)
 
-		err := svc.Send(ctx, userID, notification.TypeOrderPlaced, "Order Confirmed", "Your order has been confirmed.", nil)
+		err := svc.Send(
+			ctx,
+			userID,
+			notification.TypeOrderPlaced,
+			"Order Confirmed",
+			"Your order has been confirmed.",
+			nil,
+		)
 		require.NoError(t, err)
 	})
 

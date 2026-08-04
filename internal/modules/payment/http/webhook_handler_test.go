@@ -202,13 +202,28 @@ func setupPaymentMuxWithSecret(t *testing.T, secret string) (*http.ServeMux, *mo
 	invRestore := mocks.NewMockInventoryRestorer(t)
 	couponRel := mocks.NewMockCouponReleaser(t)
 
-	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel, testhelper.DiscardLogger())
+	svc := payment.NewService(
+		repo,
+		testhelper.FakeTxRunner{},
+		gw,
+		orders,
+		orderGet,
+		orderItems,
+		inv,
+		invRestore,
+		couponRel,
+		testhelper.DiscardLogger(),
+	)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	RegisterRoutes(api, admin, RouteDeps{Validator: v, Service: svc, WebhookSecret: secret, Logger: testhelper.DiscardLogger()})
+	RegisterRoutes(
+		api,
+		admin,
+		RouteDeps{Validator: v, Service: svc, WebhookSecret: secret, Logger: testhelper.DiscardLogger()},
+	)
 
 	return mux, repo
 }

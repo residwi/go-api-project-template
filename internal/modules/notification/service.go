@@ -86,7 +86,12 @@ func (s *Service) Process(ctx context.Context, job Job) error {
 			job.Status = JobStatusPending
 		}
 		if updateErr := s.repo.UpdateJob(ctx, &job); updateErr != nil {
-			s.logger.ErrorContext(ctx, "failed to update notification job after failure", slog.Any("job_id", job.ID), slog.Any("error", updateErr))
+			s.logger.ErrorContext(
+				ctx,
+				"failed to update notification job after failure",
+				slog.Any("job_id", job.ID),
+				slog.Any("error", updateErr),
+			)
 		}
 		return fmt.Errorf("processing notification: %w", err)
 	}

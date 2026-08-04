@@ -201,7 +201,11 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 		catID := uuid.New()
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/categories/"+catID.String(), bytes.NewReader([]byte("{bad")))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/categories/"+catID.String(),
+			bytes.NewReader([]byte("{bad")),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)

@@ -135,9 +135,18 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 		// deduct inventory — instead of leaving it in awaiting_payment for a webhook
 		// or job that never comes. Mirrors the webhook success path.
 		finalizeJob := Job{PaymentID: p.ID, OrderID: params.OrderID, Action: ActionCharge}
-		if finalizeErr := s.FinalizePaymentSuccess(ctx, finalizeJob); finalizeErr != nil && !errors.Is(finalizeErr, apperror.ErrAlreadyFinalized) {
-			s.logger.ErrorContext(ctx, "synchronous charge succeeded but finalization failed, running compensating refund",
-				slog.Any("payment_id", p.ID), slog.Any("order_id", params.OrderID), slog.Any("error", finalizeErr))
+		if finalizeErr := s.FinalizePaymentSuccess(
+			ctx,
+			finalizeJob,
+		); finalizeErr != nil &&
+			!errors.Is(finalizeErr, apperror.ErrAlreadyFinalized) {
+			s.logger.ErrorContext(
+				ctx,
+				"synchronous charge succeeded but finalization failed, running compensating refund",
+				slog.Any("payment_id", p.ID),
+				slog.Any("order_id", params.OrderID),
+				slog.Any("error", finalizeErr),
+			)
 			s.runCompensatingRefund(ctx, finalizeJob)
 		}
 	case string(StatusPending):
@@ -193,7 +202,7 @@ func (s *Service) Process(ctx context.Context, job Job) error {
 // discards its rows-affected count, so nothing distinguishes "no such job" from
 // "job completed" at runtime.
 //
-//nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches
+//nolint:gocognit,funlen // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches; funlen counts golines' wrapping, not added logic (78 lines before this commit's reformat, 108 after)
 func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
 		orderSnap, err := s.orderGet.GetByID(txCtx, job.OrderID)
@@ -224,7 +233,12 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 			s.logger.InfoContext(txCtx, "job completed: already finalized by external actor (webhook)",
 				slog.Any("job_id", job.ID), slog.Any("order_id", job.OrderID), slog.Any("payment_id", job.PaymentID))
 			if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
-				s.logger.ErrorContext(txCtx, "failed to mark job completed", slog.Any("job_id", job.ID), slog.Any("error", markErr))
+				s.logger.ErrorContext(
+					txCtx,
+					"failed to mark job completed",
+					slog.Any("job_id", job.ID),
+					slog.Any("error", markErr),
+				)
 			}
 			return apperror.ErrAlreadyFinalized
 		}
@@ -235,10 +249,20 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 				slog.Any("order_status", orderSnap.Status))
 			if statusErr := s.repo.UpdateStatus(txCtx, job.PaymentID, StatusRequiresReview,
 				[]Status{StatusSuccess}); statusErr != nil {
-				s.logger.ErrorContext(txCtx, "failed to update payment status to requires_review", slog.Any("payment_id", job.PaymentID), slog.Any("error", statusErr))
+				s.logger.ErrorContext(
+					txCtx,
+					"failed to update payment status to requires_review",
+					slog.Any("payment_id", job.PaymentID),
+					slog.Any("error", statusErr),
+				)
 			}
 			if orderStatusErr := s.orders.MarkFulfillmentFailedAfterCharge(txCtx, job.OrderID); orderStatusErr != nil {
-				s.logger.ErrorContext(txCtx, "failed to update order status to fulfillment_failed", slog.Any("order_id", job.OrderID), slog.Any("error", orderStatusErr))
+				s.logger.ErrorContext(
+					txCtx,
+					"failed to update order status to fulfillment_failed",
+					slog.Any("order_id", job.OrderID),
+					slog.Any("error", orderStatusErr),
+				)
 			}
 
 			refundJob := &Job{
@@ -249,10 +273,20 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 				NextRetryAt: time.Now(),
 			}
 			if createErr := s.repo.CreateJob(txCtx, refundJob); createErr != nil {
-				s.logger.ErrorContext(txCtx, "failed to create refund job", slog.Any("order_id", job.OrderID), slog.Any("error", createErr))
+				s.logger.ErrorContext(
+					txCtx,
+					"failed to create refund job",
+					slog.Any("order_id", job.OrderID),
+					slog.Any("error", createErr),
+				)
 			}
 			if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
-				s.logger.ErrorContext(txCtx, "failed to mark job completed", slog.Any("job_id", job.ID), slog.Any("error", markErr))
+				s.logger.ErrorContext(
+					txCtx,
+					"failed to mark job completed",
+					slog.Any("job_id", job.ID),
+					slog.Any("error", markErr),
+				)
 			}
 			return nil
 		}
@@ -267,13 +301,22 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 		}
 
 		if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
-			s.logger.ErrorContext(txCtx, "failed to mark job completed", slog.Any("job_id", job.ID), slog.Any("error", markErr))
+			s.logger.ErrorContext(
+				txCtx,
+				"failed to mark job completed",
+				slog.Any("job_id", job.ID),
+				slog.Any("error", markErr),
+			)
 		}
 		return nil
 	})
 }
 
-func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) error { //nolint:gocognit // resolves the payment then dispatches success/failed/cancelled/expired event branches
+//nolint:gocognit,funlen // resolves the payment then dispatches success/failed/cancelled/expired event branches; funlen counts golines' wrapping, not added logic
+func (s *Service) HandleWebhook(
+	ctx context.Context,
+	payload map[string]any,
+) error {
 	event, _ := payload["event"].(string)
 	metadata, _ := payload["metadata"].(map[string]any)
 	txnID, _ := payload["transaction_id"].(string)
@@ -286,7 +329,12 @@ func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) err
 			if parseErr == nil {
 				found, getErr := s.repo.GetByID(ctx, pid)
 				if getErr != nil {
-					s.logger.ErrorContext(ctx, "webhook: failed to get payment by id", slog.Any("payment_id", pid), slog.Any("error", getErr))
+					s.logger.ErrorContext(
+						ctx,
+						"webhook: failed to get payment by id",
+						slog.Any("payment_id", pid),
+						slog.Any("error", getErr),
+					)
 				} else {
 					p = found
 				}
@@ -298,7 +346,12 @@ func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) err
 		found, getErr := s.repo.GetByGatewayTxnID(ctx, txnID)
 		if getErr != nil {
 			if !errors.Is(getErr, apperror.ErrNotFound) {
-				s.logger.ErrorContext(ctx, "webhook: failed to get payment by gateway txn id", slog.Any("txn_id", txnID), slog.Any("error", getErr))
+				s.logger.ErrorContext(
+					ctx,
+					"webhook: failed to get payment by gateway txn id",
+					slog.Any("txn_id", txnID),
+					slog.Any("error", getErr),
+				)
 			}
 		} else {
 			p = found
@@ -340,26 +393,51 @@ func (s *Service) HandleWebhook(ctx context.Context, payload map[string]any) err
 			return nil
 		}
 		if err := s.repo.MarkJobCompletedByPaymentID(ctx, p.ID, ActionCharge); err != nil {
-			s.logger.ErrorContext(ctx, "webhook: failed to mark job completed by payment id", slog.Any("payment_id", p.ID), slog.Any("error", err))
+			s.logger.ErrorContext(
+				ctx,
+				"webhook: failed to mark job completed by payment id",
+				slog.Any("payment_id", p.ID),
+				slog.Any("error", err),
+			)
 		}
 
 	case "failed", "cancelled", "expired":
 		if err := s.repo.UpdateStatus(ctx, p.ID, StatusCancelled,
 			[]Status{StatusPending, StatusProcessing}); err != nil {
-			s.logger.ErrorContext(ctx, "webhook: failed to update payment status to cancelled", slog.Any("payment_id", p.ID), slog.Any("error", err))
+			s.logger.ErrorContext(
+				ctx,
+				"webhook: failed to update payment status to cancelled",
+				slog.Any("payment_id", p.ID),
+				slog.Any("error", err),
+			)
 		}
 		if err := s.repo.ClearPaymentURL(ctx, p.ID); err != nil {
-			s.logger.ErrorContext(ctx, "webhook: failed to clear payment url", slog.Any("payment_id", p.ID), slog.Any("error", err))
+			s.logger.ErrorContext(
+				ctx,
+				"webhook: failed to clear payment url",
+				slog.Any("payment_id", p.ID),
+				slog.Any("error", err),
+			)
 		}
 		if err := s.repo.CancelJobsByOrderID(ctx, p.OrderID); err != nil {
-			s.logger.ErrorContext(ctx, "webhook: failed to cancel jobs", slog.Any("order_id", p.OrderID), slog.Any("error", err))
+			s.logger.ErrorContext(
+				ctx,
+				"webhook: failed to cancel jobs",
+				slog.Any("order_id", p.OrderID),
+				slog.Any("error", err),
+			)
 		}
 		// Cancel the order and release its reserved stock now rather than leaving it
 		// reserved until the expiry sweep (which can't touch a payment_processing
 		// order at all). ErrBadRequest means the order is no longer cancellable
 		// (e.g. a concurrent charge already paid it) — leave it for that flow.
 		if err := s.orders.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, apperror.ErrBadRequest) {
-			s.logger.ErrorContext(ctx, "webhook: failed to cancel order after payment failure", slog.Any("order_id", p.OrderID), slog.Any("error", err))
+			s.logger.ErrorContext(
+				ctx,
+				"webhook: failed to cancel order after payment failure",
+				slog.Any("order_id", p.OrderID),
+				slog.Any("error", err),
+			)
 		}
 		s.logger.InfoContext(ctx, "webhook payment failed",
 			slog.Any("payment_id", p.ID), slog.Any("gateway_event", event))
@@ -413,7 +491,12 @@ func (s *Service) processChargeJob(ctx context.Context, job Job) error {
 			slog.Any("job_id", job.ID), slog.Any("order_id", job.OrderID), slog.Any("payment_id", job.PaymentID))
 		job.Status = JobStatusCancelled
 		if updateErr := s.repo.UpdateJob(ctx, &job); updateErr != nil {
-			s.logger.ErrorContext(ctx, "failed to update cancelled job", slog.Any("job_id", job.ID), slog.Any("error", updateErr))
+			s.logger.ErrorContext(
+				ctx,
+				"failed to update cancelled job",
+				slog.Any("job_id", job.ID),
+				slog.Any("error", updateErr),
+			)
 		}
 		return fmt.Errorf("charge job cancelled: order %s not in expected state", job.OrderID)
 	}
@@ -448,7 +531,12 @@ func (s *Service) processChargeJob(ctx context.Context, job Job) error {
 
 	respJSON, _ := json.Marshal(resp)
 	if updateErr := s.repo.UpdateGateway(ctx, p.ID, resp.TransactionID, respJSON); updateErr != nil {
-		s.logger.ErrorContext(ctx, "failed to update gateway info", slog.Any("job_id", job.ID), slog.Any("error", updateErr))
+		s.logger.ErrorContext(
+			ctx,
+			"failed to update gateway info",
+			slog.Any("job_id", job.ID),
+			slog.Any("error", updateErr),
+		)
 	}
 
 	switch resp.Status {
@@ -493,7 +581,9 @@ func (s *Service) handleChargeFailure(ctx context.Context, job *Job, lastError s
 		job.Status = JobStatusPending
 		job.LockedUntil = nil
 		backoff := time.Duration(1<<min(max(job.Attempts, 0), 30)) * time.Second
-		jitter := time.Duration(rand.N(int64(backoff / jitterDivisor))) //nolint:gosec // jitter doesn't need crypto randomness
+		jitter := time.Duration(
+			rand.N(int64(backoff / jitterDivisor)), //nolint:gosec // jitter doesn't need crypto randomness
+		)
 		nextRetry := time.Now().Add(backoff + jitter)
 		job.NextRetryAt = nextRetry
 	}
@@ -508,10 +598,20 @@ func (s *Service) runCompensatingRefund(ctx context.Context, job Job) {
 	txErr := s.tx.Run(ctx, func(txCtx context.Context) error {
 		if statusErr := s.repo.UpdateStatus(txCtx, job.PaymentID, StatusRequiresReview,
 			[]Status{StatusPending, StatusProcessing, StatusSuccess}); statusErr != nil {
-			s.logger.ErrorContext(txCtx, "failed to update payment status in compensating refund", slog.Any("payment_id", job.PaymentID), slog.Any("error", statusErr))
+			s.logger.ErrorContext(
+				txCtx,
+				"failed to update payment status in compensating refund",
+				slog.Any("payment_id", job.PaymentID),
+				slog.Any("error", statusErr),
+			)
 		}
 		if orderErr := s.orders.MarkFulfillmentFailedCompensating(txCtx, job.OrderID); orderErr != nil {
-			s.logger.ErrorContext(txCtx, "failed to update order status in compensating refund", slog.Any("order_id", job.OrderID), slog.Any("error", orderErr))
+			s.logger.ErrorContext(
+				txCtx,
+				"failed to update order status in compensating refund",
+				slog.Any("order_id", job.OrderID),
+				slog.Any("error", orderErr),
+			)
 		}
 
 		refundJob := &Job{
@@ -529,11 +629,16 @@ func (s *Service) runCompensatingRefund(ctx context.Context, job Job) {
 	}
 }
 
-//nolint:gocognit // refund retry/backoff bookkeeping plus the gateway-call-then-commit finalization
+//nolint:gocognit,funlen // refund retry/backoff bookkeeping plus the gateway-call-then-commit finalization; funlen counts golines' wrapping, not added logic
 func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 	p, err := s.repo.GetByID(ctx, job.PaymentID)
 	if err != nil {
-		s.logger.ErrorContext(ctx, "failed to get payment for refund", slog.Any("job_id", job.ID), slog.Any("error", err))
+		s.logger.ErrorContext(
+			ctx,
+			"failed to get payment for refund",
+			slog.Any("job_id", job.ID),
+			slog.Any("error", err),
+		)
 		return fmt.Errorf("getting payment for refund: %w", err)
 	}
 
@@ -542,14 +647,29 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 			slog.Any("job_id", job.ID), slog.Any("payment_status", p.Status))
 		job.Status = JobStatusCancelled
 		if updateErr := s.repo.UpdateJob(ctx, &job); updateErr != nil {
-			s.logger.ErrorContext(ctx, "failed to update cancelled refund job", slog.Any("job_id", job.ID), slog.Any("error", updateErr))
+			s.logger.ErrorContext(
+				ctx,
+				"failed to update cancelled refund job",
+				slog.Any("job_id", job.ID),
+				slog.Any("error", updateErr),
+			)
 		}
 		return fmt.Errorf("refund job cancelled: payment %s not refundable", job.PaymentID)
 	}
 
-	s.logger.InfoContext(ctx, "processing refund",
-		slog.Any("job_id", job.ID), slog.Any("order_id", job.OrderID), slog.Any("payment_id", job.PaymentID),
-		slog.Any("gateway_txn_id", p.GatewayTxnID), slog.Any("amount", p.Amount.Amount), slog.Any("currency", p.Amount.Currency))
+	s.logger.InfoContext(
+		ctx,
+		"processing refund",
+		slog.Any("job_id", job.ID),
+		slog.Any("order_id", job.OrderID),
+		slog.Any("payment_id", job.PaymentID),
+		slog.Any(
+			"gateway_txn_id",
+			p.GatewayTxnID,
+		),
+		slog.Any("amount", p.Amount.Amount),
+		slog.Any("currency", p.Amount.Currency),
+	)
 
 	// RefundRequest carries no currency at all -- the gateway identifies the
 	// original charge by TransactionID and refunds in whatever that was
@@ -568,8 +688,17 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 	job.Attempts++
 
 	if gwErr != nil {
-		s.logger.ErrorContext(ctx, "refund failed",
-			slog.Any("job_id", job.ID), slog.Any("order_id", job.OrderID), slog.Any("attempt", job.Attempts), slog.Any("error", gwErr))
+		s.logger.ErrorContext(
+			ctx,
+			"refund failed",
+			slog.Any(
+				"job_id",
+				job.ID,
+			),
+			slog.Any("order_id", job.OrderID),
+			slog.Any("attempt", job.Attempts),
+			slog.Any("error", gwErr),
+		)
 		job.LastError = gwErr.Error()
 
 		if job.Attempts >= job.MaxAttempts {
@@ -577,12 +706,19 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		} else {
 			job.Status = JobStatusPending
 			backoff := time.Duration(1<<min(max(job.Attempts, 0), 30)) * time.Second
-			jitter := time.Duration(rand.N(int64(backoff / jitterDivisor))) //nolint:gosec // jitter doesn't need crypto randomness
+			jitter := time.Duration(
+				rand.N(int64(backoff / jitterDivisor)), //nolint:gosec // jitter doesn't need crypto randomness
+			)
 			job.NextRetryAt = time.Now().Add(backoff + jitter)
 		}
 		job.LockedUntil = nil
 		if updateErr := s.repo.UpdateJob(ctx, &job); updateErr != nil {
-			s.logger.ErrorContext(ctx, "failed to update refund job after failure", slog.Any("job_id", job.ID), slog.Any("error", updateErr))
+			s.logger.ErrorContext(
+				ctx,
+				"failed to update refund job after failure",
+				slog.Any("job_id", job.ID),
+				slog.Any("error", updateErr),
+			)
 		}
 		return fmt.Errorf("refund failed: %w", gwErr)
 	}
@@ -604,10 +740,20 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 
 		if statusErr := s.repo.UpdateStatus(txCtx, job.PaymentID, StatusRefunded,
 			[]Status{StatusSuccess, StatusRequiresReview}); statusErr != nil {
-			s.logger.ErrorContext(txCtx, "failed to update payment status to refunded", slog.Any("payment_id", job.PaymentID), slog.Any("error", statusErr))
+			s.logger.ErrorContext(
+				txCtx,
+				"failed to update payment status to refunded",
+				slog.Any("payment_id", job.PaymentID),
+				slog.Any("error", statusErr),
+			)
 		}
 		if orderStatusErr := s.orders.MarkRefunded(txCtx, job.OrderID); orderStatusErr != nil {
-			s.logger.ErrorContext(txCtx, "failed to update order status to refunded", slog.Any("order_id", job.OrderID), slog.Any("error", orderStatusErr))
+			s.logger.ErrorContext(
+				txCtx,
+				"failed to update order status to refunded",
+				slog.Any("order_id", job.OrderID),
+				slog.Any("error", orderStatusErr),
+			)
 		}
 
 		items, listErr := s.orderItems.ListItemsByOrderID(txCtx, job.OrderID)
@@ -622,7 +768,11 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 				slog.Any("order_id", job.OrderID), slog.Any("order_status", orderSnap.Status))
 		case len(items) > 0 && !orderSnap.StockReversed:
 			// Inventory owns release-vs-restock; we pass the order's persisted fact.
-			if restoreErr := s.inventoryRestorer.Restore(txCtx, toInventoryChanges(items), orderSnap.StockDeducted); restoreErr != nil {
+			if restoreErr := s.inventoryRestorer.Restore(
+				txCtx,
+				toInventoryChanges(items),
+				orderSnap.StockDeducted,
+			); restoreErr != nil {
 				s.logger.ErrorContext(txCtx, "failed to restore inventory on refund",
 					slog.Any("order_id", job.OrderID), slog.Any("error", restoreErr))
 			}
@@ -635,7 +785,12 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		}
 
 		if markErr := s.repo.MarkJobCompleted(txCtx, job.ID); markErr != nil {
-			s.logger.ErrorContext(txCtx, "failed to mark refund job completed", slog.Any("job_id", job.ID), slog.Any("error", markErr))
+			s.logger.ErrorContext(
+				txCtx,
+				"failed to mark refund job completed",
+				slog.Any("job_id", job.ID),
+				slog.Any("error", markErr),
+			)
 		}
 		return nil
 	})

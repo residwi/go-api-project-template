@@ -38,7 +38,12 @@ type TokenPair struct {
 	User         UserResult
 }
 
-func GenerateTokenPair(secret string, issuer string, accessTTL, refreshTTL time.Duration, claims Claims) (accessToken, refreshToken string, err error) {
+func GenerateTokenPair(
+	secret string,
+	issuer string,
+	accessTTL, refreshTTL time.Duration,
+	claims Claims,
+) (accessToken, refreshToken string, err error) {
 	accessToken, err = generateToken(secret, issuer, accessTTL, Claims{
 		UserID:       claims.UserID,
 		Email:        claims.Email,

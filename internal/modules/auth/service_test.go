@@ -190,7 +190,9 @@ func TestService_Login(t *testing.T) {
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
-		users.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").Return(auth.UserCredentials{}, errors.New("not found"))
+		users.EXPECT().
+			GetByEmail(mock.Anything, "notfound@example.com").
+			Return(auth.UserCredentials{}, errors.New("not found"))
 
 		resp, err := svc.Login(context.Background(), auth.LoginParams{
 			Email:    "notfound@example.com",
@@ -218,7 +220,13 @@ func TestService_RefreshToken(t *testing.T) {
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		_, refreshToken, err := auth.GenerateTokenPair("test-secret", "test-issuer", 15*time.Minute, 24*time.Hour, claims)
+		_, refreshToken, err := auth.GenerateTokenPair(
+			"test-secret",
+			"test-issuer",
+			15*time.Minute,
+			24*time.Hour,
+			claims,
+		)
 		require.NoError(t, err)
 
 		users.EXPECT().GetByID(mock.Anything, userID).Return(auth.UserResult{
@@ -263,7 +271,13 @@ func TestService_RefreshToken(t *testing.T) {
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		accessToken, _, err := auth.GenerateTokenPair("test-secret", "test-issuer", 15*time.Minute, 24*time.Hour, claims)
+		accessToken, _, err := auth.GenerateTokenPair(
+			"test-secret",
+			"test-issuer",
+			15*time.Minute,
+			24*time.Hour,
+			claims,
+		)
 		require.NoError(t, err)
 
 		resp, err := svc.RefreshToken(context.Background(), accessToken)
@@ -285,7 +299,13 @@ func TestService_RefreshToken(t *testing.T) {
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		_, refreshToken, err := auth.GenerateTokenPair("test-secret", "test-issuer", 15*time.Minute, 24*time.Hour, claims)
+		_, refreshToken, err := auth.GenerateTokenPair(
+			"test-secret",
+			"test-issuer",
+			15*time.Minute,
+			24*time.Hour,
+			claims,
+		)
 		require.NoError(t, err)
 
 		users.EXPECT().GetByID(mock.Anything, userID).Return(auth.UserResult{
@@ -314,7 +334,13 @@ func TestService_RefreshToken(t *testing.T) {
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		_, refreshToken, err := auth.GenerateTokenPair("test-secret", "test-issuer", 15*time.Minute, 24*time.Hour, claims)
+		_, refreshToken, err := auth.GenerateTokenPair(
+			"test-secret",
+			"test-issuer",
+			15*time.Minute,
+			24*time.Hour,
+			claims,
+		)
 		require.NoError(t, err)
 
 		users.EXPECT().GetByID(mock.Anything, userID).Return(auth.UserResult{
@@ -343,7 +369,13 @@ func TestService_RefreshToken(t *testing.T) {
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		_, refreshToken, err := auth.GenerateTokenPair("test-secret", "test-issuer", 15*time.Minute, 24*time.Hour, claims)
+		_, refreshToken, err := auth.GenerateTokenPair(
+			"test-secret",
+			"test-issuer",
+			15*time.Minute,
+			24*time.Hour,
+			claims,
+		)
 		require.NoError(t, err)
 
 		dbErr := errors.New("database connection lost")
@@ -371,7 +403,13 @@ func TestService_ValidateAccessToken(t *testing.T) {
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		accessToken, _, err := auth.GenerateTokenPair("test-secret", "test-issuer", 15*time.Minute, 24*time.Hour, claims)
+		accessToken, _, err := auth.GenerateTokenPair(
+			"test-secret",
+			"test-issuer",
+			15*time.Minute,
+			24*time.Hour,
+			claims,
+		)
 		require.NoError(t, err)
 
 		result, err := svc.ValidateAccessToken(accessToken)
@@ -397,7 +435,13 @@ func TestService_ValidateAccessToken(t *testing.T) {
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		accessToken, _, err := auth.GenerateTokenPair("test-secret", "test-issuer", -1*time.Second, 24*time.Hour, claims)
+		accessToken, _, err := auth.GenerateTokenPair(
+			"test-secret",
+			"test-issuer",
+			-1*time.Second,
+			24*time.Hour,
+			claims,
+		)
 		require.NoError(t, err)
 
 		result, err := svc.ValidateAccessToken(accessToken)
@@ -423,7 +467,13 @@ func TestTokenValidatorAdapter(t *testing.T) {
 			Role:         "customer",
 			TokenVersion: 2,
 		}
-		accessToken, _, err := auth.GenerateTokenPair("test-secret", "test-issuer", 15*time.Minute, 24*time.Hour, claims)
+		accessToken, _, err := auth.GenerateTokenPair(
+			"test-secret",
+			"test-issuer",
+			15*time.Minute,
+			24*time.Hour,
+			claims,
+		)
 		require.NoError(t, err)
 
 		result, err := adapter.ValidateToken(accessToken)

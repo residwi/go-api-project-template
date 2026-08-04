@@ -34,7 +34,13 @@ func TestHandler_List_Success(t *testing.T) {
 
 		now := time.Now()
 		notifications := []notification.Notification{
-			{ID: uuid.New(), UserID: uc.UserID, Type: notification.TypeOrderPlaced, Title: "Order Placed", CreatedAt: now},
+			{
+				ID:        uuid.New(),
+				UserID:    uc.UserID,
+				Type:      notification.TypeOrderPlaced,
+				Title:     "Order Placed",
+				CreatedAt: now,
+			},
 		}
 		repo.EXPECT().ListByUser(mock.Anything, uc.UserID, mock.Anything).Return(notifications, nil)
 
@@ -377,10 +383,14 @@ func TestToNotificationResponse_OmitsUserIDAndRawPayload(t *testing.T) {
 
 	var fields map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(raw, &fields))
-	assert.ElementsMatch(t, []string{"id", "type", "title", "body", "is_read", "created_at"}, slices.Collect(maps.Keys(fields)),
+	assert.ElementsMatch(
+		t,
+		[]string{"id", "type", "title", "body", "is_read", "created_at"},
+		slices.Collect(maps.Keys(fields)),
 		"the response must expose exactly these fields -- this key-set assertion is the real control against "+
 			"Data leaking back in, since it is a []byte and would marshal to base64 rather than the plaintext "+
-			"checked below")
+			"checked below",
+	)
 
 	assert.NotContains(t, string(raw), userID.String(),
 		"the caller is always the authenticated user; echoing user_id back adds nothing")

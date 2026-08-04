@@ -61,7 +61,13 @@ func NewService(
 	}
 }
 
-func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, p PlaceParams, idempotencyKey string) (*PlaceResult, error) { //nolint:gocognit,funlen // checkout orchestrates idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction
+//nolint:gocognit,funlen // checkout orchestrates idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction
+func (s *Service) PlaceOrder(
+	ctx context.Context,
+	userID uuid.UUID,
+	p PlaceParams,
+	idempotencyKey string,
+) (*PlaceResult, error) {
 	existing, err := s.repo.GetByUserIDAndIdempotencyKey(ctx, userID, idempotencyKey)
 	if err != nil && !errors.Is(err, apperror.ErrNotFound) {
 		return nil, err
@@ -216,7 +222,11 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, p PlaceParam
 	return &PlaceResult{Order: order}, nil
 }
 
-func (s *Service) RetryPayment(ctx context.Context, userID, orderID uuid.UUID, paymentMethodID string) (*PaymentResult, error) {
+func (s *Service) RetryPayment(
+	ctx context.Context,
+	userID, orderID uuid.UUID,
+	paymentMethodID string,
+) (*PaymentResult, error) {
 	order, err := s.repo.GetByID(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -259,7 +269,12 @@ func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) er
 
 	if s.paymentCancel != nil {
 		if err := s.paymentCancel.CancelJobsByOrderID(ctx, orderID); err != nil {
-			s.logger.WarnContext(ctx, "failed to cancel payment jobs", slog.Any("order_id", orderID), slog.Any("error", err))
+			s.logger.WarnContext(
+				ctx,
+				"failed to cancel payment jobs",
+				slog.Any("order_id", orderID),
+				slog.Any("error", err),
+			)
 		}
 	}
 
@@ -312,7 +327,12 @@ func (s *Service) RecoverStaleProcessing(ctx context.Context) error {
 			if errors.Is(err, apperror.ErrConflict) {
 				continue // already moved on by another worker
 			}
-			s.logger.ErrorContext(ctx, "failed to recover stale processing order", slog.Any("order_id", o.ID), slog.Any("error", err))
+			s.logger.ErrorContext(
+				ctx,
+				"failed to recover stale processing order",
+				slog.Any("order_id", o.ID),
+				slog.Any("error", err),
+			)
 		}
 	}
 	return nil
@@ -380,7 +400,11 @@ func (s *Service) AdminUpdateStatus(ctx context.Context, orderID uuid.UUID, toSt
 		// i.e. from an order with money captured and stock deducted. A bare status
 		// write here would strand both — no refund, no restock — so it must go
 		// through the payment/refund compensating flow, not a direct admin update.
-		return fmt.Errorf("%w: status %s is managed by the payment, cancel, or refund flow and cannot be set with a direct status update", apperror.ErrBadRequest, toStatus)
+		return fmt.Errorf(
+			"%w: status %s is managed by the payment, cancel, or refund flow and cannot be set with a direct status update",
+			apperror.ErrBadRequest,
+			toStatus,
+		)
 	case StatusAwaitingPayment, StatusProcessing, StatusShipped, StatusDelivered:
 		// Side-effect-free fulfillment markers — allowed to be set directly below
 		// (subject to CanTransition); none of these reverse inventory or payment.
@@ -530,7 +554,12 @@ func (s *Service) releaseOrderHolds(ctx context.Context, o Order) error {
 
 	if s.coupons != nil && o.CouponCode != nil && *o.CouponCode != "" {
 		if err := s.coupons.Release(ctx, o.ID); err != nil {
-			s.logger.WarnContext(ctx, "failed to release coupon on expire", slog.Any("order_id", o.ID), slog.Any("error", err))
+			s.logger.WarnContext(
+				ctx,
+				"failed to release coupon on expire",
+				slog.Any("order_id", o.ID),
+				slog.Any("error", err),
+			)
 		}
 	}
 	return nil

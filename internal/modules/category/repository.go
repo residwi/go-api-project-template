@@ -15,5 +15,9 @@ type Repository interface {
 	Update(ctx context.Context, cat *Category) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	List(ctx context.Context) ([]Category, error)
-	AncestorDepthAndCycle(ctx context.Context, parentID, selfID uuid.UUID, maxDepth int) (depth int, formsCycle bool, err error)
+	AncestorDepthAndCycle(
+		ctx context.Context,
+		parentID, selfID uuid.UUID,
+		maxDepth int,
+	) (depth int, formsCycle bool, err error)
 }

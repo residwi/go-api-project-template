@@ -35,7 +35,10 @@ func (s *Service) Create(ctx context.Context, userID, productID uuid.UUID, p Cre
 		return nil, err
 	}
 	if !delivered {
-		return nil, fmt.Errorf("%w: order must be a delivered order of yours containing this product", apperror.ErrBadRequest)
+		return nil, fmt.Errorf(
+			"%w: order must be a delivered order of yours containing this product",
+			apperror.ErrBadRequest,
+		)
 	}
 
 	reviewed, err := s.repo.HasUserReviewed(ctx, userID, productID)

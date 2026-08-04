@@ -160,7 +160,11 @@ func TestHandler_ListProducts(t *testing.T) {
 		})).Return(nil, "", false, nil)
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/api/v1/products?category_id="+catID.String()+"&min_price=100&max_price=5000", nil)
+		r := httptest.NewRequest(
+			http.MethodGet,
+			"/api/v1/products?category_id="+catID.String()+"&min_price=100&max_price=5000",
+			nil,
+		)
 
 		mux.ServeHTTP(w, r)
 

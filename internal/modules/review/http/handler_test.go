@@ -70,7 +70,12 @@ func TestHandler_ListByProduct(t *testing.T) {
 		assert.InDelta(t, float64(5), item["rating"], 0.0001)
 		assert.Equal(t, "Great product", item["title"])
 		assert.Equal(t, "Love it", item["body"])
-		assert.NotContains(t, item, "status", "status is dropped: every review this endpoint can return is already published")
+		assert.NotContains(
+			t,
+			item,
+			"status",
+			"status is dropped: every review this endpoint can return is already published",
+		)
 		assert.NotContains(t, item, "user_id", "user_id is dropped to avoid correlating purchases to accounts")
 
 		pagination, ok := data["pagination"].(map[string]any)
@@ -183,7 +188,11 @@ func TestHandler_Create(t *testing.T) {
 		})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/products/"+productID.String()+"/reviews", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/products/"+productID.String()+"/reviews",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
 			UserID: userID,
@@ -271,7 +280,11 @@ func TestHandler_Create(t *testing.T) {
 		productID := uuid.New()
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/products/"+productID.String()+"/reviews", bytes.NewReader([]byte("{bad")))
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/products/"+productID.String()+"/reviews",
+			bytes.NewReader([]byte("{bad")),
+		)
 		r.Header.Set("Content-Type", "application/json")
 		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
 			UserID: uuid.New(),
@@ -294,7 +307,11 @@ func TestHandler_Create(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/products/"+productID.String()+"/reviews", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/products/"+productID.String()+"/reviews",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
 			UserID: uuid.New(),
@@ -336,7 +353,11 @@ func TestHandler_Create(t *testing.T) {
 		})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/products/"+productID.String()+"/reviews", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/products/"+productID.String()+"/reviews",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
 			UserID: userID,
@@ -382,8 +403,12 @@ func TestToReviewResponse_OmitsReviewerAndInternalFields(t *testing.T) {
 
 	var fields map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(raw, &fields))
-	assert.ElementsMatch(t, []string{"id", "product_id", "rating", "title", "body", "created_at"}, slices.Collect(maps.Keys(fields)),
-		"the response must expose exactly these fields")
+	assert.ElementsMatch(
+		t,
+		[]string{"id", "product_id", "rating", "title", "body", "created_at"},
+		slices.Collect(maps.Keys(fields)),
+		"the response must expose exactly these fields",
+	)
 
 	assert.NotContains(t, string(raw), userID.String(),
 		"a review response naming the reviewer's id lets a scraper correlate purchases to accounts")

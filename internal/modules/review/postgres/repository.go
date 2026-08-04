@@ -17,7 +17,18 @@ import (
 
 func scanReview(row pgx.CollectableRow) (review.Review, error) {
 	var rv review.Review
-	err := row.Scan(&rv.ID, &rv.UserID, &rv.ProductID, &rv.OrderID, &rv.Rating, &rv.Title, &rv.Body, &rv.Status, &rv.CreatedAt, &rv.UpdatedAt)
+	err := row.Scan(
+		&rv.ID,
+		&rv.UserID,
+		&rv.ProductID,
+		&rv.OrderID,
+		&rv.Rating,
+		&rv.Title,
+		&rv.Body,
+		&rv.Status,
+		&rv.CreatedAt,
+		&rv.UpdatedAt,
+	)
 	return rv, err
 }
 
@@ -62,7 +73,11 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*review.Review,
 	return &rv, nil
 }
 
-func (r *Repository) ListByProduct(ctx context.Context, productID uuid.UUID, cursor paging.CursorPage) ([]review.Review, error) {
+func (r *Repository) ListByProduct(
+	ctx context.Context,
+	productID uuid.UUID,
+	cursor paging.CursorPage,
+) ([]review.Review, error) {
 	db := database.DB(ctx, r.pool)
 
 	args := []any{productID}

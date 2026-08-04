@@ -248,7 +248,9 @@ func TestHandler_Login(t *testing.T) {
 
 		mux, users := newTestMux(t)
 
-		users.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").Return(auth.UserCredentials{}, apperror.ErrNotFound)
+		users.EXPECT().
+			GetByEmail(mock.Anything, "notfound@example.com").
+			Return(auth.UserCredentials{}, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{
 			"email":    "notfound@example.com",
@@ -284,7 +286,13 @@ func TestHandler_RefreshToken(t *testing.T) {
 			Role:         "user",
 			TokenVersion: 1,
 		}
-		_, refreshToken, err := auth.GenerateTokenPair("test-secret", "test-issuer", 15*time.Minute, 24*time.Hour, claims)
+		_, refreshToken, err := auth.GenerateTokenPair(
+			"test-secret",
+			"test-issuer",
+			15*time.Minute,
+			24*time.Hour,
+			claims,
+		)
 		require.NoError(t, err)
 
 		users.EXPECT().GetByID(mock.Anything, userID).Return(auth.UserResult{
@@ -408,13 +416,21 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 
 	var fields map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(raw, &fields))
-	assert.ElementsMatch(t, []string{"access_token", "refresh_token", "expires_in", "user"}, slices.Collect(maps.Keys(fields)),
-		"the token response must expose exactly these fields")
+	assert.ElementsMatch(
+		t,
+		[]string{"access_token", "refresh_token", "expires_in", "user"},
+		slices.Collect(maps.Keys(fields)),
+		"the token response must expose exactly these fields",
+	)
 
 	var userFields map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(fields["user"], &userFields))
-	assert.ElementsMatch(t, []string{"id", "email", "first_name", "last_name", "role"}, slices.Collect(maps.Keys(userFields)),
-		"the embedded user must expose exactly these fields")
+	assert.ElementsMatch(
+		t,
+		[]string{"id", "email", "first_name", "last_name", "role"},
+		slices.Collect(maps.Keys(userFields)),
+		"the embedded user must expose exactly these fields",
+	)
 
 	assert.NotContains(t, string(raw), "424242",
 		"token_version is auth-internal revocation state and must not be serialised")

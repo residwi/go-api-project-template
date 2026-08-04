@@ -70,7 +70,11 @@ func (r *Repository) RemoveItem(ctx context.Context, userID, productID uuid.UUID
 	return nil
 }
 
-func (r *Repository) GetItems(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]wishlist.Item, error) {
+func (r *Repository) GetItems(
+	ctx context.Context,
+	userID uuid.UUID,
+	cursor paging.CursorPage,
+) ([]wishlist.Item, error) {
 	db := database.DB(ctx, r.pool)
 
 	args := []any{userID}

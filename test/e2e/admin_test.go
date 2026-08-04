@@ -161,12 +161,32 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM reviews WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
-		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM shipments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM shipments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
-		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
@@ -200,7 +220,10 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	err = testPool.QueryRow(ctx, `SELECT id FROM payments WHERE order_id = $1`, orderID).Scan(&paymentID)
 	require.NoError(t, err)
 
-	webhookBody := fmt.Sprintf(`{"event":"success","metadata":{"payment_id":"%s"},"transaction_id":"txn_ship"}`, paymentID)
+	webhookBody := fmt.Sprintf(
+		`{"event":"success","metadata":{"payment_id":"%s"},"transaction_id":"txn_ship"}`,
+		paymentID,
+	)
 	whReq := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", strings.NewReader(webhookBody))
 	whReq.Header.Set("Content-Type", "application/json")
 	whW := httptest.NewRecorder()
@@ -258,7 +281,11 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 
 	t.Run("user can review purchased product after delivery", func(t *testing.T) {
 		body := `{"order_id":"` + orderID + `","rating":5,"title":"Great","body":"Great product!"}`
-		req := httptest.NewRequest(http.MethodPost, "/api/products/"+prodID.String()+"/reviews", strings.NewReader(body))
+		req := httptest.NewRequest(
+			http.MethodPost,
+			"/api/products/"+prodID.String()+"/reviews",
+			strings.NewReader(body),
+		)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+adminToken)
 		w := httptest.NewRecorder()

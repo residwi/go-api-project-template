@@ -110,7 +110,7 @@ func (h *handler) GetCart(w http.ResponseWriter, r *http.Request) {
 // vocabulary.
 type addItemRequest struct {
 	ProductID uuid.UUID `json:"product_id" validate:"required"`
-	Quantity  int       `json:"quantity" validate:"required,min=1"`
+	Quantity  int       `json:"quantity"   validate:"required,min=1"`
 }
 
 // toAddItemParams is the seam: HTTP's validation vocabulary stops here, and

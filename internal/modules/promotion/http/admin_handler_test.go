@@ -115,7 +115,9 @@ func TestAdminHandler_List(t *testing.T) {
 
 		mux, repo := setupPromotionMux(t)
 
-		repo.EXPECT().ListAdmin(mock.Anything, promotion.ListParams{Page: 1, PageSize: 20}).Return(nil, 0, assert.AnError)
+		repo.EXPECT().
+			ListAdmin(mock.Anything, promotion.ListParams{Page: 1, PageSize: 20}).
+			Return(nil, 0, assert.AnError)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/promotions", nil)

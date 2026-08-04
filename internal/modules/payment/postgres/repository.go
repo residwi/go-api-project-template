@@ -39,13 +39,20 @@ func New(pool *pgxpool.Pool) *Repository {
 
 func (r *Repository) Create(ctx context.Context, p *payment.Payment) error {
 	db := database.DB(ctx, r.pool)
-	err := db.QueryRow(ctx,
+	err := db.QueryRow(
+		ctx,
 		`INSERT INTO payments (order_id, amount, currency, status, method, payment_method_id, payment_url, gateway_txn_id, gateway_response)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, updated_at`,
-		p.OrderID, p.Amount.Amount, p.Amount.Currency, p.Status, p.Method,
-		nilIfEmpty(p.PaymentMethodID), nilIfEmpty(p.PaymentURL),
-		nilIfEmpty(p.GatewayTxnID), p.GatewayResponse,
+		p.OrderID,
+		p.Amount.Amount,
+		p.Amount.Currency,
+		p.Status,
+		p.Method,
+		nilIfEmpty(p.PaymentMethodID),
+		nilIfEmpty(p.PaymentURL),
+		nilIfEmpty(p.GatewayTxnID),
+		p.GatewayResponse,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("creating payment: %w", err)
@@ -147,7 +154,12 @@ func (r *Repository) GetByGatewayTxnID(ctx context.Context, txnID string) (*paym
 	return &p, nil
 }
 
-func (r *Repository) UpdateStatus(ctx context.Context, id uuid.UUID, toStatus payment.Status, fromStatuses []payment.Status) error {
+func (r *Repository) UpdateStatus(
+	ctx context.Context,
+	id uuid.UUID,
+	toStatus payment.Status,
+	fromStatuses []payment.Status,
+) error {
 	db := database.DB(ctx, r.pool)
 	var returnedID uuid.UUID
 	err := db.QueryRow(ctx,
@@ -284,7 +296,9 @@ func (r *Repository) ListAdmin(ctx context.Context, params payment.AdminListPara
 	query := fmt.Sprintf(
 		`SELECT id, order_id, amount, currency, status, method, payment_method_id, gateway_txn_id, paid_at, created_at, updated_at
 		FROM payments WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`,
-		where, argIdx, argIdx+1,
+		where,
+		argIdx,
+		argIdx+1,
 	)
 	args = append(args, params.PageSize, offset)
 
@@ -432,7 +446,11 @@ func (r *Repository) MarkJobCompleted(ctx context.Context, jobID uuid.UUID) erro
 	return nil
 }
 
-func (r *Repository) MarkJobCompletedByPaymentID(ctx context.Context, paymentID uuid.UUID, action payment.JobAction) error {
+func (r *Repository) MarkJobCompletedByPaymentID(
+	ctx context.Context,
+	paymentID uuid.UUID,
+	action payment.JobAction,
+) error {
 	db := database.DB(ctx, r.pool)
 	_, err := db.Exec(ctx,
 		`UPDATE payment_jobs SET status = 'completed', locked_until = NULL

@@ -110,7 +110,10 @@ func inventoryStateFor(wasDeducted bool) inventory.StockState {
 
 type paymentInitiatorAdapter struct{ svc *payment.Service }
 
-func (a *paymentInitiatorAdapter) InitiatePayment(ctx context.Context, params order.InitiatePaymentParams) (order.PaymentResult, error) {
+func (a *paymentInitiatorAdapter) InitiatePayment(
+	ctx context.Context,
+	params order.InitiatePaymentParams,
+) (order.PaymentResult, error) {
 	result, err := a.svc.InitiatePayment(ctx, payment.InitiatePaymentParams{
 		OrderID:         params.OrderID,
 		Amount:          params.Amount,

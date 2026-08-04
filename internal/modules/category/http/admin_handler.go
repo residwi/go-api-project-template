@@ -48,10 +48,10 @@ func toAdminCategoryResponse(c *category.Category) adminCategoryResponse {
 }
 
 type createCategoryRequest struct {
-	Name        string     `json:"name" validate:"required,min=1,max=255"`
+	Name        string     `json:"name"        validate:"required,min=1,max=255"`
 	Description *string    `json:"description" validate:"omitempty"`
-	ParentID    *uuid.UUID `json:"parent_id" validate:"omitempty"`
-	SortOrder   *int       `json:"sort_order" validate:"omitempty,min=0"`
+	ParentID    *uuid.UUID `json:"parent_id"   validate:"omitempty"`
+	SortOrder   *int       `json:"sort_order"  validate:"omitempty,min=0"`
 	Active      *bool      `json:"active"`
 }
 
@@ -81,10 +81,10 @@ func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateCategoryRequest struct {
-	Name        *string    `json:"name" validate:"omitempty,min=1,max=255"`
+	Name        *string    `json:"name"        validate:"omitempty,min=1,max=255"`
 	Description *string    `json:"description" validate:"omitempty"`
-	ParentID    *uuid.UUID `json:"parent_id" validate:"omitempty"`
-	SortOrder   *int       `json:"sort_order" validate:"omitempty,min=0"`
+	ParentID    *uuid.UUID `json:"parent_id"   validate:"omitempty"`
+	SortOrder   *int       `json:"sort_order"  validate:"omitempty,min=0"`
 	Active      *bool      `json:"active"`
 }
 

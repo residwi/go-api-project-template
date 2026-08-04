@@ -58,7 +58,9 @@ func TestAdminHandler_ListAll(t *testing.T) {
 		t.Parallel()
 
 		mux, repo, _, _ := setupOrderMux(t)
-		repo.EXPECT().ListAdmin(mock.Anything, mock.AnythingOfType("order.AdminListParams")).Return(nil, 0, errors.New("db error"))
+		repo.EXPECT().
+			ListAdmin(mock.Anything, mock.AnythingOfType("order.AdminListParams")).
+			Return(nil, 0, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/orders", nil)
@@ -152,7 +154,11 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		body := `{"status":"processing"}`
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/orders/"+orderID.String()+"/status", strings.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/orders/"+orderID.String()+"/status",
+			strings.NewReader(body),
+		)
 
 		mux.ServeHTTP(w, r)
 
@@ -179,7 +185,11 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 
 		orderID := uuid.New()
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/orders/"+orderID.String()+"/status", strings.NewReader("{invalid"))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/orders/"+orderID.String()+"/status",
+			strings.NewReader("{invalid"),
+		)
 
 		mux.ServeHTTP(w, r)
 
@@ -193,7 +203,11 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 
 		orderID := uuid.New()
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/orders/"+orderID.String()+"/status", strings.NewReader(`{}`))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/orders/"+orderID.String()+"/status",
+			strings.NewReader(`{}`),
+		)
 
 		mux.ServeHTTP(w, r)
 
@@ -215,7 +229,11 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		body := `{"status":"processing"}`
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/orders/"+orderID.String()+"/status", strings.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/orders/"+orderID.String()+"/status",
+			strings.NewReader(body),
+		)
 
 		mux.ServeHTTP(w, r)
 

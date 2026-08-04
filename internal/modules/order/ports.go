@@ -66,7 +66,13 @@ type PaymentJobCanceller interface {
 }
 
 type CouponReserver interface {
-	Reserve(ctx context.Context, code string, userID uuid.UUID, orderID uuid.UUID, orderSubtotal int64) (discountAmount int64, err error)
+	Reserve(
+		ctx context.Context,
+		code string,
+		userID uuid.UUID,
+		orderID uuid.UUID,
+		orderSubtotal int64,
+	) (discountAmount int64, err error)
 	Release(ctx context.Context, orderID uuid.UUID) error
 }
 

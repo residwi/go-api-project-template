@@ -169,7 +169,11 @@ func TestHandleWebhookTrigger(t *testing.T) {
 
 		// Trigger webhook with a dummy URL (we don't need it to actually POST)
 		triggerBody := `{"idempotency_key":"webhook-test-1","webhook_url":"http://127.0.0.1:1","event":"success"}`
-		triggerReq := httptest.NewRequest(http.MethodPost, "/mock/payment/webhook/trigger", strings.NewReader(triggerBody))
+		triggerReq := httptest.NewRequest(
+			http.MethodPost,
+			"/mock/payment/webhook/trigger",
+			strings.NewReader(triggerBody),
+		)
 		triggerReq.Header.Set("Content-Type", "application/json")
 		triggerW := httptest.NewRecorder()
 		mux.ServeHTTP(triggerW, triggerReq)
@@ -191,7 +195,11 @@ func TestHandleWebhookTrigger(t *testing.T) {
 
 		// No event field → defaults to "success"; no webhook_url → uses default
 		triggerBody := `{"idempotency_key":"webhook-test-2","webhook_url":"http://127.0.0.1:1"}`
-		triggerReq := httptest.NewRequest(http.MethodPost, "/mock/payment/webhook/trigger", strings.NewReader(triggerBody))
+		triggerReq := httptest.NewRequest(
+			http.MethodPost,
+			"/mock/payment/webhook/trigger",
+			strings.NewReader(triggerBody),
+		)
 		triggerReq.Header.Set("Content-Type", "application/json")
 		triggerW := httptest.NewRecorder()
 		mux.ServeHTTP(triggerW, triggerReq)
@@ -213,7 +221,11 @@ func TestHandleWebhookTrigger(t *testing.T) {
 
 		// No webhook_url field → defaults to localhost:8080
 		triggerBody := `{"idempotency_key":"webhook-test-default-url","event":"success"}`
-		triggerReq := httptest.NewRequest(http.MethodPost, "/mock/payment/webhook/trigger", strings.NewReader(triggerBody))
+		triggerReq := httptest.NewRequest(
+			http.MethodPost,
+			"/mock/payment/webhook/trigger",
+			strings.NewReader(triggerBody),
+		)
 		triggerReq.Header.Set("Content-Type", "application/json")
 		triggerW := httptest.NewRecorder()
 		mux.ServeHTTP(triggerW, triggerReq)
@@ -244,7 +256,11 @@ func TestHandleWebhookTrigger(t *testing.T) {
 
 		// Trigger webhook pointing to our test server
 		triggerBody := `{"idempotency_key":"webhook-success-1","webhook_url":"` + webhookServer.URL + `","event":"success"}`
-		triggerReq := httptest.NewRequest(http.MethodPost, "/mock/payment/webhook/trigger", strings.NewReader(triggerBody))
+		triggerReq := httptest.NewRequest(
+			http.MethodPost,
+			"/mock/payment/webhook/trigger",
+			strings.NewReader(triggerBody),
+		)
 		triggerReq.Header.Set("Content-Type", "application/json")
 		triggerW := httptest.NewRecorder()
 		mux.ServeHTTP(triggerW, triggerReq)

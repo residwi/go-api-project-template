@@ -61,7 +61,11 @@ type TokenValidator interface {
 	ValidateToken(tokenString string) (*TokenClaims, error)
 }
 
-func Auth(tokenValidator TokenValidator, userStatus UserStatusChecker) Middleware { //nolint:gocognit // token parse + claims validation + fail-open status-check branches are inherently branchy
+//nolint:gocognit // token parse + claims validation + fail-open status-check branches are inherently branchy
+func Auth(
+	tokenValidator TokenValidator,
+	userStatus UserStatusChecker,
+) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")

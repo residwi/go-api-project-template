@@ -245,7 +245,9 @@ func TestService_AdjustStock(t *testing.T) {
 		svc := inventory.NewService(repo)
 
 		productID := uuid.New()
-		repo.EXPECT().AdjustStock(mock.Anything, productID, 5).Return(nil, errors.New("cannot set stock below reserved quantity"))
+		repo.EXPECT().
+			AdjustStock(mock.Anything, productID, 5).
+			Return(nil, errors.New("cannot set stock below reserved quantity"))
 
 		result, err := svc.AdjustStock(context.Background(), productID, 5)
 

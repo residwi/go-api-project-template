@@ -50,9 +50,11 @@ func (r *Repository) Create(ctx context.Context, user *user.User) error {
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*user.User, error) {
 	db := database.DB(ctx, r.pool)
 	var u user.User
-	err := db.QueryRow(ctx,
+	err := db.QueryRow(
+		ctx,
 		`SELECT id, email, password_hash, first_name, last_name, phone, role, active, token_version, created_at, updated_at
-		FROM users WHERE id = $1 AND deleted_at IS NULL`, id,
+		FROM users WHERE id = $1 AND deleted_at IS NULL`,
+		id,
 	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FirstName, &u.LastName,
 		&u.Phone, &u.Role, &u.Active, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
@@ -85,9 +87,11 @@ func (r *Repository) GetStatusByID(ctx context.Context, id uuid.UUID) (bool, int
 func (r *Repository) GetByEmail(ctx context.Context, email string) (*user.User, error) {
 	db := database.DB(ctx, r.pool)
 	var u user.User
-	err := db.QueryRow(ctx,
+	err := db.QueryRow(
+		ctx,
 		`SELECT id, email, password_hash, first_name, last_name, phone, role, active, token_version, created_at, updated_at
-		FROM users WHERE email = $1 AND deleted_at IS NULL`, email,
+		FROM users WHERE email = $1 AND deleted_at IS NULL`,
+		email,
 	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FirstName, &u.LastName,
 		&u.Phone, &u.Role, &u.Active, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
@@ -147,7 +151,12 @@ func (r *Repository) List(ctx context.Context, params user.ListParams) ([]user.U
 		argIdx++
 	}
 	if params.Search != "" {
-		where += fmt.Sprintf(" AND (first_name ILIKE $%d OR last_name ILIKE $%d OR email ILIKE $%d)", argIdx, argIdx, argIdx)
+		where += fmt.Sprintf(
+			" AND (first_name ILIKE $%d OR last_name ILIKE $%d OR email ILIKE $%d)",
+			argIdx,
+			argIdx,
+			argIdx,
+		)
 		args = append(args, "%"+database.EscapeLike(params.Search)+"%")
 		argIdx++
 	}
@@ -161,7 +170,9 @@ func (r *Repository) List(ctx context.Context, params user.ListParams) ([]user.U
 	offset := (params.Page - 1) * params.PageSize
 	query := fmt.Sprintf(
 		"SELECT id, email, first_name, last_name, phone, role, active, created_at, updated_at FROM users WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d",
-		where, argIdx, argIdx+1,
+		where,
+		argIdx,
+		argIdx+1,
 	)
 	args = append(args, params.PageSize, offset)
 

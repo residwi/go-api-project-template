@@ -19,10 +19,10 @@ type handler struct {
 // core: a service called from a worker should not inherit HTTP's validation
 // vocabulary.
 type registerRequest struct {
-	Email     string `json:"email" validate:"required,email"`
-	Password  string `json:"password" validate:"required,min=8,max=72"`
+	Email     string `json:"email"      validate:"required,email"`
+	Password  string `json:"password"   validate:"required,min=8,max=72"`
 	FirstName string `json:"first_name" validate:"required,min=1,max=100"`
-	LastName  string `json:"last_name" validate:"required,min=1,max=100"`
+	LastName  string `json:"last_name"  validate:"required,min=1,max=100"`
 }
 
 // toRegisterParams is the seam: HTTP's validation vocabulary stops here, and
@@ -90,7 +90,7 @@ func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 type loginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
+	Email    string `json:"email"    validate:"required,email"`
 	Password string `json:"password" validate:"required"`
 }
 

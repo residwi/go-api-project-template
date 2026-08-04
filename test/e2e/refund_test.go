@@ -82,12 +82,32 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 
 	t.Cleanup(func() {
-		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM shipments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM shipments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
-		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
@@ -264,10 +284,15 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	// Seed a coupon
 	couponID := uuid.New()
 	couponCode := "RELCOUPON" + couponID.String()[:8]
-	_, err = testPool.Exec(ctx,
+	_, err = testPool.Exec(
+		ctx,
 		`INSERT INTO promotions (id, code, type, value, min_order_amount, max_uses, used_count, starts_at, expires_at, active)
 		 VALUES ($1, $2, 'percentage', 10, 0, 100, 0, $3, $4, true)`,
-		couponID, couponCode, time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour))
+		couponID,
+		couponCode,
+		time.Now().Add(-24*time.Hour),
+		time.Now().Add(24*time.Hour),
+	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM coupon_usages WHERE coupon_id = $1`, couponID)
@@ -288,12 +313,32 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 
 	t.Cleanup(func() {
-		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
-		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM coupon_usages WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM coupon_usages WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)

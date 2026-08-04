@@ -132,7 +132,12 @@ func TestConfig_Validate(t *testing.T) {
 		cfg := Config{
 			App:     AppConfig{Env: "production", AuthRateWindow: time.Minute, OrderRateWindow: time.Minute},
 			Payment: PaymentConfig{WebhookSecret: "real-secret", GatewayTimeout: 10 * time.Second},
-			Worker:  WorkerConfig{LeaseDuration: 2 * time.Minute, Interval: 10 * time.Second, Concurrency: 5, PruneLimit: 100},
+			Worker: WorkerConfig{
+				LeaseDuration: 2 * time.Minute,
+				Interval:      10 * time.Second,
+				Concurrency:   5,
+				PruneLimit:    100,
+			},
 		}
 
 		err := cfg.validate()
@@ -143,7 +148,12 @@ func TestConfig_Validate(t *testing.T) {
 		cfg := Config{
 			App:     AppConfig{Env: "development", AuthRateWindow: time.Minute, OrderRateWindow: time.Minute},
 			Payment: PaymentConfig{WebhookSecret: defaultWebhookSecret, GatewayTimeout: 10 * time.Second},
-			Worker:  WorkerConfig{LeaseDuration: 2 * time.Minute, Interval: 10 * time.Second, Concurrency: 5, PruneLimit: 100},
+			Worker: WorkerConfig{
+				LeaseDuration: 2 * time.Minute,
+				Interval:      10 * time.Second,
+				Concurrency:   5,
+				PruneLimit:    100,
+			},
 		}
 
 		err := cfg.validate()

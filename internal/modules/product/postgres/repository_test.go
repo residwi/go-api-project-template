@@ -496,7 +496,10 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, deletedID) })
 
 		repo := New(testPool)
-		got, err := repo.GetByIDsIncludingDeleted(context.Background(), []uuid.UUID{live.ID, archivedID, deletedID, uuid.New()})
+		got, err := repo.GetByIDsIncludingDeleted(
+			context.Background(),
+			[]uuid.UUID{live.ID, archivedID, deletedID, uuid.New()},
+		)
 		require.NoError(t, err)
 
 		byID := make(map[uuid.UUID]product.Product, len(got))
@@ -513,7 +516,11 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		// deleted_at changes), so a caller must consult DeletedAt -- not Status --
 		// to know this product is no longer sellable.
 		assert.Equal(t, "published", byID[deletedID].Status)
-		require.NotNil(t, byID[deletedID].DeletedAt, "a soft-deleted product must carry DeletedAt so a consumer can flag it unsellable")
+		require.NotNil(
+			t,
+			byID[deletedID].DeletedAt,
+			"a soft-deleted product must carry DeletedAt so a consumer can flag it unsellable",
+		)
 	})
 
 	t.Run("returns empty slice for empty ids", func(t *testing.T) {
@@ -576,7 +583,12 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Create", func(t *testing.T) {
 		setup(t)
-		p := &product.Product{Name: "X", Slug: "x-" + uuid.New().String(), Price: money.New(100, "USD"), Status: product.StatusDraft}
+		p := &product.Product{
+			Name:   "X",
+			Slug:   "x-" + uuid.New().String(),
+			Price:  money.New(100, "USD"),
+			Status: product.StatusDraft,
+		}
 		err := repo.Create(cancelledCtx, p)
 		assert.Error(t, err)
 	})
@@ -595,7 +607,13 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Update", func(t *testing.T) {
 		setup(t)
-		p := &product.Product{ID: uuid.New(), Name: "X", Slug: "x-" + uuid.New().String(), Price: money.New(100, "USD"), Status: product.StatusDraft}
+		p := &product.Product{
+			ID:     uuid.New(),
+			Name:   "X",
+			Slug:   "x-" + uuid.New().String(),
+			Price:  money.New(100, "USD"),
+			Status: product.StatusDraft,
+		}
 		err := repo.Update(cancelledCtx, p)
 		assert.Error(t, err)
 	})

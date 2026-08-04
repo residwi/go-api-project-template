@@ -62,14 +62,14 @@ func toAdminProductResponse(p *product.Product) adminProductResponse {
 }
 
 type createProductRequest struct {
-	CategoryID     *uuid.UUID `json:"category_id" validate:"omitempty"`
-	Name           string     `json:"name" validate:"required,min=1,max=255"`
-	Description    *string    `json:"description" validate:"omitempty"`
-	Price          int64      `json:"price" validate:"required,min=0"`
+	CategoryID     *uuid.UUID `json:"category_id"      validate:"omitempty"`
+	Name           string     `json:"name"             validate:"required,min=1,max=255"`
+	Description    *string    `json:"description"      validate:"omitempty"`
+	Price          int64      `json:"price"            validate:"required,min=0"`
 	CompareAtPrice *int64     `json:"compare_at_price" validate:"omitempty,min=0"`
-	Currency       string     `json:"currency" validate:"omitempty,len=3"`
-	SKU            *string    `json:"sku" validate:"omitempty,max=100"`
-	Status         string     `json:"status" validate:"omitempty,oneof=draft published archived"`
+	Currency       string     `json:"currency"         validate:"omitempty,len=3"`
+	SKU            *string    `json:"sku"              validate:"omitempty,max=100"`
+	Status         string     `json:"status"           validate:"omitempty,oneof=draft published archived"`
 }
 
 // toCreateParams pairs the request's two amounts with its single `currency`
@@ -158,14 +158,14 @@ func (h *adminHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateProductRequest struct {
-	CategoryID     *uuid.UUID `json:"category_id" validate:"omitempty"`
-	Name           *string    `json:"name" validate:"omitempty,min=1,max=255"`
-	Description    *string    `json:"description" validate:"omitempty"`
-	Price          *int64     `json:"price" validate:"omitempty,min=0"`
+	CategoryID     *uuid.UUID `json:"category_id"      validate:"omitempty"`
+	Name           *string    `json:"name"             validate:"omitempty,min=1,max=255"`
+	Description    *string    `json:"description"      validate:"omitempty"`
+	Price          *int64     `json:"price"            validate:"omitempty,min=0"`
 	CompareAtPrice *int64     `json:"compare_at_price" validate:"omitempty,min=0"`
-	Currency       *string    `json:"currency" validate:"omitempty,len=3"`
-	SKU            *string    `json:"sku" validate:"omitempty,max=100"`
-	Status         *string    `json:"status" validate:"omitempty,oneof=draft published archived"`
+	Currency       *string    `json:"currency"         validate:"omitempty,len=3"`
+	SKU            *string    `json:"sku"              validate:"omitempty,max=100"`
+	Status         *string    `json:"status"           validate:"omitempty,oneof=draft published archived"`
 }
 
 // toUpdateParams maps the request onto product.UpdateParams, whose amounts are

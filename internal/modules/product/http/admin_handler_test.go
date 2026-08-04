@@ -443,7 +443,11 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 		prodID := uuid.New()
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/products/"+prodID.String(), bytes.NewReader([]byte("{bad")))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/products/"+prodID.String(),
+			bytes.NewReader([]byte("{bad")),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)

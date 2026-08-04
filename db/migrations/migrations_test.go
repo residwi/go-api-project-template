@@ -70,7 +70,12 @@ func TestDropProductsStockColumns_DownRoundTrip(t *testing.T) {
 	require.NoError(t, pool.QueryRow(ctx,
 		`SELECT stock_quantity, reserved_quantity FROM products WHERE id = $1`, levelless,
 	).Scan(&stock, &reserved))
-	assert.Equal(t, 0, stock, "a product with no inventory_levels row reconstructs as zero stock, not left at whatever ADD COLUMN's default happened to be")
+	assert.Equal(
+		t,
+		0,
+		stock,
+		"a product with no inventory_levels row reconstructs as zero stock, not left at whatever ADD COLUMN's default happened to be",
+	)
 	assert.Equal(t, 0, reserved)
 
 	// Up: re-apply the migration (dropping the columns again) and confirm it's

@@ -346,7 +346,18 @@ func setupPaymentMux(t *testing.T) (
 	invRestore := mocks.NewMockInventoryRestorer(t)
 	couponRel := mocks.NewMockCouponReleaser(t)
 
-	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel, testhelper.DiscardLogger())
+	svc := payment.NewService(
+		repo,
+		testhelper.FakeTxRunner{},
+		gw,
+		orders,
+		orderGet,
+		orderItems,
+		inv,
+		invRestore,
+		couponRel,
+		testhelper.DiscardLogger(),
+	)
 	v := validator.New()
 
 	mux := http.NewServeMux()

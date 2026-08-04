@@ -18,7 +18,7 @@ type handler struct {
 // already takes plain (code, orderAmount) arguments, not a request struct,
 // so there is no dto-in-the-core cycle to break here.
 type applyRequest struct {
-	Code     string `json:"code" validate:"required"`
+	Code     string `json:"code"     validate:"required"`
 	Subtotal int64  `json:"subtotal" validate:"required,min=1"`
 }
 

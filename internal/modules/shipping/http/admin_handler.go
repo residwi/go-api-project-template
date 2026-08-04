@@ -14,7 +14,7 @@ type adminHandler struct {
 }
 
 type createShipmentRequest struct {
-	Carrier        string `json:"carrier" validate:"required"`
+	Carrier        string `json:"carrier"         validate:"required"`
 	TrackingNumber string `json:"tracking_number" validate:"required"`
 }
 
@@ -49,7 +49,7 @@ func (h *adminHandler) CreateShipment(w http.ResponseWriter, r *http.Request) {
 // dto.go's UpdateTrackingRequest -- the service updates either
 // independently when supplied non-empty, not just TrackingNumber.
 type updateTrackingRequest struct {
-	Carrier        string `json:"carrier" validate:"required"`
+	Carrier        string `json:"carrier"         validate:"required"`
 	TrackingNumber string `json:"tracking_number" validate:"required"`
 }
 

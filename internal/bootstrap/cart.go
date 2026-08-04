@@ -10,7 +10,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-func NewCartService(repo cart.Repository, tx database.TxRunner, productSvc *product.Service, maxCartItems int) *cart.Service {
+func NewCartService(
+	repo cart.Repository,
+	tx database.TxRunner,
+	productSvc *product.Service,
+	maxCartItems int,
+) *cart.Service {
 	return cart.NewService(repo, tx, &productLookupAdapter{svc: productSvc}, maxCartItems)
 }
 

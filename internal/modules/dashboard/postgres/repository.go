@@ -53,7 +53,11 @@ func (r *Repository) GetSalesSummary(ctx context.Context, from, to time.Time) (d
 	return s, nil
 }
 
-func (r *Repository) GetTopProducts(ctx context.Context, limit int, from, to time.Time) ([]dashboard.TopProduct, error) {
+func (r *Repository) GetTopProducts(
+	ctx context.Context,
+	limit int,
+	from, to time.Time,
+) ([]dashboard.TopProduct, error) {
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
 		`SELECT oi.product_id, oi.product_name, SUM(oi.quantity) AS total_sold, SUM(oi.subtotal) AS revenue
@@ -97,7 +101,10 @@ func (r *Repository) GetRevenueByDay(ctx context.Context, from, to time.Time) ([
 	return data, nil
 }
 
-func (r *Repository) GetOrderStatusBreakdown(ctx context.Context, from, to time.Time) ([]dashboard.StatusBreakdown, error) {
+func (r *Repository) GetOrderStatusBreakdown(
+	ctx context.Context,
+	from, to time.Time,
+) ([]dashboard.StatusBreakdown, error) {
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
 		`SELECT status, COUNT(*) FROM orders

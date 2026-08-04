@@ -72,7 +72,12 @@ func TestService_InitiatePayment(t *testing.T) {
 				return capturedPayment, nil
 			})
 		repo.EXPECT().MarkPaid(mock.Anything, mock.AnythingOfType("uuid.UUID"),
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(nil)
 		orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
@@ -137,7 +142,12 @@ func TestService_InitiatePayment(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, existingID).
 			Return(existing, nil)
 		repo.EXPECT().MarkPaid(mock.Anything, existingID,
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(nil)
 		orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
@@ -182,7 +192,8 @@ func TestService_InitiatePayment(t *testing.T) {
 		repo.EXPECT().UpdateGateway(mock.Anything, mock.AnythingOfType("uuid.UUID"), "txn_pending", mock.Anything).
 			Return(nil)
 
-		repo.EXPECT().UpdatePaymentURL(mock.Anything, mock.AnythingOfType("uuid.UUID"), "https://pay.example.com/redirect").
+		repo.EXPECT().
+			UpdatePaymentURL(mock.Anything, mock.AnythingOfType("uuid.UUID"), "https://pay.example.com/redirect").
 			Return(nil)
 
 		result, err := svc.InitiatePayment(ctx, params)
@@ -480,7 +491,12 @@ func TestService_Process(t *testing.T) {
 			Return(p, nil)
 
 		repo.EXPECT().MarkPaid(mock.Anything, job.PaymentID,
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(nil)
 
 		orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
@@ -742,7 +758,12 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 				return capturedPayment, nil
 			})
 		repo.EXPECT().MarkPaid(mock.Anything, mock.AnythingOfType("uuid.UUID"),
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(nil)
 		orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
@@ -784,7 +805,8 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 		repo.EXPECT().UpdateGateway(mock.Anything, mock.AnythingOfType("uuid.UUID"), "txn_url_err", mock.Anything).
 			Return(nil)
 
-		repo.EXPECT().UpdatePaymentURL(mock.Anything, mock.AnythingOfType("uuid.UUID"), "https://pay.example.com/url-err").
+		repo.EXPECT().
+			UpdatePaymentURL(mock.Anything, mock.AnythingOfType("uuid.UUID"), "https://pay.example.com/url-err").
 			Return(errors.New("url update failed"))
 
 		result, err := svc.InitiatePayment(ctx, params)
@@ -825,7 +847,12 @@ func TestService_FinalizePaymentSuccess_MultipleItems(t *testing.T) {
 			Return(p, nil)
 
 		repo.EXPECT().MarkPaid(mock.Anything, job.PaymentID,
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(nil)
 
 		orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
@@ -1117,7 +1144,12 @@ func TestService_HandleWebhook(t *testing.T) {
 		}, nil)
 
 		repo.EXPECT().MarkPaid(mock.Anything, paymentID,
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(nil)
 
 		orders.EXPECT().MarkPaid(mock.Anything, orderID).
@@ -1365,7 +1397,12 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 			Return(p, nil)
 
 		repo.EXPECT().MarkPaid(mock.Anything, job.PaymentID,
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(nil)
 
 		orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
@@ -1473,7 +1510,12 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 			Return(p, nil)
 
 		repo.EXPECT().MarkPaid(mock.Anything, job.PaymentID,
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(errors.New("already paid"))
 
 		orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
@@ -1513,7 +1555,12 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 			Return(p, nil)
 
 		repo.EXPECT().MarkPaid(mock.Anything, job.PaymentID,
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(nil)
 
 		orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
@@ -1567,7 +1614,12 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 			Return(p, nil)
 
 		repo.EXPECT().MarkPaid(mock.Anything, job.PaymentID,
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(nil)
 
 		orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
@@ -1660,7 +1712,12 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 			Return(p, nil)
 
 		repo.EXPECT().MarkPaid(mock.Anything, job.PaymentID,
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(nil)
 
 		orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
@@ -1711,7 +1768,12 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 			Return(p, nil)
 
 		repo.EXPECT().MarkPaid(mock.Anything, job.PaymentID,
-			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusRequiresReview, payment.StatusCancelled}).
+			[]payment.Status{
+				payment.StatusPending,
+				payment.StatusProcessing,
+				payment.StatusRequiresReview,
+				payment.StatusCancelled,
+			}).
 			Return(nil)
 
 		orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).

@@ -35,7 +35,12 @@ func (s *Service) Validate(ctx context.Context, code string, orderAmount int64) 
 	return computeDiscount(promo, orderAmount), nil
 }
 
-func (s *Service) Reserve(ctx context.Context, code string, userID, orderID uuid.UUID, orderSubtotal int64) (int64, error) {
+func (s *Service) Reserve(
+	ctx context.Context,
+	code string,
+	userID, orderID uuid.UUID,
+	orderSubtotal int64,
+) (int64, error) {
 	var discountAmount int64
 
 	err := s.tx.Run(ctx, func(ctx context.Context) error {

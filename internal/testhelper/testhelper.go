@@ -68,7 +68,9 @@ func init() {
 		filepath.Join(os.Getenv("HOME"), ".docker", "run", "docker.sock"),
 	}
 	for _, candidate := range candidates {
-		if _, statErr := os.Stat(candidate); statErr == nil { //nolint:gosec // G703: path built from known constant suffixes and HOME env var
+		if _, statErr := os.Stat( //nolint:gosec // G703: path built from known constant suffixes and HOME env var
+			candidate,
+		); statErr == nil {
 			_ = os.Setenv("DOCKER_HOST", "unix://"+candidate)
 			return
 		}

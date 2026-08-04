@@ -626,7 +626,9 @@ func TestService_Reserve(t *testing.T) {
 				ExpiresAt:      time.Now().Add(time.Hour),
 			}, nil)
 		repo.EXPECT().ApplyPromotion(mock.Anything, promoID).Return(nil)
-		repo.EXPECT().CreateUsage(mock.Anything, mock.AnythingOfType("*promotion.CouponUsage")).Return(apperror.ErrConflict)
+		repo.EXPECT().
+			CreateUsage(mock.Anything, mock.AnythingOfType("*promotion.CouponUsage")).
+			Return(apperror.ErrConflict)
 
 		discount, err := svc.Reserve(context.Background(), "SAVE20", uuid.New(), uuid.New(), 2000)
 		assert.Equal(t, int64(400), discount)

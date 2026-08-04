@@ -129,8 +129,20 @@ func TestCartHandler_GetCart(t *testing.T) {
 		}, nil)
 		products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{usdID, eurID}).
 			Return(map[uuid.UUID]cart.ProductInfo{
-				usdID: {ID: usdID, Name: "Dollar Widget", Price: money.New(1000, "USD"), Status: "published", Available: 5},
-				eurID: {ID: eurID, Name: "Euro Widget", Price: money.New(1000, "EUR"), Status: "published", Available: 5},
+				usdID: {
+					ID:        usdID,
+					Name:      "Dollar Widget",
+					Price:     money.New(1000, "USD"),
+					Status:    "published",
+					Available: 5,
+				},
+				eurID: {
+					ID:        eurID,
+					Name:      "Euro Widget",
+					Price:     money.New(1000, "EUR"),
+					Status:    "published",
+					Available: 5,
+				},
 			}, nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/cart", nil)
@@ -648,13 +660,23 @@ func TestToCartResponse_MixedCurrenciesRefusesToTotal(t *testing.T) {
 				ID:        uuid.New(),
 				ProductID: uuid.New(),
 				Quantity:  1,
-				Product:   &cart.Product{Name: "Dollar Widget", Price: money.New(1000, "USD"), Stock: 5, Status: "published"},
+				Product: &cart.Product{
+					Name:   "Dollar Widget",
+					Price:  money.New(1000, "USD"),
+					Stock:  5,
+					Status: "published",
+				},
 			},
 			{
 				ID:        uuid.New(),
 				ProductID: uuid.New(),
 				Quantity:  1,
-				Product:   &cart.Product{Name: "Euro Widget", Price: money.New(1000, "EUR"), Stock: 5, Status: "published"},
+				Product: &cart.Product{
+					Name:   "Euro Widget",
+					Price:  money.New(1000, "EUR"),
+					Stock:  5,
+					Status: "published",
+				},
 			},
 		},
 	}
@@ -706,7 +728,14 @@ type stubRepo struct {
 func (s *stubRepo) GetOrCreate(_ context.Context, _ uuid.UUID) (uuid.UUID, error) {
 	return s.getOrCreateID, nil
 }
-func (s *stubRepo) GetCart(context.Context, uuid.UUID) (*cart.Cart, error) { return nil, nil } //nolint:nilnil // test stub
+
+func (s *stubRepo) GetCart(
+	context.Context,
+	uuid.UUID,
+) (*cart.Cart, error) {
+	return nil, nil //nolint:nilnil // test stub
+}
+
 func (s *stubRepo) AddItem(_ context.Context, _, _ uuid.UUID, _ int) error {
 	return nil
 }
@@ -728,13 +757,25 @@ func (s *stubRepo) GetCartForLock(context.Context, uuid.UUID) (uuid.UUID, error)
 type stubProducts struct{}
 
 func (s *stubProducts) GetByID(_ context.Context, id uuid.UUID) (*cart.ProductInfo, error) {
-	return &cart.ProductInfo{ID: id, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil
+	return &cart.ProductInfo{
+		ID:        id,
+		Name:      "Widget",
+		Price:     money.New(1000, "USD"),
+		Status:    "published",
+		Available: 10,
+	}, nil
 }
 
 func (s *stubProducts) GetByIDs(_ context.Context, ids []uuid.UUID) (map[uuid.UUID]cart.ProductInfo, error) {
 	out := make(map[uuid.UUID]cart.ProductInfo, len(ids))
 	for _, id := range ids {
-		out[id] = cart.ProductInfo{ID: id, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}
+		out[id] = cart.ProductInfo{
+			ID:        id,
+			Name:      "Widget",
+			Price:     money.New(1000, "USD"),
+			Status:    "published",
+			Available: 10,
+		}
 	}
 	return out, nil
 }

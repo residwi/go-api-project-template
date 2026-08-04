@@ -220,7 +220,11 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 
 		repo.EXPECT().GetTopProducts(mock.Anything, 5, from, toEnd).Return(products, nil)
 
-		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31&limit=5", nil)
+		r := httptest.NewRequest(
+			http.MethodGet,
+			"/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31&limit=5",
+			nil,
+		)
 		w := httptest.NewRecorder()
 
 		mux.ServeHTTP(w, r)
@@ -275,7 +279,11 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 		repo.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]dashboard.TopProduct{}, nil)
 
-		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31&limit=abc", nil)
+		r := httptest.NewRequest(
+			http.MethodGet,
+			"/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31&limit=abc",
+			nil,
+		)
 		w := httptest.NewRecorder()
 
 		mux.ServeHTTP(w, r)
@@ -291,7 +299,11 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 		repo.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]dashboard.TopProduct{}, nil)
 
-		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31&limit=200", nil)
+		r := httptest.NewRequest(
+			http.MethodGet,
+			"/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31&limit=200",
+			nil,
+		)
 		w := httptest.NewRecorder()
 
 		mux.ServeHTTP(w, r)
@@ -307,7 +319,11 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 		repo.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]dashboard.TopProduct{}, nil)
 
-		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31&limit=0", nil)
+		r := httptest.NewRequest(
+			http.MethodGet,
+			"/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31&limit=0",
+			nil,
+		)
 		w := httptest.NewRecorder()
 
 		mux.ServeHTTP(w, r)
@@ -323,7 +339,11 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 		repo.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]dashboard.TopProduct{}, nil)
 
-		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31&limit=-5", nil)
+		r := httptest.NewRequest(
+			http.MethodGet,
+			"/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31&limit=-5",
+			nil,
+		)
 		w := httptest.NewRecorder()
 
 		mux.ServeHTTP(w, r)
@@ -519,7 +539,11 @@ func TestToSummaryResponse_ExposesExactFieldSet(t *testing.T) {
 
 	var sales map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(fields["sales"], &sales))
-	assert.ElementsMatch(t, []string{"total_orders", "total_revenue", "average_order_value"}, slices.Collect(maps.Keys(sales)))
+	assert.ElementsMatch(
+		t,
+		[]string{"total_orders", "total_revenue", "average_order_value"},
+		slices.Collect(maps.Keys(sales)),
+	)
 
 	var breakdown []map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(fields["status_breakdown"], &breakdown))

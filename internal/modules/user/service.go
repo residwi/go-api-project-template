@@ -264,6 +264,11 @@ func (s *Service) Delete(ctx context.Context, p DeleteParams) error {
 // is logged and the entry still expires on its own.
 func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
 	if err := s.cache.Invalidate(ctx, userID); err != nil {
-		s.logger.WarnContext(ctx, "failed to invalidate user status cache", slog.Any("user_id", userID), slog.Any("error", err))
+		s.logger.WarnContext(
+			ctx,
+			"failed to invalidate user status cache",
+			slog.Any("user_id", userID),
+			slog.Any("error", err),
+		)
 	}
 }

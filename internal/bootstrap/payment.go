@@ -68,7 +68,10 @@ func (a *orderGetterAdapter) GetByID(ctx context.Context, orderID uuid.UUID) (pa
 
 type orderItemsGetterAdapter struct{ svc *order.Service }
 
-func (a *orderItemsGetterAdapter) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]payment.OrderItemDTO, error) {
+func (a *orderItemsGetterAdapter) ListItemsByOrderID(
+	ctx context.Context,
+	orderID uuid.UUID,
+) ([]payment.OrderItemDTO, error) {
 	items, err := a.svc.ListItemsByOrderID(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -88,7 +91,11 @@ func (a *inventoryDeductorAdapter) DeductBatch(ctx context.Context, items []paym
 
 type inventoryRestorerAdapter struct{ svc *inventory.Service }
 
-func (a *inventoryRestorerAdapter) Restore(ctx context.Context, items []payment.InventoryChange, wasDeducted bool) error {
+func (a *inventoryRestorerAdapter) Restore(
+	ctx context.Context,
+	items []payment.InventoryChange,
+	wasDeducted bool,
+) error {
 	return a.svc.Restore(ctx, paymentToStockChanges(items), inventoryStateFor(wasDeducted))
 }
 

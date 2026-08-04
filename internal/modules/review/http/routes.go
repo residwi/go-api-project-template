@@ -11,7 +11,12 @@ type RouteDeps struct {
 	Service   *review.Service
 }
 
-func RegisterRoutes(api *middleware.RouteGroup, authed *middleware.RouteGroup, admin *middleware.RouteGroup, deps RouteDeps) {
+func RegisterRoutes(
+	api *middleware.RouteGroup,
+	authed *middleware.RouteGroup,
+	admin *middleware.RouteGroup,
+	deps RouteDeps,
+) {
 	pub := &handler{service: deps.Service, validator: deps.Validator}
 	adm := &adminHandler{service: deps.Service}
 

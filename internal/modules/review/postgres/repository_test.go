@@ -310,7 +310,11 @@ func TestPostgresRepository_ListByProduct_InvalidCursor(t *testing.T) {
 		productID := seedProduct(t)
 		repo := New(testPool)
 
-		_, err := repo.ListByProduct(context.Background(), productID, paging.CursorPage{Cursor: "!!!invalid!!!", Limit: 10})
+		_, err := repo.ListByProduct(
+			context.Background(),
+			productID,
+			paging.CursorPage{Cursor: "!!!invalid!!!", Limit: 10},
+		)
 		assert.Error(t, err)
 	})
 }

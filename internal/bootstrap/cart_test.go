@@ -44,7 +44,12 @@ func TestProductLookupAdapter_GetByIDs(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, result, 2)
 		assert.Equal(t, 7, result[liveID].Available, "Available must come from Availability.Available")
-		assert.Equal(t, product.StatusArchived, result[archivedID].Status, "archived products must still come back, carrying Status")
+		assert.Equal(
+			t,
+			product.StatusArchived,
+			result[archivedID].Status,
+			"archived products must still come back, carrying Status",
+		)
 	})
 
 	t.Run("flags a soft-deleted product unavailable instead of passing its stale status through", func(t *testing.T) {

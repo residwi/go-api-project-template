@@ -588,7 +588,11 @@ func TestAdapterErrorPaths(t *testing.T) {
 	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 	t.Cleanup(func() {
-		testPool.Exec(ctx, `DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
@@ -670,11 +674,27 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 	t.Cleanup(func() {
-		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
-		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
@@ -765,7 +785,10 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	// GatewayURL is the placeholder from TestMain (never a real listener):
 	// FinalizePaymentSuccess fails inside orderGetterAdapter.GetByID before it
 	// ever reaches the gateway, so no URL here is actually dialled.
-	err := newPaymentServiceForTest(t, testDeps.Config.Payment.GatewayURL).FinalizePaymentSuccess(context.Background(), fakeJob)
+	err := newPaymentServiceForTest(
+		t,
+		testDeps.Config.Payment.GatewayURL,
+	).FinalizePaymentSuccess(context.Background(), fakeJob)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "getting order for verification")
 }

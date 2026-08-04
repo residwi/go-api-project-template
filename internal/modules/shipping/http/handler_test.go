@@ -225,7 +225,9 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 		"shipped_at and delivered_at are omitempty and absent when nil")
 }
 
-func setupShippingMux(t *testing.T) (*http.ServeMux, *shipMocks.MockRepository, *shipMocks.MockOrderProvider, *shipMocks.MockOrderUpdater) {
+func setupShippingMux(
+	t *testing.T,
+) (*http.ServeMux, *shipMocks.MockRepository, *shipMocks.MockOrderProvider, *shipMocks.MockOrderUpdater) {
 	repo := shipMocks.NewMockRepository(t)
 	orderProv := shipMocks.NewMockOrderProvider(t)
 	orderUpd := shipMocks.NewMockOrderUpdater(t)

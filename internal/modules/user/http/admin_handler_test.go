@@ -254,7 +254,11 @@ func TestAdminHandler_UpdateUser(t *testing.T) {
 		userID := uuid.New()
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+userID.String(), bytes.NewReader([]byte("{invalid")))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/users/"+userID.String(),
+			bytes.NewReader([]byte("{invalid")),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)
@@ -347,7 +351,11 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 		body, _ := json.Marshal(map[string]any{"role": "admin"})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+targetID.String()+"/role", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/users/"+targetID.String()+"/role",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
 			UserID: requesterID,
@@ -391,7 +399,11 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 		body, _ := json.Marshal(map[string]any{"role": "admin"})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+targetID.String()+"/role", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/users/"+targetID.String()+"/role",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)
@@ -413,7 +425,11 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 		targetID := uuid.New()
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+targetID.String()+"/role", bytes.NewReader([]byte("{invalid")))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/users/"+targetID.String()+"/role",
+			bytes.NewReader([]byte("{invalid")),
+		)
 		r.Header.Set("Content-Type", "application/json")
 		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
 			UserID: requesterID,
@@ -468,7 +484,11 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 		body, _ := json.Marshal(map[string]any{"role": "superadmin"})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+targetID.String()+"/role", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/users/"+targetID.String()+"/role",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
 			UserID: requesterID,

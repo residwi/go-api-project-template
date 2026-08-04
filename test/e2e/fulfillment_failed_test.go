@@ -97,11 +97,27 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 
 	t.Cleanup(func() {
-		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM notifications WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
-		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
-		testPool.Exec(ctx, `DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`, email)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
+		testPool.Exec(
+			ctx,
+			`DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
+			email,
+		)
 		testPool.Exec(ctx, `DELETE FROM carts WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
@@ -149,7 +165,10 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 	require.Equal(t, "cancelled", orderStatus)
 
 	t.Run("late success webhook flags the cancelled order fulfillment_failed", func(t *testing.T) {
-		webhookBody := fmt.Sprintf(`{"event":"success","metadata":{"payment_id":"%s"},"transaction_id":"txn_late_success"}`, paymentID)
+		webhookBody := fmt.Sprintf(
+			`{"event":"success","metadata":{"payment_id":"%s"},"transaction_id":"txn_late_success"}`,
+			paymentID,
+		)
 		req := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", strings.NewReader(webhookBody))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
@@ -164,7 +183,10 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		// The payment is parked for review rather than left looking successful:
 		// funds are captured but the order can never be fulfilled.
 		var paymentStatus string
-		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatus))
+		require.NoError(
+			t,
+			testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatus),
+		)
 		assert.Equal(t, "requires_review", paymentStatus)
 
 		// No charge job is left pending. Note what this does and does not prove:
@@ -218,7 +240,10 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		assert.Equal(t, "refunded", status)
 
 		var paymentStatus string
-		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatus))
+		require.NoError(
+			t,
+			testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatus),
+		)
 		assert.Equal(t, "refunded", paymentStatus)
 
 		stockAfter, reservedAfter := inventoryLevelOf(t, prodID)

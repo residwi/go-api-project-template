@@ -51,7 +51,11 @@ func TestAdminHandler_CreateShipment(t *testing.T) {
 		})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/orders/"+orderID.String()+"/ship", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/admin/orders/"+orderID.String()+"/ship",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)
@@ -99,7 +103,11 @@ func TestAdminHandler_CreateShipment(t *testing.T) {
 		orderID := uuid.New()
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/orders/"+orderID.String()+"/ship", bytes.NewReader([]byte("{bad")))
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/admin/orders/"+orderID.String()+"/ship",
+			bytes.NewReader([]byte("{bad")),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)
@@ -116,7 +124,11 @@ func TestAdminHandler_CreateShipment(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/orders/"+orderID.String()+"/ship", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/admin/orders/"+orderID.String()+"/ship",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)
@@ -143,7 +155,11 @@ func TestAdminHandler_CreateShipment(t *testing.T) {
 		})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/orders/"+orderID.String()+"/ship", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/admin/orders/"+orderID.String()+"/ship",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)
@@ -190,7 +206,11 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 		})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/shipments/"+shipmentID.String()+"/tracking", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/shipments/"+shipmentID.String()+"/tracking",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)
@@ -240,7 +260,11 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 		shipmentID := uuid.New()
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/shipments/"+shipmentID.String()+"/tracking", bytes.NewReader([]byte("{bad")))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/shipments/"+shipmentID.String()+"/tracking",
+			bytes.NewReader([]byte("{bad")),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)
@@ -257,7 +281,11 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/shipments/"+shipmentID.String()+"/tracking", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/shipments/"+shipmentID.String()+"/tracking",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)
@@ -284,7 +312,11 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 		})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/shipments/"+shipmentID.String()+"/tracking", bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/shipments/"+shipmentID.String()+"/tracking",
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)

@@ -77,7 +77,11 @@ func TestPostgresRepository_GetCart(t *testing.T) {
 		assert.Equal(t, cartID, c.Items[0].CartID)
 		assert.Equal(t, productID, c.Items[0].ProductID)
 		assert.Equal(t, 2, c.Items[0].Quantity)
-		assert.Nil(t, c.Items[0].Product, "repository no longer joins products; the service fills this in through ProductLookup")
+		assert.Nil(
+			t,
+			c.Items[0].Product,
+			"repository no longer joins products; the service fills this in through ProductLookup",
+		)
 	})
 
 	t.Run("keeps the line when its product is soft-deleted", func(t *testing.T) {

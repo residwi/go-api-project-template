@@ -217,9 +217,13 @@ func TestToCategoryResponse_OmitsModerationAndAuditFields(t *testing.T) {
 
 	var fields map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(raw, &fields))
-	assert.ElementsMatch(t, []string{"id", "name", "slug", "description", "parent_id"}, slices.Collect(maps.Keys(fields)),
+	assert.ElementsMatch(
+		t,
+		[]string{"id", "name", "slug", "description", "parent_id"},
+		slices.Collect(maps.Keys(fields)),
 		"description and parent_id belong to the public shape and must be mapped; sort_order, active, and "+
-			"the audit timestamps must never reach the public endpoint")
+			"the audit timestamps must never reach the public endpoint",
+	)
 	assert.JSONEq(t, `"Phones, laptops and audio"`, string(fields["description"]),
 		"description must carry the category's own value, not be dropped or defaulted")
 }

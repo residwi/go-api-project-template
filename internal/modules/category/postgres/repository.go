@@ -141,7 +141,11 @@ func (r *Repository) List(ctx context.Context) ([]category.Category, error) {
 // cannot recurse without limit; the bound is derived from the limit rather than
 // hardcoded so the two cannot drift. `a.depth <= maxDepth` lets the walk reach
 // maxDepth+1, enough for the caller's `depth+1 > maxDepth` guard to fire.
-func (r *Repository) AncestorDepthAndCycle(ctx context.Context, parentID, selfID uuid.UUID, maxDepth int) (int, bool, error) {
+func (r *Repository) AncestorDepthAndCycle(
+	ctx context.Context,
+	parentID, selfID uuid.UUID,
+	maxDepth int,
+) (int, bool, error) {
 	db := database.DB(ctx, r.pool)
 	var (
 		depth      int

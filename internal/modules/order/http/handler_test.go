@@ -84,7 +84,9 @@ func TestHandler_ListOrders(t *testing.T) {
 
 		mux, repo, _, _ := setupOrderMux(t)
 		userID := uuid.New()
-		repo.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).Return(nil, errors.New("db error"))
+		repo.EXPECT().
+			ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).
+			Return(nil, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders", nil)
@@ -341,8 +343,20 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
 			ID: uuid.New(),
 			Items: []order.CartSnapshotItem{
-				{ProductID: uuid.New(), Quantity: 1, Name: "USD item", Price: money.New(5000, "USD"), Status: "published"},
-				{ProductID: uuid.New(), Quantity: 1, Name: "IDR item", Price: money.New(5000, "IDR"), Status: "published"},
+				{
+					ProductID: uuid.New(),
+					Quantity:  1,
+					Name:      "USD item",
+					Price:     money.New(5000, "USD"),
+					Status:    "published",
+				},
+				{
+					ProductID: uuid.New(),
+					Quantity:  1,
+					Name:      "IDR item",
+					Price:     money.New(5000, "IDR"),
+					Status:    "published",
+				},
 			},
 		}, nil)
 
@@ -443,7 +457,11 @@ func TestHandler_RetryPayment(t *testing.T) {
 		userID := uuid.New()
 		orderID := uuid.New()
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+orderID.String()+"/pay", strings.NewReader("{invalid"))
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/orders/"+orderID.String()+"/pay",
+			strings.NewReader("{invalid"),
+		)
 		r = setAuthContext(r, userID)
 
 		mux.ServeHTTP(w, r)
@@ -598,7 +616,16 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 		StockDeducted:  true,
 		StockReversed:  true,
 		Items: []order.Item{
-			{ID: uuid.New(), OrderID: orderID, ProductID: uuid.New(), ProductName: "Widget", Price: money.New(1000, "USD"), Quantity: 1, Subtotal: money.New(1000, "USD"), CreatedAt: now},
+			{
+				ID:          uuid.New(),
+				OrderID:     orderID,
+				ProductID:   uuid.New(),
+				ProductName: "Widget",
+				Price:       money.New(1000, "USD"),
+				Quantity:    1,
+				Subtotal:    money.New(1000, "USD"),
+				CreatedAt:   now,
+			},
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -655,7 +682,17 @@ func setupOrderMux(t *testing.T) (
 	coupons := orderMocks.NewMockCouponReserver(t)
 	notifications := orderMocks.NewMockNotificationEnqueuer(t)
 
-	svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, payment, paymentCancel, coupons, notifications, testhelper.DiscardLogger())
+	svc := order.NewService(
+		repo,
+		testhelper.FakeTxRunner{},
+		cart,
+		inventory,
+		payment,
+		paymentCancel,
+		coupons,
+		notifications,
+		testhelper.DiscardLogger(),
+	)
 	v := validator.New()
 
 	mux := http.NewServeMux()

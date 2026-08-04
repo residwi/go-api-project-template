@@ -57,7 +57,11 @@ func RunContext(ctx context.Context) error {
 
 	rdb, err := cache.NewRedis(ctx, cfg.Redis)
 	if err != nil {
-		log.WarnContext(ctx, "failed to connect to redis, continuing without cache/rate-limiting", slog.Any("error", err))
+		log.WarnContext(
+			ctx,
+			"failed to connect to redis, continuing without cache/rate-limiting",
+			slog.Any("error", err),
+		)
 	}
 	if rdb != nil {
 		defer rdb.Close()

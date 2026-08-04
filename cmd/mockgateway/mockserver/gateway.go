@@ -176,7 +176,12 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 	}
 
 	go func() {
-		req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodPost, webhookURL, bytes.NewReader(body))
+		req, reqErr := http.NewRequestWithContext(
+			context.Background(),
+			http.MethodPost,
+			webhookURL,
+			bytes.NewReader(body),
+		)
 		if reqErr != nil {
 			s.logger.ErrorContext(r.Context(), "webhook request creation failed", slog.Any("error", reqErr))
 			return
@@ -193,7 +198,12 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 			return
 		}
 		_ = resp.Body.Close()
-		s.logger.InfoContext(r.Context(), "webhook triggered", slog.Any("status", resp.StatusCode), slog.Any("event", event))
+		s.logger.InfoContext(
+			r.Context(),
+			"webhook triggered",
+			slog.Any("status", resp.StatusCode),
+			slog.Any("event", event),
+		)
 	}()
 
 	w.WriteHeader(http.StatusAccepted)

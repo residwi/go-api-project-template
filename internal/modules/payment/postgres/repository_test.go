@@ -161,7 +161,12 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 		p := seedPayment(t, orderID)
 		repo := New(testPool)
 
-		err := repo.UpdateStatus(context.Background(), p.ID, payment.StatusSuccess, []payment.Status{payment.StatusFailed})
+		err := repo.UpdateStatus(
+			context.Background(),
+			p.ID,
+			payment.StatusSuccess,
+			[]payment.Status{payment.StatusFailed},
+		)
 		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
@@ -423,7 +428,12 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("UpdateStatus", func(t *testing.T) {
 		setup(t)
-		err := repo.UpdateStatus(cancelledCtx, uuid.New(), payment.StatusSuccess, []payment.Status{payment.StatusPending})
+		err := repo.UpdateStatus(
+			cancelledCtx,
+			uuid.New(),
+			payment.StatusSuccess,
+			[]payment.Status{payment.StatusPending},
+		)
 		assert.Error(t, err)
 	})
 
@@ -465,7 +475,12 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("CreateJob", func(t *testing.T) {
 		setup(t)
-		job := &payment.Job{PaymentID: uuid.New(), OrderID: uuid.New(), Action: payment.ActionCharge, Status: payment.JobStatusPending}
+		job := &payment.Job{
+			PaymentID: uuid.New(),
+			OrderID:   uuid.New(),
+			Action:    payment.ActionCharge,
+			Status:    payment.JobStatusPending,
+		}
 		err := repo.CreateJob(cancelledCtx, job)
 		assert.Error(t, err)
 	})
@@ -588,9 +603,12 @@ func TestPostgresRepository_Claim_WithOptionalFields(t *testing.T) {
 
 		// Set last_error and mark as 'processing' with an expired locked_until
 		// so only this specific job is claimable (avoids stealing jobs from other tests).
-		_, err := testPool.Exec(ctx,
+		_, err := testPool.Exec(
+			ctx,
 			`UPDATE payment_jobs SET last_error = $1, status = 'processing', locked_until = NOW() - INTERVAL '1 second' WHERE id = $2`,
-			"some error", job.ID)
+			"some error",
+			job.ID,
+		)
 		require.NoError(t, err)
 
 		claimed, err := repo.Claim(ctx, 1, 30*time.Second)

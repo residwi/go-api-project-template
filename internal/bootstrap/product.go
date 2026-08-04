@@ -13,7 +13,10 @@ import (
 // Note it drops Reserved: product asks what is sellable, not how much is held.
 type inventoryReaderAdapter struct{ svc *inventory.Service }
 
-func (a *inventoryReaderAdapter) GetAvailability(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.Availability, error) {
+func (a *inventoryReaderAdapter) GetAvailability(
+	ctx context.Context,
+	ids []uuid.UUID,
+) (map[uuid.UUID]product.Availability, error) {
 	levels, err := a.svc.GetLevels(ctx, ids)
 	if err != nil {
 		return nil, err

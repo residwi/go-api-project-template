@@ -64,7 +64,14 @@ func TestPostgresRepository_CreateItems(t *testing.T) {
 		ctx := context.Background()
 
 		items := []order.Item{
-			{OrderID: o.ID, ProductID: productID, ProductName: "Widget", Price: money.New(1000, "USD"), Quantity: 2, Subtotal: money.New(2000, "USD")},
+			{
+				OrderID:     o.ID,
+				ProductID:   productID,
+				ProductName: "Widget",
+				Price:       money.New(1000, "USD"),
+				Quantity:    2,
+				Subtotal:    money.New(2000, "USD"),
+			},
 		}
 		err := repo.CreateItems(ctx, items)
 		require.NoError(t, err)
@@ -152,10 +159,12 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		ctx := context.Background()
 
 		orderID := uuid.New()
-		_, err := testPool.Exec(ctx,
+		_, err := testPool.Exec(
+			ctx,
 			`INSERT INTO orders (id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency, notes)
 			VALUES ($1, $2, NULL, NULL, 'awaiting_payment', 1000, 0, 1000, 'USD', NULL)`,
-			orderID, userID,
+			orderID,
+			userID,
 		)
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })
@@ -203,10 +212,13 @@ func TestPostgresRepository_GetByUserIDAndIdempotencyKey(t *testing.T) {
 
 		orderID := uuid.New()
 		key := "key-" + orderID.String()
-		_, err := testPool.Exec(ctx,
+		_, err := testPool.Exec(
+			ctx,
 			`INSERT INTO orders (id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency, notes)
 			VALUES ($1, $2, $3, NULL, 'awaiting_payment', 1000, 0, 1000, 'USD', NULL)`,
-			orderID, userID, key,
+			orderID,
+			userID,
+			key,
 		)
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })
@@ -278,10 +290,12 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 		ctx := context.Background()
 
 		orderID := uuid.New()
-		_, err := testPool.Exec(ctx,
+		_, err := testPool.Exec(
+			ctx,
 			`INSERT INTO orders (id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency, notes)
 			VALUES ($1, $2, NULL, NULL, 'awaiting_payment', 1000, 0, 1000, 'USD', NULL)`,
-			orderID, userID,
+			orderID,
+			userID,
 		)
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })
@@ -380,7 +394,14 @@ func TestPostgresRepository_ListItemsByOrderID(t *testing.T) {
 		ctx := context.Background()
 
 		items := []order.Item{
-			{OrderID: o.ID, ProductID: productID, ProductName: "Widget", Price: money.New(500, "USD"), Quantity: 1, Subtotal: money.New(500, "USD")},
+			{
+				OrderID:     o.ID,
+				ProductID:   productID,
+				ProductName: "Widget",
+				Price:       money.New(500, "USD"),
+				Quantity:    1,
+				Subtotal:    money.New(500, "USD"),
+			},
 		}
 		require.NoError(t, repo.CreateItems(ctx, items))
 
@@ -410,10 +431,12 @@ func TestPostgresRepository_GetExpiredOrders(t *testing.T) {
 
 		// Insert an order backdated by 2 hours
 		oldOrderID := uuid.New()
-		_, err := testPool.Exec(ctx,
+		_, err := testPool.Exec(
+			ctx,
 			`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency, created_at)
 			 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD', NOW() - INTERVAL '2 hours')`,
-			oldOrderID, userID,
+			oldOrderID,
+			userID,
 		)
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM orders WHERE id = $1`, oldOrderID) })
@@ -471,7 +494,14 @@ func TestPostgresRepository_CreateItems_CancelledContext(t *testing.T) {
 		cancel()
 
 		items := []order.Item{
-			{OrderID: o.ID, ProductID: productID, ProductName: "Widget", Price: money.New(1000, "USD"), Quantity: 1, Subtotal: money.New(1000, "USD")},
+			{
+				OrderID:     o.ID,
+				ProductID:   productID,
+				ProductName: "Widget",
+				Price:       money.New(1000, "USD"),
+				Quantity:    1,
+				Subtotal:    money.New(1000, "USD"),
+			},
 		}
 		err := repo.CreateItems(ctx, items)
 		assert.Error(t, err)
@@ -701,10 +731,12 @@ func TestPostgresRepository_GetStaleProcessingOrders(t *testing.T) {
 
 		// Insert a stale processing order
 		staleID := uuid.New()
-		_, err := testPool.Exec(ctx,
+		_, err := testPool.Exec(
+			ctx,
 			`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency, updated_at)
 			 VALUES ($1, $2, 'payment_processing', 1000, 0, 1000, 'USD', NOW() - INTERVAL '1 hour')`,
-			staleID, userID,
+			staleID,
+			userID,
 		)
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM orders WHERE id = $1`, staleID) })
