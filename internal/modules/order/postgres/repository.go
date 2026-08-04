@@ -179,8 +179,8 @@ func (r *Repository) CreateItems(ctx context.Context, items []order.Item) error 
 		return fmt.Errorf("creating order items: expected %d rows, got %d", len(items), len(gen))
 	}
 	for i := range gen {
-		items[i].ID = gen[i].ID
-		items[i].CreatedAt = gen[i].CreatedAt
+		items[i].ID = gen[i].ID               //nolint:gosec // len(gen) == len(items) is checked above
+		items[i].CreatedAt = gen[i].CreatedAt //nolint:gosec // len(gen) == len(items) is checked above
 	}
 	return nil
 }
