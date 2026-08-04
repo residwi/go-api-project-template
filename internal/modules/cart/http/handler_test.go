@@ -36,7 +36,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	cartMocks "github.com/residwi/go-api-project-template/mocks/cart"
 )
 
 func TestCartHandler_GetCart(t *testing.T) {
@@ -796,9 +795,9 @@ func setAuthContext(r *http.Request) *http.Request {
 	return r.WithContext(ctx)
 }
 
-func setupCartMux(t *testing.T) (*http.ServeMux, *cartMocks.MockRepository, *cartMocks.MockProductLookup) {
-	repo := cartMocks.NewMockRepository(t)
-	products := cartMocks.NewMockProductLookup(t)
+func setupCartMux(t *testing.T) (*http.ServeMux, *MockRepository, *MockProductLookup) {
+	repo := NewMockRepository(t)
+	products := NewMockProductLookup(t)
 	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 	v := validator.New()
 

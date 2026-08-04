@@ -1,4 +1,4 @@
-package cart_test
+package cart
 
 import (
 	"context"
@@ -11,24 +11,22 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
-	cartMocks "github.com/residwi/go-api-project-template/mocks/cart"
 )
 
 func TestService_AddItem_RunsInsideTxRunner(t *testing.T) {
 	t.Parallel()
 
-	repo := cartMocks.NewMockRepository(t)
-	products := cartMocks.NewMockProductLookup(t)
-	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+	repo := NewMockRepository(t)
+	products := NewMockProductLookup(t)
+	svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 	userID := uuid.New()
 	productID := uuid.New()
 	cartID := uuid.New()
 
-	products.EXPECT().GetByID(mock.Anything, productID).Return(&cart.ProductInfo{
+	products.EXPECT().GetByID(mock.Anything, productID).Return(&ProductInfo{
 		ID:        productID,
 		Name:      "Widget",
 		Price:     money.New(1500, "USD"),
@@ -39,7 +37,7 @@ func TestService_AddItem_RunsInsideTxRunner(t *testing.T) {
 	repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).Return(0, false, nil)
 	repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).Return(nil)
 
-	err := svc.AddItem(context.Background(), userID, cart.AddItemParams{
+	err := svc.AddItem(context.Background(), userID, AddItemParams{
 		ProductID: productID,
 		Quantity:  2,
 	})
@@ -52,9 +50,9 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -62,7 +60,7 @@ func TestService_AddItem(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -70,25 +68,25 @@ func TestService_AddItem(t *testing.T) {
 		repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).
 			Return(nil)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 2})
+		err := svc.AddItem(ctx, userID, AddItemParams{ProductID: productID, Quantity: 2})
 		require.NoError(t, err)
 	})
 
 	t.Run("product not published", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Draft Item", Price: money.New(500, "USD"), Status: "draft", Available: 10}, nil)
+			Return(&ProductInfo{ID: productID, Name: "Draft Item", Price: money.New(500, "USD"), Status: "draft", Available: 10}, nil)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 1})
+		err := svc.AddItem(ctx, userID, AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
@@ -96,18 +94,18 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("insufficient stock", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 1}, nil)
+			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 1}, nil)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 5})
+		err := svc.AddItem(ctx, userID, AddItemParams{ProductID: productID, Quantity: 5})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, apperror.ErrInsufficientStock)
 	})
@@ -115,10 +113,10 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("cart full", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
 		maxItems := 3
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, maxItems)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, maxItems)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -126,13 +124,13 @@ func TestService_AddItem(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
 			Return(3, false, nil)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 1})
+		err := svc.AddItem(ctx, userID, AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
@@ -140,10 +138,10 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("cart full but bumping quantity of existing product succeeds", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
 		maxItems := 3
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, maxItems)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, maxItems)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -151,7 +149,7 @@ func TestService_AddItem(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -159,16 +157,16 @@ func TestService_AddItem(t *testing.T) {
 		repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).
 			Return(nil)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 2})
+		err := svc.AddItem(ctx, userID, AddItemParams{ProductID: productID, Quantity: 2})
 		require.NoError(t, err)
 	})
 
 	t.Run("product not found", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -176,7 +174,7 @@ func TestService_AddItem(t *testing.T) {
 
 		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
 
-		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 1})
+		err := svc.AddItem(ctx, userID, AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -184,29 +182,29 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("get or create error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(uuid.Nil, errors.New("db error"))
 
-		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 1})
+		err := svc.AddItem(ctx, userID, AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
 	})
 
 	t.Run("cap check query error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -214,13 +212,13 @@ func TestService_AddItem(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
 			Return(0, false, errors.New("db error"))
 
-		err := svc.AddItem(ctx, userID, cart.AddItemParams{ProductID: productID, Quantity: 1})
+		err := svc.AddItem(ctx, userID, AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
 	})
 }
@@ -231,8 +229,8 @@ func TestService_RemoveItem(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -249,8 +247,8 @@ func TestService_RemoveItem(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -268,8 +266,8 @@ func TestService_RemoveItem(t *testing.T) {
 	t.Run("get or create error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -288,9 +286,9 @@ func TestService_UpdateQuantity(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -298,56 +296,56 @@ func TestService_UpdateQuantity(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
 		repo.EXPECT().UpdateItemQuantity(mock.Anything, cartID, productID, 3).Return(nil)
 
-		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateQuantityParams{Quantity: 3})
+		err := svc.UpdateQuantity(ctx, userID, productID, UpdateQuantityParams{Quantity: 3})
 		require.NoError(t, err)
 	})
 
 	t.Run("rejects quantity above available stock", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 2}, nil)
+			Return(&ProductInfo{ID: productID, Status: "published", Available: 2}, nil)
 
-		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateQuantityParams{Quantity: 5})
+		err := svc.UpdateQuantity(ctx, userID, productID, UpdateQuantityParams{Quantity: 5})
 		assert.ErrorIs(t, err, apperror.ErrInsufficientStock)
 	})
 
 	t.Run("rejects unpublished product", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Status: "draft", Available: 100}, nil)
+			Return(&ProductInfo{ID: productID, Status: "draft", Available: 100}, nil)
 
-		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateQuantityParams{Quantity: 1})
+		err := svc.UpdateQuantity(ctx, userID, productID, UpdateQuantityParams{Quantity: 1})
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
 	t.Run("product lookup error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -355,26 +353,26 @@ func TestService_UpdateQuantity(t *testing.T) {
 
 		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, errors.New("db error"))
 
-		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateQuantityParams{Quantity: 3})
+		err := svc.UpdateQuantity(ctx, userID, productID, UpdateQuantityParams{Quantity: 3})
 		require.Error(t, err)
 	})
 
 	t.Run("get or create error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		products := cartMocks.NewMockProductLookup(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+		repo := NewMockRepository(t)
+		products := NewMockProductLookup(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
 		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 10}, nil)
+			Return(&ProductInfo{ID: productID, Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, errors.New("db error"))
 
-		err := svc.UpdateQuantity(ctx, userID, productID, cart.UpdateQuantityParams{Quantity: 3})
+		err := svc.UpdateQuantity(ctx, userID, productID, UpdateQuantityParams{Quantity: 3})
 		require.Error(t, err)
 	})
 }
@@ -385,15 +383,15 @@ func TestService_GetCart(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
-		expected := &cart.Cart{
+		expected := &Cart{
 			ID:     uuid.New(),
 			UserID: userID,
-			Items:  []cart.Item{},
+			Items:  []Item{},
 		}
 
 		repo.EXPECT().GetCart(mock.Anything, userID).Return(expected, nil)
@@ -406,8 +404,8 @@ func TestService_GetCart(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -423,16 +421,16 @@ func TestService_GetCart(t *testing.T) {
 func TestService_GetCart_FlagsUnavailableLines(t *testing.T) {
 	t.Parallel()
 
-	repo := cartMocks.NewMockRepository(t)
-	products := cartMocks.NewMockProductLookup(t)
-	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+	repo := NewMockRepository(t)
+	products := NewMockProductLookup(t)
+	svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 	userID := uuid.New()
 	liveID, goneID := uuid.New(), uuid.New()
 
-	repo.EXPECT().GetCart(mock.Anything, userID).Return(&cart.Cart{
+	repo.EXPECT().GetCart(mock.Anything, userID).Return(&Cart{
 		UserID: userID,
-		Items: []cart.Item{
+		Items: []Item{
 			{ProductID: liveID, Quantity: 2},
 			{ProductID: goneID, Quantity: 1},
 		},
@@ -441,7 +439,7 @@ func TestService_GetCart_FlagsUnavailableLines(t *testing.T) {
 	// The port reports what it knows. A soft-deleted product still comes back,
 	// carrying its status -- cart, not product, decides how to show it.
 	products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{liveID, goneID}).
-		Return(map[uuid.UUID]cart.ProductInfo{
+		Return(map[uuid.UUID]ProductInfo{
 			liveID: {ID: liveID, Name: "Widget", Price: money.New(1500, "USD"), Status: "published", Available: 5},
 			goneID: {ID: goneID, Name: "Gone", Price: money.New(900, "USD"), Status: "archived", Available: 0},
 		}, nil)
@@ -456,16 +454,16 @@ func TestService_GetCart_FlagsUnavailableLines(t *testing.T) {
 func TestService_GetCart_MissingProductBecomesUnavailable(t *testing.T) {
 	t.Parallel()
 
-	repo := cartMocks.NewMockRepository(t)
-	products := cartMocks.NewMockProductLookup(t)
-	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+	repo := NewMockRepository(t)
+	products := NewMockProductLookup(t)
+	svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
 
 	userID := uuid.New()
 	missingID := uuid.New()
 
-	repo.EXPECT().GetCart(mock.Anything, userID).Return(&cart.Cart{
+	repo.EXPECT().GetCart(mock.Anything, userID).Return(&Cart{
 		UserID: userID,
-		Items: []cart.Item{
+		Items: []Item{
 			{ProductID: missingID, Quantity: 1},
 		},
 	}, nil)
@@ -474,7 +472,7 @@ func TestService_GetCart_MissingProductBecomesUnavailable(t *testing.T) {
 	// carrying a terminal status. The line must still render, non-nil, so a
 	// later consumer of Item.Product never has to nil-check it.
 	products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{missingID}).
-		Return(map[uuid.UUID]cart.ProductInfo{}, nil)
+		Return(map[uuid.UUID]ProductInfo{}, nil)
 
 	c, err := svc.GetCart(context.Background(), userID)
 	require.NoError(t, err)
@@ -489,8 +487,8 @@ func TestService_Clear(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -504,8 +502,8 @@ func TestService_Clear(t *testing.T) {
 	t.Run("repo error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := cartMocks.NewMockRepository(t)
-		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
