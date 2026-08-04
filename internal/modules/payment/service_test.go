@@ -17,35 +17,6 @@ import (
 	mocks "github.com/residwi/go-api-project-template/mocks/payment"
 )
 
-func newTestService(t *testing.T) (
-	*payment.Service,
-	*mocks.MockRepository,
-	*mocks.MockGateway,
-	*mocks.MockOrderUpdater,
-	*mocks.MockOrderGetter,
-	*mocks.MockOrderItemsGetter,
-	*mocks.MockInventoryDeductor,
-	*mocks.MockInventoryRestorer,
-	*mocks.MockCouponReleaser,
-) {
-	repo := mocks.NewMockRepository(t)
-	gw := mocks.NewMockGateway(t)
-	orders := mocks.NewMockOrderUpdater(t)
-	orderGet := mocks.NewMockOrderGetter(t)
-	orderItems := mocks.NewMockOrderItemsGetter(t)
-	inventory := mocks.NewMockInventoryDeductor(t)
-	inventoryRestore := mocks.NewMockInventoryRestorer(t)
-	couponRel := mocks.NewMockCouponReleaser(t)
-
-	svc := payment.NewService(
-		repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems,
-		inventory, inventoryRestore, couponRel,
-	)
-
-	return svc, repo, gw, orders, orderGet, orderItems,
-		inventory, inventoryRestore, couponRel
-}
-
 func TestService_InitiatePayment(t *testing.T) {
 	ctx := context.Background()
 	orderID := uuid.New()
@@ -613,11 +584,9 @@ func TestService_Process(t *testing.T) {
 		repo.EXPECT().UpdateGateway(mock.Anything, p.ID, "txn_comp", mock.Anything).
 			Return(nil)
 
-		// FinalizePaymentSuccess fails at orderGet
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(payment.OrderSnapshot{}, errors.New("db down"))
 
-		// runCompensatingRefund expectations
 		repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, payment.StatusRequiresReview,
 			[]payment.Status{payment.StatusPending, payment.StatusProcessing, payment.StatusSuccess}).
 			Return(nil)
@@ -2139,4 +2108,33 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		processErr := svc.Process(ctx, job)
 		assert.NoError(t, processErr)
 	})
+}
+
+func newTestService(t *testing.T) (
+	*payment.Service,
+	*mocks.MockRepository,
+	*mocks.MockGateway,
+	*mocks.MockOrderUpdater,
+	*mocks.MockOrderGetter,
+	*mocks.MockOrderItemsGetter,
+	*mocks.MockInventoryDeductor,
+	*mocks.MockInventoryRestorer,
+	*mocks.MockCouponReleaser,
+) {
+	repo := mocks.NewMockRepository(t)
+	gw := mocks.NewMockGateway(t)
+	orders := mocks.NewMockOrderUpdater(t)
+	orderGet := mocks.NewMockOrderGetter(t)
+	orderItems := mocks.NewMockOrderItemsGetter(t)
+	inventory := mocks.NewMockInventoryDeductor(t)
+	inventoryRestore := mocks.NewMockInventoryRestorer(t)
+	couponRel := mocks.NewMockCouponReleaser(t)
+
+	svc := payment.NewService(
+		repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems,
+		inventory, inventoryRestore, couponRel,
+	)
+
+	return svc, repo, gw, orders, orderGet, orderItems,
+		inventory, inventoryRestore, couponRel
 }
