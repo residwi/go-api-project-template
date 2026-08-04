@@ -1,7 +1,7 @@
 # This file is licensed under the terms of the MIT license https://opensource.org/license/mit
 # Copyright (c) 2021-2025 Marat Reimers
 
-## Golden config for golangci-lint v2.11.4
+## Golden config for golangci-lint v2.12.2
 #
 # This is the best config for golangci-lint based on my experience and opinion.
 # It is very strict, but not extremely strict.
@@ -53,6 +53,7 @@ linters:
     - bidichk # checks for dangerous unicode character sequences
     - bodyclose # checks whether HTTP response body is closed successfully
     - canonicalheader # checks whether net/http.Header uses canonical header
+    # - clickhouselint # detects common mistakes with the ClickHouse native Go driver API
     - copyloopvar # detects places where loop variables are copied (Go 1.22+)
     - cyclop # checks function and package cyclomatic complexity
     - depguard # checks if package imports are in a list of acceptable packages
@@ -151,7 +152,7 @@ linters:
     #- err113 # [too strict] checks the errors handling expressions
     #- errchkjson # [don't see profit + I'm against of omitting errors like in the first example https://github.com/breml/errchkjson] checks types passed to the json encoding functions. Reports unsupported types and optionally reports occasions, where the check for the returned error can be omitted
     #- forcetypeassert # [replaced by errcheck] finds forced type assertions
-    #- gomodguard # [use more powerful depguard] allow and block lists linter for direct Go module dependencies
+    #- gomodguard_v2: [use more powerful depguard] allow and blocklist linter for direct Go module dependencies
     #- gosmopolitan # reports certain i18n/l10n anti-patterns in your Go codebase
     #- grouper # analyzes expression groups
     #- importas # enforces consistent import aliases
@@ -162,7 +163,6 @@ linters:
     #- paralleltest # [too many false positives] detects missing usage of t.Parallel() method in your Go test
     #- tagliatelle # checks the struct tags
     #- thelper # detects golang test helpers without t.Helper() call and checks the consistency of test helpers
-    #- wsl # [too strict and mostly code is not more readable] whitespace linter forces you to use empty lines
     #- wsl_v5 # [too strict and mostly code is not more readable] add or remove empty lines
 
   # All settings can be found here https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
@@ -392,6 +392,9 @@ linters:
       # Optimizes into strings concatenation.
       # Default: true
       strconcat: false
+      # Enable/disable optimization of error formatting.
+      # Default: true
+      error-format: false # https://github.com/catenacyber/perfsprint/issues/62
 
     reassign:
       # Patterns for global variable names that are checked for reassignment.
