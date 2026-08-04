@@ -20,7 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	userMocks "github.com/residwi/go-api-project-template/mocks/user"
 
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -298,8 +297,8 @@ func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 		"timestamps are reserved for the admin response")
 }
 
-func setupUserMux(t *testing.T) (*http.ServeMux, *userMocks.MockRepository) {
-	repo := userMocks.NewMockRepository(t)
+func setupUserMux(t *testing.T) (*http.ServeMux, *MockRepository) {
+	repo := NewMockRepository(t)
 	svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 	v := validator.New()
 
