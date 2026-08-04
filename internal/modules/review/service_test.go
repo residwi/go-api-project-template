@@ -16,14 +16,6 @@ import (
 	mocks "github.com/residwi/go-api-project-template/mocks/review"
 )
 
-// matchDelivery matches a review.DeliveredPurchase by user and product, leaving
-// the order id unconstrained for subtests that generate it inline.
-func matchDelivery(userID, productID uuid.UUID) any {
-	return mock.MatchedBy(func(p review.DeliveredPurchase) bool {
-		return p.UserID == userID && p.ProductID == productID
-	})
-}
-
 func TestService_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
@@ -282,8 +274,6 @@ func TestService_Create_PassesNamedPurchaseFields(t *testing.T) {
 	productID := uuid.New()
 	orderID := uuid.New()
 
-	// The verifier must receive each id in its named field. With positional
-	// args a swap here would still compile and still pass.
 	verifier.EXPECT().HasDeliveredOrder(mock.Anything, review.DeliveredPurchase{
 		UserID:    userID,
 		OrderID:   orderID,
@@ -297,4 +287,10 @@ func TestService_Create_PassesNamedPurchaseFields(t *testing.T) {
 		Body:    "Worked well",
 	})
 	require.ErrorIs(t, err, apperror.ErrBadRequest, "a non-delivered purchase must be rejected")
+}
+
+func matchDelivery(userID, productID uuid.UUID) any {
+	return mock.MatchedBy(func(p review.DeliveredPurchase) bool {
+		return p.UserID == userID && p.ProductID == productID
+	})
 }
