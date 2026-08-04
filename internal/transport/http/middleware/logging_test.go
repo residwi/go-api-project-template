@@ -1,4 +1,4 @@
-package middleware_test
+package middleware
 
 import (
 	"net/http"
@@ -6,13 +6,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 func TestLogging_CallsNextHandler(t *testing.T) {
 	called := false
-	handler := middleware.Logging(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := Logging(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -26,7 +24,7 @@ func TestLogging_CallsNextHandler(t *testing.T) {
 }
 
 func TestLogging_StatusRecorderRecordsStatusCode(t *testing.T) {
-	handler := middleware.Logging(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := Logging(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 

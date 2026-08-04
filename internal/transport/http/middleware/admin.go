@@ -14,7 +14,7 @@ func RequireAdmin(next http.Handler) http.Handler {
 			return
 		}
 
-		if uc.Role != "admin" {
+		if uc.Role != "admin" { //nolint:goconst // shared with role fixtures in this package's now in-package tests; a role constant isn't worth it for one comparison
 			response.Forbidden(w, "admin access required")
 			return
 		}

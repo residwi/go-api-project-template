@@ -70,7 +70,3 @@ packages:
   github.com/residwi/go-api-project-template/internal/modules/dashboard:
     interfaces:
       Repository:
-  github.com/residwi/go-api-project-template/internal/transport/http/middleware:
-    interfaces:
-      TokenValidator:
-      UserStatusChecker:

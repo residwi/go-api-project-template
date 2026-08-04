@@ -1,4 +1,4 @@
-package middleware_test
+package middleware
 
 import (
 	"context"
@@ -13,8 +13,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 func TestRateLimit(t *testing.T) {
@@ -23,7 +21,7 @@ func TestRateLimit(t *testing.T) {
 	})
 
 	t.Run("nil redis passes through", func(t *testing.T) {
-		handler := middleware.RateLimit(nil, 10, time.Minute)(okHandler)
+		handler := RateLimit(nil, 10, time.Minute)(okHandler)
 
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
@@ -39,7 +37,7 @@ func TestRateLimit(t *testing.T) {
 		})
 
 		const maxRequests = 5
-		handler := middleware.RateLimit(testRedis, maxRequests, time.Minute)(okHandler)
+		handler := RateLimit(testRedis, maxRequests, time.Minute)(okHandler)
 
 		for i := range 3 {
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -58,7 +56,7 @@ func TestRateLimit(t *testing.T) {
 		})
 
 		const maxRequests = 5
-		handler := middleware.RateLimit(testRedis, maxRequests, time.Minute)(okHandler)
+		handler := RateLimit(testRedis, maxRequests, time.Minute)(okHandler)
 
 		for i := range maxRequests {
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -80,7 +78,7 @@ func TestRateLimit(t *testing.T) {
 	})
 
 	t.Run("redis error allows request through", func(t *testing.T) {
-		handler := middleware.RateLimit(testRedis, 10, time.Minute)(okHandler)
+		handler := RateLimit(testRedis, 10, time.Minute)(okHandler)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // cancel immediately to cause redis error
@@ -104,7 +102,7 @@ func TestRateLimit(t *testing.T) {
 		hookedClient.AddHook(expireFailHook{})
 		defer hookedClient.Close()
 
-		handler := middleware.RateLimit(hookedClient, 10, time.Minute)(okHandler)
+		handler := RateLimit(hookedClient, 10, time.Minute)(okHandler)
 
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		r.RemoteAddr = "10.0.0.99:12345"
@@ -121,7 +119,7 @@ func TestRateLimit(t *testing.T) {
 		})
 
 		const maxRequests = 5
-		handler := middleware.RateLimit(testRedis, maxRequests, time.Minute)(okHandler)
+		handler := RateLimit(testRedis, maxRequests, time.Minute)(okHandler)
 
 		// Exhaust limit for IP1
 		for i := range maxRequests {

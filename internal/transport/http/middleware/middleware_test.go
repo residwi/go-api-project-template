@@ -1,14 +1,25 @@
-package middleware_test
+package middleware
 
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
+
+var testRedis *redis.Client
+
+func TestMain(m *testing.M) {
+	rdb, cleanup := testhelper.MustStartRedis(1)
+	defer cleanup()
+	testRedis = rdb
+	os.Exit(m.Run())
+}
 
 func TestChain_AppliesMiddlewareInCorrectOrder(t *testing.T) {
 	var order []string
@@ -29,7 +40,7 @@ func TestChain_AppliesMiddlewareInCorrectOrder(t *testing.T) {
 		})
 	}
 
-	chain := middleware.Chain(mw1, mw2)
+	chain := Chain(mw1, mw2)
 	handler := chain(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		order = append(order, "handler")
 		w.WriteHeader(http.StatusOK)
@@ -45,7 +56,7 @@ func TestChain_AppliesMiddlewareInCorrectOrder(t *testing.T) {
 
 func TestNewRouteGroup_NoMiddlewareRegistersRoute(t *testing.T) {
 	mux := http.NewServeMux()
-	group := middleware.NewRouteGroup(mux, "/api")
+	group := NewRouteGroup(mux, "/api")
 
 	called := false
 	group.Handle("GET /health", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -72,7 +83,7 @@ func TestNewRouteGroup_WithMiddlewareWrapsHandler(t *testing.T) {
 		})
 	}
 
-	group := middleware.NewRouteGroup(mux, "/api", mw)
+	group := NewRouteGroup(mux, "/api", mw)
 
 	handlerCalled := false
 	group.Handle("GET /test", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -91,7 +102,7 @@ func TestNewRouteGroup_WithMiddlewareWrapsHandler(t *testing.T) {
 
 func TestRouteGroup_HandleFuncDelegatesToHandle(t *testing.T) {
 	mux := http.NewServeMux()
-	group := middleware.NewRouteGroup(mux, "/api")
+	group := NewRouteGroup(mux, "/api")
 
 	called := false
 	group.HandleFunc("POST /items", func(w http.ResponseWriter, _ *http.Request) {

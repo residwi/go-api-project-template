@@ -1,4 +1,4 @@
-package middleware_test
+package middleware
 
 import (
 	"net/http"
@@ -6,12 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 func TestRecovery_CatchesPanicAndReturns500(t *testing.T) {
-	handler := middleware.Recovery(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+	handler := Recovery(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		panic("something went wrong")
 	}))
 
@@ -24,7 +22,7 @@ func TestRecovery_CatchesPanicAndReturns500(t *testing.T) {
 
 func TestRecovery_PassesThroughNormalRequest(t *testing.T) {
 	called := false
-	handler := middleware.Recovery(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := Recovery(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	}))

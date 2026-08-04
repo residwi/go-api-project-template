@@ -1,4 +1,4 @@
-package middleware_test
+package middleware
 
 import (
 	"net/http"
@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/residwi/go-api-project-template/internal/config"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 func TestCORS_SetsHeadersFromConfig(t *testing.T) {
@@ -19,7 +18,7 @@ func TestCORS_SetsHeadersFromConfig(t *testing.T) {
 		MaxAge:         3600,
 	}
 
-	handler := middleware.CORS(cfg)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := CORS(cfg)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -43,7 +42,7 @@ func TestCORS_Returns204OnOptionsPreflight(t *testing.T) {
 	}
 
 	called := false
-	handler := middleware.CORS(cfg)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+	handler := CORS(cfg)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		called = true
 	}))
 
@@ -65,7 +64,7 @@ func TestCORS_PassesThroughNonOptionsRequests(t *testing.T) {
 	}
 
 	called := false
-	handler := middleware.CORS(cfg)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := CORS(cfg)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	}))

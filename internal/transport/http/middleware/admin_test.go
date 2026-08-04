@@ -1,4 +1,4 @@
-package middleware_test
+package middleware
 
 import (
 	"net/http"
@@ -7,13 +7,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 func TestRequireAdmin(t *testing.T) {
 	t.Run("NoUserContext", func(t *testing.T) {
-		handler := middleware.RequireAdmin(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		handler := RequireAdmin(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
 		}))
 
@@ -25,13 +23,13 @@ func TestRequireAdmin(t *testing.T) {
 	})
 
 	t.Run("NonAdminRole", func(t *testing.T) {
-		handler := middleware.RequireAdmin(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		handler := RequireAdmin(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
 		}))
 
-		ctx := middleware.SetUserContext(
+		ctx := SetUserContext(
 			httptest.NewRequest(http.MethodGet, "/", nil).Context(),
-			middleware.UserContext{UserID: uuid.New(), Email: "user@example.com", Role: "user"},
+			UserContext{UserID: uuid.New(), Email: "user@example.com", Role: "user"},
 		)
 		req := httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx)
 		rec := httptest.NewRecorder()
@@ -42,14 +40,14 @@ func TestRequireAdmin(t *testing.T) {
 
 	t.Run("AdminRole", func(t *testing.T) {
 		called := false
-		handler := middleware.RequireAdmin(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		handler := RequireAdmin(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			called = true
 			w.WriteHeader(http.StatusOK)
 		}))
 
-		ctx := middleware.SetUserContext(
+		ctx := SetUserContext(
 			httptest.NewRequest(http.MethodGet, "/", nil).Context(),
-			middleware.UserContext{UserID: uuid.New(), Email: "admin@example.com", Role: "admin"},
+			UserContext{UserID: uuid.New(), Email: "admin@example.com", Role: "admin"},
 		)
 		req := httptest.NewRequest(http.MethodGet, "/", nil).WithContext(ctx)
 		rec := httptest.NewRecorder()

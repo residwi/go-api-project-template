@@ -1,4 +1,4 @@
-package middleware_test
+package middleware
 
 import (
 	"context"
@@ -8,14 +8,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 func TestRequestID_GeneratesUUIDWhenNoHeader(t *testing.T) {
 	var capturedID string
-	handler := middleware.RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedID = middleware.GetRequestID(r.Context())
+	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedID = GetRequestID(r.Context())
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -32,8 +30,8 @@ func TestRequestID_UsesExistingHeader(t *testing.T) {
 	existingID := "my-custom-request-id"
 
 	var capturedID string
-	handler := middleware.RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedID = middleware.GetRequestID(r.Context())
+	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedID = GetRequestID(r.Context())
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -47,7 +45,7 @@ func TestRequestID_UsesExistingHeader(t *testing.T) {
 }
 
 func TestRequestID_SetsResponseHeader(t *testing.T) {
-	handler := middleware.RequestID(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -60,7 +58,7 @@ func TestRequestID_SetsResponseHeader(t *testing.T) {
 }
 
 func TestGetRequestID_ReturnsEmptyStringFromEmptyContext(t *testing.T) {
-	id := middleware.GetRequestID(context.Background())
+	id := GetRequestID(context.Background())
 
 	assert.Empty(t, id)
 }

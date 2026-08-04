@@ -82,7 +82,7 @@ func Auth(tokenValidator TokenValidator, userStatus UserStatusChecker) Middlewar
 				return
 			}
 
-			if claims.Type != "access" {
+			if claims.Type != "access" { //nolint:goconst // shared with token-type fixtures in this package's now in-package tests; a token-type constant isn't worth it for one comparison
 				response.Unauthorized(w, "invalid token type")
 				return
 			}
