@@ -1,4 +1,4 @@
-package jobs_test
+package jobs
 
 import (
 	"context"
@@ -8,20 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 )
-
-func testConfig() jobs.Config {
-	return jobs.Config{
-		Interval:      time.Second,
-		BatchSize:     10,
-		LeaseDuration: time.Minute,
-		Concurrency:   4,
-		PruneAge:      24 * time.Hour,
-		PruneLimit:    100,
-	}
-}
 
 func TestRunner(t *testing.T) {
 	t.Run("processes every claimed job", func(t *testing.T) {
@@ -30,7 +17,7 @@ func TestRunner(t *testing.T) {
 
 			q := &fakeQueue{batches: [][]testJob{{{ID: 1}, {ID: 2}}}}
 			p := &fakeProcessor{}
-			r := jobs.NewRunner("test", q, p, testConfig())
+			r := NewRunner("test", q, p, testConfig())
 
 			go r.Start(ctx)
 
@@ -50,7 +37,7 @@ func TestRunner(t *testing.T) {
 
 			q := &fakeQueue{}
 			p := &fakeProcessor{}
-			r := jobs.NewRunner("test", q, p, testConfig())
+			r := NewRunner("test", q, p, testConfig())
 
 			go r.Start(ctx)
 
@@ -73,7 +60,7 @@ func TestRunner(t *testing.T) {
 
 			q := &fakeQueue{}
 			p := &fakeSweepProcessor{fakeProcessor: &fakeProcessor{}}
-			r := jobs.NewRunner("test", q, p, testConfig())
+			r := NewRunner("test", q, p, testConfig())
 
 			go r.Start(ctx)
 
@@ -115,7 +102,7 @@ func TestRunner(t *testing.T) {
 				return nil
 			}}
 			q := &fakeQueue{batches: [][]testJob{{{ID: 1}}}}
-			r := jobs.NewRunner("test", q, p, testConfig())
+			r := NewRunner("test", q, p, testConfig())
 
 			go r.Start(ctx)
 
@@ -163,7 +150,7 @@ func TestRunner(t *testing.T) {
 			cfg := testConfig()
 			cfg.Concurrency = 2
 			q := &fakeQueue{batches: [][]testJob{{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}}}}
-			r := jobs.NewRunner("test", q, p, cfg)
+			r := NewRunner("test", q, p, cfg)
 
 			go r.Start(ctx)
 
@@ -251,4 +238,15 @@ func (p *fakeSweepProcessor) Sweep(_ context.Context) error {
 	defer p.sweepMu.Unlock()
 	p.sweepCalls++
 	return nil
+}
+
+func testConfig() Config {
+	return Config{
+		Interval:      time.Second,
+		BatchSize:     10,
+		LeaseDuration: time.Minute,
+		Concurrency:   4,
+		PruneAge:      24 * time.Hour,
+		PruneLimit:    100,
+	}
 }
