@@ -1,8 +1,8 @@
-// Package seeds_test proves db/seeds/data.sql still applies cleanly against a
+// Package seeds proves db/seeds/data.sql still applies cleanly against a
 // freshly migrated database. Nothing else in the suite exercises this file --
 // `make seed` runs it directly against a real database -- so a schema change
 // (e.g. a dropped or renamed column) can break it without any test noticing.
-package seeds_test
+package seeds
 
 import (
 	"context"
