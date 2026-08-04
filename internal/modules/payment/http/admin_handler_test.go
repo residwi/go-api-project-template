@@ -23,7 +23,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	mocks "github.com/residwi/go-api-project-template/mocks/payment"
 )
 
 func TestAdminHandler_List(t *testing.T) {
@@ -333,18 +332,18 @@ func TestToAdminPaymentResponse_OmitsGatewayResponse(t *testing.T) {
 // registers the expectation assertions -- they are just not handed back.
 func setupPaymentMux(t *testing.T) (
 	*http.ServeMux,
-	*mocks.MockRepository,
-	*mocks.MockOrderUpdater,
-	*mocks.MockOrderGetter,
+	*MockRepository,
+	*MockOrderUpdater,
+	*MockOrderGetter,
 ) {
-	repo := mocks.NewMockRepository(t)
-	gw := mocks.NewMockGateway(t)
-	orders := mocks.NewMockOrderUpdater(t)
-	orderGet := mocks.NewMockOrderGetter(t)
-	orderItems := mocks.NewMockOrderItemsGetter(t)
-	inv := mocks.NewMockInventoryDeductor(t)
-	invRestore := mocks.NewMockInventoryRestorer(t)
-	couponRel := mocks.NewMockCouponReleaser(t)
+	repo := NewMockRepository(t)
+	gw := NewMockGateway(t)
+	orders := NewMockOrderUpdater(t)
+	orderGet := NewMockOrderGetter(t)
+	orderItems := NewMockOrderItemsGetter(t)
+	inv := NewMockInventoryDeductor(t)
+	invRestore := NewMockInventoryRestorer(t)
+	couponRel := NewMockCouponReleaser(t)
 
 	svc := payment.NewService(
 		repo,

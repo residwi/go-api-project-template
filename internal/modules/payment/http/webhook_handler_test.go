@@ -20,7 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
-	mocks "github.com/residwi/go-api-project-template/mocks/payment"
 )
 
 func TestWebhookHandler_SignatureVerification(t *testing.T) {
@@ -192,15 +191,15 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 	})
 }
 
-func setupPaymentMuxWithSecret(t *testing.T, secret string) (*http.ServeMux, *mocks.MockRepository) {
-	repo := mocks.NewMockRepository(t)
-	gw := mocks.NewMockGateway(t)
-	orders := mocks.NewMockOrderUpdater(t)
-	orderGet := mocks.NewMockOrderGetter(t)
-	orderItems := mocks.NewMockOrderItemsGetter(t)
-	inv := mocks.NewMockInventoryDeductor(t)
-	invRestore := mocks.NewMockInventoryRestorer(t)
-	couponRel := mocks.NewMockCouponReleaser(t)
+func setupPaymentMuxWithSecret(t *testing.T, secret string) (*http.ServeMux, *MockRepository) {
+	repo := NewMockRepository(t)
+	gw := NewMockGateway(t)
+	orders := NewMockOrderUpdater(t)
+	orderGet := NewMockOrderGetter(t)
+	orderItems := NewMockOrderItemsGetter(t)
+	inv := NewMockInventoryDeductor(t)
+	invRestore := NewMockInventoryRestorer(t)
+	couponRel := NewMockCouponReleaser(t)
 
 	svc := payment.NewService(
 		repo,
