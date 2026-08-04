@@ -23,7 +23,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	orderMocks "github.com/residwi/go-api-project-template/mocks/order"
 )
 
 func TestHandler_ListOrders(t *testing.T) {
@@ -670,17 +669,17 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 // registers the expectation assertions -- they are just not handed back.
 func setupOrderMux(t *testing.T) (
 	*http.ServeMux,
-	*orderMocks.MockRepository,
-	*orderMocks.MockCartProvider,
-	*orderMocks.MockPaymentInitiator,
+	*MockRepository,
+	*MockCartProvider,
+	*MockPaymentInitiator,
 ) {
-	repo := orderMocks.NewMockRepository(t)
-	cart := orderMocks.NewMockCartProvider(t)
-	inventory := orderMocks.NewMockInventoryReserver(t)
-	payment := orderMocks.NewMockPaymentInitiator(t)
-	paymentCancel := orderMocks.NewMockPaymentJobCanceller(t)
-	coupons := orderMocks.NewMockCouponReserver(t)
-	notifications := orderMocks.NewMockNotificationEnqueuer(t)
+	repo := NewMockRepository(t)
+	cart := NewMockCartProvider(t)
+	inventory := NewMockInventoryReserver(t)
+	payment := NewMockPaymentInitiator(t)
+	paymentCancel := NewMockPaymentJobCanceller(t)
+	coupons := NewMockCouponReserver(t)
+	notifications := NewMockNotificationEnqueuer(t)
 
 	svc := order.NewService(
 		repo,
