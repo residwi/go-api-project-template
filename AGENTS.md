@@ -415,8 +415,8 @@ can produce a loud false positive.
   `package <feature>`, and keeps every `Mock*` name out of the feature's exported
   API. That privacy cuts both ways: any *other* package needing the same mock
   gets its own generated copy, which is why each interface carries a
-  two-destination `configs:` list in
-  `.mockery.yml`, asserted by `make check-boundaries` — the destinations depend
+  `configs:` list in `.mockery.yml` naming every package that needs its mock —
+  the count varies by interface, asserted by `make check-boundaries` — the destinations depend
   on every module having an `http/` adapter and every mocked interface sitting at
   a module root, and mockery is silent when either stops holding. `internal/bootstrap`
   receives `MockProductRepository` / `MockInventoryRepository` under

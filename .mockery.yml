@@ -37,7 +37,12 @@ packages:
   github.com/residwi/go-api-project-template/internal/modules/user:
     interfaces:
       Repository: {configs: *dual}
-      StatusCache: {configs: *dual}
+      # StatusCache has no *dual: nothing in user/http uses it -- handler_test.go
+      # builds the service with user.NoCache{} instead -- so a second destination
+      # would just be a dead mock nobody imports.
+      StatusCache:
+        configs:
+          - {dir: "{{.InterfaceDir}}", pkgname: "{{.SrcPackageName}}", filename: "mocks_test.go"}
   github.com/residwi/go-api-project-template/internal/modules/category:
     interfaces:
       Repository: {configs: *dual}

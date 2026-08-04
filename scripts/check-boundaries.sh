@@ -7,6 +7,7 @@
 #   Check 2  A feature's postgres adapter only queries tables it owns,
 #            where "owns" is read out of db/OWNERSHIP.md at run time.
 #   Check 3  No feature imports another feature's postgres/http/redis adapter.
+#   Check 4  The mock generation invariants .mockery.yml relies on hold.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
 # clean; on failure it prints every violation as file:line and exits 1.
@@ -632,7 +633,7 @@ check_adapter_imports() {
 }
 
 # ---------------------------------------------------------------------------
-# Check 5 -- the mock generation invariants .mockery.yml relies on
+# Check 4 -- the mock generation invariants .mockery.yml relies on
 #
 # .mockery.yml sends every module interface's mock to two destinations: the
 # module package and "{{.InterfaceDir}}/http". That is only correct while every
@@ -641,13 +642,16 @@ check_adapter_imports() {
 # content is a test file -- go build, go vet, go test and golangci-lint all
 # accept it.
 check_mock_destinations() {
+	local feature dir f
+
 	for dir in "$MODULES_ROOT"/*/; do
 		feature=$(basename "$dir")
 		if [ ! -d "$dir/http" ]; then
 			report "module without an http adapter: $feature
-    .mockery.yml's *dual anchor writes mocks to internal/modules/$feature/http/.
-    Either add the http adapter, or give this module's interfaces a single-
-    destination configs: list instead of *dual."
+    This check flags any module lacking an http/ adapter, whether or not its
+    interfaces actually use .mockery.yml's *dual anchor. If $feature does use
+    *dual, add the http adapter -- this check never reads .mockery.yml, so
+    switching its configs: list will not silence this message."
 		fi
 	done
 
