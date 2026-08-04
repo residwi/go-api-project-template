@@ -86,7 +86,7 @@ func Auth(
 				return
 			}
 
-			if claims.Type != "access" { //nolint:goconst // shared with token-type fixtures in this package's now in-package tests; a token-type constant isn't worth it for one comparison
+			if claims.Type != "access" {
 				response.Unauthorized(w, "invalid token type")
 				return
 			}

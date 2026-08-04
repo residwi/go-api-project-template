@@ -303,6 +303,15 @@ linters:
       # Default: 30 (but we recommend 10-20)
       min-complexity: 20
 
+    goconst:
+      # Test files used to live in <pkg>_test packages, so their string literals
+      # never counted toward the package's occurrence tally. Now that tests are
+      # in-package, they do -- user/service_test.go alone holds 21 uses of "user",
+      # which pushed service.go over the threshold even though no production file
+      # changed. Counting only non-test occurrences restores the behaviour this
+      # repo had before the tests moved in-package.
+      ignore-tests: true
+
     gocritic:
       # Settings passed to gocritic.
       # The settings key is the name of a supported gocritic checker.

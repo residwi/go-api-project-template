@@ -112,7 +112,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*Token
 		return nil, apperror.ErrInvalidToken
 	}
 
-	if claims.Type != "refresh" { //nolint:goconst // shared with token-type fixtures in this package's now in-package tests; a token-type constant isn't worth it for one comparison
+	if claims.Type != "refresh" {
 		return nil, apperror.ErrInvalidToken
 	}
 
