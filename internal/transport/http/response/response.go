@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -102,10 +101,33 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	return nil
 }
 
+// writeJSON marshals before touching the header, so a value that cannot be
+// encoded still produces an honest 500 instead of the status the caller asked
+// for followed by an empty body.
+//
+// The ordering is the whole point. [json.Marshal] buffers the entire document,
+// so a failure here has written nothing yet and the status is still ours to
+// choose; encoding straight into w would have committed the header first. Gin's
+// render.WriteJSON and go-chi/render.JSON both buffer for exactly this reason.
+//
+// The failure path goes back through InternalError rather than writing a
+// literal, so the error body keeps its shape from the Response struct tags and
+// cannot drift from them. That recurses exactly once and cannot loop: it
+// re-enters with a fixed string message and no Details, which always marshals.
+//
+// The error is deliberately neither logged nor returned. These helpers take
+// neither a context nor a logger across their 83 call sites, and the resulting
+// 500 is already recorded by the Logging middleware's status recorder.
 func writeJSON(w http.ResponseWriter, status int, v any) {
+	body, err := json.Marshal(v)
+	if err != nil {
+		InternalError(w)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		slog.Error("failed to write response", "error", err)
-	}
+	// A failure here means the client is already gone and the status line has
+	// been sent, so there is nothing left to decide.
+	_, _ = w.Write(body)
 }

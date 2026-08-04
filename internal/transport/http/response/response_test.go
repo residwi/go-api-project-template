@@ -29,6 +29,47 @@ func TestOK(t *testing.T) {
 	assert.True(t, body.Success)
 }
 
+func TestOK_UnencodableValueBecomesA500(t *testing.T) {
+	t.Parallel()
+
+	w := httptest.NewRecorder()
+	// A channel cannot be marshalled. json.Marshal buffers the whole document,
+	// so this fails before anything reaches the wire and the 200 OK asked for
+	// by OK() must not be what the client receives.
+	OK(w, make(chan int))
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code,
+		"an unencodable value must not be reported to the client as success")
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+
+	var body Response
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body),
+		"the fallback body must still be valid JSON")
+	assert.False(t, body.Success)
+	require.NotNil(t, body.Error)
+	assert.Equal(t, "internal server error", body.Error.Message)
+	assert.Nil(t, body.Data)
+}
+
+func TestErr_UnencodableDetailsStillTerminate(t *testing.T) {
+	t.Parallel()
+
+	w := httptest.NewRecorder()
+	// Details is map[string]any, so a caller can put an unencodable value in it.
+	// That sends writeJSON back through InternalError, which re-enters with no
+	// Details -- so it must settle after exactly one bounce rather than loop.
+	Err(w, http.StatusBadRequest, "bad request", map[string]any{"ch": make(chan int)})
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	var body Response
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	assert.False(t, body.Success)
+	require.NotNil(t, body.Error)
+	assert.Equal(t, "internal server error", body.Error.Message)
+	assert.Nil(t, body.Error.Details)
+}
+
 func TestCreated(t *testing.T) {
 	t.Parallel()
 
