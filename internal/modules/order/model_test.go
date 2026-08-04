@@ -14,12 +14,18 @@ import (
 // cannot, since fulfillment_failed is reachable from both reserved-only and
 // deducted states.
 func TestTransitionStockFlags(t *testing.T) {
+	t.Parallel()
+
 	t.Run("PaidTransition marks stock deducted", func(t *testing.T) {
+		t.Parallel()
+
 		assert.True(t, PaidTransition.SetsStockDeducted)
 		assert.False(t, PaidTransition.SetsStockReversed)
 	})
 
 	t.Run("cancel, expire, and refund mark the hold reversed", func(t *testing.T) {
+		t.Parallel()
+
 		for _, tr := range []Transition{
 			CancelledTransition,
 			ExpiredTransition,
@@ -31,6 +37,8 @@ func TestTransitionStockFlags(t *testing.T) {
 	})
 
 	t.Run("other transitions touch neither stock flag", func(t *testing.T) {
+		t.Parallel()
+
 		for _, tr := range []Transition{
 			PaymentProcessingTransition,
 			AwaitingPaymentTransition,

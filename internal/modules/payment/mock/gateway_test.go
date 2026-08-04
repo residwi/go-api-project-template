@@ -15,7 +15,11 @@ import (
 )
 
 func TestGateway_Charge(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		want := payment.ChargeResponse{
 			TransactionID: "txn_123",
 			Status:        "success",
@@ -52,6 +56,8 @@ func TestGateway_Charge(t *testing.T) {
 	})
 
 	t.Run("server error", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}))
@@ -68,6 +74,8 @@ func TestGateway_Charge(t *testing.T) {
 	})
 
 	t.Run("invalid json", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte("not valid json"))
@@ -85,6 +93,8 @@ func TestGateway_Charge(t *testing.T) {
 	})
 
 	t.Run("connection error", func(t *testing.T) {
+		t.Parallel()
+
 		gw := New("http://127.0.0.1:1", 1*time.Second)
 		_, err := gw.Charge(context.Background(), payment.ChargeRequest{
 			OrderID: "order_1",
@@ -96,6 +106,8 @@ func TestGateway_Charge(t *testing.T) {
 	})
 
 	t.Run("invalid URL returns request creation error", func(t *testing.T) {
+		t.Parallel()
+
 		gw := New("http://invalid\x7furl", 1*time.Second)
 		_, err := gw.Charge(context.Background(), payment.ChargeRequest{
 			OrderID: "order_1",
@@ -108,7 +120,11 @@ func TestGateway_Charge(t *testing.T) {
 }
 
 func TestGateway_Refund(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		want := payment.RefundResponse{
 			RefundID: "ref_456",
 			Status:   "success",
@@ -142,6 +158,8 @@ func TestGateway_Refund(t *testing.T) {
 	})
 
 	t.Run("server error", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}))
@@ -158,6 +176,8 @@ func TestGateway_Refund(t *testing.T) {
 	})
 
 	t.Run("invalid json response", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte("not valid json"))
@@ -175,6 +195,8 @@ func TestGateway_Refund(t *testing.T) {
 	})
 
 	t.Run("connection error", func(t *testing.T) {
+		t.Parallel()
+
 		gw := New("http://127.0.0.1:1", 1*time.Second)
 		_, err := gw.Refund(context.Background(), payment.RefundRequest{
 			TransactionID: "txn_123",
@@ -186,6 +208,8 @@ func TestGateway_Refund(t *testing.T) {
 	})
 
 	t.Run("invalid URL returns request creation error", func(t *testing.T) {
+		t.Parallel()
+
 		gw := New("http://invalid\x7furl", 1*time.Second)
 		_, err := gw.Refund(context.Background(), payment.RefundRequest{
 			TransactionID: "txn_123",

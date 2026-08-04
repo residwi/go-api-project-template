@@ -15,7 +15,11 @@ import (
 )
 
 func TestService_Restore(t *testing.T) {
+	t.Parallel()
+
 	t.Run("releases stock that was only reserved", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -27,6 +31,8 @@ func TestService_Restore(t *testing.T) {
 	})
 
 	t.Run("restocks stock that was deducted", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -39,7 +45,11 @@ func TestService_Restore(t *testing.T) {
 }
 
 func TestService_Reserve(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -54,6 +64,8 @@ func TestService_Reserve(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -68,7 +80,11 @@ func TestService_Reserve(t *testing.T) {
 }
 
 func TestService_Release(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -83,6 +99,8 @@ func TestService_Release(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -97,7 +115,11 @@ func TestService_Release(t *testing.T) {
 }
 
 func TestService_Deduct(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -112,6 +134,8 @@ func TestService_Deduct(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -126,7 +150,11 @@ func TestService_Deduct(t *testing.T) {
 }
 
 func TestService_Restock(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -141,6 +169,8 @@ func TestService_Restock(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -155,7 +185,11 @@ func TestService_Restock(t *testing.T) {
 }
 
 func TestService_GetStock(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -170,6 +204,8 @@ func TestService_GetStock(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -184,7 +220,11 @@ func TestService_GetStock(t *testing.T) {
 }
 
 func TestService_AdjustStock(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -199,6 +239,8 @@ func TestService_AdjustStock(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -213,7 +255,11 @@ func TestService_AdjustStock(t *testing.T) {
 }
 
 func TestService_GetLevels(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -232,6 +278,8 @@ func TestService_GetLevels(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -246,7 +294,11 @@ func TestService_GetLevels(t *testing.T) {
 }
 
 func TestService_EnsureLevel(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 
@@ -259,6 +311,8 @@ func TestService_EnsureLevel(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := inventory.NewService(repo)
 

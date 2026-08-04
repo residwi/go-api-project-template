@@ -24,7 +24,11 @@ import (
 )
 
 func TestAdminHandler_GetStock(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupInventoryMux(t)
 
 		productID := uuid.New()
@@ -60,6 +64,8 @@ func TestAdminHandler_GetStock(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupInventoryMux(t)
 
 		w := httptest.NewRecorder()
@@ -76,6 +82,8 @@ func TestAdminHandler_GetStock(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupInventoryMux(t)
 
 		productID := uuid.New()
@@ -96,7 +104,11 @@ func TestAdminHandler_GetStock(t *testing.T) {
 }
 
 func TestAdminHandler_Restock(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupInventoryMux(t)
 
 		productID := uuid.New()
@@ -135,6 +147,8 @@ func TestAdminHandler_Restock(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupInventoryMux(t)
 
 		body, _ := json.Marshal(map[string]any{"quantity": 50})
@@ -154,6 +168,8 @@ func TestAdminHandler_Restock(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupInventoryMux(t)
 
 		productID := uuid.New()
@@ -173,6 +189,8 @@ func TestAdminHandler_Restock(t *testing.T) {
 	})
 
 	t.Run("validation error quantity=0", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupInventoryMux(t)
 
 		productID := uuid.New()
@@ -193,6 +211,8 @@ func TestAdminHandler_Restock(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupInventoryMux(t)
 
 		productID := uuid.New()
@@ -216,7 +236,11 @@ func TestAdminHandler_Restock(t *testing.T) {
 }
 
 func TestAdminHandler_Adjust(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupInventoryMux(t)
 
 		productID := uuid.New()
@@ -255,6 +279,8 @@ func TestAdminHandler_Adjust(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupInventoryMux(t)
 
 		body, _ := json.Marshal(map[string]any{"quantity": 200})
@@ -274,6 +300,8 @@ func TestAdminHandler_Adjust(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupInventoryMux(t)
 
 		productID := uuid.New()
@@ -293,6 +321,8 @@ func TestAdminHandler_Adjust(t *testing.T) {
 	})
 
 	t.Run("validation error quantity=-1", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupInventoryMux(t)
 
 		productID := uuid.New()
@@ -313,6 +343,8 @@ func TestAdminHandler_Adjust(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupInventoryMux(t)
 
 		productID := uuid.New()
@@ -339,6 +371,8 @@ func TestAdminHandler_Adjust(t *testing.T) {
 // here -- the reservation-count leak this phase closes is on product's
 // public response (see product/http/internal_test.go), not this one.
 func TestToStockResponse_ExposesExactFieldSet(t *testing.T) {
+	t.Parallel()
+
 	got := toStockResponse(&inventory.Stock{
 		ProductID: uuid.New(),
 		Quantity:  100,

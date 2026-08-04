@@ -387,8 +387,18 @@ can produce a loud false positive.
   indices 0, 1, 2, 3, 5, and 6 are taken, and 4 is free. Nothing enforces
   either claim — a collision compiles, passes review, and fails as a flake in
   an unrelated package. Update the registry comment in the same commit.
-- **`t.Parallel()` buys nothing inside a package**, because subtests share one
-  database. Have each subtest seed its own data instead.
+- **`t.Parallel()` buys nothing in a package that owns a database or a Redis
+  index**, because everything in that package shares the one connection and
+  `ResetDB` TRUNCATEs every table in it. Those packages are excluded from
+  `paralleltest` wholesale in `.golangci.yml` -- per package, never per file,
+  because a parallel sibling gets its rows deleted mid-assertion even when that
+  sibling never calls a reset itself. Nothing is given up: `go test` already
+  runs packages concurrently and each owns its own database. Have each subtest
+  seed its own data instead.
+- **Everywhere else `t.Parallel()` is mandatory**, and `paralleltest` enforces
+  it on both the test function and every `t.Run` closure. If you add a test
+  package that claims a database or Redis slot, add it to that exclusion list
+  in the same commit.
 - **Order a test file so the tests come first.** Package-level `var`s and
   `TestMain` at the top, then every `func TestXxx`, then the stub types with
   their own methods grouped under them, then the plain helpers last.

@@ -24,7 +24,11 @@ import (
 )
 
 func TestHandler_GetShipping(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, orderProv, _ := setupShippingMux(t)
 
 		userID := uuid.New()
@@ -79,6 +83,8 @@ func TestHandler_GetShipping(t *testing.T) {
 	})
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupShippingMux(t)
 
 		w := httptest.NewRecorder()
@@ -94,6 +100,8 @@ func TestHandler_GetShipping(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupShippingMux(t)
 
 		w := httptest.NewRecorder()
@@ -116,6 +124,8 @@ func TestHandler_GetShipping(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, orderProv, _ := setupShippingMux(t)
 
 		orderID := uuid.New()
@@ -136,6 +146,8 @@ func TestHandler_GetShipping(t *testing.T) {
 	})
 
 	t.Run("not owned by user", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, orderProv, _ := setupShippingMux(t)
 
 		userID := uuid.New()
@@ -159,6 +171,8 @@ func TestHandler_GetShipping(t *testing.T) {
 	})
 
 	t.Run("shipment service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, orderProv, _ := setupShippingMux(t)
 
 		userID := uuid.New()
@@ -187,6 +201,8 @@ func TestHandler_GetShipping(t *testing.T) {
 // admin_handler_test.go's TestAdminHandler_* cases), so this ElementsMatch is
 // the only assertion in the package pinning the full wire shape.
 func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	got := toShipmentResponse(&shipping.Shipment{
 		ID:             uuid.New(),

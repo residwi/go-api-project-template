@@ -21,7 +21,11 @@ import (
 )
 
 func TestAdminHandler_ListAll(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success with pagination", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupOrderMux(t)
 
 		now := time.Now()
@@ -51,6 +55,8 @@ func TestAdminHandler_ListAll(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupOrderMux(t)
 		repo.EXPECT().ListAdmin(mock.Anything, mock.AnythingOfType("order.AdminListParams")).Return(nil, 0, errors.New("db error"))
 
@@ -62,7 +68,11 @@ func TestAdminHandler_ListAll(t *testing.T) {
 }
 
 func TestAdminHandler_GetOrder(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupOrderMux(t)
 
 		orderID := uuid.New()
@@ -91,6 +101,8 @@ func TestAdminHandler_GetOrder(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupOrderMux(t)
 
 		w := httptest.NewRecorder()
@@ -106,6 +118,8 @@ func TestAdminHandler_GetOrder(t *testing.T) {
 	})
 
 	t.Run("service error not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupOrderMux(t)
 		orderID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
@@ -118,7 +132,11 @@ func TestAdminHandler_GetOrder(t *testing.T) {
 }
 
 func TestAdminHandler_UpdateStatus(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupOrderMux(t)
 
 		orderID := uuid.New()
@@ -142,6 +160,8 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupOrderMux(t)
 
 		w := httptest.NewRecorder()
@@ -153,6 +173,8 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupOrderMux(t)
 
 		orderID := uuid.New()
@@ -165,6 +187,8 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 	})
 
 	t.Run("validation error missing status", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupOrderMux(t)
 
 		orderID := uuid.New()
@@ -182,6 +206,8 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 	})
 
 	t.Run("service error not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupOrderMux(t)
 
 		orderID := uuid.New()

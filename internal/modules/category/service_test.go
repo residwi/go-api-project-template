@@ -17,7 +17,11 @@ import (
 )
 
 func TestService_Create(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success without parent", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -47,6 +51,8 @@ func TestService_Create(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -62,6 +68,8 @@ func TestService_Create(t *testing.T) {
 	})
 
 	t.Run("sets sort order and active from request", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -97,7 +105,11 @@ func TestService_Create(t *testing.T) {
 }
 
 func TestService_GetBySlug(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -116,6 +128,8 @@ func TestService_GetBySlug(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -130,7 +144,11 @@ func TestService_GetBySlug(t *testing.T) {
 }
 
 func TestService_List(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -149,6 +167,8 @@ func TestService_List(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -162,7 +182,11 @@ func TestService_List(t *testing.T) {
 }
 
 func TestService_GetByID(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -178,6 +202,8 @@ func TestService_GetByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -193,7 +219,11 @@ func TestService_GetByID(t *testing.T) {
 }
 
 func TestService_Update(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success partial update", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -227,6 +257,8 @@ func TestService_Update(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -244,6 +276,8 @@ func TestService_Update(t *testing.T) {
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -268,6 +302,8 @@ func TestService_Update(t *testing.T) {
 	})
 
 	t.Run("updates all optional fields", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -308,7 +344,11 @@ func TestService_Update(t *testing.T) {
 }
 
 func TestService_Delete(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -323,6 +363,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -337,6 +379,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("has published products returns ErrBadRequest", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -350,6 +394,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("count published products error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -363,6 +409,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("delete repo error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		svc := category.NewService(repo, counter)
@@ -379,6 +427,8 @@ func TestService_Delete(t *testing.T) {
 }
 
 func TestService_Delete_RefusesCategoryWithPublishedProducts(t *testing.T) {
+	t.Parallel()
+
 	repo := mocks.NewMockRepository(t)
 	counter := mocks.NewMockProductCounter(t)
 	svc := category.NewService(repo, counter)
@@ -391,7 +441,11 @@ func TestService_Delete_RefusesCategoryWithPublishedProducts(t *testing.T) {
 }
 
 func TestService_ValidateParent(t *testing.T) {
+	t.Parallel()
+
 	t.Run("rejects a parent that does not exist", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		parentID := uuid.New()
@@ -412,6 +466,8 @@ func TestService_ValidateParent(t *testing.T) {
 	})
 
 	t.Run("rejects a chain deeper than five", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		parentID := uuid.New()
@@ -429,6 +485,8 @@ func TestService_ValidateParent(t *testing.T) {
 	})
 
 	t.Run("rejects a move that the repository reports as circular", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		selfID, parentID := uuid.New(), uuid.New()
@@ -447,6 +505,8 @@ func TestService_ValidateParent(t *testing.T) {
 	})
 
 	t.Run("rejects a category set as its own parent", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		selfID := uuid.New()
@@ -464,6 +524,8 @@ func TestService_ValidateParent(t *testing.T) {
 	})
 
 	t.Run("propagates a repository failure from the depth check", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		parentID := uuid.New()
@@ -480,6 +542,8 @@ func TestService_ValidateParent(t *testing.T) {
 	})
 
 	t.Run("creates a child under a valid parent", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		parentID := uuid.New()
@@ -500,6 +564,8 @@ func TestService_ValidateParent(t *testing.T) {
 	})
 
 	t.Run("moves a category to a valid new parent", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		selfID, parentID := uuid.New(), uuid.New()

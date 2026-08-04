@@ -27,9 +27,13 @@ import (
 )
 
 func TestService_ExpireStale(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("expires each stale order, releasing its reservation and coupon", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, inventory, _, _, coupons, _ := newTestService(t)
 
 		coupon := "SAVE10"
@@ -50,6 +54,8 @@ func TestService_ExpireStale(t *testing.T) {
 	})
 
 	t.Run("skips an order another worker already expired", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		expired := order.Order{ID: uuid.New()}
@@ -62,12 +68,16 @@ func TestService_ExpireStale(t *testing.T) {
 }
 
 func TestService_RetryPayment(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	userID := uuid.New()
 	orderID := uuid.New()
 	paymentMethodID := "pm_test_123"
 
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, payment, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -97,6 +107,8 @@ func TestService_RetryPayment(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
@@ -108,6 +120,8 @@ func TestService_RetryPayment(t *testing.T) {
 	})
 
 	t.Run("not owned by user", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		otherUserID := uuid.New()
@@ -126,6 +140,8 @@ func TestService_RetryPayment(t *testing.T) {
 	})
 
 	t.Run("not payable when status is paid", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -143,6 +159,8 @@ func TestService_RetryPayment(t *testing.T) {
 	})
 
 	t.Run("not payable when status is cancelled", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -160,6 +178,8 @@ func TestService_RetryPayment(t *testing.T) {
 	})
 
 	t.Run("payment initiation fails", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, payment, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -182,11 +202,15 @@ func TestService_RetryPayment(t *testing.T) {
 }
 
 func TestService_GetByID(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	userID := uuid.New()
 	orderID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -221,6 +245,8 @@ func TestService_GetByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
@@ -232,6 +258,8 @@ func TestService_GetByID(t *testing.T) {
 	})
 
 	t.Run("not owned by user", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		otherUserID := uuid.New()
@@ -250,6 +278,8 @@ func TestService_GetByID(t *testing.T) {
 	})
 
 	t.Run("list items error", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -271,10 +301,14 @@ func TestService_GetByID(t *testing.T) {
 }
 
 func TestService_ListByUser(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	userID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		cursor := paging.CursorPage{Limit: 10}
@@ -293,6 +327,8 @@ func TestService_ListByUser(t *testing.T) {
 	})
 
 	t.Run("empty list", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		cursor := paging.CursorPage{Limit: 10}
@@ -307,9 +343,13 @@ func TestService_ListByUser(t *testing.T) {
 }
 
 func TestService_AdminListAll(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		params := order.AdminListParams{Page: 1, PageSize: 20, Status: "paid"}
@@ -327,6 +367,8 @@ func TestService_AdminListAll(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		params := order.AdminListParams{Page: 1, PageSize: 20}
@@ -343,10 +385,14 @@ func TestService_AdminListAll(t *testing.T) {
 }
 
 func TestService_AdminGetByID(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	orderID := uuid.New()
 
 	t.Run("success with items", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -371,6 +417,8 @@ func TestService_AdminGetByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
@@ -382,6 +430,8 @@ func TestService_AdminGetByID(t *testing.T) {
 	})
 
 	t.Run("ListItemsByOrderID error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -402,10 +452,14 @@ func TestService_AdminGetByID(t *testing.T) {
 }
 
 func TestService_AdminUpdateStatus(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	orderID := uuid.New()
 
 	t.Run("success valid transition paid to processing", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -422,6 +476,8 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 	})
 
 	t.Run("success valid transition processing to shipped", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -438,6 +494,8 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 	})
 
 	t.Run("invalid transition awaiting_payment to delivered", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -453,6 +511,8 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 	})
 
 	t.Run("rejects managed status cancelled without a direct write", func(t *testing.T) {
+		t.Parallel()
+
 		// cancelled/expired/refunded/paid unwind inventory or money and must go
 		// through their owning flow; AdminUpdateStatus rejects them before any
 		// lookup rather than writing the status bare.
@@ -464,6 +524,8 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 	})
 
 	t.Run("rejects managed status refunded without a direct write", func(t *testing.T) {
+		t.Parallel()
+
 		svc, _, _, _, _, _, _, _ := newTestService(t)
 
 		err := svc.AdminUpdateStatus(ctx, orderID, order.StatusRefunded)
@@ -472,6 +534,8 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
@@ -482,6 +546,8 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 	})
 
 	t.Run("update status repo error", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -499,10 +565,14 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 }
 
 func TestService_Apply(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	orderID := uuid.New()
 
 	t.Run("forwards the transition's to/from to the compare-and-set primitive", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().Apply(mock.Anything, orderID, order.PaidTransition).Return(nil)
@@ -513,6 +583,8 @@ func TestService_Apply(t *testing.T) {
 	})
 
 	t.Run("conflict error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().Apply(mock.Anything, orderID, order.RefundTransition).Return(apperror.ErrConflict)
@@ -524,10 +596,14 @@ func TestService_Apply(t *testing.T) {
 }
 
 func TestService_ListItemsByOrderID(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	orderID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		expected := []order.Item{
@@ -545,6 +621,8 @@ func TestService_ListItemsByOrderID(t *testing.T) {
 	})
 
 	t.Run("empty list", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(nil, nil)
@@ -557,10 +635,14 @@ func TestService_ListItemsByOrderID(t *testing.T) {
 }
 
 func TestService_PlaceOrder(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	userID := uuid.New()
 	orderID := uuid.New()
 	t.Run("returns existing order when idempotency key matches", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		idempotencyKey := "idem-key-123"
@@ -587,6 +669,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("idempotency check error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		idempotencyKey := "idem-key-123"
@@ -601,6 +685,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("empty cart returns ErrCartEmpty", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, _, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-empty-cart"
 
@@ -619,6 +705,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("unavailable product returns ErrBadRequest", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, _, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-unavailable"
 
@@ -645,6 +733,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("GetCart error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, _, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-cart-error"
 
@@ -661,6 +751,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("success full happy path", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, inventory, payment, _, _, notifications := newTestService(t)
 		idempotencyKey := "idem-happy"
 
@@ -701,6 +793,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("success with coupon applied", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, inventory, payment, _, coupons, notifications := newTestService(t)
 		idempotencyKey := "idem-coupon"
 
@@ -738,6 +832,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("mixed-currency cart is rejected", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, _, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-mixed-ccy"
 
@@ -759,6 +855,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("idempotent replay propagates ListItemsByOrderID error", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		idempotencyKey := "idem-key-123"
@@ -782,6 +880,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("coupon reserve error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, inventory, _, _, coupons, _ := newTestService(t)
 		idempotencyKey := "idem-coupon-err"
 		couponCode := "BADCOUPON"
@@ -810,6 +910,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("notification enqueue error is swallowed", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, inventory, payment, _, _, notifications := newTestService(t)
 		idempotencyKey := "idem-notif-err"
 
@@ -841,6 +943,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("repo Create error propagates from transaction", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, _, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-create-err"
 
@@ -865,6 +969,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("inventory Reserve error propagates from transaction", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, inventory, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-reserve-err"
 
@@ -890,6 +996,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("CreateItems error propagates from transaction", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, inventory, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-items-err"
 
@@ -916,6 +1024,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("cart Clear error propagates from transaction", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, inventory, _, _, _, _ := newTestService(t)
 		idempotencyKey := "idem-clear-err"
 
@@ -943,6 +1053,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("zero total finalizes order without payment", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, inventory, payment, _, coupons, notifications := newTestService(t)
 		idempotencyKey := "idem-zero-total"
 		couponCode := "FREE100"
@@ -982,6 +1094,8 @@ func TestService_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("success with payment initiation failure logs but returns order", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, cart, inventory, payment, _, _, notifications := newTestService(t)
 		idempotencyKey := "idem-pay-fail"
 
@@ -1015,11 +1129,15 @@ func TestService_PlaceOrder(t *testing.T) {
 }
 
 func TestService_CancelOrder(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	userID := uuid.New()
 	orderID := uuid.New()
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
@@ -1030,6 +1148,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("not owned by user", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		otherUserID := uuid.New()
@@ -1047,6 +1167,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("payment processing returns ErrOrderCharging", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -1063,6 +1185,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("invalid transition from delivered", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -1080,6 +1204,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("invalid transition from paid", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -1097,6 +1223,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("invalid transition from shipped", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -1114,6 +1242,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("success cancels awaiting_payment order", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, inventory, _, paymentCancel, _, _ := newTestService(t)
 
 		productA := uuid.New()
@@ -1143,6 +1273,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("success releases coupon on cancel", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, inventory, _, paymentCancel, coupons, _ := newTestService(t)
 
 		couponCode := "SAVE20"
@@ -1169,6 +1301,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("success cancels payment jobs best effort", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, paymentCancel, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -1189,6 +1323,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("inventory release error fails the cancellation", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, inventory, _, _, _, _ := newTestService(t)
 
 		productA := uuid.New()
@@ -1215,6 +1351,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("coupon release error is logged but swallowed", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, inventory, _, paymentCancel, coupons, _ := newTestService(t)
 
 		couponCode := "SAVE20"
@@ -1241,6 +1379,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("nil paymentCancel skips job cancellation", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		cart := mocks.NewMockCartProvider(t)
 		inventory := mocks.NewMockInventoryReserver(t)
@@ -1266,6 +1406,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("Apply error propagates from transaction", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -1284,6 +1426,8 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("ListItemsByOrderID error propagates from transaction", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
 		existingOrder := &order.Order{
@@ -1304,7 +1448,11 @@ func TestService_CancelOrder(t *testing.T) {
 }
 
 func TestService_SetPaymentDeps(t *testing.T) {
+	t.Parallel()
+
 	t.Run("sets payment dependencies and allows retry", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		cart := mocks.NewMockCartProvider(t)
 		inventory := mocks.NewMockInventoryReserver(t)
@@ -1344,6 +1492,8 @@ func TestService_SetPaymentDeps(t *testing.T) {
 // silently proceeded without it; cart now surfaces the line carrying its status,
 // and PlaceOrder's existing guard refuses the whole order by name.
 func TestService_PlaceOrder_RejectsWithdrawnProduct(t *testing.T) {
+	t.Parallel()
+
 	svc, repo, cartProvider, inventory, _, _, _, _ := newTestService(t)
 
 	userID := uuid.New()
@@ -1376,6 +1526,8 @@ func TestService_PlaceOrder_RejectsWithdrawnProduct(t *testing.T) {
 // TestService_PlaceOrder_RejectsUnavailableProduct covers the case where the
 // product record is gone entirely -- cart supplies Status "unavailable".
 func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
+	t.Parallel()
+
 	svc, repo, cartProvider, inventory, _, _, _, _ := newTestService(t)
 
 	userID := uuid.New()
@@ -1408,6 +1560,8 @@ func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
 // would have caught cart's adapter forwarding a soft-deleted product's stale
 // status='published' straight through -- this is the shape that would have.
 func TestService_PlaceOrder_RejectsSoftDeletedProduct(t *testing.T) {
+	t.Parallel()
+
 	userID := uuid.New()
 	cartID := uuid.New()
 	productID := uuid.New()
@@ -1476,6 +1630,8 @@ func TestService_PlaceOrder_RejectsSoftDeletedProduct(t *testing.T) {
 // the rejection happens in the fold, before any of them, rather than merely
 // eventually.
 func TestService_PlaceOrder_RejectsMixedCurrencyCart(t *testing.T) {
+	t.Parallel()
+
 	svc, repo, cartProvider, _, _, _, _, _ := newTestService(t)
 
 	userID := uuid.New()

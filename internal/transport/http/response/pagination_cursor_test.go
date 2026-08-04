@@ -27,7 +27,11 @@ type cursorPageBody struct {
 }
 
 func TestCursorPage(t *testing.T) {
+	t.Parallel()
+
 	t.Run("fewer rows than limit: no next cursor, has_more false", func(t *testing.T) {
+		t.Parallel()
+
 		w := httptest.NewRecorder()
 		rows := []pageRow{
 			{ID: uuid.New(), CreatedAt: time.Now()},
@@ -46,6 +50,8 @@ func TestCursorPage(t *testing.T) {
 	})
 
 	t.Run("more rows than limit: slices to limit and encodes the last kept row", func(t *testing.T) {
+		t.Parallel()
+
 		w := httptest.NewRecorder()
 		first := pageRow{ID: uuid.New(), CreatedAt: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
 		second := pageRow{ID: uuid.New(), CreatedAt: time.Date(2026, 1, 2, 12, 0, 0, 0, time.UTC)}
@@ -64,6 +70,8 @@ func TestCursorPage(t *testing.T) {
 	})
 
 	t.Run("exactly limit rows: no next cursor", func(t *testing.T) {
+		t.Parallel()
+
 		w := httptest.NewRecorder()
 		rows := []pageRow{
 			{ID: uuid.New(), CreatedAt: time.Now()},
@@ -80,6 +88,8 @@ func TestCursorPage(t *testing.T) {
 	})
 
 	t.Run("empty rows: items is an empty array, has_more false", func(t *testing.T) {
+		t.Parallel()
+
 		w := httptest.NewRecorder()
 
 		CursorPage(w, []pageRow{}, 20, pageRowKey)

@@ -18,7 +18,11 @@ import (
 )
 
 func TestService_Create(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success sets slug default currency and status", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -51,6 +55,8 @@ func TestService_Create(t *testing.T) {
 	})
 
 	t.Run("sets currency and status from request", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -84,6 +90,8 @@ func TestService_Create(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -101,7 +109,11 @@ func TestService_Create(t *testing.T) {
 }
 
 func TestService_GetBySlug(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success only published", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -129,6 +141,8 @@ func TestService_GetBySlug(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -142,6 +156,8 @@ func TestService_GetBySlug(t *testing.T) {
 	})
 
 	t.Run("draft product returns ErrNotFound", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -159,6 +175,8 @@ func TestService_GetBySlug(t *testing.T) {
 	})
 
 	t.Run("images fetch error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -180,7 +198,11 @@ func TestService_GetBySlug(t *testing.T) {
 }
 
 func TestService_GetByID(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success loads images", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -208,6 +230,8 @@ func TestService_GetByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -222,6 +246,8 @@ func TestService_GetByID(t *testing.T) {
 	})
 
 	t.Run("images fetch error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -239,7 +265,11 @@ func TestService_GetByID(t *testing.T) {
 }
 
 func TestService_ListPublished(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -264,7 +294,11 @@ func TestService_ListPublished(t *testing.T) {
 }
 
 func TestService_ListAdmin(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -289,7 +323,11 @@ func TestService_ListAdmin(t *testing.T) {
 }
 
 func TestService_Update(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success partial update", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -321,6 +359,8 @@ func TestService_Update(t *testing.T) {
 	})
 
 	t.Run("updates all optional fields", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -375,6 +415,8 @@ func TestService_Update(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -388,6 +430,8 @@ func TestService_Update(t *testing.T) {
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -414,7 +458,11 @@ func TestService_Update(t *testing.T) {
 }
 
 func TestService_Delete(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -428,6 +476,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -442,7 +492,11 @@ func TestService_Delete(t *testing.T) {
 }
 
 func TestService_AddImage(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -472,6 +526,8 @@ func TestService_AddImage(t *testing.T) {
 	})
 
 	t.Run("product not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -487,6 +543,8 @@ func TestService_AddImage(t *testing.T) {
 	})
 
 	t.Run("add image repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -505,7 +563,11 @@ func TestService_AddImage(t *testing.T) {
 }
 
 func TestService_DeleteImage(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -522,6 +584,8 @@ func TestService_DeleteImage(t *testing.T) {
 	})
 
 	t.Run("product not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -536,6 +600,8 @@ func TestService_DeleteImage(t *testing.T) {
 }
 
 func TestService_ListPublished_EnrichesWithAvailability(t *testing.T) {
+	t.Parallel()
+
 	repo := mocks.NewMockRepository(t)
 	inv := mocks.NewMockInventoryReader(t)
 	reg := mocks.NewMockInventoryRegistrar(t)
@@ -560,7 +626,11 @@ func TestService_ListPublished_EnrichesWithAvailability(t *testing.T) {
 }
 
 func TestService_GetByIDsIncludingDeleted(t *testing.T) {
+	t.Parallel()
+
 	t.Run("enriches through inventory in one batch call", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -587,6 +657,8 @@ func TestService_GetByIDsIncludingDeleted(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -601,7 +673,11 @@ func TestService_GetByIDsIncludingDeleted(t *testing.T) {
 }
 
 func TestService_AvailableQuantity(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -620,6 +696,8 @@ func TestService_AvailableQuantity(t *testing.T) {
 	})
 
 	t.Run("negative available returns ErrInsufficientStock", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -637,6 +715,8 @@ func TestService_AvailableQuantity(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -651,7 +731,11 @@ func TestService_AvailableQuantity(t *testing.T) {
 }
 
 func TestService_CountPublishedByCategory(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -666,6 +750,8 @@ func TestService_CountPublishedByCategory(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		inv := mocks.NewMockInventoryReader(t)
 		reg := mocks.NewMockInventoryRegistrar(t)
@@ -680,6 +766,8 @@ func TestService_CountPublishedByCategory(t *testing.T) {
 }
 
 func TestService_Create_RegistersZeroInventoryLevel(t *testing.T) {
+	t.Parallel()
+
 	repo := mocks.NewMockRepository(t)
 	inv := mocks.NewMockInventoryReader(t)
 	reg := mocks.NewMockInventoryRegistrar(t)
@@ -713,6 +801,8 @@ func TestService_Create_RegistersZeroInventoryLevel(t *testing.T) {
 // database says is entirely EUR, which is exactly the amount/currency drift
 // money.Money exists to make unrepresentable.
 func TestService_Update_RepricesStoredCompareAtPriceIntoTheNewCurrency(t *testing.T) {
+	t.Parallel()
+
 	repo := mocks.NewMockRepository(t)
 	inv := mocks.NewMockInventoryReader(t)
 	reg := mocks.NewMockInventoryRegistrar(t)

@@ -18,7 +18,11 @@ import (
 )
 
 func TestService_CreateShipment(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success order in paid status", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -68,6 +72,8 @@ func TestService_CreateShipment(t *testing.T) {
 	})
 
 	t.Run("order wrong status", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -88,6 +94,8 @@ func TestService_CreateShipment(t *testing.T) {
 	})
 
 	t.Run("order not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -105,6 +113,8 @@ func TestService_CreateShipment(t *testing.T) {
 	})
 
 	t.Run("repo create error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -130,6 +140,8 @@ func TestService_CreateShipment(t *testing.T) {
 	})
 
 	t.Run("update order status error rolls back", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -161,7 +173,11 @@ func TestService_CreateShipment(t *testing.T) {
 }
 
 func TestService_GetByOrderID(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -183,6 +199,8 @@ func TestService_GetByOrderID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -198,7 +216,11 @@ func TestService_GetByOrderID(t *testing.T) {
 }
 
 func TestService_UpdateTracking(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -235,6 +257,8 @@ func TestService_UpdateTracking(t *testing.T) {
 	})
 
 	t.Run("shipment not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -251,6 +275,8 @@ func TestService_UpdateTracking(t *testing.T) {
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -276,7 +302,11 @@ func TestService_UpdateTracking(t *testing.T) {
 }
 
 func TestService_MarkDelivered(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -308,6 +338,8 @@ func TestService_MarkDelivered(t *testing.T) {
 	})
 
 	t.Run("shipment not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -322,6 +354,8 @@ func TestService_MarkDelivered(t *testing.T) {
 	})
 
 	t.Run("mark delivered repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)
@@ -344,6 +378,8 @@ func TestService_MarkDelivered(t *testing.T) {
 	})
 
 	t.Run("update order status error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		orders := mocks.NewMockOrderProvider(t)
 		updater := mocks.NewMockOrderUpdater(t)

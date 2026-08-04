@@ -25,7 +25,11 @@ import (
 )
 
 func TestHandler_Register(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, users := newTestMux(t)
 
 		userID := uuid.New()
@@ -78,6 +82,8 @@ func TestHandler_Register(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := newTestMux(t)
 
 		w := httptest.NewRecorder()
@@ -95,6 +101,8 @@ func TestHandler_Register(t *testing.T) {
 	})
 
 	t.Run("validation error missing email", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := newTestMux(t)
 
 		body, _ := json.Marshal(map[string]string{
@@ -119,6 +127,8 @@ func TestHandler_Register(t *testing.T) {
 	})
 
 	t.Run("service error duplicate email", func(t *testing.T) {
+		t.Parallel()
+
 		mux, users := newTestMux(t)
 
 		users.EXPECT().Create(mock.Anything, mock.Anything).Return(auth.UserResult{}, apperror.ErrConflict)
@@ -146,7 +156,11 @@ func TestHandler_Register(t *testing.T) {
 }
 
 func TestHandler_Login(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, users := newTestMux(t)
 
 		userID := uuid.New()
@@ -187,6 +201,8 @@ func TestHandler_Login(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := newTestMux(t)
 
 		w := httptest.NewRecorder()
@@ -204,6 +220,8 @@ func TestHandler_Login(t *testing.T) {
 	})
 
 	t.Run("validation error missing email", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := newTestMux(t)
 
 		body, _ := json.Marshal(map[string]string{
@@ -226,6 +244,8 @@ func TestHandler_Login(t *testing.T) {
 	})
 
 	t.Run("service error user not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, users := newTestMux(t)
 
 		users.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").Return(auth.UserCredentials{}, apperror.ErrNotFound)
@@ -250,7 +270,11 @@ func TestHandler_Login(t *testing.T) {
 }
 
 func TestHandler_RefreshToken(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, users := newTestMux(t)
 
 		userID := uuid.New()
@@ -294,6 +318,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := newTestMux(t)
 
 		w := httptest.NewRecorder()
@@ -311,6 +337,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 	})
 
 	t.Run("validation error missing token", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := newTestMux(t)
 
 		body, _ := json.Marshal(map[string]string{})
@@ -331,6 +359,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 	})
 
 	t.Run("service error invalid token", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := newTestMux(t)
 
 		body, _ := json.Marshal(map[string]any{"refresh_token": "invalid-token"})
@@ -353,6 +383,8 @@ func TestHandler_RefreshToken(t *testing.T) {
 // TokenVersion doubles as revocation state: auth.Service.RefreshToken rejects
 // a refresh token whose version no longer matches the user's.
 func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
+	t.Parallel()
+
 	userID := uuid.New()
 	tp := &auth.TokenPair{
 		AccessToken:  "access-token-value",

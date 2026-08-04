@@ -27,7 +27,11 @@ import (
 )
 
 func TestAdminHandler_List(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupPaymentMux(t)
 
 		now := time.Now()
@@ -83,6 +87,8 @@ func TestAdminHandler_List(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupPaymentMux(t)
 
 		repo.EXPECT().ListAdmin(mock.Anything, mock.Anything).
@@ -102,7 +108,11 @@ func TestAdminHandler_List(t *testing.T) {
 }
 
 func TestAdminHandler_Get(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
@@ -142,6 +152,8 @@ func TestAdminHandler_Get(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupPaymentMux(t)
 
 		w := httptest.NewRecorder()
@@ -158,6 +170,8 @@ func TestAdminHandler_Get(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
@@ -177,7 +191,11 @@ func TestAdminHandler_Get(t *testing.T) {
 }
 
 func TestAdminHandler_Refund(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
@@ -219,6 +237,8 @@ func TestAdminHandler_Refund(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupPaymentMux(t)
 
 		w := httptest.NewRecorder()
@@ -235,6 +255,8 @@ func TestAdminHandler_Refund(t *testing.T) {
 	})
 
 	t.Run("payment not refundable", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
@@ -263,6 +285,8 @@ func TestAdminHandler_Refund(t *testing.T) {
 // carries no json:"-" tag, so toAdminPaymentResponse's explicit field list
 // is the only thing keeping it off the wire.
 func TestToAdminPaymentResponse_OmitsGatewayResponse(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	gatewayResponse := []byte(`{"card_number":"4242424242424242","cvv":"123"}`)
 

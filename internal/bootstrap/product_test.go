@@ -15,7 +15,11 @@ import (
 )
 
 func TestInventoryReaderAdapter_GetAvailability(t *testing.T) {
+	t.Parallel()
+
 	t.Run("maps OnHand and Available without transposing them", func(t *testing.T) {
+		t.Parallel()
+
 		repo := invMocks.NewMockRepository(t)
 		invSvc := inventory.NewService(repo)
 		adapter := &inventoryReaderAdapter{svc: invSvc}
@@ -37,6 +41,8 @@ func TestInventoryReaderAdapter_GetAvailability(t *testing.T) {
 	})
 
 	t.Run("propagates a repository error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := invMocks.NewMockRepository(t)
 		invSvc := inventory.NewService(repo)
 		adapter := &inventoryReaderAdapter{svc: invSvc}

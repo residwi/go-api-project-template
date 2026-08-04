@@ -24,6 +24,8 @@ import (
 )
 
 func TestWebhookHandler_SignatureVerification(t *testing.T) {
+	t.Parallel()
+
 	const secret = "whsec_test"
 	sign := func(body []byte) string {
 		mac := hmac.New(sha256.New, []byte(secret))
@@ -32,6 +34,8 @@ func TestWebhookHandler_SignatureVerification(t *testing.T) {
 	}
 
 	t.Run("valid signature is accepted", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPaymentMuxWithSecret(t, secret)
 		// Unknown payment id: service no-ops and returns 200, which is enough to
 		// prove the signature check passed and the body reached the service.
@@ -51,6 +55,8 @@ func TestWebhookHandler_SignatureVerification(t *testing.T) {
 	})
 
 	t.Run("missing signature is rejected", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupPaymentMuxWithSecret(t, secret)
 
 		body, _ := json.Marshal(map[string]any{"event": "success"})
@@ -63,6 +69,8 @@ func TestWebhookHandler_SignatureVerification(t *testing.T) {
 	})
 
 	t.Run("wrong signature is rejected", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupPaymentMuxWithSecret(t, secret)
 
 		body, _ := json.Marshal(map[string]any{"event": "success"})
@@ -77,7 +85,11 @@ func TestWebhookHandler_SignatureVerification(t *testing.T) {
 }
 
 func TestWebhookHandler_HandleWebhook(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success with valid JSON payload", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, orders, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
@@ -115,6 +127,8 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 	})
 
 	t.Run("invalid JSON returns 200", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupPaymentMux(t)
 
 		w := httptest.NewRecorder()
@@ -127,6 +141,8 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 	})
 
 	t.Run("finalize failure runs compensating refund and returns 200", func(t *testing.T) {
+		t.Parallel()
+
 		// The gateway has already captured funds, so a finalize failure (here an
 		// amount mismatch) must not 5xx and leave money captured with the order
 		// unpaid. HandleWebhook now runs a compensating refund and acks the webhook

@@ -23,7 +23,11 @@ import (
 )
 
 func TestHandler_List_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success with notifications", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupNotificationMux(t)
 
 		now := time.Now()
@@ -46,7 +50,11 @@ func TestHandler_List_Success(t *testing.T) {
 }
 
 func TestHandler_List_ServiceError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupNotificationMux(t)
 
 		repo.EXPECT().ListByUser(mock.Anything, uc.UserID, mock.Anything).Return(nil, assert.AnError)
@@ -62,7 +70,11 @@ func TestHandler_List_ServiceError(t *testing.T) {
 }
 
 func TestHandler_MarkRead_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupNotificationMux(t)
 
 		id := uuid.New()
@@ -79,7 +91,11 @@ func TestHandler_MarkRead_Success(t *testing.T) {
 }
 
 func TestHandler_MarkRead_ServiceError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupNotificationMux(t)
 
 		id := uuid.New()
@@ -96,7 +112,11 @@ func TestHandler_MarkRead_ServiceError(t *testing.T) {
 }
 
 func TestHandler_MarkRead_InvalidUUID(t *testing.T) {
+	t.Parallel()
+
 	t.Run("invalid UUID via mux", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, uc := setupNotificationMux(t)
 
 		w := httptest.NewRecorder()
@@ -113,7 +133,11 @@ func TestHandler_MarkRead_InvalidUUID(t *testing.T) {
 }
 
 func TestHandler_MarkAllRead_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupNotificationMux(t)
 
 		repo.EXPECT().MarkAllRead(mock.Anything, uc.UserID).Return(nil)
@@ -129,7 +153,11 @@ func TestHandler_MarkAllRead_Success(t *testing.T) {
 }
 
 func TestHandler_MarkAllRead_ServiceError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupNotificationMux(t)
 
 		repo.EXPECT().MarkAllRead(mock.Anything, uc.UserID).Return(assert.AnError)
@@ -145,7 +173,11 @@ func TestHandler_MarkAllRead_ServiceError(t *testing.T) {
 }
 
 func TestHandler_UnreadCount_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupNotificationMux(t)
 
 		repo.EXPECT().CountUnread(mock.Anything, uc.UserID).Return(3, nil)
@@ -168,7 +200,11 @@ func TestHandler_UnreadCount_Success(t *testing.T) {
 }
 
 func TestHandler_UnreadCount_ServiceError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupNotificationMux(t)
 
 		repo.EXPECT().CountUnread(mock.Anything, uc.UserID).Return(0, assert.AnError)
@@ -184,7 +220,11 @@ func TestHandler_UnreadCount_ServiceError(t *testing.T) {
 }
 
 func TestHandler_List_Pagination(t *testing.T) {
+	t.Parallel()
+
 	t.Run("has more results triggers cursor", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupNotificationMux(t)
 
 		now := time.Now()
@@ -221,9 +261,13 @@ func TestHandler_List_Pagination(t *testing.T) {
 }
 
 func TestHandler_List(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodGet, "/notifications", nil)
 		w := httptest.NewRecorder()
 
@@ -239,9 +283,13 @@ func TestHandler_List(t *testing.T) {
 }
 
 func TestHandler_MarkRead(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPut, "/notifications/"+uuid.NewString()+"/read", nil)
 		w := httptest.NewRecorder()
 
@@ -251,6 +299,8 @@ func TestHandler_MarkRead(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPut, "/notifications/bad/read", nil)
 		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{UserID: uuid.New(), Role: "user"})
 		r = r.WithContext(ctx)
@@ -269,9 +319,13 @@ func TestHandler_MarkRead(t *testing.T) {
 }
 
 func TestHandler_MarkAllRead(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPut, "/notifications/read-all", nil)
 		w := httptest.NewRecorder()
 
@@ -282,9 +336,13 @@ func TestHandler_MarkAllRead(t *testing.T) {
 }
 
 func TestHandler_UnreadCount(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodGet, "/notifications/unread-count", nil)
 		w := httptest.NewRecorder()
 
@@ -295,6 +353,8 @@ func TestHandler_UnreadCount(t *testing.T) {
 }
 
 func TestToNotificationResponse_OmitsUserIDAndRawPayload(t *testing.T) {
+	t.Parallel()
+
 	userID := uuid.New()
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	data := []byte(`{"order_id":"distinguishable-raw-payload"}`)

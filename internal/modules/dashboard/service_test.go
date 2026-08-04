@@ -16,7 +16,11 @@ import (
 )
 
 func TestService_GetSalesSummary(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := dashboard.NewService(repo)
 
@@ -37,6 +41,8 @@ func TestService_GetSalesSummary(t *testing.T) {
 	})
 
 	t.Run("error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := dashboard.NewService(repo)
 
@@ -54,10 +60,14 @@ func TestService_GetSalesSummary(t *testing.T) {
 }
 
 func TestService_GetSummary(t *testing.T) {
+	t.Parallel()
+
 	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
 
 	t.Run("returns both results on success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := dashboard.NewService(repo)
 
@@ -82,6 +92,8 @@ func TestService_GetSummary(t *testing.T) {
 	})
 
 	t.Run("sales summary error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := dashboard.NewService(repo)
 
@@ -100,6 +112,8 @@ func TestService_GetSummary(t *testing.T) {
 	})
 
 	t.Run("breakdown error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := dashboard.NewService(repo)
 
@@ -117,7 +131,11 @@ func TestService_GetSummary(t *testing.T) {
 }
 
 func TestService_GetTopProducts(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := dashboard.NewService(repo)
 
@@ -138,6 +156,8 @@ func TestService_GetTopProducts(t *testing.T) {
 	})
 
 	t.Run("error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := dashboard.NewService(repo)
 
@@ -155,7 +175,11 @@ func TestService_GetTopProducts(t *testing.T) {
 }
 
 func TestService_GetRevenueByDay(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := dashboard.NewService(repo)
 
@@ -177,6 +201,8 @@ func TestService_GetRevenueByDay(t *testing.T) {
 	})
 
 	t.Run("error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := dashboard.NewService(repo)
 
@@ -194,7 +220,11 @@ func TestService_GetRevenueByDay(t *testing.T) {
 }
 
 func TestService_GetOrderStatusBreakdown(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := dashboard.NewService(repo)
 
@@ -213,6 +243,8 @@ func TestService_GetOrderStatusBreakdown(t *testing.T) {
 	})
 
 	t.Run("error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := dashboard.NewService(repo)
 

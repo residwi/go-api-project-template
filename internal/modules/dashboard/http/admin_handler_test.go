@@ -21,7 +21,11 @@ import (
 )
 
 func TestAdminHandler_Summary(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success with from and to params", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		from, _ := time.Parse("2006-01-02", "2025-01-01")
@@ -74,6 +78,8 @@ func TestAdminHandler_Summary(t *testing.T) {
 	})
 
 	t.Run("missing from and to params", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupDashboardMux(t)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/summary", nil)
@@ -93,6 +99,8 @@ func TestAdminHandler_Summary(t *testing.T) {
 	})
 
 	t.Run("missing only from param", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupDashboardMux(t)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/summary?to=2025-01-31", nil)
@@ -107,6 +115,8 @@ func TestAdminHandler_Summary(t *testing.T) {
 	})
 
 	t.Run("missing only to param", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupDashboardMux(t)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/summary?from=2025-01-01", nil)
@@ -121,6 +131,8 @@ func TestAdminHandler_Summary(t *testing.T) {
 	})
 
 	t.Run("invalid from date format", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupDashboardMux(t)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/summary?from=bad&to=2025-01-31", nil)
@@ -135,6 +147,8 @@ func TestAdminHandler_Summary(t *testing.T) {
 	})
 
 	t.Run("invalid to date format", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupDashboardMux(t)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/summary?from=2025-01-01&to=bad", nil)
@@ -149,6 +163,8 @@ func TestAdminHandler_Summary(t *testing.T) {
 	})
 
 	t.Run("sales summary service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		repo.EXPECT().GetSalesSummary(mock.Anything, mock.Anything, mock.Anything).
@@ -167,6 +183,8 @@ func TestAdminHandler_Summary(t *testing.T) {
 	})
 
 	t.Run("order status breakdown service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		summary := dashboard.SalesSummary{TotalOrders: 5, TotalRevenue: 25000, AverageOrderValue: 5000}
@@ -184,7 +202,11 @@ func TestAdminHandler_Summary(t *testing.T) {
 }
 
 func TestAdminHandler_TopProducts(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success with from to and limit params", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		from, _ := time.Parse("2006-01-02", "2025-01-01")
@@ -227,6 +249,8 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 	})
 
 	t.Run("success with default limit when not provided", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		products := []dashboard.TopProduct{
@@ -244,6 +268,8 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 	})
 
 	t.Run("invalid limit uses default", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		repo.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
@@ -258,6 +284,8 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 	})
 
 	t.Run("limit exceeding max uses default", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		repo.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
@@ -272,6 +300,8 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 	})
 
 	t.Run("limit zero uses default", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		repo.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
@@ -286,6 +316,8 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 	})
 
 	t.Run("negative limit uses default", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		repo.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
@@ -300,6 +332,8 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 	})
 
 	t.Run("missing date range", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupDashboardMux(t)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products", nil)
@@ -311,6 +345,8 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 	})
 
 	t.Run("invalid from date", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupDashboardMux(t)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products?from=invalid&to=2025-01-31", nil)
@@ -322,6 +358,8 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 	})
 
 	t.Run("invalid to date", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupDashboardMux(t)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products?from=2025-01-01&to=bad", nil)
@@ -338,6 +376,8 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		repo.EXPECT().GetTopProducts(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
@@ -353,7 +393,11 @@ func TestAdminHandler_TopProducts(t *testing.T) {
 }
 
 func TestAdminHandler_Revenue(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success with from and to params", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		from, _ := time.Parse("2006-01-02", "2025-01-01")
@@ -394,6 +438,8 @@ func TestAdminHandler_Revenue(t *testing.T) {
 	})
 
 	t.Run("missing date range", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupDashboardMux(t)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/revenue", nil)
@@ -405,6 +451,8 @@ func TestAdminHandler_Revenue(t *testing.T) {
 	})
 
 	t.Run("invalid from date", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupDashboardMux(t)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/revenue?from=bad&to=2025-01-31", nil)
@@ -419,6 +467,8 @@ func TestAdminHandler_Revenue(t *testing.T) {
 	})
 
 	t.Run("invalid to date", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupDashboardMux(t)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/revenue?from=2025-01-01&to=notadate", nil)
@@ -433,6 +483,8 @@ func TestAdminHandler_Revenue(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupDashboardMux(t)
 
 		repo.EXPECT().GetRevenueByDay(mock.Anything, mock.Anything, mock.Anything).
@@ -451,6 +503,8 @@ func TestAdminHandler_Revenue(t *testing.T) {
 // for this admin UI and not reused by any other feature, so this test is what
 // catches a field silently added to SalesSummary or StatusBreakdown later.
 func TestToSummaryResponse_ExposesExactFieldSet(t *testing.T) {
+	t.Parallel()
+
 	got := toSummaryResponse(
 		dashboard.SalesSummary{TotalOrders: 10, TotalRevenue: 50000, AverageOrderValue: 5000},
 		[]dashboard.StatusBreakdown{{Status: "paid", Count: 7}},

@@ -9,6 +9,8 @@ import (
 )
 
 func TestValidator_ValidStruct(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	s := testStruct{Name: "John", Email: "john@example.com", Role: "admin"}
 
@@ -17,6 +19,8 @@ func TestValidator_ValidStruct(t *testing.T) {
 }
 
 func TestValidator_RequiredFieldMissing(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	s := testStruct{}
 
@@ -28,6 +32,8 @@ func TestValidator_RequiredFieldMissing(t *testing.T) {
 }
 
 func TestValidator_InvalidEmail(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	s := testStruct{Name: "John", Email: "not-an-email", Role: "user"}
 
@@ -37,6 +43,8 @@ func TestValidator_InvalidEmail(t *testing.T) {
 }
 
 func TestValidator_MinLength(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	s := testStruct{Name: "J", Email: "john@example.com", Role: "user"}
 
@@ -46,6 +54,8 @@ func TestValidator_MinLength(t *testing.T) {
 }
 
 func TestValidator_MaxLength(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	longName := ""
 	var longNameSb57 strings.Builder
@@ -61,6 +71,8 @@ func TestValidator_MaxLength(t *testing.T) {
 }
 
 func TestValidator_OneOf(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	s := testStruct{Name: "John", Email: "john@example.com", Role: "moderator"}
 
@@ -74,6 +86,8 @@ type uuidStruct struct {
 }
 
 func TestValidator_UUID(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	s := uuidStruct{ID: "not-a-uuid"}
 
@@ -87,6 +101,8 @@ type urlStruct struct {
 }
 
 func TestValidator_URL(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	s := urlStruct{Website: "not-a-url"}
 
@@ -100,6 +116,8 @@ type gteStruct struct {
 }
 
 func TestValidator_GTE(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	s := gteStruct{Age: 10}
 
@@ -113,6 +131,8 @@ type lteStruct struct {
 }
 
 func TestValidator_LTE(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	s := lteStruct{Score: 150}
 
@@ -126,6 +146,8 @@ type defaultTagStruct struct {
 }
 
 func TestValidator_DefaultTag(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	s := defaultTagStruct{Value: "hello world!"}
 
@@ -135,6 +157,8 @@ func TestValidator_DefaultTag(t *testing.T) {
 }
 
 func TestValidator_NonStructInput(t *testing.T) {
+	t.Parallel()
+
 	v := New()
 	errs := v.Validate("not a struct")
 	require.NotNil(t, errs)

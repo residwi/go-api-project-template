@@ -21,7 +21,11 @@ import (
 )
 
 func TestAdminHandler_Create_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPromotionMux(t)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).Return(nil)
@@ -51,7 +55,11 @@ func TestAdminHandler_Create_Success(t *testing.T) {
 }
 
 func TestAdminHandler_Create_ServiceError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("repo conflict", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPromotionMux(t)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).Return(apperror.ErrConflict)
@@ -78,7 +86,11 @@ func TestAdminHandler_Create_ServiceError(t *testing.T) {
 }
 
 func TestAdminHandler_List(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPromotionMux(t)
 
 		promos := []promotion.Promotion{
@@ -99,6 +111,8 @@ func TestAdminHandler_List(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPromotionMux(t)
 
 		repo.EXPECT().ListAdmin(mock.Anything, promotion.ListParams{Page: 1, PageSize: 20}).Return(nil, 0, assert.AnError)
@@ -113,7 +127,11 @@ func TestAdminHandler_List(t *testing.T) {
 }
 
 func TestAdminHandler_Update_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPromotionMux(t)
 
 		id := uuid.New()
@@ -144,7 +162,11 @@ func TestAdminHandler_Update_Success(t *testing.T) {
 }
 
 func TestAdminHandler_Update_ServiceError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPromotionMux(t)
 
 		id := uuid.New()
@@ -163,7 +185,11 @@ func TestAdminHandler_Update_ServiceError(t *testing.T) {
 }
 
 func TestAdminHandler_Update_ValidationError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("invalid type value", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupPromotionMux(t)
 
 		id := uuid.NewString()
@@ -185,7 +211,11 @@ func TestAdminHandler_Update_ValidationError(t *testing.T) {
 }
 
 func TestAdminHandler_Update_InvalidJSON(t *testing.T) {
+	t.Parallel()
+
 	t.Run("invalid JSON via mux", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupPromotionMux(t)
 
 		id := uuid.NewString()
@@ -201,7 +231,11 @@ func TestAdminHandler_Update_InvalidJSON(t *testing.T) {
 }
 
 func TestAdminHandler_Update_InvalidUUID(t *testing.T) {
+	t.Parallel()
+
 	t.Run("invalid UUID via mux", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupPromotionMux(t)
 
 		body, _ := json.Marshal(map[string]string{"code": "test"})
@@ -220,7 +254,11 @@ func TestAdminHandler_Update_InvalidUUID(t *testing.T) {
 }
 
 func TestAdminHandler_Delete_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPromotionMux(t)
 
 		id := uuid.New()
@@ -236,7 +274,11 @@ func TestAdminHandler_Delete_Success(t *testing.T) {
 }
 
 func TestAdminHandler_Delete_ServiceError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPromotionMux(t)
 
 		id := uuid.New()
@@ -252,9 +294,13 @@ func TestAdminHandler_Delete_ServiceError(t *testing.T) {
 }
 
 func TestHandler_AdminCreate(t *testing.T) {
+	t.Parallel()
+
 	h := newTestAdminHandler()
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/promotions", strings.NewReader("{bad"))
 		w := httptest.NewRecorder()
 
@@ -264,6 +310,8 @@ func TestHandler_AdminCreate(t *testing.T) {
 	})
 
 	t.Run("validation error missing fields", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/promotions", strings.NewReader(`{}`))
 		w := httptest.NewRecorder()
 
@@ -279,9 +327,13 @@ func TestHandler_AdminCreate(t *testing.T) {
 }
 
 func TestHandler_AdminUpdate(t *testing.T) {
+	t.Parallel()
+
 	h := newTestAdminHandler()
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPut, "/promotions/bad", nil)
 		r.SetPathValue("id", "bad")
 		w := httptest.NewRecorder()
@@ -297,6 +349,8 @@ func TestHandler_AdminUpdate(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		id := uuid.NewString()
 		r := httptest.NewRequest(http.MethodPut, "/promotions/"+id, strings.NewReader("{bad"))
 		r.SetPathValue("id", id)
@@ -309,9 +363,13 @@ func TestHandler_AdminUpdate(t *testing.T) {
 }
 
 func TestHandler_AdminDelete(t *testing.T) {
+	t.Parallel()
+
 	h := newTestAdminHandler()
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodDelete, "/promotions/bad", nil)
 		r.SetPathValue("id", "bad")
 		w := httptest.NewRecorder()

@@ -23,7 +23,11 @@ func (f fakeValidator) Validate(_ any) map[string]any {
 }
 
 func TestBind(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns the decoded request when valid", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"widget"}`))
 		w := httptest.NewRecorder()
 
@@ -35,6 +39,8 @@ func TestBind(t *testing.T) {
 	})
 
 	t.Run("rejects malformed JSON with 400", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{not json`))
 		w := httptest.NewRecorder()
 
@@ -45,6 +51,8 @@ func TestBind(t *testing.T) {
 	})
 
 	t.Run("rejects invalid fields with 422", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":""}`))
 		w := httptest.NewRecorder()
 
@@ -55,6 +63,8 @@ func TestBind(t *testing.T) {
 	})
 
 	t.Run("treats an empty (non-nil) validation map as success", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"widget"}`))
 		w := httptest.NewRecorder()
 

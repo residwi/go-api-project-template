@@ -24,7 +24,11 @@ import (
 )
 
 func TestHandler_ListByProduct(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success with pagination", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupReviewMux(t)
 
 		productID := uuid.New()
@@ -75,6 +79,8 @@ func TestHandler_ListByProduct(t *testing.T) {
 	})
 
 	t.Run("invalid product_id", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupReviewMux(t)
 
 		w := httptest.NewRecorder()
@@ -91,6 +97,8 @@ func TestHandler_ListByProduct(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupReviewMux(t)
 
 		productID := uuid.New()
@@ -105,6 +113,8 @@ func TestHandler_ListByProduct(t *testing.T) {
 	})
 
 	t.Run("has more results triggers cursor", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupReviewMux(t)
 
 		productID := uuid.New()
@@ -146,7 +156,11 @@ func TestHandler_ListByProduct(t *testing.T) {
 }
 
 func TestHandler_Create(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, purchase := setupReviewMux(t)
 
 		userID := uuid.New()
@@ -200,6 +214,8 @@ func TestHandler_Create(t *testing.T) {
 	})
 
 	t.Run("invalid product_id", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupReviewMux(t)
 
 		body, _ := json.Marshal(map[string]any{
@@ -229,6 +245,8 @@ func TestHandler_Create(t *testing.T) {
 	})
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupReviewMux(t)
 
 		productID := uuid.New()
@@ -246,6 +264,8 @@ func TestHandler_Create(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupReviewMux(t)
 
 		productID := uuid.New()
@@ -266,6 +286,8 @@ func TestHandler_Create(t *testing.T) {
 	})
 
 	t.Run("validation error missing required fields", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupReviewMux(t)
 
 		productID := uuid.New()
@@ -292,6 +314,8 @@ func TestHandler_Create(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, purchase := setupReviewMux(t)
 
 		userID := uuid.New()
@@ -334,6 +358,8 @@ func TestHandler_Create(t *testing.T) {
 // filters WHERE status = 'published', so exposing them would add no
 // information.
 func TestToReviewResponse_OmitsReviewerAndInternalFields(t *testing.T) {
+	t.Parallel()
+
 	userID := uuid.New()
 	orderID := uuid.New()
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)

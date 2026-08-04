@@ -18,6 +18,8 @@ import (
 )
 
 func TestService_InitiatePayment(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	orderID := uuid.New()
 	params := payment.InitiatePaymentParams{
@@ -27,6 +29,8 @@ func TestService_InitiatePayment(t *testing.T) {
 	}
 
 	t.Run("success with new payment", func(t *testing.T) {
+		t.Parallel()
+
 		// A synchronous "success" charge now finalizes the payment in the same call,
 		// so wrap the context in a test tx and add the FinalizePaymentSuccess expectations.
 		txCtx := ctx
@@ -94,6 +98,8 @@ func TestService_InitiatePayment(t *testing.T) {
 	})
 
 	t.Run("success with existing payment", func(t *testing.T) {
+		t.Parallel()
+
 		// A synchronous "success" charge now finalizes the payment in the same call,
 		// so wrap the context in a test tx and add the FinalizePaymentSuccess expectations.
 		txCtx := ctx
@@ -151,6 +157,8 @@ func TestService_InitiatePayment(t *testing.T) {
 	})
 
 	t.Run("gateway returns pending with PaymentURL", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, gw, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
@@ -186,6 +194,8 @@ func TestService_InitiatePayment(t *testing.T) {
 	})
 
 	t.Run("gateway returns pending without PaymentURL", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, gw, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
@@ -214,6 +224,8 @@ func TestService_InitiatePayment(t *testing.T) {
 	})
 
 	t.Run("gateway error", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, gw, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
@@ -239,6 +251,8 @@ func TestService_InitiatePayment(t *testing.T) {
 	})
 
 	t.Run("GetActiveByOrderID error", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
@@ -251,6 +265,8 @@ func TestService_InitiatePayment(t *testing.T) {
 	})
 
 	t.Run("Create error", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
@@ -267,9 +283,13 @@ func TestService_InitiatePayment(t *testing.T) {
 }
 
 func TestService_Process(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("unknown action returns false", func(t *testing.T) {
+		t.Parallel()
+
 		svc, _, _, _, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -282,6 +302,8 @@ func TestService_Process(t *testing.T) {
 	})
 
 	t.Run("charge job with order not in expected state", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, orders, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -303,6 +325,8 @@ func TestService_Process(t *testing.T) {
 	})
 
 	t.Run("charge job fails to get payment", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, orders, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -323,6 +347,8 @@ func TestService_Process(t *testing.T) {
 	})
 
 	t.Run("charge job gateway error with retries remaining", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, gw, orders, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -365,6 +391,8 @@ func TestService_Process(t *testing.T) {
 	})
 
 	t.Run("charge job gateway error max attempts exceeded", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, gw, orders, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -406,6 +434,8 @@ func TestService_Process(t *testing.T) {
 	})
 
 	t.Run("charge job success with finalization", func(t *testing.T) {
+		t.Parallel()
+
 		txCtx := context.Background()
 		svc, repo, gw, orders, orderGet, orderItems, inventory, _, _ := newTestService(t)
 
@@ -473,6 +503,8 @@ func TestService_Process(t *testing.T) {
 	})
 
 	t.Run("charge job handleChargeFailure with UpdateStatus error", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, gw, orders, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -512,6 +544,8 @@ func TestService_Process(t *testing.T) {
 	})
 
 	t.Run("charge job handleChargeFailure with UpdateJob error", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, gw, orders, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -550,6 +584,8 @@ func TestService_Process(t *testing.T) {
 	})
 
 	t.Run("charge job success finalization fails triggers compensating refund", func(t *testing.T) {
+		t.Parallel()
+
 		txCtx := context.Background()
 		svc, repo, gw, orders, orderGet, _, _, _, _ := newTestService(t)
 
@@ -605,6 +641,8 @@ func TestService_Process(t *testing.T) {
 	})
 
 	t.Run("charge job gateway returns non-success status", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, gw, orders, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -654,6 +692,8 @@ func TestService_Process(t *testing.T) {
 }
 
 func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	orderID := uuid.New()
 	params := payment.InitiatePaymentParams{
@@ -663,6 +703,8 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 	}
 
 	t.Run("UpdateGateway error is logged but does not fail", func(t *testing.T) {
+		t.Parallel()
+
 		// A synchronous "success" charge now finalizes the payment in the same call,
 		// so wrap the context in a test tx and add the FinalizePaymentSuccess expectations.
 		txCtx := ctx
@@ -719,6 +761,8 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 	})
 
 	t.Run("UpdatePaymentURL error is logged but does not fail", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, gw, _, _, _, _, _, _ := newTestService(t)
 
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
@@ -752,7 +796,11 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 }
 
 func TestService_FinalizePaymentSuccess_MultipleItems(t *testing.T) {
+	t.Parallel()
+
 	t.Run("sorts items by product ID before deducting", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, _, orders, orderGet, orderItems, inventory, _, _ := newTestService(t)
 
@@ -803,7 +851,11 @@ func TestService_FinalizePaymentSuccess_MultipleItems(t *testing.T) {
 }
 
 func TestService_RunCompensatingRefund_Error(t *testing.T) {
+	t.Parallel()
+
 	t.Run("compensating refund CreateJob error is logged", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, gw, orders, orderGet, _, _, _, _ := newTestService(t)
 
@@ -858,9 +910,13 @@ func TestService_RunCompensatingRefund_Error(t *testing.T) {
 }
 
 func TestService_HandleWebhook(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("success event with already succeeded payment", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		paymentID := uuid.New()
@@ -889,6 +945,8 @@ func TestService_HandleWebhook(t *testing.T) {
 	})
 
 	t.Run("failed event cancels payment", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, orders, _, _, _, _, _ := newTestService(t)
 
 		paymentID := uuid.New()
@@ -931,6 +989,8 @@ func TestService_HandleWebhook(t *testing.T) {
 	})
 
 	t.Run("expired event cancels payment", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, orders, _, _, _, _, _ := newTestService(t)
 
 		paymentID := uuid.New()
@@ -973,6 +1033,8 @@ func TestService_HandleWebhook(t *testing.T) {
 	})
 
 	t.Run("unknown payment returns nil", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		unknownID := uuid.New()
@@ -993,6 +1055,8 @@ func TestService_HandleWebhook(t *testing.T) {
 	})
 
 	t.Run("no metadata falls back to gateway txn lookup", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		paymentID := uuid.New()
@@ -1016,6 +1080,8 @@ func TestService_HandleWebhook(t *testing.T) {
 	})
 
 	t.Run("no metadata and no txn_id returns nil", func(t *testing.T) {
+		t.Parallel()
+
 		svc, _, _, _, _, _, _, _, _ := newTestService(t)
 
 		payload := map[string]any{
@@ -1028,6 +1094,8 @@ func TestService_HandleWebhook(t *testing.T) {
 	})
 
 	t.Run("success event finalizes payment", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, orders, orderGet, orderItems, inv, _, _ := newTestService(t)
 
 		paymentID := uuid.New()
@@ -1082,9 +1150,13 @@ func TestService_HandleWebhook(t *testing.T) {
 }
 
 func TestService_CancelJobsByOrderID(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		orderID := uuid.New()
@@ -1098,6 +1170,8 @@ func TestService_CancelJobsByOrderID(t *testing.T) {
 	})
 
 	t.Run("error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		orderID := uuid.New()
@@ -1113,9 +1187,13 @@ func TestService_CancelJobsByOrderID(t *testing.T) {
 }
 
 func TestService_Refund(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("success enqueues a pending refund job from a succeeded payment", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		paymentID := uuid.New()
@@ -1143,6 +1221,8 @@ func TestService_Refund(t *testing.T) {
 	})
 
 	t.Run("success enqueues a pending refund job from a requires-review payment", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		paymentID := uuid.New()
@@ -1170,6 +1250,8 @@ func TestService_Refund(t *testing.T) {
 	})
 
 	t.Run("payment not refundable - wrong status", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		paymentID := uuid.New()
@@ -1189,6 +1271,8 @@ func TestService_Refund(t *testing.T) {
 	})
 
 	t.Run("payment not refundable - cancelled status", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		paymentID := uuid.New()
@@ -1208,6 +1292,8 @@ func TestService_Refund(t *testing.T) {
 	})
 
 	t.Run("payment not found", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		paymentID := uuid.New()
@@ -1222,6 +1308,8 @@ func TestService_Refund(t *testing.T) {
 	})
 
 	t.Run("create job error", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		paymentID := uuid.New()
@@ -1247,7 +1335,11 @@ func TestService_Refund(t *testing.T) {
 }
 
 func TestService_FinalizePaymentSuccess(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success happy path", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, _, orders, orderGet, orderItems, inventory, _, _ := newTestService(t)
 
@@ -1296,6 +1388,8 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 	})
 
 	t.Run("amount mismatch returns error", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, _, _, orderGet, _, _, _, _ := newTestService(t)
 
@@ -1324,6 +1418,8 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 	})
 
 	t.Run("currency mismatch returns error", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, _, _, orderGet, _, _, _, _ := newTestService(t)
 
@@ -1352,6 +1448,8 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 	})
 
 	t.Run("already finalized by webhook", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, _, orders, orderGet, _, _, _, _ := newTestService(t)
 
@@ -1389,6 +1487,8 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 	})
 
 	t.Run("late payment enqueues refund job", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, _, orders, orderGet, _, _, _, _ := newTestService(t)
 
@@ -1441,6 +1541,8 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 	})
 
 	t.Run("inventory deduction error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, _, orders, orderGet, orderItems, inventory, _, _ := newTestService(t)
 
@@ -1486,6 +1588,8 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 	})
 
 	t.Run("order snapshot error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, _, _, _, orderGet, _, _, _, _ := newTestService(t)
 
@@ -1504,6 +1608,8 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 	})
 
 	t.Run("payment get error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, _, _, orderGet, _, _, _, _ := newTestService(t)
 
@@ -1527,6 +1633,8 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 	})
 
 	t.Run("late payment with paid order uses restock inventory action", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, _, orders, orderGet, _, _, _, _ := newTestService(t)
 
@@ -1577,6 +1685,8 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 	})
 
 	t.Run("listing order items error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, _, orders, orderGet, orderItems, _, _, _ := newTestService(t)
 
@@ -1617,7 +1727,11 @@ func TestService_FinalizePaymentSuccess(t *testing.T) {
 }
 
 func TestService_ProcessRefundJob(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success with release inventory", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, gw, orders, orderGet, orderItems, _, inventoryRestore, couponRel := newTestService(t)
 
@@ -1678,6 +1792,8 @@ func TestService_ProcessRefundJob(t *testing.T) {
 	})
 
 	t.Run("success with restock inventory", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, gw, orders, orderGet, orderItems, _, inventoryRestore, _ := newTestService(t)
 
@@ -1735,6 +1851,8 @@ func TestService_ProcessRefundJob(t *testing.T) {
 	})
 
 	t.Run("payment not refundable", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -1761,6 +1879,8 @@ func TestService_ProcessRefundJob(t *testing.T) {
 	})
 
 	t.Run("payment not found", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, _, _, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -1778,6 +1898,8 @@ func TestService_ProcessRefundJob(t *testing.T) {
 	})
 
 	t.Run("gateway refund error with retries remaining", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, gw, _, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -1814,6 +1936,8 @@ func TestService_ProcessRefundJob(t *testing.T) {
 	})
 
 	t.Run("gateway refund error max attempts", func(t *testing.T) {
+		t.Parallel()
+
 		svc, repo, gw, _, _, _, _, _, _ := newTestService(t)
 
 		job := payment.Job{
@@ -1849,6 +1973,8 @@ func TestService_ProcessRefundJob(t *testing.T) {
 	})
 
 	t.Run("refund with list items error returns false", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, gw, orders, orderGet, orderItems, _, _, _ := newTestService(t)
 
@@ -1893,6 +2019,8 @@ func TestService_ProcessRefundJob(t *testing.T) {
 	})
 
 	t.Run("refund with multiple items sorts by product ID", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, gw, orders, orderGet, orderItems, _, inventoryRestore, _ := newTestService(t)
 
@@ -1948,6 +2076,8 @@ func TestService_ProcessRefundJob(t *testing.T) {
 	})
 
 	t.Run("refund with release inventory error logs but continues", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, gw, orders, orderGet, orderItems, _, inventoryRestore, _ := newTestService(t)
 
@@ -2001,6 +2131,8 @@ func TestService_ProcessRefundJob(t *testing.T) {
 	})
 
 	t.Run("refund with restock inventory error logs but continues", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, gw, orders, orderGet, orderItems, _, inventoryRestore, _ := newTestService(t)
 
@@ -2054,6 +2186,8 @@ func TestService_ProcessRefundJob(t *testing.T) {
 	})
 
 	t.Run("refund with coupon release error logs but continues", func(t *testing.T) {
+		t.Parallel()
+
 		ctx := context.Background()
 		svc, repo, gw, orders, orderGet, orderItems, _, inventoryRestore, couponRel := newTestService(t)
 

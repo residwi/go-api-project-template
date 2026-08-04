@@ -23,7 +23,11 @@ import (
 )
 
 func TestAdminHandler_CreateProduct(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
@@ -64,6 +68,8 @@ func TestAdminHandler_CreateProduct(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
@@ -87,6 +93,8 @@ func TestAdminHandler_CreateProduct(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupProductMux(t)
 
 		w := httptest.NewRecorder()
@@ -99,6 +107,8 @@ func TestAdminHandler_CreateProduct(t *testing.T) {
 	})
 
 	t.Run("validation error missing name", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupProductMux(t)
 
 		body, _ := json.Marshal(map[string]any{
@@ -121,7 +131,11 @@ func TestAdminHandler_CreateProduct(t *testing.T) {
 }
 
 func TestAdminHandler_GetProduct(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
@@ -160,6 +174,8 @@ func TestAdminHandler_GetProduct(t *testing.T) {
 	})
 
 	t.Run("service error not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
@@ -174,6 +190,8 @@ func TestAdminHandler_GetProduct(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupProductMux(t)
 
 		w := httptest.NewRecorder()
@@ -191,7 +209,11 @@ func TestAdminHandler_GetProduct(t *testing.T) {
 }
 
 func TestAdminHandler_DeleteProduct(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
@@ -206,6 +228,8 @@ func TestAdminHandler_DeleteProduct(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupProductMux(t)
 
 		w := httptest.NewRecorder()
@@ -222,6 +246,8 @@ func TestAdminHandler_DeleteProduct(t *testing.T) {
 	})
 
 	t.Run("service error not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
@@ -237,7 +263,11 @@ func TestAdminHandler_DeleteProduct(t *testing.T) {
 }
 
 func TestAdminHandler_ListProducts(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		now := time.Now()
@@ -289,6 +319,8 @@ func TestAdminHandler_ListProducts(t *testing.T) {
 	})
 
 	t.Run("invalid category_id", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupProductMux(t)
 
 		w := httptest.NewRecorder()
@@ -304,6 +336,8 @@ func TestAdminHandler_ListProducts(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		repo.EXPECT().ListAdmin(mock.Anything, mock.Anything).Return(nil, 0, errors.New("db error"))
@@ -317,6 +351,8 @@ func TestAdminHandler_ListProducts(t *testing.T) {
 	})
 
 	t.Run("with valid category_id", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		catID := uuid.New()
@@ -334,7 +370,11 @@ func TestAdminHandler_ListProducts(t *testing.T) {
 }
 
 func TestAdminHandler_UpdateProduct(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
@@ -376,6 +416,8 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupProductMux(t)
 
 		body, _ := json.Marshal(map[string]string{"name": "test"})
@@ -394,6 +436,8 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupProductMux(t)
 
 		prodID := uuid.New()
@@ -408,6 +452,8 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 	})
 
 	t.Run("validation error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupProductMux(t)
 
 		prodID := uuid.New()
@@ -449,6 +495,8 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 		{"compare_at_price without price", map[string]any{"compare_at_price": 2500, "currency": "EUR"}},
 	} {
 		t.Run("rejects "+tc.name+" with 400", func(t *testing.T) {
+			t.Parallel()
+
 			// No repo expectation: the request must be rejected before the service is
 			// reached, so the product is never even loaded. mockery fails the test if
 			// GetByID or Update is called anyway.
@@ -475,6 +523,8 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 	// The complementary accept case: price and currency together are fine, and
 	// the pair reaches the service as one denominated value.
 	t.Run("accepts price and currency together", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
@@ -511,6 +561,8 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 	})
 
 	t.Run("service error not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
@@ -537,6 +589,8 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 // CompareAtPrice -- fields otherwise unrelated to SKU/Status -- to guard
 // that duplication from drifting silently.
 func TestToAdminProductResponse_KeepsSKUAndStatus(t *testing.T) {
+	t.Parallel()
+
 	sku := "SKU-123"
 	description := "A widget"
 	categoryID := uuid.New()

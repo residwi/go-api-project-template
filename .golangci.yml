@@ -102,6 +102,7 @@ linters:
     - nolintlint # reports ill-formed or insufficient nolint directives
     # - nonamedreturns # reports all named returns
     - nosprintfhostport # checks for misuse of Sprintf to construct a host with port in a URL
+    - paralleltest # detects missing usage of t.Parallel() method in your Go test
     - perfsprint # checks that fmt.Sprintf can be replaced with a faster alternative
     - predeclared # finds code that shadows one of Go's predeclared identifiers
     - promlinter # checks Prometheus metrics naming via promlint
@@ -160,7 +161,6 @@ linters:
     #- maintidx # measures the maintainability index of each function
     #- misspell # [useless] finds commonly misspelled English words in comments
     #- nlreturn # [too strict and mostly code is not more readable] checks for a new line before return and branch statements to increase code clarity
-    #- paralleltest # [too many false positives] detects missing usage of t.Parallel() method in your Go test
     #- tagliatelle # checks the struct tags
     #- thelper # detects golang test helpers without t.Helper() call and checks the consistency of test helpers
     #- wsl_v5 # [too strict and mostly code is not more readable] add or remove empty lines
@@ -471,6 +471,21 @@ linters:
       - text: 'comment on exported \S+ \S+ should be of the form ".+"'
         source: "// ?(nolint|TODO)"
         linters: [revive, staticcheck]
+      # A package that owns a database or a Redis index is excluded whole --
+      # every file in it, not just the ones that visibly reset state.
+      # testhelper.ResetDB TRUNCATEs every table in the package's database and
+      # ratelimit_test.go FlushDB's its Redis index, so a parallel sibling
+      # anywhere in the same package gets its rows deleted mid-assertion, even
+      # if that sibling never calls a reset itself. Excluding per-file instead
+      # of per-package is what made this list wrong the first time.
+      # Nothing is lost: `go test` already runs these packages concurrently
+      # with each other, and each owns its own database, so the only
+      # concurrency t.Parallel could add here is the unsafe kind.
+      - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testhelper/|^internal/platform/(cache|database)/|^internal/modules/user/redis/|^internal/transport/http/(router_test\.go|middleware/))
+        linters: [paralleltest]
+      # t.Setenv panics when the test also calls t.Parallel.
+      - path: ^internal/config/config_test\.go
+        linters: [paralleltest]
       - path: '_test\.go'
         linters:
           - bodyclose

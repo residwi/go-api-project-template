@@ -25,7 +25,11 @@ import (
 )
 
 func TestHandler_GetWishlist_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success with items", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupWishlistMux(t)
 
 		items := []wishlist.Item{
@@ -47,7 +51,11 @@ func TestHandler_GetWishlist_Success(t *testing.T) {
 }
 
 func TestHandler_GetWishlist_ServiceError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupWishlistMux(t)
 
 		repo.EXPECT().GetItems(mock.Anything, uc.UserID, mock.Anything).Return(nil, assert.AnError)
@@ -63,9 +71,13 @@ func TestHandler_GetWishlist_ServiceError(t *testing.T) {
 }
 
 func TestHandler_GetWishlist(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodGet, "/wishlist", nil)
 		w := httptest.NewRecorder()
 
@@ -81,7 +93,11 @@ func TestHandler_GetWishlist(t *testing.T) {
 }
 
 func TestHandler_AddItem_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupWishlistMux(t)
 
 		productID := uuid.New()
@@ -102,7 +118,11 @@ func TestHandler_AddItem_Success(t *testing.T) {
 }
 
 func TestHandler_AddItem_ServiceError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("get or create fails", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupWishlistMux(t)
 
 		productID := uuid.New()
@@ -121,9 +141,13 @@ func TestHandler_AddItem_ServiceError(t *testing.T) {
 }
 
 func TestHandler_AddItem(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/wishlist/items", nil)
 		w := httptest.NewRecorder()
 
@@ -133,6 +157,8 @@ func TestHandler_AddItem(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/wishlist/items", strings.NewReader("{bad"))
 		r = setAuthContext(r)
 		w := httptest.NewRecorder()
@@ -143,6 +169,8 @@ func TestHandler_AddItem(t *testing.T) {
 	})
 
 	t.Run("validation error missing product_id", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/wishlist/items", strings.NewReader(`{}`))
 		r = setAuthContext(r)
 		w := httptest.NewRecorder()
@@ -162,7 +190,11 @@ func TestHandler_AddItem(t *testing.T) {
 }
 
 func TestHandler_RemoveItem_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupWishlistMux(t)
 
 		productID := uuid.New()
@@ -179,7 +211,11 @@ func TestHandler_RemoveItem_Success(t *testing.T) {
 }
 
 func TestHandler_RemoveItem_ServiceError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupWishlistMux(t)
 
 		productID := uuid.New()
@@ -196,9 +232,13 @@ func TestHandler_RemoveItem_ServiceError(t *testing.T) {
 }
 
 func TestHandler_RemoveItem(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodDelete, "/wishlist/items/"+uuid.NewString(), nil)
 		w := httptest.NewRecorder()
 
@@ -208,6 +248,8 @@ func TestHandler_RemoveItem(t *testing.T) {
 	})
 
 	t.Run("invalid product UUID", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodDelete, "/wishlist/items/bad", nil)
 		r = setAuthContext(r)
 		r.SetPathValue("product_id", "bad")
@@ -225,7 +267,11 @@ func TestHandler_RemoveItem(t *testing.T) {
 }
 
 func TestHandler_GetWishlist_Pagination(t *testing.T) {
+	t.Parallel()
+
 	t.Run("has more results triggers cursor", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, uc := setupWishlistMux(t)
 
 		now := time.Now()
@@ -264,6 +310,8 @@ func TestHandler_GetWishlist_Pagination(t *testing.T) {
 // explicit field list is the only thing keeping it off the wire. No other
 // test in this file decodes an item's JSON shape.
 func TestToItemResponse_OmitsInternalFields(t *testing.T) {
+	t.Parallel()
+
 	itemID, productID, listID := uuid.New(), uuid.New(), uuid.New()
 	created := time.Date(2026, 7, 25, 12, 0, 0, 0, time.UTC)
 

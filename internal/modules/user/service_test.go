@@ -19,9 +19,13 @@ import (
 )
 
 func TestService_CheckStatus(t *testing.T) {
+	t.Parallel()
+
 	userID := uuid.New()
 
 	t.Run("returns the cached snapshot without touching the repository", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		c := mocks.NewMockStatusCache(t)
 		c.EXPECT().Get(mock.Anything, userID).
@@ -35,6 +39,8 @@ func TestService_CheckStatus(t *testing.T) {
 	})
 
 	t.Run("reads the repository on a miss and writes the snapshot back", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 7, nil)
 		c := mocks.NewMockStatusCache(t)
@@ -50,6 +56,8 @@ func TestService_CheckStatus(t *testing.T) {
 	})
 
 	t.Run("falls back to the repository when the cache read errors", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 3, nil)
 		c := mocks.NewMockStatusCache(t)
@@ -65,6 +73,8 @@ func TestService_CheckStatus(t *testing.T) {
 	})
 
 	t.Run("caches an inactive user as inactive", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 4, nil)
 		c := mocks.NewMockStatusCache(t)
@@ -80,6 +90,8 @@ func TestService_CheckStatus(t *testing.T) {
 	})
 
 	t.Run("reports a deleted user as inactive rather than an error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 0, apperror.ErrNotFound)
 		c := mocks.NewMockStatusCache(t)
@@ -93,6 +105,8 @@ func TestService_CheckStatus(t *testing.T) {
 	})
 
 	t.Run("still returns the result when the cache write fails", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 1, nil)
 		c := mocks.NewMockStatusCache(t)
@@ -108,6 +122,8 @@ func TestService_CheckStatus(t *testing.T) {
 	})
 
 	t.Run("works with NoCache, always reading through to the repository", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 9, nil)
 		svc := user.NewService(repo, user.NoCache{})
@@ -120,7 +136,11 @@ func TestService_CheckStatus(t *testing.T) {
 }
 
 func TestService_GetByEmail(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -152,6 +172,8 @@ func TestService_GetByEmail(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -164,7 +186,11 @@ func TestService_GetByEmail(t *testing.T) {
 }
 
 func TestService_Create(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -195,6 +221,8 @@ func TestService_Create(t *testing.T) {
 	})
 
 	t.Run("conflict error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -212,7 +240,11 @@ func TestService_Create(t *testing.T) {
 }
 
 func TestService_GetByID(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -242,6 +274,8 @@ func TestService_GetByID(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -254,7 +288,11 @@ func TestService_GetByID(t *testing.T) {
 }
 
 func TestService_CheckStatus_RepoErrorPropagates(t *testing.T) {
+	t.Parallel()
+
 	t.Run("repo GetStatusByID error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -268,7 +306,11 @@ func TestService_CheckStatus_RepoErrorPropagates(t *testing.T) {
 }
 
 func TestService_GetProfile(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -290,6 +332,8 @@ func TestService_GetProfile(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -302,7 +346,11 @@ func TestService_GetProfile(t *testing.T) {
 }
 
 func TestService_UpdateProfile(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success partial update", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -337,6 +385,8 @@ func TestService_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("updates last name", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -361,6 +411,8 @@ func TestService_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -372,6 +424,8 @@ func TestService_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("repo Update error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -395,7 +449,11 @@ func TestService_UpdateProfile(t *testing.T) {
 }
 
 func TestService_List(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -414,7 +472,11 @@ func TestService_List(t *testing.T) {
 }
 
 func TestService_AdminUpdate(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success updates active status", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -446,6 +508,8 @@ func TestService_AdminUpdate(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -457,6 +521,8 @@ func TestService_AdminUpdate(t *testing.T) {
 	})
 
 	t.Run("repo Update error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -479,6 +545,8 @@ func TestService_AdminUpdate(t *testing.T) {
 	})
 
 	t.Run("partial update with all fields", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -517,7 +585,11 @@ func TestService_AdminUpdate(t *testing.T) {
 }
 
 func TestService_UpdateRole(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -541,6 +613,8 @@ func TestService_UpdateRole(t *testing.T) {
 	})
 
 	t.Run("self-demotion blocked", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -555,6 +629,8 @@ func TestService_UpdateRole(t *testing.T) {
 	})
 
 	t.Run("last admin blocked", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -577,6 +653,8 @@ func TestService_UpdateRole(t *testing.T) {
 	})
 
 	t.Run("CountAdmins error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -601,6 +679,8 @@ func TestService_UpdateRole(t *testing.T) {
 	})
 
 	t.Run("multiple admins allows demotion", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -625,6 +705,8 @@ func TestService_UpdateRole(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -640,6 +722,8 @@ func TestService_UpdateRole(t *testing.T) {
 	})
 
 	t.Run("Update error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -665,7 +749,11 @@ func TestService_UpdateRole(t *testing.T) {
 }
 
 func TestService_Delete(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -687,6 +775,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("self-deletion blocked", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -700,6 +790,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("last admin blocked", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -721,6 +813,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -735,6 +829,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("CountAdmins error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -758,6 +854,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("multiple admins allows delete", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -780,6 +878,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("Delete repo error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := user.NewService(repo, user.NoCache{})
 
@@ -804,6 +904,8 @@ func TestService_Delete(t *testing.T) {
 }
 
 func TestService_Delete_RejectsSelfDeleteByName(t *testing.T) {
+	t.Parallel()
+
 	repo := mocks.NewMockRepository(t)
 	svc := user.NewService(repo, user.NoCache{})
 

@@ -24,7 +24,11 @@ import (
 )
 
 func TestHandler_GetProfile(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 
 		userID := uuid.New()
@@ -70,6 +74,8 @@ func TestHandler_GetProfile(t *testing.T) {
 	})
 
 	t.Run("missing auth context", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		w := httptest.NewRecorder()
@@ -86,6 +92,8 @@ func TestHandler_GetProfile(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 		userID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
@@ -102,7 +110,11 @@ func TestHandler_GetProfile(t *testing.T) {
 }
 
 func TestHandler_UpdateProfile(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 
 		userID := uuid.New()
@@ -153,6 +165,8 @@ func TestHandler_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("validation error invalid first_name too long", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		userID := uuid.New()
@@ -186,6 +200,8 @@ func TestHandler_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("missing auth context", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/users/me", nil)
@@ -194,6 +210,8 @@ func TestHandler_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 		userID := uuid.New()
 		w := httptest.NewRecorder()
@@ -208,6 +226,8 @@ func TestHandler_UpdateProfile(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 		userID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
@@ -232,6 +252,8 @@ func TestHandler_UpdateProfile(t *testing.T) {
 // couple of userResponse's fields, so this is also the only assertion
 // pinning the full public field set.
 func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
+	t.Parallel()
+
 	userID := uuid.New()
 	deletedAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 

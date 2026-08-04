@@ -16,7 +16,11 @@ import (
 )
 
 func TestAdminHandler_Delete(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupReviewMux(t)
 
 		reviewID := uuid.New()
@@ -31,6 +35,8 @@ func TestAdminHandler_Delete(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupReviewMux(t)
 
 		w := httptest.NewRecorder()
@@ -47,6 +53,8 @@ func TestAdminHandler_Delete(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupReviewMux(t)
 
 		reviewID := uuid.New()

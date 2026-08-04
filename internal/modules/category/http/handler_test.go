@@ -24,7 +24,11 @@ import (
 )
 
 func TestHandler_ListCategories(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCategoryMux(t)
 
 		now := time.Now()
@@ -65,6 +69,8 @@ func TestHandler_ListCategories(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCategoryMux(t)
 
 		repo.EXPECT().List(mock.Anything).Return(nil, errors.New("db error"))
@@ -79,7 +85,11 @@ func TestHandler_ListCategories(t *testing.T) {
 }
 
 func TestHandler_GetBySlug(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCategoryMux(t)
 
 		catID := uuid.New()
@@ -125,6 +135,8 @@ func TestHandler_GetBySlug(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCategoryMux(t)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
@@ -142,6 +154,8 @@ func TestHandler_GetBySlug(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCategoryMux(t)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "fail").Return(nil, errors.New("db error"))
@@ -156,6 +170,8 @@ func TestHandler_GetBySlug(t *testing.T) {
 }
 
 func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
+	t.Parallel()
+
 	h := &handler{
 		service:   &category.Service{},
 		validator: validator.New(),
@@ -179,6 +195,8 @@ func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
 // only thing stopping an anonymous caller from enumerating unpublished
 // categories.
 func TestToCategoryResponse_OmitsModerationAndAuditFields(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	description := "Phones, laptops and audio"
 	parentID := uuid.New()

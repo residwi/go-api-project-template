@@ -10,18 +10,26 @@ import (
 )
 
 func TestDecodeCursor(t *testing.T) {
+	t.Parallel()
+
 	t.Run("invalid base64", func(t *testing.T) {
+		t.Parallel()
+
 		_, _, err := DecodeCursor("not-valid-base64!!!")
 		assert.Error(t, err)
 	})
 
 	t.Run("invalid format", func(t *testing.T) {
+		t.Parallel()
+
 		// Valid base64 but no pipe separator
 		_, _, err := DecodeCursor("bm9waXBl") // base64 of "nopipe"
 		assert.Error(t, err)
 	})
 
 	t.Run("round trip", func(t *testing.T) {
+		t.Parallel()
+
 		createdAt := "2024-01-15T10:30:00Z"
 		id := "550e8400-e29b-41d4-a716-446655440000"
 
@@ -36,7 +44,11 @@ func TestDecodeCursor(t *testing.T) {
 }
 
 func TestParseCursorPage(t *testing.T) {
+	t.Parallel()
+
 	t.Run("defaults", func(t *testing.T) {
+		t.Parallel()
+
 		req := httptest.NewRequest(http.MethodGet, "/items", nil)
 		page := ParseCursorPage(req)
 
@@ -44,6 +56,8 @@ func TestParseCursorPage(t *testing.T) {
 	})
 
 	t.Run("with values", func(t *testing.T) {
+		t.Parallel()
+
 		req := httptest.NewRequest(http.MethodGet, "/items?cursor=abc123&limit=50", nil)
 		page := ParseCursorPage(req)
 
@@ -51,6 +65,8 @@ func TestParseCursorPage(t *testing.T) {
 	})
 
 	t.Run("limit too high", func(t *testing.T) {
+		t.Parallel()
+
 		req := httptest.NewRequest(http.MethodGet, "/items?limit=200", nil)
 		page := ParseCursorPage(req)
 
@@ -58,6 +74,8 @@ func TestParseCursorPage(t *testing.T) {
 	})
 
 	t.Run("limit too low", func(t *testing.T) {
+		t.Parallel()
+
 		req := httptest.NewRequest(http.MethodGet, "/items?limit=0", nil)
 		page := ParseCursorPage(req)
 
@@ -65,6 +83,8 @@ func TestParseCursorPage(t *testing.T) {
 	})
 
 	t.Run("invalid limit", func(t *testing.T) {
+		t.Parallel()
+
 		req := httptest.NewRequest(http.MethodGet, "/items?limit=abc", nil)
 		page := ParseCursorPage(req)
 
@@ -73,7 +93,11 @@ func TestParseCursorPage(t *testing.T) {
 }
 
 func TestNewCursorPageResult(t *testing.T) {
+	t.Parallel()
+
 	t.Run("with items", func(t *testing.T) {
+		t.Parallel()
+
 		items := []string{"a", "b", "c"}
 		result := NewCursorPageResult(items, "next123", true)
 
@@ -87,6 +111,8 @@ func TestNewCursorPageResult(t *testing.T) {
 	})
 
 	t.Run("nil items returns empty slice", func(t *testing.T) {
+		t.Parallel()
+
 		result := NewCursorPageResult[string](nil, "", false)
 
 		assert.NotNil(t, result.Items)

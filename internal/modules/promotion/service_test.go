@@ -17,7 +17,11 @@ import (
 )
 
 func TestService_Validate(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success percentage", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -41,6 +45,8 @@ func TestService_Validate(t *testing.T) {
 	})
 
 	t.Run("success percentage capped by max discount", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -64,6 +70,8 @@ func TestService_Validate(t *testing.T) {
 	})
 
 	t.Run("success fixed_amount", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -85,6 +93,8 @@ func TestService_Validate(t *testing.T) {
 	})
 
 	t.Run("inactive promo", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -102,6 +112,8 @@ func TestService_Validate(t *testing.T) {
 	})
 
 	t.Run("expired", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -119,6 +131,8 @@ func TestService_Validate(t *testing.T) {
 	})
 
 	t.Run("not started", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -136,6 +150,8 @@ func TestService_Validate(t *testing.T) {
 	})
 
 	t.Run("exhausted uses", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -156,6 +172,8 @@ func TestService_Validate(t *testing.T) {
 	})
 
 	t.Run("below min order", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -176,6 +194,8 @@ func TestService_Validate(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -186,6 +206,8 @@ func TestService_Validate(t *testing.T) {
 	})
 
 	t.Run("discount capped by subtotal", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -207,6 +229,8 @@ func TestService_Validate(t *testing.T) {
 	})
 
 	t.Run("percentage without max discount cap", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -229,7 +253,11 @@ func TestService_Validate(t *testing.T) {
 }
 
 func TestService_Create(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -269,6 +297,8 @@ func TestService_Create(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -288,7 +318,11 @@ func TestService_Create(t *testing.T) {
 }
 
 func TestService_List(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -306,6 +340,8 @@ func TestService_List(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -318,7 +354,11 @@ func TestService_List(t *testing.T) {
 }
 
 func TestService_Update(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success partial", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -355,6 +395,8 @@ func TestService_Update(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -366,6 +408,8 @@ func TestService_Update(t *testing.T) {
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -387,6 +431,8 @@ func TestService_Update(t *testing.T) {
 	})
 
 	t.Run("all fields updated", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -440,7 +486,11 @@ func TestService_Update(t *testing.T) {
 }
 
 func TestService_Delete(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -452,6 +502,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -464,7 +516,11 @@ func TestService_Delete(t *testing.T) {
 }
 
 func TestService_Reserve(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success percentage discount", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -494,6 +550,8 @@ func TestService_Reserve(t *testing.T) {
 	})
 
 	t.Run("validation error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -512,6 +570,8 @@ func TestService_Reserve(t *testing.T) {
 	})
 
 	t.Run("GetByCode error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -523,6 +583,8 @@ func TestService_Reserve(t *testing.T) {
 	})
 
 	t.Run("ApplyPromotion error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -546,6 +608,8 @@ func TestService_Reserve(t *testing.T) {
 	})
 
 	t.Run("CreateUsage error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -571,7 +635,11 @@ func TestService_Reserve(t *testing.T) {
 }
 
 func TestService_Release(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success releases coupon", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -586,6 +654,8 @@ func TestService_Release(t *testing.T) {
 	})
 
 	t.Run("no usage is a no-op", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -597,6 +667,8 @@ func TestService_Release(t *testing.T) {
 	})
 
 	t.Run("DeleteUsageByOrderID error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 
@@ -608,6 +680,8 @@ func TestService_Release(t *testing.T) {
 	})
 
 	t.Run("ReleasePromotion error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 

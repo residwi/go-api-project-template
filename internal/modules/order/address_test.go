@@ -11,6 +11,8 @@ import (
 // wire mapping now, and order/http/handler_test.go pins the round trip). This
 // file keeps only the plain domain-level assertion.
 func TestAddress_ZeroValue(t *testing.T) {
+	t.Parallel()
+
 	var addr Address
 	assert.Equal(t, Address{}, addr)
 }

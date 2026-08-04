@@ -11,7 +11,11 @@ import (
 )
 
 func TestRunner(t *testing.T) {
+	t.Parallel()
+
 	t.Run("processes every claimed job", func(t *testing.T) {
+		t.Parallel()
+
 		synctest.Test(t, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
@@ -32,6 +36,8 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("prunes each tick", func(t *testing.T) {
+		t.Parallel()
+
 		synctest.Test(t, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
@@ -55,6 +61,8 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("sweeps when the processor implements Sweeper", func(t *testing.T) {
+		t.Parallel()
+
 		synctest.Test(t, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
@@ -78,6 +86,8 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("bounds each job's context to a fraction of the lease", func(t *testing.T) {
+		t.Parallel()
+
 		synctest.Test(t, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
@@ -122,6 +132,8 @@ func TestRunner(t *testing.T) {
 	})
 
 	t.Run("never runs more than Concurrency jobs at once", func(t *testing.T) {
+		t.Parallel()
+
 		synctest.Test(t, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 

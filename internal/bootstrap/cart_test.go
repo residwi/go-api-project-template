@@ -17,7 +17,11 @@ import (
 )
 
 func TestProductLookupAdapter_GetByIDs(t *testing.T) {
+	t.Parallel()
+
 	t.Run("maps a batch in one call and carries Status through", func(t *testing.T) {
+		t.Parallel()
+
 		repo := productMocks.NewMockRepository(t)
 		inv := productMocks.NewMockInventoryReader(t)
 		reg := productMocks.NewMockInventoryRegistrar(t)
@@ -44,6 +48,8 @@ func TestProductLookupAdapter_GetByIDs(t *testing.T) {
 	})
 
 	t.Run("flags a soft-deleted product unavailable instead of passing its stale status through", func(t *testing.T) {
+		t.Parallel()
+
 		// product.Delete only sets deleted_at -- it never touches status -- so a
 		// withdrawn product's row still reads status='published'. GetByIDs must not
 		// forward that stale status verbatim, or a cart line (and the order guard
@@ -75,6 +81,8 @@ func TestProductLookupAdapter_GetByIDs(t *testing.T) {
 	})
 
 	t.Run("propagates a service error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := productMocks.NewMockRepository(t)
 		inv := productMocks.NewMockInventoryReader(t)
 		reg := productMocks.NewMockInventoryRegistrar(t)

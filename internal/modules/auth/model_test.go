@@ -11,6 +11,8 @@ import (
 )
 
 func TestGenerateTokenPair(t *testing.T) {
+	t.Parallel()
+
 	secret := "test-secret-key"
 	issuer := "test-issuer"
 	accessTTL := 15 * time.Minute
@@ -25,6 +27,8 @@ func TestGenerateTokenPair(t *testing.T) {
 	}
 
 	t.Run("success produces valid tokens", func(t *testing.T) {
+		t.Parallel()
+
 		accessToken, refreshToken, err := GenerateTokenPair(secret, issuer, accessTTL, refreshTTL, claims)
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken)
@@ -52,6 +56,8 @@ func TestGenerateTokenPair(t *testing.T) {
 	})
 
 	t.Run("claims roundtrip preserves all fields", func(t *testing.T) {
+		t.Parallel()
+
 		accessToken, _, err := GenerateTokenPair(secret, issuer, accessTTL, refreshTTL, claims)
 		require.NoError(t, err)
 
@@ -70,6 +76,8 @@ func TestGenerateTokenPair(t *testing.T) {
 }
 
 func TestValidateToken(t *testing.T) {
+	t.Parallel()
+
 	secret := "test-secret-key"
 	issuer := "test-issuer"
 	ttl := 15 * time.Minute
@@ -81,6 +89,8 @@ func TestValidateToken(t *testing.T) {
 	}
 
 	t.Run("wrong secret returns error", func(t *testing.T) {
+		t.Parallel()
+
 		accessToken, _, err := GenerateTokenPair(secret, issuer, ttl, ttl, claims)
 		require.NoError(t, err)
 
@@ -90,6 +100,8 @@ func TestValidateToken(t *testing.T) {
 	})
 
 	t.Run("expired token returns error", func(t *testing.T) {
+		t.Parallel()
+
 		accessToken, _, err := GenerateTokenPair(secret, issuer, -1*time.Second, ttl, claims)
 		require.NoError(t, err)
 
@@ -99,6 +111,8 @@ func TestValidateToken(t *testing.T) {
 	})
 
 	t.Run("tampered token returns error", func(t *testing.T) {
+		t.Parallel()
+
 		accessToken, _, err := GenerateTokenPair(secret, issuer, ttl, ttl, claims)
 		require.NoError(t, err)
 
@@ -110,12 +124,16 @@ func TestValidateToken(t *testing.T) {
 	})
 
 	t.Run("completely invalid token string", func(t *testing.T) {
+		t.Parallel()
+
 		got, err := ValidateToken("not-a-token", secret, issuer)
 		assert.Nil(t, got)
 		assert.Error(t, err)
 	})
 
 	t.Run("unexpected signing method returns error", func(t *testing.T) {
+		t.Parallel()
+
 		token := jwt.NewWithClaims(jwt.SigningMethodNone, jwt.MapClaims{
 			"user_id": uuid.New().String(),
 			"email":   "user@example.com",

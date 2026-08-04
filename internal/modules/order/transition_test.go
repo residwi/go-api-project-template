@@ -25,6 +25,8 @@ var allStatuses = []Status{
 // changes which (from,to) pairs are legal, and this test will catch it — every
 // pair not listed here must be rejected.
 func TestCanTransition_Graph(t *testing.T) {
+	t.Parallel()
+
 	allowed := map[Status][]Status{
 		StatusAwaitingPayment: {
 			StatusPaymentProcessing, StatusPaid,

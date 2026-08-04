@@ -10,6 +10,8 @@ import (
 )
 
 func TestNoopUploader_Upload(t *testing.T) {
+	t.Parallel()
+
 	uploader := &NoopUploader{}
 	url, err := uploader.Upload(context.Background(), "photo.jpg", strings.NewReader("data"), "image/jpeg")
 	require.NoError(t, err)

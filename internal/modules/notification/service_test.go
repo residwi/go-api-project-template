@@ -17,7 +17,11 @@ import (
 )
 
 func TestService_Send(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -37,6 +41,8 @@ func TestService_Send(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -51,7 +57,11 @@ func TestService_Send(t *testing.T) {
 }
 
 func TestService_ListByUser(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -71,6 +81,8 @@ func TestService_ListByUser(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -86,7 +98,11 @@ func TestService_ListByUser(t *testing.T) {
 }
 
 func TestService_MarkRead(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -101,6 +117,8 @@ func TestService_MarkRead(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -116,7 +134,11 @@ func TestService_MarkRead(t *testing.T) {
 }
 
 func TestService_MarkAllRead(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -130,6 +152,8 @@ func TestService_MarkAllRead(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -144,7 +168,11 @@ func TestService_MarkAllRead(t *testing.T) {
 }
 
 func TestService_CountUnread(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -159,6 +187,8 @@ func TestService_CountUnread(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -173,7 +203,11 @@ func TestService_CountUnread(t *testing.T) {
 }
 
 func TestService_EnqueueOrderPlaced(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -196,6 +230,8 @@ func TestService_EnqueueOrderPlaced(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -214,7 +250,11 @@ func TestService_EnqueueOrderPlaced(t *testing.T) {
 }
 
 func TestService_Process(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 
@@ -249,6 +289,8 @@ func TestService_Process(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := notification.NewService(repo)
 

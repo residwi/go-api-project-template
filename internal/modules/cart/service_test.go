@@ -18,6 +18,8 @@ import (
 )
 
 func TestService_AddItem_RunsInsideTxRunner(t *testing.T) {
+	t.Parallel()
+
 	repo := cartMocks.NewMockRepository(t)
 	products := cartMocks.NewMockProductLookup(t)
 	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -45,7 +47,11 @@ func TestService_AddItem_RunsInsideTxRunner(t *testing.T) {
 }
 
 func TestService_AddItem(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -69,6 +75,8 @@ func TestService_AddItem(t *testing.T) {
 	})
 
 	t.Run("product not published", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -86,6 +94,8 @@ func TestService_AddItem(t *testing.T) {
 	})
 
 	t.Run("insufficient stock", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -103,6 +113,8 @@ func TestService_AddItem(t *testing.T) {
 	})
 
 	t.Run("cart full", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		maxItems := 3
@@ -126,6 +138,8 @@ func TestService_AddItem(t *testing.T) {
 	})
 
 	t.Run("cart full but bumping quantity of existing product succeeds", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		maxItems := 3
@@ -150,6 +164,8 @@ func TestService_AddItem(t *testing.T) {
 	})
 
 	t.Run("product not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -166,6 +182,8 @@ func TestService_AddItem(t *testing.T) {
 	})
 
 	t.Run("get or create error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -184,6 +202,8 @@ func TestService_AddItem(t *testing.T) {
 	})
 
 	t.Run("cap check query error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -206,7 +226,11 @@ func TestService_AddItem(t *testing.T) {
 }
 
 func TestService_RemoveItem(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
@@ -223,6 +247,8 @@ func TestService_RemoveItem(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
@@ -240,6 +266,8 @@ func TestService_RemoveItem(t *testing.T) {
 	})
 
 	t.Run("get or create error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
@@ -255,7 +283,11 @@ func TestService_RemoveItem(t *testing.T) {
 }
 
 func TestService_UpdateQuantity(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -275,6 +307,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 	})
 
 	t.Run("rejects quantity above available stock", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -291,6 +325,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 	})
 
 	t.Run("rejects unpublished product", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -307,6 +343,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 	})
 
 	t.Run("product lookup error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -322,6 +360,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 	})
 
 	t.Run("get or create error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		products := cartMocks.NewMockProductLookup(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -340,7 +380,11 @@ func TestService_UpdateQuantity(t *testing.T) {
 }
 
 func TestService_GetCart(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
@@ -360,6 +404,8 @@ func TestService_GetCart(t *testing.T) {
 	})
 
 	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
@@ -375,6 +421,8 @@ func TestService_GetCart(t *testing.T) {
 }
 
 func TestService_GetCart_FlagsUnavailableLines(t *testing.T) {
+	t.Parallel()
+
 	repo := cartMocks.NewMockRepository(t)
 	products := cartMocks.NewMockProductLookup(t)
 	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -406,6 +454,8 @@ func TestService_GetCart_FlagsUnavailableLines(t *testing.T) {
 }
 
 func TestService_GetCart_MissingProductBecomesUnavailable(t *testing.T) {
+	t.Parallel()
+
 	repo := cartMocks.NewMockRepository(t)
 	products := cartMocks.NewMockProductLookup(t)
 	svc := cart.NewService(repo, testhelper.FakeTxRunner{}, products, 50)
@@ -434,7 +484,11 @@ func TestService_GetCart_MissingProductBecomesUnavailable(t *testing.T) {
 }
 
 func TestService_Clear(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 
@@ -448,6 +502,8 @@ func TestService_Clear(t *testing.T) {
 	})
 
 	t.Run("repo error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := cartMocks.NewMockRepository(t)
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, nil, 50)
 

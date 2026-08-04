@@ -40,7 +40,11 @@ import (
 )
 
 func TestCartHandler_GetCart(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
@@ -70,6 +74,8 @@ func TestCartHandler_GetCart(t *testing.T) {
 	// not happen is the missing currency being treated as a mismatch and turning
 	// an empty cart into a 400.
 	t.Run("empty cart returns total 0 with 200", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
@@ -107,6 +113,8 @@ func TestCartHandler_GetCart(t *testing.T) {
 	// response.HandleErr, so surfacing it alone would be a 500. The wrapped
 	// apperror.ErrBadRequest is what makes it a 400.
 	t.Run("mixed-currency cart returns 400", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, products := setupCartMux(t)
 
 		userID := uuid.New()
@@ -145,6 +153,8 @@ func TestCartHandler_GetCart(t *testing.T) {
 	// incidental -- fold every line and this cart becomes a 400 that used to be a
 	// perfectly good 200.
 	t.Run("unsellable line in another currency does not break the total", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, products := setupCartMux(t)
 
 		userID := uuid.New()
@@ -179,6 +189,8 @@ func TestCartHandler_GetCart(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
@@ -198,7 +210,11 @@ func TestCartHandler_GetCart(t *testing.T) {
 }
 
 func TestCartHandler_AddItem(t *testing.T) {
+	t.Parallel()
+
 	t.Run("service error product not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, products := setupCartMux(t)
 
 		userID := uuid.New()
@@ -218,7 +234,11 @@ func TestCartHandler_AddItem(t *testing.T) {
 }
 
 func TestCartHandler_UpdateItem(t *testing.T) {
+	t.Parallel()
+
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, products := setupCartMux(t)
 
 		userID := uuid.New()
@@ -242,7 +262,11 @@ func TestCartHandler_UpdateItem(t *testing.T) {
 }
 
 func TestCartHandler_RemoveItem(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
@@ -262,6 +286,8 @@ func TestCartHandler_RemoveItem(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
@@ -280,7 +306,11 @@ func TestCartHandler_RemoveItem(t *testing.T) {
 }
 
 func TestCartHandler_Clear(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
@@ -297,6 +327,8 @@ func TestCartHandler_Clear(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCartMux(t)
 
 		userID := uuid.New()
@@ -313,9 +345,13 @@ func TestCartHandler_Clear(t *testing.T) {
 }
 
 func TestHandler_GetCart(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodGet, "/cart", nil)
 		w := httptest.NewRecorder()
 
@@ -331,9 +367,13 @@ func TestHandler_GetCart(t *testing.T) {
 }
 
 func TestHandler_AddItem(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/cart/items", nil)
 		w := httptest.NewRecorder()
 
@@ -343,6 +383,8 @@ func TestHandler_AddItem(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/cart/items", strings.NewReader("{bad"))
 		r = setAuthContext(r)
 		w := httptest.NewRecorder()
@@ -353,6 +395,8 @@ func TestHandler_AddItem(t *testing.T) {
 	})
 
 	t.Run("validation error missing fields", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/cart/items", strings.NewReader(`{}`))
 		r = setAuthContext(r)
 		w := httptest.NewRecorder()
@@ -371,6 +415,8 @@ func TestHandler_AddItem(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := &stubRepo{getOrCreateID: uuid.New()}
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, &stubProducts{}, 50)
 		h := &handler{service: svc, validator: validator.New()}
@@ -393,9 +439,13 @@ func TestHandler_AddItem(t *testing.T) {
 }
 
 func TestHandler_UpdateItem(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPut, "/cart/items/"+uuid.NewString(), nil)
 		w := httptest.NewRecorder()
 
@@ -405,6 +455,8 @@ func TestHandler_UpdateItem(t *testing.T) {
 	})
 
 	t.Run("invalid product UUID", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPut, "/cart/items/bad", nil)
 		r = setAuthContext(r)
 		r.SetPathValue("product_id", "bad")
@@ -421,6 +473,8 @@ func TestHandler_UpdateItem(t *testing.T) {
 	})
 
 	t.Run("validation error missing quantity", func(t *testing.T) {
+		t.Parallel()
+
 		productID := uuid.NewString()
 		r := httptest.NewRequest(http.MethodPut, "/cart/items/"+productID, strings.NewReader(`{}`))
 		r = setAuthContext(r)
@@ -433,6 +487,8 @@ func TestHandler_UpdateItem(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		h := newTestHandler()
 		productID := uuid.NewString()
 		r := httptest.NewRequest(http.MethodPut, "/cart/items/"+productID, strings.NewReader("{bad"))
@@ -446,6 +502,8 @@ func TestHandler_UpdateItem(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := &stubRepo{getOrCreateID: uuid.New()}
 		svc := cart.NewService(repo, testhelper.FakeTxRunner{}, &stubProducts{}, 50)
 		h := &handler{service: svc, validator: validator.New()}
@@ -468,9 +526,13 @@ func TestHandler_UpdateItem(t *testing.T) {
 }
 
 func TestHandler_RemoveItem(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodDelete, "/cart/items/"+uuid.NewString(), nil)
 		w := httptest.NewRecorder()
 
@@ -480,6 +542,8 @@ func TestHandler_RemoveItem(t *testing.T) {
 	})
 
 	t.Run("invalid product UUID", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodDelete, "/cart/items/bad", nil)
 		r = setAuthContext(r)
 		r.SetPathValue("product_id", "bad")
@@ -492,9 +556,13 @@ func TestHandler_RemoveItem(t *testing.T) {
 }
 
 func TestHandler_Clear(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodDelete, "/cart", nil)
 		w := httptest.NewRecorder()
 
@@ -505,6 +573,8 @@ func TestHandler_Clear(t *testing.T) {
 }
 
 func TestToCartResponse_FlagsUnsellableLineAndExcludesItFromTotal(t *testing.T) {
+	t.Parallel()
+
 	sellableID, unsellableID := uuid.New(), uuid.New()
 
 	c := &cart.Cart{
@@ -536,6 +606,8 @@ func TestToCartResponse_FlagsUnsellableLineAndExcludesItFromTotal(t *testing.T) 
 }
 
 func TestToCartResponse_MissingProductIsUnsellable(t *testing.T) {
+	t.Parallel()
+
 	c := &cart.Cart{
 		ID: uuid.New(),
 		Items: []cart.Item{
@@ -567,6 +639,8 @@ func TestToCartResponse_MissingProductIsUnsellable(t *testing.T) {
 // with a zero total would be worse than the 400, since a client cannot tell an
 // empty cart from one that could not be added up.
 func TestToCartResponse_MixedCurrenciesRefusesToTotal(t *testing.T) {
+	t.Parallel()
+
 	c := &cart.Cart{
 		ID: uuid.New(),
 		Items: []cart.Item{
@@ -601,6 +675,8 @@ func TestToCartResponse_MixedCurrenciesRefusesToTotal(t *testing.T) {
 // (UserID) without a test pinning the key set -- this closes that gap the
 // same way wishlist's TestToItemResponse_OmitsInternalFields pins WishlistID.
 func TestToCartResponse_OmitsUserID(t *testing.T) {
+	t.Parallel()
+
 	userID := uuid.New()
 
 	c := &cart.Cart{

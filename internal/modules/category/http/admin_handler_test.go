@@ -22,7 +22,11 @@ import (
 )
 
 func TestAdminHandler_CreateCategory(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCategoryMux(t)
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
@@ -63,6 +67,8 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCategoryMux(t)
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
@@ -85,6 +91,8 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupCategoryMux(t)
 
 		w := httptest.NewRecorder()
@@ -97,6 +105,8 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 	})
 
 	t.Run("validation error missing name", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupCategoryMux(t)
 
 		body, _ := json.Marshal(map[string]string{})
@@ -117,7 +127,11 @@ func TestAdminHandler_CreateCategory(t *testing.T) {
 }
 
 func TestAdminHandler_UpdateCategory(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCategoryMux(t)
 
 		catID := uuid.New()
@@ -159,6 +173,8 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupCategoryMux(t)
 
 		body, _ := json.Marshal(map[string]string{"name": "test"})
@@ -178,6 +194,8 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupCategoryMux(t)
 
 		catID := uuid.New()
@@ -192,6 +210,8 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 	})
 
 	t.Run("validation error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupCategoryMux(t)
 
 		catID := uuid.New()
@@ -215,6 +235,8 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _ := setupCategoryMux(t)
 
 		catID := uuid.New()
@@ -236,7 +258,11 @@ func TestAdminHandler_UpdateCategory(t *testing.T) {
 }
 
 func TestAdminHandler_DeleteCategory(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, counter := setupCategoryMux(t)
 
 		catID := uuid.New()
@@ -252,6 +278,8 @@ func TestAdminHandler_DeleteCategory(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _ := setupCategoryMux(t)
 
 		w := httptest.NewRecorder()
@@ -268,6 +296,8 @@ func TestAdminHandler_DeleteCategory(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, counter := setupCategoryMux(t)
 
 		catID := uuid.New()
@@ -284,6 +314,8 @@ func TestAdminHandler_DeleteCategory(t *testing.T) {
 }
 
 func TestToAdminCategoryResponse_KeepsModerationAndAuditFields(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	description := "Phones, laptops and audio"
 	parentID := uuid.New()

@@ -21,7 +21,11 @@ import (
 )
 
 func TestAdminHandler_CreateShipment(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, orderProv, orderUpd := setupShippingMux(t)
 
 		orderID := uuid.New()
@@ -70,6 +74,8 @@ func TestAdminHandler_CreateShipment(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupShippingMux(t)
 
 		w := httptest.NewRecorder()
@@ -86,6 +92,8 @@ func TestAdminHandler_CreateShipment(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupShippingMux(t)
 
 		orderID := uuid.New()
@@ -100,6 +108,8 @@ func TestAdminHandler_CreateShipment(t *testing.T) {
 	})
 
 	t.Run("validation error missing fields", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupShippingMux(t)
 
 		orderID := uuid.New()
@@ -120,6 +130,8 @@ func TestAdminHandler_CreateShipment(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, orderProv, _ := setupShippingMux(t)
 
 		orderID := uuid.New()
@@ -141,7 +153,11 @@ func TestAdminHandler_CreateShipment(t *testing.T) {
 }
 
 func TestAdminHandler_UpdateTracking(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupShippingMux(t)
 
 		shipmentID := uuid.New()
@@ -199,6 +215,8 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupShippingMux(t)
 
 		w := httptest.NewRecorder()
@@ -215,6 +233,8 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupShippingMux(t)
 
 		shipmentID := uuid.New()
@@ -229,6 +249,8 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 	})
 
 	t.Run("validation error missing fields", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupShippingMux(t)
 
 		shipmentID := uuid.New()
@@ -249,6 +271,8 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupShippingMux(t)
 
 		shipmentID := uuid.New()
@@ -270,7 +294,11 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 }
 
 func TestAdminHandler_MarkDelivered(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, orderUpd := setupShippingMux(t)
 
 		shipmentID := uuid.New()
@@ -321,6 +349,8 @@ func TestAdminHandler_MarkDelivered(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _, _, _ := setupShippingMux(t)
 
 		w := httptest.NewRecorder()
@@ -337,6 +367,8 @@ func TestAdminHandler_MarkDelivered(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo, _, _ := setupShippingMux(t)
 
 		shipmentID := uuid.New()

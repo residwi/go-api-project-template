@@ -20,7 +20,11 @@ func newMockMux() *http.ServeMux {
 }
 
 func TestHandleCharge(t *testing.T) {
+	t.Parallel()
+
 	t.Run("direct charge success", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 		body := `{"amount":1000,"currency":"USD","payment_method_id":"pm_test","idempotency_key":"charge-ok-1"}`
 		req := httptest.NewRequest(http.MethodPost, "/mock/payment/charge", strings.NewReader(body))
@@ -38,6 +42,8 @@ func TestHandleCharge(t *testing.T) {
 	})
 
 	t.Run("direct charge failure when amount ends in 99", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 		body := `{"amount":1099,"currency":"USD","payment_method_id":"pm_test","idempotency_key":"charge-fail-99"}`
 		req := httptest.NewRequest(http.MethodPost, "/mock/payment/charge", strings.NewReader(body))
@@ -53,6 +59,8 @@ func TestHandleCharge(t *testing.T) {
 	})
 
 	t.Run("redirect flow when no payment method", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 		body := `{"amount":2000,"currency":"USD","idempotency_key":"charge-redirect-1"}`
 		req := httptest.NewRequest(http.MethodPost, "/mock/payment/charge", strings.NewReader(body))
@@ -69,6 +77,8 @@ func TestHandleCharge(t *testing.T) {
 	})
 
 	t.Run("idempotency returns same response", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 		body := `{"amount":1000,"currency":"USD","payment_method_id":"pm_test","idempotency_key":"charge-idemp-1"}`
 
@@ -92,6 +102,8 @@ func TestHandleCharge(t *testing.T) {
 	})
 
 	t.Run("invalid JSON returns 400", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 		req := httptest.NewRequest(http.MethodPost, "/mock/payment/charge", strings.NewReader("not json"))
 		req.Header.Set("Content-Type", "application/json")
@@ -104,7 +116,11 @@ func TestHandleCharge(t *testing.T) {
 }
 
 func TestHandleRefund(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 		body := `{"transaction_id":"txn_123","amount":500,"reason":"test"}`
 		req := httptest.NewRequest(http.MethodPost, "/mock/payment/refund", strings.NewReader(body))
@@ -121,6 +137,8 @@ func TestHandleRefund(t *testing.T) {
 	})
 
 	t.Run("invalid JSON returns 400", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 		req := httptest.NewRequest(http.MethodPost, "/mock/payment/refund", strings.NewReader("bad"))
 		req.Header.Set("Content-Type", "application/json")
@@ -133,7 +151,11 @@ func TestHandleRefund(t *testing.T) {
 }
 
 func TestHandleWebhookTrigger(t *testing.T) {
+	t.Parallel()
+
 	t.Run("triggers webhook for existing charge", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 
 		// First, create a charge
@@ -155,6 +177,8 @@ func TestHandleWebhookTrigger(t *testing.T) {
 	})
 
 	t.Run("triggers webhook with default event", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 
 		chargeBody := `{"amount":1000,"currency":"USD","payment_method_id":"pm_test","idempotency_key":"webhook-test-2"}`
@@ -175,6 +199,8 @@ func TestHandleWebhookTrigger(t *testing.T) {
 	})
 
 	t.Run("uses default webhook URL when not provided", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 
 		chargeBody := `{"amount":1000,"currency":"USD","payment_method_id":"pm_test","idempotency_key":"webhook-test-default-url"}`
@@ -195,6 +221,8 @@ func TestHandleWebhookTrigger(t *testing.T) {
 	})
 
 	t.Run("webhook POST succeeds", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 
 		// Create a charge first
@@ -226,6 +254,8 @@ func TestHandleWebhookTrigger(t *testing.T) {
 	})
 
 	t.Run("returns 404 for unknown idempotency key", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 		body := `{"idempotency_key":"nonexistent","webhook_url":"http://example.com/hook"}`
 		req := httptest.NewRequest(http.MethodPost, "/mock/payment/webhook/trigger", strings.NewReader(body))
@@ -238,6 +268,8 @@ func TestHandleWebhookTrigger(t *testing.T) {
 	})
 
 	t.Run("invalid JSON returns 400", func(t *testing.T) {
+		t.Parallel()
+
 		mux := newMockMux()
 		req := httptest.NewRequest(http.MethodPost, "/mock/payment/webhook/trigger", strings.NewReader("bad"))
 		req.Header.Set("Content-Type", "application/json")

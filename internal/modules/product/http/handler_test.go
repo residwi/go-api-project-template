@@ -25,7 +25,11 @@ import (
 )
 
 func TestHandler_ListProducts(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		now := time.Now()
@@ -78,6 +82,8 @@ func TestHandler_ListProducts(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		repo.EXPECT().ListPublished(mock.Anything, mock.Anything).Return(nil, "", false, errors.New("db error"))
@@ -91,6 +97,8 @@ func TestHandler_ListProducts(t *testing.T) {
 	})
 
 	t.Run("invalid category_id", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupProductMux(t)
 
 		w := httptest.NewRecorder()
@@ -106,6 +114,8 @@ func TestHandler_ListProducts(t *testing.T) {
 	})
 
 	t.Run("invalid min_price", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupProductMux(t)
 
 		w := httptest.NewRecorder()
@@ -121,6 +131,8 @@ func TestHandler_ListProducts(t *testing.T) {
 	})
 
 	t.Run("invalid max_price", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupProductMux(t)
 
 		w := httptest.NewRecorder()
@@ -136,6 +148,8 @@ func TestHandler_ListProducts(t *testing.T) {
 	})
 
 	t.Run("with valid filters", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		catID := uuid.New()
@@ -155,7 +169,11 @@ func TestHandler_ListProducts(t *testing.T) {
 }
 
 func TestHandler_GetBySlug(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		prodID := uuid.New()
@@ -205,6 +223,8 @@ func TestHandler_GetBySlug(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupProductMux(t)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
@@ -223,6 +243,8 @@ func TestHandler_GetBySlug(t *testing.T) {
 }
 
 func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
+	t.Parallel()
+
 	h := &handler{
 		service:   &product.Service{},
 		validator: validator.New(),
@@ -242,6 +264,8 @@ func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
 }
 
 func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
+	t.Parallel()
+
 	deletedAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	sku := "SKU-DISTINGUISHABLE-424242"
 

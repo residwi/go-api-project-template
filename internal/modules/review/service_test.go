@@ -17,7 +17,11 @@ import (
 )
 
 func TestService_Create(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		purchase := mocks.NewMockPurchaseVerifier(t)
 		svc := review.NewService(repo, purchase)
@@ -64,6 +68,8 @@ func TestService_Create(t *testing.T) {
 	})
 
 	t.Run("not delivered", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		purchase := mocks.NewMockPurchaseVerifier(t)
 		svc := review.NewService(repo, purchase)
@@ -87,6 +93,8 @@ func TestService_Create(t *testing.T) {
 	})
 
 	t.Run("purchase verifier error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		purchase := mocks.NewMockPurchaseVerifier(t)
 		svc := review.NewService(repo, purchase)
@@ -105,6 +113,8 @@ func TestService_Create(t *testing.T) {
 	})
 
 	t.Run("HasUserReviewed error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		purchase := mocks.NewMockPurchaseVerifier(t)
 		svc := review.NewService(repo, purchase)
@@ -124,6 +134,8 @@ func TestService_Create(t *testing.T) {
 	})
 
 	t.Run("repo create error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		purchase := mocks.NewMockPurchaseVerifier(t)
 		svc := review.NewService(repo, purchase)
@@ -144,6 +156,8 @@ func TestService_Create(t *testing.T) {
 	})
 
 	t.Run("already reviewed", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		purchase := mocks.NewMockPurchaseVerifier(t)
 		svc := review.NewService(repo, purchase)
@@ -169,7 +183,11 @@ func TestService_Create(t *testing.T) {
 }
 
 func TestService_ListByProduct(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := review.NewService(repo, nil)
 
@@ -189,6 +207,8 @@ func TestService_ListByProduct(t *testing.T) {
 	})
 
 	t.Run("error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := review.NewService(repo, nil)
 
@@ -206,7 +226,11 @@ func TestService_ListByProduct(t *testing.T) {
 }
 
 func TestService_GetStats(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := review.NewService(repo, nil)
 
@@ -222,6 +246,8 @@ func TestService_GetStats(t *testing.T) {
 	})
 
 	t.Run("error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := review.NewService(repo, nil)
 
@@ -238,7 +264,11 @@ func TestService_GetStats(t *testing.T) {
 }
 
 func TestService_Delete(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := review.NewService(repo, nil)
 
@@ -252,6 +282,8 @@ func TestService_Delete(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		repo := mocks.NewMockRepository(t)
 		svc := review.NewService(repo, nil)
 
@@ -266,6 +298,8 @@ func TestService_Delete(t *testing.T) {
 }
 
 func TestService_Create_PassesNamedPurchaseFields(t *testing.T) {
+	t.Parallel()
+
 	repo := mocks.NewMockRepository(t)
 	verifier := mocks.NewMockPurchaseVerifier(t)
 	svc := review.NewService(repo, verifier)

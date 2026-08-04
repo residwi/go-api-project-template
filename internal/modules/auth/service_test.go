@@ -19,7 +19,11 @@ import (
 )
 
 func TestService_Register(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -60,6 +64,8 @@ func TestService_Register(t *testing.T) {
 	})
 
 	t.Run("Create error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -78,6 +84,8 @@ func TestService_Register(t *testing.T) {
 	})
 
 	t.Run("password exceeding 72 bytes is a bad request, not a 500", func(t *testing.T) {
+		t.Parallel()
+
 		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		longPassword := strings.Repeat("a", 73)
@@ -95,7 +103,11 @@ func TestService_Register(t *testing.T) {
 }
 
 func TestService_Login(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -125,6 +137,8 @@ func TestService_Login(t *testing.T) {
 	})
 
 	t.Run("inactive user returns ErrUnauthorized", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -147,6 +161,8 @@ func TestService_Login(t *testing.T) {
 	})
 
 	t.Run("wrong password returns ErrInvalidCredentials", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -169,6 +185,8 @@ func TestService_Login(t *testing.T) {
 	})
 
 	t.Run("user not found returns ErrInvalidCredentials", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -185,7 +203,11 @@ func TestService_Login(t *testing.T) {
 }
 
 func TestService_RefreshToken(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -218,6 +240,8 @@ func TestService_RefreshToken(t *testing.T) {
 	})
 
 	t.Run("invalid token returns ErrInvalidToken", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -228,6 +252,8 @@ func TestService_RefreshToken(t *testing.T) {
 	})
 
 	t.Run("access token instead of refresh returns ErrInvalidToken", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -247,6 +273,8 @@ func TestService_RefreshToken(t *testing.T) {
 	})
 
 	t.Run("inactive user returns ErrUnauthorized", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -274,6 +302,8 @@ func TestService_RefreshToken(t *testing.T) {
 	})
 
 	t.Run("token version mismatch returns ErrInvalidToken", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -301,6 +331,8 @@ func TestService_RefreshToken(t *testing.T) {
 	})
 
 	t.Run("GetByID error propagates", func(t *testing.T) {
+		t.Parallel()
+
 		users := mocks.NewMockUserProvider(t)
 		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
@@ -325,7 +357,11 @@ func TestService_RefreshToken(t *testing.T) {
 }
 
 func TestService_ValidateAccessToken(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		userID := uuid.New()
@@ -351,6 +387,8 @@ func TestService_ValidateAccessToken(t *testing.T) {
 	})
 
 	t.Run("expired token returns error", func(t *testing.T) {
+		t.Parallel()
+
 		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		claims := auth.Claims{
@@ -370,7 +408,11 @@ func TestService_ValidateAccessToken(t *testing.T) {
 }
 
 func TestTokenValidatorAdapter(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 		adapter := auth.NewTokenValidatorAdapter(svc)
 
@@ -395,6 +437,8 @@ func TestTokenValidatorAdapter(t *testing.T) {
 	})
 
 	t.Run("invalid token error", func(t *testing.T) {
+		t.Parallel()
+
 		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 		adapter := auth.NewTokenValidatorAdapter(svc)
 

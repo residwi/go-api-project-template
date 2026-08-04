@@ -26,7 +26,11 @@ import (
 )
 
 func TestHandler_Apply_ServiceError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("service returns not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPromotionMux(t)
 
 		repo.EXPECT().GetByCode(mock.Anything, "NOTEXIST").Return(nil, apperror.ErrNotFound)
@@ -49,6 +53,8 @@ func TestHandler_Apply_ServiceError(t *testing.T) {
 	})
 
 	t.Run("service returns bad request for inactive promo", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPromotionMux(t)
 
 		repo.EXPECT().GetByCode(mock.Anything, "INACTIVE").Return(&promotion.Promotion{
@@ -75,7 +81,11 @@ func TestHandler_Apply_ServiceError(t *testing.T) {
 }
 
 func TestHandler_Apply_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupPromotionMux(t)
 
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE10").Return(&promotion.Promotion{
@@ -108,9 +118,13 @@ func TestHandler_Apply_Success(t *testing.T) {
 }
 
 func TestHandler_Apply(t *testing.T) {
+	t.Parallel()
+
 	h := newTestHandler()
 
 	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/promotions/apply", nil)
 		w := httptest.NewRecorder()
 
@@ -125,6 +139,8 @@ func TestHandler_Apply(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/promotions/apply", strings.NewReader("{bad"))
 		r = setAuthContext(r)
 		w := httptest.NewRecorder()
@@ -135,6 +151,8 @@ func TestHandler_Apply(t *testing.T) {
 	})
 
 	t.Run("validation error missing fields", func(t *testing.T) {
+		t.Parallel()
+
 		r := httptest.NewRequest(http.MethodPost, "/promotions/apply", strings.NewReader(`{}`))
 		r = setAuthContext(r)
 		w := httptest.NewRecorder()
@@ -161,6 +179,8 @@ func TestHandler_Apply(t *testing.T) {
 // field means widening this mapper's signature, which breaks its one call
 // site in handler.go's Apply.
 func TestApplyResponse_OmitsUsageCountersAndLimits(t *testing.T) {
+	t.Parallel()
+
 	got := toApplyResponse("SAVE10", 424242)
 
 	raw, err := json.Marshal(got)

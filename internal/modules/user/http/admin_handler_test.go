@@ -23,7 +23,11 @@ import (
 )
 
 func TestAdminHandler_ListUsers(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 
 		now := time.Now()
@@ -82,6 +86,8 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 		repo.EXPECT().List(mock.Anything, mock.Anything).Return(nil, 0, errors.New("db error"))
 
@@ -93,7 +99,11 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 }
 
 func TestAdminHandler_GetUser(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 
 		userID := uuid.New()
@@ -132,6 +142,8 @@ func TestAdminHandler_GetUser(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		w := httptest.NewRecorder()
@@ -148,6 +160,8 @@ func TestAdminHandler_GetUser(t *testing.T) {
 	})
 
 	t.Run("service error not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 		userID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
@@ -160,7 +174,11 @@ func TestAdminHandler_GetUser(t *testing.T) {
 }
 
 func TestAdminHandler_UpdateUser(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 
 		userID := uuid.New()
@@ -208,6 +226,8 @@ func TestAdminHandler_UpdateUser(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		body, _ := json.Marshal(map[string]any{"first_name": "Test"})
@@ -227,6 +247,8 @@ func TestAdminHandler_UpdateUser(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		userID := uuid.New()
@@ -245,6 +267,8 @@ func TestAdminHandler_UpdateUser(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 
 		userID := uuid.New()
@@ -266,6 +290,8 @@ func TestAdminHandler_UpdateUser(t *testing.T) {
 	})
 
 	t.Run("validation error first_name too long", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		userID := uuid.New()
@@ -294,7 +320,11 @@ func TestAdminHandler_UpdateUser(t *testing.T) {
 }
 
 func TestAdminHandler_UpdateRole(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 
 		requesterID := uuid.New()
@@ -332,6 +362,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		body, _ := json.Marshal(map[string]any{"role": "admin"})
@@ -351,6 +383,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 	})
 
 	t.Run("missing auth context", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		targetID := uuid.New()
@@ -371,6 +405,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		requesterID := uuid.New()
@@ -396,6 +432,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 	})
 
 	t.Run("self-demotion blocked", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		sameID := uuid.New()
@@ -421,6 +459,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 	})
 
 	t.Run("validation error invalid role", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		requesterID := uuid.New()
@@ -449,7 +489,11 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 }
 
 func TestAdminHandler_DeleteUser(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 
 		requesterID := uuid.New()
@@ -483,6 +527,8 @@ func TestAdminHandler_DeleteUser(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		w := httptest.NewRecorder()
@@ -499,6 +545,8 @@ func TestAdminHandler_DeleteUser(t *testing.T) {
 	})
 
 	t.Run("missing auth context", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		targetID := uuid.New()
@@ -517,6 +565,8 @@ func TestAdminHandler_DeleteUser(t *testing.T) {
 	})
 
 	t.Run("self-deletion blocked", func(t *testing.T) {
+		t.Parallel()
+
 		mux, _ := setupUserMux(t)
 
 		sameID := uuid.New()
@@ -541,7 +591,11 @@ func TestAdminHandler_DeleteUser(t *testing.T) {
 }
 
 func TestAdminHandler_ListUsers_WithActiveFilter(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success with active filter", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 
 		now := time.Now()
@@ -602,6 +656,8 @@ func TestAdminHandler_ListUsers_WithActiveFilter(t *testing.T) {
 	})
 
 	t.Run("success with role filter", func(t *testing.T) {
+		t.Parallel()
+
 		mux, repo := setupUserMux(t)
 
 		now := time.Now()
@@ -674,6 +730,8 @@ func TestAdminHandler_ListUsers_WithActiveFilter(t *testing.T) {
 // the full item shape, so this is also the only assertion pinning the
 // complete admin field set.
 func TestToAdminUserResponse_ExposesOperatorFieldsButNotCredentials(t *testing.T) {
+	t.Parallel()
+
 	userID := uuid.New()
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	deletedAt := now.Add(time.Hour)
