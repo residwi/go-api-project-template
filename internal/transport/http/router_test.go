@@ -1,4 +1,4 @@
-package http_test
+package http
 
 import (
 	"context"
@@ -36,13 +36,12 @@ import (
 	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
-	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 )
 
 var (
 	testPool  *pgxpool.Pool
 	testRedis *redis.Client
-	testDeps  *apihttp.Deps
+	testDeps  *Deps
 )
 
 func TestMain(m *testing.M) {
@@ -54,7 +53,7 @@ func TestMain(m *testing.M) {
 	defer cleanupRedis()
 	testRedis = rdb
 
-	testDeps = &apihttp.Deps{
+	testDeps = &Deps{
 		Config: &config.Config{
 			App: config.AppConfig{
 				Name:         "test",
@@ -140,14 +139,14 @@ func seedInventoryLevel(t *testing.T, productID uuid.UUID, available, reserved i
 func TestNewRouter(t *testing.T) {
 	setup(t)
 	t.Run("initializes without error", func(t *testing.T) {
-		handler := apihttp.NewRouter(testDeps)
+		handler := NewRouter(testDeps)
 		require.NotNil(t, handler)
 	})
 }
 
 func TestHealthHandler(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps).Handler
 
 	t.Run("returns healthy status", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -172,12 +171,12 @@ func TestHealthHandler(t *testing.T) {
 		}
 		defer badPool.Close()
 
-		badDeps := &apihttp.Deps{
+		badDeps := &Deps{
 			Config: testDeps.Config,
 			Pool:   badPool,
 			Cache:  testRedis,
 		}
-		h := apihttp.NewRouter(badDeps).Handler
+		h := NewRouter(badDeps).Handler
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -202,12 +201,12 @@ func TestHealthHandler(t *testing.T) {
 		})
 		defer badRedis.Close()
 
-		badDeps := &apihttp.Deps{
+		badDeps := &Deps{
 			Config: testDeps.Config,
 			Pool:   testPool,
 			Cache:  badRedis,
 		}
-		h := apihttp.NewRouter(badDeps).Handler
+		h := NewRouter(badDeps).Handler
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -224,12 +223,12 @@ func TestHealthHandler(t *testing.T) {
 	})
 
 	t.Run("returns not configured when redis is nil", func(t *testing.T) {
-		nilRedisDeps := &apihttp.Deps{
+		nilRedisDeps := &Deps{
 			Config: testDeps.Config,
 			Pool:   testPool,
 			Cache:  nil,
 		}
-		h := apihttp.NewRouter(nilRedisDeps).Handler
+		h := NewRouter(nilRedisDeps).Handler
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -248,7 +247,7 @@ func TestHealthHandler(t *testing.T) {
 
 func TestPublicEndpoints(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps).Handler
 
 	t.Run("GET /api/categories returns list", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/categories", nil)
@@ -288,7 +287,7 @@ func TestPublicEndpoints(t *testing.T) {
 
 func TestAuthEndpoints(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps).Handler
 	ctx := context.Background()
 
 	t.Run("POST /api/auth/register creates user", func(t *testing.T) {
@@ -409,7 +408,7 @@ func TestAuthEndpoints(t *testing.T) {
 
 func TestProtectedEndpointsRequireAuth(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps).Handler
 
 	endpoints := []struct {
 		method string
@@ -434,7 +433,7 @@ func TestProtectedEndpointsRequireAuth(t *testing.T) {
 
 func TestAdminEndpointsRequireAuth(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps).Handler
 
 	endpoints := []struct {
 		method string
@@ -462,7 +461,7 @@ func TestAdminEndpointsRequireAuth(t *testing.T) {
 
 func TestAuthenticatedEndpoints(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps).Handler
 	ctx := context.Background()
 
 	// Register and login to get an access token
@@ -533,7 +532,7 @@ func TestAuthenticatedEndpoints(t *testing.T) {
 
 func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps).Handler
 	ctx := context.Background()
 
 	// Register a regular user
@@ -580,12 +579,12 @@ func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 
 func TestHealthHandler_NilRedis(t *testing.T) {
 	setup(t)
-	nilRedisDeps := &apihttp.Deps{
+	nilRedisDeps := &Deps{
 		Config: testDeps.Config,
 		Pool:   testDeps.Pool,
 		Cache:  nil,
 	}
-	handler := apihttp.NewRouter(nilRedisDeps).Handler
+	handler := NewRouter(nilRedisDeps).Handler
 
 	t.Run("returns healthy with redis not configured", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -603,7 +602,7 @@ func TestHealthHandler_NilRedis(t *testing.T) {
 
 func TestCORSHeaders(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps).Handler
 
 	t.Run("OPTIONS preflight returns CORS headers", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodOptions, "/api/products", nil)
@@ -618,7 +617,7 @@ func TestCORSHeaders(t *testing.T) {
 
 func TestAdapterErrorPaths(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps).Handler
 	ctx := context.Background()
 
 	// Register a user for authenticated requests
@@ -665,7 +664,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
-	deps := &apihttp.Deps{
+	deps := &Deps{
 		Config: &config.Config{
 			App:  testDeps.Config.App,
 			JWT:  testDeps.Config.JWT,
@@ -679,7 +678,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		Pool:  testPool,
 		Cache: testRedis,
 	}
-	router := apihttp.NewRouter(deps)
+	router := NewRouter(deps)
 	handler := router.Handler
 	ctx := context.Background()
 
@@ -816,7 +815,7 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	assert.Contains(t, err.Error(), "getting order for verification")
 }
 
-// serverRunEnv sets the base env vars for a apihttp.Run() test using the dockertest containers.
+// serverRunEnv sets the base env vars for a Run() test using the dockertest containers.
 func serverRunEnv(t *testing.T, port int) {
 	t.Helper()
 	pgCfg := testPool.Config().ConnConfig
@@ -841,7 +840,7 @@ func serverRunEnv(t *testing.T, port int) {
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
 }
 
-// startAndStopServer starts apihttp.RunContext in a goroutine, waits for it to
+// startAndStopServer starts RunContext in a goroutine, waits for it to
 // be ready (via healthAddr), cancels the context to shut it down, and returns
 // the RunContext error.
 //
@@ -857,7 +856,7 @@ func startAndStopServer(t *testing.T, healthAddr string) error {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- apihttp.RunContext(ctx) }()
+	go func() { errCh <- RunContext(ctx) }()
 
 	require.Eventually(t, func() bool {
 		resp, err := http.Get(healthAddr + "/health")
@@ -938,7 +937,7 @@ func TestServerRunListenError(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- apihttp.RunContext(ctx) }()
+	go func() { errCh <- RunContext(ctx) }()
 
 	// Give the server goroutine time to hit the ListenAndServe error
 	time.Sleep(500 * time.Millisecond)
@@ -961,7 +960,7 @@ func TestServerRunConfigError(t *testing.T) {
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
 	t.Setenv("JWT_ACCESS_TTL", "not-a-duration")
 
-	err := apihttp.Run()
+	err := Run()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading config")
 }
@@ -975,7 +974,7 @@ func TestServerRunDatabaseError(t *testing.T) {
 	t.Setenv("DB_PASSWORD", "invalid")
 	t.Setenv("DB_NAME", "invalid")
 
-	err := apihttp.Run()
+	err := Run()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "connecting to database")
 }
@@ -995,7 +994,7 @@ func TestServerRun(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- apihttp.RunContext(ctx) }()
+	go func() { errCh <- RunContext(ctx) }()
 
 	require.Eventually(t, func() bool {
 		resp, err := http.Get(addr + "/health")
