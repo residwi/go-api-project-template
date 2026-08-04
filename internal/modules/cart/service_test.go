@@ -140,8 +140,6 @@ func TestService_AddItem(t *testing.T) {
 			Return(&cart.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
-		// Product is already in the cart (hasProduct=true), so even though the
-		// cart is at the cap the add is allowed and AddItem must be called.
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
 			Return(maxItems, true, nil)
 		repo.EXPECT().AddItem(mock.Anything, cartID, productID, 2).
