@@ -1,4 +1,4 @@
-package auth_test
+package auth
 
 import (
 	"context"
@@ -14,8 +14,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	mocks "github.com/residwi/go-api-project-template/mocks/auth"
 )
 
 func TestService_Register(t *testing.T) {
@@ -24,23 +22,23 @@ func TestService_Register(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		userID := uuid.New()
-		req := auth.RegisterParams{
+		req := RegisterParams{
 			Email:     "test@example.com",
 			Password:  "password123",
 			FirstName: "John",
 			LastName:  "Doe",
 		}
 
-		users.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p auth.CreateUserParams) bool {
+		users.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p CreateUserParams) bool {
 			return p.Email == req.Email &&
 				p.FirstName == req.FirstName &&
 				p.LastName == req.LastName &&
 				bcrypt.CompareHashAndPassword([]byte(p.PasswordHash), []byte(req.Password)) == nil
-		})).Return(auth.UserResult{
+		})).Return(UserResult{
 			ID:           userID,
 			Email:        req.Email,
 			FirstName:    req.FirstName,
@@ -66,13 +64,13 @@ func TestService_Register(t *testing.T) {
 	t.Run("Create error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		users.EXPECT().Create(mock.Anything, mock.Anything).
-			Return(auth.UserResult{}, apperror.ErrConflict)
+			Return(UserResult{}, apperror.ErrConflict)
 
-		resp, err := svc.Register(context.Background(), auth.RegisterParams{
+		resp, err := svc.Register(context.Background(), RegisterParams{
 			Email:     "dup@example.com",
 			Password:  "password123",
 			FirstName: "John",
@@ -86,10 +84,10 @@ func TestService_Register(t *testing.T) {
 	t.Run("password exceeding 72 bytes is a bad request, not a 500", func(t *testing.T) {
 		t.Parallel()
 
-		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		svc := NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		longPassword := strings.Repeat("a", 73)
-		resp, err := svc.Register(context.Background(), auth.RegisterParams{
+		resp, err := svc.Register(context.Background(), RegisterParams{
 			Email:     "test@example.com",
 			Password:  longPassword,
 			FirstName: "John",
@@ -108,13 +106,13 @@ func TestService_Login(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		userID := uuid.New()
 		hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 
-		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(auth.UserCredentials{
+		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(UserCredentials{
 			ID:           userID,
 			Email:        "test@example.com",
 			PasswordHash: string(hash),
@@ -125,7 +123,7 @@ func TestService_Login(t *testing.T) {
 			TokenVersion: 1,
 		}, nil)
 
-		resp, err := svc.Login(context.Background(), auth.LoginParams{
+		resp, err := svc.Login(context.Background(), LoginParams{
 			Email:    "test@example.com",
 			Password: "password123",
 		})
@@ -139,19 +137,19 @@ func TestService_Login(t *testing.T) {
 	t.Run("inactive user returns ErrUnauthorized", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 
-		users.EXPECT().GetByEmail(mock.Anything, "inactive@example.com").Return(auth.UserCredentials{
+		users.EXPECT().GetByEmail(mock.Anything, "inactive@example.com").Return(UserCredentials{
 			ID:           uuid.New(),
 			Email:        "inactive@example.com",
 			PasswordHash: string(hash),
 			Active:       false,
 		}, nil)
 
-		resp, err := svc.Login(context.Background(), auth.LoginParams{
+		resp, err := svc.Login(context.Background(), LoginParams{
 			Email:    "inactive@example.com",
 			Password: "password123",
 		})
@@ -163,19 +161,19 @@ func TestService_Login(t *testing.T) {
 	t.Run("wrong password returns ErrInvalidCredentials", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		hash, _ := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
 
-		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(auth.UserCredentials{
+		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(UserCredentials{
 			ID:           uuid.New(),
 			Email:        "test@example.com",
 			PasswordHash: string(hash),
 			Active:       true,
 		}, nil)
 
-		resp, err := svc.Login(context.Background(), auth.LoginParams{
+		resp, err := svc.Login(context.Background(), LoginParams{
 			Email:    "test@example.com",
 			Password: "wrong-password",
 		})
@@ -187,14 +185,14 @@ func TestService_Login(t *testing.T) {
 	t.Run("user not found returns ErrInvalidCredentials", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		users.EXPECT().
 			GetByEmail(mock.Anything, "notfound@example.com").
-			Return(auth.UserCredentials{}, errors.New("not found"))
+			Return(UserCredentials{}, errors.New("not found"))
 
-		resp, err := svc.Login(context.Background(), auth.LoginParams{
+		resp, err := svc.Login(context.Background(), LoginParams{
 			Email:    "notfound@example.com",
 			Password: "password123",
 		})
@@ -210,17 +208,17 @@ func TestService_RefreshToken(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		userID := uuid.New()
-		claims := auth.Claims{
+		claims := Claims{
 			UserID:       userID,
 			Email:        "test@example.com",
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		_, refreshToken, err := auth.GenerateTokenPair(
+		_, refreshToken, err := GenerateTokenPair(
 			"test-secret",
 			"test-issuer",
 			15*time.Minute,
@@ -229,7 +227,7 @@ func TestService_RefreshToken(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(auth.UserResult{
+		users.EXPECT().GetByID(mock.Anything, userID).Return(UserResult{
 			ID:           userID,
 			Email:        "test@example.com",
 			FirstName:    "John",
@@ -250,8 +248,8 @@ func TestService_RefreshToken(t *testing.T) {
 	t.Run("invalid token returns ErrInvalidToken", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		resp, err := svc.RefreshToken(context.Background(), "invalid-token")
 
@@ -262,16 +260,16 @@ func TestService_RefreshToken(t *testing.T) {
 	t.Run("access token instead of refresh returns ErrInvalidToken", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
-		claims := auth.Claims{
+		claims := Claims{
 			UserID:       uuid.New(),
 			Email:        "test@example.com",
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		accessToken, _, err := auth.GenerateTokenPair(
+		accessToken, _, err := GenerateTokenPair(
 			"test-secret",
 			"test-issuer",
 			15*time.Minute,
@@ -289,17 +287,17 @@ func TestService_RefreshToken(t *testing.T) {
 	t.Run("inactive user returns ErrUnauthorized", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		userID := uuid.New()
-		claims := auth.Claims{
+		claims := Claims{
 			UserID:       userID,
 			Email:        "test@example.com",
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		_, refreshToken, err := auth.GenerateTokenPair(
+		_, refreshToken, err := GenerateTokenPair(
 			"test-secret",
 			"test-issuer",
 			15*time.Minute,
@@ -308,7 +306,7 @@ func TestService_RefreshToken(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(auth.UserResult{
+		users.EXPECT().GetByID(mock.Anything, userID).Return(UserResult{
 			ID:           userID,
 			Email:        "test@example.com",
 			Active:       false,
@@ -324,17 +322,17 @@ func TestService_RefreshToken(t *testing.T) {
 	t.Run("token version mismatch returns ErrInvalidToken", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		userID := uuid.New()
-		claims := auth.Claims{
+		claims := Claims{
 			UserID:       userID,
 			Email:        "test@example.com",
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		_, refreshToken, err := auth.GenerateTokenPair(
+		_, refreshToken, err := GenerateTokenPair(
 			"test-secret",
 			"test-issuer",
 			15*time.Minute,
@@ -343,7 +341,7 @@ func TestService_RefreshToken(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(auth.UserResult{
+		users.EXPECT().GetByID(mock.Anything, userID).Return(UserResult{
 			ID:           userID,
 			Email:        "test@example.com",
 			Active:       true,
@@ -359,17 +357,17 @@ func TestService_RefreshToken(t *testing.T) {
 	t.Run("GetByID error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		users := mocks.NewMockUserProvider(t)
-		svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		users := NewMockUserProvider(t)
+		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		userID := uuid.New()
-		claims := auth.Claims{
+		claims := Claims{
 			UserID:       userID,
 			Email:        "test@example.com",
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		_, refreshToken, err := auth.GenerateTokenPair(
+		_, refreshToken, err := GenerateTokenPair(
 			"test-secret",
 			"test-issuer",
 			15*time.Minute,
@@ -379,7 +377,7 @@ func TestService_RefreshToken(t *testing.T) {
 		require.NoError(t, err)
 
 		dbErr := errors.New("database connection lost")
-		users.EXPECT().GetByID(mock.Anything, userID).Return(auth.UserResult{}, dbErr)
+		users.EXPECT().GetByID(mock.Anything, userID).Return(UserResult{}, dbErr)
 
 		resp, err := svc.RefreshToken(context.Background(), refreshToken)
 
@@ -394,16 +392,16 @@ func TestService_ValidateAccessToken(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		svc := NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		userID := uuid.New()
-		claims := auth.Claims{
+		claims := Claims{
 			UserID:       userID,
 			Email:        "test@example.com",
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		accessToken, _, err := auth.GenerateTokenPair(
+		accessToken, _, err := GenerateTokenPair(
 			"test-secret",
 			"test-issuer",
 			15*time.Minute,
@@ -415,7 +413,7 @@ func TestService_ValidateAccessToken(t *testing.T) {
 		result, err := svc.ValidateAccessToken(accessToken)
 
 		require.NoError(t, err)
-		assert.Equal(t, &auth.Claims{
+		assert.Equal(t, &Claims{
 			UserID:       userID,
 			Email:        "test@example.com",
 			Role:         "customer",
@@ -427,15 +425,15 @@ func TestService_ValidateAccessToken(t *testing.T) {
 	t.Run("expired token returns error", func(t *testing.T) {
 		t.Parallel()
 
-		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		svc := NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
-		claims := auth.Claims{
+		claims := Claims{
 			UserID:       uuid.New(),
 			Email:        "test@example.com",
 			Role:         "customer",
 			TokenVersion: 1,
 		}
-		accessToken, _, err := auth.GenerateTokenPair(
+		accessToken, _, err := GenerateTokenPair(
 			"test-secret",
 			"test-issuer",
 			-1*time.Second,
@@ -457,17 +455,17 @@ func TestTokenValidatorAdapter(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
-		adapter := auth.NewTokenValidatorAdapter(svc)
+		svc := NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		adapter := NewTokenValidatorAdapter(svc)
 
 		userID := uuid.New()
-		claims := auth.Claims{
+		claims := Claims{
 			UserID:       userID,
 			Email:        "test@example.com",
 			Role:         "customer",
 			TokenVersion: 2,
 		}
-		accessToken, _, err := auth.GenerateTokenPair(
+		accessToken, _, err := GenerateTokenPair(
 			"test-secret",
 			"test-issuer",
 			15*time.Minute,
@@ -489,8 +487,8 @@ func TestTokenValidatorAdapter(t *testing.T) {
 	t.Run("invalid token error", func(t *testing.T) {
 		t.Parallel()
 
-		svc := auth.NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
-		adapter := auth.NewTokenValidatorAdapter(svc)
+		svc := NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
+		adapter := NewTokenValidatorAdapter(svc)
 
 		result, err := adapter.ValidateToken("not-a-valid-token")
 

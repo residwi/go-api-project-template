@@ -21,7 +21,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	authMocks "github.com/residwi/go-api-project-template/mocks/auth"
 )
 
 func TestHandler_Register(t *testing.T) {
@@ -438,8 +437,8 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 		"active is auth-internal and must not be serialised")
 }
 
-func newTestMux(t *testing.T) (http.Handler, *authMocks.MockUserProvider) {
-	users := authMocks.NewMockUserProvider(t)
+func newTestMux(t *testing.T) (http.Handler, *MockUserProvider) {
+	users := NewMockUserProvider(t)
 	svc := auth.NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 	v := validator.New()
 
