@@ -1,4 +1,4 @@
-package notification_test
+package notification
 
 import (
 	"context"
@@ -11,9 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	mocks "github.com/residwi/go-api-project-template/mocks/notification"
 
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -24,15 +22,15 @@ func TestService_Send(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
 
-		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(n *notification.Notification) bool {
+		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(n *Notification) bool {
 			return n.UserID == userID &&
-				n.Type == notification.TypeOrderPlaced &&
+				n.Type == TypeOrderPlaced &&
 				n.Title == "Order Confirmed" &&
 				n.Body == "Your order has been confirmed." &&
 				n.IsRead == false
@@ -41,7 +39,7 @@ func TestService_Send(t *testing.T) {
 		err := svc.Send(
 			ctx,
 			userID,
-			notification.TypeOrderPlaced,
+			TypeOrderPlaced,
 			"Order Confirmed",
 			"Your order has been confirmed.",
 			nil,
@@ -52,15 +50,15 @@ func TestService_Send(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*notification.Notification")).Return(assert.AnError)
 
-		err := svc.Send(ctx, userID, notification.TypeOrderPlaced, "Title", "Body", nil)
+		err := svc.Send(ctx, userID, TypeOrderPlaced, "Title", "Body", nil)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
 }
@@ -71,15 +69,15 @@ func TestService_ListByUser(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
 		cursor := paging.CursorPage{Limit: 20}
-		expected := []notification.Notification{
-			{ID: uuid.New(), UserID: userID, Type: notification.TypeOrderPlaced, Title: "Order Placed"},
-			{ID: uuid.New(), UserID: userID, Type: notification.TypeOrderShipped, Title: "Order Shipped"},
+		expected := []Notification{
+			{ID: uuid.New(), UserID: userID, Type: TypeOrderPlaced, Title: "Order Placed"},
+			{ID: uuid.New(), UserID: userID, Type: TypeOrderShipped, Title: "Order Shipped"},
 		}
 
 		repo.EXPECT().ListByUser(mock.Anything, userID, cursor).Return(expected, nil)
@@ -92,8 +90,8 @@ func TestService_ListByUser(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -112,8 +110,8 @@ func TestService_MarkRead(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -128,8 +126,8 @@ func TestService_MarkRead(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -148,8 +146,8 @@ func TestService_MarkAllRead(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -163,8 +161,8 @@ func TestService_MarkAllRead(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -182,8 +180,8 @@ func TestService_CountUnread(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -198,8 +196,8 @@ func TestService_CountUnread(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -217,16 +215,16 @@ func TestService_EnqueueOrderPlaced(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
 		orderID := uuid.New()
 
-		repo.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(func(job *notification.Job) bool {
+		repo.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(func(job *Job) bool {
 			return job.UserID == userID &&
-				job.Type == string(notification.TypeOrderPlaced) &&
+				job.Type == string(TypeOrderPlaced) &&
 				job.Title == "Order Placed" &&
 				job.Body == fmt.Sprintf("Your order %s has been placed.", orderID.String()) &&
 				job.Status == "pending" &&
@@ -241,14 +239,14 @@ func TestService_EnqueueOrderPlaced(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
 		orderID := uuid.New()
 
-		repo.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(func(job *notification.Job) bool {
+		repo.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(func(job *Job) bool {
 			return job.UserID == userID &&
 				job.Body == fmt.Sprintf("Your order %s has been placed.", orderID.String())
 		})).Return(assert.AnError)
@@ -264,15 +262,15 @@ func TestService_Process(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
-		job := notification.Job{
+		job := Job{
 			ID:     uuid.New(),
 			UserID: userID,
-			Type:   string(notification.TypeOrderPlaced),
+			Type:   string(TypeOrderPlaced),
 			Title:  "Order Placed",
 			Body:   "Your order has been placed.",
 			Data:   []byte(`{"order_id":"abc"}`),
@@ -280,16 +278,16 @@ func TestService_Process(t *testing.T) {
 
 		// Insert + completion commit atomically, so the job can't be re-claimed into a duplicate.
 		repo.EXPECT().CreateAndComplete(mock.Anything,
-			mock.MatchedBy(func(n *notification.Notification) bool {
+			mock.MatchedBy(func(n *Notification) bool {
 				return n.UserID == userID &&
-					n.Type == notification.TypeOrderPlaced &&
+					n.Type == TypeOrderPlaced &&
 					n.Title == "Order Placed" &&
 					n.Body == "Your order has been placed." &&
 					n.IsRead == false &&
 					string(n.Data) == `{"order_id":"abc"}`
 			}),
-			mock.MatchedBy(func(j *notification.Job) bool {
-				return j.Status == notification.JobStatusCompleted
+			mock.MatchedBy(func(j *Job) bool {
+				return j.Status == JobStatusCompleted
 			}),
 		).Return(nil)
 
@@ -300,14 +298,14 @@ func TestService_Process(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo, testhelper.DiscardLogger())
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
-		job := notification.Job{
+		job := Job{
 			ID:          uuid.New(),
 			UserID:      uuid.New(),
-			Type:        string(notification.TypeOrderPlaced),
+			Type:        string(TypeOrderPlaced),
 			Title:       "Order Placed",
 			Body:        "Your order has been placed.",
 			MaxAttempts: 3,
@@ -319,8 +317,8 @@ func TestService_Process(t *testing.T) {
 		).Return(assert.AnError)
 		// On failure the attempt is recorded so the job can reach a terminal state
 		// instead of being re-claimed forever; here attempts<max, so it's requeued.
-		repo.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *notification.Job) bool {
-			return j.Attempts == 1 && j.Status == notification.JobStatusPending && j.LastError != ""
+		repo.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *Job) bool {
+			return j.Attempts == 1 && j.Status == JobStatusPending && j.LastError != ""
 		})).Return(nil)
 
 		err := svc.Process(ctx, job)

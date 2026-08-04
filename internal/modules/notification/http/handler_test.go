@@ -19,7 +19,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	notifMocks "github.com/residwi/go-api-project-template/mocks/notification"
 
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -408,8 +407,8 @@ func newTestHandler() *handler {
 	}
 }
 
-func setupNotificationMux(t *testing.T) (*http.ServeMux, *notifMocks.MockRepository, middleware.UserContext) {
-	repo := notifMocks.NewMockRepository(t)
+func setupNotificationMux(t *testing.T) (*http.ServeMux, *MockRepository, middleware.UserContext) {
+	repo := NewMockRepository(t)
 	svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 	mux := http.NewServeMux()
