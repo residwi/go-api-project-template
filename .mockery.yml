@@ -1,90 +1,124 @@
 all: false
-dir: "mocks/{{.SrcPackageName}}"
-filename: "mock_{{.InterfaceName}}.go"
 force-file-write: true
 formatter: goimports
 log-level: info
-pkgname: "mocks"
 template: testify
+
+# Root defaults: generate into the interface's own package, as a private test
+# file. Mocks reference their package's types unqualified, so there is no
+# self-import and no cycle -- which is what lets a feature's service test be
+# `package <feature>` instead of `package <feature>_test`.
+#
+# The middleware entry below used to need an explicit override to get exactly
+# this behaviour. These defaults make it the norm, so that override is gone.
+dir: "{{.InterfaceDir}}"
+pkgname: "{{.SrcPackageName}}"
+filename: "mocks_test.go"
+
+# A _test.go file is excluded from a package's importable GoFiles, so a private
+# mock is invisible to every other package -- including the feature's own http/
+# subpackage. Each interface therefore names every package that needs it. The
+# alternative was public mocks.go files, which would have put ~172 mock
+# identifiers into order's exported API.
+#
+# INVARIANT: `*dual`'s second destination is "{{.InterfaceDir}}/http", so it may
+# only be used for interfaces declared at a module root that has an http/
+# adapter. All 14 modules satisfy this. Violating it silently creates a stray
+# http/ directory containing nothing but a test file -- go build, go vet,
+# go test, golangci-lint and check-boundaries.sh all stay silent about it.
+# Task 8 adds a boundary check for exactly this.
 packages:
   github.com/residwi/go-api-project-template/internal/modules/auth:
     interfaces:
       UserProvider:
+        configs: &dual
+          - {dir: "{{.InterfaceDir}}", pkgname: "{{.SrcPackageName}}", filename: "mocks_test.go"}
+          - {dir: "{{.InterfaceDir}}/http", pkgname: "http", filename: "mocks_test.go"}
   github.com/residwi/go-api-project-template/internal/modules/user:
     interfaces:
-      Repository:
-      StatusCache:
+      Repository: {configs: *dual}
+      StatusCache: {configs: *dual}
   github.com/residwi/go-api-project-template/internal/modules/category:
     interfaces:
-      Repository:
-      ProductCounter:
+      Repository: {configs: *dual}
+      ProductCounter: {configs: *dual}
+  # product and inventory need a third destination: internal/bootstrap tests the
+  # adapters that translate between features, so it builds real product and
+  # inventory services out of their repository mocks. Both interfaces are named
+  # Repository, so both need structname to avoid colliding in one package.
   github.com/residwi/go-api-project-template/internal/modules/product:
     interfaces:
       Repository:
+        configs:
+          - {dir: "{{.InterfaceDir}}", pkgname: "{{.SrcPackageName}}", filename: "mocks_test.go"}
+          - {dir: "{{.InterfaceDir}}/http", pkgname: "http", filename: "mocks_test.go"}
+          - {dir: "internal/bootstrap", pkgname: "bootstrap", filename: "mocks_product_test.go", structname: "MockProductRepository"}
       InventoryReader:
+        configs:
+          - {dir: "{{.InterfaceDir}}", pkgname: "{{.SrcPackageName}}", filename: "mocks_test.go"}
+          - {dir: "{{.InterfaceDir}}/http", pkgname: "http", filename: "mocks_test.go"}
+          - {dir: "internal/bootstrap", pkgname: "bootstrap", filename: "mocks_product_test.go"}
       InventoryRegistrar:
+        configs:
+          - {dir: "{{.InterfaceDir}}", pkgname: "{{.SrcPackageName}}", filename: "mocks_test.go"}
+          - {dir: "{{.InterfaceDir}}/http", pkgname: "http", filename: "mocks_test.go"}
+          - {dir: "internal/bootstrap", pkgname: "bootstrap", filename: "mocks_product_test.go"}
   github.com/residwi/go-api-project-template/internal/modules/inventory:
     interfaces:
       Repository:
+        configs:
+          - {dir: "{{.InterfaceDir}}", pkgname: "{{.SrcPackageName}}", filename: "mocks_test.go"}
+          - {dir: "{{.InterfaceDir}}/http", pkgname: "http", filename: "mocks_test.go"}
+          - {dir: "internal/bootstrap", pkgname: "bootstrap", filename: "mocks_inventory_test.go", structname: "MockInventoryRepository"}
   github.com/residwi/go-api-project-template/internal/modules/cart:
     interfaces:
-      Repository:
-      ProductLookup:
+      Repository: {configs: *dual}
+      ProductLookup: {configs: *dual}
   github.com/residwi/go-api-project-template/internal/modules/order:
     interfaces:
-      Repository:
-      CartProvider:
-      InventoryReserver:
-      PaymentInitiator:
-      PaymentJobCanceller:
-      CouponReserver:
-      NotificationEnqueuer:
+      Repository: {configs: *dual}
+      CartProvider: {configs: *dual}
+      InventoryReserver: {configs: *dual}
+      PaymentInitiator: {configs: *dual}
+      PaymentJobCanceller: {configs: *dual}
+      CouponReserver: {configs: *dual}
+      NotificationEnqueuer: {configs: *dual}
   github.com/residwi/go-api-project-template/internal/modules/payment:
     interfaces:
-      Repository:
-      OrderUpdater:
-      OrderItemsGetter:
-      OrderGetter:
-      InventoryDeductor:
-      InventoryRestorer:
-      CouponReleaser:
-      Gateway:
+      Repository: {configs: *dual}
+      OrderUpdater: {configs: *dual}
+      OrderItemsGetter: {configs: *dual}
+      OrderGetter: {configs: *dual}
+      InventoryDeductor: {configs: *dual}
+      InventoryRestorer: {configs: *dual}
+      CouponReleaser: {configs: *dual}
+      Gateway: {configs: *dual}
   github.com/residwi/go-api-project-template/internal/modules/shipping:
     interfaces:
-      Repository:
-      OrderProvider:
-      OrderUpdater:
+      Repository: {configs: *dual}
+      OrderProvider: {configs: *dual}
+      OrderUpdater: {configs: *dual}
   github.com/residwi/go-api-project-template/internal/modules/review:
     interfaces:
-      Repository:
-      PurchaseVerifier:
+      Repository: {configs: *dual}
+      PurchaseVerifier: {configs: *dual}
   github.com/residwi/go-api-project-template/internal/modules/promotion:
     interfaces:
-      Repository:
+      Repository: {configs: *dual}
   github.com/residwi/go-api-project-template/internal/modules/wishlist:
     interfaces:
-      Repository:
+      Repository: {configs: *dual}
   github.com/residwi/go-api-project-template/internal/modules/notification:
     interfaces:
-      Repository:
+      Repository: {configs: *dual}
   github.com/residwi/go-api-project-template/internal/modules/dashboard:
     interfaces:
-      Repository:
-  # TokenValidator and UserStatusChecker have exactly one consumer: the
-  # declaring package's own in-package test file. Generating them out to
-  # mocks/middleware (this file's default dir/pkgname/filename) would recreate
-  # the middleware -> mocks/middleware -> middleware import cycle that led to
-  # hand-rolled test doubles in the first place (see 61fcb81). Overriding back
-  # to mockery's own defaults here generates the mock in-package instead, so it
-  # references TokenValidator/UserStatusChecker directly with no self-import.
-  # Do not copy this pattern to other entries: every other mocked interface in
-  # this file has multiple consumers, including sibling packages that cannot
-  # import another package's _test.go files.
+      Repository: {configs: *dual}
+  # No override, and no *dual. TokenValidator and UserStatusChecker are declared
+  # in internal/transport/http/middleware, which has no http/ subdirectory, so
+  # *dual would write into internal/transport/http/middleware/http/. The root
+  # defaults do the right thing: in-package, as a test file.
   github.com/residwi/go-api-project-template/internal/transport/http/middleware:
-    config:
-      dir: "{{.InterfaceDir}}"
-      pkgname: "{{.SrcPackageName}}"
-      filename: "mocks_test.go"
     interfaces:
       TokenValidator:
       UserStatusChecker:
