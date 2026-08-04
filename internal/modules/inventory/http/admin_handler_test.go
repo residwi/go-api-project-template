@@ -20,7 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	mocks "github.com/residwi/go-api-project-template/mocks/inventory"
 )
 
 func TestAdminHandler_GetStock(t *testing.T) {
@@ -428,8 +427,8 @@ func TestToStockResponse_ExposesExactFieldSet(t *testing.T) {
 	)
 }
 
-func setupInventoryMux(t *testing.T) (*http.ServeMux, *mocks.MockRepository) {
-	repo := mocks.NewMockRepository(t)
+func setupInventoryMux(t *testing.T) (*http.ServeMux, *MockRepository) {
+	repo := NewMockRepository(t)
 	svc := inventory.NewService(repo)
 	v := validator.New()
 

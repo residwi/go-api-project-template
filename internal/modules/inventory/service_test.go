@@ -1,4 +1,4 @@
-package inventory_test
+package inventory
 
 import (
 	"context"
@@ -9,9 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	mocks "github.com/residwi/go-api-project-template/mocks/inventory"
 )
 
 func TestService_Restore(t *testing.T) {
@@ -20,26 +17,26 @@ func TestService_Restore(t *testing.T) {
 	t.Run("releases stock that was only reserved", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
-		items := []inventory.StockChange{{ProductID: uuid.New(), Quantity: 2}}
+		items := []StockChange{{ProductID: uuid.New(), Quantity: 2}}
 		repo.EXPECT().ReleaseBatch(mock.Anything, items).Return(nil)
 
-		err := svc.Restore(context.Background(), items, inventory.Reserved)
+		err := svc.Restore(context.Background(), items, Reserved)
 		require.NoError(t, err)
 	})
 
 	t.Run("restocks stock that was deducted", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
-		items := []inventory.StockChange{{ProductID: uuid.New(), Quantity: 3}}
+		items := []StockChange{{ProductID: uuid.New(), Quantity: 3}}
 		repo.EXPECT().RestockBatch(mock.Anything, items).Return(nil)
 
-		err := svc.Restore(context.Background(), items, inventory.Deducted)
+		err := svc.Restore(context.Background(), items, Deducted)
 		require.NoError(t, err)
 	})
 }
@@ -50,11 +47,11 @@ func TestService_Reserve(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
-		expected := &inventory.Stock{ProductID: productID, Quantity: 100, Reserved: 10, Available: 90}
+		expected := &Stock{ProductID: productID, Quantity: 100, Reserved: 10, Available: 90}
 		repo.EXPECT().Reserve(mock.Anything, productID, 10).Return(expected, nil)
 
 		result, err := svc.Reserve(context.Background(), productID, 10)
@@ -66,8 +63,8 @@ func TestService_Reserve(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
 		repo.EXPECT().Reserve(mock.Anything, productID, 10).Return(nil, errors.New("insufficient stock"))
@@ -85,11 +82,11 @@ func TestService_Release(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
-		expected := &inventory.Stock{ProductID: productID, Quantity: 100, Reserved: 5, Available: 95}
+		expected := &Stock{ProductID: productID, Quantity: 100, Reserved: 5, Available: 95}
 		repo.EXPECT().Release(mock.Anything, productID, 5).Return(expected, nil)
 
 		result, err := svc.Release(context.Background(), productID, 5)
@@ -101,8 +98,8 @@ func TestService_Release(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
 		repo.EXPECT().Release(mock.Anything, productID, 5).Return(nil, errors.New("cannot release more than reserved"))
@@ -120,11 +117,11 @@ func TestService_Deduct(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
-		expected := &inventory.Stock{ProductID: productID, Quantity: 90, Reserved: 0, Available: 90}
+		expected := &Stock{ProductID: productID, Quantity: 90, Reserved: 0, Available: 90}
 		repo.EXPECT().Deduct(mock.Anything, productID, 10).Return(expected, nil)
 
 		result, err := svc.Deduct(context.Background(), productID, 10)
@@ -136,8 +133,8 @@ func TestService_Deduct(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
 		repo.EXPECT().Deduct(mock.Anything, productID, 10).Return(nil, errors.New("cannot deduct stock"))
@@ -155,11 +152,11 @@ func TestService_Restock(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
-		expected := &inventory.Stock{ProductID: productID, Quantity: 150, Reserved: 5, Available: 145}
+		expected := &Stock{ProductID: productID, Quantity: 150, Reserved: 5, Available: 145}
 		repo.EXPECT().Restock(mock.Anything, productID, 50).Return(expected, nil)
 
 		result, err := svc.Restock(context.Background(), productID, 50)
@@ -171,8 +168,8 @@ func TestService_Restock(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
 		repo.EXPECT().Restock(mock.Anything, productID, 50).Return(nil, errors.New("not found"))
@@ -190,11 +187,11 @@ func TestService_GetStock(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
-		expected := &inventory.Stock{ProductID: productID, Quantity: 100, Reserved: 10, Available: 90}
+		expected := &Stock{ProductID: productID, Quantity: 100, Reserved: 10, Available: 90}
 		repo.EXPECT().GetStock(mock.Anything, productID).Return(expected, nil)
 
 		result, err := svc.GetStock(context.Background(), productID)
@@ -206,8 +203,8 @@ func TestService_GetStock(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
 		repo.EXPECT().GetStock(mock.Anything, productID).Return(nil, errors.New("not found"))
@@ -225,11 +222,11 @@ func TestService_AdjustStock(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
-		expected := &inventory.Stock{ProductID: productID, Quantity: 200, Reserved: 10, Available: 190}
+		expected := &Stock{ProductID: productID, Quantity: 200, Reserved: 10, Available: 190}
 		repo.EXPECT().AdjustStock(mock.Anything, productID, 200).Return(expected, nil)
 
 		result, err := svc.AdjustStock(context.Background(), productID, 200)
@@ -241,8 +238,8 @@ func TestService_AdjustStock(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
 		repo.EXPECT().
@@ -262,12 +259,12 @@ func TestService_GetLevels(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		id1, id2 := uuid.New(), uuid.New()
 		ids := []uuid.UUID{id1, id2}
-		expected := map[uuid.UUID]inventory.Stock{
+		expected := map[uuid.UUID]Stock{
 			id1: {ProductID: id1, Quantity: 100, Reserved: 10, Available: 90},
 			id2: {ProductID: id2, Quantity: 50, Reserved: 0, Available: 50},
 		}
@@ -282,8 +279,8 @@ func TestService_GetLevels(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		ids := []uuid.UUID{uuid.New()}
 		repo.EXPECT().GetLevels(mock.Anything, ids).Return(nil, errors.New("db error"))
@@ -301,8 +298,8 @@ func TestService_EnsureLevel(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
 		repo.EXPECT().EnsureLevel(mock.Anything, productID).Return(nil)
@@ -315,8 +312,8 @@ func TestService_EnsureLevel(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := inventory.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		productID := uuid.New()
 		repo.EXPECT().EnsureLevel(mock.Anything, productID).Return(errors.New("ensuring inventory level"))
