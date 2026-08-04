@@ -1,4 +1,4 @@
-package response_test
+package response
 
 import (
 	"net/http"
@@ -8,8 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type sampleReq struct {
@@ -29,7 +27,7 @@ func TestBind(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"widget"}`))
 		w := httptest.NewRecorder()
 
-		got, ok := response.Bind[sampleReq](w, r, fakeValidator{errs: nil})
+		got, ok := Bind[sampleReq](w, r, fakeValidator{errs: nil})
 
 		require.True(t, ok)
 		assert.Equal(t, sampleReq{Name: "widget"}, got)
@@ -40,7 +38,7 @@ func TestBind(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{not json`))
 		w := httptest.NewRecorder()
 
-		_, ok := response.Bind[sampleReq](w, r, fakeValidator{errs: nil})
+		_, ok := Bind[sampleReq](w, r, fakeValidator{errs: nil})
 
 		assert.False(t, ok)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -50,7 +48,7 @@ func TestBind(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":""}`))
 		w := httptest.NewRecorder()
 
-		_, ok := response.Bind[sampleReq](w, r, fakeValidator{errs: map[string]any{"name": "is required"}})
+		_, ok := Bind[sampleReq](w, r, fakeValidator{errs: map[string]any{"name": "is required"}})
 
 		assert.False(t, ok)
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
@@ -60,7 +58,7 @@ func TestBind(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"widget"}`))
 		w := httptest.NewRecorder()
 
-		got, ok := response.Bind[sampleReq](w, r, fakeValidator{errs: map[string]any{}})
+		got, ok := Bind[sampleReq](w, r, fakeValidator{errs: map[string]any{}})
 
 		require.True(t, ok)
 		assert.Equal(t, sampleReq{Name: "widget"}, got)

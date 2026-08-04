@@ -1,4 +1,4 @@
-package response_test
+package response
 
 import (
 	"encoding/json"
@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type pageRow struct {
@@ -35,7 +34,7 @@ func TestCursorPage(t *testing.T) {
 			{ID: uuid.New(), CreatedAt: time.Now()},
 		}
 
-		response.CursorPage(w, rows, 20, pageRowKey)
+		CursorPage(w, rows, 20, pageRowKey)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		var body cursorPageBody
@@ -52,7 +51,7 @@ func TestCursorPage(t *testing.T) {
 		second := pageRow{ID: uuid.New(), CreatedAt: time.Date(2026, 1, 2, 12, 0, 0, 0, time.UTC)}
 		overflow := pageRow{ID: uuid.New(), CreatedAt: time.Date(2026, 1, 3, 12, 0, 0, 0, time.UTC)}
 
-		response.CursorPage(w, []pageRow{first, second, overflow}, 2, pageRowKey)
+		CursorPage(w, []pageRow{first, second, overflow}, 2, pageRowKey)
 
 		var body cursorPageBody
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
@@ -71,7 +70,7 @@ func TestCursorPage(t *testing.T) {
 			{ID: uuid.New(), CreatedAt: time.Now()},
 		}
 
-		response.CursorPage(w, rows, 2, pageRowKey)
+		CursorPage(w, rows, 2, pageRowKey)
 
 		var body cursorPageBody
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
@@ -83,7 +82,7 @@ func TestCursorPage(t *testing.T) {
 	t.Run("empty rows: items is an empty array, has_more false", func(t *testing.T) {
 		w := httptest.NewRecorder()
 
-		response.CursorPage(w, []pageRow{}, 20, pageRowKey)
+		CursorPage(w, []pageRow{}, 20, pageRowKey)
 
 		var body cursorPageBody
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
