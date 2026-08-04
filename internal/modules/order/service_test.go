@@ -26,28 +26,6 @@ import (
 	productMocks "github.com/residwi/go-api-project-template/mocks/product"
 )
 
-func newTestService(t *testing.T) (
-	*order.Service,
-	*mocks.MockRepository,
-	*mocks.MockCartProvider,
-	*mocks.MockInventoryReserver,
-	*mocks.MockPaymentInitiator,
-	*mocks.MockPaymentJobCanceller,
-	*mocks.MockCouponReserver,
-	*mocks.MockNotificationEnqueuer,
-) {
-	repo := mocks.NewMockRepository(t)
-	cart := mocks.NewMockCartProvider(t)
-	inventory := mocks.NewMockInventoryReserver(t)
-	payment := mocks.NewMockPaymentInitiator(t)
-	paymentCancel := mocks.NewMockPaymentJobCanceller(t)
-	coupons := mocks.NewMockCouponReserver(t)
-	notifications := mocks.NewMockNotificationEnqueuer(t)
-
-	svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, payment, paymentCancel, coupons, notifications)
-	return svc, repo, cart, inventory, payment, paymentCancel, coupons, notifications
-}
-
 func TestService_ExpireStale(t *testing.T) {
 	ctx := context.Background()
 
@@ -78,14 +56,10 @@ func TestService_ExpireStale(t *testing.T) {
 		repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return([]order.Order{expired}, nil)
 		repo.EXPECT().Apply(mock.Anything, expired.ID, order.ExpiredTransition).Return(apperror.ErrConflict)
 
-		// no ListItemsByOrderID / Restore / Release — the order is skipped
-
 		err := svc.ExpireStale(ctx)
 		require.NoError(t, err)
 	})
 }
-
-// --- TestService_RetryPayment ---
 
 func TestService_RetryPayment(t *testing.T) {
 	ctx := context.Background()
@@ -207,8 +181,6 @@ func TestService_RetryPayment(t *testing.T) {
 	})
 }
 
-// --- TestService_GetByID ---
-
 func TestService_GetByID(t *testing.T) {
 	ctx := context.Background()
 	userID := uuid.New()
@@ -298,8 +270,6 @@ func TestService_GetByID(t *testing.T) {
 	})
 }
 
-// --- TestService_ListByUser ---
-
 func TestService_ListByUser(t *testing.T) {
 	ctx := context.Background()
 	userID := uuid.New()
@@ -336,8 +306,6 @@ func TestService_ListByUser(t *testing.T) {
 	})
 }
 
-// --- TestService_AdminListAll ---
-
 func TestService_AdminListAll(t *testing.T) {
 	ctx := context.Background()
 
@@ -373,8 +341,6 @@ func TestService_AdminListAll(t *testing.T) {
 		assert.ErrorIs(t, err, dbErr)
 	})
 }
-
-// --- TestService_AdminGetByID ---
 
 func TestService_AdminGetByID(t *testing.T) {
 	ctx := context.Background()
@@ -434,8 +400,6 @@ func TestService_AdminGetByID(t *testing.T) {
 		assert.ErrorIs(t, err, dbErr)
 	})
 }
-
-// --- TestService_AdminUpdateStatus ---
 
 func TestService_AdminUpdateStatus(t *testing.T) {
 	ctx := context.Background()
@@ -534,8 +498,6 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 	})
 }
 
-// --- TestService_Apply ---
-
 func TestService_Apply(t *testing.T) {
 	ctx := context.Background()
 	orderID := uuid.New()
@@ -560,8 +522,6 @@ func TestService_Apply(t *testing.T) {
 		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 }
-
-// --- TestService_ListItemsByOrderID ---
 
 func TestService_ListItemsByOrderID(t *testing.T) {
 	ctx := context.Background()
@@ -595,8 +555,6 @@ func TestService_ListItemsByOrderID(t *testing.T) {
 		assert.Nil(t, result)
 	})
 }
-
-// --- TestService_PlaceOrder ---
 
 func TestService_PlaceOrder(t *testing.T) {
 	ctx := context.Background()
@@ -819,7 +777,6 @@ func TestService_PlaceOrder(t *testing.T) {
 		req := order.PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
 
-		// A failed items read must surface, not be swallowed into a 201 with no items.
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, dbErr)
 	})
@@ -1014,7 +971,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		repo.EXPECT().Apply(mock.Anything, mock.Anything, order.PaidTransition).Return(nil)
 		inventory.EXPECT().DeductBatch(mock.Anything, []order.InventoryItem{{ProductID: productA, Quantity: 1}}).Return(nil)
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
-		_ = payment // InitiatePayment must not be called for a zero-total order
+		_ = payment
 
 		req := order.PlaceParams{PaymentMethodID: "pm_test", CouponCode: &couponCode}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
@@ -1056,8 +1013,6 @@ func TestService_PlaceOrder(t *testing.T) {
 		assert.Equal(t, money.New(5000, "USD"), resp.Order.Total)
 	})
 }
-
-// --- TestService_CancelOrder ---
 
 func TestService_CancelOrder(t *testing.T) {
 	ctx := context.Background()
@@ -1348,8 +1303,6 @@ func TestService_CancelOrder(t *testing.T) {
 	})
 }
 
-// --- TestService_SetPaymentDeps ---
-
 func TestService_SetPaymentDeps(t *testing.T) {
 	t.Run("sets payment dependencies and allows retry", func(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
@@ -1447,39 +1400,6 @@ func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
 	inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
 }
 
-// realCartProvider mirrors internal/bootstrap's unexported cartProviderAdapter
-// (it is not the fix under test, just the trivial Cart -> CartSnapshot
-// mapping), so this test can drive a real cart.Service -- and, critically, the
-// real bootstrap.productLookupAdapter it wraps -- without reaching into bootstrap's
-// unexported types.
-type realCartProvider struct{ svc *cart.Service }
-
-func (a realCartProvider) LockCart(ctx context.Context, userID uuid.UUID) error {
-	return a.svc.LockCart(ctx, userID)
-}
-
-func (a realCartProvider) GetCart(ctx context.Context, userID uuid.UUID) (*order.CartSnapshot, error) {
-	c, err := a.svc.GetCart(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	snap := &order.CartSnapshot{ID: c.ID}
-	for _, item := range c.Items {
-		si := order.CartSnapshotItem{ProductID: item.ProductID, Quantity: item.Quantity}
-		if item.Product != nil {
-			si.Name = item.Product.Name
-			si.Price = item.Product.Price
-			si.Status = item.Product.Status
-		}
-		snap.Items = append(snap.Items, si)
-	}
-	return snap, nil
-}
-
-func (a realCartProvider) Clear(ctx context.Context, userID uuid.UUID) error {
-	return a.svc.Clear(ctx, userID)
-}
-
 // TestService_PlaceOrder_RejectsSoftDeletedProduct exercises the real
 // product -> cart chain (product.Service.GetByIDsIncludingDeleted through the
 // actual bootstrap.productLookupAdapter) instead of a hand-built
@@ -1575,4 +1495,59 @@ func TestService_PlaceOrder_RejectsMixedCurrencyCart(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, money.ErrCurrencyMismatch, "the cause must be identifiable")
 	require.ErrorIs(t, err, apperror.ErrBadRequest, "a mixed-currency cart is user input -- 400, not 500")
+}
+
+// realCartProvider mirrors internal/bootstrap's unexported cartProviderAdapter
+// (it is not the fix under test, just the trivial Cart -> CartSnapshot
+// mapping), so this test can drive a real cart.Service -- and, critically, the
+// real bootstrap.productLookupAdapter it wraps -- without reaching into bootstrap's
+// unexported types.
+type realCartProvider struct{ svc *cart.Service }
+
+func (a realCartProvider) LockCart(ctx context.Context, userID uuid.UUID) error {
+	return a.svc.LockCart(ctx, userID)
+}
+
+func (a realCartProvider) GetCart(ctx context.Context, userID uuid.UUID) (*order.CartSnapshot, error) {
+	c, err := a.svc.GetCart(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	snap := &order.CartSnapshot{ID: c.ID}
+	for _, item := range c.Items {
+		si := order.CartSnapshotItem{ProductID: item.ProductID, Quantity: item.Quantity}
+		if item.Product != nil {
+			si.Name = item.Product.Name
+			si.Price = item.Product.Price
+			si.Status = item.Product.Status
+		}
+		snap.Items = append(snap.Items, si)
+	}
+	return snap, nil
+}
+
+func (a realCartProvider) Clear(ctx context.Context, userID uuid.UUID) error {
+	return a.svc.Clear(ctx, userID)
+}
+
+func newTestService(t *testing.T) (
+	*order.Service,
+	*mocks.MockRepository,
+	*mocks.MockCartProvider,
+	*mocks.MockInventoryReserver,
+	*mocks.MockPaymentInitiator,
+	*mocks.MockPaymentJobCanceller,
+	*mocks.MockCouponReserver,
+	*mocks.MockNotificationEnqueuer,
+) {
+	repo := mocks.NewMockRepository(t)
+	cart := mocks.NewMockCartProvider(t)
+	inventory := mocks.NewMockInventoryReserver(t)
+	payment := mocks.NewMockPaymentInitiator(t)
+	paymentCancel := mocks.NewMockPaymentJobCanceller(t)
+	coupons := mocks.NewMockCouponReserver(t)
+	notifications := mocks.NewMockNotificationEnqueuer(t)
+
+	svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, payment, paymentCancel, coupons, notifications)
+	return svc, repo, cart, inventory, payment, paymentCancel, coupons, notifications
 }

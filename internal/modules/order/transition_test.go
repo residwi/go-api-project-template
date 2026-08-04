@@ -9,7 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 )
 
-// allStatuses is every order status, used to exhaustively probe CanTransition.
 var allStatuses = []order.Status{
 	order.StatusAwaitingPayment,
 	order.StatusPaymentProcessing,
@@ -28,7 +27,6 @@ var allStatuses = []order.Status{
 // changes which (from,to) pairs are legal, and this test will catch it — every
 // pair not listed here must be rejected.
 func TestCanTransition_Graph(t *testing.T) {
-	// allowed[from] is the exact set of statuses `from` may transition to.
 	allowed := map[order.Status][]order.Status{
 		order.StatusAwaitingPayment: {
 			order.StatusPaymentProcessing, order.StatusPaid,
