@@ -21,7 +21,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	wishMocks "github.com/residwi/go-api-project-template/mocks/wishlist"
 )
 
 func TestHandler_GetWishlist_Success(t *testing.T) {
@@ -334,8 +333,8 @@ func TestToItemResponse_OmitsInternalFields(t *testing.T) {
 		"wishlist_id is an internal join key and must not be serialised")
 }
 
-func setupWishlistMux(t *testing.T) (*http.ServeMux, *wishMocks.MockRepository, middleware.UserContext) {
-	repo := wishMocks.NewMockRepository(t)
+func setupWishlistMux(t *testing.T) (*http.ServeMux, *MockRepository, middleware.UserContext) {
+	repo := NewMockRepository(t)
 	svc := wishlist.NewService(repo)
 	v := validator.New()
 

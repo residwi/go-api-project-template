@@ -1,4 +1,4 @@
-package wishlist_test
+package wishlist
 
 import (
 	"context"
@@ -10,9 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	mocks "github.com/residwi/go-api-project-template/mocks/wishlist"
 )
 
 func TestService_GetWishlist(t *testing.T) {
@@ -21,13 +19,13 @@ func TestService_GetWishlist(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
 		cursor := paging.CursorPage{Limit: 20}
-		expected := []wishlist.Item{
+		expected := []Item{
 			{ID: uuid.New(), ProductID: uuid.New()},
 			{ID: uuid.New(), ProductID: uuid.New()},
 		}
@@ -42,14 +40,14 @@ func TestService_GetWishlist(t *testing.T) {
 	t.Run("empty wishlist", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
 		cursor := paging.CursorPage{Limit: 20}
 
-		repo.EXPECT().GetItems(mock.Anything, userID, cursor).Return([]wishlist.Item{}, nil)
+		repo.EXPECT().GetItems(mock.Anything, userID, cursor).Return([]Item{}, nil)
 
 		result, err := svc.GetWishlist(ctx, userID, cursor)
 		require.NoError(t, err)
@@ -63,8 +61,8 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -81,8 +79,8 @@ func TestService_AddItem(t *testing.T) {
 	t.Run("get or create fails", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -102,8 +100,8 @@ func TestService_RemoveItem(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -118,8 +116,8 @@ func TestService_RemoveItem(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -135,8 +133,8 @@ func TestService_RemoveItem(t *testing.T) {
 	t.Run("repo error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -156,8 +154,8 @@ func TestService_GetWishlist_RepoError(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -176,8 +174,8 @@ func TestService_AddItem_AddItemFails(t *testing.T) {
 	t.Run("add item repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := wishlist.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		ctx := context.Background()
 		userID := uuid.New()
