@@ -17,7 +17,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
-	mocks "github.com/residwi/go-api-project-template/mocks/dashboard"
 )
 
 func TestAdminHandler_Summary(t *testing.T) {
@@ -551,8 +550,8 @@ func TestToSummaryResponse_ExposesExactFieldSet(t *testing.T) {
 	assert.ElementsMatch(t, []string{"status", "count"}, slices.Collect(maps.Keys(breakdown[0])))
 }
 
-func setupDashboardMux(t *testing.T) (*http.ServeMux, *mocks.MockRepository) {
-	repo := mocks.NewMockRepository(t)
+func setupDashboardMux(t *testing.T) (*http.ServeMux, *MockRepository) {
+	repo := NewMockRepository(t)
 	svc := dashboard.NewService(repo)
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")

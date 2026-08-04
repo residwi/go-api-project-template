@@ -1,4 +1,4 @@
-package dashboard_test
+package dashboard
 
 import (
 	"context"
@@ -10,9 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
-	mocks "github.com/residwi/go-api-project-template/mocks/dashboard"
 )
 
 func TestService_GetSalesSummary(t *testing.T) {
@@ -21,13 +18,13 @@ func TestService_GetSalesSummary(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := dashboard.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
 
-		expected := dashboard.SalesSummary{
+		expected := SalesSummary{
 			TotalOrders:       150,
 			TotalRevenue:      5000000,
 			AverageOrderValue: 33333.33,
@@ -43,18 +40,18 @@ func TestService_GetSalesSummary(t *testing.T) {
 	t.Run("error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := dashboard.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
 
 		dbErr := errors.New("sales summary failed")
-		repo.EXPECT().GetSalesSummary(mock.Anything, from, to).Return(dashboard.SalesSummary{}, dbErr)
+		repo.EXPECT().GetSalesSummary(mock.Anything, from, to).Return(SalesSummary{}, dbErr)
 
 		result, err := svc.GetSalesSummary(context.Background(), from, to)
 
-		assert.Equal(t, dashboard.SalesSummary{}, result)
+		assert.Equal(t, SalesSummary{}, result)
 		assert.ErrorIs(t, err, dbErr)
 	})
 }
@@ -68,15 +65,15 @@ func TestService_GetSummary(t *testing.T) {
 	t.Run("returns both results on success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := dashboard.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
-		expectedSales := dashboard.SalesSummary{
+		expectedSales := SalesSummary{
 			TotalOrders:       150,
 			TotalRevenue:      5000000,
 			AverageOrderValue: 33333.33,
 		}
-		expectedBreakdown := []dashboard.StatusBreakdown{
+		expectedBreakdown := []StatusBreakdown{
 			{Status: "paid", Count: 50},
 			{Status: "shipped", Count: 30},
 			{Status: "delivered", Count: 20},
@@ -94,11 +91,11 @@ func TestService_GetSummary(t *testing.T) {
 	t.Run("sales summary error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := dashboard.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		dbErr := errors.New("sales summary failed")
-		repo.EXPECT().GetSalesSummary(mock.Anything, from, to).Return(dashboard.SalesSummary{}, dbErr)
+		repo.EXPECT().GetSalesSummary(mock.Anything, from, to).Return(SalesSummary{}, dbErr)
 		// The sibling query may or may not run before cancellation kicks in; make
 		// it optional so the test asserts error handling, not goroutine timing.
 		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything, from, to).
@@ -107,25 +104,25 @@ func TestService_GetSummary(t *testing.T) {
 		sales, breakdown, err := svc.GetSummary(context.Background(), from, to)
 
 		require.ErrorIs(t, err, dbErr)
-		assert.Equal(t, dashboard.SalesSummary{}, sales)
+		assert.Equal(t, SalesSummary{}, sales)
 		assert.Nil(t, breakdown)
 	})
 
 	t.Run("breakdown error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := dashboard.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		dbErr := errors.New("breakdown failed")
 		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything, from, to).Return(nil, dbErr)
 		repo.EXPECT().GetSalesSummary(mock.Anything, from, to).
-			Return(dashboard.SalesSummary{}, nil).Maybe()
+			Return(SalesSummary{}, nil).Maybe()
 
 		sales, breakdown, err := svc.GetSummary(context.Background(), from, to)
 
 		require.ErrorIs(t, err, dbErr)
-		assert.Equal(t, dashboard.SalesSummary{}, sales)
+		assert.Equal(t, SalesSummary{}, sales)
 		assert.Nil(t, breakdown)
 	})
 }
@@ -136,13 +133,13 @@ func TestService_GetTopProducts(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := dashboard.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
 
-		expected := []dashboard.TopProduct{
+		expected := []TopProduct{
 			{ProductID: uuid.New(), Name: "Widget A", TotalSold: 500, Revenue: 2500000},
 			{ProductID: uuid.New(), Name: "Widget B", TotalSold: 300, Revenue: 1500000},
 		}
@@ -158,8 +155,8 @@ func TestService_GetTopProducts(t *testing.T) {
 	t.Run("error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := dashboard.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
@@ -180,13 +177,13 @@ func TestService_GetRevenueByDay(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := dashboard.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		to := time.Date(2026, 1, 3, 23, 59, 59, 0, time.UTC)
 
-		expected := []dashboard.RevenueData{
+		expected := []RevenueData{
 			{Date: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Revenue: 100000, OrderCount: 10},
 			{Date: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), Revenue: 200000, OrderCount: 20},
 			{Date: time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC), Revenue: 150000, OrderCount: 15},
@@ -203,8 +200,8 @@ func TestService_GetRevenueByDay(t *testing.T) {
 	t.Run("error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := dashboard.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		to := time.Date(2026, 1, 3, 23, 59, 59, 0, time.UTC)
@@ -225,10 +222,10 @@ func TestService_GetOrderStatusBreakdown(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := dashboard.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
-		expected := []dashboard.StatusBreakdown{
+		expected := []StatusBreakdown{
 			{Status: "paid", Count: 50},
 			{Status: "shipped", Count: 30},
 			{Status: "delivered", Count: 20},
@@ -245,8 +242,8 @@ func TestService_GetOrderStatusBreakdown(t *testing.T) {
 	t.Run("error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := dashboard.NewService(repo)
+		repo := NewMockRepository(t)
+		svc := NewService(repo)
 
 		dbErr := errors.New("query failed")
 		repo.EXPECT().GetOrderStatusBreakdown(mock.Anything, mock.Anything, mock.Anything).Return(nil, dbErr)
