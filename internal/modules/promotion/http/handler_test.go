@@ -22,7 +22,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	promoMocks "github.com/residwi/go-api-project-template/mocks/promotion"
 )
 
 func TestHandler_Apply_ServiceError(t *testing.T) {
@@ -208,8 +207,8 @@ func setAuthContext(r *http.Request) *http.Request {
 	return r.WithContext(ctx)
 }
 
-func setupPromotionMux(t *testing.T) (*http.ServeMux, *promoMocks.MockRepository) {
-	repo := promoMocks.NewMockRepository(t)
+func setupPromotionMux(t *testing.T) (*http.ServeMux, *MockRepository) {
+	repo := NewMockRepository(t)
 	svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
 	v := validator.New()
 

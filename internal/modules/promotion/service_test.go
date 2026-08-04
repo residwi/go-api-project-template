@@ -1,4 +1,4 @@
-package promotion_test
+package promotion
 
 import (
 	"context"
@@ -11,9 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
-	mocks "github.com/residwi/go-api-project-template/mocks/promotion"
 )
 
 func TestService_Validate(t *testing.T) {
@@ -22,15 +20,15 @@ func TestService_Validate(t *testing.T) {
 	t.Run("success percentage", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		maxDiscount := int64(500)
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:             uuid.New(),
 				Code:           "SAVE20",
-				Type:           promotion.TypePercentage,
+				Type:           TypePercentage,
 				Value:          20,
 				MinOrderAmount: 1000,
 				MaxDiscount:    &maxDiscount,
@@ -47,15 +45,15 @@ func TestService_Validate(t *testing.T) {
 	t.Run("success percentage capped by max discount", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		maxDiscount := int64(500)
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:             uuid.New(),
 				Code:           "SAVE20",
-				Type:           promotion.TypePercentage,
+				Type:           TypePercentage,
 				Value:          20,
 				MinOrderAmount: 1000,
 				MaxDiscount:    &maxDiscount,
@@ -72,14 +70,14 @@ func TestService_Validate(t *testing.T) {
 	t.Run("success fixed_amount", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().GetByCode(mock.Anything, "FLAT10").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:             uuid.New(),
 				Code:           "FLAT10",
-				Type:           promotion.TypeFixedAmount,
+				Type:           TypeFixedAmount,
 				Value:          1000,
 				MinOrderAmount: 500,
 				Active:         true,
@@ -95,11 +93,11 @@ func TestService_Validate(t *testing.T) {
 	t.Run("inactive promo", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().GetByCode(mock.Anything, "INACTIVE").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:        uuid.New(),
 				Code:      "INACTIVE",
 				Active:    false,
@@ -114,11 +112,11 @@ func TestService_Validate(t *testing.T) {
 	t.Run("expired", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().GetByCode(mock.Anything, "EXPIRED").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:        uuid.New(),
 				Code:      "EXPIRED",
 				Active:    true,
@@ -133,11 +131,11 @@ func TestService_Validate(t *testing.T) {
 	t.Run("not started", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().GetByCode(mock.Anything, "FUTURE").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:        uuid.New(),
 				Code:      "FUTURE",
 				Active:    true,
@@ -152,12 +150,12 @@ func TestService_Validate(t *testing.T) {
 	t.Run("exhausted uses", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		maxUses := 10
 		repo.EXPECT().GetByCode(mock.Anything, "MAXED").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:        uuid.New(),
 				Code:      "MAXED",
 				Active:    true,
@@ -174,14 +172,14 @@ func TestService_Validate(t *testing.T) {
 	t.Run("below min order", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().GetByCode(mock.Anything, "MINORDER").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:             uuid.New(),
 				Code:           "MINORDER",
-				Type:           promotion.TypeFixedAmount,
+				Type:           TypeFixedAmount,
 				Value:          500,
 				MinOrderAmount: 5000,
 				Active:         true,
@@ -196,8 +194,8 @@ func TestService_Validate(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().GetByCode(mock.Anything, "UNKNOWN").Return(nil, apperror.ErrNotFound)
 
@@ -208,14 +206,14 @@ func TestService_Validate(t *testing.T) {
 	t.Run("discount capped by subtotal", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().GetByCode(mock.Anything, "BIG").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:             uuid.New(),
 				Code:           "BIG",
-				Type:           promotion.TypeFixedAmount,
+				Type:           TypeFixedAmount,
 				Value:          10000,
 				MinOrderAmount: 100,
 				Active:         true,
@@ -231,14 +229,14 @@ func TestService_Validate(t *testing.T) {
 	t.Run("percentage without max discount cap", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().GetByCode(mock.Anything, "NOCAP").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:             uuid.New(),
 				Code:           "NOCAP",
-				Type:           promotion.TypePercentage,
+				Type:           TypePercentage,
 				Value:          50,
 				MinOrderAmount: 100,
 				Active:         true,
@@ -258,11 +256,11 @@ func TestService_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).
-			Run(func(_ context.Context, p *promotion.Promotion) {
+			Run(func(_ context.Context, p *Promotion) {
 				p.ID = uuid.New()
 				p.CreatedAt = time.Now()
 				p.UpdatedAt = time.Now()
@@ -271,9 +269,9 @@ func TestService_Create(t *testing.T) {
 
 		startsAt := time.Now()
 		expiresAt := time.Now().Add(24 * time.Hour)
-		result, err := svc.Create(context.Background(), promotion.CreateParams{
+		result, err := svc.Create(context.Background(), CreateParams{
 			Code:           "NEW10",
-			Type:           promotion.TypePercentage,
+			Type:           TypePercentage,
 			Value:          10,
 			MinOrderAmount: 1000,
 			StartsAt:       startsAt,
@@ -285,9 +283,9 @@ func TestService_Create(t *testing.T) {
 		result.ID = uuid.Nil
 		result.CreatedAt = time.Time{}
 		result.UpdatedAt = time.Time{}
-		assert.Equal(t, &promotion.Promotion{
+		assert.Equal(t, &Promotion{
 			Code:           "NEW10",
-			Type:           promotion.TypePercentage,
+			Type:           TypePercentage,
 			Value:          10,
 			MinOrderAmount: 1000,
 			StartsAt:       startsAt,
@@ -299,15 +297,15 @@ func TestService_Create(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).
 			Return(apperror.ErrConflict)
 
-		_, err := svc.Create(context.Background(), promotion.CreateParams{
+		_, err := svc.Create(context.Background(), CreateParams{
 			Code:      "DUP",
-			Type:      promotion.TypePercentage,
+			Type:      TypePercentage,
 			Value:     10,
 			StartsAt:  time.Now(),
 			ExpiresAt: time.Now().Add(time.Hour),
@@ -323,11 +321,11 @@ func TestService_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
-		params := promotion.ListParams{Page: 1, PageSize: 10}
-		promos := []promotion.Promotion{
+		params := ListParams{Page: 1, PageSize: 10}
+		promos := []Promotion{
 			{ID: uuid.New(), Code: "A"},
 			{ID: uuid.New(), Code: "B"},
 		}
@@ -342,10 +340,10 @@ func TestService_List(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
-		params := promotion.ListParams{Page: 1, PageSize: 10}
+		params := ListParams{Page: 1, PageSize: 10}
 		repo.EXPECT().ListAdmin(mock.Anything, params).Return(nil, 0, assert.AnError)
 
 		_, _, err := svc.List(context.Background(), params)
@@ -359,14 +357,14 @@ func TestService_Update(t *testing.T) {
 	t.Run("success partial", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		id := uuid.New()
-		existing := &promotion.Promotion{
+		existing := &Promotion{
 			ID:             id,
 			Code:           "OLD",
-			Type:           promotion.TypeFixedAmount,
+			Type:           TypeFixedAmount,
 			Value:          500,
 			MinOrderAmount: 1000,
 			Active:         true,
@@ -377,15 +375,15 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).Return(nil)
 
 		newValue := int64(750)
-		result, err := svc.Update(context.Background(), id, promotion.UpdateParams{
+		result, err := svc.Update(context.Background(), id, UpdateParams{
 			Code:  "UPDATED",
 			Value: &newValue,
 		})
 		require.NoError(t, err)
-		assert.Equal(t, &promotion.Promotion{
+		assert.Equal(t, &Promotion{
 			ID:             id,
 			Code:           "UPDATED",
-			Type:           promotion.TypeFixedAmount,
+			Type:           TypeFixedAmount,
 			Value:          750,
 			MinOrderAmount: 1000,
 			Active:         true,
@@ -397,27 +395,27 @@ func TestService_Update(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
 
-		_, err := svc.Update(context.Background(), uuid.New(), promotion.UpdateParams{Code: "X"})
+		_, err := svc.Update(context.Background(), uuid.New(), UpdateParams{Code: "X"})
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		id := uuid.New()
-		existing := &promotion.Promotion{
+		existing := &Promotion{
 			ID:        id,
 			Code:      "OLD",
-			Type:      promotion.TypeFixedAmount,
+			Type:      TypeFixedAmount,
 			Value:     500,
 			Active:    true,
 			StartsAt:  time.Now().Add(-time.Hour),
@@ -426,21 +424,21 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*promotion.Promotion")).Return(apperror.ErrConflict)
 
-		_, err := svc.Update(context.Background(), id, promotion.UpdateParams{Code: "DUP"})
+		_, err := svc.Update(context.Background(), id, UpdateParams{Code: "DUP"})
 		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
 
 	t.Run("all fields updated", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		id := uuid.New()
-		existing := &promotion.Promotion{
+		existing := &Promotion{
 			ID:             id,
 			Code:           "OLD",
-			Type:           promotion.TypeFixedAmount,
+			Type:           TypeFixedAmount,
 			Value:          500,
 			MinOrderAmount: 1000,
 			Active:         true,
@@ -458,9 +456,9 @@ func TestService_Update(t *testing.T) {
 		newExpiresAt := time.Now().Add(2 * time.Hour)
 		newActive := false
 
-		result, err := svc.Update(context.Background(), id, promotion.UpdateParams{
+		result, err := svc.Update(context.Background(), id, UpdateParams{
 			Code:           "NEWCODE",
-			Type:           promotion.TypePercentage,
+			Type:           TypePercentage,
 			Value:          &newValue,
 			MinOrderAmount: &newMinOrder,
 			MaxDiscount:    &newMaxDiscount,
@@ -470,10 +468,10 @@ func TestService_Update(t *testing.T) {
 			Active:         &newActive,
 		})
 		require.NoError(t, err)
-		assert.Equal(t, &promotion.Promotion{
+		assert.Equal(t, &Promotion{
 			ID:             id,
 			Code:           "NEWCODE",
-			Type:           promotion.TypePercentage,
+			Type:           TypePercentage,
 			Value:          75,
 			MinOrderAmount: 2000,
 			MaxDiscount:    &newMaxDiscount,
@@ -491,8 +489,8 @@ func TestService_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		id := uuid.New()
 		repo.EXPECT().Delete(mock.Anything, id).Return(nil)
@@ -504,8 +502,8 @@ func TestService_Delete(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		id := uuid.New()
 		repo.EXPECT().Delete(mock.Anything, id).Return(apperror.ErrNotFound)
@@ -521,8 +519,8 @@ func TestService_Reserve(t *testing.T) {
 	t.Run("success percentage discount", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		promoID := uuid.New()
 		userID := uuid.New()
@@ -530,10 +528,10 @@ func TestService_Reserve(t *testing.T) {
 		maxDiscount := int64(500)
 
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:             promoID,
 				Code:           "SAVE20",
-				Type:           promotion.TypePercentage,
+				Type:           TypePercentage,
 				Value:          20,
 				MinOrderAmount: 1000,
 				MaxDiscount:    &maxDiscount,
@@ -552,11 +550,11 @@ func TestService_Reserve(t *testing.T) {
 	t.Run("validation error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().GetByCode(mock.Anything, "INACTIVE").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:        uuid.New(),
 				Code:      "INACTIVE",
 				Active:    false,
@@ -572,8 +570,8 @@ func TestService_Reserve(t *testing.T) {
 	t.Run("GetByCode error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		repo.EXPECT().GetByCode(mock.Anything, "UNKNOWN").Return(nil, apperror.ErrNotFound)
 
@@ -585,15 +583,15 @@ func TestService_Reserve(t *testing.T) {
 	t.Run("ApplyPromotion error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		promoID := uuid.New()
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:             promoID,
 				Code:           "SAVE20",
-				Type:           promotion.TypePercentage,
+				Type:           TypePercentage,
 				Value:          20,
 				MinOrderAmount: 1000,
 				Active:         true,
@@ -610,15 +608,15 @@ func TestService_Reserve(t *testing.T) {
 	t.Run("CreateUsage error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		promoID := uuid.New()
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
-			Return(&promotion.Promotion{
+			Return(&Promotion{
 				ID:             promoID,
 				Code:           "SAVE20",
-				Type:           promotion.TypePercentage,
+				Type:           TypePercentage,
 				Value:          20,
 				MinOrderAmount: 1000,
 				Active:         true,
@@ -642,13 +640,13 @@ func TestService_Release(t *testing.T) {
 	t.Run("success releases coupon", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		orderID := uuid.New()
 		couponID := uuid.New()
 		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).
-			Return(&promotion.CouponUsage{CouponID: couponID, Discount: 400}, nil)
+			Return(&CouponUsage{CouponID: couponID, Discount: 400}, nil)
 		repo.EXPECT().ReleasePromotion(mock.Anything, couponID).Return(nil)
 
 		err := svc.Release(context.Background(), orderID)
@@ -658,8 +656,8 @@ func TestService_Release(t *testing.T) {
 	t.Run("no usage is a no-op", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		orderID := uuid.New()
 		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
@@ -671,8 +669,8 @@ func TestService_Release(t *testing.T) {
 	t.Run("DeleteUsageByOrderID error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		orderID := uuid.New()
 		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).Return(nil, assert.AnError)
@@ -684,13 +682,13 @@ func TestService_Release(t *testing.T) {
 	t.Run("ReleasePromotion error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		repo := mocks.NewMockRepository(t)
-		svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+		repo := NewMockRepository(t)
+		svc := NewService(repo, testhelper.FakeTxRunner{})
 
 		orderID := uuid.New()
 		couponID := uuid.New()
 		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).
-			Return(&promotion.CouponUsage{CouponID: couponID, Discount: 400}, nil)
+			Return(&CouponUsage{CouponID: couponID, Discount: 400}, nil)
 		repo.EXPECT().ReleasePromotion(mock.Anything, couponID).Return(assert.AnError)
 
 		err := svc.Release(context.Background(), orderID)
