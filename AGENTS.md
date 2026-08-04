@@ -51,9 +51,6 @@ db/seeds/data.sql         seed data, applied by `make seed`
 db/OWNERSHIP.md           table -> owning module, read by the boundary check
 test/e2e/                 cross-module saga tests through the real router
 scripts/check-boundaries.sh   the architectural checks
-mocks/                    generated (mockery v3), one subdir per source package
-                          (except middleware's, generated in-package to avoid
-                          a mocks/middleware -> middleware import cycle)
 ```
 
 `internal/modules/` holds the **14 features** — `auth cart category dashboard
@@ -164,15 +161,12 @@ constraint that split them, which is why the separate leak-test file per
 feature is gone — its contents moved beside the implementation file declaring
 what they test.
 
-Three carve-outs remain, all cycles rather than preferences, and together
-they are the whole exception: 23 external test files, no more.
-`internal/modules/<feature>/service_test.go` (14 files, one per feature,
-`package <feature>_test`) import `mocks/<feature>`, which imports
-`<feature>`: flip `category/service_test.go`'s package clause to `category`
-and `go test -c ./internal/modules/category/` fails with an import cycle —
-every other feature-root `_test.go` file is in-package now, since the mock
-import is what forces the split and only the service test needs the mock.
-`test/e2e` (8 files, `package e2e_test`) imports concrete adapters —
+Two carve-outs remain, both cycles rather than preferences, and together
+they are the whole exception: 10 external test files, no more. The service
+tests are no longer among them: mocks generate in-package, so a mock no
+longer imports the package it mocks, and every feature-root `_test.go` file
+— `service_test.go` included — is `package <feature>`.
+`test/e2e` (9 files, `package e2e_test`) imports concrete adapters —
 `internal/modules/*/postgres`, `internal/bootstrap`,
 `internal/transport/http` — across every module the saga touches; no single
 feature package can own that without becoming a dependent of its siblings,
@@ -204,7 +198,7 @@ make run-worker
 make dev               # hot reload via air
 
 make test              # go test -v -race -count=1 -timeout 5m -cover ./...
-make test-coverage     # ./internal/... ./mocks/... ./test/... -> coverage.out + coverage.html
+make test-coverage     # ./internal/... ./test/... -> coverage.out + coverage.html
 make test-clean        # remove the shared postgres + redis test containers
 
 make check-boundaries  # the architectural checks; prints "Boundaries OK"
@@ -225,7 +219,7 @@ Two things about those last two are worth knowing:
   one command before calling work finished, use `make all`, or run
   `make check-boundaries` explicitly.
 - **`make test` runs `./...` while `make test-coverage` globs
-  `./internal/... ./mocks/... ./test/...`.** A new top-level test directory is
+  `./internal/... ./test/...`.** A new top-level test directory is
   picked up by the first and silently skipped by the second.
 
 Database commands need the goose CLI (`make migrate-install`; the Makefile
@@ -414,10 +408,17 @@ can produce a loud false positive.
   `assert.JSONEq` — Postgres normalises the whitespace.
 - **Test behaviour, not wiring.** Verify a returned value, an error, or a side
   effect.
-- **Mocks are generated** by mockery v3 from `.mockery.yml` into `mocks/` — with
-  one exception: `middleware`'s mocks generate in-package, because
-  `mocks/middleware` had exactly one consumer (the package's own test file) and
-  would otherwise cycle back to `middleware`. Run `make mocks`; never hand-edit.
+- **Mocks are generated** by mockery v3 from `.mockery.yml` **in-package**, as
+  `mocks_test.go` beside the interface they mock. A `_test.go` file never enters
+  its package's importable `GoFiles`, so the mock is private to that package and
+  cannot cycle back to it — which is what lets a service test be
+  `package <feature>`, and keeps every `Mock*` name out of the feature's exported
+  API. That privacy cuts both ways: any *other* package needing the same mock
+  gets its own generated copy, which is why each interface carries a
+  two-destination `configs:` list in `.mockery.yml` and why `internal/bootstrap`
+  receives `MockProductRepository` / `MockInventoryRepository` under
+  `structname:` — two interfaces both named `Repository` would otherwise collide
+  in one package. Run `make mocks`; never hand-edit a generated file.
   Use the expecter API (`repo.EXPECT().GetByID(mock.Anything, id).Return(...)`),
   never `repo.On("GetByID", ...)`.
 - **Keep tests fast.** Use `bcrypt.MinCost` for password hashes in tests
@@ -446,7 +447,7 @@ can produce a loud false positive.
 
 ## Guardrails
 
-- Never hand-edit `mocks/` — regenerate with `make mocks`.
+- Never hand-edit a generated `mocks_test.go` — regenerate with `make mocks`.
 - Never commit `.env`, secrets or API keys.
 - Run `make check-boundaries`, `make vet` and `make test` before calling a change
   complete. `make all` does all three plus lint and build.
