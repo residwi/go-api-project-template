@@ -28,7 +28,7 @@ import (
 
 func TestHandler_ListOrders(t *testing.T) {
 	t.Run("success with cursor pagination", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, repo, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		now := time.Now()
@@ -59,7 +59,7 @@ func TestHandler_ListOrders(t *testing.T) {
 	})
 
 	t.Run("missing auth context", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders", nil)
@@ -74,7 +74,7 @@ func TestHandler_ListOrders(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, repo, _, _ := setupOrderMux(t)
 		userID := uuid.New()
 		repo.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).Return(nil, errors.New("db error"))
 
@@ -86,7 +86,7 @@ func TestHandler_ListOrders(t *testing.T) {
 	})
 
 	t.Run("has more results triggers cursor", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, repo, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		now := time.Now()
@@ -127,7 +127,7 @@ func TestHandler_ListOrders(t *testing.T) {
 
 func TestHandler_GetOrder(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, repo, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
@@ -157,7 +157,7 @@ func TestHandler_GetOrder(t *testing.T) {
 	})
 
 	t.Run("missing auth context", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+uuid.NewString(), nil)
@@ -172,7 +172,7 @@ func TestHandler_GetOrder(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		w := httptest.NewRecorder()
@@ -190,7 +190,7 @@ func TestHandler_GetOrder(t *testing.T) {
 	})
 
 	t.Run("service error not found", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, repo, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
@@ -208,7 +208,7 @@ func TestHandler_GetOrder(t *testing.T) {
 
 func TestHandler_PlaceOrder(t *testing.T) {
 	t.Run("missing auth context", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders", nil)
@@ -223,7 +223,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("missing idempotency key", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		w := httptest.NewRecorder()
@@ -241,7 +241,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("invalid JSON body", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		w := httptest.NewRecorder()
@@ -255,7 +255,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("validation error missing payment method", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		w := httptest.NewRecorder()
@@ -274,7 +274,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 	})
 
 	t.Run("service error is handled gracefully", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, repo, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, mock.AnythingOfType("string")).
@@ -298,7 +298,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 	// alongside it; this test asserts the status a client actually observes, which
 	// an errors.Is check in the service test cannot do.
 	t.Run("mixed-currency cart is a 400, not a 500", func(t *testing.T) {
-		mux, repo, cart, _, _, _, _, _ := setupOrderMux(t)
+		mux, repo, cart, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, mock.AnythingOfType("string")).
@@ -331,7 +331,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 func TestHandler_RetryPayment(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo, _, _, payment, _, _, _ := setupOrderMux(t)
+		mux, repo, _, payment := setupOrderMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
@@ -362,7 +362,7 @@ func TestHandler_RetryPayment(t *testing.T) {
 	})
 
 	t.Run("missing auth context", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+uuid.NewString()+"/pay", nil)
@@ -377,7 +377,7 @@ func TestHandler_RetryPayment(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		w := httptest.NewRecorder()
@@ -394,7 +394,7 @@ func TestHandler_RetryPayment(t *testing.T) {
 	})
 
 	t.Run("invalid JSON body", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
@@ -408,7 +408,7 @@ func TestHandler_RetryPayment(t *testing.T) {
 	})
 
 	t.Run("validation error missing payment method", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
@@ -422,7 +422,7 @@ func TestHandler_RetryPayment(t *testing.T) {
 	})
 
 	t.Run("service error not found", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, repo, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
@@ -441,7 +441,7 @@ func TestHandler_RetryPayment(t *testing.T) {
 
 func TestHandler_CancelOrder(t *testing.T) {
 	t.Run("service error handled gracefully", func(t *testing.T) {
-		mux, repo, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, repo, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
@@ -464,7 +464,7 @@ func TestHandler_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("missing auth context", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+uuid.NewString()+"/cancel", nil)
@@ -479,7 +479,7 @@ func TestHandler_CancelOrder(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
-		mux, _, _, _, _, _, _, _ := setupOrderMux(t)
+		mux, _, _, _ := setupOrderMux(t)
 
 		userID := uuid.New()
 		w := httptest.NewRecorder()
@@ -576,15 +576,14 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 		"order_id must not appear on a line item -- it's an internal join key")
 }
 
+// setupOrderMux returns only the mocks these tests actually drive. The rest are
+// still constructed -- NewService needs all eight, and mockery's NewMockX(t)
+// registers the expectation assertions -- they are just not handed back.
 func setupOrderMux(t *testing.T) (
 	*http.ServeMux,
 	*orderMocks.MockRepository,
 	*orderMocks.MockCartProvider,
-	*orderMocks.MockInventoryReserver,
 	*orderMocks.MockPaymentInitiator,
-	*orderMocks.MockPaymentJobCanceller,
-	*orderMocks.MockCouponReserver,
-	*orderMocks.MockNotificationEnqueuer,
 ) {
 	repo := orderMocks.NewMockRepository(t)
 	cart := orderMocks.NewMockCartProvider(t)
@@ -606,7 +605,7 @@ func setupOrderMux(t *testing.T) (
 		Service:   svc,
 	})
 
-	return mux, repo, cart, inventory, payment, paymentCancel, coupons, notifications
+	return mux, repo, cart, payment
 }
 
 func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {

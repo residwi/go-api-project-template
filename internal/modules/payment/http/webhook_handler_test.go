@@ -78,7 +78,7 @@ func TestWebhookHandler_SignatureVerification(t *testing.T) {
 
 func TestWebhookHandler_HandleWebhook(t *testing.T) {
 	t.Run("success with valid JSON payload", func(t *testing.T) {
-		mux, repo, _, orders, _ := setupPaymentMux(t)
+		mux, repo, orders, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
 		orderID := uuid.New()
@@ -115,7 +115,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 	})
 
 	t.Run("invalid JSON returns 200", func(t *testing.T) {
-		mux, _, _, _, _ := setupPaymentMux(t)
+		mux, _, _, _ := setupPaymentMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader([]byte("not json")))
@@ -131,7 +131,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 		// amount mismatch) must not 5xx and leave money captured with the order
 		// unpaid. HandleWebhook now runs a compensating refund and acks the webhook
 		// with 200 so the gateway stops retrying into an already-handled failure.
-		mux, repo, _, orders, orderGet := setupPaymentMux(t)
+		mux, repo, orders, orderGet := setupPaymentMux(t)
 
 		paymentID := uuid.New()
 		orderID := uuid.New()

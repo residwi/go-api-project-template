@@ -28,7 +28,7 @@ import (
 
 func TestAdminHandler_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo, _, _, _ := setupPaymentMux(t)
+		mux, repo, _, _ := setupPaymentMux(t)
 
 		now := time.Now()
 		payments := []payment.Payment{
@@ -83,7 +83,7 @@ func TestAdminHandler_List(t *testing.T) {
 	})
 
 	t.Run("service error", func(t *testing.T) {
-		mux, repo, _, _, _ := setupPaymentMux(t)
+		mux, repo, _, _ := setupPaymentMux(t)
 
 		repo.EXPECT().ListAdmin(mock.Anything, mock.Anything).
 			Return(nil, 0, errors.New("db connection failed"))
@@ -103,7 +103,7 @@ func TestAdminHandler_List(t *testing.T) {
 
 func TestAdminHandler_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo, _, _, _ := setupPaymentMux(t)
+		mux, repo, _, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
 		now := time.Now()
@@ -142,7 +142,7 @@ func TestAdminHandler_Get(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
-		mux, _, _, _, _ := setupPaymentMux(t)
+		mux, _, _, _ := setupPaymentMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/payments/not-a-uuid", nil)
@@ -158,7 +158,7 @@ func TestAdminHandler_Get(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		mux, repo, _, _, _ := setupPaymentMux(t)
+		mux, repo, _, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(nil, apperror.ErrNotFound)
@@ -178,7 +178,7 @@ func TestAdminHandler_Get(t *testing.T) {
 
 func TestAdminHandler_Refund(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mux, repo, _, _, _ := setupPaymentMux(t)
+		mux, repo, _, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
 		orderID := uuid.New()
@@ -219,7 +219,7 @@ func TestAdminHandler_Refund(t *testing.T) {
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
-		mux, _, _, _, _ := setupPaymentMux(t)
+		mux, _, _, _ := setupPaymentMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/admin/payments/not-a-uuid/refund", nil)
@@ -235,7 +235,7 @@ func TestAdminHandler_Refund(t *testing.T) {
 	})
 
 	t.Run("payment not refundable", func(t *testing.T) {
-		mux, repo, _, _, _ := setupPaymentMux(t)
+		mux, repo, _, _ := setupPaymentMux(t)
 
 		paymentID := uuid.New()
 		p := &payment.Payment{
@@ -304,10 +304,12 @@ func TestToAdminPaymentResponse_OmitsGatewayResponse(t *testing.T) {
 		"the GatewayResponse field must not appear under any key")
 }
 
+// setupPaymentMux returns only the mocks these tests actually drive. The rest
+// are still constructed -- NewService needs all eight, and mockery's NewMockX(t)
+// registers the expectation assertions -- they are just not handed back.
 func setupPaymentMux(t *testing.T) (
 	*http.ServeMux,
 	*mocks.MockRepository,
-	*mocks.MockGateway,
 	*mocks.MockOrderUpdater,
 	*mocks.MockOrderGetter,
 ) {
@@ -328,5 +330,5 @@ func setupPaymentMux(t *testing.T) (
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
 	RegisterRoutes(api, admin, RouteDeps{Validator: v, Service: svc})
 
-	return mux, repo, gw, orders, orderGet
+	return mux, repo, orders, orderGet
 }
