@@ -104,7 +104,6 @@ func TestValidateToken(t *testing.T) {
 		accessToken, _, err := auth.GenerateTokenPair(secret, issuer, ttl, ttl, claims)
 		require.NoError(t, err)
 
-		// Flip multiple characters in the signature to ensure invalidation
 		tampered := accessToken[:len(accessToken)-5] + "XXXXX"
 
 		got, err := auth.ValidateToken(tampered, secret, issuer)
@@ -119,7 +118,6 @@ func TestValidateToken(t *testing.T) {
 	})
 
 	t.Run("unexpected signing method returns error", func(t *testing.T) {
-		// Create a token with "none" signing method — ValidateToken expects HMAC.
 		token := jwt.NewWithClaims(jwt.SigningMethodNone, jwt.MapClaims{
 			"user_id": uuid.New().String(),
 			"email":   "user@example.com",
