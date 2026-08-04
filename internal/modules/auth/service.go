@@ -136,7 +136,7 @@ func (s *Service) ValidateAccessToken(tokenString string) (*Claims, error) {
 	return ValidateToken(tokenString, s.jwtSecret, s.jwtIssuer)
 }
 
-// TokenValidatorAdapter adapts auth.Service to middleware.TokenValidator
+// TokenValidatorAdapter adapts auth.Service to middleware.TokenValidator.
 type TokenValidatorAdapter struct {
 	service *Service
 }

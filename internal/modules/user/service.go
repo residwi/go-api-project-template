@@ -23,7 +23,7 @@ func NewService(repo Repository, c StatusCache) *Service {
 	return &Service{repo: repo, cache: c}
 }
 
-// GetByEmail satisfies auth.UserProvider
+// GetByEmail satisfies auth.UserProvider.
 func (s *Service) GetByEmail(ctx context.Context, email string) (auth.UserCredentials, error) {
 	u, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
@@ -41,7 +41,7 @@ func (s *Service) GetByEmail(ctx context.Context, email string) (auth.UserCreden
 	}, nil
 }
 
-// Create satisfies auth.UserProvider
+// Create satisfies auth.UserProvider.
 func (s *Service) Create(ctx context.Context, params auth.CreateUserParams) (auth.UserResult, error) {
 	user := &User{
 		Email:        params.Email,
@@ -67,7 +67,7 @@ func (s *Service) Create(ctx context.Context, params auth.CreateUserParams) (aut
 	}, nil
 }
 
-// GetByID satisfies auth.UserProvider
+// GetByID satisfies auth.UserProvider.
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (auth.UserResult, error) {
 	u, err := s.repo.GetByID(ctx, id)
 	if err != nil {

@@ -503,7 +503,7 @@ func (s *Service) Apply(ctx context.Context, orderID uuid.UUID, t Transition) er
 	return s.repo.Apply(ctx, orderID, t)
 }
 
-// ListItemsByOrderID is used by payment service adapter
+// ListItemsByOrderID is used by payment service adapter.
 func (s *Service) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]Item, error) {
 	return s.repo.ListItemsByOrderID(ctx, orderID)
 }
