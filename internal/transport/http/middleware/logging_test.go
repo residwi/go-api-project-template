@@ -10,7 +10,7 @@ import (
 
 func TestLogging_CallsNextHandler(t *testing.T) {
 	called := false
-	handler := Logging(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := Logging(testLogger())(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -24,7 +24,7 @@ func TestLogging_CallsNextHandler(t *testing.T) {
 }
 
 func TestLogging_StatusRecorderRecordsStatusCode(t *testing.T) {
-	handler := Logging(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := Logging(testLogger())(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 

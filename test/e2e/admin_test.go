@@ -17,6 +17,8 @@ import (
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/config"
 	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
+
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
 func TestE2EAdminFlow(t *testing.T) {
@@ -102,7 +104,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	setup(t)
 	// Start a mock payment gateway server
 	mockMux := http.NewServeMux()
-	mockgatewayserver.RegisterRoutes(mockMux)
+	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -117,8 +119,9 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 				GatewayTimeout: 5 * time.Second,
 			},
 		},
-		Pool:  testPool,
-		Cache: testRedis,
+		Pool:   testPool,
+		Cache:  testRedis,
+		Logger: testhelper.DiscardLogger(),
 	}
 	handler := apihttp.NewRouter(deps)
 	ctx := context.Background()

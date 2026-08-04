@@ -18,6 +18,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
+
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
 // TestE2ELatePaymentSuccessOnCancelledOrder drives the *transition into*
@@ -36,7 +38,7 @@ import (
 func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 	setup(t)
 	mockMux := http.NewServeMux()
-	mockgatewayserver.RegisterRoutes(mockMux)
+	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -51,8 +53,9 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 				GatewayTimeout: 5 * time.Second,
 			},
 		},
-		Pool:  testPool,
-		Cache: testRedis,
+		Pool:   testPool,
+		Cache:  testRedis,
+		Logger: testhelper.DiscardLogger(),
 	}
 	handler := apihttp.NewRouter(deps)
 	ctx := context.Background()

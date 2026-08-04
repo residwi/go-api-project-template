@@ -11,11 +11,12 @@ import (
 )
 
 type Service struct {
-	repo Repository
+	repo   Repository
+	logger *slog.Logger
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, log *slog.Logger) *Service {
+	return &Service{repo: repo, logger: log}
 }
 
 func (s *Service) Send(ctx context.Context, userID uuid.UUID, typ Type, title, body string, data []byte) error {
@@ -85,7 +86,7 @@ func (s *Service) Process(ctx context.Context, job Job) error {
 			job.Status = JobStatusPending
 		}
 		if updateErr := s.repo.UpdateJob(ctx, &job); updateErr != nil {
-			slog.ErrorContext(ctx, "failed to update notification job after failure", "job_id", job.ID, "error", updateErr)
+			s.logger.ErrorContext(ctx, "failed to update notification job after failure", slog.Any("job_id", job.ID), slog.Any("error", updateErr))
 		}
 		return fmt.Errorf("processing notification: %w", err)
 	}

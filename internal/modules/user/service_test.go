@@ -16,6 +16,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	mocks "github.com/residwi/go-api-project-template/mocks/user"
+
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
 func TestService_CheckStatus(t *testing.T) {
@@ -30,7 +32,7 @@ func TestService_CheckStatus(t *testing.T) {
 		c := mocks.NewMockStatusCache(t)
 		c.EXPECT().Get(mock.Anything, userID).
 			Return(user.StatusSnapshot{Active: true, TokenVersion: 42}, true, nil)
-		svc := user.NewService(repo, c)
+		svc := user.NewService(repo, c, testhelper.DiscardLogger())
 
 		got, err := svc.CheckStatus(context.Background(), userID)
 
@@ -47,7 +49,7 @@ func TestService_CheckStatus(t *testing.T) {
 		c.EXPECT().Get(mock.Anything, userID).Return(user.StatusSnapshot{}, false, nil)
 		c.EXPECT().Put(mock.Anything, userID,
 			user.StatusSnapshot{Active: true, TokenVersion: 7}, 30*time.Second).Return(nil)
-		svc := user.NewService(repo, c)
+		svc := user.NewService(repo, c, testhelper.DiscardLogger())
 
 		got, err := svc.CheckStatus(context.Background(), userID)
 
@@ -64,7 +66,7 @@ func TestService_CheckStatus(t *testing.T) {
 		c.EXPECT().Get(mock.Anything, userID).
 			Return(user.StatusSnapshot{}, false, errors.New("backend down"))
 		c.EXPECT().Put(mock.Anything, userID, mock.Anything, mock.Anything).Return(nil)
-		svc := user.NewService(repo, c)
+		svc := user.NewService(repo, c, testhelper.DiscardLogger())
 
 		got, err := svc.CheckStatus(context.Background(), userID)
 
@@ -81,7 +83,7 @@ func TestService_CheckStatus(t *testing.T) {
 		c.EXPECT().Get(mock.Anything, userID).Return(user.StatusSnapshot{}, false, nil)
 		c.EXPECT().Put(mock.Anything, userID,
 			user.StatusSnapshot{Active: false, TokenVersion: 4}, 30*time.Second).Return(nil)
-		svc := user.NewService(repo, c)
+		svc := user.NewService(repo, c, testhelper.DiscardLogger())
 
 		got, err := svc.CheckStatus(context.Background(), userID)
 
@@ -96,7 +98,7 @@ func TestService_CheckStatus(t *testing.T) {
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 0, apperror.ErrNotFound)
 		c := mocks.NewMockStatusCache(t)
 		c.EXPECT().Get(mock.Anything, userID).Return(user.StatusSnapshot{}, false, nil)
-		svc := user.NewService(repo, c)
+		svc := user.NewService(repo, c, testhelper.DiscardLogger())
 
 		got, err := svc.CheckStatus(context.Background(), userID)
 
@@ -113,7 +115,7 @@ func TestService_CheckStatus(t *testing.T) {
 		c.EXPECT().Get(mock.Anything, userID).Return(user.StatusSnapshot{}, false, nil)
 		c.EXPECT().Put(mock.Anything, userID, mock.Anything, mock.Anything).
 			Return(errors.New("backend down"))
-		svc := user.NewService(repo, c)
+		svc := user.NewService(repo, c, testhelper.DiscardLogger())
 
 		got, err := svc.CheckStatus(context.Background(), userID)
 
@@ -126,7 +128,7 @@ func TestService_CheckStatus(t *testing.T) {
 
 		repo := mocks.NewMockRepository(t)
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 9, nil)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		got, err := svc.CheckStatus(context.Background(), userID)
 
@@ -142,7 +144,7 @@ func TestService_GetByEmail(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		id := uuid.New()
 		repo.EXPECT().GetByEmail(mock.Anything, "alice@example.com").
@@ -175,7 +177,7 @@ func TestService_GetByEmail(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		repo.EXPECT().GetByEmail(mock.Anything, "nobody@example.com").
 			Return(nil, apperror.ErrNotFound)
@@ -192,7 +194,7 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*user.User")).
 			Run(func(_ context.Context, u *user.User) {
@@ -224,7 +226,7 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*user.User")).
 			Return(apperror.ErrConflict)
@@ -246,7 +248,7 @@ func TestService_GetByID(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -277,7 +279,7 @@ func TestService_GetByID(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -294,7 +296,7 @@ func TestService_CheckStatus_RepoErrorPropagates(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		dbErr := errors.New("database timeout")
 		repo.EXPECT().GetStatusByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
@@ -312,7 +314,7 @@ func TestService_GetProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		id := uuid.New()
 		expected := &user.User{
@@ -335,7 +337,7 @@ func TestService_GetProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -352,7 +354,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		id := uuid.New()
 		existing := &user.User{
@@ -388,7 +390,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		id := uuid.New()
 		existing := &user.User{
@@ -414,7 +416,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -427,7 +429,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		id := uuid.New()
 		existing := &user.User{
@@ -455,7 +457,7 @@ func TestService_List(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		params := user.ListParams{Page: 1, PageSize: 10}
 		users := []user.User{
@@ -478,7 +480,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		id := uuid.New()
 		existing := &user.User{
@@ -511,7 +513,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -524,7 +526,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		id := uuid.New()
 		existing := &user.User{
@@ -548,7 +550,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		id := uuid.New()
 		existing := &user.User{
@@ -591,7 +593,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -616,7 +618,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		sameID := uuid.New()
 
@@ -632,7 +634,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -656,7 +658,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -682,7 +684,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -708,7 +710,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -725,7 +727,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -755,7 +757,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -778,7 +780,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		sameID := uuid.New()
 
@@ -793,7 +795,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -816,7 +818,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -832,7 +834,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -857,7 +859,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -881,7 +883,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := user.NewService(repo, user.NoCache{})
+		svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -907,7 +909,7 @@ func TestService_Delete_RejectsSelfDeleteByName(t *testing.T) {
 	t.Parallel()
 
 	repo := mocks.NewMockRepository(t)
-	svc := user.NewService(repo, user.NoCache{})
+	svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 
 	actorID := uuid.New()
 

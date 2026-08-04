@@ -1,6 +1,8 @@
 package http
 
 import (
+	"log/slog"
+
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
@@ -10,10 +12,11 @@ type RouteDeps struct {
 	Validator     *validator.Validator
 	Service       *payment.Service
 	WebhookSecret string
+	Logger        *slog.Logger
 }
 
 func RegisterRoutes(api *middleware.RouteGroup, admin *middleware.RouteGroup, deps RouteDeps) {
-	wh := &webhookHandler{service: deps.Service, secret: deps.WebhookSecret}
+	wh := &webhookHandler{service: deps.Service, secret: deps.WebhookSecret, logger: deps.Logger}
 	adm := &adminHandler{service: deps.Service, validator: deps.Validator}
 
 	api.HandleFunc("POST /payments/webhook", wh.HandleWebhook)

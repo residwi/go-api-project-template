@@ -1,15 +1,16 @@
 package main
 
 import (
-	"log/slog"
-	"os"
+	"log"
 
 	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 )
 
 func main() {
+	// Stdlib log, not slog: apihttp.Run is what builds the application logger,
+	// and the errors reported here are the ones that happen before or instead of
+	// that.
 	if err := apihttp.Run(); err != nil {
-		slog.Error("server failed to start", "error", err)
-		os.Exit(1)
+		log.Fatalf("server failed to start: %v", err)
 	}
 }

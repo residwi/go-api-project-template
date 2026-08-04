@@ -17,20 +17,24 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
-func Logging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		recorder := &statusRecorder{ResponseWriter: w, statusCode: http.StatusOK}
+// Logging takes the logger up front and returns the middleware, because there
+// is no package-level default left to reach for.
+func Logging(log *slog.Logger) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			recorder := &statusRecorder{ResponseWriter: w, statusCode: http.StatusOK}
 
-		next.ServeHTTP(recorder, r)
+			next.ServeHTTP(recorder, r)
 
-		slog.InfoContext(r.Context(), "request completed",
-			"method", r.Method,
-			"path", r.URL.Path,
-			"status", recorder.statusCode,
-			"duration", time.Since(start).String(),
-			"remote_addr", r.RemoteAddr,
-			"request_id", GetRequestID(r.Context()),
-		)
-	})
+			log.InfoContext(r.Context(), "request completed",
+				slog.String("method", r.Method),
+				slog.String("path", r.URL.Path),
+				slog.Int("status", recorder.statusCode),
+				slog.String("duration", time.Since(start).String()),
+				slog.String("remote_addr", r.RemoteAddr),
+				slog.String("request_id", GetRequestID(r.Context())),
+			)
+		})
+	}
 }

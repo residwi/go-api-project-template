@@ -8,26 +8,30 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-func Recovery(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rw := &recoverWriter{ResponseWriter: w}
-		defer func() {
-			if err := recover(); err != nil {
-				slog.ErrorContext(r.Context(), "panic recovered",
-					"error", err,
-					"stack", string(debug.Stack()),
-					"request_id", GetRequestID(r.Context()),
-				)
-				// Only emit a 500 if the handler hadn't already started writing the
-				// response; otherwise we'd produce a superfluous WriteHeader and a
-				// corrupt, double-encoded body.
-				if !rw.wrote {
-					response.InternalError(rw)
+// Recovery takes the logger up front and returns the middleware, because there
+// is no package-level default left to reach for.
+func Recovery(log *slog.Logger) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rw := &recoverWriter{ResponseWriter: w}
+			defer func() {
+				if err := recover(); err != nil {
+					log.ErrorContext(r.Context(), "panic recovered",
+						slog.Any("error", err),
+						slog.String("stack", string(debug.Stack())),
+						slog.String("request_id", GetRequestID(r.Context())),
+					)
+					// Only emit a 500 if the handler hadn't already started writing the
+					// response; otherwise we'd produce a superfluous WriteHeader and a
+					// corrupt, double-encoded body.
+					if !rw.wrote {
+						response.InternalError(rw)
+					}
 				}
-			}
-		}()
-		next.ServeHTTP(rw, r)
-	})
+			}()
+			next.ServeHTTP(rw, r)
+		})
+	}
 }
 
 // recoverWriter tracks whether the response has been started so Recovery can

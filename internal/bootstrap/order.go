@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/google/uuid"
 
@@ -21,6 +22,7 @@ func NewOrderService(
 	inventorySvc *inventory.Service,
 	promotionSvc *promotion.Service,
 	notificationSvc *notification.Service,
+	log *slog.Logger,
 ) *order.Service {
 	return order.NewService(
 		repo, tx,
@@ -30,6 +32,7 @@ func NewOrderService(
 		nil,
 		promotionSvc,
 		notificationSvc,
+		log,
 	)
 }
 

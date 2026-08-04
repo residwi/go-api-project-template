@@ -20,6 +20,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	notifMocks "github.com/residwi/go-api-project-template/mocks/notification"
+
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
 func TestHandler_List_Success(t *testing.T) {
@@ -398,7 +400,7 @@ func newTestHandler() *handler {
 
 func setupNotificationMux(t *testing.T) (*http.ServeMux, *notifMocks.MockRepository, middleware.UserContext) {
 	repo := notifMocks.NewMockRepository(t)
-	svc := notification.NewService(repo)
+	svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")

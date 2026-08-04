@@ -21,7 +21,7 @@ func TestRateLimit(t *testing.T) {
 	})
 
 	t.Run("nil redis passes through", func(t *testing.T) {
-		handler := RateLimit(nil, 10, time.Minute)(okHandler)
+		handler := RateLimit(testLogger(), nil, 10, time.Minute)(okHandler)
 
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
@@ -37,7 +37,7 @@ func TestRateLimit(t *testing.T) {
 		})
 
 		const maxRequests = 5
-		handler := RateLimit(testRedis, maxRequests, time.Minute)(okHandler)
+		handler := RateLimit(testLogger(), testRedis, maxRequests, time.Minute)(okHandler)
 
 		for i := range 3 {
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -56,7 +56,7 @@ func TestRateLimit(t *testing.T) {
 		})
 
 		const maxRequests = 5
-		handler := RateLimit(testRedis, maxRequests, time.Minute)(okHandler)
+		handler := RateLimit(testLogger(), testRedis, maxRequests, time.Minute)(okHandler)
 
 		for i := range maxRequests {
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -78,7 +78,7 @@ func TestRateLimit(t *testing.T) {
 	})
 
 	t.Run("redis error allows request through", func(t *testing.T) {
-		handler := RateLimit(testRedis, 10, time.Minute)(okHandler)
+		handler := RateLimit(testLogger(), testRedis, 10, time.Minute)(okHandler)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // cancel immediately to cause redis error
@@ -102,7 +102,7 @@ func TestRateLimit(t *testing.T) {
 		hookedClient.AddHook(expireFailHook{})
 		defer hookedClient.Close()
 
-		handler := RateLimit(hookedClient, 10, time.Minute)(okHandler)
+		handler := RateLimit(testLogger(), hookedClient, 10, time.Minute)(okHandler)
 
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		r.RemoteAddr = "10.0.0.99:12345"
@@ -119,7 +119,7 @@ func TestRateLimit(t *testing.T) {
 		})
 
 		const maxRequests = 5
-		handler := RateLimit(testRedis, maxRequests, time.Minute)(okHandler)
+		handler := RateLimit(testLogger(), testRedis, maxRequests, time.Minute)(okHandler)
 
 		// Exhaust limit for IP1
 		for i := range maxRequests {

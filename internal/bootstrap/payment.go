@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/google/uuid"
 
@@ -106,6 +107,7 @@ func NewPaymentService(
 	orderSvc *order.Service,
 	inventorySvc *inventory.Service,
 	promotionSvc *promotion.Service,
+	log *slog.Logger,
 ) *payment.Service {
 	return payment.NewService(
 		repo, tx, gw,
@@ -115,6 +117,7 @@ func NewPaymentService(
 		&inventoryDeductorAdapter{svc: inventorySvc},
 		&inventoryRestorerAdapter{svc: inventorySvc},
 		promotionSvc, // satisfies payment.CouponReleaser directly
+		log,
 	)
 }
 

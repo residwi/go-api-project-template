@@ -655,7 +655,7 @@ func setupOrderMux(t *testing.T) (
 	coupons := orderMocks.NewMockCouponReserver(t)
 	notifications := orderMocks.NewMockNotificationEnqueuer(t)
 
-	svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, payment, paymentCancel, coupons, notifications)
+	svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, payment, paymentCancel, coupons, notifications, testhelper.DiscardLogger())
 	v := validator.New()
 
 	mux := http.NewServeMux()

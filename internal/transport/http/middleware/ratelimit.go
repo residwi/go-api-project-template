@@ -35,7 +35,7 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
-func RateLimit(rdb *redis.Client, maxRequests int, window time.Duration) Middleware {
+func RateLimit(log *slog.Logger, rdb *redis.Client, maxRequests int, window time.Duration) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Disabled (no Redis) or misconfigured (non-positive limit/window):
@@ -57,14 +57,14 @@ func RateLimit(rdb *redis.Client, maxRequests int, window time.Duration) Middlew
 
 			count, err := rdb.Incr(r.Context(), key).Result()
 			if err != nil {
-				slog.WarnContext(r.Context(), "rate limit redis error, allowing request", "error", err)
+				log.WarnContext(r.Context(), "rate limit redis error, allowing request", slog.Any("error", err))
 				next.ServeHTTP(w, r)
 				return
 			}
 
 			if count == 1 {
 				if err := rdb.Expire(r.Context(), key, window+5*time.Second).Err(); err != nil {
-					slog.WarnContext(r.Context(), "rate limit expire error", "error", err)
+					log.WarnContext(r.Context(), "rate limit expire error", slog.Any("error", err))
 				}
 			}
 

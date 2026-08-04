@@ -30,6 +30,7 @@ func newExpiryService(t *testing.T) *order.Service {
 		inventory.NewService(inventorypg.New(testPool)),
 		nil,
 		nil,
+		testhelper.DiscardLogger(),
 	)
 }
 

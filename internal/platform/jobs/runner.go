@@ -37,10 +37,11 @@ type Config struct {
 
 // Runner drives a Queue and a Processor on an interval.
 type Runner[T any] struct {
-	name  string
-	queue Queue[T]
-	proc  Processor[T]
-	cfg   Config
+	name   string
+	queue  Queue[T]
+	proc   Processor[T]
+	cfg    Config
+	logger *slog.Logger
 }
 
 // leaseSafetyDivisor bounds a job's processing timeout to lease - lease/divisor
@@ -49,8 +50,8 @@ type Runner[T any] struct {
 // coincide, letting two workers run the same job at the boundary.
 const leaseSafetyDivisor = 5
 
-func NewRunner[T any](name string, queue Queue[T], proc Processor[T], cfg Config) *Runner[T] {
-	return &Runner[T]{name: name, queue: queue, proc: proc, cfg: cfg}
+func NewRunner[T any](name string, queue Queue[T], proc Processor[T], cfg Config, log *slog.Logger) *Runner[T] {
+	return &Runner[T]{name: name, queue: queue, proc: proc, cfg: cfg, logger: log}
 }
 
 // Start runs the loop until ctx is cancelled.
@@ -74,23 +75,23 @@ func (r *Runner[T]) tick(ctx context.Context) {
 	// it). Contain it to this tick.
 	defer func() {
 		if rec := recover(); rec != nil {
-			slog.ErrorContext(ctx, "tick panicked", "runner", r.name, "panic", rec)
+			r.logger.ErrorContext(ctx, "tick panicked", slog.Any("runner", r.name), slog.Any("panic", rec))
 		}
 	}()
 
 	if sweeper, ok := r.proc.(Sweeper); ok {
 		if err := sweeper.Sweep(ctx); err != nil {
-			slog.ErrorContext(ctx, "sweep failed", "runner", r.name, "error", err)
+			r.logger.ErrorContext(ctx, "sweep failed", slog.Any("runner", r.name), slog.Any("error", err))
 		}
 	}
 
 	if _, err := r.queue.Prune(ctx, r.cfg.PruneAge, r.cfg.PruneLimit); err != nil {
-		slog.ErrorContext(ctx, "prune jobs failed", "runner", r.name, "error", err)
+		r.logger.ErrorContext(ctx, "prune jobs failed", slog.Any("runner", r.name), slog.Any("error", err))
 	}
 
 	batch, err := r.queue.Claim(ctx, r.cfg.BatchSize, r.cfg.LeaseDuration)
 	if err != nil {
-		slog.ErrorContext(ctx, "claim jobs failed", "runner", r.name, "error", err)
+		r.logger.ErrorContext(ctx, "claim jobs failed", slog.Any("runner", r.name), slog.Any("error", err))
 		return
 	}
 
@@ -120,12 +121,12 @@ func (r *Runner[T]) processOne(ctx context.Context, job T, deadline time.Time) {
 	// A Process panic must not take down the worker; isolate it to this job.
 	defer func() {
 		if rec := recover(); rec != nil {
-			slog.ErrorContext(ctx, "job panicked", "runner", r.name, "panic", rec)
+			r.logger.ErrorContext(ctx, "job panicked", slog.Any("runner", r.name), slog.Any("panic", rec))
 		}
 	}()
 	jobCtx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	if err := r.proc.Process(jobCtx, job); err != nil {
-		slog.WarnContext(ctx, "job did not complete", "runner", r.name, "error", err)
+		r.logger.WarnContext(ctx, "job did not complete", slog.Any("runner", r.name), slog.Any("error", err))
 	}
 }

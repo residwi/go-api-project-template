@@ -410,22 +410,30 @@ linters:
         - github.com/jmoiron/sqlx
 
     sloglint:
-      # Enforce not using global loggers.
-      # Values:
-      # - "": disabled
-      # - "all": report all global loggers
-      # - "default": report only the default slog logger
-      # https://github.com/go-simpler/sloglint?tab=readme-ov-file#no-global
-      # Default: ""
-      no-global: "" # disabled because to keeping it simple and default logger is setup on initialization in app/app.go
-      # Enforce using methods that accept a context.
-      # Values:
-      # - "": disabled
-      # - "all": report all contextless calls
-      # - "scope": report only if a context exists in the scope of the outermost function
-      # https://github.com/go-simpler/sloglint?tab=readme-ov-file#context-only
-      # Default: ""
+      # Report the use of global loggers.
+      # https://github.com/go-simpler/sloglint#no-global-logger
+      # Values: "all", "default"
+      # Default: "" (disabled)
+      no-global: all
+      # Report the use of functions without a context.Context.
+      # https://github.com/go-simpler/sloglint#context-only
+      # Values: "all", "scope"
+      # Default: "" (disabled)
       context: scope
+      # Report log messages that do not match a particular style.
+      # https://github.com/go-simpler/sloglint#message-style
+      # Values: "lowercased", "capitalized"
+      # Default: ""
+      msg-style: lowercased
+      # Report any use of key-value pairs as function call arguments.
+      # https://github.com/go-simpler/sloglint#attributes-only
+      # Default: false
+      attr-only: true
+      # Report log keys that do not match a particular naming case.
+      # https://github.com/go-simpler/sloglint#key-naming-case
+      # Values: "snake", "kebab", "camel", "pascal"
+      # Default: ""
+      key-naming-case: snake
 
     staticcheck:
       # SAxxxx checks in https://staticcheck.dev/docs/configuration/options/#checks

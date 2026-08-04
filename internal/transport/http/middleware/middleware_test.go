@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -19,6 +20,13 @@ func TestMain(m *testing.M) {
 	defer cleanup()
 	testRedis = rdb
 	os.Exit(m.Run())
+}
+
+// testLogger is what the middleware under test log into. Nothing asserts on the
+// output, and logger.Setup no longer installs a package default, so a discard
+// handler is the whole requirement.
+func testLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
 }
 
 func TestChain_AppliesMiddlewareInCorrectOrder(t *testing.T) {

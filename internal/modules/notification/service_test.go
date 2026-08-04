@@ -14,6 +14,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	mocks "github.com/residwi/go-api-project-template/mocks/notification"
+
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
 func TestService_Send(t *testing.T) {
@@ -23,7 +25,7 @@ func TestService_Send(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -44,7 +46,7 @@ func TestService_Send(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -63,7 +65,7 @@ func TestService_ListByUser(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -84,7 +86,7 @@ func TestService_ListByUser(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -104,7 +106,7 @@ func TestService_MarkRead(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -120,7 +122,7 @@ func TestService_MarkRead(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -140,7 +142,7 @@ func TestService_MarkAllRead(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -155,7 +157,7 @@ func TestService_MarkAllRead(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -174,7 +176,7 @@ func TestService_CountUnread(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -190,7 +192,7 @@ func TestService_CountUnread(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -209,7 +211,7 @@ func TestService_EnqueueOrderPlaced(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -233,7 +235,7 @@ func TestService_EnqueueOrderPlaced(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -256,7 +258,7 @@ func TestService_Process(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -292,7 +294,7 @@ func TestService_Process(t *testing.T) {
 		t.Parallel()
 
 		repo := mocks.NewMockRepository(t)
-		svc := notification.NewService(repo)
+		svc := notification.NewService(repo, testhelper.DiscardLogger())
 
 		ctx := context.Background()
 		job := notification.Job{

@@ -4,6 +4,7 @@
 package main
 
 import (
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,15 +17,15 @@ func main() {
 	if addr == "" {
 		addr = ":9090"
 	}
-	slog.Info("mock payment gateway listening", "addr", addr)
-	if err := http.ListenAndServe(addr, newMux()); err != nil { //nolint:gosec // dev-only tool
-		slog.Error("mock gateway failed", "error", err)
-		os.Exit(1)
+	appLog := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	appLog.Info("mock payment gateway listening", slog.String("addr", addr))
+	if err := http.ListenAndServe(addr, newMux(appLog)); err != nil { //nolint:gosec // dev-only tool
+		log.Fatalf("mock gateway failed: %v", err)
 	}
 }
 
-func newMux() *http.ServeMux {
+func newMux(appLog *slog.Logger) *http.ServeMux {
 	mux := http.NewServeMux()
-	mockserver.RegisterRoutes(mux)
+	mockserver.RegisterRoutes(mux, appLog)
 	return mux
 }

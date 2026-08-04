@@ -21,6 +21,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 	userMocks "github.com/residwi/go-api-project-template/mocks/user"
+
+	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
 func TestHandler_GetProfile(t *testing.T) {
@@ -294,7 +296,7 @@ func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 
 func setupUserMux(t *testing.T) (*http.ServeMux, *userMocks.MockRepository) {
 	repo := userMocks.NewMockRepository(t)
-	svc := user.NewService(repo, user.NoCache{})
+	svc := user.NewService(repo, user.NoCache{}, testhelper.DiscardLogger())
 	v := validator.New()
 
 	mux := http.NewServeMux()

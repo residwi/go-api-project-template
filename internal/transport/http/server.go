@@ -36,7 +36,7 @@ func RunContext(ctx context.Context) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	logger.Setup(cfg.Log.Level, cfg.Log.Format)
+	log := logger.Setup(cfg.Log.Level, cfg.Log.Format)
 
 	pool, err := database.NewPostgres(ctx, cfg.Database)
 	if err != nil {
@@ -47,7 +47,7 @@ func RunContext(ctx context.Context) error {
 	readerPool, err := database.NewReaderPostgres(ctx, cfg.Database)
 	if err != nil {
 		if !errors.Is(err, apperror.ErrReaderNotConfigured) {
-			slog.WarnContext(ctx, "failed to connect reader database, using primary", "error", err)
+			log.WarnContext(ctx, "failed to connect reader database, using primary", slog.Any("error", err))
 		}
 		readerPool = nil
 	}
@@ -57,7 +57,7 @@ func RunContext(ctx context.Context) error {
 
 	rdb, err := cache.NewRedis(ctx, cfg.Redis)
 	if err != nil {
-		slog.WarnContext(ctx, "failed to connect to redis, continuing without cache/rate-limiting", "error", err)
+		log.WarnContext(ctx, "failed to connect to redis, continuing without cache/rate-limiting", slog.Any("error", err))
 	}
 	if rdb != nil {
 		defer rdb.Close()
@@ -68,6 +68,7 @@ func RunContext(ctx context.Context) error {
 		Pool:       pool,
 		ReaderPool: readerPool,
 		Cache:      rdb,
+		Logger:     log,
 	}
 
 	handler := NewRouter(deps)
@@ -81,14 +82,14 @@ func RunContext(ctx context.Context) error {
 	}
 
 	go func() {
-		slog.InfoContext(ctx, "server starting", "port", cfg.App.Port, "env", cfg.App.Env)
+		log.InfoContext(ctx, "server starting", slog.Any("port", cfg.App.Port), slog.Any("env", cfg.App.Env))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.ErrorContext(ctx, "server error", "error", err)
+			log.ErrorContext(ctx, "server error", slog.Any("error", err))
 		}
 	}()
 
 	<-ctx.Done()
-	slog.InfoContext(ctx, "shutting down server...")
+	log.InfoContext(ctx, "shutting down server...")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.App.ShutdownTimeout)
 	defer cancel()
@@ -97,7 +98,7 @@ func RunContext(ctx context.Context) error {
 		return fmt.Errorf("server shutdown: %w", err)
 	}
 
-	slog.InfoContext(ctx, "server stopped gracefully")
+	log.InfoContext(ctx, "server stopped gracefully")
 	return nil
 }
 
@@ -107,4 +108,8 @@ type Deps struct {
 	ReaderPool *pgxpool.Pool
 	// Cache is the shared Redis connection, named for its principal consumer.
 	Cache *redis.Client
+	// Logger is threaded to every component that logs. There is no package-level
+	// default to fall back on -- logger.Setup does not install one -- so a nil
+	// here is a wiring bug, not a silent downgrade.
+	Logger *slog.Logger
 }

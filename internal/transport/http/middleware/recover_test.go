@@ -9,7 +9,7 @@ import (
 )
 
 func TestRecovery_CatchesPanicAndReturns500(t *testing.T) {
-	handler := Recovery(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+	handler := Recovery(testLogger())(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		panic("something went wrong")
 	}))
 
@@ -22,7 +22,7 @@ func TestRecovery_CatchesPanicAndReturns500(t *testing.T) {
 
 func TestRecovery_PassesThroughNormalRequest(t *testing.T) {
 	called := false
-	handler := Recovery(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := Recovery(testLogger())(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	}))

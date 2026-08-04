@@ -65,7 +65,7 @@ import (
 func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table: length is inherent to registering every feature's routes in one place
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /health", healthHandler(deps.Pool, deps.Cache))
+	mux.HandleFunc("GET /health", healthHandler(deps.Logger, deps.Pool, deps.Cache))
 
 	v := validator.New()
 
@@ -89,7 +89,7 @@ func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table
 	if deps.Cache != nil {
 		userCache = userredis.New(deps.Cache)
 	}
-	userSvc := user.NewService(userRepo, userCache)
+	userSvc := user.NewService(userRepo, userCache, deps.Logger)
 	inventorySvc := inventory.NewService(inventoryRepo)
 	productSvc := bootstrap.NewProductService(productRepo, inventorySvc)
 	categorySvc := bootstrap.NewCategoryService(categoryRepo, productSvc)
@@ -103,16 +103,16 @@ func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table
 	)
 	authSvc.SetBcryptCost(deps.Config.App.BcryptCost)
 	promotionSvc := promotion.NewService(promotionRepo, txRunner)
-	notificationSvc := notification.NewService(notificationRepo)
+	notificationSvc := notification.NewService(notificationRepo, deps.Logger)
 	wishlistSvc := wishlist.NewService(wishlistRepo)
 	dashboardSvc := dashboard.NewService(dashboardRepo)
 
-	orderSvc := bootstrap.NewOrderService(orderRepo, txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc)
+	orderSvc := bootstrap.NewOrderService(orderRepo, txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc, deps.Logger)
 
 	cfg := deps.Config
 	gw := mockgateway.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 
-	paymentSvc := bootstrap.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc)
+	paymentSvc := bootstrap.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc, deps.Logger)
 	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
 
 	shippingSvc, shippingOrderProvider := bootstrap.NewShippingService(shippingRepo, txRunner, orderSvc)
@@ -129,12 +129,12 @@ func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table
 
 	// Auth endpoints run synchronous bcrypt and are unauthenticated, so they get
 	// a dedicated per-IP rate limiter to blunt credential-stuffing / CPU exhaustion.
-	authLimiter := middleware.RateLimit(deps.Cache, deps.Config.App.AuthRateLimit, deps.Config.App.AuthRateWindow)
+	authLimiter := middleware.RateLimit(deps.Logger, deps.Cache, deps.Config.App.AuthRateLimit, deps.Config.App.AuthRateWindow)
 	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
 
 	// Throttle order placement/payment-retry (each runs a cart-lock + reserve +
 	// charge); wired into order routes for the write endpoints only.
-	orderWriteLimiter := middleware.RateLimit(deps.Cache, deps.Config.App.OrderRateLimit, deps.Config.App.OrderRateWindow)
+	orderWriteLimiter := middleware.RateLimit(deps.Logger, deps.Cache, deps.Config.App.OrderRateLimit, deps.Config.App.OrderRateWindow)
 
 	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Service: authSvc})
 	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Service: userSvc})
@@ -143,7 +143,7 @@ func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table
 	inventoryhttp.RegisterRoutes(admin, inventoryhttp.RouteDeps{Validator: v, Service: inventorySvc})
 	carthttp.RegisterRoutes(authed, carthttp.RouteDeps{Validator: v, Service: cartSvc})
 	orderhttp.RegisterRoutes(authed, admin, orderhttp.RouteDeps{Validator: v, Service: orderSvc, WriteLimiter: orderWriteLimiter})
-	paymenthttp.RegisterRoutes(api, admin, paymenthttp.RouteDeps{Validator: v, Service: paymentSvc, WebhookSecret: cfg.Payment.WebhookSecret})
+	paymenthttp.RegisterRoutes(api, admin, paymenthttp.RouteDeps{Validator: v, Service: paymentSvc, WebhookSecret: cfg.Payment.WebhookSecret, Logger: deps.Logger})
 	shippinghttp.RegisterRoutes(authed, admin, shippinghttp.RouteDeps{Validator: v, Service: shippingSvc, Orders: shippingOrderProvider})
 	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{Validator: v, Service: reviewSvc})
 	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{Validator: v, Service: promotionSvc})
@@ -152,18 +152,18 @@ func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table
 	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Service: dashboardSvc})
 
 	if deps.Config.App.Env == "development" {
-		mockgatewayserver.RegisterRoutes(mux, mockgatewayserver.WithWebhookSecret(cfg.Payment.WebhookSecret))
+		mockgatewayserver.RegisterRoutes(mux, deps.Logger, mockgatewayserver.WithWebhookSecret(cfg.Payment.WebhookSecret))
 	}
 
 	return middleware.Chain(
 		middleware.RequestID,
-		middleware.Logging,
-		middleware.Recovery,
+		middleware.Logging(deps.Logger),
+		middleware.Recovery(deps.Logger),
 		middleware.CORS(deps.Config.CORS),
 	)(mux)
 }
 
-func healthHandler(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
+func healthHandler(log *slog.Logger, pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		status := "healthy"
 		httpStatus := http.StatusOK
@@ -173,12 +173,12 @@ func healthHandler(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 			status = "unhealthy"
 			httpStatus = http.StatusServiceUnavailable
 			details["postgres"] = "down"
-			slog.ErrorContext(r.Context(), "health check: postgres down", "error", err)
+			log.ErrorContext(r.Context(), "health check: postgres down", slog.Any("error", err))
 		} else {
 			details["postgres"] = "up"
 		}
 
-		checkRedis(r.Context(), rdb, &status, &httpStatus, details)
+		checkRedis(r.Context(), log, rdb, &status, &httpStatus, details)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(httpStatus)
@@ -189,7 +189,7 @@ func healthHandler(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 	}
 }
 
-func checkRedis(ctx context.Context, rdb *redis.Client, status *string, httpStatus *int, details map[string]string) {
+func checkRedis(ctx context.Context, log *slog.Logger, rdb *redis.Client, status *string, httpStatus *int, details map[string]string) {
 	if rdb == nil {
 		details["redis"] = "not configured"
 		return
@@ -201,7 +201,7 @@ func checkRedis(ctx context.Context, rdb *redis.Client, status *string, httpStat
 			*httpStatus = http.StatusServiceUnavailable
 		}
 		details["redis"] = "down"
-		slog.WarnContext(ctx, "health check: redis down", "error", err)
+		log.WarnContext(ctx, "health check: redis down", slog.Any("error", err))
 		return
 	}
 

@@ -16,6 +16,7 @@ import (
 type webhookHandler struct {
 	service *payment.Service
 	secret  string
+	logger  *slog.Logger
 }
 
 const webhookSignatureHeader = "X-Webhook-Signature"
@@ -23,7 +24,7 @@ const webhookSignatureHeader = "X-Webhook-Signature"
 func (h *webhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 	if err != nil {
-		slog.ErrorContext(r.Context(), "webhook: failed to read body", "error", err)
+		h.logger.ErrorContext(r.Context(), "webhook: failed to read body", slog.Any("error", err))
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -31,20 +32,20 @@ func (h *webhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// When a secret is configured, require a valid HMAC signature so a third party
 	// can't forge payment events (e.g. POST a fake "success" to fulfil an order).
 	if h.secret != "" && !verifyWebhookSignature(h.secret, body, r.Header.Get(webhookSignatureHeader)) {
-		slog.WarnContext(r.Context(), "webhook: invalid or missing signature")
+		h.logger.WarnContext(r.Context(), "webhook: invalid or missing signature")
 		response.Unauthorized(w, "invalid webhook signature")
 		return
 	}
 
 	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
-		slog.ErrorContext(r.Context(), "webhook: invalid payload", "error", err)
+		h.logger.ErrorContext(r.Context(), "webhook: invalid payload", slog.Any("error", err))
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	if err := h.service.HandleWebhook(r.Context(), payload); err != nil {
-		slog.ErrorContext(r.Context(), "webhook processing failed", "error", err)
+		h.logger.ErrorContext(r.Context(), "webhook processing failed", slog.Any("error", err))
 		response.InternalError(w)
 		return
 	}

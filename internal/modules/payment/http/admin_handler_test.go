@@ -346,13 +346,13 @@ func setupPaymentMux(t *testing.T) (
 	invRestore := mocks.NewMockInventoryRestorer(t)
 	couponRel := mocks.NewMockCouponReleaser(t)
 
-	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel)
+	svc := payment.NewService(repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems, inv, invRestore, couponRel, testhelper.DiscardLogger())
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	RegisterRoutes(api, admin, RouteDeps{Validator: v, Service: svc})
+	RegisterRoutes(api, admin, RouteDeps{Validator: v, Service: svc, Logger: testhelper.DiscardLogger()})
 
 	return mux, repo, orders, orderGet
 }

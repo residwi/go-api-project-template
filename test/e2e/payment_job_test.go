@@ -51,7 +51,7 @@ func TestE2EChargeJob(t *testing.T) {
 
 	t.Run("processes a pending charge job to completion", func(t *testing.T) {
 		mockMux := http.NewServeMux()
-		mockgatewayserver.RegisterRoutes(mockMux)
+		mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
 		mockServer := httptest.NewServer(mockMux)
 		defer mockServer.Close()
 

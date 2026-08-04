@@ -1387,7 +1387,7 @@ func TestService_CancelOrder(t *testing.T) {
 		coupons := mocks.NewMockCouponReserver(t)
 		notifications := mocks.NewMockNotificationEnqueuer(t)
 
-		svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, nil, nil, coupons, notifications)
+		svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, nil, nil, coupons, notifications, testhelper.DiscardLogger())
 
 		existingOrder := &order.Order{
 			ID:     orderID,
@@ -1459,7 +1459,7 @@ func TestService_SetPaymentDeps(t *testing.T) {
 		coupons := mocks.NewMockCouponReserver(t)
 		notifications := mocks.NewMockNotificationEnqueuer(t)
 
-		svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, nil, nil, coupons, notifications)
+		svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, nil, nil, coupons, notifications, testhelper.DiscardLogger())
 
 		payment := mocks.NewMockPaymentInitiator(t)
 		paymentCancel := mocks.NewMockPaymentJobCanceller(t)
@@ -1608,7 +1608,8 @@ func TestService_PlaceOrder_RejectsSoftDeletedProduct(t *testing.T) {
 	orderInventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	svc := order.NewService(orderRepo, testhelper.FakeTxRunner{},
-		realCartProvider{svc: cartSvc}, orderInventory, nil, nil, nil, nil)
+		realCartProvider{svc: cartSvc}, orderInventory, nil, nil, nil, nil,
+		testhelper.DiscardLogger())
 
 	_, err := svc.PlaceOrder(context.Background(), userID, order.PlaceParams{}, idempotencyKey)
 
@@ -1704,6 +1705,6 @@ func newTestService(t *testing.T) (
 	coupons := mocks.NewMockCouponReserver(t)
 	notifications := mocks.NewMockNotificationEnqueuer(t)
 
-	svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, payment, paymentCancel, coupons, notifications)
+	svc := order.NewService(repo, testhelper.FakeTxRunner{}, cart, inventory, payment, paymentCancel, coupons, notifications, testhelper.DiscardLogger())
 	return svc, repo, cart, inventory, payment, paymentCancel, coupons, notifications
 }

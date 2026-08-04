@@ -15,10 +15,13 @@ type Processor struct {
 	*payment.Service
 
 	orders payment.OrderHousekeeper
+	// logger is its own field rather than the embedded Service's: that one is
+	// unexported and so unreachable from this package.
+	logger *slog.Logger
 }
 
-func NewProcessor(svc *payment.Service, orders payment.OrderHousekeeper) *Processor {
-	return &Processor{Service: svc, orders: orders}
+func NewProcessor(svc *payment.Service, orders payment.OrderHousekeeper, log *slog.Logger) *Processor {
+	return &Processor{Service: svc, orders: orders, logger: log}
 }
 
 // Sweep is the job runner's optional per-tick housekeeping hook. It recovers
@@ -27,7 +30,7 @@ func NewProcessor(svc *payment.Service, orders payment.OrderHousekeeper) *Proces
 // recovery hiccup never blocks expiry.
 func (p *Processor) Sweep(ctx context.Context) error {
 	if err := p.orders.RecoverStaleProcessing(ctx); err != nil {
-		slog.ErrorContext(ctx, "recover stale processing orders failed", "error", err)
+		p.logger.ErrorContext(ctx, "recover stale processing orders failed", slog.Any("error", err))
 	}
 	return p.orders.ExpireStale(ctx)
 }

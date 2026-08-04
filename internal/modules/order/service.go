@@ -34,6 +34,7 @@ type Service struct {
 	paymentCancel PaymentJobCanceller
 	coupons       CouponReserver
 	notifications NotificationEnqueuer
+	logger        *slog.Logger
 }
 
 func NewService(
@@ -45,6 +46,7 @@ func NewService(
 	paymentCancel PaymentJobCanceller,
 	coupons CouponReserver,
 	notifications NotificationEnqueuer,
+	log *slog.Logger,
 ) *Service {
 	return &Service{
 		repo:          repo,
@@ -55,6 +57,7 @@ func NewService(
 		paymentCancel: paymentCancel,
 		coupons:       coupons,
 		notifications: notifications,
+		logger:        log,
 	}
 }
 
@@ -194,19 +197,19 @@ func (s *Service) PlaceOrder(ctx context.Context, userID uuid.UUID, p PlaceParam
 			Amount:          order.Total,
 			PaymentMethodID: p.PaymentMethodID,
 		}); payErr != nil {
-			slog.ErrorContext(ctx, "failed to initiate payment, order stays in awaiting_payment",
-				"order_id", order.ID, "error", payErr)
+			s.logger.ErrorContext(ctx, "failed to initiate payment, order stays in awaiting_payment",
+				slog.Any("order_id", order.ID), slog.Any("error", payErr))
 		}
 	} else if freeErr := s.finalizeFreeOrder(ctx, order); freeErr != nil {
 		// A fully-discounted order has nothing to charge; if it can't be finalized
 		// now it stays in awaiting_payment and the expiry sweep cancels it.
-		slog.ErrorContext(ctx, "failed to finalize zero-total order, it stays in awaiting_payment",
-			"order_id", order.ID, "error", freeErr)
+		s.logger.ErrorContext(ctx, "failed to finalize zero-total order, it stays in awaiting_payment",
+			slog.Any("order_id", order.ID), slog.Any("error", freeErr))
 	}
 
 	if s.notifications != nil {
 		if err := s.notifications.EnqueueOrderPlaced(ctx, userID, order.ID); err != nil {
-			slog.WarnContext(ctx, "failed to enqueue order placed notification", "error", err)
+			s.logger.WarnContext(ctx, "failed to enqueue order placed notification", slog.Any("error", err))
 		}
 	}
 
@@ -256,7 +259,7 @@ func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) er
 
 	if s.paymentCancel != nil {
 		if err := s.paymentCancel.CancelJobsByOrderID(ctx, orderID); err != nil {
-			slog.WarnContext(ctx, "failed to cancel payment jobs", "order_id", orderID, "error", err)
+			s.logger.WarnContext(ctx, "failed to cancel payment jobs", slog.Any("order_id", orderID), slog.Any("error", err))
 		}
 	}
 
@@ -287,7 +290,7 @@ func (s *Service) ExpireStale(ctx context.Context) error {
 	}
 	for _, o := range orders {
 		if err := s.expireOne(ctx, o); err != nil {
-			slog.ErrorContext(ctx, "failed to expire order", "order_id", o.ID, "error", err)
+			s.logger.ErrorContext(ctx, "failed to expire order", slog.Any("order_id", o.ID), slog.Any("error", err))
 		}
 	}
 	return nil
@@ -309,7 +312,7 @@ func (s *Service) RecoverStaleProcessing(ctx context.Context) error {
 			if errors.Is(err, apperror.ErrConflict) {
 				continue // already moved on by another worker
 			}
-			slog.ErrorContext(ctx, "failed to recover stale processing order", "order_id", o.ID, "error", err)
+			s.logger.ErrorContext(ctx, "failed to recover stale processing order", slog.Any("order_id", o.ID), slog.Any("error", err))
 		}
 	}
 	return nil
@@ -487,7 +490,7 @@ func (s *Service) cancelWithReversal(ctx context.Context, order *Order) error {
 
 		if s.coupons != nil && order.CouponCode != nil && *order.CouponCode != "" {
 			if releaseErr := s.coupons.Release(txCtx, order.ID); releaseErr != nil {
-				slog.WarnContext(txCtx, "failed to release coupon on cancel", "error", releaseErr)
+				s.logger.WarnContext(txCtx, "failed to release coupon on cancel", slog.Any("error", releaseErr))
 			}
 		}
 
@@ -527,7 +530,7 @@ func (s *Service) releaseOrderHolds(ctx context.Context, o Order) error {
 
 	if s.coupons != nil && o.CouponCode != nil && *o.CouponCode != "" {
 		if err := s.coupons.Release(ctx, o.ID); err != nil {
-			slog.WarnContext(ctx, "failed to release coupon on expire", "order_id", o.ID, "error", err)
+			s.logger.WarnContext(ctx, "failed to release coupon on expire", slog.Any("order_id", o.ID), slog.Any("error", err))
 		}
 	}
 	return nil

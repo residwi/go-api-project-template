@@ -2,6 +2,7 @@ package mockserver
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,7 +16,7 @@ import (
 
 func newMockMux() *http.ServeMux {
 	mux := http.NewServeMux()
-	RegisterRoutes(mux)
+	RegisterRoutes(mux, slog.New(slog.DiscardHandler))
 	return mux
 }
 

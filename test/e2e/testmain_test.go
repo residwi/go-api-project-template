@@ -84,8 +84,9 @@ func TestMain(m *testing.M) {
 				GatewayTimeout: 5 * time.Second,
 			},
 		},
-		Pool:  pool,
-		Cache: rdb,
+		Pool:   pool,
+		Cache:  rdb,
+		Logger: testhelper.DiscardLogger(),
 	}
 
 	os.Exit(m.Run())
@@ -109,14 +110,16 @@ func newPaymentService(t *testing.T, gatewayURL string) *payment.Service {
 	productSvc := bootstrap.NewProductService(productpg.New(testPool), inventorySvc)
 	cartSvc := bootstrap.NewCartService(cartpg.New(testPool), txRunner, productSvc, testDeps.Config.App.MaxCartItems)
 	promotionSvc := promotion.NewService(promotionpg.New(testPool), txRunner)
-	notificationSvc := notification.NewService(notificationpg.New(testPool))
+	notificationSvc := notification.NewService(notificationpg.New(testPool), testhelper.DiscardLogger())
 
 	orderSvc := bootstrap.NewOrderService(
 		orderpg.New(testPool), txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc,
+		testhelper.DiscardLogger(),
 	)
 	gw := mockgateway.New(gatewayURL, 5*time.Second)
 	paymentSvc := bootstrap.NewPaymentService(
 		paymentpg.New(testPool), txRunner, gw, orderSvc, inventorySvc, promotionSvc,
+		testhelper.DiscardLogger(),
 	)
 	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
 

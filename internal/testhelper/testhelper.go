@@ -43,9 +43,23 @@ const (
 //	5 — test/e2e
 //	6 — internal/modules/user/redis
 
-func init() {
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})))
+// DiscardLogger is what tests hand to a constructor that now requires a
+// [slog.Logger]. Nothing asserts on log output, and logger.Setup no longer
+// installs a package default that could quieten it, so each caller says
+// explicitly that it wants the output thrown away.
+func DiscardLogger() *slog.Logger {
+	return slog.New(slog.DiscardHandler)
+}
 
+// harnessLogger is the harness's own logger, for the bootstrap failures below.
+// It is a function rather than a package-level var because sloglint's no-global
+// rule forbids the latter, and this code runs from TestMain before any logger
+// can be injected into it.
+func harnessLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+}
+
+func init() {
 	if os.Getenv("DOCKER_HOST") != "" {
 		return
 	}
@@ -71,7 +85,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 
 	dt, err := dockertest.NewPool("")
 	if err != nil {
-		slog.Error("testhelper: dockertest.NewPool", "error", err)
+		harnessLogger().Error("testhelper: dockertest.NewPool", slog.Any("error", err))
 		os.Exit(1)
 	}
 	dt.MaxWait = 60e9
@@ -124,7 +138,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		adminConn = conn
 		return nil
 	}); retryErr != nil {
-		slog.Error("testhelper: waiting for postgres", "error", retryErr)
+		harnessLogger().Error("testhelper: waiting for postgres", slog.Any("error", retryErr))
 		os.Exit(1)
 	}
 
@@ -132,10 +146,10 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	// clean cluster -- but it must not be swallowed either, because it is the
 	// usual explanation for the CREATE below failing with "already exists".
 	if _, dropErr := adminConn.Exec(ctx, "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)"); dropErr != nil {
-		slog.Warn("testhelper: dropping stale database", "db", dbName, "error", dropErr)
+		harnessLogger().Warn("testhelper: dropping stale database", slog.Any("db", dbName), slog.Any("error", dropErr))
 	}
 	if _, execErr := adminConn.Exec(ctx, "CREATE DATABASE "+dbName); execErr != nil {
-		slog.Error("testhelper: creating database", "db", dbName, "error", execErr)
+		harnessLogger().Error("testhelper: creating database", slog.Any("db", dbName), slog.Any("error", execErr))
 		os.Exit(1)
 	}
 	_ = adminConn.Close(ctx)
@@ -146,11 +160,11 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	// goroutines) on every attempt.
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
-		slog.Error("testhelper: building package pool", "db", dbName, "error", err)
+		harnessLogger().Error("testhelper: building package pool", slog.Any("db", dbName), slog.Any("error", err))
 		os.Exit(1)
 	}
 	if retryErr := dt.Retry(func() error { return pool.Ping(ctx) }); retryErr != nil {
-		slog.Error("testhelper: connecting to package db", "db", dbName, "error", retryErr)
+		harnessLogger().Error("testhelper: connecting to package db", slog.Any("db", dbName), slog.Any("error", retryErr))
 		os.Exit(1)
 	}
 
@@ -174,7 +188,7 @@ func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 
 	dt, err := dockertest.NewPool("")
 	if err != nil {
-		slog.Error("testhelper: dockertest.NewPool", "error", err)
+		harnessLogger().Error("testhelper: dockertest.NewPool", slog.Any("error", err))
 		os.Exit(1)
 	}
 	dt.MaxWait = 30e9
@@ -191,7 +205,7 @@ func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 		client = redis.NewClient(&redis.Options{Addr: addr, DB: dbIndex})
 		return client.Ping(ctx).Err()
 	}); retryErr != nil {
-		slog.Error("testhelper: waiting for redis", "error", retryErr)
+		harnessLogger().Error("testhelper: waiting for redis", slog.Any("error", retryErr))
 		os.Exit(1)
 	}
 
@@ -284,12 +298,12 @@ func getOrCreateContainer(dt *dockertest.Pool, name, portID string, opts *docker
 			cfg.AutoRemove = false
 			cfg.RestartPolicy = docker.RestartPolicy{Name: "no"}
 		}); err != nil && !isAlreadyExists(err) {
-			slog.Error("testhelper: starting container", "name", name, "error", err)
+			harnessLogger().Error("testhelper: starting container", slog.Any("name", name), slog.Any("error", err))
 			os.Exit(1)
 		}
 
 		if time.Since(start) > containerReadyTimeout {
-			slog.Error("testhelper: container never became ready", "name", name, "waited", time.Since(start))
+			harnessLogger().Error("testhelper: container never became ready", slog.Any("name", name), slog.Any("waited", time.Since(start)))
 			os.Exit(1)
 		}
 		time.Sleep(200 * time.Millisecond)
@@ -313,12 +327,12 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) {
 
 	if err := goose.SetDialect("postgres"); err != nil {
 		_ = db.Close()
-		slog.ErrorContext(ctx, "testhelper: goose.SetDialect", "error", err)
+		harnessLogger().ErrorContext(ctx, "testhelper: goose.SetDialect", slog.Any("error", err))
 		os.Exit(1)
 	}
 	if err := goose.UpContext(ctx, db, migrationsDir); err != nil {
 		_ = db.Close()
-		slog.ErrorContext(ctx, "testhelper: goose.Up", "dir", migrationsDir, "error", err)
+		harnessLogger().ErrorContext(ctx, "testhelper: goose.Up", slog.Any("dir", migrationsDir), slog.Any("error", err))
 		os.Exit(1)
 	}
 	_ = db.Close()

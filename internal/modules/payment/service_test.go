@@ -2267,6 +2267,7 @@ func newTestService(t *testing.T) (
 	svc := payment.NewService(
 		repo, testhelper.FakeTxRunner{}, gw, orders, orderGet, orderItems,
 		inventory, inventoryRestore, couponRel,
+		testhelper.DiscardLogger(),
 	)
 
 	return svc, repo, gw, orders, orderGet, orderItems,

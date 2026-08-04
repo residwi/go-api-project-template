@@ -15,12 +15,13 @@ import (
 )
 
 type Service struct {
-	repo  Repository
-	cache StatusCache
+	repo   Repository
+	cache  StatusCache
+	logger *slog.Logger
 }
 
-func NewService(repo Repository, c StatusCache) *Service {
-	return &Service{repo: repo, cache: c}
+func NewService(repo Repository, c StatusCache, log *slog.Logger) *Service {
+	return &Service{repo: repo, cache: c, logger: log}
 }
 
 // GetByEmail satisfies auth.UserProvider.
@@ -92,7 +93,7 @@ const userStatusCacheTTL = 30 * time.Second
 func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware.UserStatusResult, error) {
 	snap, found, err := s.cache.Get(ctx, userID)
 	if err != nil {
-		slog.WarnContext(ctx, "user status cache read failed, falling back to DB", "error", err)
+		s.logger.WarnContext(ctx, "user status cache read failed, falling back to DB", slog.Any("error", err))
 	} else if found {
 		return middleware.UserStatusResult{Active: snap.Active, TokenVersion: snap.TokenVersion}, nil
 	}
@@ -109,7 +110,7 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware
 
 	if err := s.cache.Put(ctx, userID,
 		StatusSnapshot{Active: active, TokenVersion: tokenVersion}, userStatusCacheTTL); err != nil {
-		slog.WarnContext(ctx, "user status cache write failed", "error", err)
+		s.logger.WarnContext(ctx, "user status cache write failed", slog.Any("error", err))
 	}
 
 	return middleware.UserStatusResult{Active: active, TokenVersion: tokenVersion}, nil
@@ -263,6 +264,6 @@ func (s *Service) Delete(ctx context.Context, p DeleteParams) error {
 // is logged and the entry still expires on its own.
 func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
 	if err := s.cache.Invalidate(ctx, userID); err != nil {
-		slog.WarnContext(ctx, "failed to invalidate user status cache", "user_id", userID, "error", err)
+		s.logger.WarnContext(ctx, "failed to invalidate user status cache", slog.Any("user_id", userID), slog.Any("error", err))
 	}
 }

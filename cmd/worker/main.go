@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
-	"os"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -27,9 +27,10 @@ import (
 )
 
 func main() {
+	// Stdlib log, not slog: run() is what builds the application logger, and the
+	// errors reported here are the ones that happen before or instead of that.
 	if err := run(); err != nil {
-		slog.Error("worker failed to start", "error", err)
-		os.Exit(1)
+		log.Fatalf("worker failed to start: %v", err)
 	}
 }
 
@@ -39,7 +40,7 @@ func run() error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	logger.Setup(cfg.Log.Level, cfg.Log.Format)
+	appLog := logger.Setup(cfg.Log.Level, cfg.Log.Format)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -60,13 +61,13 @@ func run() error {
 
 	inventorySvc := inventory.NewService(inventoryRepo)
 	promotionSvc := promotion.NewService(promotionRepo, txRunner)
-	notificationSvc := notification.NewService(notificationRepo)
+	notificationSvc := notification.NewService(notificationRepo, appLog)
 
-	orderSvc := bootstrap.NewOrderService(orderRepo, txRunner, nil, inventorySvc, promotionSvc, nil)
+	orderSvc := bootstrap.NewOrderService(orderRepo, txRunner, nil, inventorySvc, promotionSvc, nil, appLog)
 
 	gw := mockgateway.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
 
-	paymentSvc := bootstrap.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc)
+	paymentSvc := bootstrap.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc, appLog)
 
 	jobCfg := jobs.Config{
 		Interval:      cfg.Worker.Interval,
@@ -77,11 +78,11 @@ func run() error {
 		PruneLimit:    cfg.Worker.PruneLimit,
 	}
 
-	paymentProcessor := paymentworker.NewProcessor(paymentSvc, bootstrap.NewOrderHousekeeper(orderSvc))
-	paymentRunner := jobs.NewRunner("payment", paymentRepo, paymentProcessor, jobCfg)
-	notificationRunner := jobs.NewRunner("notification", notificationRepo, notificationSvc, jobCfg)
+	paymentProcessor := paymentworker.NewProcessor(paymentSvc, bootstrap.NewOrderHousekeeper(orderSvc), appLog)
+	paymentRunner := jobs.NewRunner("payment", paymentRepo, paymentProcessor, jobCfg, appLog)
+	notificationRunner := jobs.NewRunner("notification", notificationRepo, notificationSvc, jobCfg, appLog)
 
-	slog.Info("worker starting", "env", cfg.App.Env)
+	appLog.InfoContext(ctx, "worker starting", slog.String("env", cfg.App.Env))
 	var wg sync.WaitGroup
 	for _, start := range []func(context.Context){paymentRunner.Start, notificationRunner.Start} {
 		wg.Go(func() {
@@ -89,6 +90,6 @@ func run() error {
 		})
 	}
 	wg.Wait()
-	slog.Info("worker stopped")
+	appLog.InfoContext(ctx, "worker stopped")
 	return nil
 }

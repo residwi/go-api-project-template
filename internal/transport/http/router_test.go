@@ -79,8 +79,9 @@ func TestMain(m *testing.M) {
 				GatewayTimeout: 5 * time.Second,
 			},
 		},
-		Pool:  pool,
-		Cache: rdb,
+		Pool:   pool,
+		Cache:  rdb,
+		Logger: testhelper.DiscardLogger(),
 	}
 
 	os.Exit(m.Run())
@@ -125,6 +126,7 @@ func TestHealthHandler(t *testing.T) {
 			Config: testDeps.Config,
 			Pool:   badPool,
 			Cache:  testRedis,
+			Logger: testhelper.DiscardLogger(),
 		}
 		h := NewRouter(badDeps)
 
@@ -155,6 +157,7 @@ func TestHealthHandler(t *testing.T) {
 			Config: testDeps.Config,
 			Pool:   testPool,
 			Cache:  badRedis,
+			Logger: testhelper.DiscardLogger(),
 		}
 		h := NewRouter(badDeps)
 
@@ -177,6 +180,7 @@ func TestHealthHandler(t *testing.T) {
 			Config: testDeps.Config,
 			Pool:   testPool,
 			Cache:  nil,
+			Logger: testhelper.DiscardLogger(),
 		}
 		h := NewRouter(nilRedisDeps)
 
@@ -533,6 +537,7 @@ func TestHealthHandler_NilRedis(t *testing.T) {
 		Config: testDeps.Config,
 		Pool:   testDeps.Pool,
 		Cache:  nil,
+		Logger: testhelper.DiscardLogger(),
 	}
 	handler := NewRouter(nilRedisDeps)
 
@@ -610,7 +615,7 @@ func TestAdapterErrorPaths(t *testing.T) {
 func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	setup(t)
 	mockMux := http.NewServeMux()
-	mockgatewayserver.RegisterRoutes(mockMux)
+	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -625,8 +630,9 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 				GatewayTimeout: 5 * time.Second,
 			},
 		},
-		Pool:  testPool,
-		Cache: testRedis,
+		Pool:   testPool,
+		Cache:  testRedis,
+		Logger: testhelper.DiscardLogger(),
 	}
 	handler := NewRouter(deps)
 	ctx := context.Background()
@@ -929,14 +935,16 @@ func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Service 
 	productSvc := bootstrap.NewProductService(productpg.New(testPool), inventorySvc)
 	cartSvc := bootstrap.NewCartService(cartpg.New(testPool), txRunner, productSvc, 50)
 	promotionSvc := promotion.NewService(promotionpg.New(testPool), txRunner)
-	notificationSvc := notification.NewService(notificationpg.New(testPool))
+	notificationSvc := notification.NewService(notificationpg.New(testPool), testhelper.DiscardLogger())
 
 	orderSvc := bootstrap.NewOrderService(
 		orderpg.New(testPool), txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc,
+		testhelper.DiscardLogger(),
 	)
 	gw := mockgateway.New(gatewayURL, 5*time.Second)
 	paymentSvc := bootstrap.NewPaymentService(
 		paymentpg.New(testPool), txRunner, gw, orderSvc, inventorySvc, promotionSvc,
+		testhelper.DiscardLogger(),
 	)
 	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
 

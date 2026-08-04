@@ -34,6 +34,7 @@ type mockServer struct {
 	charges       map[string]chargeRecord           // idempotency_key -> record
 	refunds       map[string]payment.RefundResponse // idempotency_key -> response
 	webhookSecret string
+	logger        *slog.Logger
 }
 
 // Option configures the mock payment server.
@@ -45,10 +46,14 @@ func WithWebhookSecret(secret string) Option {
 	return func(s *mockServer) { s.webhookSecret = secret }
 }
 
-func RegisterRoutes(mux *http.ServeMux, opts ...Option) {
+// RegisterRoutes takes the logger explicitly rather than defaulting to a
+// discard handler, so a caller that wants the webhook diagnostics thrown away
+// has to say so.
+func RegisterRoutes(mux *http.ServeMux, log *slog.Logger, opts ...Option) {
 	s := &mockServer{
 		charges: make(map[string]chargeRecord),
 		refunds: make(map[string]payment.RefundResponse),
+		logger:  log,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -173,7 +178,7 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 	go func() {
 		req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodPost, webhookURL, bytes.NewReader(body))
 		if reqErr != nil {
-			slog.ErrorContext(r.Context(), "webhook request creation failed", "error", reqErr)
+			s.logger.ErrorContext(r.Context(), "webhook request creation failed", slog.Any("error", reqErr))
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -184,11 +189,11 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
-			slog.ErrorContext(r.Context(), "webhook trigger failed", "error", err)
+			s.logger.ErrorContext(r.Context(), "webhook trigger failed", slog.Any("error", err))
 			return
 		}
 		_ = resp.Body.Close()
-		slog.InfoContext(r.Context(), "webhook triggered", "status", resp.StatusCode, "event", event)
+		s.logger.InfoContext(r.Context(), "webhook triggered", slog.Any("status", resp.StatusCode), slog.Any("event", event))
 	}()
 
 	w.WriteHeader(http.StatusAccepted)
