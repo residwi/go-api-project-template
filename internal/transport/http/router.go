@@ -62,11 +62,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-type Router struct {
-	Handler http.Handler
-}
-
-func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: length is inherent to registering every feature's routes in one place
+func NewRouter(deps *Deps) http.Handler { //nolint:funlen // central route table: length is inherent to registering every feature's routes in one place
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", healthHandler(deps.Pool, deps.Cache))
@@ -159,14 +155,12 @@ func NewRouter(deps *Deps) *Router { //nolint:funlen // central route table: len
 		mockgatewayserver.RegisterRoutes(mux, mockgatewayserver.WithWebhookSecret(cfg.Payment.WebhookSecret))
 	}
 
-	return &Router{
-		Handler: middleware.Chain(
-			middleware.RequestID,
-			middleware.Logging,
-			middleware.Recovery,
-			middleware.CORS(deps.Config.CORS),
-		)(mux),
-	}
+	return middleware.Chain(
+		middleware.RequestID,
+		middleware.Logging,
+		middleware.Recovery,
+		middleware.CORS(deps.Config.CORS),
+	)(mux)
 }
 
 func healthHandler(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {

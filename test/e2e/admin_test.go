@@ -21,7 +21,7 @@ import (
 
 func TestE2EAdminFlow(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps)
 	ctx := context.Background()
 
 	// Register and promote to admin
@@ -120,7 +120,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 		Pool:  testPool,
 		Cache: testRedis,
 	}
-	handler := apihttp.NewRouter(deps).Handler
+	handler := apihttp.NewRouter(deps)
 	ctx := context.Background()
 
 	// Seed category + product

@@ -42,8 +42,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		Pool:  testPool,
 		Cache: testRedis,
 	}
-	router := apihttp.NewRouter(webhookDeps)
-	handler := router.Handler
+	handler := apihttp.NewRouter(webhookDeps)
 	ctx := context.Background()
 
 	// Seed category + product
@@ -235,8 +234,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		Pool:  testPool,
 		Cache: testRedis,
 	}
-	router := apihttp.NewRouter(webhookDeps)
-	handler := router.Handler
+	handler := apihttp.NewRouter(webhookDeps)
 	ctx := context.Background()
 
 	// Seed category + product

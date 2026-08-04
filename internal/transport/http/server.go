@@ -70,11 +70,11 @@ func RunContext(ctx context.Context) error {
 		Cache:      rdb,
 	}
 
-	router := NewRouter(deps)
+	handler := NewRouter(deps)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
-		Handler:      router.Handler,
+		Handler:      handler,
 		ReadTimeout:  cfg.App.ReadTimeout,
 		WriteTimeout: cfg.App.WriteTimeout,
 		IdleTimeout:  cfg.App.IdleTimeout,

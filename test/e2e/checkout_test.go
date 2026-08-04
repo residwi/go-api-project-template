@@ -21,7 +21,7 @@ import (
 
 func TestE2EOrderFlow(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps)
 	ctx := context.Background()
 
 	// Seed a category
@@ -110,7 +110,7 @@ func TestE2EOrderFlow(t *testing.T) {
 
 func TestE2ECancelOrderFlow(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps).Handler
+	handler := apihttp.NewRouter(testDeps)
 	ctx := context.Background()
 
 	// Seed category + product
@@ -210,7 +210,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 		Pool:  testPool,
 		Cache: testRedis,
 	}
-	handler := apihttp.NewRouter(deps).Handler
+	handler := apihttp.NewRouter(deps)
 	ctx := context.Background()
 
 	// Seed category + product

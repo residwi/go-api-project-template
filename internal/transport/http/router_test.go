@@ -96,7 +96,7 @@ func TestNewRouter(t *testing.T) {
 
 func TestHealthHandler(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps)
 
 	t.Run("returns healthy status", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -126,7 +126,7 @@ func TestHealthHandler(t *testing.T) {
 			Pool:   badPool,
 			Cache:  testRedis,
 		}
-		h := NewRouter(badDeps).Handler
+		h := NewRouter(badDeps)
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -156,7 +156,7 @@ func TestHealthHandler(t *testing.T) {
 			Pool:   testPool,
 			Cache:  badRedis,
 		}
-		h := NewRouter(badDeps).Handler
+		h := NewRouter(badDeps)
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -178,7 +178,7 @@ func TestHealthHandler(t *testing.T) {
 			Pool:   testPool,
 			Cache:  nil,
 		}
-		h := NewRouter(nilRedisDeps).Handler
+		h := NewRouter(nilRedisDeps)
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -197,7 +197,7 @@ func TestHealthHandler(t *testing.T) {
 
 func TestPublicEndpoints(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps)
 
 	t.Run("GET /api/categories returns list", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/categories", nil)
@@ -237,7 +237,7 @@ func TestPublicEndpoints(t *testing.T) {
 
 func TestAuthEndpoints(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps)
 	ctx := context.Background()
 
 	t.Run("POST /api/auth/register creates user", func(t *testing.T) {
@@ -358,7 +358,7 @@ func TestAuthEndpoints(t *testing.T) {
 
 func TestProtectedEndpointsRequireAuth(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps)
 
 	endpoints := []struct {
 		method string
@@ -383,7 +383,7 @@ func TestProtectedEndpointsRequireAuth(t *testing.T) {
 
 func TestAdminEndpointsRequireAuth(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps)
 
 	endpoints := []struct {
 		method string
@@ -411,7 +411,7 @@ func TestAdminEndpointsRequireAuth(t *testing.T) {
 
 func TestAuthenticatedEndpoints(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps)
 	ctx := context.Background()
 
 	// Register and login to get an access token
@@ -482,7 +482,7 @@ func TestAuthenticatedEndpoints(t *testing.T) {
 
 func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps)
 	ctx := context.Background()
 
 	// Register a regular user
@@ -534,7 +534,7 @@ func TestHealthHandler_NilRedis(t *testing.T) {
 		Pool:   testDeps.Pool,
 		Cache:  nil,
 	}
-	handler := NewRouter(nilRedisDeps).Handler
+	handler := NewRouter(nilRedisDeps)
 
 	t.Run("returns healthy with redis not configured", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -552,7 +552,7 @@ func TestHealthHandler_NilRedis(t *testing.T) {
 
 func TestCORSHeaders(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps)
 
 	t.Run("OPTIONS preflight returns CORS headers", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodOptions, "/api/products", nil)
@@ -567,7 +567,7 @@ func TestCORSHeaders(t *testing.T) {
 
 func TestAdapterErrorPaths(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps).Handler
+	handler := NewRouter(testDeps)
 	ctx := context.Background()
 
 	// Register a user for authenticated requests
@@ -628,8 +628,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		Pool:  testPool,
 		Cache: testRedis,
 	}
-	router := NewRouter(deps)
-	handler := router.Handler
+	handler := NewRouter(deps)
 	ctx := context.Background()
 
 	// Seed category + product

@@ -54,8 +54,7 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		Pool:  testPool,
 		Cache: testRedis,
 	}
-	router := apihttp.NewRouter(deps)
-	handler := router.Handler
+	handler := apihttp.NewRouter(deps)
 	ctx := context.Background()
 
 	// Seed category + product
