@@ -1,4 +1,4 @@
-package postgres_test
+package postgres
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
-	"github.com/residwi/go-api-project-template/internal/modules/shipping/postgres"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -25,35 +24,12 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func setup(t *testing.T) {
-	t.Helper()
-	testhelper.ResetDB(t, testPool)
-}
-
-func seedUser(t *testing.T) uuid.UUID {
-	t.Helper()
-	return testhelper.SeedUser(t, testPool)
-}
-
-func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
-	t.Helper()
-	id := uuid.New()
-	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency)
-		 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD')`,
-		id, userID,
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, id) })
-	return id
-}
-
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates shipment with correct fields", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		s := &shipping.Shipment{
 			OrderID:        orderID,
@@ -80,7 +56,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		s := &shipping.Shipment{
@@ -101,7 +77,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -113,7 +89,7 @@ func TestPostgresRepository_GetByOrderID(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		s := &shipping.Shipment{
@@ -133,7 +109,7 @@ func TestPostgresRepository_GetByOrderID(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		_, err := repo.GetByOrderID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -145,7 +121,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		s := &shipping.Shipment{
@@ -170,7 +146,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		s := &shipping.Shipment{
 			ID:      uuid.New(),
@@ -187,7 +163,7 @@ func TestPostgresRepository_MarkShipped(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		s := &shipping.Shipment{
@@ -210,7 +186,7 @@ func TestPostgresRepository_MarkShipped(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		err := repo.MarkShipped(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -222,7 +198,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		s := &shipping.Shipment{
@@ -242,7 +218,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		_, err := repo.MarkDelivered(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -253,7 +229,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	repo := postgres.New(testPool)
+	repo := New(testPool)
 
 	t.Run("Create", func(t *testing.T) {
 		setup(t)
@@ -296,4 +272,27 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		_, err := repo.MarkDelivered(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
+}
+
+func setup(t *testing.T) {
+	t.Helper()
+	testhelper.ResetDB(t, testPool)
+}
+
+func seedUser(t *testing.T) uuid.UUID {
+	t.Helper()
+	return testhelper.SeedUser(t, testPool)
+}
+
+func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency)
+		 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD')`,
+		id, userID,
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, id) })
+	return id
 }
