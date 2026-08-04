@@ -483,8 +483,6 @@ func TestService_ValidateParent(t *testing.T) {
 		repo := mocks.NewMockRepository(t)
 		counter := mocks.NewMockProductCounter(t)
 		parentID := uuid.New()
-		// A root parent one level deep, no cycle: validateParent falls
-		// through to nil and Create proceeds to repo.Create.
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(1, false, nil)
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *category.Category) bool {
