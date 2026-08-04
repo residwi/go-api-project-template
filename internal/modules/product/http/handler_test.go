@@ -21,7 +21,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	prodMocks "github.com/residwi/go-api-project-template/mocks/product"
 )
 
 func TestHandler_ListProducts(t *testing.T) {
@@ -312,12 +311,12 @@ func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
 	assert.Equal(t, 50, stock.StockQuantity, "stock_quantity must come from Availability.OnHand")
 }
 
-func setupProductMux(t *testing.T) (*http.ServeMux, *prodMocks.MockRepository) {
-	repo := prodMocks.NewMockRepository(t)
-	inv := prodMocks.NewMockInventoryReader(t)
+func setupProductMux(t *testing.T) (*http.ServeMux, *MockRepository) {
+	repo := NewMockRepository(t)
+	inv := NewMockInventoryReader(t)
 	inv.EXPECT().GetAvailability(mock.Anything, mock.Anything).
 		Return(map[uuid.UUID]product.Availability{}, nil).Maybe()
-	reg := prodMocks.NewMockInventoryRegistrar(t)
+	reg := NewMockInventoryRegistrar(t)
 	reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil).Maybe()
 	svc := product.NewService(repo, inv, reg)
 	v := validator.New()
