@@ -13,7 +13,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/money"
-	productMocks "github.com/residwi/go-api-project-template/mocks/product"
 )
 
 func TestProductLookupAdapter_GetByIDs(t *testing.T) {
@@ -22,9 +21,9 @@ func TestProductLookupAdapter_GetByIDs(t *testing.T) {
 	t.Run("maps a batch in one call and carries Status through", func(t *testing.T) {
 		t.Parallel()
 
-		repo := productMocks.NewMockRepository(t)
-		inv := productMocks.NewMockInventoryReader(t)
-		reg := productMocks.NewMockInventoryRegistrar(t)
+		repo := NewMockProductRepository(t)
+		inv := NewMockInventoryReader(t)
+		reg := NewMockInventoryRegistrar(t)
 		productSvc := product.NewService(repo, inv, reg)
 		adapter := &productLookupAdapter{svc: productSvc}
 
@@ -59,9 +58,9 @@ func TestProductLookupAdapter_GetByIDs(t *testing.T) {
 		// withdrawn product's row still reads status='published'. GetByIDs must not
 		// forward that stale status verbatim, or a cart line (and the order guard
 		// downstream) would see a perfectly sellable-looking product.
-		repo := productMocks.NewMockRepository(t)
-		inv := productMocks.NewMockInventoryReader(t)
-		reg := productMocks.NewMockInventoryRegistrar(t)
+		repo := NewMockProductRepository(t)
+		inv := NewMockInventoryReader(t)
+		reg := NewMockInventoryRegistrar(t)
 		productSvc := product.NewService(repo, inv, reg)
 		adapter := &productLookupAdapter{svc: productSvc}
 
@@ -88,9 +87,9 @@ func TestProductLookupAdapter_GetByIDs(t *testing.T) {
 	t.Run("propagates a service error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := productMocks.NewMockRepository(t)
-		inv := productMocks.NewMockInventoryReader(t)
-		reg := productMocks.NewMockInventoryRegistrar(t)
+		repo := NewMockProductRepository(t)
+		inv := NewMockInventoryReader(t)
+		reg := NewMockInventoryRegistrar(t)
 		productSvc := product.NewService(repo, inv, reg)
 		adapter := &productLookupAdapter{svc: productSvc}
 

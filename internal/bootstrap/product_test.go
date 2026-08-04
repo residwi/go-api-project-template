@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	invMocks "github.com/residwi/go-api-project-template/mocks/inventory"
 )
 
 func TestInventoryReaderAdapter_GetAvailability(t *testing.T) {
@@ -20,7 +19,7 @@ func TestInventoryReaderAdapter_GetAvailability(t *testing.T) {
 	t.Run("maps OnHand and Available without transposing them", func(t *testing.T) {
 		t.Parallel()
 
-		repo := invMocks.NewMockRepository(t)
+		repo := NewMockInventoryRepository(t)
 		invSvc := inventory.NewService(repo)
 		adapter := &inventoryReaderAdapter{svc: invSvc}
 
@@ -43,7 +42,7 @@ func TestInventoryReaderAdapter_GetAvailability(t *testing.T) {
 	t.Run("propagates a repository error", func(t *testing.T) {
 		t.Parallel()
 
-		repo := invMocks.NewMockRepository(t)
+		repo := NewMockInventoryRepository(t)
 		invSvc := inventory.NewService(repo)
 		adapter := &inventoryReaderAdapter{svc: invSvc}
 
