@@ -20,7 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
-	shipMocks "github.com/residwi/go-api-project-template/mocks/shipping"
 )
 
 func TestHandler_GetShipping(t *testing.T) {
@@ -227,10 +226,10 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 
 func setupShippingMux(
 	t *testing.T,
-) (*http.ServeMux, *shipMocks.MockRepository, *shipMocks.MockOrderProvider, *shipMocks.MockOrderUpdater) {
-	repo := shipMocks.NewMockRepository(t)
-	orderProv := shipMocks.NewMockOrderProvider(t)
-	orderUpd := shipMocks.NewMockOrderUpdater(t)
+) (*http.ServeMux, *MockRepository, *MockOrderProvider, *MockOrderUpdater) {
+	repo := NewMockRepository(t)
+	orderProv := NewMockOrderProvider(t)
+	orderUpd := NewMockOrderUpdater(t)
 	svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orderProv, orderUpd)
 	v := validator.New()
 
