@@ -37,7 +37,7 @@ func TestService_Validate(t *testing.T) {
 
 		discount, err := svc.Validate(context.Background(), "SAVE20", 2000)
 		require.NoError(t, err)
-		assert.Equal(t, int64(400), discount) // 20% of 2000 = 400, under max 500
+		assert.Equal(t, int64(400), discount)
 	})
 
 	t.Run("success percentage capped by max discount", func(t *testing.T) {
@@ -60,7 +60,7 @@ func TestService_Validate(t *testing.T) {
 
 		discount, err := svc.Validate(context.Background(), "SAVE20", 10000)
 		require.NoError(t, err)
-		assert.Equal(t, int64(500), discount) // 20% of 10000 = 2000, capped at 500
+		assert.Equal(t, int64(500), discount)
 	})
 
 	t.Run("success fixed_amount", func(t *testing.T) {
