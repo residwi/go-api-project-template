@@ -1,4 +1,4 @@
-package postgres_test
+package postgres
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/wishlist/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -25,34 +24,11 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func setup(t *testing.T) {
-	t.Helper()
-	testhelper.ResetDB(t, testPool)
-}
-
-func seedUser(t *testing.T) uuid.UUID {
-	t.Helper()
-	return testhelper.SeedUser(t, testPool)
-}
-
-func seedProduct(t *testing.T) uuid.UUID {
-	t.Helper()
-	id := uuid.New()
-	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO products (id, name, slug, description, price, currency)
-		 VALUES ($1, 'Test Product', $2, 'desc', 1000, 'USD')`,
-		id, "slug-"+id.String(),
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
-	return id
-}
-
 func TestPostgresRepository_GetOrCreate(t *testing.T) {
 	t.Run("creates wishlist on first call", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		wishlistID, err := repo.GetOrCreate(context.Background(), userID)
 		require.NoError(t, err)
@@ -62,7 +38,7 @@ func TestPostgresRepository_GetOrCreate(t *testing.T) {
 	t.Run("returns same id on second call", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		first, err := repo.GetOrCreate(context.Background(), userID)
 		require.NoError(t, err)
@@ -78,7 +54,7 @@ func TestPostgresRepository_AddItem(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		wishlistID, _ := repo.GetOrCreate(ctx, userID)
@@ -93,7 +69,7 @@ func TestPostgresRepository_AddItem(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		wishlistID, _ := repo.GetOrCreate(ctx, userID)
@@ -108,7 +84,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		wishlistID, _ := repo.GetOrCreate(ctx, userID)
@@ -122,7 +98,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 
 	t.Run("returns not found when item does not exist", func(t *testing.T) {
 		setup(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		err := repo.RemoveItem(context.Background(), uuid.New(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -132,7 +108,7 @@ func TestPostgresRepository_GetItems(t *testing.T) {
 	t.Run("returns empty list when wishlist does not exist", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 
 		items, err := repo.GetItems(context.Background(), userID, paging.CursorPage{Limit: 10})
 		require.NoError(t, err)
@@ -142,7 +118,7 @@ func TestPostgresRepository_GetItems(t *testing.T) {
 	t.Run("returns items with pagination cursor when results exceed limit", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		wishlistID, _ := repo.GetOrCreate(ctx, userID)
@@ -162,7 +138,7 @@ func TestPostgresRepository_GetItems(t *testing.T) {
 	t.Run("cursor pagination returns next page", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		wishlistID, _ := repo.GetOrCreate(ctx, userID)
@@ -192,7 +168,7 @@ func TestPostgresRepository_HasItem(t *testing.T) {
 	t.Run("returns false when item not in wishlist", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		wishlistID, _ := repo.GetOrCreate(ctx, userID)
@@ -205,7 +181,7 @@ func TestPostgresRepository_HasItem(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		wishlistID, _ := repo.GetOrCreate(ctx, userID)
@@ -221,7 +197,7 @@ func TestPostgresRepository_GetItems_InvalidCursor(t *testing.T) {
 	t.Run("returns error for invalid cursor", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
-		repo := postgres.New(testPool)
+		repo := New(testPool)
 		ctx := context.Background()
 
 		_, _ = repo.GetOrCreate(ctx, userID)
@@ -235,7 +211,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	repo := postgres.New(testPool)
+	repo := New(testPool)
 
 	t.Run("GetOrCreate", func(t *testing.T) {
 		setup(t)
@@ -266,4 +242,27 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		_, err := repo.HasItem(cancelledCtx, uuid.New(), uuid.New())
 		assert.Error(t, err)
 	})
+}
+
+func setup(t *testing.T) {
+	t.Helper()
+	testhelper.ResetDB(t, testPool)
+}
+
+func seedUser(t *testing.T) uuid.UUID {
+	t.Helper()
+	return testhelper.SeedUser(t, testPool)
+}
+
+func seedProduct(t *testing.T) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO products (id, name, slug, description, price, currency)
+		 VALUES ($1, 'Test Product', $2, 'desc', 1000, 'USD')`,
+		id, "slug-"+id.String(),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
+	return id
 }
