@@ -187,9 +187,9 @@ files inside `http/` are split by **handler role**, not one per use case:
 `handler.go` for the default handler, `admin_handler.go` where the routes split
 by caller role, and `webhook_handler.go` in `payment`, whose only non-admin
 route is the gateway callback and which therefore has no `handler.go` at all.
-Each has a `_test.go` beside it, plus one `internal_test.go` per feature for the
-tests that must reach unexported mappers. `routes.go` holds only `RouteDeps` and
-`RegisterRoutes`.
+Each has a `_test.go` beside it, `package http`, holding both the route-level
+tests and the tests that must reach unexported mappers directly. `routes.go`
+holds only `RouteDeps` and `RegisterRoutes`.
 
 `make check-boundaries` enforces the tag rule, not the file layout. Nothing
 checks how the handlers are distributed across files; what the script does
@@ -293,13 +293,13 @@ empty cart yields `total: 0`, not an error.
 
 ## 11. Integration tests stay next to their code; only e2e is centralised
 
-**Why:** `go test ./...` runs 17 test binaries concurrently against one shared
+**Why:** `go test ./...` runs 19 test binaries concurrently against one shared
 container. Collapsing them into a single `test/integration` package makes them
 sequential, and `t.Parallel()` cannot recover it because subtests share a
 database. `test/e2e` exists for the checkout and refund sagas — flows spanning
 five modules that no single feature package can own.
 
-**Cost accepted:** 17 `TestMain` functions instead of one.
+**Cost accepted:** 19 `TestMain` functions instead of one.
 
 ---
 

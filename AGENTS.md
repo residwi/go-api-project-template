@@ -52,6 +52,8 @@ db/OWNERSHIP.md           table -> owning module, read by the boundary check
 test/e2e/                 cross-module saga tests through the real router
 scripts/check-boundaries.sh   the architectural checks
 mocks/                    generated (mockery v3), one subdir per source package
+                          (except middleware's, generated in-package to avoid
+                          a mocks/middleware -> middleware import cycle)
 ```
 
 `internal/modules/` holds the **14 features** — `auth cart category dashboard
@@ -135,17 +137,15 @@ and nothing else:
 | --- | --- | --- |
 | `routes.go` | `http` | `RouteDeps` and `RegisterRoutes` only — no DTOs, no logic |
 | `handler.go` | `http` | the default (public or authed) handler, its DTOs and mappers |
-| `handler_test.go` | `http_test` | its route-level tests, driven through a mux |
+| `handler_test.go` | `http` | its route-level tests, driven through a mux, plus the leak tests for its unexported mappers |
 | `admin_handler.go` | `http` | the admin handler, where routes split by caller role |
-| `admin_handler_test.go` | `http_test` | its route-level tests |
+| `admin_handler_test.go` | `http` | its route-level tests plus the leak tests for its unexported mappers |
 | `webhook_handler.go` | `http` | `payment` only — the gateway callback |
-| `webhook_handler_test.go` | `http_test` | its route-level tests |
-| `internal_test.go` | `http` | unit tests that reach unexported mappers and handlers |
+| `webhook_handler_test.go` | `http` | its route-level tests |
 
-Counted across `internal/modules/*/http/`: `routes.go` ×14, `internal_test.go`
-×14, `handler.go` and `handler_test.go` ×11, `admin_handler.go` and
-`admin_handler_test.go` ×10, `webhook_handler.go` and `webhook_handler_test.go`
-×1.
+Counted across `internal/modules/*/http/`: `routes.go` ×14, `handler.go` and
+`handler_test.go` ×11, `admin_handler.go` and `admin_handler_test.go` ×10,
+`webhook_handler.go` and `webhook_handler_test.go` ×1.
 
 Three features have **no** `handler.go`, and that is the naming rule working
 rather than an omission: `payment`, `dashboard` and `inventory` register every
@@ -153,12 +153,33 @@ route on the admin group, so their only handler is an `adminHandler`. If a
 feature's `http/` has no `handler.go`, it has no non-admin surface — which is a
 fact worth being able to read off `ls`.
 
-**`internal_test.go` is not optional.** It is `package http`, and it holds the
-leak tests that call unexported mappers (`toProductResponse`, …) directly. Those
-are what stop a domain field reaching an unauthenticated response body, and an
-external `package http_test` file cannot reach them — Go forbids one file being
-both packages, so the second file is a language constraint, not a style choice.
-Put a new test where its access requires, then name the file for that.
+**Tests live in the package they test, except where an import cycle forbids
+it.** `handler_test.go`, `admin_handler_test.go` and `webhook_handler_test.go`
+are `package http`, holding both the route-level tests driven through a mux
+and the leak tests that call unexported mappers (`toProductResponse`, …)
+directly — the tests that stop a domain field reaching an unauthenticated
+response body. Being in-package permits white-box testing without preventing
+black-box testing, so one file now does both; that dissolves the old
+constraint that split them, which is why the separate leak-test file per
+feature is gone — its contents moved beside the implementation file declaring
+what they test.
+
+Two carve-outs remain, both cycles rather than preferences, and together they
+are the whole exception: 26 external test files, no more.
+`internal/modules/<feature>/*_test.go` (18 files, `package <feature>_test`)
+import `mocks/<feature>`, which imports `<feature>`: flip
+`category/service_test.go`'s package clause to `category` and `go test -c
+./internal/modules/category/` fails with an import cycle. `test/e2e` (8
+files, `package e2e_test`) imports concrete adapters —
+`internal/modules/*/postgres`, `internal/bootstrap`,
+`internal/transport/http` — across every module the saga touches; no single
+feature package can own that without becoming a dependent of its siblings,
+which `make check-boundaries` forbids. Go's own standard library draws this
+line the same way, file by file rather than package by package: `net/http`
+ships 19 in-package test files (`package http`) beside 18 external `package
+http_test` files in the same directory, choosing per file by the access the
+test needs, not one package-wide policy. Put a new test where its access
+requires, then name the file for that.
 
 ## Commands
 
@@ -370,10 +391,12 @@ can produce a loud false positive.
   `assert.JSONEq` — Postgres normalises the whitespace.
 - **Test behaviour, not wiring.** Verify a returned value, an error, or a side
   effect.
-- **Mocks are generated** by mockery v3 from `.mockery.yml` into `mocks/`. Run
-  `make mocks`; never hand-edit. Use the expecter API
-  (`repo.EXPECT().GetByID(mock.Anything, id).Return(...)`), never
-  `repo.On("GetByID", ...)`.
+- **Mocks are generated** by mockery v3 from `.mockery.yml` into `mocks/` — with
+  one exception: `middleware`'s mocks generate in-package, because
+  `mocks/middleware` had exactly one consumer (the package's own test file) and
+  would otherwise cycle back to `middleware`. Run `make mocks`; never hand-edit.
+  Use the expecter API (`repo.EXPECT().GetByID(mock.Anything, id).Return(...)`),
+  never `repo.On("GetByID", ...)`.
 - **Keep tests fast.** Use `bcrypt.MinCost` for password hashes in tests
   (`DefaultCost` costs ~250ms per hash) and group the tests that exercise the
   real `Register` path. Use `testing/synctest` for ticker- and timeout-driven
