@@ -1,4 +1,4 @@
-package database_test
+package database
 
 import (
 	"context"
@@ -13,11 +13,10 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/config"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-// testContainerPort is shared with transaction_withdb_test.go (same package, same binary).
+// testContainerPort is shared with transaction_test.go (same package, same binary).
 var testContainerPort string
 
 func TestMain(m *testing.M) {
@@ -36,7 +35,7 @@ func TestNewPostgres(t *testing.T) {
 			MaxConns: 5, MinConns: 1,
 			MaxConnLifetime: 5 * time.Minute, MaxConnIdleTime: 1 * time.Minute,
 		}
-		pool, err := database.NewPostgres(context.Background(), cfg)
+		pool, err := NewPostgres(context.Background(), cfg)
 		require.NoError(t, err)
 		require.NotNil(t, pool)
 		defer pool.Close()
@@ -49,7 +48,7 @@ func TestNewPostgres(t *testing.T) {
 			User: "test", Password: "test", Name: "testdb",
 			SSLMode: "invalid-ssl-mode",
 		}
-		pool, err := database.NewPostgres(context.Background(), cfg)
+		pool, err := NewPostgres(context.Background(), cfg)
 		require.Error(t, err)
 		assert.Nil(t, pool)
 		assert.Contains(t, err.Error(), "parsing database config")
@@ -61,7 +60,7 @@ func TestNewPostgres(t *testing.T) {
 			User: "test", Password: "test", Name: "testdb",
 			SSLMode: "disable", MaxConns: 2, MinConns: 1,
 		}
-		pool, err := database.NewPostgres(context.Background(), cfg)
+		pool, err := NewPostgres(context.Background(), cfg)
 		require.Error(t, err)
 		assert.Nil(t, pool)
 	})
@@ -73,7 +72,7 @@ func TestNewPostgres(t *testing.T) {
 			User: "test", Password: "test", Name: "testdb",
 			SSLMode: "disable", MaxConns: 0, MinConns: 0,
 		}
-		pool, err := database.NewPostgres(context.Background(), cfg)
+		pool, err := NewPostgres(context.Background(), cfg)
 		require.Error(t, err)
 		assert.Nil(t, pool)
 		assert.Contains(t, err.Error(), "connecting to database")
@@ -85,7 +84,7 @@ func TestNewPostgres(t *testing.T) {
 			User: "test", Password: "test", Name: "testdb",
 			SSLMode: "disable", MaxConns: 2, MinConns: 0,
 		}
-		pool, err := database.NewPostgres(context.Background(), cfg)
+		pool, err := NewPostgres(context.Background(), cfg)
 		require.Error(t, err)
 		assert.Nil(t, pool)
 		assert.Contains(t, err.Error(), "pinging database")
@@ -94,14 +93,14 @@ func TestNewPostgres(t *testing.T) {
 
 func TestNewReaderPostgres(t *testing.T) {
 	t.Run("empty url returns ErrReaderNotConfigured", func(t *testing.T) {
-		pool, err := database.NewReaderPostgres(context.Background(), config.DatabaseConfig{ReaderURL: ""})
+		pool, err := NewReaderPostgres(context.Background(), config.DatabaseConfig{ReaderURL: ""})
 		require.ErrorIs(t, err, apperror.ErrReaderNotConfigured)
 		assert.Nil(t, pool)
 	})
 
 	t.Run("success", func(t *testing.T) {
 		dsn := fmt.Sprintf("postgres://test:test@localhost:%s/testdb?sslmode=disable", testContainerPort)
-		pool, err := database.NewReaderPostgres(context.Background(), config.DatabaseConfig{
+		pool, err := NewReaderPostgres(context.Background(), config.DatabaseConfig{
 			ReaderURL:       dsn,
 			MaxConns:        5,
 			MinConns:        1,
@@ -114,7 +113,7 @@ func TestNewReaderPostgres(t *testing.T) {
 	})
 
 	t.Run("invalid dsn returns parsing error", func(t *testing.T) {
-		pool, err := database.NewReaderPostgres(context.Background(),
+		pool, err := NewReaderPostgres(context.Background(),
 			config.DatabaseConfig{ReaderURL: "not-a-valid-url", MaxConns: 5})
 		require.Error(t, err)
 		assert.Nil(t, pool)
@@ -122,7 +121,7 @@ func TestNewReaderPostgres(t *testing.T) {
 	})
 
 	t.Run("ping failure with unreachable host", func(t *testing.T) {
-		pool, err := database.NewReaderPostgres(context.Background(),
+		pool, err := NewReaderPostgres(context.Background(),
 			config.DatabaseConfig{ReaderURL: "postgres://x:x@localhost:1/x", MaxConns: 5})
 		require.Error(t, err)
 		assert.Nil(t, pool)
