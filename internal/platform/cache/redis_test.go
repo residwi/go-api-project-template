@@ -1,4 +1,4 @@
-package cache_test
+package cache
 
 import (
 	"context"
@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/config"
-	"github.com/residwi/go-api-project-template/internal/platform/cache"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -33,7 +32,7 @@ func TestNewRedis(t *testing.T) {
 		host := addr[:lastColon]
 		port, _ := strconv.Atoi(addr[lastColon+1:])
 
-		client, err := cache.NewRedis(context.Background(), config.RedisConfig{Host: host, Port: port})
+		client, err := NewRedis(context.Background(), config.RedisConfig{Host: host, Port: port})
 		require.NoError(t, err)
 		require.NotNil(t, client)
 		defer client.Close()
@@ -44,7 +43,7 @@ func TestNewRedis(t *testing.T) {
 	t.Run("connection refused", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		defer cancel()
-		client, err := cache.NewRedis(ctx, config.RedisConfig{Host: "localhost", Port: 1})
+		client, err := NewRedis(ctx, config.RedisConfig{Host: "localhost", Port: 1})
 		require.Error(t, err)
 		assert.Nil(t, client)
 		assert.Contains(t, err.Error(), "connecting to redis")
