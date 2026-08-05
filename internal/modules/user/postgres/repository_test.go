@@ -196,6 +196,32 @@ func TestPostgresRepository_List(t *testing.T) {
 		assert.NotEmpty(t, users)
 	})
 
+	// Page 2 is what proves the OFFSET is wired: with page size 1 and three
+	// users, a repo that passed the raw page number (or dropped the -1) would
+	// return the wrong row while still returning one row and the right total.
+	t.Run("page 2 skips the first page's rows", func(t *testing.T) {
+		setup(t)
+		seedUser(t)
+		seedUser(t)
+		seedUser(t)
+		repo := New(testPool)
+		ctx := context.Background()
+
+		first, total, err := repo.List(ctx, user.ListParams{
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 1},
+		})
+		require.NoError(t, err)
+		require.Len(t, first, 1)
+		assert.Equal(t, 3, total)
+
+		second, _, err := repo.List(ctx, user.ListParams{
+			OffsetPage: paging.OffsetPage{Page: 2, PageSize: 1},
+		})
+		require.NoError(t, err)
+		require.Len(t, second, 1)
+		assert.NotEqual(t, first[0].ID, second[0].ID)
+	})
+
 	t.Run("filters by role", func(t *testing.T) {
 		setup(t)
 		u := seedUser(t)
