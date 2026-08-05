@@ -3,7 +3,6 @@
 # Binaries
 bin/*
 !bin/.keep
-!bin/run_test
 *.exe
 *.exe~
 *.dll

@@ -60,6 +60,11 @@ test: ## Run tests (requires Docker)
 	@echo "Running tests..."
 	go test -v -race -count=1 -timeout 5m -cover ./...
 
+.PHONY: test-one
+test-one: ## Run tests matching NAME, with .env loaded (e.g. make test-one NAME=TestPlaceOrder)
+	@echo "Running tests matching: '$(NAME)'"
+	env $$(grep -v '^\(#\|$$\)' .env) go test -count=1 -race -shuffle=on -failfast -v ./... -run "$(NAME)"
+
 .PHONY: test-coverage
 test-coverage: ## Run tests with coverage report (requires Docker)
 	@echo "Running tests with coverage..."
