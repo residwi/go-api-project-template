@@ -431,7 +431,6 @@ func (s *Service) Apply(ctx context.Context, orderID uuid.UUID, t Transition) er
 	return s.repo.Apply(ctx, orderID, t)
 }
 
-// ListItemsByOrderID is used by payment service adapter.
 func (s *Service) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]Item, error) {
 	return s.repo.ListItemsByOrderID(ctx, orderID)
 }
@@ -454,8 +453,8 @@ func (s *Service) HasDeliveredOrder(ctx context.Context, p DeliveredPurchasePara
 	return s.repo.HasDeliveredOrder(ctx, p)
 }
 
-// SetPaymentDeps sets payment-related dependencies after construction.
-// This breaks the circular dependency between order and payment services.
+// SetPaymentDeps breaks the circular dependency between order and payment
+// services by wiring payment-backed deps after construction.
 func (s *Service) SetPaymentDeps(payment PaymentInitiator, paymentCancel PaymentJobCanceller) {
 	s.payment = payment
 	s.paymentCancel = paymentCancel

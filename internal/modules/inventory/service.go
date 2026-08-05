@@ -23,22 +23,18 @@ func (s *Service) Release(ctx context.Context, productID uuid.UUID, qty int) (*S
 	return s.repo.Release(ctx, productID, qty)
 }
 
-// ReserveBatch reserves stock for many products in one query (used at checkout).
 func (s *Service) ReserveBatch(ctx context.Context, items []StockChange) error {
 	return s.repo.ReserveBatch(ctx, items)
 }
 
-// ReleaseBatch releases reserved stock for many products in one query.
 func (s *Service) ReleaseBatch(ctx context.Context, items []StockChange) error {
 	return s.repo.ReleaseBatch(ctx, items)
 }
 
-// DeductBatch deducts stock for many products in one query (used on payment success).
 func (s *Service) DeductBatch(ctx context.Context, items []StockChange) error {
 	return s.repo.DeductBatch(ctx, items)
 }
 
-// RestockBatch restocks many products in one query (used on refund).
 func (s *Service) RestockBatch(ctx context.Context, items []StockChange) error {
 	return s.repo.RestockBatch(ctx, items)
 }
