@@ -81,7 +81,7 @@ func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 		out[i] = toAdminPaymentResponse(&p)
 	}
 
-	response.Paginated(w, paging.NewOffsetPageResult(out, page, total))
+	response.OK(w, paging.NewOffsetPageResult(out, page, total))
 }
 
 func (h *adminHandler) Get(w http.ResponseWriter, r *http.Request) {

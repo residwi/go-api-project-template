@@ -161,7 +161,7 @@ func (h *handler) List(w http.ResponseWriter, r *http.Request) {
 		out[i] = toProductResponse(&p)
 	}
 
-	response.Paginated(w, paging.NewCursorPageResult(out, nextCursor, hasMore))
+	response.OK(w, paging.NewCursorPageResult(out, nextCursor, hasMore))
 }
 
 func (h *handler) GetBySlug(w http.ResponseWriter, r *http.Request) {

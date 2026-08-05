@@ -34,10 +34,6 @@ func NoContent(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func Paginated(w http.ResponseWriter, data any) {
-	writeJSON(w, http.StatusOK, Response{Success: true, Data: data})
-}
-
 func Err(w http.ResponseWriter, status int, message string, details map[string]any) {
 	writeJSON(w, status, Response{
 		Success: false,

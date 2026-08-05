@@ -88,21 +88,6 @@ func TestNoContent(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, w.Code)
 }
 
-func TestPaginated(t *testing.T) {
-	t.Parallel()
-
-	w := httptest.NewRecorder()
-	data := map[string]any{"items": []string{"a", "b"}, "total": 2}
-	Paginated(w, data)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
-
-	var body Response
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-	assert.True(t, body.Success)
-}
-
 func TestErr(t *testing.T) {
 	t.Parallel()
 

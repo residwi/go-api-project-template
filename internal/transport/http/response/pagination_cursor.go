@@ -30,5 +30,5 @@ func CursorPage[T any](w http.ResponseWriter, rows []T, limit int, keyOf func(T)
 		next = paging.EncodeCursor(ts.Format(cursorTimeFormat), id.String())
 	}
 
-	Paginated(w, paging.NewCursorPageResult(rows, next, hasMore))
+	OK(w, paging.NewCursorPageResult(rows, next, hasMore))
 }

@@ -114,7 +114,7 @@ func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 		out[i] = toAdminPromotionResponse(&p)
 	}
 
-	response.Paginated(w, paging.NewOffsetPageResult(out, page, total))
+	response.OK(w, paging.NewOffsetPageResult(out, page, total))
 }
 
 type updatePromotionRequest struct {
