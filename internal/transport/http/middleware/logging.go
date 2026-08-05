@@ -17,8 +17,6 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
-// Logging takes the logger up front and returns the middleware, because there
-// is no package-level default left to reach for.
 func Logging(log *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -88,11 +88,8 @@ func RunContext(ctx context.Context) error {
 		WriteTimeout: cfg.App.WriteTimeout,
 		IdleTimeout:  cfg.App.IdleTimeout,
 		// net/http reports its own problems -- superfluous WriteHeader calls,
-		// TLS handshake failures -- through this logger. slog.SetDefault used to
-		// bridge them implicitly by also redirecting the stdlib log package;
-		// logger.Setup no longer installs a default, so without this they would
-		// fall back to the stdlib log's plain-text stderr and leave the
-		// configured stream entirely.
+		// TLS handshake failures -- through this logger. Without it they land on
+		// the stdlib log's plain-text stderr instead of the configured stream.
 		ErrorLog: slog.NewLogLogger(appLog.Handler(), slog.LevelError),
 	}
 
@@ -141,7 +138,7 @@ type Deps struct {
 	// Cache is the shared Redis connection, named for its principal consumer.
 	Cache *redis.Client
 	// Logger is threaded to every component that logs. There is no package-level
-	// default to fall back on -- logger.Setup does not install one -- so a nil
-	// here is a wiring bug, not a silent downgrade.
+	// default to fall back on, so a nil here is a wiring bug, not a silent
+	// downgrade.
 	Logger *slog.Logger
 }

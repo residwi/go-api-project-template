@@ -43,10 +43,9 @@ const (
 //	5 — test/e2e
 //	6 — internal/modules/user/redis
 
-// DiscardLogger is what tests hand to a constructor that now requires a
-// [slog.Logger]. Nothing asserts on log output, and logger.Setup no longer
-// installs a package default that could quieten it, so each caller says
-// explicitly that it wants the output thrown away.
+// DiscardLogger is what tests hand to a constructor that requires a
+// [slog.Logger]. Nothing asserts on log output, so each caller says explicitly
+// that it wants the output thrown away.
 func DiscardLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }

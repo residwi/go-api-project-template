@@ -8,8 +8,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// Recovery takes the logger up front and returns the middleware, because there
-// is no package-level default left to reach for.
 func Recovery(log *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
