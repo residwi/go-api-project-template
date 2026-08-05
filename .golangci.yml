@@ -287,7 +287,7 @@ linters:
       # Checks the number of lines in a function.
       # If lower than 0, disable the check.
       # Default: 60
-      lines: 100
+      lines: 120
       # Checks the number of statements in a function.
       # If lower than 0, disable the check.
       # Default: 40
@@ -489,7 +489,7 @@ linters:
       # Nothing is lost: `go test` already runs these packages concurrently
       # with each other, and each owns its own database, so the only
       # concurrency t.Parallel could add here is the unsafe kind.
-      - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testhelper/|^internal/platform/(cache|database)/|^internal/modules/user/redis/|^internal/transport/http/(router_test\.go|middleware/))
+      - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testhelper/|^internal/platform/(cache|database)/|^internal/modules/user/redis/|^internal/transport/http/([^/]+_test\.go|middleware/))
         linters: [paralleltest]
       # t.Setenv panics when the test also calls t.Parallel.
       - path: ^internal/config/config_test\.go

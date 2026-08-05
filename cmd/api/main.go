@@ -7,9 +7,11 @@ import (
 )
 
 func main() {
-	// Stdlib log, not slog: apihttp.Run is what builds the application logger,
-	// and the errors reported here are the ones that happen before or instead of
-	// that.
+	// Stdlib log, not slog: apihttp.Run builds the application logger, so nothing
+	// here can reach it. This is the only report for a failure that happens
+	// before the logger exists -- config loading. Everything after it is also
+	// recorded through the configured handler at ERROR by RunContext itself, so
+	// those failures are alertable and this line is only their plain-text echo.
 	if err := apihttp.Run(); err != nil {
 		log.Fatalf("server failed to start: %v", err)
 	}

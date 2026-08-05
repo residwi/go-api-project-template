@@ -202,7 +202,7 @@ func (s *Service) Process(ctx context.Context, job Job) error {
 // discards its rows-affected count, so nothing distinguishes "no such job" from
 // "job completed" at runtime.
 //
-//nolint:gocognit,funlen // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches; funlen counts golines' wrapping, not added logic (78 lines before this commit's reformat, 108 after)
+//nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches; funlen counts golines' wrapping, not added logic (78 lines before this commit's reformat, 108 after)
 func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
 		orderSnap, err := s.orderGet.GetByID(txCtx, job.OrderID)
@@ -312,7 +312,7 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 	})
 }
 
-//nolint:gocognit,funlen // resolves the payment then dispatches success/failed/cancelled/expired event branches; funlen counts golines' wrapping, not added logic
+//nolint:gocognit // resolves the payment then dispatches success/failed/cancelled/expired event branches; funlen counts golines' wrapping, not added logic
 func (s *Service) HandleWebhook(
 	ctx context.Context,
 	payload map[string]any,

@@ -36,10 +36,14 @@ func RunContext(ctx context.Context) error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	log := logger.Setup(cfg.Log.Level, cfg.Log.Format)
+	appLog := logger.Setup(cfg.Log.Level, cfg.Log.Format)
 
 	pool, err := database.NewPostgres(ctx, cfg.Database)
 	if err != nil {
+		// Reported here as well as returned: main's fallback prints through the
+		// stdlib log, so without this the failure never reaches the configured
+		// handler and an error-level alert has nothing to match on.
+		appLog.ErrorContext(ctx, "connecting to database failed", slog.Any("error", err))
 		return fmt.Errorf("connecting to database: %w", err)
 	}
 	defer pool.Close()
@@ -47,7 +51,7 @@ func RunContext(ctx context.Context) error {
 	readerPool, err := database.NewReaderPostgres(ctx, cfg.Database)
 	if err != nil {
 		if !errors.Is(err, apperror.ErrReaderNotConfigured) {
-			log.WarnContext(ctx, "failed to connect reader database, using primary", slog.Any("error", err))
+			appLog.WarnContext(ctx, "failed to connect reader database, using primary", slog.Any("error", err))
 		}
 		readerPool = nil
 	}
@@ -57,7 +61,7 @@ func RunContext(ctx context.Context) error {
 
 	rdb, err := cache.NewRedis(ctx, cfg.Redis)
 	if err != nil {
-		log.WarnContext(
+		appLog.WarnContext(
 			ctx,
 			"failed to connect to redis, continuing without cache/rate-limiting",
 			slog.Any("error", err),
@@ -72,7 +76,7 @@ func RunContext(ctx context.Context) error {
 		Pool:       pool,
 		ReaderPool: readerPool,
 		Cache:      rdb,
-		Logger:     log,
+		Logger:     appLog,
 	}
 
 	handler := NewRouter(deps)
@@ -83,26 +87,50 @@ func RunContext(ctx context.Context) error {
 		ReadTimeout:  cfg.App.ReadTimeout,
 		WriteTimeout: cfg.App.WriteTimeout,
 		IdleTimeout:  cfg.App.IdleTimeout,
+		// net/http reports its own problems -- superfluous WriteHeader calls,
+		// TLS handshake failures -- through this logger. slog.SetDefault used to
+		// bridge them implicitly by also redirecting the stdlib log package;
+		// logger.Setup no longer installs a default, so without this they would
+		// fall back to the stdlib log's plain-text stderr and leave the
+		// configured stream entirely.
+		ErrorLog: slog.NewLogLogger(appLog.Handler(), slog.LevelError),
 	}
 
+	// Buffered so the goroutine never blocks once RunContext has taken the
+	// ctx.Done branch and stopped receiving.
+	serveErr := make(chan error, 1)
 	go func() {
-		log.InfoContext(ctx, "server starting", slog.Any("port", cfg.App.Port), slog.Any("env", cfg.App.Env))
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.ErrorContext(ctx, "server error", slog.Any("error", err))
+		appLog.InfoContext(ctx, "server starting", slog.Int("port", cfg.App.Port), slog.String("env", cfg.App.Env))
+		// ErrServerClosed is what the Shutdown below produces, not a failure.
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serveErr <- err
 		}
+		close(serveErr)
 	}()
 
-	<-ctx.Done()
-	log.InfoContext(ctx, "shutting down server...")
+	// A bind failure has to abort the process. Logging it and continuing to
+	// block on ctx.Done left the binary alive, serving nothing, and exiting 0 --
+	// which reads as a healthy rollout.
+	select {
+	case err := <-serveErr:
+		if err != nil {
+			appLog.ErrorContext(ctx, "server failed to start", slog.Any("error", err))
+			return fmt.Errorf("starting server: %w", err)
+		}
+	case <-ctx.Done():
+	}
+
+	appLog.InfoContext(ctx, "shutting down server")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.App.ShutdownTimeout)
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
+		appLog.ErrorContext(ctx, "server shutdown failed", slog.Any("error", err))
 		return fmt.Errorf("server shutdown: %w", err)
 	}
 
-	log.InfoContext(ctx, "server stopped gracefully")
+	appLog.InfoContext(ctx, "server stopped gracefully")
 	return nil
 }
 

@@ -27,8 +27,11 @@ import (
 )
 
 func main() {
-	// Stdlib log, not slog: run() is what builds the application logger, and the
-	// errors reported here are the ones that happen before or instead of that.
+	// Stdlib log, not slog: run() builds the application logger, so nothing here
+	// can reach it. This is the only report for a failure that happens before the
+	// logger exists -- config loading. Everything after it is also recorded
+	// through the configured handler at ERROR by run() itself, so those failures
+	// are alertable and this line is only their plain-text echo.
 	if err := run(); err != nil {
 		log.Fatalf("worker failed to start: %v", err)
 	}
@@ -47,6 +50,10 @@ func run() error {
 
 	pool, err := database.NewPostgres(ctx, cfg.Database)
 	if err != nil {
+		// Reported here as well as returned: main's fallback prints through the
+		// stdlib log, so without this the failure never reaches the configured
+		// handler and an error-level alert has nothing to match on.
+		appLog.ErrorContext(ctx, "connecting to database failed", slog.Any("error", err))
 		return fmt.Errorf("connecting to database: %w", err)
 	}
 	defer pool.Close()
