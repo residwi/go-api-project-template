@@ -93,24 +93,21 @@ func RunContext(ctx context.Context) error {
 		ErrorLog: slog.NewLogLogger(appLog.Handler(), slog.LevelError),
 	}
 
-	// Buffered so the goroutine never blocks once RunContext has taken the
-	// ctx.Done branch and stopped receiving.
+	// Buffered so the send never blocks: on clean shutdown the select below has
+	// already taken ctx.Done and nobody receives.
 	serveErr := make(chan error, 1)
 	go func() {
 		appLog.InfoContext(ctx, "server starting", slog.Int("port", cfg.App.Port), slog.String("env", cfg.App.Env))
-		// ErrServerClosed is what the Shutdown below produces, not a failure.
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			serveErr <- err
-		}
-		close(serveErr)
+		serveErr <- srv.ListenAndServe()
 	}()
 
-	// A bind failure has to abort the process. Logging it and continuing to
-	// block on ctx.Done left the binary alive, serving nothing, and exiting 0 --
-	// which reads as a healthy rollout.
+	// A bind failure has to abort the process. Blocking on ctx.Done alone left
+	// the binary alive, serving nothing, and exiting 0 -- which reads as a
+	// healthy rollout.
 	select {
 	case err := <-serveErr:
-		if err != nil {
+		// ErrServerClosed is the Shutdown below, not a failure.
+		if !errors.Is(err, http.ErrServerClosed) {
 			appLog.ErrorContext(ctx, "server failed to start", slog.Any("error", err))
 			return fmt.Errorf("starting server: %w", err)
 		}
