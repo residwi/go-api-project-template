@@ -848,24 +848,27 @@ func TestServerRunListenError(t *testing.T) {
 
 	serverRunEnv(t, port)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// t.Context() rather than a manual WithCancel: nothing here cancels early any
+	// more, so the only cancellation that matters is the one at test end.
+	ctx := t.Context()
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- RunContext(ctx) }()
 
-	// Give the server goroutine time to hit the ListenAndServe error
-	time.Sleep(500 * time.Millisecond)
-
-	// Cancel to unblock <-ctx.Done()
-	cancel()
-
+	// No sleep and no cancel: the port is already bound, so ListenAndServe fails on
+	// its own and 57d3ec7 makes RunContext return that error rather than logging it
+	// and blocking. Waiting on the error is what makes this deterministic. The
+	// previous shape slept a fixed 500ms and then cancelled, which held only while
+	// config, Postgres and Redis setup finished inside that window -- under
+	// full-suite load it does not, and cancelling first sent RunContext down its
+	// graceful-shutdown path to return nil without ever attempting the listen.
 	select {
 	case runErr := <-errCh:
-		// RunContext returns nil because the ListenAndServe error is only logged, not returned
-		require.NoError(t, runErr)
+		require.Error(t, runErr)
+		require.ErrorContains(t, runErr, "address already in use",
+			"the returned error must name the bind failure, not some later shutdown error")
 	case <-time.After(30 * time.Second):
-		t.Fatal("apihttp.RunContext did not return after its context was cancelled")
+		t.Fatal("apihttp.RunContext did not return the listen error for an already-bound port")
 	}
 }
 
