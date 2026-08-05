@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
+	"os"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -27,17 +27,15 @@ import (
 )
 
 func main() {
-	// Stdlib log, not slog: run() builds the application logger, so nothing here can
-	// reach it. This is the only report for a failure before the logger exists.
-	// Anything after it is also recorded through the configured handler.
 	if err := run(); err != nil {
-		log.Fatalf("worker failed to start: %v", err)
+		os.Exit(1)
 	}
 }
 
 func run() error {
 	cfg, err := config.Load()
 	if err != nil {
+		logger.FromEnv().Error("loading config failed", slog.String("error", err.Error()))
 		return fmt.Errorf("loading config: %w", err)
 	}
 
@@ -48,8 +46,7 @@ func run() error {
 
 	pool, err := database.NewPostgres(ctx, cfg.Database)
 	if err != nil {
-		// Reported as well as returned: main's fallback prints through the stdlib log,
-		// so otherwise no error-level record reaches the configured handler.
+		// Reported as well as returned: main only sets the exit code.
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.Any("error", err))
 		return fmt.Errorf("connecting to database: %w", err)
 	}

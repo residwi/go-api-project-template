@@ -3,7 +3,6 @@
 package main
 
 import (
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -19,7 +18,8 @@ func main() {
 	appLog := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	appLog.Info("mock payment gateway listening", slog.String("addr", addr))
 	if err := http.ListenAndServe(addr, newMux(appLog)); err != nil { //nolint:gosec // dev-only tool
-		log.Fatalf("mock gateway failed: %v", err)
+		appLog.Error("mock gateway failed", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 }
 
