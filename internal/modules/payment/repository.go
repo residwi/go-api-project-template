@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 // Repository is payment's persistence port. The Postgres implementation
@@ -31,8 +33,8 @@ type Repository interface {
 }
 
 type AdminListParams struct {
-	Page     int
-	PageSize int
-	Status   string
-	OrderID  string
+	paging.OffsetPage
+
+	Status  string
+	OrderID string
 }

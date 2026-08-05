@@ -99,8 +99,7 @@ func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := promotion.ListParams{
-		Page:     page.Page,
-		PageSize: page.PageSize,
+		OffsetPage: page,
 	}
 
 	promotions, total, err := h.service.List(r.Context(), params)

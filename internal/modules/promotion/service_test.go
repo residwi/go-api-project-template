@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -324,7 +325,7 @@ func TestService_List(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := NewService(repo, testhelper.FakeTxRunner{})
 
-		params := ListParams{Page: 1, PageSize: 10}
+		params := ListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}}
 		promos := []Promotion{
 			{ID: uuid.New(), Code: "A"},
 			{ID: uuid.New(), Code: "B"},
@@ -343,7 +344,7 @@ func TestService_List(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := NewService(repo, testhelper.FakeTxRunner{})
 
-		params := ListParams{Page: 1, PageSize: 10}
+		params := ListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}}
 		repo.EXPECT().ListAdmin(mock.Anything, params).Return(nil, 0, assert.AnError)
 
 		_, _, err := svc.List(context.Background(), params)

@@ -355,7 +355,7 @@ func TestService_AdminListAll(t *testing.T) {
 
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		params := AdminListParams{Page: 1, PageSize: 20, Status: "paid"}
+		params := AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 20}, Status: "paid"}
 		expected := []Order{
 			{ID: uuid.New(), Status: StatusPaid},
 		}
@@ -374,7 +374,7 @@ func TestService_AdminListAll(t *testing.T) {
 
 		svc, repo, _, _, _, _, _, _ := newTestService(t)
 
-		params := AdminListParams{Page: 1, PageSize: 20}
+		params := AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 20}}
 		dbErr := errors.New("database error")
 
 		repo.EXPECT().ListAdmin(mock.Anything, params).Return(nil, 0, dbErr)

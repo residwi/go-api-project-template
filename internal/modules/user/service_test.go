@@ -15,6 +15,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -457,7 +458,7 @@ func TestService_List(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := NewService(repo, NoCache{}, testhelper.DiscardLogger())
 
-		params := ListParams{Page: 1, PageSize: 10}
+		params := ListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}}
 		users := []User{
 			{ID: uuid.New(), Email: "a@example.com", FirstName: "A", LastName: "User"},
 			{ID: uuid.New(), Email: "b@example.com", FirstName: "B", LastName: "User"},

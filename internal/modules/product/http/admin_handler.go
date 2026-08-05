@@ -113,10 +113,9 @@ func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 
 	params := product.AdminListParams{
-		Page:     page.Page,
-		PageSize: page.PageSize,
-		Status:   r.URL.Query().Get("status"),
-		Search:   r.URL.Query().Get("search"),
+		OffsetPage: page,
+		Status:     r.URL.Query().Get("status"),
+		Search:     r.URL.Query().Get("search"),
 	}
 
 	if catID := r.URL.Query().Get("category_id"); catID != "" {

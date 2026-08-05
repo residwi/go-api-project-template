@@ -292,7 +292,6 @@ func (r *Repository) ListAdmin(ctx context.Context, params payment.AdminListPara
 		return nil, 0, fmt.Errorf("counting payments: %w", err)
 	}
 
-	offset := (params.Page - 1) * params.PageSize
 	query := fmt.Sprintf(
 		`SELECT id, order_id, amount, currency, status, method, payment_method_id, gateway_txn_id, paid_at, created_at, updated_at
 		FROM payments WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`,
@@ -300,7 +299,7 @@ func (r *Repository) ListAdmin(ctx context.Context, params payment.AdminListPara
 		argIdx,
 		argIdx+1,
 	)
-	args = append(args, params.PageSize, offset)
+	args = append(args, params.Limit(), params.Offset())
 
 	rows, err := db.Query(ctx, query, args...)
 	if err != nil {

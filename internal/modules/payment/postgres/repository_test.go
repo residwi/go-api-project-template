@@ -14,6 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/money"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -272,8 +273,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		repo := New(testPool)
 
 		payments, total, err := repo.ListAdmin(context.Background(), payment.AdminListParams{
-			Page:     1,
-			PageSize: 10,
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -469,7 +469,10 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("ListAdmin", func(t *testing.T) {
 		setup(t)
-		_, _, err := repo.ListAdmin(cancelledCtx, payment.AdminListParams{Page: 1, PageSize: 10})
+		_, _, err := repo.ListAdmin(
+			cancelledCtx,
+			payment.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}},
+		)
 		assert.Error(t, err)
 	})
 
@@ -563,9 +566,8 @@ func TestPostgresRepository_ListAdmin_WithNullableFields(t *testing.T) {
 		require.NoError(t, err)
 
 		payments, total, err := repo.ListAdmin(ctx, payment.AdminListParams{
-			Page:     1,
-			PageSize: 100,
-			OrderID:  orderID.String(),
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 100},
+			OrderID:    orderID.String(),
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -697,9 +699,8 @@ func TestPostgresRepository_ListAdmin_Filters(t *testing.T) {
 		repo := New(testPool)
 
 		payments, total, err := repo.ListAdmin(context.Background(), payment.AdminListParams{
-			Page:     1,
-			PageSize: 10,
-			Status:   "pending",
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
+			Status:     "pending",
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -716,9 +717,8 @@ func TestPostgresRepository_ListAdmin_Filters(t *testing.T) {
 		repo := New(testPool)
 
 		payments, total, err := repo.ListAdmin(context.Background(), payment.AdminListParams{
-			Page:     1,
-			PageSize: 10,
-			OrderID:  orderID.String(),
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
+			OrderID:    orderID.String(),
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)

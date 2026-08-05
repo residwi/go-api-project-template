@@ -17,9 +17,8 @@ type adminHandler struct {
 func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := order.AdminListParams{
-		Page:     page.Page,
-		PageSize: page.PageSize,
-		Status:   r.URL.Query().Get("status"),
+		OffsetPage: page,
+		Status:     r.URL.Query().Get("status"),
 	}
 
 	orders, total, err := h.service.AdminListAll(r.Context(), params)

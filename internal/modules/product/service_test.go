@@ -13,6 +13,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/money"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 func TestService_Create(t *testing.T) {
@@ -303,7 +304,7 @@ func TestService_ListAdmin(t *testing.T) {
 		svc := NewService(repo, inv, reg)
 
 		idA, idB := uuid.New(), uuid.New()
-		params := AdminListParams{Page: 1, PageSize: 20}
+		params := AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 20}}
 		products := []Product{
 			{ID: idA, Name: "A"},
 			{ID: idB, Name: "B"},

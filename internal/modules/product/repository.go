@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 // Repository is product's persistence port. The Postgres implementation lives
@@ -33,8 +35,8 @@ type PublishedListParams struct {
 }
 
 type AdminListParams struct {
-	Page       int
-	PageSize   int
+	paging.OffsetPage
+
 	Status     string
 	CategoryID *uuid.UUID
 	Search     string

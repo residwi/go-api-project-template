@@ -167,14 +167,13 @@ func (r *Repository) List(ctx context.Context, params user.ListParams) ([]user.U
 		return nil, 0, fmt.Errorf("counting users: %w", err)
 	}
 
-	offset := (params.Page - 1) * params.PageSize
 	query := fmt.Sprintf(
 		"SELECT id, email, first_name, last_name, phone, role, active, created_at, updated_at FROM users WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d",
 		where,
 		argIdx,
 		argIdx+1,
 	)
-	args = append(args, params.PageSize, offset)
+	args = append(args, params.Limit(), params.Offset())
 
 	rows, err := db.Query(ctx, query, args...)
 	if err != nil {

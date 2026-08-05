@@ -10,9 +10,9 @@ import (
 )
 
 type AdminListParams struct {
-	Page     int
-	PageSize int
-	Status   string
+	paging.OffsetPage
+
+	Status string
 }
 
 // Repository is order's persistence port. The Postgres implementation lives

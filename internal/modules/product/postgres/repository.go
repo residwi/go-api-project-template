@@ -287,14 +287,13 @@ func (r *Repository) ListAdmin(ctx context.Context, params product.AdminListPara
 		return nil, 0, fmt.Errorf("counting products: %w", err)
 	}
 
-	offset := (params.Page - 1) * params.PageSize
 	query := fmt.Sprintf(
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,
 		        status, created_at, updated_at
 		FROM products WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`,
 		where, argIdx, argIdx+1,
 	)
-	args = append(args, params.PageSize, offset)
+	args = append(args, params.Limit(), params.Offset())
 
 	rows, err := db.Query(ctx, query, args...)
 	if err != nil {

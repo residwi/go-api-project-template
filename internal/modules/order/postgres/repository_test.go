@@ -316,7 +316,7 @@ func TestPostgresRepository_ListAdmin_NoFilter(t *testing.T) {
 		repo := New(testPool)
 
 		orders, total, err := repo.ListAdmin(context.Background(), order.AdminListParams{
-			Page: 1, PageSize: 50,
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50},
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -332,7 +332,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		repo := New(testPool)
 
 		orders, total, err := repo.ListAdmin(context.Background(), order.AdminListParams{
-			Page: 1, PageSize: 10, Status: "awaiting_payment",
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}, Status: "awaiting_payment",
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -551,7 +551,7 @@ func TestPostgresRepository_ListAdmin_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, _, err := repo.ListAdmin(ctx, order.AdminListParams{Page: 1, PageSize: 10})
+		_, _, err := repo.ListAdmin(ctx, order.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}})
 		assert.Error(t, err)
 	})
 }

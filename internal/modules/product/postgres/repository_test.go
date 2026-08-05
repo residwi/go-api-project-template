@@ -13,6 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/money"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -387,8 +388,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		repo := New(testPool)
 
 		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
-			Page:     1,
-			PageSize: 10,
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 2)
@@ -407,9 +407,8 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 
 		repo := New(testPool)
 		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
-			Page:     1,
-			PageSize: 10,
-			Status:   "draft",
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
+			Status:     "draft",
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -437,8 +436,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 
 		repo := New(testPool)
 		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
-			Page:       1,
-			PageSize:   10,
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 			CategoryID: &catID,
 		})
 		require.NoError(t, err)
@@ -461,9 +459,8 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 
 		repo := New(testPool)
 		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
-			Page:     1,
-			PageSize: 10,
-			Search:   sku,
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
+			Search:     sku,
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -632,7 +629,10 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("ListAdmin", func(t *testing.T) {
 		setup(t)
-		_, _, err := repo.ListAdmin(cancelledCtx, product.AdminListParams{Page: 1, PageSize: 10})
+		_, _, err := repo.ListAdmin(
+			cancelledCtx,
+			product.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}},
+		)
 		assert.Error(t, err)
 	})
 

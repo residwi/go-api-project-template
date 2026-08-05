@@ -1,6 +1,10 @@
 package promotion
 
-import "time"
+import (
+	"time"
+
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
+)
 
 // Params types are the service's input contract. They carry no json or
 // validate tags: those belong to a transport, and this service is also
@@ -36,6 +40,5 @@ type UpdateParams struct {
 }
 
 type ListParams struct {
-	Page     int
-	PageSize int
+	paging.OffsetPage
 }

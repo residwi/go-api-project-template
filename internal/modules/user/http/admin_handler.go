@@ -53,10 +53,9 @@ func toAdminUserResponse(u *user.User) adminUserResponse {
 func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := user.ListParams{
-		Page:     page.Page,
-		PageSize: page.PageSize,
-		Role:     r.URL.Query().Get("role"),
-		Search:   r.URL.Query().Get("search"),
+		OffsetPage: page,
+		Role:       r.URL.Query().Get("role"),
+		Search:     r.URL.Query().Get("search"),
 	}
 
 	if activeStr := r.URL.Query().Get("active"); activeStr != "" {

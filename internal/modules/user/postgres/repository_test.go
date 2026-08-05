@@ -13,6 +13,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -188,8 +189,7 @@ func TestPostgresRepository_List(t *testing.T) {
 		repo := New(testPool)
 
 		users, total, err := repo.List(context.Background(), user.ListParams{
-			Page:     1,
-			PageSize: 10,
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 2)
@@ -204,7 +204,7 @@ func TestPostgresRepository_List(t *testing.T) {
 		repo := New(testPool)
 
 		users, total, err := repo.List(context.Background(), user.ListParams{
-			Page: 1, PageSize: 50, Role: "admin",
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50}, Role: "admin",
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -220,7 +220,7 @@ func TestPostgresRepository_List(t *testing.T) {
 		active := true
 
 		users, _, err := repo.List(context.Background(), user.ListParams{
-			Page: 1, PageSize: 50, Active: &active,
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50}, Active: &active,
 		})
 		require.NoError(t, err)
 		for _, u := range users {
@@ -234,7 +234,7 @@ func TestPostgresRepository_List(t *testing.T) {
 		repo := New(testPool)
 
 		users, total, err := repo.List(context.Background(), user.ListParams{
-			Page: 1, PageSize: 50, Search: u.Email,
+			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50}, Search: u.Email,
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -377,7 +377,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("List returns error on cancelled context", func(t *testing.T) {
 		setup(t)
-		_, _, err := repo.List(ctx, user.ListParams{Page: 1, PageSize: 10})
+		_, _, err := repo.List(ctx, user.ListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}})
 		require.Error(t, err)
 	})
 

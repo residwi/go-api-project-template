@@ -13,6 +13,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -150,7 +151,10 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		seedPromotion(t)
 		repo := New(testPool)
 
-		items, total, err := repo.ListAdmin(context.Background(), promotion.ListParams{Page: 1, PageSize: 10})
+		items, total, err := repo.ListAdmin(
+			context.Background(),
+			promotion.ListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}},
+		)
 		require.NoError(t, err)
 		assert.Equal(t, 2, total)
 		assert.Len(t, items, 2)
@@ -310,7 +314,10 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("ListAdmin", func(t *testing.T) {
 		setup(t)
-		_, _, err := repo.ListAdmin(cancelledCtx, promotion.ListParams{Page: 1, PageSize: 10})
+		_, _, err := repo.ListAdmin(
+			cancelledCtx,
+			promotion.ListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}},
+		)
 		assert.Error(t, err)
 	})
 

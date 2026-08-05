@@ -145,13 +145,12 @@ func (r *Repository) ListAdmin(ctx context.Context, params promotion.ListParams)
 		return nil, 0, fmt.Errorf("counting promotions: %w", err)
 	}
 
-	offset := (params.Page - 1) * params.PageSize
 	rows, err := db.Query(
 		ctx,
 		`SELECT id, code, type, value, min_order_amount, max_discount, max_uses, used_count, starts_at, expires_at, active, created_at, updated_at
 		FROM promotions ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
-		params.PageSize,
-		offset,
+		params.Limit(),
+		params.Offset(),
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("listing promotions: %w", err)

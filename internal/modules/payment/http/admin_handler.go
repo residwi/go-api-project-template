@@ -64,10 +64,9 @@ func toAdminPaymentResponse(p *payment.Payment) adminPaymentResponse {
 func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := payment.AdminListParams{
-		Page:     page.Page,
-		PageSize: page.PageSize,
-		Status:   r.URL.Query().Get("status"),
-		OrderID:  r.URL.Query().Get("order_id"),
+		OffsetPage: page,
+		Status:     r.URL.Query().Get("status"),
+		OrderID:    r.URL.Query().Get("order_id"),
 	}
 
 	payments, total, err := h.service.ListAdmin(r.Context(), params)
