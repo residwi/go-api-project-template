@@ -67,13 +67,12 @@ type imageResponse struct {
 // compareAtPriceAmount flattens an optional compare-at price to its amount.
 // Shared by the public and admin mappers (admin_handler.go).
 //
-// The return type stays *int64, not money.Money, because `compare_at_price` is
-// `omitempty` and has always been absent from the body when a product has no
-// compare-at price. A money.Money would be a struct -- never empty as far as
-// encoding/json is concerned -- so the key would appear as 0 on every product
-// that used to omit it, which is a wire change dressed up as a type change.
-// The currency is not repeated either: it is the product's, published once
-// under `currency`.
+// The return type is *int64, not money.Money, because `compare_at_price` is
+// `omitempty` and must stay absent when a product has no compare-at price. A
+// money.Money is a struct -- never empty as far as encoding/json is concerned
+// -- so the key would appear as 0 on every product that should omit it. The
+// currency is not repeated either: it is the product's, published once under
+// `currency`.
 func compareAtPriceAmount(m *money.Money) *int64 {
 	if m == nil {
 		return nil

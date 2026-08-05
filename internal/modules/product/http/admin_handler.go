@@ -175,10 +175,9 @@ type updateProductRequest struct {
 // together (optionally with `compare_at_price`), or none of the three. Anything
 // in between is rejected here as a 400 rather than completed with a guess:
 //
-//   - `price` without `currency` used to inherit the stored currency, which
-//     means a client could re-price a product in a denomination it never named
-//     and get a 200 back. Silently inheriting hides that bug; refusing surfaces
-//     it at the one moment someone is looking.
+//   - `price` without `currency` would inherit the stored currency, letting a
+//     client re-price a product in a denomination it never named and get a 200
+//     back. Refusing surfaces that at the one moment someone is looking.
 //   - `currency` without `price` is the same mistake read backwards -- a
 //     re-denomination that leaves the old amount standing. products stores one
 //     currency for the whole row, so this quietly re-labels compare_at_price too.

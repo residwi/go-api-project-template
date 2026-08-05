@@ -99,11 +99,9 @@ func (h *adminHandler) Get(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toAdminPaymentResponse(p))
 }
 
-// refundResponse replaces the pre-refactor inline map[string]string literal
-// with a named type -- same wire shape, now typed. Refund has no request
-// params.go counterpart: payment.Service.Refund already takes a plain
-// uuid.UUID, not a request struct (a partial-amount/reasoned refund isn't
-// implemented today, so there is nothing to bind from a body).
+// refundResponse has no request counterpart: payment.Service.Refund takes a
+// plain uuid.UUID, and a partial-amount/reasoned refund is not implemented, so
+// there is nothing to bind from a body.
 type refundResponse struct {
 	Status string `json:"status"`
 }

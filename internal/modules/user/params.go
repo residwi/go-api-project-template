@@ -5,10 +5,9 @@ package user
 // reachable from places that have no HTTP request to validate. Each
 // transport maps its own wire type onto these.
 //
-// UpdateRoleParams and DeleteParams are not declared here -- they already
-// exist in service.go (Phase 1 Task 9), named the actor and the subject to
-// close a requester/target transposition hazard. This file only adds the
-// two params types dto.go's request types used to satisfy.
+// UpdateRoleParams and DeleteParams are not declared here -- they live in
+// service.go, where they name the actor and the subject separately to close a
+// requester/target transposition hazard.
 
 type UpdateProfileParams struct {
 	FirstName string

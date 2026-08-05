@@ -18,9 +18,8 @@ type handler struct {
 	validator *validator.Validator
 }
 
-// addressResponse maps order.Address explicitly rather than reusing the
-// domain struct, per the plan's convention for this feature -- Address
-// carries no internal fields today, but a future one (e.g. a
+// addressResponse maps order.Address explicitly rather than reusing the domain
+// struct: Address carries no internal fields today, but a future one (e.g. a
 // geocoding-provider id) would otherwise ride onto the wire unnoticed.
 type addressResponse struct {
 	Street  string `json:"street"`
@@ -170,11 +169,9 @@ func (r placeOrderRequest) toPlaceParams() order.PlaceParams {
 	}
 }
 
-// placeOrderResponse keeps the pre-refactor "order" envelope: integration
-// tests (internal/transport/http/router_test.go) decode
-// data.order.{id,coupon_code,subtotal_amount,discount_amount,total_amount},
-// so flattening this to just orderResponse would be a real behavior change,
-// not just a shape change.
+// placeOrderResponse wraps the order in an "order" envelope. Clients decode
+// data.order.{id,coupon_code,subtotal_amount,discount_amount,total_amount}, so
+// flattening this to a bare orderResponse is a wire break.
 type placeOrderResponse struct {
 	Order orderResponse `json:"order"`
 }
@@ -260,10 +257,8 @@ type payRequest struct {
 	PaymentMethodID string `json:"payment_method_id" validate:"required"`
 }
 
-// payResultResponse gives order.PaymentResult proper snake_case wire tags --
-// the pre-refactor handler serialized it untagged (ports.go carries no json
-// tags at all), so this also fixes a latent inconsistency with every other
-// response in the app, not just a rename.
+// payResultResponse gives order.PaymentResult snake_case wire tags; ports.go
+// carries no json tags of its own.
 type payResultResponse struct {
 	PaymentID  uuid.UUID `json:"payment_id"`
 	PaymentURL string    `json:"payment_url,omitempty"`

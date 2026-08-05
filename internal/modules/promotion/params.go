@@ -35,8 +35,6 @@ type UpdateParams struct {
 	Active         *bool
 }
 
-// ListParams was already tag-free in the pre-refactor dto.go -- it moves here
-// unchanged, just to a file that survives dto.go's deletion.
 type ListParams struct {
 	Page     int
 	PageSize int

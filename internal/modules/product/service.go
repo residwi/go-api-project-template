@@ -240,7 +240,7 @@ func (s *Service) DeleteImage(ctx context.Context, productID, imageID uuid.UUID)
 }
 
 // AvailableQuantity returns the sellable quantity for a given product, read
-// through the InventoryReader port now that product no longer stores stock.
+// through the InventoryReader port; product does not store stock itself.
 func (s *Service) AvailableQuantity(ctx context.Context, id uuid.UUID) (int, error) {
 	if _, err := s.repo.GetByID(ctx, id); err != nil {
 		return 0, err

@@ -55,7 +55,7 @@ func buildStockValues(items []inventory.StockChange) (string, []any, []uuid.UUID
 
 // lockLevels takes row locks in a deterministic order so concurrent batches
 // covering overlapping product rows cannot deadlock. Locking inventory_levels
-// instead of the product table also means a checkout no longer blocks an admin
+// instead of the product table also keeps a checkout from blocking an admin
 // editing a product's name or price.
 func lockLevels(ctx context.Context, db database.DBTX, ids []uuid.UUID) error {
 	_, err := db.Exec(ctx,

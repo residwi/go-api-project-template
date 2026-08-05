@@ -120,9 +120,8 @@ func (s *Service) PlaceOrder(
 		// Seed the running subtotal with a zero denominated in the first item's
 		// currency, so that item 0 goes through the loop -- and its availability
 		// check -- exactly like every other item. Money.Add then enforces the
-		// single-currency rule that used to be a hand-rolled comparison: summing
-		// across currencies would produce a meaningless total, and an arbitrary
-		// order currency. The empty-cart guard above makes Items[0] safe.
+		// single-currency rule: summing across currencies would produce a
+		// meaningless total. The empty-cart guard above makes Items[0] safe.
 		subtotal := money.New(0, snapshot.Items[0].Price.Currency)
 		for i, item := range snapshot.Items {
 			if item.Status != productStatusPublished {
@@ -130,9 +129,8 @@ func (s *Service) PlaceOrder(
 			}
 			sum, addErr := subtotal.Add(item.Price.MulQty(item.Quantity))
 			if addErr != nil {
-				// Both sentinels: ErrBadRequest keeps the 400 the old hand-rolled
-				// check produced (a mixed-currency cart is user input, not a server
-				// fault), ErrCurrencyMismatch names the actual cause.
+				// Both sentinels: ErrBadRequest gives a 400 (a mixed-currency cart is
+				// user input, not a server fault), ErrCurrencyMismatch names the cause.
 				return fmt.Errorf("%w: cart contains mixed currencies: %w", apperror.ErrBadRequest, addErr)
 			}
 			subtotal = sum
