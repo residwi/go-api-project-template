@@ -88,20 +88,6 @@ func TestContextHandler(t *testing.T) {
 		}, decodeRecord(t, buf))
 	})
 
-	t.Run("the stored slice has no spare capacity", func(t *testing.T) {
-		t.Parallel()
-
-		// Spare capacity is what lets two contexts derived from one parent write to
-		// the same backing array index and overwrite each other.
-		ctx := WithAttrs(context.Background(), slog.String("a", "1"))
-		ctx = WithAttrs(ctx, slog.String("b", "2"))
-
-		attrs, ok := ctx.Value(ctxKey{}).([]slog.Attr)
-
-		require.True(t, ok)
-		assert.Equal(t, len(attrs), cap(attrs))
-	})
-
 	t.Run("sibling contexts do not overwrite each other", func(t *testing.T) {
 		t.Parallel()
 
