@@ -98,22 +98,9 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 }
 
 // writeJSON marshals before touching the header, so a value that cannot be
-// encoded still produces an honest 500 instead of the status the caller asked
-// for followed by an empty body.
-//
-// The ordering is the whole point. [json.Marshal] buffers the entire document,
-// so a failure here has written nothing yet and the status is still ours to
-// choose; encoding straight into w would have committed the header first. Gin's
-// render.WriteJSON and go-chi/render.JSON both buffer for exactly this reason.
-//
-// The failure path goes back through InternalError rather than writing a
-// literal, so the error body keeps its shape from the Response struct tags and
-// cannot drift from them. That recurses exactly once and cannot loop: it
-// re-enters with a fixed string message and no Details, which always marshals.
-//
-// The error is deliberately neither logged nor returned. These helpers take
-// neither a context nor a logger across their 83 call sites, and the resulting
-// 500 is already recorded by the Logging middleware's status recorder.
+// encoded still produces an honest 500 rather than the caller's status followed
+// by an empty body. The InternalError retry recurses exactly once: it re-enters
+// with a fixed message and no Details, which always marshals.
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	body, err := json.Marshal(v)
 	if err != nil {
