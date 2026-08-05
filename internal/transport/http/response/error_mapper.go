@@ -7,38 +7,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 )
 
-type AppError struct {
-	Status  int
-	Message string
-	Details map[string]any
-	Err     error
-}
-
-func NewAppError(status int, message string, err error) *AppError {
-	return &AppError{Status: status, Message: message, Err: err}
-}
-
-func NewAppErrorWithDetails(status int, message string, details map[string]any, err error) *AppError {
-	return &AppError{Status: status, Message: message, Details: details, Err: err}
-}
-
-func (e *AppError) Error() string {
-	if e.Err != nil {
-		return e.Err.Error()
-	}
-	return e.Message
-}
-
-func (e *AppError) Unwrap() error {
-	return e.Err
-}
-
 func HandleErr(w http.ResponseWriter, err error) {
-	if appErr, ok := errors.AsType[*AppError](err); ok {
-		Err(w, appErr.Status, appErr.Message, appErr.Details)
-		return
-	}
-
 	switch {
 	case errors.Is(err, apperror.ErrNotFound):
 		NotFound(w, err.Error())

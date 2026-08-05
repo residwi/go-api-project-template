@@ -234,71 +234,8 @@ func TestDecodeJSON(t *testing.T) {
 	})
 }
 
-func TestAppError_Error(t *testing.T) {
-	t.Parallel()
-
-	t.Run("returns message when Err is nil", func(t *testing.T) {
-		t.Parallel()
-
-		appErr := NewAppError(http.StatusBadRequest, "something wrong", nil)
-		assert.Equal(t, "something wrong", appErr.Error())
-	})
-
-	t.Run("returns wrapped error string when Err is set", func(t *testing.T) {
-		t.Parallel()
-
-		underlying := errors.New("db connection failed")
-		appErr := NewAppError(http.StatusInternalServerError, "something wrong", underlying)
-		assert.Equal(t, "db connection failed", appErr.Error())
-	})
-}
-
-func TestAppError_Unwrap(t *testing.T) {
-	t.Parallel()
-
-	underlying := errors.New("original cause")
-	appErr := NewAppError(http.StatusInternalServerError, "wrapped", underlying)
-	assert.Equal(t, underlying, appErr.Unwrap())
-}
-
-func TestNewAppErrorWithDetails(t *testing.T) {
-	t.Parallel()
-
-	details := map[string]any{"field": "email", "reason": "invalid format"}
-	appErr := NewAppErrorWithDetails(http.StatusUnprocessableEntity, "validation failed", details, nil)
-
-	assert.Equal(t, &AppError{
-		Status:  http.StatusUnprocessableEntity,
-		Message: "validation failed",
-		Details: details,
-	}, appErr)
-}
-
 func TestHandleErr(t *testing.T) {
 	t.Parallel()
-
-	t.Run("app error", func(t *testing.T) {
-		t.Parallel()
-
-		w := httptest.NewRecorder()
-		err := NewAppError(http.StatusTeapot, "I'm a teapot", nil)
-		HandleErr(w, err)
-		assert.Equal(t, http.StatusTeapot, w.Code)
-	})
-
-	t.Run("app error with details", func(t *testing.T) {
-		t.Parallel()
-
-		w := httptest.NewRecorder()
-		details := map[string]any{"key": "val"}
-		err := NewAppErrorWithDetails(http.StatusBadRequest, "bad", details, nil)
-		HandleErr(w, err)
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var body Response
-		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-		assert.Equal(t, "val", body.Error.Details["key"])
-	})
 
 	t.Run("ErrNotFound returns 404", func(t *testing.T) {
 		t.Parallel()
