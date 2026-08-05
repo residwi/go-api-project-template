@@ -12,7 +12,6 @@ var (
 	ErrTokenExpired        = errors.New("token expired")
 	ErrInvalidToken        = errors.New("invalid token")
 	ErrInsufficientStock   = errors.New("insufficient stock")
-	ErrInsufficientFunds   = errors.New("insufficient funds")
 	ErrCartEmpty           = errors.New("cart is empty")
 	ErrOrderNotPayable     = errors.New("order is not in payable state")
 	ErrOrderCharging       = errors.New("order has an in-flight payment, cannot cancel")
