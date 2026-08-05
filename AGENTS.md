@@ -190,7 +190,7 @@ prior StockState)`.** Inventory decides whether that means releasing reservation
 - Errors: sentinels in `internal/apperror`. Wrap with `fmt.Errorf("%w: ...", apperror.ErrBadRequest)` to add context.
 - Packages are short singular nouns (`user`, `product`, `cart`).
 - `gofmt -s`, enforced by `make fmt` and golangci-lint. Import groups: stdlib, blank line, third-party, blank line, local (`github.com/residwi/go-api-project-template/...`).
-- Comments explain _why_, not _how_. Write one where reader would otherwise read code as mistake.
+- Comments explain _why_, not _how_. Write one where reader would otherwise read code as mistake. Two patterns to avoid: comment restating what code plainly does, and comment repeating function's doc comment at call site — reason belongs on declaration, never on consumers. When unsure, leave it out.
 - Prefer duplication over abstraction that does not quite fit.
 - Commit messages: conventional-commit prefixes in use on this branch (`refactor(cart): …`, `docs(db): …`, `test(e2e): …`). Match surrounding history.
 
