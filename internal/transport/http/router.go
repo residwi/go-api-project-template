@@ -1,15 +1,8 @@
 package http
 
-// This package is the composition root: it is the one place that assembles
-// every feature module into a single HTTP server, so it is also the one place
-// that has to see all of them at once. Each feature names its adapters after
-// their technology, not their feature — there are 14 packages called http and
-// 13 called postgres under internal/modules/<feature>/ — which is the right call
-// inside a module (cart/postgres says what it is without stuttering
-// "cartpostgres"). The cost of that choice is that every one of those imports
-// needs a disambiguating alias here, following the <feature>http /
-// <feature>pg convention. That is a deliberate trade, not accidental clutter:
-// it pays the cost once, in this file, instead of in every module.
+// This package is the composition root: it assembles every feature module into
+// one HTTP server. Feature adapters are named for their technology, so the
+// imports below are aliased <feature>http / <feature>pg to disambiguate.
 import (
 	"context"
 	"encoding/json"
