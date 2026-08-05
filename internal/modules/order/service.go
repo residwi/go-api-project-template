@@ -173,9 +173,9 @@ func (s *Service) PlaceOrder(
 				return txErr
 			}
 			// A discount is denominated in the order's currency by construction, so
-			// the clamp stays plain arithmetic on the amounts: Sub cannot fail here
-			// and max(..., 0) is the policy (an over-large coupon does not produce a
-			// negative charge), which money.Sub deliberately does not decide.
+			// the clamp stays plain arithmetic on the amounts: max(..., 0) is the
+			// policy (an over-large coupon does not produce a negative charge), and
+			// that policy is the caller's, not the money package's.
 			order.Discount = money.New(discount, subtotal.Currency)
 			order.Total = money.New(max(subtotal.Amount-discount, 0), subtotal.Currency)
 			// The order row was inserted with the pre-discount total; persist the

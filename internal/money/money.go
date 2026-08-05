@@ -30,15 +30,6 @@ func (m Money) Add(other Money) (Money, error) {
 	return Money{Amount: m.Amount + other.Amount, Currency: m.Currency}, nil
 }
 
-// Sub returns m minus other, or [ErrCurrencyMismatch] if their currencies differ.
-func (m Money) Sub(other Money) (Money, error) {
-	if m.Currency != other.Currency {
-		return Money{}, fmt.Errorf("%w: %s - %s", ErrCurrencyMismatch, m.Currency, other.Currency)
-	}
-
-	return Money{Amount: m.Amount - other.Amount, Currency: m.Currency}, nil
-}
-
 // MulQty returns m scaled by qty, keeping m's currency.
 //
 // A quantity is dimensionless — three of something is three whatever the price

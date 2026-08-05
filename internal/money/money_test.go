@@ -46,34 +46,6 @@ func TestAdd(t *testing.T) {
 	})
 }
 
-func TestSub(t *testing.T) {
-	t.Parallel()
-
-	t.Run("refuses mixed currencies", func(t *testing.T) {
-		t.Parallel()
-
-		_, err := New(1000, "USD").Sub(New(1000, "IDR"))
-		require.ErrorIs(t, err, ErrCurrencyMismatch,
-			"subtracting across currencies must be impossible, not silently wrong")
-	})
-
-	t.Run("subtracts within one currency", func(t *testing.T) {
-		t.Parallel()
-
-		got, err := New(1000, "USD").Sub(New(250, "USD"))
-		require.NoError(t, err)
-		assert.Equal(t, New(750, "USD"), got)
-	})
-
-	t.Run("result may be negative", func(t *testing.T) {
-		t.Parallel()
-
-		got, err := New(250, "USD").Sub(New(1000, "USD"))
-		require.NoError(t, err)
-		assert.Equal(t, New(-750, "USD"), got)
-	})
-}
-
 func TestMulQty(t *testing.T) {
 	t.Parallel()
 

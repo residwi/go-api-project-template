@@ -834,7 +834,6 @@ func TestService_Update_RepricesStoredCompareAtPriceIntoTheNewCurrency(t *testin
 	assert.Equal(t, money.New(900, "EUR"), persisted.Price)
 
 	require.NotNil(t, result.CompareAtPrice)
-	_, subErr := result.Price.Sub(*result.CompareAtPrice)
-	require.NoError(t, subErr,
+	assert.Equal(t, result.Price.Currency, result.CompareAtPrice.Currency,
 		"both amounts must share a currency -- the row does, so the returned struct must too")
 }
