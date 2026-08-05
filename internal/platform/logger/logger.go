@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -10,6 +11,11 @@ import (
 // makes the package-level default unusable, so installing it would only offer a
 // second way to log that nothing may take. Callers take a logger parameter.
 func Setup(level, format string) *slog.Logger {
+	return setup(os.Stdout, level, format)
+}
+
+// setup exists so the tests can read what was written.
+func setup(w io.Writer, level, format string) *slog.Logger {
 	if strings.EqualFold(level, "warning") {
 		level = "warn" // UnmarshalText only knows the short form.
 	}
@@ -24,10 +30,24 @@ func Setup(level, format string) *slog.Logger {
 	var handler slog.Handler
 	switch strings.ToLower(format) {
 	case "text":
-		handler = slog.NewTextHandler(os.Stdout, opts)
+		handler = slog.NewTextHandler(w, opts)
 	default:
-		handler = slog.NewJSONHandler(os.Stdout, opts)
+		handler = slog.NewJSONHandler(w, opts)
 	}
 
-	return slog.New(handler)
+	// Wrapped here, not per call site: an unwrapped logger accepts every ctx and
+	// silently emits none of its attributes.
+	return slog.New(ContextHandler{Handler: handler})
+}
+
+// FromEnv builds a logger for the window before a parsed [config.Config] exists,
+// which is the window in which loading that config can fail. [config.Load]
+// applies .env to the environment before it can fail, so LOG_FORMAT is honoured
+// even then.
+func FromEnv() *slog.Logger {
+	return fromEnv(os.Stdout)
+}
+
+func fromEnv(w io.Writer) *slog.Logger {
+	return setup(w, os.Getenv("LOG_LEVEL"), os.Getenv("LOG_FORMAT"))
 }

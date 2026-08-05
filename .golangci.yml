@@ -531,5 +531,5 @@ linters:
       - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testhelper/|^internal/platform/(cache|database)/|^internal/modules/user/redis/|^internal/transport/http/([^/]+_test\.go|middleware/))
         linters: [paralleltest]
       # t.Setenv panics when the test also calls t.Parallel.
-      - path: ^internal/config/config_test\.go
+      - path: ^internal/(config/config_test|platform/logger/logger_test)\.go
         linters: [paralleltest]
