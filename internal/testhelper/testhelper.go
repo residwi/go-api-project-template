@@ -327,6 +327,15 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) {
 
 	db := stdlib.OpenDBFromPool(pool)
 
+	// goose logs an "OK <file>" line per migration through the standard log
+	// package. That used to be swallowed because this package's init() installed
+	// an ERROR-level slog default, and slog.SetDefault also redirects the stdlib
+	// log; dropping that default un-silenced it, and `make test` runs -v across
+	// ~20 packages that migrate, so it buried the failures worth reading.
+	// Silencing the chatter hides nothing: UpContext still returns its error and
+	// the call below reports it.
+	goose.SetLogger(goose.NopLogger())
+
 	if err := goose.SetDialect("postgres"); err != nil {
 		_ = db.Close()
 		harnessLogger().ErrorContext(ctx, "testhelper: goose.SetDialect", slog.Any("error", err))
