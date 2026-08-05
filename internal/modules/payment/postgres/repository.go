@@ -16,10 +16,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-// amountColumns is the payments table's amount and currency columns. Every read
-// of a payment goes through it, so the one place a scanned row becomes a
-// denominated money.Money is here rather than repeated at each of the five
-// queries that select them.
+// Every read goes through this, so a scanned row becomes a denominated
+// money.Money in one place instead of at each of the five queries.
 type amountColumns struct {
 	amount   int64
 	currency string

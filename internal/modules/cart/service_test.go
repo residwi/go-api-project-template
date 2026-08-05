@@ -436,8 +436,8 @@ func TestService_GetCart_FlagsUnavailableLines(t *testing.T) {
 		},
 	}, nil)
 
-	// The port reports what it knows. A soft-deleted product still comes back,
-	// carrying its status -- cart, not product, decides how to show it.
+	// A soft-deleted product still comes back carrying its status: cart decides how
+	// to show it, not product.
 	products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{liveID, goneID}).
 		Return(map[uuid.UUID]ProductInfo{
 			liveID: {ID: liveID, Name: "Widget", Price: money.New(1500, "USD"), Status: "published", Available: 5},
@@ -468,9 +468,8 @@ func TestService_GetCart_MissingProductBecomesUnavailable(t *testing.T) {
 		},
 	}, nil)
 
-	// The product row is gone entirely -- absent from the map, not merely
-	// carrying a terminal status. The line must still render, non-nil, so a
-	// later consumer of Item.Product never has to nil-check it.
+	// Absent from the map, not merely carrying a terminal status: the line must
+	// still render non-nil so no consumer of Item.Product has to nil-check it.
 	products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{missingID}).
 		Return(map[uuid.UUID]ProductInfo{}, nil)
 

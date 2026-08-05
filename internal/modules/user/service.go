@@ -24,7 +24,6 @@ func NewService(repo Repository, c StatusCache, log *slog.Logger) *Service {
 	return &Service{repo: repo, cache: c, logger: log}
 }
 
-// GetByEmail satisfies auth.UserProvider.
 func (s *Service) GetByEmail(ctx context.Context, email string) (auth.UserCredentials, error) {
 	u, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
@@ -42,7 +41,6 @@ func (s *Service) GetByEmail(ctx context.Context, email string) (auth.UserCreden
 	}, nil
 }
 
-// Create satisfies auth.UserProvider.
 func (s *Service) Create(ctx context.Context, params auth.CreateUserParams) (auth.UserResult, error) {
 	user := &User{
 		Email:        params.Email,
@@ -68,7 +66,6 @@ func (s *Service) Create(ctx context.Context, params auth.CreateUserParams) (aut
 	}, nil
 }
 
-// GetByID satisfies auth.UserProvider.
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (auth.UserResult, error) {
 	u, err := s.repo.GetByID(ctx, id)
 	if err != nil {
@@ -179,9 +176,9 @@ func (s *Service) AdminUpdate(ctx context.Context, id uuid.UUID, p AdminUpdatePa
 	return u, nil
 }
 
-// UpdateRoleParams and DeleteParams name the actor and the subject. Both are
-// uuid.UUID, and the requesterID == targetID guard below does not catch a
-// transposition -- swapped, it would act on the admin instead of the target.
+// UpdateRoleParams and DeleteParams name their fields because both ids are
+// uuid.UUID and the requesterID == targetID guard below does not catch a
+// transposition: swapped, it acts on the admin.
 type UpdateRoleParams struct {
 	RequesterID uuid.UUID
 	TargetID    uuid.UUID
@@ -218,9 +215,8 @@ func (s *Service) UpdateRole(ctx context.Context, p UpdateRoleParams) error {
 		return err
 	}
 
-	// Revoke the target user's outstanding access tokens: the auth middleware
-	// rejects a token whose token_version differs from the DB, so bumping it
-	// forces a re-auth that reflects the new role.
+	// Bumping token_version revokes outstanding tokens, forcing a re-auth that
+	// reflects the new role.
 	if err := s.repo.IncrementTokenVersion(ctx, p.TargetID); err != nil {
 		return fmt.Errorf("revoking tokens after role change: %w", err)
 	}
@@ -257,11 +253,8 @@ func (s *Service) Delete(ctx context.Context, p DeleteParams) error {
 	return nil
 }
 
-// invalidateStatusCache drops the cached active/token_version for a user so a
-// status change (deactivation, deletion, role change, token revocation) takes
-// effect on the next request instead of only after the 30s TTL — otherwise a
-// revoked or deactivated user keeps access for up to 30s. Best-effort: a failure
-// is logged and the entry still expires on its own.
+// Without this a revoked or deactivated user keeps access until the TTL lapses.
+// Best-effort: a failure is logged and the entry still expires on its own.
 func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
 	if err := s.cache.Invalidate(ctx, userID); err != nil {
 		s.logger.WarnContext(

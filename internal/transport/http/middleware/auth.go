@@ -28,9 +28,8 @@ func GetUserContext(ctx context.Context) (UserContext, bool) {
 	return uc, ok
 }
 
-// RequireUser returns the authenticated user from the request context. If no
-// user is present it writes a 401 response and returns ok=false, so the caller
-// can simply return.
+// RequireUser writes the 401 itself and returns ok=false, so the caller can
+// simply return.
 func RequireUser(w http.ResponseWriter, r *http.Request) (UserContext, bool) {
 	uc, ok := GetUserContext(r.Context())
 	if !ok {

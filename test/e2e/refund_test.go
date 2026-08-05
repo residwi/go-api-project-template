@@ -24,7 +24,6 @@ import (
 
 func TestE2EAdminRefundEndpoint(t *testing.T) {
 	setup(t)
-	// Start a mock payment gateway server
 	mockMux := http.NewServeMux()
 	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
@@ -48,7 +47,6 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	handler := apihttp.NewRouter(webhookDeps)
 	ctx := context.Background()
 
-	// Seed category + product
 	catID := uuid.New()
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Refund Cat', $2, true)`,
@@ -68,7 +66,6 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 100, 0)
 
-	// Register user
 	email := "refund-flow@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"Refund","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
@@ -113,7 +110,6 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
 
-	// Add to cart
 	cartBody := `{"product_id":"` + prodID.String() + `","quantity":1}`
 	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
 	cartReq.Header.Set("Content-Type", "application/json")
@@ -122,7 +118,6 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	// Place order
 	orderBody := `{"payment_method_id":"pm_test_123"}`
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
@@ -136,12 +131,10 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
 	orderID := orderResp["data"].(map[string]any)["order"].(map[string]any)["id"].(string)
 
-	// Look up the payment_id
 	var paymentID uuid.UUID
 	err = testPool.QueryRow(ctx, `SELECT id FROM payments WHERE order_id = $1`, orderID).Scan(&paymentID)
 	require.NoError(t, err)
 
-	// Send webhook to mark payment as success and order as paid
 	webhookBody := fmt.Sprintf(`{"event":"success","metadata":{"payment_id":"%s"}}`, paymentID)
 	whReq := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", strings.NewReader(webhookBody))
 	whReq.Header.Set("Content-Type", "application/json")
@@ -149,7 +142,6 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	handler.ServeHTTP(whW, whReq)
 	require.Equal(t, http.StatusOK, whW.Code)
 
-	// Promote user to admin and re-login
 	_, err = testPool.Exec(ctx, `UPDATE users SET role = 'admin' WHERE email = $1`, email)
 	require.NoError(t, err)
 
@@ -177,7 +169,6 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, "refund_enqueued", data["status"])
 
-		// Verify a refund job was created
 		var jobCount int
 		err := testPool.QueryRow(ctx,
 			`SELECT COUNT(*) FROM payment_jobs WHERE order_id = $1 AND action = 'refund'`, orderID).Scan(&jobCount)
@@ -186,7 +177,6 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	})
 
 	t.Run("processing refund job restocks inventory and releases coupon", func(t *testing.T) {
-		// Fetch the refund job from the database
 		var job payment.Job
 		err := testPool.QueryRow(ctx,
 			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
@@ -202,30 +192,24 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, payment.ActionRefund, job.Action)
 
-		// Record stock before refund
 		stockBefore, _ := inventoryLevelOf(t, prodID)
 
-		// Process the refund job via a composed payment service
 		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").Process(ctx, job)
 		require.NoError(t, processErr)
 
-		// Verify order status changed to "refunded"
 		var orderStatus string
 		err = testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatus)
 		require.NoError(t, err)
 		assert.Equal(t, "refunded", orderStatus)
 
-		// Verify payment status changed to "refunded"
 		var paymentStatus string
 		err = testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatus)
 		require.NoError(t, err)
 		assert.Equal(t, "refunded", paymentStatus)
 
-		// Verify inventory was restocked
 		stockAfter, _ := inventoryLevelOf(t, prodID)
 		assert.Equal(t, stockBefore+1, stockAfter)
 
-		// Verify refund job marked as completed
 		var jobStatus string
 		err = testPool.QueryRow(ctx,
 			`SELECT status FROM payment_jobs WHERE id = $1`, job.ID).Scan(&jobStatus)
@@ -236,8 +220,8 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 
 func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	setup(t)
-	// This test covers inventoryRestorerAdapter.Restore and promotion.Service.Release
-	// by processing a refund job with inventory_action='release' on an order with a coupon.
+	// Drives inventoryRestorerAdapter.Restore and promotion.Service.Release through a
+	// refund job with inventory_action='release' on a coupon order.
 	mockMux := http.NewServeMux()
 	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
@@ -261,7 +245,6 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	handler := apihttp.NewRouter(webhookDeps)
 	ctx := context.Background()
 
-	// Seed category + product
 	catID := uuid.New()
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'RelCoupon Cat', $2, true)`,
@@ -281,7 +264,6 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 100, 0)
 
-	// Seed a coupon
 	couponID := uuid.New()
 	couponCode := "RELCOUPON" + couponID.String()[:8]
 	_, err = testPool.Exec(
@@ -299,7 +281,6 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM promotions WHERE id = $1`, couponID)
 	})
 
-	// Register user
 	email := "relcoupon-flow@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"RelCoupon","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
@@ -344,7 +325,6 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
 
-	// Add to cart
 	cartBody := `{"product_id":"` + prodID.String() + `","quantity":1}`
 	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
 	cartReq.Header.Set("Content-Type", "application/json")
@@ -353,7 +333,6 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	// Place order with coupon
 	orderBody := fmt.Sprintf(`{"payment_method_id":"pm_test_123","coupon_code":"%s"}`, couponCode)
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
@@ -367,13 +346,11 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
 	orderID := orderResp["data"].(map[string]any)["order"].(map[string]any)["id"].(string)
 
-	// Look up the payment_id
 	var paymentID uuid.UUID
 	err = testPool.QueryRow(ctx, `SELECT id FROM payments WHERE order_id = $1`, orderID).Scan(&paymentID)
 	require.NoError(t, err)
 
-	// Set payment to "success" and order to "fulfillment_failed" to simulate a refund
-	// with inventory_action="release" (order NOT paid/delivered → "release" path)
+	// An order that is not paid or delivered takes the "release" path.
 	_, err = testPool.Exec(ctx,
 		`UPDATE payments SET status = 'success', gateway_txn_id = 'txn_rel_test' WHERE id = $1`, paymentID)
 	require.NoError(t, err)
@@ -381,7 +358,6 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		`UPDATE orders SET status = 'fulfillment_failed' WHERE id = $1`, orderID)
 	require.NoError(t, err)
 
-	// Create a refund job directly
 	refundJobID := uuid.New()
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO payment_jobs (id, payment_id, order_id, action, status, max_attempts, next_retry_at)
@@ -390,23 +366,18 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("processing refund job restocks inventory and releases coupon", func(t *testing.T) {
-		// The synchronous charge finalized this order at placement: stock was
-		// DEDUCTED (available_stock 100 -> 99, reserved_stock 1 -> 0) and the
-		// order's stock_deducted flag was set. Record stock/reserved before the
-		// refund so we can assert the refund RESTOCKS (adds back to
-		// available_stock) rather than releasing a reservation.
+		// The synchronous charge already deducted this order's stock, so the refund must
+		// restock rather than release a reservation.
 		stockBefore, reservedBefore := inventoryLevelOf(t, prodID)
 		assert.Equal(t, 99, stockBefore)
 		assert.Equal(t, 0, reservedBefore)
 
-		// Record coupon usage before
 		var usageBefore int
 		err = testPool.QueryRow(ctx,
 			`SELECT COUNT(*) FROM coupon_usages WHERE coupon_id = $1`, couponID).Scan(&usageBefore)
 		require.NoError(t, err)
 		assert.Equal(t, 1, usageBefore)
 
-		// Fetch and process the refund job
 		var job payment.Job
 		err = testPool.QueryRow(ctx,
 			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
@@ -422,26 +393,23 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").Process(ctx, job)
 		require.NoError(t, processErr)
 
-		// Verify inventory was RESTOCKED: available_stock returns to its original
-		// seeded value (100) and reserved_stock stays at 0.
+		// Restocked, not released: available_stock returns to its seeded 100 and
+		// reserved_stock stays 0.
 		stockAfter, reservedAfter := inventoryLevelOf(t, prodID)
 		assert.Equal(t, 100, stockAfter)
 		assert.Equal(t, 0, reservedAfter)
 
-		// Verify coupon usage was released
 		var usageAfter int
 		err = testPool.QueryRow(ctx,
 			`SELECT COUNT(*) FROM coupon_usages WHERE coupon_id = $1`, couponID).Scan(&usageAfter)
 		require.NoError(t, err)
 		assert.Equal(t, 0, usageAfter)
 
-		// Verify order status changed to "refunded"
 		var orderStatus string
 		err = testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatus)
 		require.NoError(t, err)
 		assert.Equal(t, "refunded", orderStatus)
 
-		// Verify payment status changed to "refunded"
 		var paymentStatus string
 		err = testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatus)
 		require.NoError(t, err)

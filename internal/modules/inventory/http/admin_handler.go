@@ -15,10 +15,8 @@ type adminHandler struct {
 	validator *validator.Validator
 }
 
-// stockResponse mirrors inventory.Stock 1:1. Unlike product's public
-// endpoints, every inventory route is admin-only, so exposing Reserved here
-// is fine -- the reservation-count leak this phase closes was on product's
-// public response, not here.
+// Mirrors inventory.Stock 1:1. Every inventory route is admin-only, so Reserved
+// is safe here -- the leak that matters is on product's public response.
 type stockResponse struct {
 	ProductID uuid.UUID `json:"product_id"`
 	Quantity  int       `json:"quantity"`
@@ -50,10 +48,7 @@ func (h *adminHandler) GetStock(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toStockResponse(stock))
 }
 
-// restockRequest has no params.go counterpart: inventory.Service.Restock
-// already takes a plain int, not a request struct, so there is no
-// dto-in-the-core cycle to break here. The wire type's only job is to carry
-// the validate tag.
+// Exists only to carry the validate tag: Service.Restock takes a plain int.
 type restockRequest struct {
 	Quantity int `json:"quantity" validate:"required,min=1"`
 }

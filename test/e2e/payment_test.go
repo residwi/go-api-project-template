@@ -23,7 +23,6 @@ import (
 
 func TestE2EPaymentWebhookFlow(t *testing.T) {
 	setup(t)
-	// Start a mock payment gateway server
 	mockMux := http.NewServeMux()
 	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
@@ -47,7 +46,6 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	handler := apihttp.NewRouter(webhookDeps)
 	ctx := context.Background()
 
-	// Seed category + product
 	catID := uuid.New()
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Webhook Cat', $2, true)`,
@@ -67,7 +65,6 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 100, 0)
 
-	// Register user
 	email := "webhook-flow@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"Webhook","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
@@ -112,7 +109,6 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
 
-	// Add to cart
 	cartBody := `{"product_id":"` + prodID.String() + `","quantity":2}`
 	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
 	cartReq.Header.Set("Content-Type", "application/json")
@@ -136,7 +132,6 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	data := orderResp["data"].(map[string]any)
 	orderID := data["order"].(map[string]any)["id"].(string)
 
-	// Look up the payment_id from DB
 	var paymentID uuid.UUID
 	err = testPool.QueryRow(ctx, `SELECT id FROM payments WHERE order_id = $1`, orderID).Scan(&paymentID)
 	require.NoError(t, err)
@@ -152,13 +147,11 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 		handler.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		// Verify order status changed to "paid"
 		var orderStatus string
 		err := testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatus)
 		require.NoError(t, err)
 		assert.Equal(t, "paid", orderStatus)
 
-		// Verify payment status changed to "success"
 		var paymentStatus string
 		err = testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatus)
 		require.NoError(t, err)
@@ -191,7 +184,6 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	handler := apihttp.NewRouter(deps)
 	ctx := context.Background()
 
-	// Seed category + product
 	catID := uuid.New()
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Fail Cat', $2, true)`,
@@ -211,11 +203,9 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 50, 0)
 
-	// A second, cheap product priced 99 makes the GRAND total end in 99
-	// (2000*2 + 99 = 4099, 4099 % 100 == 99) so the mock gateway's synchronous
-	// charge FAILS and the order stays awaiting_payment with stock only RESERVED
-	// (a paid order's stock would be deducted, not reserved). Keeping prodID's
-	// quantity at 2 preserves the reserved_stock == 2 assertion below.
+	// 2000*2 + 99 = 4099, and 99 mod 100 makes the mock gateway decline: the order
+	// stays awaiting_payment with stock only reserved, never deducted. prodID's
+	// quantity stays 2 for the reserved_stock assertion below.
 	prod2ID := uuid.New()
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
@@ -272,7 +262,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
 
-	// Add both products to cart (prodID qty 2, prod2ID qty 1 -> total 4099)
+	// prodID qty 2 plus prod2ID qty 1 is the 4099 total.
 	cartBody := `{"product_id":"` + prodID.String() + `","quantity":2}`
 	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
 	cartReq.Header.Set("Content-Type", "application/json")
@@ -335,13 +325,11 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		handler.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		// Verify payment status changed to cancelled
 		var paymentStatus string
 		err = testPool.QueryRow(ctx, `SELECT status FROM payments WHERE id = $1`, paymentID).Scan(&paymentStatus)
 		require.NoError(t, err)
 		assert.Equal(t, "cancelled", paymentStatus)
 
-		// Verify charge jobs were cancelled
 		var pendingJobs int
 		err = testPool.QueryRow(
 			ctx,
@@ -351,8 +339,8 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, pendingJobs)
 
-		// New behavior: a failed webhook now also cancels the ORDER and releases
-		// its reservation (CancelUnpaid), not just the payment row.
+		// A failed webhook cancels the order and releases its reservation too, not just
+		// the payment row.
 		var orderStatus string
 		err = testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatus)
 		require.NoError(t, err)

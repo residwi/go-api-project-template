@@ -11,8 +11,7 @@ import (
 type RouteDeps struct {
 	Validator *validator.Validator
 	Service   *order.Service
-	// WriteLimiter throttles the expensive write endpoints (placement, payment
-	// retry); nil leaves them unthrottled (e.g. in handler tests).
+	// nil leaves the write endpoints unthrottled, as the handler tests do.
 	WriteLimiter middleware.Middleware
 }
 
@@ -20,7 +19,6 @@ func RegisterRoutes(authed *middleware.RouteGroup, adminGroup *middleware.RouteG
 	pub := &handler{service: deps.Service, validator: deps.Validator}
 	admin := &adminHandler{service: deps.Service, validator: deps.Validator}
 
-	// Throttle only the costly write endpoints; listing/get/cancel stay unthrottled.
 	limit := func(h http.HandlerFunc) http.Handler {
 		if deps.WriteLimiter != nil {
 			return deps.WriteLimiter(h)

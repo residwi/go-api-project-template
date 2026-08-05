@@ -48,12 +48,9 @@ func TestPostgresRepository_Create(t *testing.T) {
 		})
 	})
 
-	// Pins the two-column mapping the products table forces on money.Money: one
-	// currency column covers both amounts, and compare_at_price is nullable.
-	// Nothing else in this package writes a compare-at price, so without this the
-	// scanner's nil branch is never exercised -- and an absent compare-at price
-	// coming back as a denominated zero would put `compare_at_price: 0` on the
-	// wire under a key that used to be missing entirely.
+	// Nothing else in this package writes a compare-at price, so this is the only
+	// test that exercises the scanner's nil branch -- where an absent price coming
+	// back as a denominated zero would publish `compare_at_price: 0`.
 	t.Run("round-trips both amounts under the row's single currency", func(t *testing.T) {
 		setup(t)
 		repo := New(testPool)
@@ -159,9 +156,8 @@ func TestPostgresRepository_Update(t *testing.T) {
 		got, err := repo.GetByID(context.Background(), p.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "Updated Product", got.Name)
-		// Compare the whole Money: the currency travels to the row's single currency
-		// column and back, so asserting only the amount would pass even if Update
-		// wrote the price under the wrong denomination.
+		// The whole Money: asserting only the amount would pass even if Update wrote
+		// the price under the wrong denomination.
 		assert.Equal(t, money.New(2000, "EUR"), got.Price)
 		assert.Equal(t, product.StatusArchived, got.Status)
 	})
@@ -318,10 +314,8 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, products)
 		for _, p := range products {
-			// Compared against the amount: PublishedListParams.MinPrice/MaxPrice are
-			// bare int64 bounds on the price column, with no currency of their own, so
-			// they stay int64 rather than becoming a Money that would claim a
-			// denomination the `min_price`/`max_price` query params never carry.
+			// MinPrice/MaxPrice stay bare int64: a Money would claim a denomination the
+			// query params never carry.
 			assert.GreaterOrEqual(t, p.Price.Amount, minPrice)
 			assert.LessOrEqual(t, p.Price.Amount, maxPrice)
 		}
@@ -329,7 +323,6 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 
 	t.Run("cursor pagination", func(t *testing.T) {
 		setup(t)
-		// Seed 3 published products
 		for range 3 {
 			id := uuid.New()
 			_, err := testPool.Exec(context.Background(),
@@ -342,7 +335,6 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 
 		repo := New(testPool)
 
-		// First page
 		products, nextCursor, hasMore, err := repo.ListPublished(context.Background(), product.PublishedListParams{
 			Limit: 2,
 		})
@@ -351,14 +343,12 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		assert.NotEmpty(t, nextCursor)
 		assert.Len(t, products, 2)
 
-		// Second page using cursor
 		products2, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
 			Cursor: nextCursor,
 			Limit:  2,
 		})
 		require.NoError(t, err)
 		assert.NotEmpty(t, products2)
-		// Ensure no overlap
 		for _, p2 := range products2 {
 			for _, p1 := range products {
 				assert.NotEqual(t, p1.ID, p2.ID)
@@ -509,9 +499,8 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		assert.Equal(t, "archived", byID[archivedID].Status)
 		assert.Nil(t, byID[archivedID].DeletedAt)
 		assert.Contains(t, byID, deletedID, "a soft-deleted product must still be returned")
-		// The row is left with status='published' by product.Delete (only
-		// deleted_at changes), so a caller must consult DeletedAt -- not Status --
-		// to know this product is no longer sellable.
+		// product.Delete changes only deleted_at, so a caller must read DeletedAt, not
+		// Status, to know this product is unsellable.
 		assert.Equal(t, "published", byID[deletedID].Status)
 		require.NotNil(
 			t,

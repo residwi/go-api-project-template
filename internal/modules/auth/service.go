@@ -42,8 +42,7 @@ func NewService(users UserProvider, jwtSecret, jwtIssuer string, accessTTL, refr
 	return s
 }
 
-// SetBcryptCost overrides the password-hashing cost (set once at startup from
-// config). Values outside bcrypt's valid range are ignored, keeping the default.
+// SetBcryptCost ignores a value outside bcrypt's valid range, keeping the default.
 func (s *Service) SetBcryptCost(cost int) {
 	if cost < bcrypt.MinCost || cost > bcrypt.MaxCost {
 		return
@@ -53,9 +52,8 @@ func (s *Service) SetBcryptCost(cost int) {
 }
 
 func (s *Service) Register(ctx context.Context, p RegisterParams) (*TokenPair, error) {
-	// bcrypt only consumes the first 72 bytes and errors beyond that; validator's
-	// max=72 counts runes, so reject overlong multibyte passwords as a 400 here
-	// rather than letting bcrypt surface a 500.
+	// validator's max=72 counts runes, bcrypt counts bytes: reject the overlong
+	// multibyte password as a 400 here rather than as bcrypt's 500.
 	if len(p.Password) > maxPasswordBytes {
 		return nil, fmt.Errorf("%w: password must not exceed %d bytes", apperror.ErrBadRequest, maxPasswordBytes)
 	}
@@ -136,7 +134,6 @@ func (s *Service) ValidateAccessToken(tokenString string) (*Claims, error) {
 	return ValidateToken(tokenString, s.jwtSecret, s.jwtIssuer)
 }
 
-// TokenValidatorAdapter adapts auth.Service to middleware.TokenValidator.
 type TokenValidatorAdapter struct {
 	service *Service
 }

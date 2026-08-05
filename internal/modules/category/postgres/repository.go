@@ -133,14 +133,12 @@ func (r *Repository) List(ctx context.Context) ([]category.Category, error) {
 	return categories, nil
 }
 
-// AncestorDepthAndCycle walks the parent chain upward from parentID via a
-// recursive CTE and reports the depth from parentID to the root (0 if parentID
-// does not exist) and whether selfID appears in that chain — selfID being an
-// ancestor of parentID means setting parentID as selfID's parent forms a cycle.
-// The walk is bounded by maxDepth (the caller's depth limit) so a corrupt chain
-// cannot recurse without limit; the bound is derived from the limit rather than
-// hardcoded so the two cannot drift. `a.depth <= maxDepth` lets the walk reach
-// maxDepth+1, enough for the caller's `depth+1 > maxDepth` guard to fire.
+// AncestorDepthAndCycle reports the depth from parentID to the root (0 when
+// parentID does not exist) and whether selfID is in that chain, which would make
+// parentID a cycle.
+// Bounded by the caller's own maxDepth so a corrupt chain cannot recurse forever
+// and the two limits cannot drift; `<= maxDepth` reaches maxDepth+1, which is
+// what the caller's `depth+1 > maxDepth` guard needs to fire.
 func (r *Repository) AncestorDepthAndCycle(
 	ctx context.Context,
 	parentID, selfID uuid.UUID,

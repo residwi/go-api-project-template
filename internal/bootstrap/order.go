@@ -98,9 +98,8 @@ func orderToStockChanges(items []order.InventoryItem) []inventory.StockChange {
 	return changes
 }
 
-// inventoryStateFor maps a caller's "was the stock deducted?" fact to the
-// inventory module's StockState, keeping the enum inside inventory while the
-// cross-feature seam speaks in the bool each caller already has.
+// Keeps the StockState enum inside inventory while the cross-feature seam speaks
+// in the bool each caller already has.
 func inventoryStateFor(wasDeducted bool) inventory.StockState {
 	if wasDeducted {
 		return inventory.Deducted

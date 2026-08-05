@@ -16,35 +16,17 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-// Amounts and stock the charge fixture is built from. The order total and the
-// payment amount must be the same number or FinalizePaymentSuccess rejects the
-// charge as a mismatch, so both read it from here. 1000 is also deliberately
-// not congruent to 99 mod 100: the mock gateway declines those (see
-// cmd/mockgateway/mockserver/gateway.go).
+// Order total and payment amount must be the same number or
+// FinalizePaymentSuccess rejects the charge as a mismatch. 1000 is also not
+// 99 mod 100, which the mock gateway declines.
 const (
 	chargeAmount = 1000
 
-	// chargeAvailableStock / chargeReservedStock is the split an order that has
-	// been placed but not yet charged leaves behind: its unit is held, not sold.
+	// The split a placed-but-not-charged order leaves: its unit is held, not sold.
 	chargeAvailableStock = 99
 	chargeReservedStock  = 1
 )
 
-// TestE2EChargeJob drives payment.Service.Process over an action='charge' job
-// with every collaborator real: the order service applies the status
-// transitions, the inventory service consumes the reservation inside the
-// finalizing transaction, and the charge leaves the process over HTTP.
-//
-// It used to live in internal/modules/payment as a service-level integration
-// test — a real Postgres repository wired to six mocked collaborators — which
-// forced that package to import its own database adapter. Whether the service
-// calls its ports in the right order is already service_test.go's subject;
-// what is left here is whether a charge job actually settles.
-//
-// The job row is hand-inserted because nothing in production enqueues one:
-// every CreateJob call site in the payment package enqueues ActionRefund, and
-// a card charge finalizes synchronously at placement instead. See
-// ARCHITECTURE-LIMITATIONS.md and the note in fulfillment_failed_test.go.
 func TestE2EChargeJob(t *testing.T) {
 	setup(t)
 	ctx := context.Background()
@@ -63,22 +45,17 @@ func TestE2EChargeJob(t *testing.T) {
 		assert.Equal(t, string(payment.StatusSuccess), paymentStatusOf(t, f.paymentID))
 		assert.Equal(t, order.StatusPaid, orderStatusOf(t, f.job.OrderID))
 
-		// The unit this order was holding is now sold rather than reserved, and
-		// nothing returns to the shelf, so available_stock is untouched. A
-		// DeductBatch that touched the wrong column would still affect one row and
-		// return nil, so no assertion above would see it -- this split is what
-		// pins down which column moved.
+		// A DeductBatch on the wrong column would still affect one row and return nil,
+		// so only this available/reserved split says which column moved.
 		available, reserved := inventoryLevelOf(t, f.productID)
 		assert.Equal(t, chargeAvailableStock, available)
 		assert.Equal(t, 0, reserved)
 	})
 
 	t.Run("marks the job failed after the final gateway failure", func(t *testing.T) {
-		// A gateway that 500s everything under /mock/payment/ — the prefix the
-		// real mock gateway registers its POST routes on, so mock.Gateway's
-		// baseURL+"/charge" lands here. mock.Gateway turns any non-200 into an
-		// error, which is the branch handleChargeFailure keys off; the real mock
-		// gateway has no way to be told to fail a charge outright.
+		// 500s everything under the prefix mock.Gateway posts to, because the real mock
+		// gateway cannot be told to fail a charge outright and handleChargeFailure keys
+		// off the resulting non-200.
 		failingMux := http.NewServeMux()
 		failingMux.HandleFunc("/mock/payment/", func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -94,46 +71,28 @@ func TestE2EChargeJob(t *testing.T) {
 
 		assert.Equal(t, string(payment.JobStatusFailed), jobStatusOf(t, f.job.ID))
 
-		// handleChargeFailure swallows MarkAwaitingPayment's error -- it logs and
-		// moves on (service.go:251-254) -- so a broken CAS would strand the order
-		// in payment_processing with every other assertion here still green. This
-		// is the only thing that would notice.
+		// handleChargeFailure logs MarkAwaitingPayment's error and moves on, so a broken
+		// CAS would strand the order in payment_processing with every other assertion
+		// here still green.
 		assert.Equal(t, order.StatusAwaitingPayment, orderStatusOf(t, f.job.OrderID))
 	})
 }
 
-// chargeJobFixture is an order sitting where a charge worker would find one,
-// plus the pending job pointed at it.
 type chargeJobFixture struct {
 	paymentID uuid.UUID
 	productID uuid.UUID
 	job       payment.Job
 }
 
-// seedChargeJob writes the order/payment/job trio with SQL rather than driving
-// checkout, because checkout cannot leave an order where processChargeJob wants
-// it: placing an order with a payment_method_id charges synchronously and
-// finalizes on the spot, so the order comes back 'paid' and the payment
-// 'success'. MarkPaymentProcessing would then find nothing to claim and Process
-// would cancel the job instead of completing it.
+// SQL rather than checkout, because checkout cannot leave an order where
+// processChargeJob wants it: a payment_method_id charges synchronously, so the
+// order comes back 'paid' and Process would cancel the job instead.
 //
-// What processChargeJob needs of this fixture, in the order it asks for it:
-//
-//   - orders.status = 'awaiting_payment', so PaymentProcessingTransition's CAS
-//     matches and the order can be claimed for charging;
-//   - payments.payment_method_id non-empty, or the mock gateway answers
-//     "pending" instead of "success" and the charge counts as a failure;
-//   - payments.amount = orders.total_amount, or FinalizePaymentSuccess bails
-//     out with ErrAmountMismatch;
-//   - payments.status = 'pending', one of the four states MarkPaid will CAS
-//     from;
-//   - an order_items row over a product with reserved stock, so the DeductBatch
-//     inside the finalizing transaction has a reservation to consume.
-//
-// The nullable text columns are written as empty strings, matching what the
-// order repository's own Create stores for them, even though its readers now
-// tolerate NULL there too -- this is for consistency with Create's
-// convention, not to dodge a scan error.
+// What the fixture has to satisfy: orders.status 'awaiting_payment' for the
+// claiming CAS, a non-empty payment_method_id or the gateway answers "pending",
+// payments.amount equal to orders.total_amount or FinalizePaymentSuccess bails
+// with ErrAmountMismatch, payments.status 'pending', and an order_items row over
+// reserved stock for DeductBatch to consume.
 func seedChargeJob(t *testing.T, maxAttempts int) chargeJobFixture {
 	t.Helper()
 	ctx := context.Background()
@@ -176,8 +135,8 @@ func seedChargeJob(t *testing.T, maxAttempts int) chargeJobFixture {
 		jobID, paymentID, orderID, maxAttempts)
 	require.NoError(t, err)
 
-	// Read the job back rather than building one in Go, so Process runs over the
-	// row the database actually holds — including the defaults it filled in.
+	// Read back rather than built in Go, so Process runs over the row the database
+	// holds, defaults included.
 	var job payment.Job
 	require.NoError(t, testPool.QueryRow(ctx,
 		`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,

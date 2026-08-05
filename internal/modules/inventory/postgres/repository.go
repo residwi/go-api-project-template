@@ -15,17 +15,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-// stockValueCols is the number of columns per (product_id, qty) VALUES tuple.
 const stockValueCols = 2
 
-// buildStockValues aggregates items by product_id (summing quantities) and
-// renders the VALUES placeholder list and flat args for a batched stock UPDATE
-// joined against (product_id, qty) tuples. Aggregation is required for
-// correctness: a duplicate product_id would otherwise join the product row to
-// two VALUES tuples and apply only one of the quantities. ids holds the distinct
-// product ids in first-seen order; len(ids) is the number of distinct product
-// rows updated. Lock ordering is owned by lockLevels' SQL `ORDER BY product_id`,
-// not the order of this slice (which only feeds the VALUES join, where order is moot).
+// Aggregating by product_id is required for correctness: a duplicate id would
+// join the product row to two VALUES tuples and apply only one quantity.
+// Lock ordering belongs to lockLevels' `ORDER BY product_id`, not to ids.
 func buildStockValues(items []inventory.StockChange) (string, []any, []uuid.UUID) {
 	sums := make(map[uuid.UUID]int, len(items))
 	ids := make([]uuid.UUID, 0, len(items))
@@ -53,10 +47,9 @@ func buildStockValues(items []inventory.StockChange) (string, []any, []uuid.UUID
 	return strings.Join(placeholders, ","), args, ids
 }
 
-// lockLevels takes row locks in a deterministic order so concurrent batches
-// covering overlapping product rows cannot deadlock. Locking inventory_levels
-// instead of the product table also keeps a checkout from blocking an admin
-// editing a product's name or price.
+// Deterministic order, so overlapping batches cannot deadlock. Locking
+// inventory_levels rather than products keeps a checkout from blocking an admin
+// editing a name or price.
 func lockLevels(ctx context.Context, db database.DBTX, ids []uuid.UUID) error {
 	_, err := db.Exec(ctx,
 		`SELECT 1 FROM inventory_levels WHERE product_id = ANY($1) ORDER BY product_id FOR UPDATE`, ids)
@@ -66,8 +59,7 @@ func lockLevels(ctx context.Context, db database.DBTX, ids []uuid.UUID) error {
 	return nil
 }
 
-// stockFrom assembles an inventory.Stock from the two stored columns. Total on hand is
-// derived as their sum rather than stored.
+// Total on hand is derived from the two stored columns, not stored itself.
 func stockFrom(productID uuid.UUID, available, reserved int) *inventory.Stock {
 	return &inventory.Stock{
 		ProductID: productID,
@@ -123,11 +115,9 @@ func (r *Repository) Release(ctx context.Context, productID uuid.UUID, qty int) 
 	return stockFrom(productID, available, reserved), nil
 }
 
-// ReserveBatch reserves stock for many product rows in a single UPDATE. If any row
-// is missing or has insufficient available stock it won't match, so a
-// RowsAffected count below the input length means at least one reservation
-// failed and the whole batch is reported as insufficient stock (the caller runs
-// this inside a transaction, so nothing is reserved).
+// ReserveBatch does not match a missing or short row, so RowsAffected below the
+// input length means the whole batch is insufficient. The caller is in a
+// transaction, so nothing stays reserved.
 func (r *Repository) ReserveBatch(ctx context.Context, items []inventory.StockChange) error {
 	if len(items) == 0 {
 		return nil
@@ -154,9 +144,8 @@ func (r *Repository) ReserveBatch(ctx context.Context, items []inventory.StockCh
 	return nil
 }
 
-// ReleaseBatch releases reserved stock for many product rows. A partial match is an
-// error: a skipped row means the reservation stayed, and silent success would
-// strand it.
+// ReleaseBatch treats a partial match as an error: a skipped row keeps its
+// reservation, and silent success would strand it.
 func (r *Repository) ReleaseBatch(ctx context.Context, items []inventory.StockChange) error {
 	if len(items) == 0 {
 		return nil
@@ -183,9 +172,8 @@ func (r *Repository) ReleaseBatch(ctx context.Context, items []inventory.StockCh
 	return nil
 }
 
-// DeductBatch converts a reservation into a sale. With stored-available this
-// only decrements reserved_stock: the goods have left, and available_stock was
-// already reduced when the hold was taken.
+// DeductBatch moves only reserved_stock: available_stock was already reduced when
+// the hold was taken.
 func (r *Repository) DeductBatch(ctx context.Context, items []inventory.StockChange) error {
 	if len(items) == 0 {
 		return nil
@@ -211,8 +199,7 @@ func (r *Repository) DeductBatch(ctx context.Context, items []inventory.StockCha
 	return nil
 }
 
-// RestockBatch returns sold goods to the shelf. It does not touch
-// reserved_stock: the reservation was already consumed by DeductBatch.
+// RestockBatch leaves reserved_stock alone: DeductBatch already consumed it.
 func (r *Repository) RestockBatch(ctx context.Context, items []inventory.StockChange) error {
 	if len(items) == 0 {
 		return nil
@@ -287,19 +274,13 @@ func (r *Repository) GetStock(ctx context.Context, productID uuid.UUID) (*invent
 	return stockFrom(productID, available, reserved), nil
 }
 
-// AdjustStock sets total on hand. Because available is stored, the new available
-// is the requested total minus whatever is currently reserved -- and a total
-// below the outstanding reservations is refused.
+// AdjustStock sets available to the requested total minus what is reserved,
+// because available is stored, and refuses a total below the reservations.
 //
-// It upserts rather than requiring an existing row: a product can exist with
-// no inventory_levels row at all if product.Create committed but a later
-// EnsureLevel never ran (see product.Service.Create), and that product is
-// otherwise unrecoverable -- GetStock and Restock both 404 on a missing row,
-// and a bare UPDATE here would too. ON CONFLICT's DO UPDATE ... WHERE clause
-// still refuses the reserved-quantity guard for a product that does have a
-// row: when it doesn't match, that row is left untouched and unreturned, so
-// RETURNING yields no row and this reports the same "cannot set stock below
-// reserved quantity" error as before.
+// The upsert is the only recovery for a product whose EnsureLevel never ran:
+// GetStock, Restock and a bare UPDATE all 404 on the missing row. ON CONFLICT's
+// WHERE clause still enforces the reserved-quantity guard -- no match means no
+// RETURNING row, and the same error as before.
 func (r *Repository) AdjustStock(ctx context.Context, productID uuid.UUID, newQuantity int) (*inventory.Stock, error) {
 	db := database.DB(ctx, r.pool)
 	var available, reserved int
@@ -321,8 +302,8 @@ func (r *Repository) AdjustStock(ctx context.Context, productID uuid.UUID, newQu
 	return stockFrom(productID, available, reserved), nil
 }
 
-// EnsureLevel creates a zeroed level row for a product. Idempotent, so a retry
-// or a re-created product cannot clobber existing counts.
+// EnsureLevel is idempotent, so a retry or a re-created product cannot clobber
+// existing counts.
 func (r *Repository) EnsureLevel(ctx context.Context, productID uuid.UUID) error {
 	db := database.DB(ctx, r.pool)
 	_, err := db.Exec(ctx,
@@ -334,8 +315,8 @@ func (r *Repository) EnsureLevel(ctx context.Context, productID uuid.UUID) error
 	return nil
 }
 
-// GetLevels reads many products' levels in one query. Missing product ids are
-// simply absent from the map; the caller decides what a missing level means.
+// GetLevels leaves a missing id absent from the map: the caller decides what
+// that means.
 func (r *Repository) GetLevels(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]inventory.Stock, error) {
 	if len(ids) == 0 {
 		return map[uuid.UUID]inventory.Stock{}, nil

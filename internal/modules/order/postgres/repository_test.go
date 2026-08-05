@@ -81,10 +81,8 @@ func TestPostgresRepository_CreateItems(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, got, 1)
 		assert.Equal(t, productID, got[0].ProductID)
-		// order_items has no currency column: the amounts round-trip through the
-		// two int columns, and the currency comes back off the joined orders row.
-		// Drop that join and these read back as money.New(n, "") -- which would
-		// then refuse to Add into the order's total.
+		// order_items has no currency column: drop the join to orders and these read
+		// back as money.New(n, ""), which refuses to Add into the order's total.
 		assert.Equal(t, money.New(1000, "USD"), got[0].Price)
 		assert.Equal(t, money.New(2000, "USD"), got[0].Subtotal)
 	})
@@ -103,20 +101,15 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		assert.Equal(t, order.StatusAwaitingPayment, got.Status)
 	})
 
-	// The three amounts are read from three columns but share ONE currency
-	// column, and amountColumns.assignTo is the single place that fan-out
-	// happens. Nothing used to pin it: two mutations to assignTo survived the
-	// whole 58-package suite -- denominating Subtotal/Discount as money.New(n,
-	// "") (giving every order two amounts denominated in nothing), and swapping
-	// subtotal with discount (transposing them on every GET /orders/{id}).
+	// Three amounts, one shared currency column, and amountColumns.assignTo is the
+	// only place that fan-out happens. Two mutations to it once survived the whole
+	// suite: denominating Subtotal and Discount as money.New(n, ""), and swapping
+	// subtotal with discount.
 	//
-	// Three DISTINCT amounts and a non-USD currency are both load-bearing here:
-	// equal amounts cannot detect a transposition, and a USD fixture cannot
-	// detect a dropped currency, since money.New(n, "") != money.New(n, "USD")
-	// is the only thing that catches it. Inserted with raw SQL rather than via
-	// the newOrder fixture so the order's currency can differ from the USD used
-	// by the order_items tests, which read their currency back through the join
-	// on this same row.
+	// So three DISTINCT amounts and a non-USD currency are both load-bearing: equal
+	// amounts cannot catch a transposition, and a USD fixture cannot catch a dropped
+	// currency. Raw SQL, not the newOrder fixture, so this currency can differ from
+	// the USD the order_items tests read back through the join on this row.
 	t.Run("denominates all three amounts from the row's single currency", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
@@ -145,13 +138,9 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 
-	// idempotency_key, request_hash and notes are all nullable columns, but
-	// Create always writes non-empty values for them, so a row inserted via
-	// the repository itself never exercises the NULL path. Only a row seeded
-	// with raw SQL -- like an admin script or a hand-written fixture -- can
-	// reach this state, and scanning SQL NULL into a plain Go string is a
-	// runtime error. Inserted directly rather than via newOrder/Create so all
-	// three can be left NULL.
+	// Create always writes non-empty values into these three nullable columns, so
+	// only a row seeded outside the repository reaches the NULL path -- where
+	// scanning into a plain Go string is a runtime error.
 	t.Run("returns empty strings when idempotency_key, request_hash, and notes are NULL", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
@@ -200,10 +189,8 @@ func TestPostgresRepository_GetByUserIDAndIdempotencyKey(t *testing.T) {
 		assert.Nil(t, got)
 	})
 
-	// A row with a NULL idempotency_key can never be found through this
-	// lookup -- it looks up BY idempotency_key -- so this seeds a non-NULL key
-	// alongside NULL request_hash and notes to reach the same NULL-scan bug
-	// through this query's own reader.
+	// This looks up BY idempotency_key, so that column stays non-NULL and the
+	// NULL-scan path is reached through request_hash and notes instead.
 	t.Run("returns empty strings for request_hash and notes when NULL", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
@@ -280,9 +267,8 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 		assert.Empty(t, orders)
 	})
 
-	// ListByUser reads through scanOrder, which already nil-checks
-	// idempotency_key but scans notes directly into a plain string. A row
-	// with NULL notes reaches that bug through this reader.
+	// scanOrder nil-checks idempotency_key but scans notes into a plain string, so
+	// a NULL notes row is what reaches that bug through this reader.
 	t.Run("returns empty notes when NULL", func(t *testing.T) {
 		setup(t)
 		userID := seedUser(t)
@@ -360,7 +346,7 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 		o := seedOrder(t, userID)
 		repo := New(testPool)
 
-		// Order is awaiting_payment, try to transition from paid (wrong from-status)
+		// paid is the wrong from-status for an awaiting_payment order.
 		err := repo.UpdateStatus(context.Background(), o.ID, order.StatusPaid, order.StatusProcessing)
 		assert.ErrorIs(t, err, apperror.ErrConflict)
 	})
@@ -429,7 +415,6 @@ func TestPostgresRepository_GetExpiredOrders(t *testing.T) {
 		repo := New(testPool)
 		ctx := context.Background()
 
-		// Insert an order backdated by 2 hours
 		oldOrderID := uuid.New()
 		_, err := testPool.Exec(
 			ctx,
@@ -729,7 +714,6 @@ func TestPostgresRepository_GetStaleProcessingOrders(t *testing.T) {
 		repo := New(testPool)
 		ctx := context.Background()
 
-		// Insert a stale processing order
 		staleID := uuid.New()
 		_, err := testPool.Exec(
 			ctx,

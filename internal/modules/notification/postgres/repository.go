@@ -149,9 +149,8 @@ func (r *Repository) CreateJob(ctx context.Context, job *notification.Job) error
 func (r *Repository) Claim(ctx context.Context, batchSize int, lease time.Duration) ([]notification.Job, error) {
 	db := database.DB(ctx, r.pool)
 
-	// Claim pending jobs AND reclaim 'processing' jobs whose lease has expired
-	// (their worker died mid-processing), setting a fresh lease on each claim so
-	// nothing can stay stuck in 'processing' indefinitely.
+	// Also reclaims 'processing' jobs whose lease expired, so a worker that died
+	// mid-processing cannot strand one.
 	rows, err := db.Query(ctx,
 		`WITH picked AS (
 			SELECT id
@@ -197,10 +196,8 @@ func (r *Repository) UpdateJob(ctx context.Context, job *notification.Job) error
 	return nil
 }
 
-// CreateAndComplete inserts the notification and persists the (already
-// completed) job in one transaction. The atomicity prevents duplicates: if
-// either write fails the whole transaction rolls back, so the job is never left
-// claimable with the notification already written.
+// CreateAndComplete runs in one transaction, so the job is never left claimable
+// with the notification already written -- which would re-deliver it.
 func (r *Repository) CreateAndComplete(ctx context.Context, n *notification.Notification, job *notification.Job) error {
 	return database.WithTx(ctx, r.pool, func(txCtx context.Context) error {
 		if err := r.Create(txCtx, n); err != nil {

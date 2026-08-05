@@ -8,8 +8,8 @@ import (
 )
 
 // HandleErr writes the response matching err's sentinel, or a 500 when none
-// matches. The table is ordered and the first match wins, so an error wrapping
-// two sentinels always resolves the same way.
+// matches. The table is ordered and first match wins, so two wrapped sentinels
+// always resolve the same way.
 func HandleErr(w http.ResponseWriter, err error) {
 	statusFor := []struct {
 		sentinel error

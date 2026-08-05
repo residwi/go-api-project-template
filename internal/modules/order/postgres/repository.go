@@ -18,10 +18,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-// amountColumns is the orders table's three amount columns plus the single
-// currency column all three share. The schema stores the currency once, so a
-// scan reads it once and denominates all three money.Money values from it --
-// this struct is the one place that fan-out lives.
 type amountColumns struct {
 	subtotal int64
 	discount int64
@@ -74,11 +70,8 @@ func scanOrderSummary(row pgx.CollectableRow) (order.Order, error) {
 	return o, nil
 }
 
-// scanItem expects the parent order's currency as the last column. order_items
-// has no currency column of its own -- the currency belongs to the order, and
-// storing it per row could only ever disagree with it -- so every query feeding
-// this scanner joins orders for it. Without that the items would come back
-// denominated in nothing and refuse to sum against the order's total.
+// scanItem expects the parent order's currency as the last column: order_items
+// has none of its own, so every query feeding this joins orders for it.
 func scanItem(row pgx.CollectableRow) (order.Item, error) {
 	var item order.Item
 	var price, subtotal int64
@@ -115,18 +108,12 @@ func (r *Repository) Create(ctx context.Context, order *order.Order) error {
 		order.Subtotal.Amount,
 		order.Discount.Amount,
 		order.Total.Amount,
-		// One currency column for all three amounts; Total's is authoritative
-		// because it is what gets charged.
-		//
-		// This silently ignores whether Subtotal and Discount agree with it, which
-		// would re-denominate them on the next read. Not a live defect: the sole
-		// caller (order.Service.PlaceOrder) builds all three from subtotal's
-		// currency, and Money makes a disagreement unrepresentable upstream of
-		// here since the fold that produces subtotal already refuses mixed
-		// currencies. Flagged rather than guarded because it is the one write in
-		// the four Money features that could re-denominate an amount, so a second
-		// caller would need to preserve that invariant itself.
 		order.CouponCode,
+		// Total's currency wins, and a disagreeing Subtotal or Discount is silently
+		// re-denominated on the next read. Unguarded because PlaceOrder builds all
+		// three from one currency -- a second caller would have to preserve that
+		// itself. This is the only write in the four Money features that can
+		// re-denominate an amount.
 		order.Total.Currency,
 		order.ShippingAddress,
 		order.BillingAddress,
@@ -160,8 +147,6 @@ func (r *Repository) CreateItems(ctx context.Context, items []order.Item) error 
 
 		placeholders[i] = "(" + strings.Join(parts, ",") + ")"
 
-		// Only the amounts are written: the item's currency is the order's, already
-		// stored on the orders row, and the service guarantees they agree.
 		args = append(
 			args,
 			item.OrderID,
@@ -382,15 +367,11 @@ func (r *Repository) UpdateTotals(ctx context.Context, id uuid.UUID, discount, t
 	return nil
 }
 
-// Apply runs the guarded compare-and-set for a Transition: it moves the order to
-// t.To only if its current status is one of t.From, returning apperror.ErrConflict
-// if nothing matched.
 func (r *Repository) Apply(ctx context.Context, id uuid.UUID, t order.Transition) error {
 	db := database.DB(ctx, r.pool)
 	var returnedID uuid.UUID
-	// The stock flags ride along in the same CAS so they can never disagree with
-	// the status. OR keeps them monotonic: once deducted/reversed, applying a
-	// transition that does not set the flag leaves it unchanged.
+	// The flags ride along in the same CAS so they cannot disagree with the status.
+	// OR keeps them monotonic: a transition that does not set one leaves it alone.
 	err := db.QueryRow(ctx,
 		`UPDATE orders SET status = $1,
 		        stock_deducted = stock_deducted OR $4,
@@ -409,9 +390,6 @@ func (r *Repository) Apply(ctx context.Context, id uuid.UUID, t order.Transition
 
 func (r *Repository) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]order.Item, error) {
 	db := database.DB(ctx, r.pool)
-	// Joined for o.currency only: an item's amounts are denominated in its order's
-	// currency, and order_items has no column of its own to read it from. Both
-	// tables belong to this module, so the join crosses no boundary.
 	rows, err := db.Query(
 		ctx,
 		`SELECT oi.id, oi.order_id, oi.product_id, oi.product_name, oi.price, oi.quantity, oi.subtotal, oi.created_at, o.currency
@@ -469,10 +447,9 @@ func (r *Repository) GetStaleProcessingOrders(
 	return orders, nil
 }
 
-// HasDeliveredOrder reports whether the given order is delivered, belongs to the
-// user, and contains the product. Binding to the specific orderID (not just
-// "some delivered order for this product") stops a review being filed against an
-// order that isn't the reviewer's or never contained the product.
+// HasDeliveredOrder binds to the specific orderID, not "some delivered order for
+// this product": otherwise a review could be filed against an order that is not
+// the reviewer's or never contained the product.
 func (r *Repository) HasDeliveredOrder(ctx context.Context, p order.DeliveredPurchaseParams) (bool, error) {
 	db := database.DB(ctx, r.pool)
 	var exists bool

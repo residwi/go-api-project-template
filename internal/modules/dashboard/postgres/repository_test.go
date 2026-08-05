@@ -28,7 +28,6 @@ func TestPostgresRepository_GetSalesSummary(t *testing.T) {
 		setup(t)
 		repo := New(testPool)
 
-		// Use a time range far in the future with no data
 		from := time.Now().Add(100 * 24 * time.Hour)
 		to := time.Now().Add(200 * 24 * time.Hour)
 
@@ -60,7 +59,6 @@ func TestPostgresRepository_GetTopProducts(t *testing.T) {
 		setup(t)
 		repo := New(testPool)
 
-		// Use a time range far in the future with no data
 		from := time.Now().Add(100 * 24 * time.Hour)
 		to := time.Now().Add(200 * 24 * time.Hour)
 

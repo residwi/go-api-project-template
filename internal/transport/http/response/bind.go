@@ -2,17 +2,14 @@ package response
 
 import "net/http"
 
-// Validator is the validation surface Bind needs. *validator.Validator
-// satisfies it, so handlers pass their existing validator without the response
-// package having to depend on the validator package.
+// Validator is declared here so this package need not import the validator
+// package; *validator.Validator satisfies it.
 type Validator interface {
 	Validate(s any) map[string]any
 }
 
-// Bind decodes the JSON request body into a T and validates it. On failure it
-// writes the matching error response — 400 for a malformed body, 422 for
-// invalid fields — and returns ok=false, so the caller can simply return. On
-// success it returns the populated value and ok=true.
+// Bind writes the error response itself -- 400 for a malformed body, 422 for
+// invalid fields -- and returns ok=false, so the caller can simply return.
 func Bind[T any](w http.ResponseWriter, r *http.Request, v Validator) (T, bool) {
 	var req T
 	if err := DecodeJSON(w, r, &req); err != nil {

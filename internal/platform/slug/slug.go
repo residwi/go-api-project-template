@@ -19,11 +19,9 @@ func Make(s string) string {
 	return slug
 }
 
-// MakeOrFallback slugifies name, returning the (also slugified) fallback when
-// the result would be empty. Names with no ASCII alphanumerics (non-Latin
-// scripts, symbol-only names) slugify to "", which would collide on a NOT NULL
-// UNIQUE slug column; callers pass a unique fallback (e.g. a UUID-derived value)
-// so two such names never produce the same empty slug.
+// MakeOrFallback exists because a name with no ASCII alphanumerics (non-Latin
+// script, symbols only) slugifies to "" and would collide on the NOT NULL UNIQUE
+// slug column. Callers pass a unique fallback, e.g. a UUID-derived value.
 func MakeOrFallback(name, fallback string) string {
 	if slug := Make(name); slug != "" {
 		return slug

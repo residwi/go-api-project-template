@@ -110,7 +110,6 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
 
-// validateParent checks that parent_id exists, does not create a cycle, and max depth is 5.
 func (s *Service) validateParent(ctx context.Context, parentID, selfID uuid.UUID) error {
 	if parentID == selfID && selfID != uuid.Nil {
 		return fmt.Errorf("%w: category cannot be its own parent", apperror.ErrBadRequest)

@@ -39,9 +39,8 @@ func (s *Service) RestockBatch(ctx context.Context, items []StockChange) error {
 	return s.repo.RestockBatch(ctx, items)
 }
 
-// Restore reverses an order's inventory effect: reserved stock is released,
-// deducted stock is restocked. Inventory owns this choice so callers don't have
-// to know that a reservation and a deduction unwind differently.
+// Restore keeps the release-vs-restock choice here, so callers need not know that
+// a reservation and a deduction unwind differently.
 func (s *Service) Restore(ctx context.Context, items []StockChange, prior StockState) error {
 	switch prior {
 	case Deducted:
@@ -69,15 +68,12 @@ func (s *Service) AdjustStock(ctx context.Context, productID uuid.UUID, newQuant
 	return s.repo.AdjustStock(ctx, productID, newQuantity)
 }
 
-// EnsureLevel registers a product with inventory at zero stock. Called when a
-// product is created, so stock is set afterwards through inventory's own admin
-// endpoint rather than smuggled in on the product payload.
+// EnsureLevel registers at zero stock: the initial quantity is set afterwards
+// through inventory's own admin endpoint, not smuggled in on the product payload.
 func (s *Service) EnsureLevel(ctx context.Context, productID uuid.UUID) error {
 	return s.repo.EnsureLevel(ctx, productID)
 }
 
-// GetLevels answers product's InventoryReader port: one batch read per page,
-// not one query per product.
 func (s *Service) GetLevels(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Stock, error) {
 	return s.repo.GetLevels(ctx, ids)
 }

@@ -27,10 +27,8 @@ type jwtClaims struct {
 	TokenVersion int
 }
 
-// TokenPair is the result of a successful register, login, or refresh. It is
-// a core type, not a wire type: it carries the full UserResult (including
-// Active and TokenVersion) so that http's mapper -- not this package --
-// decides which of those fields, if any, reach a client.
+// TokenPair is a core type, not a wire type: it carries the full UserResult, so
+// http's mapper decides which fields reach a client.
 type TokenPair struct {
 	AccessToken  string
 	RefreshToken string

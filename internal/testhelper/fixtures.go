@@ -8,25 +8,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Fixtures in this file exist so that a row every feature's tests need -- a
-// user to hang a foreign key off -- is written down once instead of once per
-// package. Two rules keep them from becoming a liability:
+// Two rules keep these fixtures from becoming a liability:
 //
-//   - They are raw SQL. A fixture that seeded through a repository or service
-//     would run the code under test, so a bug there would produce a passing
-//     test over wrong data. The INSERT must be independent of the thing it is
-//     checking.
-//
-//   - They import no feature package, and no feature type appears in their
-//     signatures. internal/testhelper is imported by most test packages in the
-//     tree; taking a dependency on features would turn it into a hub and make
-//     an import cycle inevitable the first time a feature wanted a fixture.
-//     Callers that want a domain object read one back themselves, in their own
-//     package, where importing the feature is free.
+//   - Raw SQL only. Seeding through a repository or service would run the code
+//     under test, so a bug there could produce a passing test over wrong data.
+//   - No feature package imported, and no feature type in a signature. Most test
+//     packages import testhelper, so a dependency on features would make a cycle
+//     inevitable. Callers wanting a domain object read one back themselves.
 
-// SeedUserOpts overrides what SeedUserWith would otherwise pick. Every field is
-// optional -- the zero value produces exactly the row SeedUser produces -- so a
-// caller only names the attribute its test actually cares about.
+// SeedUserOpts is all-optional: the zero value produces exactly the row SeedUser
+// does, so a caller names only what its test cares about.
 type SeedUserOpts struct {
 	// FirstName and LastName default to "A" and "B". No test asserts on them;
 	// they exist because the users table requires them NOT NULL.
@@ -38,20 +29,14 @@ type SeedUserOpts struct {
 	Role string
 }
 
-// SeedUser inserts a minimal valid user and returns its id. The user is active
-// with role "user", and its email is derived from the generated id, because
-// users.email is UNIQUE and unrelated tests share a database.
-//
-// The row is deleted when the test that seeded it finishes. Most callers also
-// call [ResetDB], which truncates it anyway; the cleanup is here for the
-// packages that do not.
+// SeedUser inserts an active user with role "user" and returns its id. The email
+// is derived from that id because users.email is UNIQUE and unrelated tests share
+// a database. The row is cleaned up for the packages that do not call [ResetDB].
 func SeedUser(t testing.TB, pool *pgxpool.Pool) uuid.UUID {
 	t.Helper()
 	return SeedUserWith(t, pool, SeedUserOpts{})
 }
 
-// SeedUserWith is [SeedUser] with the defaults it applies made explicit. See
-// [SeedUserOpts] for which fields are worth setting.
 func SeedUserWith(t testing.TB, pool *pgxpool.Pool, opts SeedUserOpts) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()

@@ -253,10 +253,8 @@ func TestPostgresRepository_AdjustStock(t *testing.T) {
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
 	})
 
-	// A product can exist with no inventory_levels row at all if product.Create
-	// committed but a later EnsureLevel never ran (see product.Service.Create) --
-	// GetStock and Restock both 404 on that row, so AdjustStock upserting it is
-	// the only way an admin can recover the product through the API.
+	// GetStock and Restock both 404 on a missing level row, so AdjustStock's upsert
+	// is the only way to recover a product whose EnsureLevel never ran.
 	t.Run("succeeds against a product with no level row", func(t *testing.T) {
 		setup(t)
 		ctx := context.Background()
@@ -453,8 +451,6 @@ func TestPostgresRepository_GetLevels_CancelledContext(t *testing.T) {
 	})
 }
 
-// TestPostgresRepository_ReserveBatch_UsesInventoryLevels proves reservations are
-// recorded against inventory_levels and no longer mutate the products table.
 func TestPostgresRepository_ReserveBatch_UsesInventoryLevels(t *testing.T) {
 	setup(t)
 	ctx := context.Background()
@@ -522,9 +518,8 @@ func seedLevel(t *testing.T, productID uuid.UUID, available, reserved int) {
 	require.NoError(t, err)
 }
 
-// seedProduct inserts a product row (inventory_levels.product_id references it)
-// and a matching inventory_levels row at available=10, reserved=0, since the
-// repository under test reads and writes inventory_levels exclusively.
+// Both rows: inventory_levels.product_id references products, and the repository
+// under test reads and writes inventory_levels exclusively.
 func seedProduct(t *testing.T) uuid.UUID {
 	t.Helper()
 	id := uuid.New()

@@ -15,16 +15,10 @@ type handler struct {
 	validator *validator.Validator
 }
 
-// categoryResponse is the public wire contract, shared by the public list
-// and get-by-slug endpoints. It deliberately omits SortOrder, Active, and
-// the audit timestamps: those are merchandising/moderation details for admin
-// tooling, not something an anonymous shopper needs. Active matters most --
-// GET /categories and GET /categories/{slug} sit on the unauthenticated
-// route group with no WHERE active filter in the repository (see
-// category/postgres/repository.go's List), so naming Active here would let
-// an anonymous caller enumerate staged/unpublished categories. Admin
-// mutation endpoints get the fuller adminCategoryResponse (see
-// admin_handler.go) with every field intact.
+// The public shape. Omitting Active is what matters: these endpoints are
+// unauthenticated and the repository's List has no WHERE active filter, so
+// naming it would let anyone enumerate unpublished categories. Admin endpoints
+// get the fuller adminCategoryResponse.
 type categoryResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Name        string     `json:"name"`

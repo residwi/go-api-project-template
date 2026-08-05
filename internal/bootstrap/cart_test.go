@@ -54,10 +54,8 @@ func TestProductLookupAdapter_GetByIDs(t *testing.T) {
 	t.Run("flags a soft-deleted product unavailable instead of passing its stale status through", func(t *testing.T) {
 		t.Parallel()
 
-		// product.Delete only sets deleted_at -- it never touches status -- so a
-		// withdrawn product's row still reads status='published'. GetByIDs must not
-		// forward that stale status verbatim, or a cart line (and the order guard
-		// downstream) would see a perfectly sellable-looking product.
+		// product.Delete only sets deleted_at, so a withdrawn product still reads
+		// status='published'. Forwarded verbatim, the cart line would look sellable.
 		repo := NewMockProductRepository(t)
 		inv := NewMockInventoryReader(t)
 		reg := NewMockInventoryRegistrar(t)

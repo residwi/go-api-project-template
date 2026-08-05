@@ -20,11 +20,8 @@ type adminHandler struct {
 	validator *validator.Validator
 }
 
-// adminProductResponse is the admin wire contract -- unlike the public
-// productResponse (handler.go), it keeps SKU and Status: an operator
-// needs a SKU to reconcile inventory and needs to see draft/archived
-// products distinctly from published ones. Used by every admin endpoint
-// that returns a product body: this file's Create, List, Get, and Update.
+// Keeps SKU and Status, which the public productResponse drops: an operator
+// reconciles inventory by SKU and needs draft and archived to look different.
 type adminProductResponse struct {
 	ID             uuid.UUID       `json:"id"`
 	CategoryID     *uuid.UUID      `json:"category_id,omitempty"`
@@ -72,12 +69,8 @@ type createProductRequest struct {
 	Status         string     `json:"status"           validate:"omitempty,oneof=draft published archived"`
 }
 
-// toCreateParams pairs the request's two amounts with its single `currency`
-// key, so both arrive at the service denominated and agreeing with each other.
-//
-// `currency` is optional on the wire and stays so: an empty currency reaches
-// product.Service.Create, which denominates the product in its default. The
-// default is a business rule, not a transport one, so it is not applied here.
+// An empty `currency` is passed through: the default is a business rule
+// Service.Create owns.
 func (r createProductRequest) toCreateParams() product.CreateParams {
 	p := product.CreateParams{
 		CategoryID:  r.CategoryID,
@@ -167,25 +160,15 @@ type updateProductRequest struct {
 	Status         *string    `json:"status"           validate:"omitempty,oneof=draft published archived"`
 }
 
-// toUpdateParams maps the request onto product.UpdateParams, whose amounts are
-// now money.Money and therefore inseparable from their currency.
-//
-// The three monetary keys move as one group: supply `price` and `currency`
-// together (optionally with `compare_at_price`), or none of the three. Anything
-// in between is rejected here as a 400 rather than completed with a guess:
-//
-//   - `price` without `currency` would inherit the stored currency, letting a
-//     client re-price a product in a denomination it never named and get a 200
-//     back. Refusing surfaces that at the one moment someone is looking.
-//   - `currency` without `price` is the same mistake read backwards -- a
-//     re-denomination that leaves the old amount standing. products stores one
-//     currency for the whole row, so this quietly re-labels compare_at_price too.
-//   - `compare_at_price` without `price` would be written under the price's
-//     currency rather than the one it was sent with, for the same reason.
+// The three monetary keys move as one group -- `price` with `currency`,
+// optionally `compare_at_price` -- or none at all. Anything in between is a 400
+// rather than a guess: any partial combination re-prices or re-labels the row
+// in a denomination the client never named, and products stores one currency
+// for the whole row.
 //
 // The validate tags cannot express this: `omitempty` makes each field
-// independently optional, and a `required_with` group would surface as a 422
-// from response.Bind, not the 400 a contradictory-but-well-formed body deserves.
+// independently optional, and a `required_with` group would surface as the 422
+// response.Bind returns, not the 400 a well-formed contradiction deserves.
 func (r updateProductRequest) toUpdateParams() (product.UpdateParams, error) {
 	p := product.UpdateParams{
 		CategoryID:  r.CategoryID,
@@ -197,7 +180,6 @@ func (r updateProductRequest) toUpdateParams() (product.UpdateParams, error) {
 
 	switch {
 	case r.Price == nil && r.Currency == nil && r.CompareAtPrice == nil:
-		// No monetary key at all: the product's price is left exactly as stored.
 		return p, nil
 	case r.Price == nil || r.Currency == nil:
 		return product.UpdateParams{}, fmt.Errorf(

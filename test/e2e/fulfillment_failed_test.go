@@ -22,19 +22,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-// TestE2ELatePaymentSuccessOnCancelledOrder drives the *transition into*
-// fulfillment_failed end to end. TestE2ERefundWithCouponAndRelease starts from
-// that state but writes it with a direct UPDATE, so nothing covered how an
-// order gets there.
-//
-// The route in is the real "late payment success on a terminal order" race:
-// place an order whose synchronous charge declines (the mock gateway fails any
-// amount ending in 99), cancel it, then have the gateway report success anyway.
-// FinalizePaymentSuccess can mark the payment paid but cannot mark a cancelled
-// order paid -- PaidTransition does not accept `cancelled` -- so it parks the
-// payment in requires_review, flags the order fulfillment_failed and enqueues
-// the compensating refund. Every step is an HTTP request; no test SQL sets
-// order or payment status.
 func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 	setup(t)
 	mockMux := http.NewServeMux()
@@ -60,7 +47,6 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 	handler := apihttp.NewRouter(deps)
 	ctx := context.Background()
 
-	// Seed category + product
 	catID := uuid.New()
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'LateSuccess Cat', $2, true)`,
@@ -83,7 +69,6 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 100, 0)
 
-	// Register user
 	email := "latesuccess-flow@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"Late","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
@@ -123,7 +108,6 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
 
-	// Add to cart
 	cartBody := `{"product_id":"` + prodID.String() + `","quantity":1}`
 	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
 	cartReq.Header.Set("Content-Type", "application/json")
@@ -189,15 +173,9 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		)
 		assert.Equal(t, "requires_review", paymentStatus)
 
-		// No charge job is left pending. Note what this does and does not prove:
-		// nothing in production ever *creates* a payment_jobs row with
-		// action='charge' -- all three CreateJob call sites use ActionRefund -- so
-		// this count is 0 before the webhook too, and deleting the
-		// MarkJobCompleted/MarkJobCompletedByPaymentID bookkeeping in
-		// FinalizePaymentSuccess would leave it passing. It is kept as a
-		// regression guard for the day charge jobs are enqueued (Service.Process
-		// already dispatches ActionCharge), not as evidence that path works.
-		// See ARCHITECTURE-LIMITATIONS.md on the never-enqueued charge job.
+		// Proves less than it looks: nothing in production enqueues an action='charge'
+		// job, so this count is 0 before the webhook too. Kept as a guard for the day
+		// they are enqueued, not as evidence the bookkeeping runs.
 		var pendingCharges int
 		require.NoError(t, testPool.QueryRow(ctx,
 			`SELECT COUNT(*) FROM payment_jobs

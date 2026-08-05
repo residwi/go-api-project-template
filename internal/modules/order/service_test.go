@@ -530,8 +530,7 @@ func TestService_AdminUpdateStatus(t *testing.T) {
 	t.Run("rejects managed status cancelled without a direct write", func(t *testing.T) {
 		t.Parallel()
 
-		// cancelled/expired/refunded/paid unwind inventory or money and must go
-		// through their owning flow; AdminUpdateStatus rejects them before any
+		// These unwind inventory or money, so AdminUpdateStatus rejects them before any
 		// lookup rather than writing the status bare.
 		svc, _, _, _, _, _, _, _ := newTestService(t)
 
@@ -1237,9 +1236,8 @@ func TestService_PlaceOrder(t *testing.T) {
 		repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(5000), int64(0)).Return(nil)
 		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
-		// A fully-discounted order is finalized directly — marked paid and its
-		// reserved stock deducted — instead of being left to expire. Payment is
-		// never initiated (there is nothing to charge).
+		// Finalized directly instead of left to expire, and no payment is initiated:
+		// there is nothing to charge.
 		repo.EXPECT().Apply(mock.Anything, mock.Anything, PaidTransition).Return(nil)
 		inventory.EXPECT().
 			DeductBatch(mock.Anything, []InventoryItem{{ProductID: productA, Quantity: 1}}).
@@ -1721,10 +1719,6 @@ func TestService_SetPaymentDeps(t *testing.T) {
 	})
 }
 
-// TestService_PlaceOrder_RejectsWithdrawnProduct pins the behaviour Task 5
-// changed. Cart used to drop a soft-deleted line via its JOIN, so checkout
-// silently proceeded without it; cart now surfaces the line carrying its status,
-// and PlaceOrder's existing guard refuses the whole order by name.
 func TestService_PlaceOrder_RejectsWithdrawnProduct(t *testing.T) {
 	t.Parallel()
 
@@ -1757,8 +1751,6 @@ func TestService_PlaceOrder_RejectsWithdrawnProduct(t *testing.T) {
 	inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
 }
 
-// TestService_PlaceOrder_RejectsUnavailableProduct covers the case where the
-// product record is gone entirely -- cart supplies Status "unavailable".
 func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
 	t.Parallel()
 
@@ -1786,17 +1778,12 @@ func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
 	inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
 }
 
-// TestService_PlaceOrder_RejectsMixedCurrencyCart pins BOTH sentinels on the
-// rejection. money.ErrCurrencyMismatch names the cause, but it is not a case in
-// response.HandleErr, so surfacing it alone would fall through to a 500 -- and a
-// mixed-currency cart is user input. apperror.ErrBadRequest is what keeps the
-// 400 the hand-rolled currency loop used to produce.
+// Both sentinels: money.ErrCurrencyMismatch names the cause but is not a case in
+// response.HandleErr, so alone it would be a 500 for what is user input.
 //
-// Beyond the idempotency lookup PlaceOrder always does first, only LockCart and
-// GetCart are expected: the mocks are strict, so the bare set forbids
-// ReserveBatch, Create, InitiatePayment and the coupon path. That is what proves
-// the rejection happens in the fold, before any of them, rather than merely
-// eventually.
+// Only LockCart and GetCart are expected. The mocks are strict, so that bare set
+// forbids ReserveBatch, Create, InitiatePayment and the coupon path -- which is
+// what proves the rejection happens in the fold, not merely eventually.
 func TestService_PlaceOrder_RejectsMixedCurrencyCart(t *testing.T) {
 	t.Parallel()
 

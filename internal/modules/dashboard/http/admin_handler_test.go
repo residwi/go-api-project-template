@@ -518,9 +518,6 @@ func TestAdminHandler_Revenue(t *testing.T) {
 	})
 }
 
-// dashboard's domain types are already the reporting read-model, purpose-built
-// for this admin UI and not reused by any other feature, so this test is what
-// catches a field silently added to SalesSummary or StatusBreakdown later.
 func TestToSummaryResponse_ExposesExactFieldSet(t *testing.T) {
 	t.Parallel()
 

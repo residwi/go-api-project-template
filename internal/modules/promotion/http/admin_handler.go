@@ -43,10 +43,8 @@ func (r createPromotionRequest) toCreateParams() promotion.CreateParams {
 	}
 }
 
-// adminPromotionResponse is the admin-only shape of a promotion -- there is
-// no public equivalent, since a shopper only ever sees applyResponse's
-// computed discount. It carries the internal usage counters and per-user
-// limits that applyResponse deliberately withholds.
+// Carries the usage counters and per-user limits applyResponse withholds. There
+// is no public equivalent: a shopper only sees the computed discount.
 type adminPromotionResponse struct {
 	ID             uuid.UUID      `json:"id"`
 	Code           string         `json:"code"`

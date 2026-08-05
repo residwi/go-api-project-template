@@ -8,9 +8,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/money"
 )
 
-// Ports this feature needs from other features. Each is declared here rather
-// than imported, so no feature depends on another's package.
-
 type ProductLookup interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*ProductInfo, error)
 	// GetByIDs answers for a whole cart in one call. It returns soft-deleted and

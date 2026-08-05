@@ -20,9 +20,8 @@ type ChargeResponse struct {
 }
 
 type RefundRequest struct {
-	// IdempotencyKey lets the gateway dedupe a refund that is retried after a
-	// crash between the gateway call and the local commit, so the customer is not
-	// refunded twice. Stable per payment (one refund per payment).
+	// Stable per payment, so a refund retried after a crash between the gateway call
+	// and the local commit is deduped rather than paid twice.
 	IdempotencyKey string `json:"idempotency_key"`
 	TransactionID  string `json:"transaction_id"`
 	Amount         int64  `json:"amount"`

@@ -15,17 +15,11 @@ const (
 )
 
 type Product struct {
-	ID          uuid.UUID
-	CategoryID  *uuid.UUID
-	Name        string
-	Slug        string
-	Description *string
-	// Price and CompareAtPrice are denominated in the same currency: the products
-	// table stores one currency column for both, so they cannot differ on a row
-	// and nothing may set them independently. Pairing each amount with that
-	// currency means a comparison between them -- or against a cart line's price
-	// -- cannot silently mix denominations, and the http adapter reads the
-	// product's currency off Price.
+	ID             uuid.UUID
+	CategoryID     *uuid.UUID
+	Name           string
+	Slug           string
+	Description    *string
 	Price          money.Money
 	CompareAtPrice *money.Money
 	SKU            *string
@@ -35,9 +29,8 @@ type Product struct {
 	UpdatedAt      time.Time
 	DeletedAt      *time.Time
 
-	// Availability is filled by Service from the InventoryReader port, not by
-	// the repository: inventory owns these numbers and products has no such
-	// columns.
+	// Filled by Service from the InventoryReader port: inventory owns these
+	// numbers and products has no such columns.
 	Availability Availability
 }
 

@@ -18,14 +18,10 @@ type handler struct {
 	validator *validator.Validator
 }
 
-// reviewResponse deliberately omits UserID: naming the reviewer's id on a
-// public response would let a scraper correlate purchases to accounts.
-// OrderID is dropped too -- it exists only so Create can verify provenance,
-// a client has no use for it back. Status is dropped because every review
-// this endpoint (or Create) can ever return is already StatusPublished --
-// ListByProduct filters WHERE status = 'published', so the field would be a
-// constant, not information. UpdatedAt is dropped along with it: nothing
-// in this feature ever mutates a review after creation.
+// UserID is omitted because a public response naming the reviewer would let a
+// scraper correlate purchases to accounts. OrderID exists only so Create can
+// verify provenance. Status would be the constant 'published' on every path
+// this returns, and nothing here ever mutates a review after creation.
 type reviewResponse struct {
 	ID        uuid.UUID `json:"id"`
 	ProductID uuid.UUID `json:"product_id"`

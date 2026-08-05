@@ -15,9 +15,6 @@ type adminHandler struct {
 	service *dashboard.Service
 }
 
-// parseDateRange is shared by all three endpoints, not any one of them, so
-// it lives here rather than being duplicated or arbitrarily owned by one
-// endpoint's section of this file.
 func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok bool) {
 	fromStr := r.URL.Query().Get("from")
 	toStr := r.URL.Query().Get("to")
@@ -39,16 +36,13 @@ func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time,
 		return time.Time{}, time.Time{}, false
 	}
 
-	// Set "to" to end of day
 	to = to.Add(24*time.Hour - time.Nanosecond)
 
 	return from, to, true
 }
 
-// salesSummaryResponse and statusBreakdownResponse mirror their domain
-// counterparts 1:1 -- dashboard is the reporting read-model, so its own
-// types are already shaped for the admin UI rather than for some other
-// consumer, and there is nothing on either to omit.
+// Mirror their domain counterparts 1:1: dashboard is the reporting read-model,
+// already shaped for this admin UI, so there is nothing to omit.
 type salesSummaryResponse struct {
 	TotalOrders       int     `json:"total_orders"`
 	TotalRevenue      int64   `json:"total_revenue"`

@@ -18,7 +18,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-// newExpiryService wires order to a real inventory service over the test DB.
 // ExpireStale touches only the repo and inventory deps, so cart, promotion and
 // notification are left nil.
 func newExpiryService(t *testing.T) *order.Service {

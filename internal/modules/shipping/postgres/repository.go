@@ -112,8 +112,6 @@ func (r *Repository) MarkShipped(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// MarkDelivered flips the shipment to delivered and returns the updated row in
-// the same round-trip (RETURNING), so callers don't need a follow-up GetByID.
 func (r *Repository) MarkDelivered(ctx context.Context, id uuid.UUID) (*shipping.Shipment, error) {
 	db := database.DB(ctx, r.pool)
 	var s shipping.Shipment

@@ -9,8 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-// Repository is notification's persistence port. The Postgres implementation
-// lives in the postgres subpackage; this package never imports it.
 type Repository interface {
 	Create(ctx context.Context, n *Notification) error
 	ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]Notification, error)

@@ -74,7 +74,6 @@ func TestPostgresRepository_AddItem(t *testing.T) {
 
 		wishlistID, _ := repo.GetOrCreate(ctx, userID)
 		require.NoError(t, repo.AddItem(ctx, wishlistID, productID))
-		// Second insert must not error
 		require.NoError(t, repo.AddItem(ctx, wishlistID, productID))
 	})
 }
@@ -123,7 +122,6 @@ func TestPostgresRepository_GetItems(t *testing.T) {
 
 		wishlistID, _ := repo.GetOrCreate(ctx, userID)
 
-		// Add 5 products
 		for range 5 {
 			productID := seedProduct(t)
 			require.NoError(t, repo.AddItem(ctx, wishlistID, productID))

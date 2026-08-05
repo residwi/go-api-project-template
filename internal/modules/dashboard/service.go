@@ -15,19 +15,14 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-// GetSummary fetches the sales summary and order-status breakdown for the window.
-// The two aggregates are independent, so they run concurrently (one round trip
-// of wall-clock instead of the sum of both).
 func (s *Service) GetSummary(ctx context.Context, from, to time.Time) (SalesSummary, []StatusBreakdown, error) {
 	var (
 		sales     SalesSummary
 		breakdown []StatusBreakdown
 	)
 
-	// errgroup derives a context that is cancelled the moment either query
-	// returns an error, so the sibling query is signalled to stop instead of
-	// running to completion against a context (or pgx.Tx) that's already
-	// doomed. Pass gctx — not the raw ctx — to the repo calls.
+	// Pass gctx, not ctx: errgroup cancels it the moment either query fails, so the
+	// sibling stops instead of running on against a doomed context.
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		var err error

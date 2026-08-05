@@ -193,9 +193,6 @@ func TestTxRunner_Run(t *testing.T) {
 	})
 }
 
-// noopDBTX is a stand-in DBTX for asserting that DB and ReadDB pull a
-// transaction out of the context, using txCtxKey directly instead of an
-// exported test-only helper in production code.
 type noopDBTX struct{}
 
 func (noopDBTX) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {

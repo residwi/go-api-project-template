@@ -6,11 +6,9 @@ import (
 	"strings"
 )
 
-// Setup builds the application logger and returns it. It deliberately does not
-// call [slog.SetDefault]: the returned logger is passed explicitly to whatever
-// needs one, and sloglint's no-global rule makes the package-level default
-// unusable, so installing it would only offer a second way to log that nothing
-// is allowed to take. Callers therefore always take the logger as a parameter.
+// Setup deliberately does not call [slog.SetDefault]: sloglint's no-global rule
+// makes the package-level default unusable, so installing it would only offer a
+// second way to log that nothing may take. Callers take a logger parameter.
 func Setup(level, format string) *slog.Logger {
 	if strings.EqualFold(level, "warning") {
 		level = "warn" // UnmarshalText only knows the short form.

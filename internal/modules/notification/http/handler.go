@@ -16,11 +16,8 @@ type handler struct {
 	service *notification.Service
 }
 
-// notificationResponse omits UserID -- the caller is always the
-// authenticated user, so echoing it back adds nothing -- and Data, the raw
-// payload behind the notification's job. If a client ever needs a piece of
-// that payload, it belongs in a new, explicitly typed field on this struct,
-// not passed through as raw bytes.
+// Omits UserID (always the authenticated caller) and Data, the job's raw
+// payload. A client needing part of that payload gets a typed field, not bytes.
 type notificationResponse struct {
 	ID        uuid.UUID         `json:"id"`
 	Type      notification.Type `json:"type"`

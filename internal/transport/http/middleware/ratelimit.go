@@ -13,12 +13,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// clientIP resolves the per-client identifier for rate limiting. It strips the
-// ephemeral source port from RemoteAddr (otherwise every TCP connection gets a
-// distinct bucket and the limit is bypassed) and honours X-Forwarded-For /
-// X-Real-IP. NOTE: the forwarded headers are only trustworthy when the service
-// runs behind a proxy that sets them; expose this app directly and a client can
-// spoof them.
+// Strips the ephemeral source port, or every TCP connection gets its own bucket
+// and the limit is bypassed. The forwarded headers are only trustworthy behind a
+// proxy that sets them; exposed directly, a client can spoof them.
 func clientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		// Leftmost entry is the original client when set by a trusted proxy.
@@ -45,9 +42,8 @@ func RateLimit(log *slog.Logger, rdb *redis.Client, maxRequests int, window time
 				return
 			}
 
-			// Key by authenticated user when one is present (the limiter runs after
-			// auth on authed routes), so users sharing an egress IP (NAT/CGNAT) don't
-			// share a bucket; fall back to client IP for unauthenticated endpoints.
+			// Keyed by user where there is one, so users behind one NAT egress IP do not
+			// share a bucket.
 			identifier := clientIP(r)
 			if uc, ok := GetUserContext(r.Context()); ok {
 				identifier = "user:" + uc.UserID.String()

@@ -380,9 +380,8 @@ func TestService_Update(t *testing.T) {
 		newName := "New"
 		newDesc := "A description"
 		newPrice := money.New(2000, "EUR")
-		// Deliberately denominated in the old currency: products stores one currency
-		// column for both amounts, so Update must restate the compare-at price in the
-		// new price's currency rather than let the row carry two denominations.
+		// Deliberately the old currency: products stores one currency column for both
+		// amounts, so Update must restate the compare-at price in the new one.
 		newCompare := money.New(2500, "USD")
 		newSKU := "SKU-001"
 		newStatus := StatusPublished
@@ -777,12 +776,9 @@ func TestService_Create_RegistersZeroInventoryLevel(t *testing.T) {
 			p.ID = uuid.New()
 			return nil
 		})
-	// A new product must be registered with inventory, or its first reservation
-	// would fail on a missing level row.
 	reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
-	// No GetAvailability expectation: Create must not read inventory back for a
-	// value it already knows by construction. inv has no expectation set, so
-	// mockery fails this test immediately if Create calls it anyway.
+	// No GetAvailability expectation, so mockery fails the test if Create reads
+	// inventory back for a value it already knows by construction.
 
 	p, err := svc.Create(context.Background(), CreateParams{
 		Name:  "Widget",
@@ -792,13 +788,6 @@ func TestService_Create_RegistersZeroInventoryLevel(t *testing.T) {
 	require.NotNil(t, p)
 }
 
-// Before this, Update copied the new Price but left the STORED CompareAtPrice
-// in the old currency, returning a Product whose two amounts disagree even
-// though the row is self-consistent -- `products` has a single currency column,
-// so the database reads both back in the new currency. The visible symptom is
-// that Price.Sub(*CompareAtPrice) yields ErrCurrencyMismatch on a row the
-// database says is entirely EUR, which is exactly the amount/currency drift
-// money.Money exists to make unrepresentable.
 func TestService_Update_RepricesStoredCompareAtPriceIntoTheNewCurrency(t *testing.T) {
 	t.Parallel()
 

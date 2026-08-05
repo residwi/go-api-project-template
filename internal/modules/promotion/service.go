@@ -164,10 +164,9 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
 
-// validatePercentageValue rejects a percentage promotion above 100, which the
-// clamp in computeDiscount would otherwise silently turn into a free order. The
-// cap is type-conditional (fixed_amount allows any positive value), so it lives
-// here rather than in a validate tag.
+// Above 100, computeDiscount's clamp would silently make the order free. The cap
+// is type-conditional -- fixed_amount allows any positive value -- so no validate
+// tag can express it.
 func validatePercentageValue(promoType Type, value int64) error {
 	if promoType == TypePercentage && value > 100 {
 		return fmt.Errorf("%w: percentage discount value cannot exceed 100", apperror.ErrBadRequest)

@@ -19,9 +19,8 @@ func Recovery(log *slog.Logger) Middleware {
 						slog.String("stack", string(debug.Stack())),
 						slog.String("request_id", GetRequestID(r.Context())),
 					)
-					// Only emit a 500 if the handler hadn't already started writing the
-					// response; otherwise we'd produce a superfluous WriteHeader and a
-					// corrupt, double-encoded body.
+					// Writing again after the handler started would mean a superfluous WriteHeader
+					// and a corrupt, double-encoded body.
 					if !rw.wrote {
 						response.InternalError(rw)
 					}
@@ -32,8 +31,6 @@ func Recovery(log *slog.Logger) Middleware {
 	}
 }
 
-// recoverWriter tracks whether the response has been started so Recovery can
-// avoid writing a second (corrupting) response after a mid-write panic.
 type recoverWriter struct {
 	http.ResponseWriter
 

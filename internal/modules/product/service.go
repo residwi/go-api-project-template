@@ -11,22 +11,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
 
-// defaultCurrency denominates a product whose create request named no currency.
-// It is a business default, so it stays here rather than in a transport: the
-// service is reachable from a seeder or a CLI that has no request to default.
+// A business default, not a transport one: a seeder or CLI has no request to
+// read a currency from.
 const defaultCurrency = "USD"
 
-// denominateLike restates an optional amount in price's currency, passing nil
-// through unchanged.
-//
-// products has one currency column covering both price and compare_at_price, so
-// the two cannot disagree on a row. A caller that supplied a compare-at price in
-// some other currency would otherwise have that currency dropped on the way to
-// the database and the amount silently re-read as the price's -- the exact
-// mismatch money.Money exists to make impossible. Forcing it here keeps the
-// invariant the schema already imposes, and costs nothing on the http path,
-// where both amounts are built from the request's single `currency` key and
-// already agree.
+// denominateLike restates an optional amount in price's currency, nil passing
+// through. products stores one currency for both, so any other would be lost on
+// the way to the database and re-read as the price's.
 func denominateLike(amount *money.Money, price money.Money) *money.Money {
 	if amount == nil {
 		return nil
@@ -70,15 +61,13 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (*Product, error) 
 		return nil, err
 	}
 
-	// A product with no level row can never be reserved against, so a failure
-	// here must not be swallowed into an unsellable product.
 	if err := s.reg.EnsureLevel(ctx, prod.ID); err != nil {
 		return nil, err
 	}
 
-	// Availability is (0,0) by construction: EnsureLevel just wrote that row, and
-	// nothing can hold a reservation against a product that did not exist a
-	// moment ago. Querying inventory back would be a round trip for a known value.
+	// (0,0) by construction: EnsureLevel just wrote the row and nothing can hold a
+	// reservation yet, so reading inventory back would be a round trip for a
+	// known value.
 	prod.Availability = Availability{}
 	return prod, nil
 }
@@ -179,14 +168,8 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, p UpdateParams) (*Pr
 	}
 	if p.Price != nil {
 		prod.Price = *p.Price
-		// Re-denominate the *stored* compare-at price too. Repricing into another
-		// currency while leaving CompareAtPrice in the old one returns a Product
-		// whose two amounts disagree, even though the row is self-consistent --
-		// `products` has a single currency column, so the database reads both back
-		// in the new currency. Without this, Price.Sub(*CompareAtPrice) yields
-		// ErrCurrencyMismatch on a row the database says is entirely one currency.
-		// If p.CompareAtPrice was also supplied, the branch below overwrites this
-		// with the caller's value.
+		// The *stored* compare-at price too, or it keeps the old currency. The branch
+		// below overwrites this if the caller supplied one.
 		prod.CompareAtPrice = denominateLike(prod.CompareAtPrice, prod.Price)
 	}
 	if p.CompareAtPrice != nil {
@@ -239,8 +222,6 @@ func (s *Service) DeleteImage(ctx context.Context, productID, imageID uuid.UUID)
 	return s.repo.DeleteImage(ctx, imageID)
 }
 
-// AvailableQuantity returns the sellable quantity for a given product, read
-// through the InventoryReader port; product does not store stock itself.
 func (s *Service) AvailableQuantity(ctx context.Context, id uuid.UUID) (int, error) {
 	if _, err := s.repo.GetByID(ctx, id); err != nil {
 		return 0, err
@@ -256,14 +237,13 @@ func (s *Service) AvailableQuantity(ctx context.Context, id uuid.UUID) (int, err
 	return avail, nil
 }
 
-// CountPublishedByCategory backs category's ProductCounter port: category has
-// no products table access of its own, so it asks here before deleting.
+// CountPublishedByCategory backs category's ProductCounter port: category has no
+// products access of its own.
 func (s *Service) CountPublishedByCategory(ctx context.Context, categoryID uuid.UUID) (int, error) {
 	return s.repo.CountPublishedByCategory(ctx, categoryID)
 }
 
-// enrich fills Availability for a page of products in one call to inventory.
-// Products with no level row (never registered) read as zero rather than
+// One call per page, and a product with no level row reads as zero rather than
 // erroring, so a missing row cannot take down a listing.
 func (s *Service) enrich(ctx context.Context, products []Product) error {
 	if len(products) == 0 {

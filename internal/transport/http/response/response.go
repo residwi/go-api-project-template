@@ -73,8 +73,6 @@ func ValidationErr(w http.ResponseWriter, details map[string]any) {
 	Err(w, http.StatusUnprocessableEntity, "validation failed", details)
 }
 
-// ParseUUIDParam parses a named URL path parameter as a UUID.
-// On failure it writes a 400 response and returns false.
 func ParseUUIDParam(w http.ResponseWriter, r *http.Request, name string) (uuid.UUID, bool) {
 	id, err := uuid.Parse(r.PathValue(name))
 	if err != nil {
@@ -97,10 +95,9 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	return nil
 }
 
-// writeJSON marshals before touching the header, so a value that cannot be
-// encoded still produces an honest 500 rather than the caller's status followed
-// by an empty body. The InternalError retry recurses exactly once: it re-enters
-// with a fixed message and no Details, which always marshals.
+// Marshals before touching the header, so an unencodable value produces an honest
+// 500 instead of the caller's status and an empty body. The InternalError retry
+// recurses exactly once: it re-enters with a fixed message that always marshals.
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	body, err := json.Marshal(v)
 	if err != nil {

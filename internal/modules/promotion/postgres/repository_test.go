@@ -189,9 +189,7 @@ func TestPostgresRepository_ApplyPromotion(t *testing.T) {
 		require.NoError(t, repo.Create(context.Background(), p))
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM promotions WHERE id = $1`, p.ID) })
 
-		// First apply succeeds
 		require.NoError(t, repo.ApplyPromotion(context.Background(), p.ID))
-		// Second apply exceeds max_uses
 		err := repo.ApplyPromotion(context.Background(), p.ID)
 		assert.ErrorIs(t, err, apperror.ErrCouponExhausted)
 	})
@@ -220,7 +218,6 @@ func TestPostgresRepository_CreateUsage(t *testing.T) {
 		repo := New(testPool)
 		ctx := context.Background()
 
-		// Need a valid order — insert directly
 		orderID := uuid.New()
 		_, err := testPool.Exec(ctx,
 			`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency)
@@ -355,7 +352,7 @@ func TestSearchString(t *testing.T) {
 		require.NoError(t, repo.Create(context.Background(), p))
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM promotions WHERE id = $1`, p.ID) })
 
-		// Update with same code — no unique violation, exercises isUniqueViolation returning false
+		// Same code, so no unique violation: covers isUniqueViolation returning false.
 		p.Active = false
 		err := repo.Update(context.Background(), p)
 		require.NoError(t, err)

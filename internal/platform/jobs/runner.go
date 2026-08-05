@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-// Queue is a feature's job persistence: claim a leased batch to work, and prune
-// finished rows so the table stays bounded.
 type Queue[T any] interface {
 	Claim(ctx context.Context, batch int, lease time.Duration) ([]T, error)
 	Prune(ctx context.Context, age time.Duration, limit int) (int, error)
@@ -25,7 +23,6 @@ type Sweeper interface {
 	Sweep(ctx context.Context) error
 }
 
-// Config tunes the runner's loop.
 type Config struct {
 	Interval      time.Duration
 	BatchSize     int
@@ -35,7 +32,6 @@ type Config struct {
 	PruneLimit    int
 }
 
-// Runner drives a Queue and a Processor on an interval.
 type Runner[T any] struct {
 	name   string
 	queue  Queue[T]
@@ -44,10 +40,8 @@ type Runner[T any] struct {
 	logger *slog.Logger
 }
 
-// leaseSafetyDivisor bounds a job's processing timeout to lease - lease/divisor
-// (4/5 of the lease), leaving a margin before the claim expires and the job
-// becomes reclaimable — otherwise the cancellation and the reclaim window
-// coincide, letting two workers run the same job at the boundary.
+// Bounds a job's timeout to 4/5 of its lease. Without the margin, cancellation
+// and the reclaim window coincide and two workers run the same job.
 const leaseSafetyDivisor = 5
 
 func NewRunner[T any](name string, queue Queue[T], proc Processor[T], cfg Config, log *slog.Logger) *Runner[T] {
@@ -70,9 +64,8 @@ func (r *Runner[T]) Start(ctx context.Context) {
 }
 
 func (r *Runner[T]) tick(ctx context.Context) {
-	// Sweep and Prune run on the loop goroutine, so a panic here would otherwise
-	// kill the whole runner (and, in the worker binary, every other runner with
-	// it). Contain it to this tick.
+	// Sweep and Prune run on the loop goroutine, so a panic here would take the
+	// runner down -- and every other runner in the worker binary with it.
 	defer func() {
 		if rec := recover(); rec != nil {
 			r.logger.ErrorContext(ctx, "tick panicked", slog.Any("runner", r.name), slog.Any("panic", rec))
@@ -95,12 +88,10 @@ func (r *Runner[T]) tick(ctx context.Context) {
 		return
 	}
 
-	// The lease starts at claim time for the whole batch, so bound every job to a
-	// deadline measured from now — not from when its goroutine happens to start.
-	// With BatchSize > Concurrency, jobs beyond the limit wait on the semaphore;
-	// timing each job from its own start would let a late starter run past the
-	// lease and be reclaimed (and re-processed) by another worker while it is
-	// still executing. The safety margin keeps the cancel ahead of the reclaim.
+	// The lease starts at claim time for the whole batch, so every deadline is
+	// measured from now, not from when a goroutine happens to start: with
+	// BatchSize > Concurrency a late starter would otherwise outlive the lease and
+	// be reclaimed by another worker while still running.
 	deadline := time.Now().Add(r.cfg.LeaseDuration - r.cfg.LeaseDuration/leaseSafetyDivisor)
 
 	var wg sync.WaitGroup

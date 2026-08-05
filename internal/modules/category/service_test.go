@@ -447,9 +447,8 @@ func TestService_ValidateParent(t *testing.T) {
 		repo := NewMockRepository(t)
 		counter := NewMockProductCounter(t)
 		parentID := uuid.New()
-		// A non-existent parentID makes the recursive CTE match zero rows, so
-		// AncestorDepthAndCycle reports depth 0 rather than returning ErrNotFound.
-		// validateParent never loads the parent via GetByID.
+		// A non-existent parentID matches zero rows, so the CTE reports depth 0 rather
+		// than ErrNotFound, and validateParent never calls GetByID.
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(0, false, nil)
 		svc := NewService(repo, counter)
@@ -508,9 +507,7 @@ func TestService_ValidateParent(t *testing.T) {
 		repo := NewMockRepository(t)
 		counter := NewMockProductCounter(t)
 		selfID := uuid.New()
-		// Update loads the category via GetByID(id) unconditionally, as its
-		// first step, before it ever looks at ParentID - so this call always
-		// happens here, regardless of the identity check below.
+		// Update calls GetByID(id) first, unconditionally, whatever the check below does.
 		repo.EXPECT().GetByID(mock.Anything, selfID).
 			Return(&Category{ID: selfID, Name: "A"}, nil)
 		svc := NewService(repo, counter)

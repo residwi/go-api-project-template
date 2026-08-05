@@ -9,10 +9,8 @@ import (
 // Slug is not a param: it is always derived server-side from Name via
 // slug.MakeOrFallback, both on create and on a name-changing update.
 
-// CreateParams may leave Price's currency empty: Service.Create denominates it
-// in defaultCurrency, which is where that default has always lived.
-// CompareAtPrice is denominated from Price, never independently -- see
-// Product.Price.
+// CreateParams may leave Price's currency empty: Service.Create denominates it.
+// CompareAtPrice is denominated from Price, never independently.
 type CreateParams struct {
 	CategoryID     *uuid.UUID
 	Name           string
@@ -23,11 +21,8 @@ type CreateParams struct {
 	Status         string
 }
 
-// UpdateParams treats Price and CompareAtPrice as optional as a whole -- nil
-// means "leave it alone" -- but an amount is not separable from its currency,
-// so re-pricing a product requires saying what the new price is denominated in.
-// That is deliberate; internal/modules/product/http/admin_handler.go rejects
-// such requests rather than guessing a currency.
+// UpdateParams reads nil as "leave it alone". Re-pricing requires a currency
+// too; admin_handler.go rejects one without the other.
 type UpdateParams struct {
 	CategoryID     *uuid.UUID
 	Name           *string

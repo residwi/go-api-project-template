@@ -304,10 +304,6 @@ func TestHandler_GetWishlist_Pagination(t *testing.T) {
 	})
 }
 
-// wishlist.Item (model.go) carries no json tags at all, so WishlistID would
-// serialize under its own name if ever marshaled directly -- toItemResponse's
-// explicit field list is the only thing keeping it off the wire. No other
-// test in this file decodes an item's JSON shape.
 func TestToItemResponse_OmitsInternalFields(t *testing.T) {
 	t.Parallel()
 

@@ -1,7 +1,6 @@
-// Package seeds proves db/seeds/data.sql still applies cleanly against a
-// freshly migrated database. Nothing else in the suite exercises this file --
-// `make seed` runs it directly against a real database -- so a schema change
-// (e.g. a dropped or renamed column) can break it without any test noticing.
+// Package seeds proves db/seeds/data.sql still applies against a freshly
+// migrated database. Nothing else in the suite touches that file, so a dropped
+// or renamed column can break it without any test noticing.
 package seeds
 
 import (
@@ -28,9 +27,8 @@ func TestDataSQL_Applies(t *testing.T) {
 	_, err = pool.Exec(ctx, string(seedSQL))
 	require.NoError(t, err, "db/seeds/data.sql must apply cleanly against a freshly migrated database")
 
-	// Guards against part of the fix being reverted or the stock values
-	// drifting: a seeded product must resolve to a real inventory_levels row
-	// with the stock this file claims to seed, not just "no SQL error".
+	// A seeded product must resolve to a real inventory_levels row with the stock
+	// the file claims, not merely produce no SQL error.
 	var availableStock, reservedStock int
 	err = pool.QueryRow(ctx, `
 		SELECT il.available_stock, il.reserved_stock
@@ -42,15 +40,13 @@ func TestDataSQL_Applies(t *testing.T) {
 	assert.Equal(t, 100, availableStock)
 	assert.Equal(t, 0, reservedStock)
 
-	// Re-applying must stay a no-op (ON CONFLICT DO NOTHING everywhere), the
-	// same way running `make seed` twice against an existing database would.
+	// Re-applying must stay a no-op, as running `make seed` twice would.
 	_, err = pool.Exec(ctx, string(seedSQL))
 	require.NoError(t, err, "re-applying db/seeds/data.sql must also succeed")
 }
 
-// seedFilePath resolves data.sql relative to this source file rather than a
-// hardcoded absolute path, mirroring how testhelper locates the migrations
-// directory from [runtime.Caller].
+// Resolved relative to this source file, as testhelper locates the migrations
+// directory.
 func seedFilePath() string {
 	_, file, _, _ := runtime.Caller(0)
 	return filepath.Join(filepath.Dir(file), "data.sql")

@@ -38,12 +38,8 @@ const (
 )
 
 type Payment struct {
-	ID      uuid.UUID
-	OrderID uuid.UUID
-	// Amount is what this payment charges, denominated. Finalization verifies it
-	// against the order's total with money.Money.Equal, which compares currency as
-	// well as amount -- the pairing is what makes that single comparison equivalent
-	// to the two-field check it replaced.
+	ID              uuid.UUID
+	OrderID         uuid.UUID
 	Amount          money.Money
 	Status          Status
 	Method          string

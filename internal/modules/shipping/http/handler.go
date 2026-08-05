@@ -17,11 +17,8 @@ type handler struct {
 	orders  shipping.OrderProvider
 }
 
-// shipmentResponse mirrors shipping.Shipment 1:1. Nothing on Shipment is
-// internal or sensitive, so there is no field to omit here. Shared by this
-// file's GetShipping and by every admin_handler.go method that returns a
-// shipment (CreateShipment, UpdateTracking, MarkDelivered): placed here
-// because GetShipping is its first user in routes.go's registration order.
+// Mirrors shipping.Shipment 1:1: nothing on it is internal or sensitive. Shared
+// by GetShipping and every admin_handler.go method returning a shipment.
 type shipmentResponse struct {
 	ID             uuid.UUID               `json:"id"`
 	OrderID        uuid.UUID               `json:"order_id"`

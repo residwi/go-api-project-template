@@ -371,12 +371,6 @@ func TestHandler_Create(t *testing.T) {
 	})
 }
 
-// GET /products/{id}/reviews runs on the unauthenticated `api` route group
-// (router.go), so this assertion is the only thing stopping an anonymous
-// scraper from reading UserID and correlating purchases to accounts. Status
-// and UpdatedAt are dropped too: postgres/repository.go's ListByProduct
-// filters WHERE status = 'published', so exposing them would add no
-// information.
 func TestToReviewResponse_OmitsReviewerAndInternalFields(t *testing.T) {
 	t.Parallel()
 

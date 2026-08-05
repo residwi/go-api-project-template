@@ -324,12 +324,9 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
-	// A mixed-currency cart is rejected by money.Money's Add inside the service,
-	// which returns money.ErrCurrencyMismatch. That sentinel is NOT a case in
-	// response.HandleErr, so if the service surfaced it alone the client would see
-	// a 500 for what is plainly bad input. The service wraps apperror.ErrBadRequest
-	// alongside it; this test asserts the status a client actually observes, which
-	// an errors.Is check in the service test cannot do.
+	// money.ErrCurrencyMismatch is not a case in response.HandleErr, so alone it
+	// would be a 500. The wrapped apperror.ErrBadRequest is what makes the 400, and
+	// only a mux-level assertion can see that.
 	t.Run("mixed-currency cart is a 400, not a 500", func(t *testing.T) {
 		t.Parallel()
 
@@ -664,9 +661,8 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 		"order_id must not appear on a line item -- it's an internal join key")
 }
 
-// setupOrderMux returns only the mocks these tests actually drive. The rest are
-// still constructed -- NewService needs all eight, and mockery's NewMockX(t)
-// registers the expectation assertions -- they are just not handed back.
+// Only the mocks these tests drive are returned; the rest are still constructed
+// because NewService needs all eight.
 func setupOrderMux(t *testing.T) (
 	*http.ServeMux,
 	*MockRepository,

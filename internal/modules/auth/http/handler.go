@@ -15,9 +15,8 @@ type handler struct {
 	validator *validator.Validator
 }
 
-// registerRequest carries the validation rules. They live here, not in the
-// core: a service called from a worker should not inherit HTTP's validation
-// vocabulary.
+// Validation lives here, not in the core: a service called from a worker should
+// not inherit HTTP's validation vocabulary.
 type registerRequest struct {
 	Email     string `json:"email"      validate:"required,email"`
 	Password  string `json:"password"   validate:"required,min=8,max=72"`
@@ -25,8 +24,6 @@ type registerRequest struct {
 	LastName  string `json:"last_name"  validate:"required,min=1,max=100"`
 }
 
-// toRegisterParams is the seam: HTTP's validation vocabulary stops here, and
-// the service receives a plain input struct.
 func (r registerRequest) toRegisterParams() auth.RegisterParams {
 	return auth.RegisterParams{
 		Email:     r.Email,
@@ -36,10 +33,8 @@ func (r registerRequest) toRegisterParams() auth.RegisterParams {
 	}
 }
 
-// authUserResponse is the user shape embedded in a token response. It is
-// mapped explicitly from auth.UserResult, which also carries Active and
-// TokenVersion -- neither of which belongs on the wire. Adding a field to
-// UserResult does not add it here; this function has to be edited first.
+// Mapped explicitly from auth.UserResult, which also carries Active and
+// TokenVersion: adding a field there does not publish it.
 type authUserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
@@ -48,10 +43,6 @@ type authUserResponse struct {
 	Role      string    `json:"role"`
 }
 
-// tokenResponse is the shared wire shape returned by register, login, and
-// refresh. It is declared once here and reused by Login and RefreshToken
-// below rather than duplicated, since all three endpoints expose the
-// identical shape.
 type tokenResponse struct {
 	AccessToken  string           `json:"access_token"`
 	RefreshToken string           `json:"refresh_token"`
@@ -113,10 +104,7 @@ func (h *handler) Login(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toTokenResponse(result))
 }
 
-// refreshRequest has no params.go counterpart: auth.Service.RefreshToken
-// already takes a plain string, not a request struct, so there is no
-// dto-in-the-core cycle to break here. The wire type's only job is to carry
-// the validate tag.
+// Exists only to carry the validate tag: RefreshToken takes a plain string.
 type refreshRequest struct {
 	RefreshToken string `json:"refresh_token" validate:"required"`
 }

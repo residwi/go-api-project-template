@@ -16,7 +16,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-// testContainerPort is shared with transaction_test.go (same package, same binary).
 var testContainerPort string
 
 func TestMain(m *testing.M) {

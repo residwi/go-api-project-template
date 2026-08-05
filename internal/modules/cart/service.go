@@ -71,9 +71,8 @@ func (s *Service) RemoveItem(ctx context.Context, userID, productID uuid.UUID) e
 }
 
 func (s *Service) UpdateQuantity(ctx context.Context, userID, productID uuid.UUID, p UpdateQuantityParams) error {
-	// Mirror AddItem's guards: setting a quantity must respect product
-	// availability and published status, otherwise AddItem's stock check is
-	// trivially bypassed by following it with an UpdateQuantity.
+	// Mirrors AddItem's guards, or its stock check is bypassed by following it
+	// with an UpdateQuantity.
 	info, err := s.products.GetByID(ctx, productID)
 	if err != nil {
 		return err
@@ -93,9 +92,8 @@ func (s *Service) UpdateQuantity(ctx context.Context, userID, productID uuid.UUI
 	return s.repo.UpdateItemQuantity(ctx, cartID, productID, p.Quantity)
 }
 
-// LockCart takes a row lock on the user's cart for the current transaction so
-// concurrent checkouts of the same cart serialize. It is used by the order
-// service inside its PlaceOrder transaction.
+// LockCart serializes concurrent checkouts of one cart. The order service calls
+// it inside its PlaceOrder transaction.
 func (s *Service) LockCart(ctx context.Context, userID uuid.UUID) error {
 	_, err := s.repo.GetCartForLock(ctx, userID)
 	return err
@@ -122,8 +120,8 @@ func (s *Service) GetCart(ctx context.Context, userID uuid.UUID) (*Cart, error) 
 	for i := range c.Items {
 		info, ok := infos[c.Items[i].ProductID]
 		if !ok {
-			// The product record is gone entirely. Keep the line visible and
-			// unsellable rather than making the customer's total change silently.
+			// Gone entirely: keep the line visible and unsellable rather than let the
+			// customer's total change silently.
 			c.Items[i].Product = &Product{Status: "unavailable"}
 			continue
 		}

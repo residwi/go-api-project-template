@@ -280,7 +280,6 @@ func TestAuthEndpoints(t *testing.T) {
 	})
 
 	t.Run("POST /api/auth/login with valid credentials", func(t *testing.T) {
-		// Register first
 		regBody := `{"email":"test-login@example.com","password":"Password123!","first_name":"Login","last_name":"User"}`
 		regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
 		regReq.Header.Set("Content-Type", "application/json")
@@ -288,7 +287,6 @@ func TestAuthEndpoints(t *testing.T) {
 		handler.ServeHTTP(regW, regReq)
 		require.Equal(t, http.StatusCreated, regW.Code)
 
-		// Login
 		loginBody := `{"email":"test-login@example.com","password":"Password123!"}`
 		loginReq := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(loginBody))
 		loginReq.Header.Set("Content-Type", "application/json")
@@ -314,7 +312,6 @@ func TestAuthEndpoints(t *testing.T) {
 	})
 
 	t.Run("POST /api/auth/login with wrong password", func(t *testing.T) {
-		// Register first
 		regBody := `{"email":"test-wrongpw@example.com","password":"Password123!","first_name":"Wrong","last_name":"Pw"}`
 		regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
 		regReq.Header.Set("Content-Type", "application/json")
@@ -334,7 +331,6 @@ func TestAuthEndpoints(t *testing.T) {
 	})
 
 	t.Run("POST /api/auth/refresh with valid token", func(t *testing.T) {
-		// Register to get tokens
 		regBody := `{"email":"test-refresh@example.com","password":"Password123!","first_name":"Refresh","last_name":"User"}`
 		regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
 		regReq.Header.Set("Content-Type", "application/json")
@@ -347,7 +343,6 @@ func TestAuthEndpoints(t *testing.T) {
 		data := regResp["data"].(map[string]any)
 		refreshToken := data["refresh_token"].(string)
 
-		// Refresh
 		refreshBody := `{"refresh_token":"` + refreshToken + `"}`
 		refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", strings.NewReader(refreshBody))
 		refreshReq.Header.Set("Content-Type", "application/json")
@@ -418,7 +413,6 @@ func TestAuthenticatedEndpoints(t *testing.T) {
 	handler := NewRouter(testDeps)
 	ctx := context.Background()
 
-	// Register and login to get an access token
 	regBody := `{"email":"test-authed@example.com","password":"Password123!","first_name":"Authed","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
 	regReq.Header.Set("Content-Type", "application/json")
@@ -489,7 +483,6 @@ func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 	handler := NewRouter(testDeps)
 	ctx := context.Background()
 
-	// Register a regular user
 	regBody := `{"email":"test-nonadmin@example.com","password":"Password123!","first_name":"Regular","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
 	regReq.Header.Set("Content-Type", "application/json")
@@ -575,7 +568,6 @@ func TestAdapterErrorPaths(t *testing.T) {
 	handler := NewRouter(testDeps)
 	ctx := context.Background()
 
-	// Register a user for authenticated requests
 	email := "adapter-err@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"Err","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
@@ -641,7 +633,6 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	handler := NewRouter(deps)
 	ctx := context.Background()
 
-	// Seed category + product
 	catID := uuid.New()
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'ErrAdapt Cat', $2, true)`,
@@ -661,7 +652,6 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 100, 0)
 
-	// Register user
 	email := "erradapt-flow@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"ErrAdapt","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
@@ -700,7 +690,6 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
 
-	// Add to cart and place order
 	cartBody := `{"product_id":"` + prodID.String() + `","quantity":1}`
 	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
 	cartReq.Header.Set("Content-Type", "application/json")
@@ -727,12 +716,10 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("orderGetterAdapter error when order deleted during refund", func(t *testing.T) {
-		// Set payment to success so refund can proceed
 		_, err := testPool.Exec(ctx,
 			`UPDATE payments SET status = 'success', gateway_txn_id = 'txn_erradapt' WHERE id = $1`, paymentID)
 		require.NoError(t, err)
 
-		// Create a refund job pointing to this order
 		refundJobID := uuid.New()
 		_, err = testPool.Exec(ctx,
 			`INSERT INTO payment_jobs (id, payment_id, order_id, action, status, max_attempts, next_retry_at)
@@ -740,7 +727,8 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 			refundJobID, paymentID, orderID)
 		require.NoError(t, err)
 
-		// Delete order items and the order to force orderGetterAdapter + orderItemsGetterAdapter errors
+		// Deleting both drives orderGetterAdapter and orderItemsGetterAdapter down their
+		// error paths.
 		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id = $1`, orderID)
 		testPool.Exec(ctx, `DELETE FROM orders WHERE id = $1`, orderID)
 
@@ -760,10 +748,8 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		// with an order whose items are gone.
 		_ = newPaymentServiceForTest(t, mockServer.URL+"/mock/payment").Process(ctx, job)
 
-		// Cleanup the job
 		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, refundJobID)
 
-		// Re-insert the order so cleanup doesn't fail
 		testPool.Exec(ctx,
 			`INSERT INTO orders (id, user_id, status, subtotal_amount, total_amount, currency)
 			 SELECT $1, id, 'cancelled', 3000, 3000, 'USD' FROM users WHERE email = $2`,
@@ -848,20 +834,15 @@ func TestServerRunListenError(t *testing.T) {
 
 	serverRunEnv(t, port)
 
-	// t.Context() rather than a manual WithCancel: nothing here cancels early any
-	// more, so the only cancellation that matters is the one at test end.
 	ctx := t.Context()
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- RunContext(ctx) }()
 
 	// No sleep and no cancel: the port is already bound, so ListenAndServe fails on
-	// its own and 57d3ec7 makes RunContext return that error rather than logging it
-	// and blocking. Waiting on the error is what makes this deterministic. The
-	// previous shape slept a fixed 500ms and then cancelled, which held only while
-	// config, Postgres and Redis setup finished inside that window -- under
-	// full-suite load it does not, and cancelling first sent RunContext down its
-	// graceful-shutdown path to return nil without ever attempting the listen.
+	// its own and waiting on that error is what makes this deterministic. Cancelling
+	// first would send RunContext down its graceful-shutdown path, returning nil
+	// without ever attempting the listen.
 	select {
 	case runErr := <-errCh:
 		require.Error(t, runErr)
@@ -874,7 +855,6 @@ func TestServerRunListenError(t *testing.T) {
 
 func TestServerRunConfigError(t *testing.T) {
 	setup(t)
-	// Set an invalid duration to trigger envconfig parsing error
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
 	t.Setenv("JWT_ACCESS_TTL", "not-a-duration")
 
@@ -977,14 +957,10 @@ func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Service 
 	return paymentSvc
 }
 
-// seedInventoryLevel gives a product an inventory_levels row so ReserveBatch/
-// DeductBatch have something to update. product.Service.Create does register a
-// new product with inventory (via EnsureLevel), but the row it writes is zeroed,
-// and the tests here insert products with raw SQL anyway, bypassing Create
-// entirely -- so there is no row at all. Either way the stock is seeded here.
+// ReserveBatch and DeductBatch need a row to update, and these tests insert
+// products with raw SQL, bypassing the EnsureLevel in product.Service.Create.
 //
-// test/e2e/testmain_test.go carries its own copy for the saga flows. Keep the
-// two in step.
+// test/e2e/testmain_test.go carries its own copy. Keep them in step.
 func seedInventoryLevel(t *testing.T, productID uuid.UUID, available, reserved int) {
 	t.Helper()
 	_, err := testPool.Exec(context.Background(),
@@ -997,7 +973,6 @@ func seedInventoryLevel(t *testing.T, productID uuid.UUID, available, reserved i
 	require.NoError(t, err)
 }
 
-// serverRunEnv sets the base env vars for a Run() test using the dockertest containers.
 func serverRunEnv(t *testing.T, port int) {
 	t.Helper()
 	pgCfg := testPool.Config().ConnConfig
@@ -1014,24 +989,15 @@ func serverRunEnv(t *testing.T, port int) {
 	t.Setenv("DB_SSLMODE", "disable")
 	t.Setenv("REDIS_HOST", strings.Split(redisAddr, ":")[0])
 	t.Setenv("REDIS_PORT", strings.Split(redisAddr, ":")[1])
-	// Without this, REDIS_DB defaults to 0 -- the index internal/platform/cache
-	// owns and flushes -- which would race this package's own index (3, per the
-	// registry in internal/testhelper/testhelper.go) the moment a TestServerRun*
-	// test drives a rate-limited route.
+	// REDIS_DB would otherwise default to 0, the index internal/platform/cache owns
+	// and flushes, racing this package's own index 3.
 	t.Setenv("REDIS_DB", "3")
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
 }
 
-// startAndStopServer starts RunContext in a goroutine, waits for it to
-// be ready (via healthAddr), cancels the context to shut it down, and returns
-// the RunContext error.
-//
-// Cancelling a context rather than signalling the test process's own PID is the
-// point. The old SIGINT went to the *whole test process*, so it fired every
-// signal handler in the binary, not just this server's -- and if the readiness
-// wait below failed, the signal was never sent at all and the server goroutine
-// leaked for the rest of the package's run. The deferred cancel now guarantees
-// shutdown on that path too.
+// Cancels a context rather than signalling the test process's own PID: a SIGINT
+// fires every handler in the binary, and if the readiness wait failed it was
+// never sent at all, leaking the server goroutine for the rest of the run.
 func startAndStopServer(t *testing.T, healthAddr string) error {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())

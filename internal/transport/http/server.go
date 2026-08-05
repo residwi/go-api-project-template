@@ -28,8 +28,7 @@ func Run() error {
 }
 
 // RunContext serves until ctx is cancelled, so the caller owns the shutdown
-// trigger. Tests use this instead of Run to stop the server without signalling
-// the whole process.
+// trigger -- which is how tests stop it without signalling the whole process.
 func RunContext(ctx context.Context) error {
 	cfg, err := config.Load()
 	if err != nil {
@@ -40,9 +39,8 @@ func RunContext(ctx context.Context) error {
 
 	pool, err := database.NewPostgres(ctx, cfg.Database)
 	if err != nil {
-		// Reported here as well as returned: main's fallback prints through the
-		// stdlib log, so without this the failure never reaches the configured
-		// handler and an error-level alert has nothing to match on.
+		// Reported as well as returned: main's fallback prints through the stdlib log,
+		// so otherwise no error-level record reaches the configured handler.
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.Any("error", err))
 		return fmt.Errorf("connecting to database: %w", err)
 	}
@@ -87,9 +85,8 @@ func RunContext(ctx context.Context) error {
 		ReadTimeout:  cfg.App.ReadTimeout,
 		WriteTimeout: cfg.App.WriteTimeout,
 		IdleTimeout:  cfg.App.IdleTimeout,
-		// net/http reports its own problems -- superfluous WriteHeader calls,
-		// TLS handshake failures -- through this logger. Without it they land on
-		// the stdlib log's plain-text stderr instead of the configured stream.
+		// net/http reports its own problems here -- superfluous WriteHeader calls, TLS
+		// handshake failures -- which would otherwise go to plain-text stderr.
 		ErrorLog: slog.NewLogLogger(appLog.Handler(), slog.LevelError),
 	}
 
@@ -101,9 +98,8 @@ func RunContext(ctx context.Context) error {
 		serveErr <- srv.ListenAndServe()
 	}()
 
-	// A bind failure has to abort the process. Blocking on ctx.Done alone left
-	// the binary alive, serving nothing, and exiting 0 -- which reads as a
-	// healthy rollout.
+	// A bind failure must abort: blocking on ctx.Done alone left the binary alive,
+	// serving nothing, exiting 0 -- which reads as a healthy rollout.
 	select {
 	case err := <-serveErr:
 		// ErrServerClosed is the Shutdown below, not a failure.
@@ -132,10 +128,6 @@ type Deps struct {
 	Config     *config.Config
 	Pool       *pgxpool.Pool
 	ReaderPool *pgxpool.Pool
-	// Cache is the shared Redis connection, named for its principal consumer.
-	Cache *redis.Client
-	// Logger is threaded to every component that logs. There is no package-level
-	// default to fall back on, so a nil here is a wiring bug, not a silent
-	// downgrade.
-	Logger *slog.Logger
+	Cache      *redis.Client
+	Logger     *slog.Logger
 }

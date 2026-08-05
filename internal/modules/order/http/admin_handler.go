@@ -50,9 +50,6 @@ func (h *adminHandler) Get(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toOrderResponse(o))
 }
 
-// updateStatusRequest has no params.go counterpart: order.Service.
-// AdminUpdateStatus already takes a plain order.Status, not a request
-// struct, so there is no dto-in-the-core cycle to break here.
 type updateStatusRequest struct {
 	Status string `json:"status" validate:"required"`
 }

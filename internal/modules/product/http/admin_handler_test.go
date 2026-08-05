@@ -480,16 +480,12 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
 
-	// An amount and its currency are one value in product.UpdateParams, so the
-	// three monetary keys move as a group. Each case below was accepted before
-	// Money and now is not: silently completing them means a client re-prices a
-	// product in a denomination it never named (or re-labels one without
-	// restating the amount) and gets a 200 back.
+	// The three monetary keys move as a group, because an amount and its currency
+	// are one value: completing a partial set silently would re-price a product in
+	// a denomination the client never named and answer 200.
 	//
-	// 400, not 422: the body is well-formed and every field passes its own
-	// validate tag -- `omitempty` cannot express "these three travel together",
-	// and response.Bind's validation failures are 422. The contradiction is
-	// between the fields, which is why it is caught after binding.
+	// 400, not 422: the body is well-formed and every field passes its own validate
+	// tag. The contradiction is between fields, so it is caught after binding.
 	for _, tc := range []struct {
 		name string
 		body map[string]any
@@ -501,9 +497,8 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 		t.Run("rejects "+tc.name+" with 400", func(t *testing.T) {
 			t.Parallel()
 
-			// No repo expectation: the request must be rejected before the service is
-			// reached, so the product is never even loaded. mockery fails the test if
-			// GetByID or Update is called anyway.
+			// No repo expectation, so mockery fails the test if the request reaches the
+			// service instead of being rejected first.
 			mux, _ := setupProductMux(t)
 
 			prodID := uuid.New()
@@ -587,11 +582,9 @@ func TestAdminHandler_UpdateProduct(t *testing.T) {
 	})
 }
 
-// toAdminProductResponse (this file) duplicates all twelve of
-// toProductResponse's field mappings (handler.go) by hand rather than
-// sharing code, so the fixture below also sets Description, CategoryID, and
-// CompareAtPrice -- fields otherwise unrelated to SKU/Status -- to guard
-// that duplication from drifting silently.
+// toAdminProductResponse duplicates toProductResponse's twelve field mappings by
+// hand, so the fixture sets fields unrelated to SKU and Status too, to catch
+// that duplication drifting.
 func TestToAdminProductResponse_KeepsSKUAndStatus(t *testing.T) {
 	t.Parallel()
 

@@ -82,9 +82,7 @@ func (s *Service) MarkDelivered(ctx context.Context, shipmentID uuid.UUID) (*Shi
 		return nil, err
 	}
 
-	// Mark the shipment delivered and flip the order to delivered atomically — a
-	// failed order update rolls back the shipment instead of diverging from it.
-	// MarkDelivered returns the updated row, so no follow-up read is needed.
+	// Atomic: a failed order update rolls the shipment back instead of diverging.
 	var delivered *Shipment
 	if err := s.tx.Run(ctx, func(txCtx context.Context) error {
 		var markErr error

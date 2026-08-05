@@ -26,7 +26,6 @@ func TestE2EOrderFlow(t *testing.T) {
 	handler := apihttp.NewRouter(testDeps)
 	ctx := context.Background()
 
-	// Seed a category
 	catID := uuid.New()
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'E2E Cat', $2, true)`,
@@ -34,7 +33,6 @@ func TestE2EOrderFlow(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	// Seed a product
 	prodID := uuid.New()
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
@@ -50,7 +48,6 @@ func TestE2EOrderFlow(t *testing.T) {
 	// products table no longer carries a stock column at all.
 	seedInventoryLevel(t, prodID, 100, 0)
 
-	// Register user and get token
 	regBody := `{"email":"e2e-flow@example.com","password":"Password123!","first_name":"E2E","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
 	regReq.Header.Set("Content-Type", "application/json")
@@ -136,7 +133,6 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 	handler := apihttp.NewRouter(testDeps)
 	ctx := context.Background()
 
-	// Seed category + product
 	catID := uuid.New()
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Cancel Cat', $2, true)`,
@@ -156,7 +152,6 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 50, 0)
 
-	// Register user
 	email := "cancel-flow@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"Cancel","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
@@ -195,7 +190,6 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
 
-	// Add to cart
 	cartBody := `{"product_id":"` + prodID.String() + `","quantity":1}`
 	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
 	cartReq.Header.Set("Content-Type", "application/json")
@@ -204,7 +198,6 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 	handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	// Place order
 	orderBody := `{"payment_method_id":"pm_test_123"}`
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
@@ -253,7 +246,6 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	handler := apihttp.NewRouter(deps)
 	ctx := context.Background()
 
-	// Seed category + product
 	catID := uuid.New()
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Coupon Cat', $2, true)`,
@@ -262,10 +254,8 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
 	prodID := uuid.New()
-	// Price chosen so the DISCOUNTED total ends in 99: 1110 x1 with 10% off gives
-	// a 111 discount and a 999 total. 999 % 100 == 99 makes the mock gateway's
-	// synchronous charge FAIL, leaving the order awaiting_payment so it can be
-	// cancelled (a paid order can't be cancelled).
+	// 1110 less 10% is 999, and 99 mod 100 makes the mock gateway decline: the order
+	// stays awaiting_payment, which is the only state it can be cancelled from.
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'Coupon Product', $2, 'desc', 1110, 'USD', 'published', $3)`,
@@ -277,7 +267,6 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 50, 0)
 
-	// Seed a coupon: 10% off, active, valid date range, high usage limit
 	couponID := uuid.New()
 	couponCode := "TESTCOUPON" + couponID.String()[:8]
 	maxUses := 100
@@ -297,7 +286,6 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM promotions WHERE id = $1`, couponID)
 	})
 
-	// Register user
 	email := "coupon-flow@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"Coupon","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
@@ -341,7 +329,6 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
 
-	// Add to cart
 	cartBody := `{"product_id":"` + prodID.String() + `","quantity":1}`
 	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
 	cartReq.Header.Set("Content-Type", "application/json")
@@ -350,7 +337,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	// Place order with coupon_code — exercises promotion.Service.Reserve via order.CouponReserver
+	// coupon_code drives promotion.Service.Reserve through order.CouponReserver.
 	orderBody := fmt.Sprintf(`{"payment_method_id":"pm_test_123","coupon_code":"%s"}`, couponCode)
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
@@ -375,21 +362,19 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	})
 
 	t.Run("cancel order releases coupon", func(t *testing.T) {
-		// Cancel the order — exercises promotion.Service.Release via order.CouponReserver
+		// Cancelling drives promotion.Service.Release through the same port.
 		req := httptest.NewRequest(http.MethodPost, "/api/orders/"+orderID+"/cancel", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusNoContent, w.Code)
 
-		// Verify coupon usage was released
 		var usageCount int
 		err := testPool.QueryRow(ctx,
 			`SELECT COUNT(*) FROM coupon_usages WHERE coupon_id = $1`, couponID).Scan(&usageCount)
 		require.NoError(t, err)
 		assert.Equal(t, 0, usageCount)
 
-		// Verify promotion used_count was decremented back
 		var usedCount int
 		err = testPool.QueryRow(ctx,
 			`SELECT used_count FROM promotions WHERE id = $1`, couponID).Scan(&usedCount)

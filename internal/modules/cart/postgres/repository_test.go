@@ -333,10 +333,8 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 }
 
-// TestUserHardDeleteIsRestricted documents that carts no longer disappear when a
-// user row is hard-deleted. The application only ever soft-deletes users
-// (UPDATE users SET deleted_at), so the old ON DELETE CASCADE was unreachable
-// configuration that implied cart cleanup the code never performed.
+// The application only soft-deletes users, so the old ON DELETE CASCADE was
+// unreachable configuration implying a cart cleanup nothing performed.
 func TestUserHardDeleteIsRestricted(t *testing.T) {
 	setup(t)
 	ctx := context.Background()
@@ -357,10 +355,8 @@ func TestUserHardDeleteIsRestricted(t *testing.T) {
 	assert.Equal(t, 1, count, "cart must survive the refused delete")
 }
 
-// TestCrossModuleCascadesDropped pins which foreign keys cascade. The six
-// cross-module ones were unreachable (users and products are soft-deleted) while
-// implying a cleanup the code never performed; the four within-module ones are
-// aggregate-internal and correct.
+// The six cross-module cascades were unreachable (users and products are
+// soft-deleted); the four within-module ones are aggregate-internal and correct.
 func TestCrossModuleCascadesDropped(t *testing.T) {
 	setup(t)
 

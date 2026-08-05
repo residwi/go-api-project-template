@@ -6,8 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Repository is cart's persistence port. The Postgres implementation lives
-// in the postgres subpackage; this package never imports it.
 type Repository interface {
 	GetOrCreate(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
 	GetCart(ctx context.Context, userID uuid.UUID) (*Cart, error)

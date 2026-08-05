@@ -97,7 +97,6 @@ func TestRateLimit(t *testing.T) {
 			testRedis.FlushDB(context.Background())
 		})
 
-		// Create a new client with a hook that fails EXPIRE commands
 		hookedClient := redis.NewClient(testRedis.Options())
 		hookedClient.AddHook(expireFailHook{})
 		defer hookedClient.Close()
@@ -121,7 +120,6 @@ func TestRateLimit(t *testing.T) {
 		const maxRequests = 5
 		handler := RateLimit(testLogger(), testRedis, maxRequests, time.Minute)(okHandler)
 
-		// Exhaust limit for IP1
 		for i := range maxRequests {
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			r.RemoteAddr = "10.0.0.3:12345"
@@ -132,14 +130,12 @@ func TestRateLimit(t *testing.T) {
 			require.Equal(t, http.StatusOK, w.Code, "IP1 request %d should succeed", i+1)
 		}
 
-		// IP1 should be blocked
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		r.RemoteAddr = "10.0.0.3:12345"
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, r)
 		require.Equal(t, http.StatusTooManyRequests, w.Code, "IP1 should be blocked")
 
-		// IP2 should still pass
 		r = httptest.NewRequest(http.MethodGet, "/", nil)
 		r.RemoteAddr = "10.0.0.4:12345"
 		w = httptest.NewRecorder()
@@ -148,7 +144,6 @@ func TestRateLimit(t *testing.T) {
 	})
 }
 
-// expireFailHook is a redis.Hook that makes EXPIRE commands fail.
 type expireFailHook struct{}
 
 func (expireFailHook) DialHook(next redis.DialHook) redis.DialHook {

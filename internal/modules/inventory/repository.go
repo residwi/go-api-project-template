@@ -6,14 +6,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// StockChange is one product/quantity pair for a batched inventory operation.
 type StockChange struct {
 	ProductID uuid.UUID
 	Quantity  int
 }
 
-// Repository is inventory's persistence port. The Postgres implementation
-// lives in the postgres subpackage; this package never imports it.
 type Repository interface {
 	Reserve(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error)
 	Release(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error)

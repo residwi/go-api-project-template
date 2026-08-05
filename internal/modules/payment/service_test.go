@@ -29,8 +29,8 @@ func TestService_InitiatePayment(t *testing.T) {
 	t.Run("success with new payment", func(t *testing.T) {
 		t.Parallel()
 
-		// A synchronous "success" charge now finalizes the payment in the same call,
-		// so wrap the context in a test tx and add the FinalizePaymentSuccess expectations.
+		// A synchronous "success" charge finalizes in the same call, hence the test tx
+		// and the FinalizePaymentSuccess expectations.
 		txCtx := ctx
 		svc, repo, gw, orders, orderGet, orderItems, inventory, _, _ := newTestService(t)
 
@@ -58,8 +58,6 @@ func TestService_InitiatePayment(t *testing.T) {
 		repo.EXPECT().UpdateGateway(mock.Anything, mock.AnythingOfType("uuid.UUID"), "txn_abc", mock.Anything).
 			Return(nil)
 
-		// FinalizePaymentSuccess: snapshot total/currency match the payment, then
-		// mark payment+order paid and deduct inventory.
 		orderGet.EXPECT().GetByID(mock.Anything, orderID).
 			Return(OrderSnapshot{
 				Total:  money.New(10000, "USD"),
@@ -103,8 +101,8 @@ func TestService_InitiatePayment(t *testing.T) {
 	t.Run("success with existing payment", func(t *testing.T) {
 		t.Parallel()
 
-		// A synchronous "success" charge now finalizes the payment in the same call,
-		// so wrap the context in a test tx and add the FinalizePaymentSuccess expectations.
+		// A synchronous "success" charge finalizes in the same call, hence the test tx
+		// and the FinalizePaymentSuccess expectations.
 		txCtx := ctx
 		svc, repo, gw, orders, orderGet, orderItems, inventory, _, _ := newTestService(t)
 
@@ -130,8 +128,6 @@ func TestService_InitiatePayment(t *testing.T) {
 		repo.EXPECT().UpdateGateway(mock.Anything, existingID, "txn_existing", mock.Anything).
 			Return(nil)
 
-		// FinalizePaymentSuccess: snapshot total/currency match the payment, then
-		// mark payment+order paid and deduct inventory.
 		orderGet.EXPECT().GetByID(mock.Anything, orderID).
 			Return(OrderSnapshot{
 				Total:  money.New(10000, "USD"),
@@ -719,8 +715,8 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 	t.Run("UpdateGateway error is logged but does not fail", func(t *testing.T) {
 		t.Parallel()
 
-		// A synchronous "success" charge now finalizes the payment in the same call,
-		// so wrap the context in a test tx and add the FinalizePaymentSuccess expectations.
+		// A synchronous "success" charge finalizes in the same call, hence the test tx
+		// and the FinalizePaymentSuccess expectations.
 		txCtx := ctx
 		svc, repo, gw, orders, orderGet, orderItems, inventory, _, _ := newTestService(t)
 
@@ -744,8 +740,6 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 		repo.EXPECT().UpdateGateway(mock.Anything, mock.AnythingOfType("uuid.UUID"), "txn_gw_err", mock.Anything).
 			Return(errors.New("update gateway failed"))
 
-		// FinalizePaymentSuccess: snapshot total/currency match the payment, then
-		// mark payment+order paid and deduct inventory.
 		orderGet.EXPECT().GetByID(mock.Anything, orderID).
 			Return(OrderSnapshot{
 				Total:  money.New(10000, "USD"),
@@ -996,7 +990,7 @@ func TestService_HandleWebhook(t *testing.T) {
 		repo.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).
 			Return(nil)
 
-		// Failed payment now also cancels the order and releases its reserved stock.
+		// A failed payment also cancels the order and releases its reserved stock.
 		orders.EXPECT().CancelUnpaid(mock.Anything, orderID).
 			Return(nil)
 
@@ -1040,7 +1034,7 @@ func TestService_HandleWebhook(t *testing.T) {
 		repo.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).
 			Return(nil)
 
-		// Expired payment now also cancels the order and releases its reserved stock.
+		// An expired payment also cancels the order and releases its reserved stock.
 		orders.EXPECT().CancelUnpaid(mock.Anything, orderID).
 			Return(nil)
 

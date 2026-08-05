@@ -170,13 +170,6 @@ func TestHandler_Apply(t *testing.T) {
 	})
 }
 
-// What this does and does not guarantee: ElementsMatch below catches any
-// field added to applyResponse without `,omitempty`. It does not catch one
-// added with `,omitempty`, because toApplyResponse takes only a code and a
-// discount -- any new field is never assigned, so it stays zero and omitted.
-// The backstop for that case is the compiler: actually populating a new
-// field means widening this mapper's signature, which breaks its one call
-// site in handler.go's Apply.
 func TestApplyResponse_OmitsUsageCountersAndLimits(t *testing.T) {
 	t.Parallel()
 

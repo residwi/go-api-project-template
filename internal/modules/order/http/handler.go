@@ -18,9 +18,8 @@ type handler struct {
 	validator *validator.Validator
 }
 
-// addressResponse maps order.Address explicitly rather than reusing the domain
-// struct: Address carries no internal fields today, but a future one (e.g. a
-// geocoding-provider id) would otherwise ride onto the wire unnoticed.
+// Mapped explicitly rather than reusing order.Address, so a field added there
+// later cannot ride onto the wire unnoticed.
 type addressResponse struct {
 	Street  string `json:"street"`
 	City    string `json:"city"`
@@ -42,15 +41,8 @@ func toAddressResponse(a *order.Address) *addressResponse {
 	}
 }
 
-// orderItemResponse drops OrderID: it is an internal join key (the item is
-// always returned nested inside its order), and a client already knows
-// which order it asked for.
-//
-// Price and Subtotal are int64 minor units with no sibling currency key, even
-// though order.Item now holds them as money.Money: this endpoint publishes the
-// currency once, on the parent order. Flattening each money.Money to its Amount
-// here -- rather than letting the type marshal itself -- is what keeps that
-// asymmetry the adapter's decision. See internal/money/doc.go.
+// Drops OrderID: an internal join key, and the item is always nested inside the
+// order the client asked for.
 type orderItemResponse struct {
 	ID          uuid.UUID `json:"id"`
 	ProductID   uuid.UUID `json:"product_id"`
@@ -73,16 +65,9 @@ func toOrderItemResponse(i order.Item) orderItemResponse {
 	}
 }
 
-// orderResponse is shared by every endpoint that returns an order -- public
-// and admin alike expose the identical shape. RequestHash, StockDeducted,
-// and StockReversed are dropped: RequestHash is an idempotency internal, and
-// the stock flags are saga state that would let a client infer fulfilment
-// internals if published.
-//
-// Shared by this file's PlaceOrder (via placeOrderResponse's embedded
-// field), ListOrders, and GetOrder, and by admin_handler.go's List and Get:
-// placed here because PlaceOrder is the first of those in routes.go's
-// registration order.
+// Shared by the public and admin endpoints, which expose the identical shape.
+// RequestHash is an idempotency internal; StockDeducted and StockReversed are
+// saga state a client could read fulfilment internals from.
 type orderResponse struct {
 	ID              uuid.UUID           `json:"id"`
 	UserID          uuid.UUID           `json:"user_id"`
@@ -110,10 +95,7 @@ func toOrderResponse(o *order.Order) orderResponse {
 		ID:     o.ID,
 		UserID: o.UserID,
 		Status: o.Status,
-		// The order's three money.Money values are flattened to their amounts, and
-		// the currency is emitted once, from Total -- the amount actually charged.
-		// All three share a currency by construction, so any of them would do; Total
-		// is named because it is the one the client is being billed.
+		// Total's currency is the one published: it is the amount the client is billed.
 		SubtotalAmount:  o.Subtotal.Amount,
 		DiscountAmount:  o.Discount.Amount,
 		TotalAmount:     o.Total.Amount,
@@ -128,8 +110,6 @@ func toOrderResponse(o *order.Order) orderResponse {
 	}
 }
 
-// addressRequest maps to order.Address explicitly rather than binding the
-// domain struct directly, mirroring addressResponse's rationale.
 type addressRequest struct {
 	Street  string `json:"street"`
 	City    string `json:"city"`
@@ -169,9 +149,8 @@ func (r placeOrderRequest) toPlaceParams() order.PlaceParams {
 	}
 }
 
-// placeOrderResponse wraps the order in an "order" envelope. Clients decode
-// data.order.{id,coupon_code,subtotal_amount,discount_amount,total_amount}, so
-// flattening this to a bare orderResponse is a wire break.
+// The "order" envelope is load-bearing: clients decode data.order.{...}, so
+// flattening this to a bare orderResponse breaks them.
 type placeOrderResponse struct {
 	Order orderResponse `json:"order"`
 }
@@ -250,15 +229,10 @@ func (h *handler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toOrderResponse(o))
 }
 
-// payRequest has no params.go counterpart: order.Service.RetryPayment
-// already takes a plain string, not a request struct, so there is no
-// dto-in-the-core cycle to break here.
 type payRequest struct {
 	PaymentMethodID string `json:"payment_method_id" validate:"required"`
 }
 
-// payResultResponse gives order.PaymentResult snake_case wire tags; ports.go
-// carries no json tags of its own.
 type payResultResponse struct {
 	PaymentID  uuid.UUID `json:"payment_id"`
 	PaymentURL string    `json:"payment_url,omitempty"`

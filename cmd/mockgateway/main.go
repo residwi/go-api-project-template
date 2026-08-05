@@ -1,6 +1,5 @@
-// Command mockgateway is a dev-only HTTP server that fakes a payment gateway
-// (charge, refund, webhook trigger) so the API and worker can be run locally
-// without a real Stripe/Midtrans account.
+// Command mockgateway fakes a payment gateway so the API and worker can run
+// locally without a real Stripe or Midtrans account.
 package main
 
 import (

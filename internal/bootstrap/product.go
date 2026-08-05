@@ -9,8 +9,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 )
 
-// inventoryReaderAdapter maps product's Availability onto inventory's Stock.
-// Note it drops Reserved: product asks what is sellable, not how much is held.
+// Drops Reserved: product asks what is sellable, not how much is held.
 type inventoryReaderAdapter struct{ svc *inventory.Service }
 
 func (a *inventoryReaderAdapter) GetAvailability(

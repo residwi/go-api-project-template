@@ -17,18 +17,10 @@ type adminHandler struct {
 	validator *validator.Validator
 }
 
-// adminPaymentResponse is admin-only -- there is no public payment response
-// to collide with, since a shopper never sees a payment object directly
-// (the "pay" flow lives on order's wire, not payment's). GatewayResponse is
-// the one field dropped for cause: it carries raw gateway payloads that may
-// include PII or card metadata. Everything else on Payment is operator-
-// facing account data, including OrderID -- an admin needs it to correlate
-// a payment back to the order it belongs to.
-//
-// Amount and Currency stay two keys even though payment.Payment now holds one
-// money.Money: this endpoint has always emitted both, so the value is flattened
-// field-by-field here rather than by a MarshalJSON that could not know which
-// endpoints want a currency key and which do not. See internal/money/doc.go.
+// Admin-only: a shopper never sees a payment object, the "pay" flow lives on
+// order's wire. GatewayResponse is the one field dropped for cause -- raw gateway
+// payloads that may carry PII or card metadata. Everything else is operator-facing
+// account data, OrderID included.
 type adminPaymentResponse struct {
 	ID              uuid.UUID      `json:"id"`
 	OrderID         uuid.UUID      `json:"order_id"`
@@ -98,9 +90,6 @@ func (h *adminHandler) Get(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toAdminPaymentResponse(p))
 }
 
-// refundResponse has no request counterpart: payment.Service.Refund takes a
-// plain uuid.UUID, and a partial-amount/reasoned refund is not implemented, so
-// there is nothing to bind from a body.
 type refundResponse struct {
 	Status string `json:"status"`
 }

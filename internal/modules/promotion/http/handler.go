@@ -14,27 +14,18 @@ type handler struct {
 	validator *validator.Validator
 }
 
-// applyRequest has no params.go counterpart: promotion.Service.Validate
-// already takes plain (code, orderAmount) arguments, not a request struct,
-// so there is no dto-in-the-core cycle to break here.
 type applyRequest struct {
 	Code     string `json:"code"     validate:"required"`
 	Subtotal int64  `json:"subtotal" validate:"required,min=1"`
 }
 
-// applyResponse returns only the computed discount, never the promotion's
-// internal usage counters (UsedCount, MaxUses) or per-user limits
-// (MinOrderAmount, MaxDiscount) -- those are the store's business, not a
-// shopper's.
+// The computed discount only: usage counters and per-user limits are the store's
+// business, not a shopper's.
 type applyResponse struct {
 	Code     string `json:"code"`
 	Discount int64  `json:"discount"`
 }
 
-// toApplyResponse is the explicit mapping, named rather than built inline in
-// the handler -- so the leak-check test exercises the same construction path
-// a real request goes through, matching every other feature's toXResponse
-// convention.
 func toApplyResponse(code string, discount int64) applyResponse {
 	return applyResponse{
 		Code:     code,

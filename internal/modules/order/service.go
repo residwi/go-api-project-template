@@ -15,12 +15,10 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-// staleProcessingThreshold is how long an order may sit in payment_processing
-// before the sweep treats its charge attempt as dead and reverts it to
-// awaiting_payment. It must comfortably exceed a charge job's lease.
+// Must comfortably exceed a charge job's lease, or the sweep reverts an order
+// whose charge is still running.
 const staleProcessingThreshold = 15 * time.Minute
 
-// housekeepingBatchLimit bounds how many orders each sweep pass touches.
 const housekeepingBatchLimit = 20
 
 const productStatusPublished = "published"
@@ -94,12 +92,9 @@ func (s *Service) PlaceOrder(
 	var orderItems []Item
 
 	err = s.tx.Run(ctx, func(txCtx context.Context) error {
-		// Lock the cart row, then read its contents INSIDE the transaction. This
-		// serializes concurrent checkouts of the same cart: a second checkout
-		// blocks on the lock until the first commits (clearing the cart), then
-		// reads an empty cart and aborts — instead of replaying the same items
-		// into a second order. The Idempotency-Key only dedupes retries of one
-		// request, not two distinct concurrent checkouts.
+		// Read the cart INSIDE the transaction, after the lock: a second concurrent
+		// checkout then blocks, and reads the emptied cart instead of replaying the
+		// same items. Idempotency-Key only dedupes retries of one request.
 		if txErr := s.cart.LockCart(txCtx, userID); txErr != nil {
 			if errors.Is(txErr, apperror.ErrNotFound) {
 				return apperror.ErrCartEmpty
@@ -117,11 +112,7 @@ func (s *Service) PlaceOrder(
 
 		reservations := make([]InventoryItem, len(snapshot.Items))
 		orderItems = make([]Item, len(snapshot.Items))
-		// Seed the running subtotal with a zero denominated in the first item's
-		// currency, so that item 0 goes through the loop -- and its availability
-		// check -- exactly like every other item. Money.Add then enforces the
-		// single-currency rule: summing across currencies would produce a
-		// meaningless total. The empty-cart guard above makes Items[0] safe.
+		// Seeded from item 0 so that item runs the loop's availability check too.
 		subtotal := money.New(0, snapshot.Items[0].Price.Currency)
 		for i, item := range snapshot.Items {
 			if item.Status != productStatusPublished {
@@ -129,8 +120,8 @@ func (s *Service) PlaceOrder(
 			}
 			sum, addErr := subtotal.Add(item.Price.MulQty(item.Quantity))
 			if addErr != nil {
-				// Both sentinels: ErrBadRequest gives a 400 (a mixed-currency cart is
-				// user input, not a server fault), ErrCurrencyMismatch names the cause.
+				// Both sentinels: ErrBadRequest gives the 400 (mixed currencies are user
+				// input), ErrCurrencyMismatch names the cause.
 				return fmt.Errorf("%w: cart contains mixed currencies: %w", apperror.ErrBadRequest, addErr)
 			}
 			subtotal = sum
@@ -148,9 +139,7 @@ func (s *Service) PlaceOrder(
 			return fmt.Errorf("reserving stock: %w", txErr)
 		}
 
-		// A second pass, not a merge into the one above: the items need order.ID,
-		// which only exists after repo.Create. Price carries the cart item's own
-		// currency, which the fold above has already proved equal to the order's.
+		// A second pass because items need order.ID, which only exists after Create.
 		for i, item := range snapshot.Items {
 			orderItems[i] = Item{
 				OrderID:     order.ID,
@@ -170,15 +159,11 @@ func (s *Service) PlaceOrder(
 			if txErr != nil {
 				return txErr
 			}
-			// A discount is denominated in the order's currency by construction, so
-			// the clamp stays plain arithmetic on the amounts: max(..., 0) is the
-			// policy (an over-large coupon does not produce a negative charge), and
-			// that policy is the caller's, not the money package's.
+			// max(..., 0) is this caller's policy, not money's.
 			order.Discount = money.New(discount, subtotal.Currency)
 			order.Total = money.New(max(subtotal.Amount-discount, 0), subtotal.Currency)
-			// The order row was inserted with the pre-discount total; persist the
-			// discounted amounts so the DB matches what we charge and what payment
-			// finalization verifies against.
+			// The row was inserted pre-discount; payment finalization verifies against
+			// what is stored here.
 			if txErr := s.repo.UpdateTotals(txCtx, order.ID, order.Discount.Amount, order.Total.Amount); txErr != nil {
 				return txErr
 			}
@@ -193,9 +178,8 @@ func (s *Service) PlaceOrder(
 	order.Items = orderItems
 
 	if order.Total.Amount > 0 {
-		// Discard the result: the order stays awaiting_payment and the gateway
-		// webhook (or the charge job) drives it to paid. A failure here is logged,
-		// not fatal — the order can be retried or will expire.
+		// Not fatal: the order stays awaiting_payment for the webhook, a retry, or
+		// the expiry sweep.
 		if _, payErr := s.payment.InitiatePayment(ctx, InitiatePaymentParams{
 			OrderID:         order.ID,
 			Amount:          order.Total,
@@ -205,8 +189,6 @@ func (s *Service) PlaceOrder(
 				slog.Any("order_id", order.ID), slog.Any("error", payErr))
 		}
 	} else if freeErr := s.finalizeFreeOrder(ctx, order); freeErr != nil {
-		// A fully-discounted order has nothing to charge; if it can't be finalized
-		// now it stays in awaiting_payment and the expiry sweep cancels it.
 		s.logger.ErrorContext(ctx, "failed to finalize zero-total order, it stays in awaiting_payment",
 			slog.Any("order_id", order.ID), slog.Any("error", freeErr))
 	}
@@ -279,10 +261,9 @@ func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) er
 	return nil
 }
 
-// CancelUnpaidByID cancels an order whose payment terminally failed and releases
-// its holds. It is system-initiated (used by the payment webhook), so unlike
-// CancelOrder it performs no ownership check; the CancelledTransition CAS still
-// rejects an already-paid or terminal order, surfaced as a wrapped ErrBadRequest.
+// CancelUnpaidByID is system-initiated (the payment webhook), so unlike
+// CancelOrder it runs no ownership check. The CancelledTransition CAS still
+// rejects an already-paid order as a wrapped apperror.ErrBadRequest.
 func (s *Service) CancelUnpaidByID(ctx context.Context, orderID uuid.UUID) error {
 	order, err := s.repo.GetByID(ctx, orderID)
 	if err != nil {
@@ -291,11 +272,8 @@ func (s *Service) CancelUnpaidByID(ctx context.Context, orderID uuid.UUID) error
 	return s.cancelWithReversal(ctx, order)
 }
 
-// ExpireStale expires awaiting_payment orders whose payment window has lapsed,
-// releasing the stock and coupon each reserved — the time-triggered sibling of
-// CancelOrder. It is the per-tick housekeeping the payment job runner invokes
-// via its Sweeper hook. Each order is handled in its own transaction so a
-// per-order failure is logged and the sweep continues.
+// ExpireStale is the payment runner's per-tick Sweeper hook. Each order gets
+// its own transaction, so one failure is logged and the sweep continues.
 func (s *Service) ExpireStale(ctx context.Context) error {
 	orders, err := s.repo.GetExpiredOrders(ctx, housekeepingBatchLimit)
 	if err != nil {
@@ -309,12 +287,9 @@ func (s *Service) ExpireStale(ctx context.Context) error {
 	return nil
 }
 
-// RecoverStaleProcessing reverts orders stuck in payment_processing — e.g. a
-// worker that died after claiming a charge but before the order moved on — back
-// to awaiting_payment, so the normal retry/expiry path takes over instead of the
-// order being stranded forever. It is the payment runner's per-tick housekeeping
-// alongside ExpireStale. The AwaitingPaymentTransition CAS only matches orders
-// still in payment_processing, so a concurrent recovery is a harmless no-op.
+// RecoverStaleProcessing un-strands orders left in payment_processing by a
+// worker that died mid-charge, handing them back to the retry/expiry path.
+// The CAS only matches payment_processing, so a concurrent recovery no-ops.
 func (s *Service) RecoverStaleProcessing(ctx context.Context) error {
 	orders, err := s.repo.GetStaleProcessingOrders(ctx, staleProcessingThreshold, housekeepingBatchLimit)
 	if err != nil {
@@ -362,9 +337,6 @@ func (s *Service) AdminListAll(ctx context.Context, params AdminListParams) ([]O
 	return s.repo.ListAdmin(ctx, params)
 }
 
-// GetOrderByID returns the order WITHOUT its line items. Adapters that only need
-// order-level fields (payment, shipping) use this to avoid the extra order_items
-// query that GetByID/AdminGetByID issue.
 func (s *Service) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*Order, error) {
 	return s.repo.GetByID(ctx, orderID)
 }
@@ -385,27 +357,21 @@ func (s *Service) AdminGetByID(ctx context.Context, orderID uuid.UUID) (*Order, 
 }
 
 func (s *Service) AdminUpdateStatus(ctx context.Context, orderID uuid.UUID, toStatus Status) error {
-	// Statuses that deduct, release, or restock stock — or return captured money —
-	// must go through the flow that owns those side effects (the payment charge
-	// job for paid/payment_processing, user/admin cancel for cancelled, the
-	// expiry sweep for expired, the payment refund job for refunded). A bare
-	// status write here would, for example, mark an order paid without deducting
-	// stock, or refunded without restocking it or returning money at the gateway.
+	// A bare status write here would mark an order paid without deducting stock,
+	// or refunded without restocking it or returning money at the gateway. Any
+	// status with those side effects belongs to the flow that owns them.
 	// Only the side-effect-free fulfillment markers may be set directly.
 	switch toStatus {
 	case StatusPaid, StatusPaymentProcessing, StatusCancelled, StatusExpired, StatusRefunded, StatusFulfillmentFailed:
-		// fulfillment_failed is reachable from paid (FulfillmentFailedCompensatingTransition),
-		// i.e. from an order with money captured and stock deducted. A bare status
-		// write here would strand both — no refund, no restock — so it must go
-		// through the payment/refund compensating flow, not a direct admin update.
+		// Reachable from paid, i.e. money captured and stock deducted: a bare write
+		// here would strand both. It belongs to the compensating refund flow.
 		return fmt.Errorf(
 			"%w: status %s is managed by the payment, cancel, or refund flow and cannot be set with a direct status update",
 			apperror.ErrBadRequest,
 			toStatus,
 		)
 	case StatusAwaitingPayment, StatusProcessing, StatusShipped, StatusDelivered:
-		// Side-effect-free fulfillment markers — allowed to be set directly below
-		// (subject to CanTransition); none of these reverse inventory or payment.
+		// None of these reverse inventory or payment, so they may be set directly.
 	}
 
 	order, err := s.repo.GetByID(ctx, orderID)
@@ -420,11 +386,9 @@ func (s *Service) AdminUpdateStatus(ctx context.Context, orderID uuid.UUID, toSt
 	return s.repo.UpdateStatus(ctx, orderID, order.Status, toStatus)
 }
 
-// Apply performs the guarded status transition t (a compare-and-set): it moves
-// the order to t.To only if its current status is one of t.From, returning
-// apperror.ErrConflict if nothing matched. It is the single entry point the
-// cross-feature bootstrap adapters call — each names its transition in
-// transition.go rather than passing ad-hoc from/to status lists.
+// Apply is the single entry point for a status change: a compare-and-set that
+// returns apperror.ErrConflict when the current status is not in t.From.
+// Callers name a transition from transition.go, never an ad-hoc status list.
 func (s *Service) Apply(ctx context.Context, orderID uuid.UUID, t Transition) error {
 	return s.repo.Apply(ctx, orderID, t)
 }
@@ -433,37 +397,29 @@ func (s *Service) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]
 	return s.repo.ListItemsByOrderID(ctx, orderID)
 }
 
-// DeliveredPurchaseParams names each id so a caller cannot transpose them; all
-// three are uuid.UUID and a positional swap would compile and silently return
-// the wrong verdict on whether this customer may review this product.
+// DeliveredPurchaseParams names its fields because all three ids are uuid.UUID:
+// a positional swap would compile and answer about the wrong purchase.
 type DeliveredPurchaseParams struct {
 	UserID    uuid.UUID
 	OrderID   uuid.UUID
 	ProductID uuid.UUID
 }
 
-// HasDeliveredOrder reports whether the given order is delivered, belongs to the
-// user, and contains the product. A bootstrap adapter maps this onto
-// review.PurchaseVerifier, letting review confirm a specific purchase through
-// the order module rather than querying the orders schema directly from the
-// bootstrap layer.
+// HasDeliveredOrder backs review.PurchaseVerifier, so review confirms a
+// purchase through this module instead of querying the orders schema.
 func (s *Service) HasDeliveredOrder(ctx context.Context, p DeliveredPurchaseParams) (bool, error) {
 	return s.repo.HasDeliveredOrder(ctx, p)
 }
 
-// SetPaymentDeps breaks the circular dependency between order and payment
-// services by wiring payment-backed deps after construction.
+// SetPaymentDeps breaks the order/payment construction cycle.
 func (s *Service) SetPaymentDeps(payment PaymentInitiator, paymentCancel PaymentJobCanceller) {
 	s.payment = payment
 	s.paymentCancel = paymentCancel
 }
 
-// finalizeFreeOrder settles a zero-total order (a coupon covered the full
-// subtotal) that has no payment: it marks the order paid and deducts the
-// reserved stock in one transaction, mirroring FinalizePaymentSuccess for a
-// charged order. Apply(PaidTransition) also sets the order's stock_deducted flag
-// atomically. Without this the order would sit in awaiting_payment and be
-// cancelled by the expiry sweep, so a legitimately free order could never ship.
+// finalizeFreeOrder settles a coupon-covered order that has no payment at all.
+// Without it the order would sit in awaiting_payment until the expiry sweep
+// cancelled it, so a legitimately free order could never ship.
 func (s *Service) finalizeFreeOrder(ctx context.Context, order *Order) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Apply(txCtx, order.ID, PaidTransition); err != nil {
@@ -477,13 +433,9 @@ func (s *Service) finalizeFreeOrder(ctx context.Context, order *Order) error {
 	})
 }
 
-// cancelWithReversal moves an order to cancelled and reverses its inventory hold
-// and coupon in one transaction — the single cancel path shared by the
-// user-facing CancelOrder and the system-facing CancelUnpaidByID. Routing the
-// status change through CancelledTransition keeps the allowed-from set in one
-// place, and the reversal honors the order's persisted stock state (release vs
-// restock vs skip-if-already-reversed). A reversal failure rolls back the cancel
-// too, so an order is never committed cancelled while its stock stays held.
+// cancelWithReversal is the single cancel path, shared by the user-facing
+// CancelOrder and the system-facing CancelUnpaidByID. One transaction: a failed
+// reversal rolls the cancel back, so no order is cancelled with stock held.
 //
 //nolint:gocognit // the single cancel path: guarded status CAS, conditional stock reversal (release vs restock vs skip), and best-effort coupon release
 func (s *Service) cancelWithReversal(ctx context.Context, order *Order) error {
@@ -531,9 +483,8 @@ func (s *Service) expireOne(ctx context.Context, o Order) error {
 	})
 }
 
-// releaseOrderHolds returns an order's reserved stock and coupon usage. Shared
-// by the expire path; expiry only applies to awaiting_payment orders, whose
-// stock is reserved-only and not yet reversed, so this releases the reservation.
+// releaseOrderHolds serves the expire path only, which sees awaiting_payment
+// orders: their stock is reserved, never deducted, so a release is always right.
 func (s *Service) releaseOrderHolds(ctx context.Context, o Order) error {
 	items, err := s.repo.ListItemsByOrderID(ctx, o.ID)
 	if err != nil {

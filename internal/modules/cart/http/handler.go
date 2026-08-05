@@ -17,14 +17,8 @@ type handler struct {
 	validator *validator.Validator
 }
 
-// cartResponse is this endpoint's wire contract. UserID is deliberately
-// dropped -- the caller is always the authenticated user, so echoing it back
-// tells the client nothing it doesn't already know.
-//
-// Total is a bare amount with no sibling currency key, unlike the per-item
-// price/currency pair below. That asymmetry predates money.Money and is
-// preserved by flattening Cart.Total() to its Amount here rather than letting
-// the type marshal itself -- see internal/money/doc.go.
+// UserID is dropped: the caller is always the authenticated user. Total carries
+// no currency key, unlike the per-item pair below, and that stays so.
 type cartResponse struct {
 	ID    uuid.UUID          `json:"id"`
 	Items []cartItemResponse `json:"items"`
@@ -39,24 +33,18 @@ type cartItemResponse struct {
 	Currency  string    `json:"currency"`
 	Quantity  int       `json:"quantity"`
 	Available int       `json:"available_stock"`
-	// Sellable is false when the product was archived, unpublished, or removed
-	// after this line was added. The line is still returned so the customer can
-	// see why their total changed, instead of it silently shrinking.
+	// The line is still returned when unsellable, so the customer can see why
+	// their total changed instead of it silently shrinking.
 	Sellable  bool      `json:"sellable"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// toCartResponse maps the domain cart onto the wire shape. item.Product is
-// guaranteed non-nil here: Service.GetCart sets it to either the looked-up
-// product or a synthetic &Product{Status: "unavailable"} placeholder when the
-// product record is gone entirely, so this mapper never has to nil-check it.
+// item.Product needs no nil check: Service.GetCart substitutes a synthetic
+// unavailable placeholder when the record is gone.
 //
-// The total is asked of the cart rather than accumulated in this loop. Summing
-// money.Money values can fail -- a cart may hold lines priced in different
-// currencies -- and neither the sum nor its failure is a transport concern; see
-// cart.Cart.Total. The error is returned rather than swallowed into a zero,
-// because a total this adapter could not compute must not be published as one it
-// could.
+// The total is asked of the cart, not accumulated here, and its error is
+// returned rather than swallowed into a zero -- which would publish a total this
+// adapter could not compute.
 func toCartResponse(c *cart.Cart) (cartResponse, error) {
 	out := cartResponse{ID: c.ID, Items: make([]cartItemResponse, len(c.Items))}
 	for i, it := range c.Items {
@@ -104,17 +92,13 @@ func (h *handler) GetCart(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, out)
 }
 
-// addItemRequest carries the validation rules, moved here verbatim from the
-// old cart.AddItemRequest. They live in the transport, not the core: a
-// service reachable from a worker should not inherit HTTP's validation
-// vocabulary.
+// Validation lives in the transport: a service reachable from a worker should
+// not inherit HTTP's validation vocabulary.
 type addItemRequest struct {
 	ProductID uuid.UUID `json:"product_id" validate:"required"`
 	Quantity  int       `json:"quantity"   validate:"required,min=1"`
 }
 
-// toAddItemParams is the seam: HTTP's validation vocabulary stops here, and
-// the service receives a plain input struct.
 func (r addItemRequest) toAddItemParams() cart.AddItemParams {
 	return cart.AddItemParams{ProductID: r.ProductID, Quantity: r.Quantity}
 }
@@ -138,14 +122,10 @@ func (h *handler) AddItem(w http.ResponseWriter, r *http.Request) {
 	response.Created(w, nil)
 }
 
-// updateQuantityRequest carries the validation rules, moved here verbatim
-// from the old cart.UpdateItemRequest.
 type updateQuantityRequest struct {
 	Quantity int `json:"quantity" validate:"required,min=1"`
 }
 
-// toUpdateQuantityParams is the seam: HTTP's validation vocabulary stops
-// here, and the service receives a plain input struct.
 func (r updateQuantityRequest) toUpdateQuantityParams() cart.UpdateQuantityParams {
 	return cart.UpdateQuantityParams{Quantity: r.Quantity}
 }

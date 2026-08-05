@@ -18,12 +18,9 @@ type adminHandler struct {
 	validator *validator.Validator
 }
 
-// adminUserResponse is the admin shape of a user. It legitimately carries
-// role, active, and the timestamps -- fields the public userResponse
-// (handler.go) must not -- because an operator managing accounts needs
-// them and a self-service caller does not. PasswordHash, TokenVersion, and
-// DeletedAt still never appear: they are auth/lifecycle internals, not
-// operator-facing account data.
+// Carries role, active and the timestamps that the public userResponse must not,
+// because an operator managing accounts needs them. PasswordHash, TokenVersion
+// and DeletedAt still never appear: auth internals, not account data.
 type adminUserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`

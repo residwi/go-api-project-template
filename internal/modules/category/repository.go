@@ -6,8 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Repository is category's persistence port. The Postgres implementation lives
-// in the postgres subpackage; this package never imports it.
 type Repository interface {
 	Create(ctx context.Context, cat *Category) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Category, error)

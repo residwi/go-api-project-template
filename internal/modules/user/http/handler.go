@@ -16,12 +16,9 @@ type handler struct {
 	validator *validator.Validator
 }
 
-// userResponse is the public self-service shape. It deliberately omits role,
-// active, and the timestamps: the client already learned its role from the
-// auth token response, "active" is implied by being able to authenticate at
-// all, and none of the three are the profile's own business to restate. The
-// admin surface (adminUserResponse, admin_handler.go) legitimately carries all
-// three -- that asymmetry is why the two types are not merged into one.
+// The public self-service shape. role came with the auth token, active is implied
+// by authenticating at all, and the timestamps are not the profile's business.
+// adminUserResponse carries all three, which is why the two are not merged.
 type userResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
@@ -30,10 +27,8 @@ type userResponse struct {
 	Phone     string    `json:"phone,omitempty"`
 }
 
-// toUserResponse is the explicit mapping. PasswordHash, TokenVersion,
-// DeletedAt, Role, Active, CreatedAt, and UpdatedAt are dropped: none of
-// them are a field on userResponse, so there is no tag to strip and nothing
-// to omit at serialization time -- they are structurally absent.
+// PasswordHash, TokenVersion and DeletedAt are structurally absent, not omitted:
+// there is no tag to strip.
 func toUserResponse(u *user.User) userResponse {
 	return userResponse{
 		ID:        u.ID,

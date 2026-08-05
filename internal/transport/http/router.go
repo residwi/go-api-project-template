@@ -1,8 +1,5 @@
 package http
 
-// This package is the composition root: it assembles every feature module into
-// one HTTP server. Feature adapters are named for their technology, so the
-// imports below are aliased <feature>http / <feature>pg to disambiguate.
 import (
 	"context"
 	"encoding/json"
@@ -149,8 +146,7 @@ func NewRouter(
 	)
 	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
 
-	// Throttle order placement/payment-retry (each runs a cart-lock + reserve +
-	// charge); wired into order routes for the write endpoints only.
+	// Placement and payment retry each run a cart-lock, a reserve and a charge.
 	orderWriteLimiter := middleware.RateLimit(
 		deps.Logger,
 		deps.Cache,

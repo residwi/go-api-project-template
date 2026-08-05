@@ -26,7 +26,6 @@ func TestE2EAdminFlow(t *testing.T) {
 	handler := apihttp.NewRouter(testDeps)
 	ctx := context.Background()
 
-	// Register and promote to admin
 	email := "admin-e2e@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"Admin","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
@@ -39,7 +38,6 @@ func TestE2EAdminFlow(t *testing.T) {
 	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 
-	// Promote to admin directly in DB
 	_, err := testPool.Exec(ctx, `UPDATE users SET role = 'admin' WHERE email = $1`, email)
 	require.NoError(t, err)
 
@@ -102,7 +100,6 @@ func TestE2EAdminFlow(t *testing.T) {
 
 func TestE2EShippingAndReviewFlow(t *testing.T) {
 	setup(t)
-	// Start a mock payment gateway server
 	mockMux := http.NewServeMux()
 	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
@@ -126,7 +123,6 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	handler := apihttp.NewRouter(deps)
 	ctx := context.Background()
 
-	// Seed category + product
 	catID := uuid.New()
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Ship Cat', $2, true)`,
@@ -146,7 +142,6 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 100, 0)
 
-	// Register user
 	email := "shipping-flow@example.com"
 	regBody := `{"email":"` + email + `","password":"Password123!","first_name":"Ship","last_name":"User"}`
 	regReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(regBody))
@@ -192,7 +187,6 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
 
-	// Add to cart
 	cartBody := `{"product_id":"` + prodID.String() + `","quantity":1}`
 	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
 	cartReq.Header.Set("Content-Type", "application/json")
@@ -201,7 +195,6 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	// Place order
 	orderBody := `{"payment_method_id":"pm_test_123"}`
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
@@ -215,7 +208,6 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
 	orderID := orderResp["data"].(map[string]any)["order"].(map[string]any)["id"].(string)
 
-	// Webhook to mark as paid
 	var paymentID uuid.UUID
 	err = testPool.QueryRow(ctx, `SELECT id FROM payments WHERE order_id = $1`, orderID).Scan(&paymentID)
 	require.NoError(t, err)
@@ -230,7 +222,6 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	handler.ServeHTTP(whW, whReq)
 	require.Equal(t, http.StatusOK, whW.Code)
 
-	// Promote to admin and re-login
 	_, err = testPool.Exec(ctx, `UPDATE users SET role = 'admin' WHERE email = $1`, email)
 	require.NoError(t, err)
 
@@ -254,7 +245,6 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 		handler.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusCreated, w.Code)
 
-		// Verify order status changed to shipped
 		var orderStatus string
 		err := testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatus)
 		require.NoError(t, err)
@@ -272,7 +262,6 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 		handler.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		// Verify order is delivered
 		var orderStatus string
 		err = testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatus)
 		require.NoError(t, err)

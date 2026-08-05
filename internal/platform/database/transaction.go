@@ -17,14 +17,13 @@ type DBTX interface {
 
 type txCtxKey struct{}
 
-// WithTx runs fn inside a transaction that repositories pick up automatically via
-// DB(ctx, pool). A transaction already in context is reused, so nested WithTx
-// cannot silently open a second connection and break atomicity.
+// WithTx runs fn inside a transaction repositories pick up via DB(ctx, pool). A
+// transaction already in context is reused, so a nested WithTx cannot silently
+// open a second connection and break atomicity.
 //
-// ⚠️ GOROUTINE SAFETY: Never pass a tx-carrying context to a goroutine.
-// pgx.Tx is NOT goroutine-safe — concurrent use corrupts state. The worker
-// processes jobs on fresh contexts (no tx). Only use tx-context within the
-// synchronous call chain of fn.
+// Never pass the tx-carrying context to a goroutine: pgx.Tx is not
+// goroutine-safe and concurrent use corrupts it. Stay on fn's synchronous
+// call chain.
 func WithTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {
 	if _, ok := ctx.Value(txCtxKey{}).(DBTX); ok {
 		return fn(ctx)
@@ -44,8 +43,6 @@ func WithTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context
 	return tx.Commit(ctx)
 }
 
-// DB returns the transaction from context if present, otherwise the pool.
-// Every repository should use this instead of accessing pool directly.
 func DB(ctx context.Context, pool *pgxpool.Pool) DBTX {
 	if tx, ok := ctx.Value(txCtxKey{}).(DBTX); ok {
 		return tx
@@ -55,9 +52,8 @@ func DB(ctx context.Context, pool *pgxpool.Pool) DBTX {
 
 type recentWriteCtxKey struct{}
 
-// ReadDB returns the reader pool if available, otherwise falls back to the primary pool.
-// If inside a transaction, always uses the transaction.
-// If a recent write occurred in this request, routes to primary (sticky-read-after-write).
+// ReadDB prefers the reader pool, but a transaction or a recent write in this
+// request routes to the primary -- sticky read-after-write.
 func ReadDB(ctx context.Context, primary *pgxpool.Pool, reader *pgxpool.Pool) DBTX {
 	if tx, ok := ctx.Value(txCtxKey{}).(DBTX); ok {
 		return tx
@@ -71,15 +67,12 @@ func ReadDB(ctx context.Context, primary *pgxpool.Pool, reader *pgxpool.Pool) DB
 	return primary
 }
 
-// WithRecentWrite marks a context as having performed a write operation.
-// Subsequent ReadDB calls in this request will route to primary.
 func WithRecentWrite(ctx context.Context) context.Context {
 	return context.WithValue(ctx, recentWriteCtxKey{}, true)
 }
 
-// TxRunner runs a function inside a transaction. Services depend on this
-// instead of *pgxpool.Pool: a pool is a database handle, but a service only
-// ever needs atomicity, and the narrower type makes an accidental
+// TxRunner is what services depend on instead of *pgxpool.Pool: they need
+// atomicity, not a database handle, and the narrower type makes an accidental
 // s.pool.Query() in the service layer a compile error.
 type TxRunner interface {
 	Run(ctx context.Context, fn func(ctx context.Context) error) error
@@ -87,8 +80,6 @@ type TxRunner interface {
 
 type poolTxRunner struct{ pool *pgxpool.Pool }
 
-// NewTxRunner returns a TxRunner backed by pool. Nested calls reuse the
-// transaction already in ctx, matching WithTx.
 func NewTxRunner(pool *pgxpool.Pool) TxRunner { return &poolTxRunner{pool: pool} }
 
 func (r *poolTxRunner) Run(ctx context.Context, fn func(ctx context.Context) error) error {

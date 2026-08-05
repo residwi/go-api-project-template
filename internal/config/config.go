@@ -155,10 +155,8 @@ func (c *Config) validate() error {
 		)
 	}
 
-	// Guard the satisfiability of the two lease bounds above: if 3× the gateway
-	// timeout already meets/exceeds the stale threshold, no WORKER_LEASE_DURATION
-	// can satisfy both rules, so point at the real cause instead of a confusing
-	// lease error.
+	// If 3x the gateway timeout already meets the stale threshold, no lease duration
+	// satisfies both bounds above: name that instead of a confusing lease error.
 	if c.Payment.GatewayTimeout*3 >= orderStaleProcessingThreshold {
 		return fmt.Errorf(
 			"PAYMENT_GATEWAY_TIMEOUT (%s) is too large: 3× it must stay below the order stale-processing threshold (%s) so a valid WORKER_LEASE_DURATION range exists",

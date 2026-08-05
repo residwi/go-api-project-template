@@ -246,12 +246,6 @@ func TestHandler_UpdateProfile(t *testing.T) {
 	})
 }
 
-// user.User (model.go) carries no json:"-" tags at all, so PasswordHash and
-// TokenVersion would serialize under their own names if ever marshaled
-// directly -- toUserResponse's explicit field list is the only thing
-// keeping them off the wire. No other test in this file decodes more than a
-// couple of userResponse's fields, so this is also the only assertion
-// pinning the full public field set.
 func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 	t.Parallel()
 

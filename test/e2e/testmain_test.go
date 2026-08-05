@@ -1,16 +1,8 @@
-// Package e2e_test drives whole sagas -- cart to order to charge to webhook to
-// refund -- through the real HTTP router, a real Postgres and, for payment
-// flows, the real mock payment gateway served over a local test HTTP server.
-//
-// These tests used to sit in internal/transport/http/router_test.go, where they
-// made that file's name lie about its contents and put the suite's slowest work
-// inside a unit-test package. router_test.go now covers routing, middleware,
-// CORS, health and server lifecycle; the sagas live here.
-//
-// This package owns Postgres database "test_e2e" and Redis DB index 5. Both are
-// exclusive: testhelper drops the database WITH (FORCE) and flushes the Redis
-// index on cleanup, so sharing either with another package would tear down that
-// package's fixtures mid-run. The index registry is in internal/testhelper.
+// Package e2e_test owns Postgres database "test_e2e" and Redis DB index 5, both
+// exclusively:
+// cleanup drops the database WITH (FORCE) and flushes the index, so sharing
+// either would tear down another package's fixtures mid-run. The registry is in
+// internal/testhelper.
 package e2e_test
 
 import (
@@ -98,10 +90,8 @@ func setup(t *testing.T) {
 	testhelper.ResetRedis(t, testRedis)
 }
 
-// newPaymentService composes a payment service the way cmd/worker does, so a
-// saga test can drive a job directly. gatewayURL points at the test's mock
-// gateway server. The order⇄payment cycle is closed by SetOrderPaymentDeps,
-// exactly as NewRouter does it.
+// Composed the way cmd/worker does, so a saga test can drive a job directly.
+// SetOrderPaymentDeps closes the order/payment cycle, as NewRouter does.
 func newPaymentService(t *testing.T, gatewayURL string) *payment.Service {
 	t.Helper()
 
@@ -126,14 +116,10 @@ func newPaymentService(t *testing.T, gatewayURL string) *payment.Service {
 	return paymentSvc
 }
 
-// seedInventoryLevel gives a product an inventory_levels row so ReserveBatch/
-// DeductBatch have something to update. product.Service.Create does register a
-// new product with inventory (via EnsureLevel), but the row it writes is zeroed,
-// and these flows insert products with raw SQL anyway, bypassing Create
-// entirely -- so there is no row at all. Either way the stock is seeded here.
+// ReserveBatch and DeductBatch need a row to update, and these flows insert
+// products with raw SQL, bypassing the EnsureLevel in product.Service.Create.
 //
-// internal/transport/http/router_test.go carries its own copy for
-// TestAdapterErrorPaths_PaymentJobWithDeletedOrder. Keep the two in step.
+// internal/transport/http/router_test.go carries its own copy. Keep them in step.
 func seedInventoryLevel(t *testing.T, productID uuid.UUID, available, reserved int) {
 	t.Helper()
 	_, err := testPool.Exec(context.Background(),
@@ -146,8 +132,6 @@ func seedInventoryLevel(t *testing.T, productID uuid.UUID, available, reserved i
 	require.NoError(t, err)
 }
 
-// inventoryLevelOf reads back a product's current available/reserved split.
-// Checkout and refund flows mutate inventory_levels, not products.
 func inventoryLevelOf(t *testing.T, productID uuid.UUID) (available, reserved int) {
 	t.Helper()
 	require.NoError(t, testPool.QueryRow(context.Background(),

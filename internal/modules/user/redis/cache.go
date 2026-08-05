@@ -1,10 +1,7 @@
-// Package redis implements user.StatusCache, as the postgres subpackage
-// implements user.Repository.
-//
-// It requires Redis 8.0 or later: HSETEX writes the hash fields and their
-// expiry in one command. The previous form — HSET followed by EXPIRE in a
-// non-transactional pipeline — could leave a key with no TTL if the second
-// command failed, pinning a user's auth status indefinitely.
+// Package redis requires Redis 8.0 or later, for HSETEX: writing the fields and
+// their expiry
+// in one command means no failure can leave a key with no TTL, pinning a user's
+// auth status indefinitely.
 package redis
 
 import (

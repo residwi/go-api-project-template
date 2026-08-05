@@ -15,8 +15,6 @@ type AdminListParams struct {
 	Status string
 }
 
-// Repository is order's persistence port. The Postgres implementation lives
-// in the postgres subpackage; this package never imports it.
 type Repository interface {
 	Create(ctx context.Context, order *Order) error
 	CreateItems(ctx context.Context, items []Item) error

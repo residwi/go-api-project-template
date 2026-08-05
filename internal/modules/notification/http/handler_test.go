@@ -393,10 +393,8 @@ func TestToNotificationResponse_OmitsUserIDAndRawPayload(t *testing.T) {
 
 	assert.NotContains(t, string(raw), userID.String(),
 		"the caller is always the authenticated user; echoing user_id back adds nothing")
-	// []byte marshals to base64, not plaintext, so a plaintext NotContains check
-	// can never fire even if Data were re-added to the DTO. Assert against the
-	// base64 encoding instead so this check is actually capable of catching
-	// that regression.
+	// []byte marshals to base64, so a plaintext NotContains could never fire even
+	// if Data came back. Assert the base64 form.
 	assert.NotContains(t, string(raw), base64.StdEncoding.EncodeToString(data),
 		"Data is a raw job payload and must never pass through as raw bytes")
 }

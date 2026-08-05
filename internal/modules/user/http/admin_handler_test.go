@@ -742,13 +742,6 @@ func TestAdminHandler_ListUsers_WithActiveFilter(t *testing.T) {
 	})
 }
 
-// Like toUserResponse, toAdminUserResponse maps from user.User (model.go),
-// which carries no json:"-" tags -- this explicit field list is the only
-// thing keeping PasswordHash, TokenVersion, and DeletedAt off the wire, even
-// though this response deliberately exposes role, active, and the
-// timestamps. No other test in this file decodes created_at, updated_at, or
-// the full item shape, so this is also the only assertion pinning the
-// complete admin field set.
 func TestToAdminUserResponse_ExposesOperatorFieldsButNotCredentials(t *testing.T) {
 	t.Parallel()
 

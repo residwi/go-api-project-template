@@ -18,17 +18,13 @@ type handler struct {
 	validator *validator.Validator
 }
 
-// itemResponse is this endpoint's wire contract. It is unexported and lives here
-// rather than on wishlist.Item so that adding a field to the domain model does
-// not publish it.
 type itemResponse struct {
 	ID        uuid.UUID `json:"id"`
 	ProductID uuid.UUID `json:"product_id"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// toItemResponse is the explicit mapping. WishlistID is deliberately dropped: it
-// is an internal join key and a client has no use for it.
+// WishlistID is dropped: an internal join key a client has no use for.
 func toItemResponse(it wishlist.Item) itemResponse {
 	return itemResponse{
 		ID:        it.ID,

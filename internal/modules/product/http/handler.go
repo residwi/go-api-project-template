@@ -19,27 +19,13 @@ type handler struct {
 	validator *validator.Validator
 }
 
-// productResponse is this endpoint's public wire contract, shared by the
-// public list and get-by-slug endpoints. SKU is dropped: it is a
-// merchandising/inventory detail a shopper has no use for. Status is
-// dropped for the same reason review deliberately dropped its own Status --
-// every product List can return is already product.StatusPublished
-// (ListPublished filters WHERE status = 'published'), so on that path the
-// field would be a constant, not information. Admin endpoints get the
-// fuller adminProductResponse (see admin_handler.go), which keeps both.
+// The public shape. SKU is a merchandising detail; Status would be the constant
+// 'published' on every path this returns; DeletedAt would make a soft-deleted
+// product distinguishable from one that simply 404s. Admin endpoints get the
+// fuller adminProductResponse instead.
 //
-// StockQuantity is Availability.OnHand, not Availability.Available: OnHand
-// only reflects overall inventory depth (it moves on a restock or a manual
-// adjustment), where Available moves on every order and would let a
-// competitor infer order velocity per SKU -- the reservation count itself is
-// never even computed onto product.Availability (see product/inventory.go).
-// DeletedAt never appears: a soft-deleted product should not be
-// distinguishable on the wire from one that simply 404s.
-//
-// Price and CompareAtPrice are int64 minor units even though product.Product
-// now holds them as money.Money, and `currency` is emitted once for both:
-// flattening each value here -- rather than letting the type marshal itself --
-// is what keeps that shape the adapter's decision. See internal/money/doc.go.
+// StockQuantity is Availability.OnHand, never Available: Available moves on
+// every order and would leak order velocity per SKU.
 type productResponse struct {
 	ID             uuid.UUID       `json:"id"`
 	CategoryID     *uuid.UUID      `json:"category_id,omitempty"`
@@ -64,15 +50,8 @@ type imageResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// compareAtPriceAmount flattens an optional compare-at price to its amount.
-// Shared by the public and admin mappers (admin_handler.go).
-//
-// The return type is *int64, not money.Money, because `compare_at_price` is
-// `omitempty` and must stay absent when a product has no compare-at price. A
-// money.Money is a struct -- never empty as far as encoding/json is concerned
-// -- so the key would appear as 0 on every product that should omit it. The
-// currency is not repeated either: it is the product's, published once under
-// `currency`.
+// *int64, not money.Money: a struct is never empty to encoding/json, so an
+// `omitempty` money key would appear as 0 on every product that should omit it.
 func compareAtPriceAmount(m *money.Money) *int64 {
 	if m == nil {
 		return nil
@@ -80,9 +59,8 @@ func compareAtPriceAmount(m *money.Money) *int64 {
 	return &m.Amount
 }
 
-// toImageResponses maps a product's images onto the wire shape. Shared by
-// the public and admin product responses (admin_handler.go) -- an
-// image carries no field that needs hiding from either audience.
+// Shared by the public and admin responses: an image carries no field that
+// needs hiding from either audience.
 func toImageResponses(images []product.Image) []imageResponse {
 	out := make([]imageResponse, len(images))
 	for i, img := range images {

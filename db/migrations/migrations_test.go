@@ -1,7 +1,6 @@
-// Package migrations drives goose's Down against a real database.
-// Nothing else in the suite ever rolls a migration back -- testhelper only
-// calls goose.Up -- so a Down script can be wrong from the day it's written
-// and nothing notices until someone actually needs the rollback.
+// Package migrations drives goose's Down against a real database. Nothing else
+// in the suite rolls a migration back, so a Down script can be wrong from the
+// day it is written and nothing notices until someone needs it.
 package migrations
 
 import (
@@ -19,11 +18,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-// TestDropProductsStockColumns_DownRoundTrip proves 20260424120018's Down
-// migration reconstructs stock_quantity/reserved_quantity correctly for both
-// a product with an inventory_levels row and one without, then that
-// re-applying Up is clean -- an Up/Down/Up round trip against a scratch
-// database, driven the same way `goose down` would be in an emergency.
+// An Up/Down/Up round trip on a scratch database, driven the way `goose down`
+// would be in an emergency: the Down must reconstruct the dropped columns for a
+// product with an inventory_levels row and one without.
 func TestDropProductsStockColumns_DownRoundTrip(t *testing.T) {
 	pool, cleanup := testhelper.MustStartPostgres("test_db_migrations_stock_columns")
 	defer cleanup()
@@ -56,8 +53,7 @@ func TestDropProductsStockColumns_DownRoundTrip(t *testing.T) {
 	defer db.Close()
 	require.NoError(t, goose.SetDialect("postgres"))
 
-	// Down: roll back the single most recent migration (20260424120018), the
-	// one whose Down script is under test.
+	// Rolls back only 20260424120018, the migration under test.
 	require.NoError(t, goose.DownContext(ctx, db, migrationsDir()))
 
 	var stock, reserved int
@@ -78,8 +74,7 @@ func TestDropProductsStockColumns_DownRoundTrip(t *testing.T) {
 	)
 	assert.Equal(t, 0, reserved)
 
-	// Up: re-apply the migration (dropping the columns again) and confirm it's
-	// clean -- the round trip a real rollback-then-forward-fix would need.
+	// Re-applying is the other half of the round trip a real rollback needs.
 	require.NoError(t, goose.UpContext(ctx, db, migrationsDir()))
 
 	var columnCount int

@@ -239,7 +239,6 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 	t.Run("claim returns empty when no pending jobs", func(t *testing.T) {
 		setup(t)
 		repo := New(testPool)
-		// Use a fresh context — no pending jobs for a brand-new user
 		jobs, err := repo.Claim(context.Background(), 1, 2*time.Minute)
 		require.NoError(t, err)
 		_ = jobs // may or may not be empty depending on prior test state; just verify no error
@@ -278,7 +277,6 @@ func TestPostgresRepository_Prune(t *testing.T) {
 		job.Attempts = 1
 		require.NoError(t, repo.UpdateJob(ctx, job))
 
-		// olderThan=0 means anything older than 0 duration (all completed jobs)
 		deleted, err := repo.Prune(ctx, 0, 100)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, deleted, 1)
@@ -331,7 +329,6 @@ func TestPostgresRepository_Prune(t *testing.T) {
 
 		deleted, err := repo.Prune(ctx, 1*time.Hour, 100)
 		require.NoError(t, err)
-		// pending jobs should not be deleted
 		_ = deleted
 	})
 }

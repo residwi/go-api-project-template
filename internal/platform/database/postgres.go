@@ -57,9 +57,7 @@ func NewReaderPostgres(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool
 	return pool, nil
 }
 
-// applyPoolTuning applies the configured connection-pool limits so both the
-// primary and reader pools are bounded consistently instead of running on
-// pgx defaults.
+// Shared by the primary and reader pools, so neither runs on pgx defaults.
 func applyPoolTuning(poolCfg *pgxpool.Config, cfg config.DatabaseConfig) {
 	poolCfg.MaxConns = int32(min(cfg.MaxConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32
 	poolCfg.MinConns = int32(min(cfg.MinConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32

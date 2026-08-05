@@ -66,8 +66,6 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*user.User, err
 	return &u, nil
 }
 
-// GetStatusByID fetches only the fields the auth middleware needs on every
-// authenticated request, avoiding the full-row read (incl. password_hash) of GetByID.
 func (r *Repository) GetStatusByID(ctx context.Context, id uuid.UUID) (bool, int, error) {
 	db := database.DB(ctx, r.pool)
 	var active bool

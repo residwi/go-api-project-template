@@ -26,9 +26,8 @@ func CORS(cfg config.CORSConfig) Middleware {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Access-Control-Allow-Origin must be a single origin (or "*"); a
-			// comma-joined list is never valid. Echo the request Origin when it
-			// is allowed so multi-origin configs work.
+			// Allow-Origin takes a single origin or "*", never a comma-joined list, so echo
+			// the request's own Origin to make a multi-origin config work.
 			origin := r.Header.Get("Origin")
 			switch {
 			case allowAll:

@@ -15,23 +15,6 @@ import (
 	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 )
 
-// TestE2ECheckoutRejectsWithdrawnProduct pins the soft-delete checkout gap closed
-// by 6cf95f8, at the layer where the wiring is real.
-//
-// product.Delete only sets deleted_at -- it never touches status -- so a withdrawn
-// product's row still reads status='published'. bootstrap's productLookupAdapter
-// must report it as "unavailable" so order's availability guard rejects checkout.
-//
-// Both halves are already unit-tested: internal/bootstrap/cart_test.go covers the
-// adapter's conversion, and order's service tests cover the guard rejecting an
-// "unavailable" line. This test is the composition check -- that the conversion
-// actually reaches the guard through the real router, real services and real
-// Postgres. It used to live in order/service_test.go, where it mocked three
-// sibling modules' repositories and imported bootstrap, which made that file
-// impossible to convert to an in-package test.
-//
-// It also reproduces the real race rather than constructing the end state: the
-// product is added to the cart while live, and only then withdrawn.
 func TestE2ECheckoutRejectsWithdrawnProduct(t *testing.T) {
 	setup(t)
 	handler := apihttp.NewRouter(testDeps)

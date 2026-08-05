@@ -33,9 +33,9 @@ func TestOK_UnencodableValueBecomesA500(t *testing.T) {
 	t.Parallel()
 
 	w := httptest.NewRecorder()
-	// A channel cannot be marshalled. json.Marshal buffers the whole document,
-	// so this fails before anything reaches the wire and the 200 OK asked for
-	// by OK() must not be what the client receives.
+	// A channel cannot be marshalled, and json.Marshal buffers the whole document, so
+	// this fails before anything reaches the wire: the 200 OK() asked for must not be
+	// what the client sees.
 	OK(w, make(chan int))
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code,
@@ -55,9 +55,8 @@ func TestErr_UnencodableDetailsStillTerminate(t *testing.T) {
 	t.Parallel()
 
 	w := httptest.NewRecorder()
-	// Details is map[string]any, so a caller can put an unencodable value in it.
-	// That sends writeJSON back through InternalError, which re-enters with no
-	// Details -- so it must settle after exactly one bounce rather than loop.
+	// An unencodable value in Details sends writeJSON back through InternalError,
+	// which re-enters with none: it must settle after one bounce, not loop.
 	Err(w, http.StatusBadRequest, "bad request", map[string]any{"ch": make(chan int)})
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)

@@ -159,7 +159,6 @@ func TestHandleWebhookTrigger(t *testing.T) {
 
 		mux := newMockMux()
 
-		// First, create a charge
 		chargeBody := `{"amount":1000,"currency":"USD","payment_method_id":"pm_test","idempotency_key":"webhook-test-1"}`
 		chargeReq := httptest.NewRequest(http.MethodPost, "/mock/payment/charge", strings.NewReader(chargeBody))
 		chargeReq.Header.Set("Content-Type", "application/json")
@@ -167,7 +166,7 @@ func TestHandleWebhookTrigger(t *testing.T) {
 		mux.ServeHTTP(chargeW, chargeReq)
 		require.Equal(t, http.StatusOK, chargeW.Code)
 
-		// Trigger webhook with a dummy URL (we don't need it to actually POST)
+		// A dead port on purpose: nothing needs to receive this POST.
 		triggerBody := `{"idempotency_key":"webhook-test-1","webhook_url":"http://127.0.0.1:1","event":"success"}`
 		triggerReq := httptest.NewRequest(
 			http.MethodPost,
@@ -193,7 +192,7 @@ func TestHandleWebhookTrigger(t *testing.T) {
 		mux.ServeHTTP(chargeW, chargeReq)
 		require.Equal(t, http.StatusOK, chargeW.Code)
 
-		// No event field → defaults to "success"; no webhook_url → uses default
+		// No event field defaults to "success".
 		triggerBody := `{"idempotency_key":"webhook-test-2","webhook_url":"http://127.0.0.1:1"}`
 		triggerReq := httptest.NewRequest(
 			http.MethodPost,
@@ -238,7 +237,6 @@ func TestHandleWebhookTrigger(t *testing.T) {
 
 		mux := newMockMux()
 
-		// Create a charge first
 		chargeBody := `{"amount":1000,"currency":"USD","payment_method_id":"pm_test","idempotency_key":"webhook-success-1"}`
 		chargeReq := httptest.NewRequest(http.MethodPost, "/mock/payment/charge", strings.NewReader(chargeBody))
 		chargeReq.Header.Set("Content-Type", "application/json")
@@ -246,7 +244,6 @@ func TestHandleWebhookTrigger(t *testing.T) {
 		mux.ServeHTTP(chargeW, chargeReq)
 		require.Equal(t, http.StatusOK, chargeW.Code)
 
-		// Start a real server to receive the webhook POST
 		called := make(chan struct{})
 		webhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -254,7 +251,6 @@ func TestHandleWebhookTrigger(t *testing.T) {
 		}))
 		defer webhookServer.Close()
 
-		// Trigger webhook pointing to our test server
 		triggerBody := `{"idempotency_key":"webhook-success-1","webhook_url":"` + webhookServer.URL + `","event":"success"}`
 		triggerReq := httptest.NewRequest(
 			http.MethodPost,
@@ -266,7 +262,6 @@ func TestHandleWebhookTrigger(t *testing.T) {
 		mux.ServeHTTP(triggerW, triggerReq)
 		assert.Equal(t, http.StatusAccepted, triggerW.Code)
 
-		// Wait for the goroutine to complete the POST
 		<-called
 	})
 

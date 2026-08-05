@@ -47,7 +47,6 @@ func (s *Service) CountUnread(ctx context.Context, userID uuid.UUID) (int, error
 	return s.repo.CountUnread(ctx, userID)
 }
 
-// EnqueueOrderPlaced satisfies the order.NotificationEnqueuer interface.
 func (s *Service) EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) error {
 	job := &Job{
 		UserID:      userID,
@@ -61,10 +60,8 @@ func (s *Service) EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, orde
 	return s.repo.CreateJob(ctx, job)
 }
 
-// Process creates the notification for a job and owns the job's terminal state
-// (the runner does not). On success it persists the notification and completes
-// the job atomically, so a lost completion can't re-deliver a duplicate; on
-// failure it records the attempt so the job reaches 'failed' after MaxAttempts.
+// Process owns the job's terminal state, not the runner. Notification and
+// completion commit atomically, so a lost completion cannot re-deliver.
 func (s *Service) Process(ctx context.Context, job Job) error {
 	n := &Notification{
 		UserID: job.UserID,

@@ -279,10 +279,6 @@ func TestAdminHandler_Refund(t *testing.T) {
 	})
 }
 
-// payment.Payment.GatewayResponse is populated by service.go marshaling the
-// gateway's ChargeResponse and persisting it via repo.UpdateGateway -- it
-// carries no json:"-" tag, so toAdminPaymentResponse's explicit field list
-// is the only thing keeping it off the wire.
 func TestToAdminPaymentResponse_OmitsGatewayResponse(t *testing.T) {
 	t.Parallel()
 
@@ -317,19 +313,16 @@ func TestToAdminPaymentResponse_OmitsGatewayResponse(t *testing.T) {
 			"this key-set assertion is the real control against GatewayResponse leaking back in, since it is a "+
 			"[]byte and would marshal to base64 rather than the plaintext checked below")
 
-	// []byte marshals to base64, not plaintext, so a plaintext NotContains check
-	// can never fire even if GatewayResponse were re-added to the DTO. Assert
-	// against the base64 encoding instead so this check is actually capable of
-	// catching that regression.
+	// []byte marshals to base64, so a plaintext NotContains could never fire even if
+	// GatewayResponse came back. Assert the base64 form.
 	assert.NotContains(t, string(raw), base64.StdEncoding.EncodeToString(gatewayResponse),
 		"GatewayResponse may carry PII or card metadata and must never be serialised, even to an admin")
 	assert.NotContains(t, string(raw), "gateway_response",
 		"the GatewayResponse field must not appear under any key")
 }
 
-// setupPaymentMux returns only the mocks these tests actually drive. The rest
-// are still constructed -- NewService needs all eight, and mockery's NewMockX(t)
-// registers the expectation assertions -- they are just not handed back.
+// Only the mocks these tests drive are returned; the rest are still constructed
+// because NewService needs all eight.
 func setupPaymentMux(t *testing.T) (
 	*http.ServeMux,
 	*MockRepository,

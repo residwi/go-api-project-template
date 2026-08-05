@@ -195,10 +195,6 @@ func TestHandler_GetShipping(t *testing.T) {
 	})
 }
 
-// None of this package's handler-level tests decode more than a couple of
-// shipmentResponse's fields (see TestHandler_GetShipping above and
-// admin_handler_test.go's TestAdminHandler_* cases), so this ElementsMatch is
-// the only assertion in the package pinning the full wire shape.
 func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 	t.Parallel()
 

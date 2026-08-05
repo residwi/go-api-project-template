@@ -16,12 +16,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-// amountColumns is the products table's two amount columns plus the single
-// currency column they share. The schema stores the currency once, so a scan
-// reads it once and denominates both money.Money values from it -- this struct
-// is the one place that fan-out lives. compare_at_price is nullable and stays
-// nil, rather than becoming a zero amount, so an absent compare-at price is
-// still absent after the round trip.
+// A NULL compare_at_price stays nil rather than becoming a denominated zero.
 type amountColumns struct {
 	price          int64
 	compareAtPrice *int64
@@ -37,9 +32,6 @@ func (a amountColumns) assignTo(p *product.Product) {
 	}
 }
 
-// compareAtPriceAmount unpacks the optional compare-at price for the nullable
-// column: NULL stays NULL, and only the amount is written because the currency
-// column it would otherwise need is shared with price and written from there.
 func compareAtPriceAmount(p *product.Product) *int64 {
 	if p.CompareAtPrice == nil {
 		return nil
@@ -59,11 +51,9 @@ func scanProduct(row pgx.CollectableRow) (product.Product, error) {
 	return p, nil
 }
 
-// scanProductIncludingDeleted additionally scans deleted_at, unlike scanProduct:
-// every other query filters deleted_at IS NULL, so DeletedAt would always come
-// back nil there; GetByIDsIncludingDeleted is the one caller that needs it, to
-// report a withdrawn product's sellability honestly instead of via its
-// (untouched) status column.
+// Every other query filters deleted_at IS NULL, so only
+// GetByIDsIncludingDeleted needs this column -- a withdrawn product's status
+// stays 'published', so DeletedAt is the honest signal.
 func scanProductIncludingDeleted(row pgx.CollectableRow) (product.Product, error) {
 	var p product.Product
 	var amt amountColumns
@@ -97,9 +87,7 @@ func (r *Repository) Create(ctx context.Context, p *product.Product) error {
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, updated_at`,
 		p.CategoryID, p.Name, p.Slug, p.Description, p.Price.Amount, compareAtPriceAmount(p),
-		// One currency column for both amounts; Price's is authoritative because it
-		// is what the product actually sells for, and Service guarantees
-		// CompareAtPrice agrees with it.
+		// Price's currency wins; Service guarantees CompareAtPrice agrees with it.
 		p.Price.Currency, p.SKU, p.Status,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
@@ -307,9 +295,6 @@ func (r *Repository) ListAdmin(ctx context.Context, params product.AdminListPara
 	return products, total, nil
 }
 
-// GetByIDsIncludingDeleted returns products regardless of status or deleted_at,
-// so a consumer holding a stale id (a cart line, a wishlist entry) can render
-// what it has instead of dropping the row.
 func (r *Repository) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UUID) ([]product.Product, error) {
 	if len(ids) == 0 {
 		return []product.Product{}, nil

@@ -292,9 +292,7 @@ func TestPostgresRepository_ExistsByEmail(t *testing.T) {
 func TestPostgresRepository_CountAdmins(t *testing.T) {
 	t.Run("returns zero when no admins", func(t *testing.T) {
 		setup(t)
-		// Ensure a clean count by checking that we can call it without error;
-		// we cannot guarantee zero since other tests may have seeded admins,
-		// so we just verify the call succeeds.
+		// Other tests may have seeded admins, so only the call itself can be asserted.
 		repo := New(testPool)
 
 		count, err := repo.CountAdmins(context.Background())

@@ -6,13 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestTransitionStockFlags pins which transitions change an order's persisted
-// stock state: paying an order deducts its reserved stock, and cancelling,
-// expiring, or refunding reverses the inventory hold. The flags ride along in the
-// status compare-and-set, so a later reversal can choose release vs restock vs
-// no-op from the persisted facts rather than inferring from a status — which it
-// cannot, since fulfillment_failed is reachable from both reserved-only and
-// deducted states.
 func TestTransitionStockFlags(t *testing.T) {
 	t.Parallel()
 

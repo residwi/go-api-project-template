@@ -20,10 +20,6 @@ var allStatuses = []Status{
 	StatusFulfillmentFailed,
 }
 
-// TestCanTransition_Graph locks down the entire state machine derived from the
-// named transitions in transition.go. Editing any Transition's From/To set
-// changes which (from,to) pairs are legal, and this test will catch it — every
-// pair not listed here must be rejected.
 func TestCanTransition_Graph(t *testing.T) {
 	t.Parallel()
 

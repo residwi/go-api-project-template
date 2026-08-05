@@ -8,8 +8,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-// Repository is product's persistence port. The Postgres implementation lives
-// in the postgres subpackage; this package never imports it.
 type Repository interface {
 	Create(ctx context.Context, p *Product) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Product, error)

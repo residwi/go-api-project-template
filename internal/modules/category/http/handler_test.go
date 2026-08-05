@@ -189,10 +189,6 @@ func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
 	assert.Equal(t, "slug is required", resp.Error.Message)
 }
 
-// GET /categories and GET /categories/{slug} are unauthenticated, and the
-// repository's List has no WHERE active filter -- this assertion is the
-// only thing stopping an anonymous caller from enumerating unpublished
-// categories.
 func TestToCategoryResponse_OmitsModerationAndAuditFields(t *testing.T) {
 	t.Parallel()
 

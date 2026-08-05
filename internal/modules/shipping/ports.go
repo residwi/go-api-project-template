@@ -6,9 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Ports this feature needs from other features. Each is declared here rather
-// than imported, so no feature depends on another's package.
-
 type OrderProvider interface {
 	GetByID(ctx context.Context, orderID uuid.UUID) (OrderInfo, error)
 }

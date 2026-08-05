@@ -14,10 +14,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-// scanCartItem reads only cart's own columns. Product name, price and
-// availability are filled by the service through ProductLookup; joining
-// products here would put product's lifecycle rule (deleted_at IS NULL) inside
-// cart's query.
+// Cart's own columns only. Joining products here would put product's lifecycle
+// rule (deleted_at IS NULL) inside cart's query; the service fills the rest
+// through ProductLookup.
 func scanCartItem(row pgx.CollectableRow) (cart.Item, error) {
 	var item cart.Item
 	err := row.Scan(&item.ID, &item.CartID, &item.ProductID, &item.Quantity,
@@ -152,9 +151,8 @@ func (r *Repository) CountItems(ctx context.Context, cartID uuid.UUID) (int, err
 	return count, nil
 }
 
-// CountAndHasItem returns, in a single round-trip, how many distinct items the
-// cart holds and whether productID is already one of them — the two facts
-// AddItem needs to enforce the distinct-item cap without a second query.
+// CountAndHasItem answers both in one round-trip, so AddItem enforces the
+// distinct-item cap without a second query.
 func (r *Repository) CountAndHasItem(ctx context.Context, cartID, productID uuid.UUID) (int, bool, error) {
 	db := database.DB(ctx, r.pool)
 	var (

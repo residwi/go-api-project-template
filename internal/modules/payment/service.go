@@ -98,12 +98,7 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 		}
 	}
 
-	// ChargeRequest is the external gateway's wire contract, and it keeps a bare
-	// int64 beside a currency string because that is the shape the gateway
-	// publishes -- see the JSON_TAG_ALLOWLIST entry in scripts/check-boundaries.sh.
-	// Unpairing the Money here is the seam, not a leak: the pairing holds
-	// everywhere this system owns the type, and stops at the point where someone
-	// else's API begins.
+	// ChargeRequest is the gateway's wire contract: this is the seam, not a leak.
 	chargeReq := ChargeRequest{
 		IdempotencyKey:  p.ID.String(),
 		OrderID:         params.OrderID.String(),
@@ -130,10 +125,8 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 	switch resp.Status {
 	case string(StatusSuccess):
 		result.Charged = true
-		// The gateway captured funds synchronously (e.g. a card charge with a
-		// PaymentMethodID), so finalize the order NOW — mark payment+order paid and
-		// deduct inventory — instead of leaving it in awaiting_payment for a webhook
-		// or job that never comes. Mirrors the webhook success path.
+		// Funds are already captured, so finalize now rather than wait for a webhook
+		// or job that never comes.
 		finalizeJob := Job{PaymentID: p.ID, OrderID: params.OrderID, Action: ActionCharge}
 		if finalizeErr := s.FinalizePaymentSuccess(
 			ctx,
@@ -157,10 +150,8 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 			result.PaymentURL = resp.PaymentURL
 		}
 	default:
-		// A synchronous decline (non-success, non-pending) must surface as an
-		// error, not be swallowed into the nil-error fall-through that would make a
-		// declined charge look like success. Handled like the gateway-error path
-		// above; the order stays awaiting_payment for retry/expiry.
+		// Must not fall through to nil: that would make a declined charge look like
+		// a success. The order stays awaiting_payment for retry or expiry.
 		s.logger.WarnContext(ctx, "gateway declined charge synchronously",
 			slog.Any("payment_id", p.ID), slog.Any("order_id", params.OrderID), slog.Any("gateway_status", resp.Status))
 		return result, fmt.Errorf("%w: payment was declined", apperror.ErrBadRequest)
@@ -169,10 +160,8 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 	return result, nil
 }
 
-// Process runs one payment job to a settled state, owning its own retry and
-// status bookkeeping. It returns nil when the job is done (succeeded or already
-// finalized) and a descriptive error when this attempt did not complete, purely
-// so the runner can log it — the retry/backoff is already persisted here.
+// Process owns its own retry and status bookkeeping. A returned error is only
+// for the runner to log: the backoff is already persisted here.
 func (s *Service) Process(ctx context.Context, job Job) error {
 	switch job.Action {
 	case ActionCharge:
@@ -185,22 +174,14 @@ func (s *Service) Process(ctx context.Context, job Job) error {
 	}
 }
 
-// FinalizePaymentSuccess marks the payment and order paid and deducts stock, in
+// FinalizePaymentSuccess marks the payment and order paid and deducts stock in
 // one transaction.
 //
-// Two of its three callers pass a **synthetic** Job carrying only PaymentID,
-// OrderID and Action -- the synchronous-charge path (InitiatePayment) and the
-// webhook -- because neither has a persisted job row to work from. Only the
-// worker passes a Job with a real ID. That means the `MarkJobCompleted(job.ID)`
-// calls below are deliberately no-ops for those two callers: the id is
-// uuid.Nil, so the UPDATE matches zero rows. It is not a lost write. The
-// webhook additionally calls MarkJobCompletedByPaymentID afterwards, and no
-// charge job exists to complete in the first place -- every CreateJob call site
-// in this package enqueues ActionRefund. See ARCHITECTURE-LIMITATIONS.md.
-//
-// Stated here because a zero-row UPDATE is invisible: MarkJobCompleted
-// discards its rows-affected count, so nothing distinguishes "no such job" from
-// "job completed" at runtime.
+// The MarkJobCompleted(job.ID) calls below are deliberate no-ops for two of the
+// three callers, not lost writes: InitiatePayment and the webhook have no
+// persisted job row and pass a synthetic Job whose id is uuid.Nil, so the
+// UPDATE matches zero rows. Worth stating because MarkJobCompleted discards its
+// rows-affected count, so nothing tells the two cases apart at runtime.
 //
 //nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches; funlen counts golines' wrapping, not added logic (78 lines before this commit's reformat, 108 after)
 func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
@@ -215,11 +196,8 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 			return fmt.Errorf("getting payment for verification: %w", err)
 		}
 
-		// money.Money.Equal compares amount AND currency, which is exactly the
-		// two-field check this replaces. apperror.ErrAmountMismatch is kept rather
-		// than swapped for money.ErrCurrencyMismatch: the fact worth reporting is
-		// that the charge does not match the order, and a currency disagreement here
-		// is one way for that to be true, not a different failure.
+		// ErrAmountMismatch even on a currency disagreement: the fact worth reporting
+		// is that the charge does not match the order.
 		if !p.Amount.Equal(orderSnap.Total) {
 			return apperror.ErrAmountMismatch
 		}
@@ -363,9 +341,8 @@ func (s *Service) HandleWebhook(
 		return nil
 	}
 
-	// requires_review means a compensating refund already owns this payment, so a
-	// late/replayed webhook must not re-drive it (a failed event would cancel the
-	// in-flight refund job; a duplicate success would re-finalize it).
+	// requires_review means a compensating refund already owns this payment: a
+	// replayed webhook would cancel its job or re-finalize the payment.
 	if p.Status == StatusSuccess || p.Status == StatusRefunded || p.Status == StatusRequiresReview {
 		return nil
 	}
@@ -381,12 +358,9 @@ func (s *Service) HandleWebhook(
 			if errors.Is(err, apperror.ErrAlreadyFinalized) {
 				break
 			}
-			// The gateway has already captured funds, so a finalization failure
-			// (e.g. inventory deduction failed) must not just 5xx and leave money
-			// captured with the order unpaid forever. Compensate the same way the
-			// worker charge path does: flag the order fulfillment_failed and enqueue
-			// a refund. Ack the webhook so the gateway stops retrying into a failure
-			// we've already handled.
+			// Funds are captured, so a 5xx here would leave money taken and the order
+			// unpaid forever. Compensate, then ack so the gateway stops retrying into a
+			// failure already handled.
 			s.logger.ErrorContext(ctx, "webhook finalization failed, running compensating refund",
 				slog.Any("payment_id", p.ID), slog.Any("order_id", p.OrderID), slog.Any("error", err))
 			s.runCompensatingRefund(ctx, job)
@@ -427,10 +401,8 @@ func (s *Service) HandleWebhook(
 				slog.Any("error", err),
 			)
 		}
-		// Cancel the order and release its reserved stock now rather than leaving it
-		// reserved until the expiry sweep (which can't touch a payment_processing
-		// order at all). ErrBadRequest means the order is no longer cancellable
-		// (e.g. a concurrent charge already paid it) — leave it for that flow.
+		// The expiry sweep cannot touch a payment_processing order, so release here.
+		// ErrBadRequest means a concurrent charge already paid it; leave it be.
 		if err := s.orders.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, apperror.ErrBadRequest) {
 			s.logger.ErrorContext(
 				ctx,
@@ -450,13 +422,10 @@ func (s *Service) CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID) er
 	return s.repo.CancelJobsByOrderID(ctx, orderID)
 }
 
-// ListAdmin lists payments for the admin dashboard. It delegates straight to
-// the repository; there is no business logic beyond the query itself.
 func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]Payment, int, error) {
 	return s.repo.ListAdmin(ctx, params)
 }
 
-// GetByID fetches a single payment by ID, delegating straight to the repository.
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Payment, error) {
 	return s.repo.GetByID(ctx, id)
 }
@@ -671,14 +640,10 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		slog.Any("currency", p.Amount.Currency),
 	)
 
-	// RefundRequest carries no currency at all -- the gateway identifies the
-	// original charge by TransactionID and refunds in whatever that was
-	// denominated in. Only the amount crosses, which is the same seam as
-	// ChargeRequest above and not a place the pairing is lost.
+	// No currency crosses: the gateway refunds whatever TransactionID was.
 	resp, gwErr := s.gateway.Refund(ctx, RefundRequest{
-		// Key on the payment id: a payment is refunded once, so a job re-claimed
-		// after a crash between this call and the commit reuses the same key and
-		// the gateway dedupes it instead of refunding twice.
+		// Keyed on the payment id, so a job re-claimed after a crash between this call
+		// and the commit reuses the key and the gateway dedupes it.
 		IdempotencyKey: p.ID.String(),
 		TransactionID:  p.GatewayTxnID,
 		Amount:         p.Amount.Amount,
@@ -728,11 +693,9 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		slog.Any("refund_id", resp.RefundID))
 
 	txErr := s.tx.Run(ctx, func(txCtx context.Context) error {
-		// Capture the order's persisted stock state BEFORE flipping it to refunded:
-		// StockDeducted chooses restock vs release, and StockReversed tells us the
-		// hold was already unwound (e.g. the order was cancelled/expired before a
-		// late charge landed), so reversing again would double-release and steal
-		// another order's reservation.
+		// Read BEFORE the flip to refunded: StockDeducted picks restock vs release,
+		// and StockReversed says the hold is already unwound -- reversing twice would
+		// steal another order's reservation.
 		orderSnap, snapErr := s.orderGet.GetByID(txCtx, job.OrderID)
 		if snapErr != nil {
 			return fmt.Errorf("getting order for refund: %w", snapErr)

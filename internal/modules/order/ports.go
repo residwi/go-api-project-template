@@ -8,13 +8,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/money"
 )
 
-// Ports this feature needs from other features. Each is declared here rather
-// than imported, so no feature depends on another's package.
-
 type CartProvider interface {
-	// LockCart takes a row lock on the user's cart for the current transaction so
-	// concurrent checkouts of the same cart serialize. Returns apperror.ErrNotFound
-	// when the user has no cart.
+	// LockCart serializes concurrent checkouts of one cart. Returns
+	// apperror.ErrNotFound when the user has no cart.
 	LockCart(ctx context.Context, userID uuid.UUID) error
 	GetCart(ctx context.Context, userID uuid.UUID) (*CartSnapshot, error)
 	Clear(ctx context.Context, userID uuid.UUID) error
@@ -33,7 +29,6 @@ type CartSnapshotItem struct {
 	Status    string
 }
 
-// InventoryItem is one product/quantity pair for a batched reserve/restore.
 type InventoryItem struct {
 	ProductID uuid.UUID
 	Quantity  int

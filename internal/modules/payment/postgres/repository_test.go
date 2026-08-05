@@ -46,9 +46,8 @@ func TestPostgresRepository_Create(t *testing.T) {
 
 		assert.NotEqual(t, uuid.Nil, p.ID)
 		assert.Equal(t, orderID, p.OrderID)
-		// One assertion, not two: Amount now carries its currency, and comparing the
-		// whole Money proves the write put the amount and the denomination in the
-		// columns that belong to each other.
+		// Comparing the whole Money proves the write put the amount and the denomination
+		// in the columns that belong to each other.
 		assert.Equal(t, money.New(1000, "USD"), p.Amount)
 		assert.Equal(t, payment.StatusPending, p.Status)
 		assert.Equal(t, "card", p.Method)
@@ -343,7 +342,6 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		repo := New(testPool)
 		ctx := context.Background()
 
-		// CreateJob
 		job := &payment.Job{
 			PaymentID:   p.ID,
 			OrderID:     orderID,
@@ -359,10 +357,8 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		assert.NotEqual(t, uuid.Nil, job.ID)
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, job.ID) })
 
-		// Claim — job moves to 'processing'
-		// setup(t) truncated the table, so the claim must return exactly this job;
-		// searching a batch instead would hide a job leaked by another test behind
-		// a confusing nil.
+		// setup(t) truncated the table, so the claim must return exactly this job:
+		// searching a batch would hide a leaked job behind a confusing nil.
 		claimed, err := repo.Claim(ctx, 10, 30*time.Second)
 		require.NoError(t, err)
 		require.Len(t, claimed, 1, "expected to claim only the seeded job")
@@ -372,7 +368,6 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		assert.Equal(t, payment.JobStatusProcessing, claimedJob.Status)
 		assert.NotNil(t, claimedJob.LockedUntil)
 
-		// UpdateJob — simulate a retry increment
 		claimedJob.Attempts = 1
 		claimedJob.LastError = "transient error"
 		claimedJob.Status = payment.JobStatusProcessing
@@ -380,7 +375,6 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		err = repo.UpdateJob(ctx, claimedJob)
 		require.NoError(t, err)
 
-		// CancelJobsByOrderID — cancels processing/pending jobs
 		err = repo.CancelJobsByOrderID(ctx, orderID)
 		require.NoError(t, err)
 
@@ -603,8 +597,8 @@ func TestPostgresRepository_Claim_WithOptionalFields(t *testing.T) {
 		require.NoError(t, repo.CreateJob(ctx, job))
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, job.ID) })
 
-		// Set last_error and mark as 'processing' with an expired locked_until
-		// so only this specific job is claimable (avoids stealing jobs from other tests).
+		// An expired locked_until makes only this job claimable, so it cannot steal one
+		// from another test.
 		_, err := testPool.Exec(
 			ctx,
 			`UPDATE payment_jobs SET last_error = $1, status = 'processing', locked_until = NOW() - INTERVAL '1 second' WHERE id = $2`,

@@ -1,8 +1,6 @@
-// Package mockserver implements the dev-only fake payment gateway HTTP
-// handlers (charge, refund, webhook trigger). It is importable — unlike
-// package main in cmd/mockgateway — so internal/transport/http can still mount it
-// in-process for local development, while cmd/mockgateway/main.go runs it as
-// a standalone binary.
+// Package mockserver holds the dev-only fake payment gateway handlers. Unlike
+// package main in cmd/mockgateway it is importable, so internal/transport/http can
+// mount it in-process for local development.
 package mockserver
 
 import (
@@ -37,7 +35,6 @@ type mockServer struct {
 	logger        *slog.Logger
 }
 
-// Option configures the mock payment server.
 type Option func(*mockServer)
 
 // WithWebhookSecret makes the mock sign triggered webhooks with the same
@@ -46,9 +43,8 @@ func WithWebhookSecret(secret string) Option {
 	return func(s *mockServer) { s.webhookSecret = secret }
 }
 
-// RegisterRoutes takes the logger explicitly rather than defaulting to a
-// discard handler, so a caller that wants the webhook diagnostics thrown away
-// has to say so.
+// RegisterRoutes takes an explicit logger rather than defaulting to a discard
+// handler, so throwing the webhook diagnostics away is something a caller asks for.
 func RegisterRoutes(mux *http.ServeMux, log *slog.Logger, opts ...Option) {
 	s := &mockServer{
 		charges: make(map[string]chargeRecord),

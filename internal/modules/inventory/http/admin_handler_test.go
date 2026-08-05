@@ -402,9 +402,6 @@ func TestAdminHandler_Adjust(t *testing.T) {
 	})
 }
 
-// Every inventory route is admin-only, so Reserved is deliberately present
-// here -- the reservation-count leak this phase closes is on product's
-// public response (see product/http/internal_test.go), not this one.
 func TestToStockResponse_ExposesExactFieldSet(t *testing.T) {
 	t.Parallel()
 

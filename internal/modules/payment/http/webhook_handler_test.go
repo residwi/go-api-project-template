@@ -142,10 +142,8 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 	t.Run("finalize failure runs compensating refund and returns 200", func(t *testing.T) {
 		t.Parallel()
 
-		// The gateway has already captured funds, so a finalize failure (here an
-		// amount mismatch) must not 5xx and leave money captured with the order
-		// unpaid. HandleWebhook now runs a compensating refund and acks the webhook
-		// with 200 so the gateway stops retrying into an already-handled failure.
+		// Funds are captured, so a finalize failure must not 5xx and leave the order
+		// unpaid: the compensating refund runs and the webhook is acked with 200.
 		mux, repo, orders, orderGet := setupPaymentMux(t)
 
 		paymentID := uuid.New()

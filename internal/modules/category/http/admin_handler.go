@@ -16,11 +16,8 @@ type adminHandler struct {
 	validator *validator.Validator
 }
 
-// adminCategoryResponse is the admin wire contract -- unlike the public
-// categoryResponse (handler.go), it keeps SortOrder, Active, and the
-// audit timestamps: an operator needs to see a category's moderation state
-// and merchandising order to manage it. Used by every admin endpoint that
-// returns a category body: this file's Create and Update.
+// Keeps SortOrder, Active and the audit timestamps that the public
+// categoryResponse drops: an operator needs the moderation state to manage it.
 type adminCategoryResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Name        string     `json:"name"`

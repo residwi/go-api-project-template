@@ -22,9 +22,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// testLogger is what the middleware under test log into. Nothing asserts on the
-// output, and logger.Setup no longer installs a package default, so a discard
-// handler is the whole requirement.
 func testLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }

@@ -1,15 +1,7 @@
-// The tests here are prefixed TestCartHandler_ rather than TestHandler_, which
-// every other feature's handler_test.go uses. That is deliberate, not drift.
-//
-// cart is the only feature whose direct-call tests (TestHandler_*, further
-// down this file) cover the same five methods as the route-level ones above --
-// one calls handler.GetCart and friends directly, the other drives the same
-// endpoints through a mux. Both live in this one file and package, so
-// identical names would compile but be indistinguishable: `go test -v` would
-// print two `=== RUN TestHandler_GetCart` lines with no way to tell which one
-// failed. The prefix is what keeps them apart.
-//
-// Rename these only if the direct-call TestHandler_* tests below go away first.
+// The TestCartHandler_ prefix is deliberate, not drift from the TestHandler_
+// every other feature uses: this file's route-level and direct-call tests cover
+// the same five methods, and identical names would compile but print
+// indistinguishable `=== RUN` lines. Rename only if the direct-call tests go.
 package http
 
 import (
@@ -66,12 +58,8 @@ func TestCartHandler_GetCart(t *testing.T) {
 		assert.True(t, resp.Success)
 	})
 
-	// An empty cart has always answered `total: 0` with a 200, and must keep doing
-	// so now that the total comes from Cart.Total(): with no sellable lines there
-	// is no currency to denominate the sum in, so Total returns the zero Money.
-	// Publishing its bare Amount gives the 0 clients already expect -- what must
-	// not happen is the missing currency being treated as a mismatch and turning
-	// an empty cart into a 400.
+	// An empty cart has no currency to denominate its sum in. The missing currency
+	// must not read as a mismatch and turn `total: 0` into a 400.
 	t.Run("empty cart returns total 0 with 200", func(t *testing.T) {
 		t.Parallel()
 
@@ -98,19 +86,12 @@ func TestCartHandler_GetCart(t *testing.T) {
 		assert.InDelta(t, float64(0), data["total"], 0.0001)
 	})
 
-	// THE ONE DELIBERATE BEHAVIOUR CHANGE IN THIS TASK.
+	// A cart can hold lines in different currencies -- AddItem does not constrain
+	// them -- and GET /cart answers 400, matching what PlaceOrder already does.
 	//
-	// A cart can hold lines priced in different currencies: prices are
-	// per-product, AddItem does not constrain them, and checkout is where the
-	// combination is rejected. Before money.Money, GET /cart answered 200 with the
-	// two amounts added together -- a number denominated in nothing, which is not a
-	// total of anything. It is now a 400, matching what PlaceOrder already returns
-	// for the same cart.
-	//
-	// Asserted at the mux, not with errors.Is, because the status code is what a
-	// client observes: money.ErrCurrencyMismatch is not a case in
-	// response.HandleErr, so surfacing it alone would be a 500. The wrapped
-	// apperror.ErrBadRequest is what makes it a 400.
+	// Asserted at the mux: money.ErrCurrencyMismatch is not a case in
+	// response.HandleErr, so alone it would be a 500. The wrapped
+	// apperror.ErrBadRequest is what makes the 400.
 	t.Run("mixed-currency cart returns 400", func(t *testing.T) {
 		t.Parallel()
 
@@ -158,11 +139,8 @@ func TestCartHandler_GetCart(t *testing.T) {
 		assert.Contains(t, resp.Error.Message, "mixed currencies")
 	})
 
-	// The complement: one unsellable line in another currency must NOT trip the
-	// mismatch, because it never contributed to the total in the first place. This
-	// is the case that makes "sellable lines only" load-bearing rather than
-	// incidental -- fold every line and this cart becomes a 400 that used to be a
-	// perfectly good 200.
+	// An unsellable line in another currency must NOT trip the mismatch: it never
+	// contributed to the total. Fold every line instead and this 200 becomes a 400.
 	t.Run("unsellable line in another currency does not break the total", func(t *testing.T) {
 		t.Parallel()
 
@@ -255,8 +233,8 @@ func TestCartHandler_UpdateItem(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		// UpdateQuantity now validates the product (published + in stock) before
-		// touching the cart; let that pass so GetOrCreate is what fails here.
+		// UpdateQuantity validates the product first; let that pass so GetOrCreate is
+		// what fails here.
 		products.EXPECT().GetByID(mock.Anything, productID).
 			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, apperror.ErrNotFound)
@@ -639,16 +617,9 @@ func TestToCartResponse_MissingProductIsUnsellable(t *testing.T) {
 	assert.Equal(t, int64(0), out.Total)
 }
 
-// TestToCartResponse_MixedCurrenciesRefusesToTotal pins the two sentinels the
-// failure carries, which the mux-level test above cannot see: apperror.ErrBadRequest
-// is what makes the status a 400 rather than the 500 an unrecognised error would
-// produce, and money.ErrCurrencyMismatch is what names the cause for a log.
-// Dropping either leaves the other test passing for the wrong reason -- or not
-// passing at all -- so both are asserted here.
-//
-// It also pins that no response is built on the way out: publishing the items
-// with a zero total would be worse than the 400, since a client cannot tell an
-// empty cart from one that could not be added up.
+// Pins both sentinels, which the mux-level test cannot see: ErrBadRequest makes
+// the 400, ErrCurrencyMismatch names the cause. Also pins that no response is
+// built, since a zero total would be indistinguishable from an empty cart.
 func TestToCartResponse_MixedCurrenciesRefusesToTotal(t *testing.T) {
 	t.Parallel()
 
@@ -691,10 +662,6 @@ func TestToCartResponse_MixedCurrenciesRefusesToTotal(t *testing.T) {
 		"no partial response: a total that could not be computed must not ship as one that could")
 }
 
-// TestToCartResponse_OmitsUserID pins cartResponse's top-level wire shape.
-// cart is the only one of 14 features whose response drops a field
-// (UserID) without a test pinning the key set -- this closes that gap the
-// same way wishlist's TestToItemResponse_OmitsInternalFields pins WishlistID.
 func TestToCartResponse_OmitsUserID(t *testing.T) {
 	t.Parallel()
 
