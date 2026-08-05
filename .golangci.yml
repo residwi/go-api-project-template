@@ -479,21 +479,6 @@ linters:
       - text: 'comment on exported \S+ \S+ should be of the form ".+"'
         source: "// ?(nolint|TODO)"
         linters: [revive, staticcheck]
-      # A package that owns a database or a Redis index is excluded whole --
-      # every file in it, not just the ones that visibly reset state.
-      # testhelper.ResetDB TRUNCATEs every table in the package's database and
-      # ratelimit_test.go FlushDB's its Redis index, so a parallel sibling
-      # anywhere in the same package gets its rows deleted mid-assertion, even
-      # if that sibling never calls a reset itself. Excluding per-file instead
-      # of per-package is what made this list wrong the first time.
-      # Nothing is lost: `go test` already runs these packages concurrently
-      # with each other, and each owns its own database, so the only
-      # concurrency t.Parallel could add here is the unsafe kind.
-      - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testhelper/|^internal/platform/(cache|database)/|^internal/modules/user/redis/|^internal/transport/http/([^/]+_test\.go|middleware/))
-        linters: [paralleltest]
-      # t.Setenv panics when the test also calls t.Parallel.
-      - path: ^internal/config/config_test\.go
-        linters: [paralleltest]
       - path: '_test\.go'
         linters:
           - bodyclose
@@ -524,3 +509,18 @@ linters:
       - source: "time\\.(Second|Minute|Hour|Millisecond|Microsecond)"
         linters:
           - mnd
+      # A package that owns a database or a Redis index is excluded whole --
+      # every file in it, not just the ones that visibly reset state.
+      # testhelper.ResetDB TRUNCATEs every table in the package's database and
+      # ratelimit_test.go FlushDB's its Redis index, so a parallel sibling
+      # anywhere in the same package gets its rows deleted mid-assertion, even
+      # if that sibling never calls a reset itself. Excluding per-file instead
+      # of per-package is what made this list wrong the first time.
+      # Nothing is lost: `go test` already runs these packages concurrently
+      # with each other, and each owns its own database, so the only
+      # concurrency t.Parallel could add here is the unsafe kind.
+      - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testhelper/|^internal/platform/(cache|database)/|^internal/modules/user/redis/|^internal/transport/http/([^/]+_test\.go|middleware/))
+        linters: [paralleltest]
+      # t.Setenv panics when the test also calls t.Parallel.
+      - path: ^internal/config/config_test\.go
+        linters: [paralleltest]
