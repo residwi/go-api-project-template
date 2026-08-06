@@ -278,6 +278,14 @@ linters:
       # Default: false
       allow-empty-returns: true
 
+    forbidigo:
+      # A custom list replaces the defaults, so the default patterns are restated
+      # here rather than lost.
+      forbid:
+        - pattern: ^slog\.Any$
+          msg: Log attributes are typed. Use slog.String/Int/Int64/Duration; for an error use slog.String("error", err.Error()).
+        - pattern: ^(fmt\.Print(|f|ln)|print|println)$
+
     funcorder:
       # Checks that exported functions are placed before unexported functions.
       # Default: false
@@ -513,7 +521,6 @@ linters:
           - revive
       - path: "cmd/|command/|testutil/"
         linters:
-          - forbidigo
           - gochecknoglobals
       - source: "time\\.(Second|Minute|Hour|Millisecond|Microsecond)"
         linters:
