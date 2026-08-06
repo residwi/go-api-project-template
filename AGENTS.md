@@ -4,7 +4,7 @@ Orientation for agents and humans in this repo. Describes tree as it actually is
 
 Three docs carry the reasoning; this one no duplicate:
 
-- **`ARCHITECTURE.md`** — twelve decisions that shaped this codebase, thirteen things it deliberately not do, each with cost.
+- **`ARCHITECTURE.md`** — thirteen decisions that shaped this codebase, fifteen things it deliberately not do, each with cost.
 - **`ARCHITECTURE-LIMITATIONS.md`** — what those decisions make hard or impossible, and what you must build to get past each. Read before proposing feature that crosses module boundary.
 - **`db/OWNERSHIP.md`** — which module owns which table, parsed at run time by `make check-boundaries`, plus what that check cannot see.
 
@@ -166,22 +166,48 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 3. **Nothing outside the wiring layer imports a feature's `postgres`, `http` or
    `redis` package.** Features and shared infrastructure alike; only `internal/bootstrap/` and `internal/transport/` may wire adapters together.
 
+Two more rules are machine-checked, but by `make lint` rather than
+`make check-boundaries` — which means `make ci` catches them and
+`check-boundaries` does not:
+
+4. **No stdlib `log`, anywhere.** `depguard` denies `pkg: log$` across
+   `$all`. There is no `main.go` carve-out: `Run` and `run` report their own
+   failures, so `main` needs no logger of its own and holds only the exit
+   code.
+5. **No `slog.Any`, anywhere.** `forbidigo` denies the identifier. Every
+   attribute names its type. An error is
+   `slog.String("error", err.Error())` — byte-identical output, because
+   slog's JSONHandler already special-cases `error` by calling `Error()`.
+   A recovered panic is `slog.String("panic", fmt.Sprint(rec))`, since
+   `recover()` returns `any`.
+
 Read "What it does not catch" section of `db/OWNERSHIP.md` before trusting green run. Short: table names must be string literals (`pgx.CopyFrom` included), `_test.go` files skipped on purpose, `dashboard` exempt wholesale, only `internal/modules/<feature>/postgres/` scanned, ownership per table so column coupling invisible, and prose in production string literal can produce loud false positive.
 
 ### Conventions — not checked, so they need you
 
-4. **A feature never imports another feature.** Declare interface _the consumer_ needs in consumer's own package (`internal/modules/order/ports.go` declares what `order` needs from inventory), and let `internal/bootstrap/` supply adapter. Often other module's service satisfies interface direct and no adapter written — `promotion.Service` already satisfies `payment.CouponReleaser`, and `notification.Service` already satisfies `jobs.Processor`. No shared ports package, and adding one would defeat point. _(Rule 3 catches crudest violation — importing sibling's adapter — but importing sibling's root package not caught.)_
-5. **Services take `database.TxRunner`, never `*pgxpool.Pool`.** Service needs atomicity, not DB handle. `TxRunner` declared once in `internal/platform/database` not per consumer — one deliberate exception to rule 4's consumer-declaration pattern, because features already import `platform/database`. Service that opens no transaction takes no runner at all.
-6. **Money is `money.Money`, never an `int64` beside a `Currency string`.** Scope is four features: `order`, `payment`, `product`, `cart`. `promotion` and `dashboard` stay on `int64` for stated reasons — `ARCHITECTURE.md` §10 and `ARCHITECTURE-LIMITATIONS.md`. `Money` carries no `json` tag and implements no `sql.Scanner`: each adapter maps it explicit, because wire shapes genuinely differ per endpoint. No float constructor and no `Div`.
-7. **A service runs no SQL and holds no pool.** Every read and write goes through feature's repository interface; `postgres` adapter owns pool and reaches it with `database.DB(ctx, pool)`, which returns context's transaction if there is one. Service composes several repository calls into one unit of work via its `TxRunner`, and transaction propagates to every repository — own and other features' — through `ctx`.
-8. **Order status changes only through `order.Service.Apply`.** Every guarded transition is named `order.Transition` value in `internal/modules/order/transition.go` (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other features depend on _intent_ methods on their own port interface (`payment.OrderUpdater.MarkPaid`, `shipping.OrderUpdater.MarkShipped`), and `internal/bootstrap/` adapter maps each intent to its transition. Never write ad-hoc from/to status list at call site.
-9. **Inventory reversal goes through `inventory.Service.Restore(ctx, items,
+6. **A feature never imports another feature.** Declare interface _the consumer_ needs in consumer's own package (`internal/modules/order/ports.go` declares what `order` needs from inventory), and let `internal/bootstrap/` supply adapter. Often other module's service satisfies interface direct and no adapter written — `promotion.Service` already satisfies `payment.CouponReleaser`, and `notification.Service` already satisfies `jobs.Processor`. No shared ports package, and adding one would defeat point. _(Rule 3 catches crudest violation — importing sibling's adapter — but importing sibling's root package not caught.)_
+7. **Services take `database.TxRunner`, never `*pgxpool.Pool`.** Service needs atomicity, not DB handle. `TxRunner` declared once in `internal/platform/database` not per consumer — one deliberate exception to rule 6's consumer-declaration pattern, because features already import `platform/database`. Service that opens no transaction takes no runner at all.
+8. **Money is `money.Money`, never an `int64` beside a `Currency string`.** Scope is four features: `order`, `payment`, `product`, `cart`. `promotion` and `dashboard` stay on `int64` for stated reasons — `ARCHITECTURE.md` §10 and `ARCHITECTURE-LIMITATIONS.md`. `Money` carries no `json` tag and implements no `sql.Scanner`: each adapter maps it explicit, because wire shapes genuinely differ per endpoint. No float constructor and no `Div`.
+9. **A service runs no SQL and holds no pool.** Every read and write goes through feature's repository interface; `postgres` adapter owns pool and reaches it with `database.DB(ctx, pool)`, which returns context's transaction if there is one. Service composes several repository calls into one unit of work via its `TxRunner`, and transaction propagates to every repository — own and other features' — through `ctx`.
+10. **Order status changes only through `order.Service.Apply`.** Every guarded transition is named `order.Transition` value in `internal/modules/order/transition.go` (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other features depend on _intent_ methods on their own port interface (`payment.OrderUpdater.MarkPaid`, `shipping.OrderUpdater.MarkShipped`), and `internal/bootstrap/` adapter maps each intent to its transition. Never write ad-hoc from/to status list at call site.
+11. **Inventory reversal goes through `inventory.Service.Restore(ctx, items,
 prior StockState)`.** Inventory decides whether that means releasing reservation or restocking deducted goods; callers supply order's prior state, never mechanics.
-10. **Background job workers use `platform/jobs`.** Feature draining queue implements `jobs.Queue[T]` (`Claim` + `Prune`) on its repository and `jobs.Processor[T]` (`Process`) on its service, plus optional `jobs.Sweeper` for per-tick housekeeping. Binary builds `jobs.Runner[T]`. Never hand-roll ticker/lease/poll loop — runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
-11. **Repository reads use `pgx.CollectRows`**, never hand-rolled `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and build keyset predicates with `database.KeysetCursor()`.
-12. **Handlers use the shared helpers.** Decode and validate with `response.Bind[T](w, r, h.validator)`; read caller with `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks.
-13. **New config invariants go in `Config.validate()`**
+12. **Background job workers use `platform/jobs`.** Feature draining queue implements `jobs.Queue[T]` (`Claim` + `Prune`) on its repository and `jobs.Processor[T]` (`Process`) on its service, plus optional `jobs.Sweeper` for per-tick housekeeping. Binary builds `jobs.Runner[T]`. Never hand-roll ticker/lease/poll loop — runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
+13. **Repository reads use `pgx.CollectRows`**, never hand-rolled `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and build keyset predicates with `database.KeysetCursor()`.
+14. **Handlers use the shared helpers.** Decode and validate with `response.Bind[T](w, r, h.validator)`; read caller with `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks.
+15. **New config invariants go in `Config.validate()`**
     (`internal/config/config.go`), so misconfiguration aborts boot instead of surfacing later as runtime error. Do not guard per use site.
+16. **Request-scoped attributes are named once, at the edge.**
+    `logger.WithAttrs(ctx, ...)` stashes them and `logger.ContextHandler`
+    merges them into every record below, so no function grows a parameter
+    to carry `request_id`. Four edges do this: `middleware.RequestID`
+    (`request_id`), `middleware.Auth` (`user_id`), `jobs.Runner.Start`
+    (`runner`), and each queue-draining `Process` (`job_id`).
+17. **An attribute may only be named at an edge that owns exactly one
+    value.** `order_id` and `payment_id` stay written at the call site
+    because `order.Service` loops over batches of orders — one context
+    cannot hold fifty. Naming an attribute at two points on the same path
+    emits the key twice; slog does not deduplicate.
 
 ## Code style
 

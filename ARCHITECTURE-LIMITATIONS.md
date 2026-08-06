@@ -1,6 +1,6 @@
 # Limitations this architecture creates
 
-`ARCHITECTURE.md` record twelve decisions and thirteen things this codebase deliberately not do. Every one bought something and charged for it. This file the invoice.
+`ARCHITECTURE.md` record thirteen decisions and fifteen things this codebase deliberately not do. Every one bought something and charged for it. This file the invoice.
 
 Exist because this repo a **template**: structure is product, someone about to copy into real system. Doc listing only what design make easy teach nothing — design never in danger of blame there. Reader need list of moments where they hit wall, so they recognize wall as this design's, not own mistake.
 
@@ -226,6 +226,18 @@ Two further consequences worth knowing before writing tests:
 
 **What you would do:** leave it. Splitting `NewRouter` per feature scatter route table, and single readable list of every route in system worth more than diff conflicts. If it become unbearable, split by _layer_ (build all repositories, then all services, then all routes) not by feature.
 
+## Context log attributes are write-only
+
+**Where you hit it:** you want `request_id` in an error response body, or need to forward it as a header on an outbound call.
+
+`logger.WithAttrs` stores a `[]slog.Attr` under an unexported key and only `ContextHandler.Handle` reads it. There is no accessor, and `middleware.GetRequestID` was deleted once nothing needed it. Both uses above need the value itself, not a log record.
+
+**A second, sharper limit: nothing checks the single-naming invariant.** An attribute named at two points on one code path is emitted twice, and slog does not deduplicate keys. `payment.Service.Process` names `job_id` for the whole worker path; `FinalizePaymentSuccess` and `runCompensatingRefund` are also reached from `InitiatePayment` and `HandleWebhook`, which pass a `Job` literal with no `ID` and so deliberately name nothing. Add a fourth caller that names `job_id` itself and the worker path start emitting the key twice, with no test or linter to catch it. The check is a grep of the callers, run by hand.
+
+This is not hypothetical. Naming `user_id` at the auth edge immediately collided with `user.Service.invalidateStatusCache`, which logged its own `user_id` — the user being acted upon, not the caller. On an admin role change the record carried both, and a last-wins parser kept the admin's id while silently dropping the target's. The fix was to rename the inner one to `target_user_id`, because the two values answer different questions.
+
+**What you would do:** for the accessor, re-add a typed one beside the middleware that produces the value — `middleware.GetRequestID` as it was, a `context.WithValue` next to the `logger.WithAttrs` call. Do not add a generic `logger.Attrs(ctx)` reader: callers would loop the slice matching on a string key, which worse than the typed accessor it replaced. For the naming invariant, grep the tree for a key before naming it at a new edge — a collision look like nothing at all until someone query the logs.
+
 ---
 
 ## When not to copy this
@@ -246,6 +258,6 @@ Do copy it if you want boundaries checkable not aspirational, and willing to pay
 
 Read alongside:
 
-- `ARCHITECTURE.md` — the twelve decisions and thirteen rejections these are shadow of.
+- `ARCHITECTURE.md` — the thirteen decisions and fifteen rejections these are shadow of.
 - `db/OWNERSHIP.md` — table-ownership map, foreign-key inventory, and full blind-spot list for `make check-boundaries`.
 - `AGENTS.md` — working rules, and which of them machine-checked.

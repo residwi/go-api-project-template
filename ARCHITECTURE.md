@@ -301,6 +301,39 @@ five modules no single feature package can own.
 
 **Cost accepted:** 19 `TestMain` functions instead of one.
 
+## 12. Log attributes travel in the context, not in signatures
+
+A service that logs `request_id` has no business knowing what an HTTP
+request is. The alternative — threading the value down as a parameter, or
+handing every layer a pre-built logger — makes a transport concern part of
+fourteen service APIs.
+
+So `logger.WithAttrs(ctx, ...)` stores attributes in the context and
+`logger.ContextHandler` merges them into every record. `logger.Setup`
+installs the wrapper, so every logger in both binaries has it. Services
+keep their constructor-injected `*slog.Logger` and their existing
+`InfoContext(ctx, ...)` calls unchanged. Only the four edges that name an
+attribute gained one `logger.WithAttrs` line each — two of them,
+`payment.Service.Process` and `notification.Service.Process`, inside a
+feature package. Every other call, in every other feature, needed no
+change to start carrying the context's attributes.
+
+Two details are load-bearing rather than stylistic. `ContextHandler`
+overrides `WithAttrs` and `WithGroup`, because the methods promoted from
+the embedded handler return the *inner* handler — `logger.With(...)` would
+otherwise produce a logger that silently emits no context attributes.
+And `WithAttrs` clips the slice before appending, because two contexts
+derived from one parent would otherwise share a backing array and
+overwrite each other.
+
+**The cost:** you can no longer read a single log call and know everything
+it emits. `order.Service.ExpireStale`'s
+`s.logger.ErrorContext(ctx, "failed to expire order", slog.String("order_id", o.ID.String()), slog.String("error", err.Error()))`
+also emits `runner`, because it runs inside the payment runner's per-tick
+sweep, and nothing at that line names it. In exchange, 32 repeated
+attributes are gone and `request_id` reaches code that has never heard of
+HTTP.
+
 ---
 
 # Rejected
@@ -420,3 +453,30 @@ storefront needs `?in_stock=true`, this the answer. See limitations.
 changed wherever better design demanded — notably `reserved_quantity`
 leaving public product response (published live order velocity per SKU to
 any unauthenticated caller) and `stock_quantity` leaving product's write DTOs.
+
+## A logger in the context
+
+`ctx` carrying a `*slog.Logger` that middleware built with `.With(...)`,
+fetched at each call site as `logger.FromContext(ctx).Info(...)`. It uses
+`With` literally, which is what makes it tempting.
+
+Rejected because it deletes the constructor-injected logger and so hides a
+real dependency: a service's signature would stop saying that it logs.
+Every one of ~143 call sites changes, and every one needs a fallback for
+the contexts that have no logger — worker jobs, tests, anything below a
+`context.Background()`. `sloglint`'s `no-global: all` forbids the obvious
+fallback. `ContextHandler` gets the same output with no call-site change
+and no nil case.
+
+## OpenTelemetry wiring
+
+`trace_id` and `span_id` are the canonical things to carry contextually,
+and `go.opentelemetry.io/otel` is already in `go.mod`. It is **indirect**:
+pulled in by a dependency, imported nowhere.
+
+Rejected as scope. A tracer provider, an OTLP exporter, sampler
+configuration, `otelhttp` middleware, new `Config.validate()` invariants
+and a shutdown hook in both binaries is a tracing feature, not a logging
+refactor. The seam costs nothing to leave open: whoever adds tracing calls
+`logger.WithAttrs(ctx, slog.String("trace_id", sc.TraceID().String()))` in
+their own middleware and every existing log call picks it up.
