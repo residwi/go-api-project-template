@@ -456,27 +456,27 @@ any unauthenticated caller) and `stock_quantity` leaving product's write DTOs.
 
 ## A logger in the context
 
-`ctx` carrying a `*slog.Logger` that middleware built with `.With(...)`,
-fetched at each call site as `logger.FromContext(ctx).Info(...)`. It uses
-`With` literally, which is what makes it tempting.
+**Rejected.** `ctx` carrying a `*slog.Logger` that middleware built with
+`.With(...)`, fetched at each call site as `logger.FromContext(ctx).Info(...)`.
+It uses `With` literally, which is what makes it tempting.
 
-Rejected because it deletes the constructor-injected logger and so hides a
-real dependency: a service's signature would stop saying that it logs.
-Every one of ~143 call sites changes, and every one needs a fallback for
-the contexts that have no logger — worker jobs, tests, anything below a
+It deletes the constructor-injected logger and so hides a real dependency:
+a service's signature would stop saying that it logs. Every one of ~143
+call sites changes, and every one needs a fallback for the contexts that
+have no logger — worker jobs, tests, anything below a
 `context.Background()`. `sloglint`'s `no-global: all` forbids the obvious
 fallback. `ContextHandler` gets the same output with no call-site change
 and no nil case.
 
 ## OpenTelemetry wiring
 
-`trace_id` and `span_id` are the canonical things to carry contextually,
-and `go.opentelemetry.io/otel` is already in `go.mod`. It is **indirect**:
-pulled in by a dependency, imported nowhere.
+**Rejected as scope.** `trace_id` and `span_id` are the canonical things to
+carry contextually, and `go.opentelemetry.io/otel` is already in `go.mod`.
+It is **indirect**: pulled in by a dependency, imported nowhere.
 
-Rejected as scope. A tracer provider, an OTLP exporter, sampler
-configuration, `otelhttp` middleware, new `Config.validate()` invariants
-and a shutdown hook in both binaries is a tracing feature, not a logging
-refactor. The seam costs nothing to leave open: whoever adds tracing calls
+A tracer provider, an OTLP exporter, sampler configuration, `otelhttp`
+middleware, new `Config.validate()` invariants and a shutdown hook in both
+binaries is a tracing feature, not a logging refactor. The seam costs
+nothing to leave open: whoever adds tracing calls
 `logger.WithAttrs(ctx, slog.String("trace_id", sc.TraceID().String()))` in
 their own middleware and every existing log call picks it up.
