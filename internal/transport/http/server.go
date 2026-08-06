@@ -14,6 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/platform/cache"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -90,7 +91,20 @@ func RunContext(ctx context.Context) error {
 		Logger:     appLog,
 	}
 
-	handler := NewRouter(deps)
+	app, err := bootstrap.New(bootstrap.Deps{
+		Infra:      infra,
+		Config:     cfg,
+		Pool:       pool,
+		ReaderPool: readerPool,
+		Cache:      rdb,
+		Logger:     appLog,
+	})
+	if err != nil {
+		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
+		return fmt.Errorf("wiring services: %w", err)
+	}
+
+	handler := NewRouter(deps, app)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.App.Port),

@@ -10,16 +10,9 @@ import (
 	"syscall"
 
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/postgres"
-	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
-	mockgateway "github.com/residwi/go-api-project-template/internal/modules/payment/mock"
 	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
 	paymentworker "github.com/residwi/go-api-project-template/internal/modules/payment/worker"
-	"github.com/residwi/go-api-project-template/internal/modules/promotion"
-	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
@@ -60,23 +53,16 @@ func run() error {
 	}
 	defer pool.Close()
 
-	orderRepo := orderpg.New(pool)
-	paymentRepo := paymentpg.New(pool)
-	inventoryRepo := inventorypg.New(pool)
-	promotionRepo := promotionpg.New(pool)
-	notificationRepo := notificationpg.New(pool)
-
-	txRunner := database.NewTxRunner(pool)
-
-	inventorySvc := inventory.NewService(inventoryRepo)
-	promotionSvc := promotion.NewService(promotionRepo, txRunner)
-	notificationSvc := notification.NewService(notificationRepo, appLog)
-
-	orderSvc := bootstrap.NewOrderService(orderRepo, txRunner, nil, inventorySvc, promotionSvc, nil, appLog)
-
-	gw := mockgateway.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
-
-	paymentSvc := bootstrap.NewPaymentService(paymentRepo, txRunner, gw, orderSvc, inventorySvc, promotionSvc, appLog)
+	app, err := bootstrap.New(bootstrap.Deps{
+		Infra:  infra,
+		Config: cfg,
+		Pool:   pool,
+		Logger: appLog,
+	})
+	if err != nil {
+		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
+		return fmt.Errorf("wiring services: %w", err)
+	}
 
 	jobCfg := jobs.Config{
 		Interval:      cfg.Worker.Interval,
@@ -87,9 +73,14 @@ func run() error {
 		PruneLimit:    cfg.Worker.PruneLimit,
 	}
 
-	paymentProcessor := paymentworker.NewProcessor(paymentSvc, bootstrap.NewOrderHousekeeper(orderSvc), appLog)
-	paymentRunner := jobs.NewRunner("payment", paymentRepo, paymentProcessor, jobCfg, appLog)
-	notificationRunner := jobs.NewRunner("notification", notificationRepo, notificationSvc, jobCfg, appLog)
+	// app.Orders satisfies payment.OrderHousekeeper directly, so the processor
+	// needs no adapter. The queue side still needs the bare repository: a
+	// service holds no pool (rule 9), but Runner drains payment_jobs/
+	// notifications by Claim/Prune on the repository itself, not through the
+	// service.
+	paymentProcessor := paymentworker.NewProcessor(app.Payments, app.Orders, appLog)
+	paymentRunner := jobs.NewRunner("payment", paymentpg.New(pool), paymentProcessor, jobCfg, appLog)
+	notificationRunner := jobs.NewRunner("notification", notificationpg.New(pool), app.Notifications, jobCfg, appLog)
 
 	appLog.InfoContext(ctx, "worker starting", slog.String("env", cfg.App.Env))
 	var wg sync.WaitGroup

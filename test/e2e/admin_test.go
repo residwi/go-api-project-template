@@ -23,7 +23,7 @@ import (
 
 func TestE2EAdminFlow(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps)
+	handler := apihttp.NewRouter(testDeps, testApp)
 	ctx := context.Background()
 
 	email := "admin-e2e@example.com"
@@ -120,7 +120,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 		Cache:  testRedis,
 		Logger: testhelper.DiscardLogger(),
 	}
-	handler := apihttp.NewRouter(deps)
+	handler := apihttp.NewRouter(deps, newTestApp(deps.Config))
 	ctx := context.Background()
 
 	catID := uuid.New()

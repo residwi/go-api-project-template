@@ -21,20 +21,8 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	cartpg "github.com/residwi/go-api-project-template/internal/modules/cart/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/notification"
-	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/postgres"
-	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	mockgateway "github.com/residwi/go-api-project-template/internal/modules/payment/mock"
-	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
-	productpg "github.com/residwi/go-api-project-template/internal/modules/product/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/promotion"
-	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -42,6 +30,7 @@ var (
 	testPool  *pgxpool.Pool
 	testRedis *redis.Client
 	testDeps  *Deps
+	testApp   *bootstrap.App
 )
 
 func TestMain(m *testing.M) {
@@ -84,20 +73,39 @@ func TestMain(m *testing.M) {
 		Logger: testhelper.DiscardLogger(),
 	}
 
+	testApp = newTestApp(testDeps.Config)
+
 	os.Exit(m.Run())
+}
+
+// newTestApp wires a bootstrap.App against testPool/testRedis for a given
+// Config. TestMain uses it for testApp; tests that need a different payment
+// gateway URL (a local httptest mock server) build their own Config and call
+// this instead of NewRouter's now-removed manual construction.
+func newTestApp(cfg *config.Config) *bootstrap.App {
+	app, err := bootstrap.New(bootstrap.Deps{
+		Config: cfg,
+		Pool:   testPool,
+		Cache:  testRedis,
+		Logger: testhelper.DiscardLogger(),
+	})
+	if err != nil {
+		panic(err)
+	}
+	return app
 }
 
 func TestNewRouter(t *testing.T) {
 	setup(t)
 	t.Run("initializes without error", func(t *testing.T) {
-		handler := NewRouter(testDeps)
+		handler := NewRouter(testDeps, testApp)
 		require.NotNil(t, handler)
 	})
 }
 
 func TestHealthHandler(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps)
+	handler := NewRouter(testDeps, testApp)
 
 	t.Run("returns healthy status", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -128,7 +136,7 @@ func TestHealthHandler(t *testing.T) {
 			Cache:  testRedis,
 			Logger: testhelper.DiscardLogger(),
 		}
-		h := NewRouter(badDeps)
+		h := NewRouter(badDeps, testApp)
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -159,7 +167,7 @@ func TestHealthHandler(t *testing.T) {
 			Cache:  badRedis,
 			Logger: testhelper.DiscardLogger(),
 		}
-		h := NewRouter(badDeps)
+		h := NewRouter(badDeps, testApp)
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -182,7 +190,7 @@ func TestHealthHandler(t *testing.T) {
 			Cache:  nil,
 			Logger: testhelper.DiscardLogger(),
 		}
-		h := NewRouter(nilRedisDeps)
+		h := NewRouter(nilRedisDeps, testApp)
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -201,7 +209,7 @@ func TestHealthHandler(t *testing.T) {
 
 func TestPublicEndpoints(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps)
+	handler := NewRouter(testDeps, testApp)
 
 	t.Run("GET /api/categories returns list", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/categories", nil)
@@ -241,7 +249,7 @@ func TestPublicEndpoints(t *testing.T) {
 
 func TestAuthEndpoints(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps)
+	handler := NewRouter(testDeps, testApp)
 	ctx := context.Background()
 
 	t.Run("POST /api/auth/register creates user", func(t *testing.T) {
@@ -357,7 +365,7 @@ func TestAuthEndpoints(t *testing.T) {
 
 func TestProtectedEndpointsRequireAuth(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps)
+	handler := NewRouter(testDeps, testApp)
 
 	endpoints := []struct {
 		method string
@@ -382,7 +390,7 @@ func TestProtectedEndpointsRequireAuth(t *testing.T) {
 
 func TestAdminEndpointsRequireAuth(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps)
+	handler := NewRouter(testDeps, testApp)
 
 	endpoints := []struct {
 		method string
@@ -410,7 +418,7 @@ func TestAdminEndpointsRequireAuth(t *testing.T) {
 
 func TestAuthenticatedEndpoints(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps)
+	handler := NewRouter(testDeps, testApp)
 	ctx := context.Background()
 
 	regBody := `{"email":"test-authed@example.com","password":"Password123!","first_name":"Authed","last_name":"User"}`
@@ -480,7 +488,7 @@ func TestAuthenticatedEndpoints(t *testing.T) {
 
 func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps)
+	handler := NewRouter(testDeps, testApp)
 	ctx := context.Background()
 
 	regBody := `{"email":"test-nonadmin@example.com","password":"Password123!","first_name":"Regular","last_name":"User"}`
@@ -532,7 +540,7 @@ func TestHealthHandler_NilRedis(t *testing.T) {
 		Cache:  nil,
 		Logger: testhelper.DiscardLogger(),
 	}
-	handler := NewRouter(nilRedisDeps)
+	handler := NewRouter(nilRedisDeps, testApp)
 
 	t.Run("returns healthy with redis not configured", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -550,7 +558,7 @@ func TestHealthHandler_NilRedis(t *testing.T) {
 
 func TestCORSHeaders(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps)
+	handler := NewRouter(testDeps, testApp)
 
 	t.Run("OPTIONS preflight returns CORS headers", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodOptions, "/api/products", nil)
@@ -565,7 +573,7 @@ func TestCORSHeaders(t *testing.T) {
 
 func TestAdapterErrorPaths(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps)
+	handler := NewRouter(testDeps, testApp)
 	ctx := context.Background()
 
 	email := "adapter-err@example.com"
@@ -630,7 +638,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		Cache:  testRedis,
 		Logger: testhelper.DiscardLogger(),
 	}
-	handler := NewRouter(deps)
+	handler := NewRouter(deps, newTestApp(deps.Config))
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -931,30 +939,22 @@ func setup(t *testing.T) {
 	testhelper.ResetRedis(t, testRedis)
 }
 
-// newPaymentServiceForTest composes a payment service the way cmd/worker does.
+// newPaymentServiceForTest wires a whole App against a custom gateway URL (a
+// local httptest mock server) and hands back just the payment service.
 // test/e2e carries its own copy in testmain_test.go; keep the two in step.
 func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Service {
 	t.Helper()
 
-	txRunner := database.NewTxRunner(testPool)
-	inventorySvc := inventory.NewService(inventorypg.New(testPool))
-	productSvc := bootstrap.NewProductService(productpg.New(testPool), inventorySvc)
-	cartSvc := bootstrap.NewCartService(cartpg.New(testPool), txRunner, productSvc, 50)
-	promotionSvc := promotion.NewService(promotionpg.New(testPool), txRunner)
-	notificationSvc := notification.NewService(notificationpg.New(testPool), testhelper.DiscardLogger())
-
-	orderSvc := bootstrap.NewOrderService(
-		orderpg.New(testPool), txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc,
-		testhelper.DiscardLogger(),
-	)
-	gw := mockgateway.New(gatewayURL, 5*time.Second)
-	paymentSvc := bootstrap.NewPaymentService(
-		paymentpg.New(testPool), txRunner, gw, orderSvc, inventorySvc, promotionSvc,
-		testhelper.DiscardLogger(),
-	)
-	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
-
-	return paymentSvc
+	return newTestApp(&config.Config{
+		App:  testDeps.Config.App,
+		JWT:  testDeps.Config.JWT,
+		CORS: testDeps.Config.CORS,
+		Payment: config.PaymentConfig{
+			Gateway:        "mock",
+			GatewayURL:     gatewayURL,
+			GatewayTimeout: 5 * time.Second,
+		},
+	}).Payments
 }
 
 // ReserveBatch and DeductBatch need a row to update, and these tests insert

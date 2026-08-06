@@ -44,7 +44,7 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		Cache:  testRedis,
 		Logger: testhelper.DiscardLogger(),
 	}
-	handler := apihttp.NewRouter(deps)
+	handler := apihttp.NewRouter(deps, newTestApp(deps.Config))
 	ctx := context.Background()
 
 	catID := uuid.New()

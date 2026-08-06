@@ -14,50 +14,25 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	authhttp "github.com/residwi/go-api-project-template/internal/modules/auth/http"
 	carthttp "github.com/residwi/go-api-project-template/internal/modules/cart/http"
-	cartpg "github.com/residwi/go-api-project-template/internal/modules/cart/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/category"
 	categoryhttp "github.com/residwi/go-api-project-template/internal/modules/category/http"
-	categorypg "github.com/residwi/go-api-project-template/internal/modules/category/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
 	dashboardhttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/http"
-	dashboardpg "github.com/residwi/go-api-project-template/internal/modules/dashboard/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	inventoryhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/http"
-	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	notificationhttp "github.com/residwi/go-api-project-template/internal/modules/notification/http"
-	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/postgres"
 	orderhttp "github.com/residwi/go-api-project-template/internal/modules/order/http"
-	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
 	paymenthttp "github.com/residwi/go-api-project-template/internal/modules/payment/http"
-	mockgateway "github.com/residwi/go-api-project-template/internal/modules/payment/mock"
-	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
 	producthttp "github.com/residwi/go-api-project-template/internal/modules/product/http"
-	productpg "github.com/residwi/go-api-project-template/internal/modules/product/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	promotionhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/http"
-	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/review"
 	reviewhttp "github.com/residwi/go-api-project-template/internal/modules/review/http"
-	reviewpg "github.com/residwi/go-api-project-template/internal/modules/review/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	shippinghttp "github.com/residwi/go-api-project-template/internal/modules/shipping/http"
-	shippingpg "github.com/residwi/go-api-project-template/internal/modules/shipping/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/user"
 	userhttp "github.com/residwi/go-api-project-template/internal/modules/user/http"
-	userpg "github.com/residwi/go-api-project-template/internal/modules/user/postgres"
-	userredis "github.com/residwi/go-api-project-template/internal/modules/user/redis"
-	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	wishlisthttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/http"
-	wishlistpg "github.com/residwi/go-api-project-template/internal/modules/wishlist/postgres"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-//nolint:funlen // central route table: length is inherent to registering every feature's routes in one place
 func NewRouter(
 	deps *Deps,
+	app *bootstrap.App,
 ) http.Handler {
 	mux := http.NewServeMux()
 
@@ -65,76 +40,8 @@ func NewRouter(
 
 	v := validator.New()
 
-	userRepo := userpg.New(deps.Pool)
-	categoryRepo := categorypg.New(deps.Pool)
-	productRepo := productpg.New(deps.Pool)
-	inventoryRepo := inventorypg.New(deps.Pool)
-	cartRepo := cartpg.New(deps.Pool)
-	orderRepo := orderpg.New(deps.Pool)
-	paymentRepo := paymentpg.New(deps.Pool)
-	shippingRepo := shippingpg.New(deps.Pool)
-	reviewRepo := reviewpg.New(deps.Pool)
-	promotionRepo := promotionpg.New(deps.Pool)
-	wishlistRepo := wishlistpg.New(deps.Pool)
-	notificationRepo := notificationpg.New(deps.Pool)
-	dashboardRepo := dashboardpg.New(deps.Pool)
-
-	txRunner := database.NewTxRunner(deps.Pool)
-
-	var userCache user.StatusCache = user.NoCache{}
-	if deps.Cache != nil {
-		userCache = userredis.New(deps.Cache)
-	}
-	userSvc := user.NewService(userRepo, userCache, deps.Logger)
-	inventorySvc := inventory.NewService(inventoryRepo)
-	productSvc := bootstrap.NewProductService(productRepo, inventorySvc)
-	categorySvc := category.NewService(categoryRepo, productSvc)
-	cartSvc := bootstrap.NewCartService(cartRepo, txRunner, productSvc, deps.Config.App.MaxCartItems)
-	authSvc := auth.NewService(
-		userSvc,
-		deps.Config.JWT.Secret,
-		deps.Config.JWT.Issuer,
-		deps.Config.JWT.AccessTokenTTL,
-		deps.Config.JWT.RefreshTokenTTL,
-	)
-	authSvc.SetBcryptCost(deps.Config.App.BcryptCost)
-	promotionSvc := promotion.NewService(promotionRepo, txRunner)
-	notificationSvc := notification.NewService(notificationRepo, deps.Logger)
-	wishlistSvc := wishlist.NewService(wishlistRepo)
-	dashboardSvc := dashboard.NewService(dashboardRepo)
-
-	orderSvc := bootstrap.NewOrderService(
-		orderRepo,
-		txRunner,
-		cartSvc,
-		inventorySvc,
-		promotionSvc,
-		notificationSvc,
-		deps.Logger,
-	)
-
-	cfg := deps.Config
-	gw := mockgateway.New(cfg.Payment.GatewayURL, cfg.Payment.GatewayTimeout)
-
-	paymentSvc := bootstrap.NewPaymentService(
-		paymentRepo,
-		txRunner,
-		gw,
-		orderSvc,
-		inventorySvc,
-		promotionSvc,
-		deps.Logger,
-	)
-	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
-
-	// orderSvc satisfies shipping.OrderProvider and shipping.OrderUpdater directly,
-	// and review.PurchaseVerifier directly, so neither needs a bootstrap adapter.
-	shippingSvc := shipping.NewService(shippingRepo, txRunner, orderSvc, orderSvc)
-
-	reviewSvc := review.NewService(reviewRepo, orderSvc)
-
-	tokenValidator := auth.NewTokenValidatorAdapter(authSvc)
-	authMiddleware := middleware.Auth(tokenValidator, userSvc)
+	tokenValidator := auth.NewTokenValidatorAdapter(app.Auth)
+	authMiddleware := middleware.Auth(tokenValidator, app.Users)
 	adminMiddleware := middleware.RequireAdmin
 
 	api := middleware.NewRouteGroup(mux, "/api")
@@ -159,43 +66,43 @@ func NewRouter(
 		deps.Config.App.OrderRateWindow,
 	)
 
-	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Service: authSvc})
-	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Service: userSvc})
-	categoryhttp.RegisterRoutes(api, admin, categoryhttp.RouteDeps{Validator: v, Service: categorySvc})
-	producthttp.RegisterRoutes(api, admin, producthttp.RouteDeps{Validator: v, Service: productSvc})
-	inventoryhttp.RegisterRoutes(admin, inventoryhttp.RouteDeps{Validator: v, Service: inventorySvc})
-	carthttp.RegisterRoutes(authed, carthttp.RouteDeps{Validator: v, Service: cartSvc})
+	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Service: app.Auth})
+	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Service: app.Users})
+	categoryhttp.RegisterRoutes(api, admin, categoryhttp.RouteDeps{Validator: v, Service: app.Categories})
+	producthttp.RegisterRoutes(api, admin, producthttp.RouteDeps{Validator: v, Service: app.Products})
+	inventoryhttp.RegisterRoutes(admin, inventoryhttp.RouteDeps{Validator: v, Service: app.Inventory})
+	carthttp.RegisterRoutes(authed, carthttp.RouteDeps{Validator: v, Service: app.Carts})
 	orderhttp.RegisterRoutes(
 		authed,
 		admin,
-		orderhttp.RouteDeps{Validator: v, Service: orderSvc, WriteLimiter: orderWriteLimiter},
+		orderhttp.RouteDeps{Validator: v, Service: app.Orders, WriteLimiter: orderWriteLimiter},
 	)
 	paymenthttp.RegisterRoutes(
 		api,
 		admin,
 		paymenthttp.RouteDeps{
 			Validator:     v,
-			Service:       paymentSvc,
-			WebhookSecret: cfg.Payment.WebhookSecret,
+			Service:       app.Payments,
+			WebhookSecret: deps.Config.Payment.WebhookSecret,
 			Logger:        deps.Logger,
 		},
 	)
 	shippinghttp.RegisterRoutes(
 		authed,
 		admin,
-		shippinghttp.RouteDeps{Validator: v, Service: shippingSvc, Orders: orderSvc},
+		shippinghttp.RouteDeps{Validator: v, Service: app.Shipping, Orders: app.Orders},
 	)
-	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{Validator: v, Service: reviewSvc})
-	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{Validator: v, Service: promotionSvc})
-	wishlisthttp.RegisterRoutes(authed, wishlisthttp.RouteDeps{Validator: v, Service: wishlistSvc})
-	notificationhttp.RegisterRoutes(authed, notificationhttp.RouteDeps{Service: notificationSvc})
-	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Service: dashboardSvc})
+	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{Validator: v, Service: app.Reviews})
+	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{Validator: v, Service: app.Promotions})
+	wishlisthttp.RegisterRoutes(authed, wishlisthttp.RouteDeps{Validator: v, Service: app.Wishlists})
+	notificationhttp.RegisterRoutes(authed, notificationhttp.RouteDeps{Service: app.Notifications})
+	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Service: app.Dashboard})
 
 	if deps.Config.App.Env == "development" {
 		mockgatewayserver.RegisterRoutes(
 			mux,
 			deps.Logger,
-			mockgatewayserver.WithWebhookSecret(cfg.Payment.WebhookSecret),
+			mockgatewayserver.WithWebhookSecret(deps.Config.Payment.WebhookSecret),
 		)
 	}
 

@@ -17,7 +17,7 @@ import (
 
 func TestE2ECheckoutRejectsWithdrawnProduct(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps)
+	handler := apihttp.NewRouter(testDeps, testApp)
 	ctx := context.Background()
 
 	catID := uuid.New()

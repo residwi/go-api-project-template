@@ -58,14 +58,13 @@ packages:
       Repository: {configs: *dual}
       InventoryReader: {configs: *dual}
       InventoryRegistrar: {configs: *dual}
-  # inventory needs a third destination for the reason product used to.
+  # inventory used to need a third destination for the same reason product
+  # did: internal/bootstrap tested an adapter built from this mock. That
+  # adapter is gone too -- bootstrap.New calls inventory.NewService directly --
+  # so inventory needs only the two destinations every other module gets.
   github.com/residwi/go-api-project-template/internal/modules/inventory:
     interfaces:
-      Repository:
-        configs:
-          - {dir: "{{.InterfaceDir}}", pkgname: "{{.SrcPackageName}}", filename: "mocks_test.go"}
-          - {dir: "{{.InterfaceDir}}/http", pkgname: "http", filename: "mocks_test.go"}
-          - {dir: "internal/bootstrap", pkgname: "bootstrap", filename: "mocks_inventory_test.go", structname: "MockInventoryRepository"}
+      Repository: {configs: *dual}
   github.com/residwi/go-api-project-template/internal/modules/cart:
     interfaces:
       Repository: {configs: *dual}

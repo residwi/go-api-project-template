@@ -17,20 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	cartpg "github.com/residwi/go-api-project-template/internal/modules/cart/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/notification"
-	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/postgres"
-	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	mockgateway "github.com/residwi/go-api-project-template/internal/modules/payment/mock"
-	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
-	productpg "github.com/residwi/go-api-project-template/internal/modules/product/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/promotion"
-	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 )
@@ -39,6 +27,7 @@ var (
 	testPool  *pgxpool.Pool
 	testRedis *redis.Client
 	testDeps  *apihttp.Deps
+	testApp   *bootstrap.App
 )
 
 func TestMain(m *testing.M) {
@@ -81,6 +70,8 @@ func TestMain(m *testing.M) {
 		Logger: testhelper.DiscardLogger(),
 	}
 
+	testApp = newTestApp(testDeps.Config)
+
 	os.Exit(m.Run())
 }
 
@@ -90,30 +81,44 @@ func setup(t *testing.T) {
 	testhelper.ResetRedis(t, testRedis)
 }
 
-// Composed the way cmd/worker does, so a saga test can drive a job directly.
-// SetOrderPaymentDeps closes the order/payment cycle, as NewRouter does.
+// newTestApp wires a bootstrap.App against testPool/testRedis for a given
+// Config. TestMain uses it for testApp; tests that need a different payment
+// gateway URL (a local httptest mock server) build their own Config and call
+// this instead.
+//
+// internal/transport/http/router_test.go carries its own copy. Keep them in step.
+func newTestApp(cfg *config.Config) *bootstrap.App {
+	app, err := bootstrap.New(bootstrap.Deps{
+		Config: cfg,
+		Pool:   testPool,
+		Cache:  testRedis,
+		Logger: testhelper.DiscardLogger(),
+	})
+	if err != nil {
+		panic(err)
+	}
+	return app
+}
+
+// newPaymentService wires a whole App against a custom gateway URL (a local
+// httptest mock server) and hands back just the payment service, so a saga
+// test can drive a job directly. SetOrderPaymentDeps, inside bootstrap.New,
+// closes the order/payment cycle, as NewRouter does.
+//
+// internal/transport/http/router_test.go carries its own copy. Keep them in step.
 func newPaymentService(t *testing.T, gatewayURL string) *payment.Service {
 	t.Helper()
 
-	txRunner := database.NewTxRunner(testPool)
-	inventorySvc := inventory.NewService(inventorypg.New(testPool))
-	productSvc := bootstrap.NewProductService(productpg.New(testPool), inventorySvc)
-	cartSvc := bootstrap.NewCartService(cartpg.New(testPool), txRunner, productSvc, testDeps.Config.App.MaxCartItems)
-	promotionSvc := promotion.NewService(promotionpg.New(testPool), txRunner)
-	notificationSvc := notification.NewService(notificationpg.New(testPool), testhelper.DiscardLogger())
-
-	orderSvc := bootstrap.NewOrderService(
-		orderpg.New(testPool), txRunner, cartSvc, inventorySvc, promotionSvc, notificationSvc,
-		testhelper.DiscardLogger(),
-	)
-	gw := mockgateway.New(gatewayURL, 5*time.Second)
-	paymentSvc := bootstrap.NewPaymentService(
-		paymentpg.New(testPool), txRunner, gw, orderSvc, inventorySvc, promotionSvc,
-		testhelper.DiscardLogger(),
-	)
-	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
-
-	return paymentSvc
+	return newTestApp(&config.Config{
+		App:  testDeps.Config.App,
+		JWT:  testDeps.Config.JWT,
+		CORS: testDeps.Config.CORS,
+		Payment: config.PaymentConfig{
+			Gateway:        "mock",
+			GatewayURL:     gatewayURL,
+			GatewayTimeout: 5 * time.Second,
+		},
+	}).Payments
 }
 
 // ReserveBatch and DeductBatch need a row to update, and these flows insert

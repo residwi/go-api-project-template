@@ -23,7 +23,7 @@ import (
 
 func TestE2EOrderFlow(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps)
+	handler := apihttp.NewRouter(testDeps, testApp)
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -130,7 +130,7 @@ func TestE2EOrderFlow(t *testing.T) {
 
 func TestE2ECancelOrderFlow(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps)
+	handler := apihttp.NewRouter(testDeps, testApp)
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -243,7 +243,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 		Cache:  testRedis,
 		Logger: testhelper.DiscardLogger(),
 	}
-	handler := apihttp.NewRouter(deps)
+	handler := apihttp.NewRouter(deps, newTestApp(deps.Config))
 	ctx := context.Background()
 
 	catID := uuid.New()

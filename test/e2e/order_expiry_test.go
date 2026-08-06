@@ -8,29 +8,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/money"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-// ExpireStale touches only the repo and inventory deps, so cart, promotion and
-// notification are left nil.
+// ExpireStale touches only the repo and inventory deps -- testApp.Orders is
+// fully wired, but releaseOrderHolds guards its coupon release on a non-empty
+// CouponCode, which the orders seeded below never set, so cart, promotion and
+// notification never fire.
 func newExpiryService(t *testing.T) *order.Service {
 	t.Helper()
-	return bootstrap.NewOrderService(
-		orderpg.New(testPool),
-		database.NewTxRunner(testPool),
-		nil,
-		inventory.NewService(inventorypg.New(testPool)),
-		nil,
-		nil,
-		testhelper.DiscardLogger(),
-	)
+	return testApp.Orders
 }
 
 func seedExpiryUser(t *testing.T) uuid.UUID {

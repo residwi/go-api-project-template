@@ -43,7 +43,7 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 		Cache:  testRedis,
 		Logger: testhelper.DiscardLogger(),
 	}
-	handler := apihttp.NewRouter(webhookDeps)
+	handler := apihttp.NewRouter(webhookDeps, newTestApp(webhookDeps.Config))
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -181,7 +181,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		Cache:  testRedis,
 		Logger: testhelper.DiscardLogger(),
 	}
-	handler := apihttp.NewRouter(deps)
+	handler := apihttp.NewRouter(deps, newTestApp(deps.Config))
 	ctx := context.Background()
 
 	catID := uuid.New()

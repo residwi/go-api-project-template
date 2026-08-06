@@ -44,7 +44,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		Cache:  testRedis,
 		Logger: testhelper.DiscardLogger(),
 	}
-	handler := apihttp.NewRouter(webhookDeps)
+	handler := apihttp.NewRouter(webhookDeps, newTestApp(webhookDeps.Config))
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -242,7 +242,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		Cache:  testRedis,
 		Logger: testhelper.DiscardLogger(),
 	}
-	handler := apihttp.NewRouter(webhookDeps)
+	handler := apihttp.NewRouter(webhookDeps, newTestApp(webhookDeps.Config))
 	ctx := context.Background()
 
 	catID := uuid.New()
