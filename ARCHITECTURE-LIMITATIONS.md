@@ -1,6 +1,6 @@
 # Limitations this architecture creates
 
-`ARCHITECTURE.md` record thirteen decisions and fifteen things this codebase deliberately not do. Every one bought something and charged for it. This file the invoice.
+`ARCHITECTURE.md` record fourteen decisions and fifteen things this codebase deliberately not do. Every one bought something and charged for it. This file the invoice.
 
 Exist because this repo a **template**: structure is product, someone about to copy into real system. Doc listing only what design make easy teach nothing — design never in danger of blame there. Reader need list of moments where they hit wall, so they recognize wall as this design's, not own mistake.
 
@@ -218,13 +218,77 @@ Two further consequences worth knowing before writing tests:
 
 ## The composition site is deliberately tedious
 
-**Where you hit it:** you open `internal/transport/http/router.go` and find 27 aliased adapter imports (`cartpg`, `carthttp`, `orderpg`, …) above 99-line `NewRouter`.
+**Where you hit it:** you open `internal/bootstrap/app.go` and find 15 aliased adapter imports (`cartpg`, `orderpg`, `userredis`, …) above a 75-line `New`.
 
-13 packages named `postgres` and 14 feature packages named `http`, so every site wiring them need aliases. `cmd/worker/main.go` need 7 of its own. `ARCHITECTURE.md` §0 and §3 own this: in product codebase the subpackage split would be hard to justify, here it is the point — physical boundary make `payment` importing `payment/postgres` a compile error not a convention.
+Phase 0 made `bootstrap.New` the single composition root, so the tedium moved. It used to sit entirely in `internal/transport/http/router.go`; now `router.go` still carries its own 15 aliased imports — `authhttp`, `carthttp`, … — but every one of them is an `http` adapter (plus the dev-only mock gateway's route registrar), because `NewRouter` only ever builds routes from an already-wired `*bootstrap.App`. The `postgres`/`redis` half of the old pile — the half that actually constructs repositories — lives in `app.go` now, where every service gets built.
 
-**What it costs beyond ugliness:** adding feature mean touching one long function every other feature also touch, so feature branches collide there. `NewRouter` carry `//nolint:funlen` with stated reason, and cost concentrated in one file on purpose — but still concentrated in _one_ file.
+13 packages named `postgres`, 14 feature packages named `http`, and one named `redis`, so every site wiring them needs an alias. `cmd/worker/main.go` needs 3 of its own, for the two job-queue repositories and the payment worker's processor. `ARCHITECTURE.md` §0 and §3 own this: in a product codebase the subpackage split would be hard to justify, here it is the point — physical boundary makes `payment` importing `payment/postgres` a compile error, not a convention.
 
-**What you would do:** leave it. Splitting `NewRouter` per feature scatter route table, and single readable list of every route in system worth more than diff conflicts. If it become unbearable, split by _layer_ (build all repositories, then all services, then all routes) not by feature.
+**What it costs beyond ugliness:** adding a feature means touching one long function every other feature also touches, so feature branches collide there. Neither `New` nor `NewRouter` carries a `//nolint:funlen` any more — both fit comfortably under the linter's 120-line limit (75 and 82 lines respectively) — so the tedium here is pure import-alias noise, not the cognitive-complexity kind `order.Service` and `payment.Service` still carry `//nolint` for elsewhere in the tree. Cost concentrated in one file on purpose, but still concentrated in _one_ file — now `app.go` instead of `router.go`.
+
+**What you would do:** leave it. Splitting `New` per feature scatters the wiring graph, and a single readable list of every service and what it depends on is worth more than diff conflicts. If it becomes unbearable, split by _layer_ (build every repository, then every service) not by feature.
+
+## A duplicate product id in a stock-adjustment map is silently dropped, not summed
+
+**Where you hit it:** you build a `map[uuid.UUID]int` for `inventory.Service.ReserveBatch` / `DeductBatch` / `Restore` and write to the same product id twice while assembling it — `m[id] = 2`, then later `m[id] = 3` for the same `id`. No error, no sum. The map ends up holding `3`; the `2` is gone.
+
+Every batch method on `inventory.Repository` and `inventory.Service` — `ReserveBatch`, `ReleaseBatch`, `DeductBatch`, `RestockBatch`, `Restore` — takes `map[uuid.UUID]int`, and `buildStockValues` (`internal/modules/inventory/postgres/repository.go`) builds its `VALUES` list straight off that map. A map holds one value per key, full stop, so there is nothing left to sum by the time this code runs. That is not the gap. The gap sits upstream of it: nothing stops the *construction* of the map from writing the same key twice, and when that happens the second write overwrites the first with no signal at all — not a panic, not an error return, not a log line.
+
+**Why it is safe today.** Every current caller builds the map from data that cannot contain a duplicate product id before this code ever runs:
+
+- `cart_items` carries `UNIQUE (cart_id, product_id)`, and `cart.Service.AddItem` upserts via `ON CONFLICT (cart_id, product_id) DO UPDATE` — a cart cannot hold two rows for one product.
+- `order.Service.PlaceOrder` builds its reservation map one entry per cart-snapshot item, inheriting that guarantee directly — the map and the cart are keyed by the same product ids, one-for-one.
+- `order_items` — read back by `finalizeFreeOrder`, `cancelWithReversal`, `releaseOrderHolds`, and payment's refund and charge-success paths via `ListItemsByOrderID` — has **no unique constraint on `(order_id, product_id)`**, only `PRIMARY KEY (id)` and a plain index on `order_id` (`db/migrations/20260424120005_create_orders.sql`). It is unique-per-product today only because the one write path that populates it (`PlaceOrder` → `repo.CreateItems`, one row per cart-snapshot item) already can't produce duplicates. The invariant holds one level removed from any enforcement of its own.
+
+**What it costs.** Nothing in `inventory`, nothing in the four call sites, and no database constraint enforces this. "No current caller can trigger it" is a fact about the callers, not about the map type — the type permits the duplicate write; it just resolves it wrong, silently, when one happens.
+
+**What breaks it.** Any future path that inserts an `order_items` row without going through the cart snapshot — a bulk admin order-creation endpoint, an import job, a split-shipment line-item model (see multi-warehouse, above) — could write two rows for the same product on one order without violating any constraint that exists today. The next map built from that data drops one of the two quantities silently; inventory reserves or deducts less than the order actually needs. Nothing crashes, nothing logs. The order just ships short.
+
+**What you would do:** put `UNIQUE (order_id, product_id)` on `order_items` — the better fix, since an order-line model without split-shipment support has no legitimate reason for two rows on one product, and a constraint stops the bad row from existing rather than checking for it after the fact every time it's read. A `len(map) == len(items)` assertion at each of the four call sites is the cheaper stopgap if you want it sooner than a migration — but do not add that guard speculatively ahead of a real caller that needs it. Today none does; a guard for a case nothing can reach is exactly the kind of code this refactor was removing.
+
+## `order/contract.Order` is one struct serving two different read shapes, and nothing marks which fields a given call path actually populates
+
+**Where you hit it:** `order/contract.Order` has six fields (`ID`, `UserID`, `Total`, `Status`, `CouponCode`, `StockDeducted`, `StockReversed`, `Dispatched`). `order.Service.GetSnapshot` — payment's read — populates every field except `ID`/`UserID`. `order.Service.GetInfo` — shipping's ownership check — populates only `ID`, `UserID` and `Status`; the other five stay at their zero values. Both methods return the same Go type, so the compiler enforces nothing about which subset a given caller is allowed to read. A future change to `shipping.Service` that read `orderInfo.Dispatched` instead of comparing `Status` directly would compile clean and always observe `false` — not because the order is never dispatched, but because `GetInfo` never sets that field. Same story for `payment` if it ever received a value built by `GetInfo` instead of `GetSnapshot` — `Total` would read as a zero `money.Money{}` with an empty `Currency`, and `CouponCode` as `""` indistinguishable from "no coupon."
+
+A two-types shape — `Snapshot` for payment, `Info` for shipping — would catch this at compile time: reading `.Total` off an `Info` value would not compile, because `Info` would have no such field. `contract.Order` ships as one type instead; the doc comments on it and on each of `GetSnapshot`/`GetInfo` say which fields a given path fills, but a doc comment is not something `go vet` or `golangci-lint` reads.
+
+**What it costs.** Nothing today: `payment` only ever calls `GetSnapshot` and reads `Total`/`Status`/`CouponCode`/`StockDeducted`/`StockReversed`/`Dispatched`; `shipping` only ever calls `GetInfo` and reads `ID`/`UserID`/`Status`.
+
+**What breaks it.** Any new consumer of either method, or any consumer that starts calling the other one instead of the one it was written against, silently reads zero values for fields the call path it's actually using never populates. No panic, no error, no lint warning — just a `Dispatched` that is always `false`, or a `Total` that is always zero, wherever someone reaches for the field the wrong method leaves unset.
+
+**What you would do:** split `contract.Order` back into two types — `contract.Snapshot` (payment's six fields) and `contract.Info` (`ID`, `UserID`, `Status`) — so a call site that reads a field its method never populates fails to compile instead of running with a quietly wrong zero value. The two types would duplicate `Status` and nothing else, which is a small enough overlap that the duplication is cheaper than the blind spot. Do this the next time either port's shape changes, rather than as a standalone migration — `payment` and `shipping` would both need their port signatures and every call site touched either way.
+
+## `cmd/worker` builds its own second handle on the tables `bootstrap.App`'s services already wrap
+
+**Where you hit it:** `bootstrap.App` composes services (`Orders *order.Service`, `Payments *payment.Service`, …) and nothing storage-shaped beyond `TxRunner` and `Gateway`. `internal/platform/jobs.Runner[T]` needs two things per queue: a `Processor[T]` (`Process`, satisfied by the service) and a `Queue[T]` (`Claim` + `Prune`, satisfied only by the *repository* — `payment.Repository`, `notification.Repository`). A service never embeds or exposes its own repository (rule 9: a service holds no pool), so `App` has no field that is a `jobs.Queue[T]`. `cmd/worker/main.go` therefore calls `paymentpg.New(pool)` and `notificationpg.New(pool)` directly, right next to `bootstrap.New(bootstrap.Deps{Pool: pool, ...})`, which constructs its *own*, separate `paymentpg.New(d.Pool)` and `notificationpg.New(d.Pool)` internally to hand to `payment.NewService` / `notification.NewService`. Two independent repository values wrap the one pool for the same tables, built at two call sites that have no reference to each other. The comment beside the worker's copy says as much: "the queue side still needs the bare repository: a service holds no pool (rule 9), but Runner drains payment_jobs/notifications by Claim/Prune on the repository itself, not through the service."
+
+**Why it is safe today.** `postgres.New(pool)` constructors here are stateless wrappers holding only the `*pgxpool.Pool` reference — no per-instance state, no cache, nothing that a second instance could get out of sync with the first. Two `paymentpg.New(pool)` values behave identically because they are, structurally, the same value twice.
+
+**What it costs.** Nothing today. The cost is that the composition root is no longer the *only* place `cmd/worker` reaches for a feature's adapter — `internal/bootstrap` remains the sole importer of `paymentpg`/`notificationpg` inside `internal/`, satisfying rule 3, but `cmd/worker/main.go` (outside `internal/`, so outside `check-boundaries.sh`'s reach entirely) also imports them directly, for the queue-side handle `App` cannot provide.
+
+**What breaks it.** The day a feature's `postgres.New` stops being a stateless pool wrapper — a connection-scoped cache, a per-instance prepared-statement handle, anything with state — the worker's standalone repository and `bootstrap.New`'s internal one stop being interchangeable, and nothing signals that the two construction sites need to agree. A reviewer checking "does the worker use the same wiring as the API" would have to know to look in two files instead of one.
+
+**What you would do:** give `App` a way to hand back the `jobs.Queue[T]` alongside the `jobs.Processor[T]` for each queue-draining feature — either export the repository too (`App.PaymentRepo payment.Repository`, mirroring `TxRunner`/`Gateway`'s precedent of exposing infrastructure a binary needs beyond services), or add a constructor on `App` per queue (`func (a *App) PaymentQueue() payment.Repository`). Either removes `cmd/worker`'s standalone `paymentpg.New`/`notificationpg.New` calls and makes `bootstrap.New` the actual single source of every handle the worker binary needs, not just its services.
+
+## Config load order is load-bearing and unchecked
+
+**Where you hit it:** `order.LoadConfig(jobsLease time.Duration)` and `payment.LoadConfig(appEnv string, jobsLease time.Duration)` each validate their own timeout against a `jobsLease` parameter, not against `infra.Worker.LeaseDuration` directly. Both real call sites — `server.go`'s `loadModuleConfigs` helper and `cmd/worker/main.go`'s `run` — pass `infra.Worker.LeaseDuration` after `config.LoadInfra()` has already succeeded, and separately set `jobCfg.LeaseDuration = infra.Worker.LeaseDuration` for the job runner itself. Today those two reads of `infra.Worker.LeaseDuration` — one that gets validated, one that actually runs — agree only because both call sites read the same field of the same `infra` value in the same function. Nothing in either `LoadConfig`'s signature ties the parameter it validates to the value the runner will actually use: pass a different `time.Duration` — a leftover local, a value computed before infra finished loading, another config's default — and `LoadConfig` validates that number while the runner keeps using whatever `infra.Worker.LeaseDuration` actually resolved to. The two can diverge with neither `LoadConfig` nor the runner ever comparing them.
+
+**Why it is safe today.** Both real call sites thread the same `infra.Worker.LeaseDuration` value through unchanged — from `LoadInfra`, to both `LoadConfig`s, to `jobCfg`. Every test in `internal/modules/order/config_test.go` / `payment/config_test.go` passes an explicit literal duration and checks the error, not the interaction with a separately-loaded infra value.
+
+**What it costs.** Nothing today. Both call sites get it right, and a comment near each names why: `server.go`'s doc comment on `loadModuleConfigs` and `cmd/worker/main.go`'s inline comment above `auth.LoadConfig` both say "infra must load first" in roughly those words. A comment is not a compiler.
+
+**What breaks it.** A future call site that passes a `time.Duration` other than `infra.Worker.LeaseDuration` — because it ran before infra finished loading, or reused a variable meant for something else — gets a validation result that says nothing about the lease the runner will actually use. If that placeholder value happens to land inside the range both `LoadConfig`s accept (above payment's 3×`PAYMENT_GATEWAY_TIMEOUT` floor, below order's `StaleProcessingThreshold` ceiling), boot succeeds having validated the wrong number, and the real `infra.Worker.LeaseDuration` — whatever it actually is, including a value outside that safe range — never gets checked against either threshold at all. That is how a worker ends up leasing jobs for longer than the recovery sweep waits before reverting them.
+
+**What you would do:** nothing speculative ahead of a second call site that gets this wrong — today there are exactly two, and both thread the same value through by construction. If a third ever appears, either have `LoadInfra` return a lease-bearing type that both `LoadConfig`s require as their parameter instead of a bare `time.Duration` — a compile-time guarantee that the validated value came from a successful infra load — or keep the load sequence in the one function per binary that already owns it (`loadModuleConfigs`, `cmd/worker/main.go`'s `run`) and never inline a module's `LoadConfig` at a new use site.
+
+## A contract package can grow into the shared domain model `internal/shared/` was rejected for being
+
+**Where you hit it:** `<feature>/contract/` is imported by every consumer of that feature, so a field added there is public API. Nothing limits what may go in one, and the pressure is always to add "just one more field" rather than to ask why the consumer needs it. `db/OWNERSHIP.md`-style enforcement does not apply here: a struct field is not a table, so nothing machine-checks what a contract package is allowed to carry the way check 2 machine-checks table ownership.
+
+`order/contract.Order` is already the shape this looks like from the inside: one struct with eight fields, populated differently by two different producer methods for two different consumers (see the entry above). That happened inside a single phase, with both call sites known in advance. A contract package accreting fields one unrelated PR at a time, each individually reasonable, is the same failure with no phase boundary forcing a review of the whole shape at once.
+
+**What you would do:** before adding a field to a `contract/` package, check whether the consumer needs the *value* or the *decision*. `order/contract.Order.Dispatched bool` is a decision `order` already made; a `Status string` field plus the consumer re-deriving "is this dispatched" from it would be the model leaking instead — the same distinction `ARCHITECTURE.md` §10 draws between `payment.OrderUpdater.MarkPaid` (an intent) and an ad-hoc from/to status list (the mechanics). `ARCHITECTURE.md` decision 6 rejected `internal/shared/` for the same reason a contract package earns scrutiny: an owned, single-purpose surface with one publisher and named consumers stays legible; an unowned one that answers "what if we just add a field" enough times becomes a second copy of the schema with none of decision 6's ownership discipline.
 
 ## Context log attributes are write-only
 
@@ -258,6 +322,6 @@ Do copy it if you want boundaries checkable not aspirational, and willing to pay
 
 Read alongside:
 
-- `ARCHITECTURE.md` — the thirteen decisions and fifteen rejections these are shadow of.
+- `ARCHITECTURE.md` — the fourteen decisions and fifteen rejections these are shadow of.
 - `db/OWNERSHIP.md` — table-ownership map, foreign-key inventory, and full blind-spot list for `make check-boundaries`.
 - `AGENTS.md` — working rules, and which of them machine-checked.

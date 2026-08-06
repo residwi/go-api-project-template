@@ -4,7 +4,7 @@ Orientation for agents and humans in this repo. Describes tree as it actually is
 
 Three docs carry the reasoning; this one no duplicate:
 
-- **`ARCHITECTURE.md`** — thirteen decisions that shaped this codebase, fifteen things it deliberately not do, each with cost.
+- **`ARCHITECTURE.md`** — fourteen decisions that shaped this codebase, fifteen things it deliberately not do, each with cost.
 - **`ARCHITECTURE-LIMITATIONS.md`** — what those decisions make hard or impossible, and what you must build to get past each. Read before proposing feature that crosses module boundary.
 - **`db/OWNERSHIP.md`** — which module owns which table, parsed at run time by `make check-boundaries`, plus what that check cannot see.
 
@@ -26,11 +26,11 @@ cmd/mockgateway/          dev-only fake payment gateway binary
 internal/
   apperror/               error vocabulary (ErrNotFound, ErrBadRequest, ...); no feature deps
   money/                  the Money value object; no feature deps
-  config/                 godotenv + envconfig; Load() then validate()
-  bootstrap/              cross-feature adapters + constructors for cross-dependent services
+  bootstrap/              the composition root: builds every service, wires cross-module
+                          ports by name-match, breaks the order/payment cycle after construction
   transport/http/         server.go, router.go, middleware/, response/
   platform/               generic infrastructure, no feature deps:
-                          cache/ database/ jobs/ logger/ paging/ slug/ storage/ validator/
+                          cache/ config/ database/ jobs/ logger/ paging/ slug/ storage/ validator/
   testhelper/             shared dockertest harness (Postgres + Redis containers)
   modules/<feature>/      14 feature modules (see below)
 db/migrations/            goose SQL migrations
@@ -43,7 +43,7 @@ scripts/check-boundaries.sh   the architectural checks
 `internal/modules/` holds the **14 features** — `auth cart category dashboard
 inventory notification order payment product promotion review shipping user
 wishlist`. Everything else under `internal/` is infrastructure —
-`apperror bootstrap config money platform testhelper transport`.
+`apperror bootstrap money platform testhelper transport`.
 `scripts/check-boundaries.sh` derives feature list structurally, reading directory names under `internal/modules/`, so adding feature enough to enrol it in boundary checks; no denylist to remember.
 Being infrastructure exempts directory from checks 2 and 3 _ownership_ questions, not from check 3 itself: only wiring layer — `bootstrap` and `transport`, script's `WIRING_DIRS` — may import feature's adapter, so `internal/platform/` importing `internal/modules/product/postgres` still fails.
 
@@ -71,6 +71,17 @@ Every feature has `model.go`, `service.go`, `repository.go` except `auth`, which
 
 Ports usually in `ports.go`, but two features name file after module they depend on instead: `internal/modules/category/product.go` declares `ProductCounter`, and `internal/modules/product/inventory.go` declares `InventoryReader` and `InventoryRegistrar`. Either fine. Rule about _who declares the interface_ (consumer), not filename.
 
+Seven of the fourteen features — `auth cart inventory order payment product
+user` — also have a `contract/` package: the one place another feature may
+import a *type* from, as opposed to merely satisfying an interface. Holds only
+the structs a consumer's port names in its return type (`user/contract.User`,
+`product/contract.Product`, `inventory/contract.StockState`, …), imports no
+module and no platform package, so importing it can never pull the producer's
+implementation along. A module gets one only when a struct — not a scalar,
+not something a producer's service already satisfies by name — must cross a
+port; the other seven features never pass one and have no `contract/` to
+show for it. `ARCHITECTURE.md` decision 13 is why, and its cost.
+
 **Subpackage tree deliberately non-uniform. Do not tidy it into uniformity.** Feature has subpackage only where adaptation needed:
 
 | Feature      | Subpackages                                                       |
@@ -81,7 +92,7 @@ Ports usually in `ports.go`, but two features name file after module they depend
 | `user`       | `postgres/ http/ redis/` — only feature with second backing store |
 | the other 10 | `postgres/ http/`                                                 |
 
-`notification` has no `worker/` package because `notification.Service` satisfies `jobs.Processor` direct. That absence is the lesson — `ARCHITECTURE.md` decision 4 — not omission to fix. `user/redis/` is positive case of same rule: subpackage exists where feature has that kind of backing store, and `user` only feature caching, so `ls internal/modules/user/` still tells truth about which features do. Feature declares one port per store — `repository.go` for Postgres, `cache.go` for cache — and gets one adapter subpackage per port: `user.Repository` pairs with `postgres/`, `user.StatusCache` with `redis/`. That adapter requires Redis 8.0 or later; built on `HSETEX`, which sets hash fields and their expiry in one atomic command, and that command not exist on earlier Redis. There are 13 packages named `postgres`, 14 feature packages named `http`, and one named `redis`, which is why `internal/transport/http/router.go` needs 28 aliased adapter imports.
+`notification` has no `worker/` package because `notification.Service` satisfies `jobs.Processor` direct. That absence is the lesson — `ARCHITECTURE.md` decision 4 — not omission to fix. `user/redis/` is positive case of same rule: subpackage exists where feature has that kind of backing store, and `user` only feature caching, so `ls internal/modules/user/` still tells truth about which features do. Feature declares one port per store — `repository.go` for Postgres, `cache.go` for cache — and gets one adapter subpackage per port: `user.Repository` pairs with `postgres/`, `user.StatusCache` with `redis/`. That adapter requires Redis 8.0 or later; built on `HSETEX`, which sets hash fields and their expiry in one atomic command, and that command not exist on earlier Redis. There are 13 packages named `postgres`, 14 feature packages named `http`, and one named `redis`, which is why the composition root (`internal/bootstrap/app.go`) needs 15 aliased adapter imports to build every service, and `internal/transport/http/router.go` needs another 15 (14 `http` packages plus the dev-only mock gateway's route registrar) to mount their routes.
 
 Inside `http/`, file split by **handler role**, not endpoint. Unqualified name = default handler; `admin_` and `webhook_` = qualified exceptions. Every feature holds subset of exactly these eight names and nothing else:
 
@@ -161,7 +172,7 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 
 `make check-boundaries` runs `scripts/check-boundaries.sh` and fails build on any of these. This part worth memorising — these rules you cannot violate quiet.
 
-1. **No `json` tag outside `internal/modules/<feature>/http/`.** Domain models carry no transport concerns; every endpoint owns its request DTO, response DTO, explicit mapping. Field private unless DTO names it. Also checked: `json:"-"` must not appear anywhere under `internal/` outside http adapter (no exemption at all, tests included), and no file named `dto.go` may exist anywhere under `internal/` — check not scoped to feature directory or depth, so `internal/modules/<feature>/http/dto.go` and `internal/platform/dto.go` fail it same as `internal/modules/<feature>/dto.go` does. Exemptions allowlisted by path _with stated reason_ in script — `internal/modules/payment/gateway.go`, external gateway's wire contract not ours — plus `internal/config/` and `internal/platform/` by location.
+1. **No `json` tag outside `internal/modules/<feature>/http/`.** Domain models carry no transport concerns; every endpoint owns its request DTO, response DTO, explicit mapping. Field private unless DTO names it. Also checked: `json:"-"` must not appear anywhere under `internal/` outside http adapter (no exemption at all, tests included), and no file named `dto.go` may exist anywhere under `internal/` — check not scoped to feature directory or depth, so `internal/modules/<feature>/http/dto.go` and `internal/platform/dto.go` fail it same as `internal/modules/<feature>/dto.go` does. Exemptions allowlisted by path _with stated reason_ in script — `internal/modules/payment/gateway.go`, external gateway's wire contract not ours — plus `internal/platform/` by location, which covers `internal/platform/config/` too: config structs carry `envconfig` tags, not `json`, but the exemption matters so adding one is not mistaken for a domain leak.
 2. **A feature's `postgres` adapter only names tables it owns.** Ownership read out of `db/OWNERSHIP.md` at run time, so document and check cannot drift. Keywords: `FROM`, `JOIN`, `INSERT INTO`, `UPDATE`, `TRUNCATE`, `COPY`, matched across newlines and through quoted identifiers, over whole `postgres/` subtree. CTE named after real table is own violation, not exemption — else one `WITH orders AS (...)` silences every reference to `orders` in file. Check also validates document itself: duplicate rows, rows for tables no migration creates, and tables no row claims all fail. `dashboard` exempt by name — reporting read-model. Change ownership in `db/OWNERSHIP.md`; no list in script to keep in step.
 3. **Nothing outside the wiring layer imports a feature's `postgres`, `http` or
    `redis` package.** Features and shared infrastructure alike; only `internal/bootstrap/` and `internal/transport/` may wire adapters together.
@@ -185,18 +196,28 @@ Read "What it does not catch" section of `db/OWNERSHIP.md` before trusting green
 
 ### Conventions — not checked, so they need you
 
-6. **A feature never imports another feature.** Declare interface _the consumer_ needs in consumer's own package (`internal/modules/order/ports.go` declares what `order` needs from inventory), and let `internal/bootstrap/` supply adapter. Often other module's service satisfies interface direct and no adapter written — `promotion.Service` already satisfies `payment.CouponReleaser`, and `notification.Service` already satisfies `jobs.Processor`. No shared ports package, and adding one would defeat point. _(Rule 3 catches crudest violation — importing sibling's adapter — but importing sibling's root package not caught.)_
+6. **A feature never imports another feature's root package or adapter.** Declare interface _the consumer_ needs in consumer's own package (`internal/modules/order/ports.go` declares what `order` needs from inventory). `internal/bootstrap/` supplies zero adapters now; two mechanisms satisfy the port instead:
+   - **Name-match.** The producer's service already has a method named what the consumer's port asks for, so the service value itself satisfies the interface with no adapter written — `promotion.Service` already satisfies `payment.CouponReleaser`, `notification.Service` already satisfies `jobs.Processor`, `order.Service` satisfies both `payment.OrderUpdater` and `shipping.OrderProvider` directly.
+   - **A `<feature>/contract/` package**, when what crosses is a struct rather than a scalar or an interface a producer already satisfies. The consumer's port still names the type it needs (`auth.UserProvider.GetByID(ctx, id) (usercontract.User, error)`); the contract package only supplies the shape, never the interface.
+
+   No shared ports package, and adding one would defeat the point. _(Rule 3 catches the crudest violation — importing a sibling's `postgres`/`http`/`redis` adapter — but importing a sibling's root package directly, as opposed to its `contract/` package, is not caught.)_
 7. **Services take `database.TxRunner`, never `*pgxpool.Pool`.** Service needs atomicity, not DB handle. `TxRunner` declared once in `internal/platform/database` not per consumer — one deliberate exception to rule 6's consumer-declaration pattern, because features already import `platform/database`. Service that opens no transaction takes no runner at all.
 8. **Money is `money.Money`, never an `int64` beside a `Currency string`.** Scope is four features: `order`, `payment`, `product`, `cart`. `promotion` and `dashboard` stay on `int64` for stated reasons — `ARCHITECTURE.md` §10 and `ARCHITECTURE-LIMITATIONS.md`. `Money` carries no `json` tag and implements no `sql.Scanner`: each adapter maps it explicit, because wire shapes genuinely differ per endpoint. No float constructor and no `Div`.
 9. **A service runs no SQL and holds no pool.** Every read and write goes through feature's repository interface; `postgres` adapter owns pool and reaches it with `database.DB(ctx, pool)`, which returns context's transaction if there is one. Service composes several repository calls into one unit of work via its `TxRunner`, and transaction propagates to every repository — own and other features' — through `ctx`.
-10. **Order status changes only through `order.Service.Apply`.** Every guarded transition is named `order.Transition` value in `internal/modules/order/transition.go` (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other features depend on _intent_ methods on their own port interface (`payment.OrderUpdater.MarkPaid`, `shipping.OrderUpdater.MarkShipped`), and `internal/bootstrap/` adapter maps each intent to its transition. Never write ad-hoc from/to status list at call site.
-11. **Inventory reversal goes through `inventory.Service.Restore(ctx, items,
-prior StockState)`.** Inventory decides whether that means releasing reservation or restocking deducted goods; callers supply order's prior state, never mechanics.
+10. **Order status changes only through `order.Service.Apply`.** Every guarded transition is named `order.Transition` value in `internal/modules/order/transition.go` (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other features depend on _intent_ methods on their own port interface (`payment.OrderUpdater.MarkPaid`, `shipping.OrderUpdater.MarkShipped`), and `order.Service` itself implements each — `MarkPaid`, `MarkRefunded`, `MarkShipped` all call `Apply` with the right transition internally, so payment and shipping wire to `order.Service` by name-match, no adapter needed. Never write ad-hoc from/to status list at call site.
+11. **Inventory reversal goes through `inventory.Service.Restore(ctx, items
+map[uuid.UUID]int, prior contract.StockState)`.** Inventory decides whether that means releasing reservation or restocking deducted goods; callers supply order's prior state, never mechanics. `StockState` lives in `inventory/contract` — `order` is the caller and names the type without importing inventory's implementation.
 12. **Background job workers use `platform/jobs`.** Feature draining queue implements `jobs.Queue[T]` (`Claim` + `Prune`) on its repository and `jobs.Processor[T]` (`Process`) on its service, plus optional `jobs.Sweeper` for per-tick housekeeping. Binary builds `jobs.Runner[T]`. Never hand-roll ticker/lease/poll loop — runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
 13. **Repository reads use `pgx.CollectRows`**, never hand-rolled `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and build keyset predicates with `database.KeysetCursor()`.
 14. **Handlers use the shared helpers.** Decode and validate with `response.Bind[T](w, r, h.validator)`; read caller with `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks.
-15. **New config invariants go in `Config.validate()`**
-    (`internal/config/config.go`), so misconfiguration aborts boot instead of surfacing later as runtime error. Do not guard per use site.
+15. **New config invariants go in the owning type's own loader.** Infra-level
+    invariants go in `Infra.validate()` (`internal/platform/config/config.go`);
+    module-owned invariants are checked inline inside that module's own
+    `LoadConfig` (`auth.LoadConfig`, `cart.LoadConfig`, `order.LoadConfig`,
+    `payment.LoadConfig`), since each module loads its own env vars now and
+    there is no longer one central `Config.validate()` for every invariant to
+    share. Either way, misconfiguration aborts boot instead of surfacing later
+    as a runtime error. Do not guard per use site.
 16. **Request-scoped attributes are named once, at the edge.**
     `logger.WithAttrs(ctx, ...)` stashes them and `logger.ContextHandler`
     merges them into every record below, so no function grows a parameter
@@ -262,14 +283,14 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 - Never commit `.env`, secrets or API keys.
 - Run `make check-boundaries`, `make vet` and `make test` before calling change complete. `make all` does all three plus lint and build.
 - Do not add third-party router.
-- Do not suppress lint or vet findings with `//nolint` without justification comment on same line — see `NewRouter`'s for expected form.
+- Do not suppress lint or vet findings with `//nolint` without justification comment on same line — see `order.Service`'s checkout method (`internal/modules/order/service.go`, `//nolint:gocognit,funlen // checkout orchestrates idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`) for expected form.
 - Do not make subpackage tree uniform, and do not add pass-through adapter package to fill slot.
 - Backward compatibility explicitly **not** a goal here. API shapes may change where better design demands — but say so when they do.
-- When adding feature: create `internal/modules/<feature>/` with own `model.go` / `service.go` / `repository.go`, put SQL in `internal/modules/<feature>/postgres/` and handlers in `internal/modules/<feature>/http/`, add row per owned table to `db/OWNERSHIP.md`, register routes in `internal/transport/http/router.go`, and put any cross-feature adapter in `internal/bootstrap/`. Then run `make check-boundaries` — new feature with `postgres` adapter and no ownership row fails it by design.
+- When adding feature: create `internal/modules/<feature>/` with own `model.go` / `service.go` / `repository.go`, put SQL in `internal/modules/<feature>/postgres/` and handlers in `internal/modules/<feature>/http/`, add row per owned table to `db/OWNERSHIP.md`, register routes in `internal/transport/http/router.go`, and wire the new service into `internal/bootstrap/app.go` — by name-match if an existing port already fits, or by adding a `contract/` package if a struct needs to cross. Then run `make check-boundaries` — new feature with `postgres` adapter and no ownership row fails it by design.
 
 ## Further reading
 
-- `README.md` — endpoint reference and quick start. Its "Project Structure" section agrees with this file; both rewritten against real tree. Its environment table is **curated subset** — 11 variables absent, including whole Redis pool group. `.env.example` is exhaustive list; verified against `internal/config/config.go`'s `envconfig` tags.
+- `README.md` — endpoint reference and quick start. Its "Project Structure" section agrees with this file; both rewritten against real tree. Its environment table is **curated subset** — 8 variables absent, including the whole Redis pool group and the worker's prune settings. `.env.example` is exhaustive list; verified against `envconfig` tags across `internal/platform/config/config.go` (infra) plus each module's own `config.go` (`auth`, `cart`, `order`, `payment` — the four with env vars of their own).
 - `ARCHITECTURE.md`, `ARCHITECTURE-LIMITATIONS.md`, `db/OWNERSHIP.md` — as above.
 - `db/migrations/` — goose SQL migrations.
 - `.env.example`, `.mockery.yml`, `.golangci.yml`.

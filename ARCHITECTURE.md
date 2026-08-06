@@ -19,10 +19,11 @@ enforce, because reader will copy whatever they find here into real system.
 
 Two consequences worth naming, since they look like mistakes otherwise:
 
-- `postgres`/`http` subpackage split costs ~26 aliased imports in
-  composition file. In product, hard to justify. Here it the
-  point: physical boundary teaches port/adapter distinction in way file
-  naming convention cannot.
+- `postgres`/`http` subpackage split costs ~15 aliased imports in the
+  composition root (`internal/bootstrap/app.go`) and another ~15 in the
+  router (`internal/transport/http/router.go`). In product, hard to justify.
+  Here it the point: physical boundary teaches port/adapter distinction in way
+  file naming convention cannot.
 - Where rule exists, machine-checked (`make check-boundaries`). Rule
   living only in README rots, and template shipping rotted rule
   teaches rot.
@@ -57,10 +58,10 @@ construction cannot drift way list of exceptions can.
 ## 2. Ports live with the consumer
 
 `internal/modules/order/ports.go` declares `InventoryReserver` — interface
-_order_ needs. `inventory` does not publish it. `bootstrap` supplies
-adapter. Module with single dependency names file after it instead
-(`internal/modules/product/inventory.go`, `internal/modules/category/product.go`);
-`order` has seven, so grouped.
+_order_ needs. `inventory` does not publish it; `order` names exactly what it
+needs and something else satisfies it. Module with single dependency names
+file after it instead (`internal/modules/product/inventory.go`,
+`internal/modules/category/product.go`); `order` has seven, so grouped.
 
 **Why:** no module imports another, so dependency graph has no cycles by
 construction and each module's port list exactly API it would need if
@@ -69,8 +70,15 @@ narrow at consumer, `promotion.Service` satisfies `payment.CouponReleaser`
 directly and `notification.Service` satisfies `jobs.Processor` directly — two
 adapters never needed writing.
 
-**Cost accepted:** structurally-identical types declared in two places, plus
-mapping adapter where shapes differ.
+**Cost accepted:** none, where a producer's own method already matches what
+the consumer's port asks for — that is free to declare. Where what crosses is
+a struct rather than something a service already satisfies by name, decision
+13 (`contract/` packages) is what pays for it, and what it pays is not what
+this decision originally charged. The old cost — structurally-identical types
+declared in two places, plus a mapping adapter where shapes differ — is gone;
+`contract/` replaced it with a published surface, and a published surface
+costs something different: adding a field to it is now a cross-module change,
+not a local one.
 
 ## 3. Adapters are subpackages named for their technology
 
@@ -88,8 +96,13 @@ count `transport/http`), so every composition site needs import aliases
 
 ## 4. Adapter subpackages exist only where adaptation is needed
 
-`payment/` has six subpackages; `wishlist/` has two. `notification` has **no**
-`worker/` package because its `Service` satisfies `jobs.Processor` directly.
+`payment/` has six _adapter_ subpackages (`postgres http midtrans mock stripe
+worker`); `wishlist/` has two. `notification` has **no** `worker/` package
+because its `Service` satisfies `jobs.Processor` directly. `contract/` is not
+counted here — it adapts no technology, decision 13 covers it on its own
+terms, and a module gets one independently of how many adapters it needs:
+`payment/` has both six adapters and a `contract/`, `auth/` has one adapter
+and a `contract/`, `wishlist/` has two adapters and no `contract/` at all.
 
 **Why:** pass-through package created to make trees look uniform teaches that
 adapters are bureaucracy. Absence is lesson.
@@ -334,6 +347,39 @@ sweep, and nothing at that line names it. In exchange, 32 repeated
 attributes are gone and `request_id` reaches code that has never heard of
 HTTP.
 
+## 13. A `<feature>/contract/` package publishes the structs that cross a boundary
+
+Seven of fourteen modules — `auth cart inventory order payment product user` —
+have a `contract/` package: `user/contract.User`, `product/contract.Product`,
+`inventory/contract.StockState`, `order/contract.Order`, `payment/contract.ChargeRequest`,
+`cart/contract.Cart`, `auth/contract.Claims`, and their siblings. Each package
+imports no module and no platform package, so importing one can never pull the
+producer's implementation along with it — a consumer takes the type by value
+and never learns how it is built. A port still names the type it needs
+(`auth.UserProvider.GetByID(ctx, id) (usercontract.User, error)`); the
+contract package supplies only the shape, never the interface — that stays
+declared by the consumer, per decision 2.
+
+**Why:** decision 2's trick — a producer's own method already named what the
+consumer's port asked for, so `promotion.Service` satisfies
+`payment.CouponReleaser` with no adapter at all — works for scalars and for
+interfaces a producer already implements. It does not work when what crosses
+is a struct: two modules cannot each declare their own `User` and have the
+compiler agree the two are the same type. Every module that names a struct
+type in a port it does not own needed exactly one published type for that
+struct; the other seven modules never pass one across a port and have no
+`contract/` to show for it.
+
+**Cost accepted:** a module now has a published surface. Before, changing an
+internal struct's shape was a one-module diff; changing `user/contract.User`
+is now a change every consumer of `user` must absorb, whether or not the field
+they care about moved. The alternative this replaced — structurally-identical
+types declared in both modules plus a mapping function between them — paid the
+same cost at every call site instead of at the one file that changed;
+`contract/` moves it from many places to one, but does not remove it. See
+`ARCHITECTURE-LIMITATIONS.md` for where that published surface can go wrong on
+its own account.
+
 ---
 
 # Rejected
@@ -475,8 +521,8 @@ carry contextually, and `go.opentelemetry.io/otel` is already in `go.mod`.
 It is **indirect**: pulled in by a dependency, imported nowhere.
 
 A tracer provider, an OTLP exporter, sampler configuration, `otelhttp`
-middleware, new `Config.validate()` invariants and a shutdown hook in both
-binaries is a tracing feature, not a logging refactor. The seam costs
+middleware, new config invariants and a shutdown hook in both binaries is a
+tracing feature, not a logging refactor. The seam costs
 nothing to leave open: whoever adds tracing calls
 `logger.WithAttrs(ctx, slog.String("trace_id", sc.TraceID().String()))` in
 their own middleware and every existing log call picks it up.

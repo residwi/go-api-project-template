@@ -33,7 +33,7 @@ func (r registerRequest) toRegisterParams() auth.RegisterParams {
 	}
 }
 
-// Mapped explicitly from auth.UserResult, which also carries Active and
+// Mapped explicitly from usercontract.User, which also carries Active and
 // TokenVersion: adding a field there does not publish it.
 type authUserResponse struct {
 	ID        uuid.UUID `json:"id"`
