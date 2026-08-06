@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -106,6 +108,31 @@ func TestContextHandler(t *testing.T) {
 
 		assert.Equal(t, "left", decodeRecord(t, leftBuf)["branch"])
 		assert.Equal(t, "right", decodeRecord(t, rightBuf)["branch"])
+	})
+
+	t.Run("two handlers given the same record do not corrupt it", func(t *testing.T) {
+		t.Parallel()
+
+		// Eight attributes are the threshold: five fill the record's inline array and
+		// the rest grow its overflow slice to length 3, capacity 4 -- one spare slot
+		// that both handlers would claim. slog detects the collision and appends a
+		// "!BUG" attribute rather than failing, so a corrupt record still logs.
+		record := slog.NewRecord(time.Now(), slog.LevelInfo, "hello", 0)
+		for i := range 8 {
+			record.AddAttrs(slog.Int(fmt.Sprintf("a%d", i), i))
+		}
+
+		ctx := WithAttrs(context.Background(), slog.String("request_id", "req-1"))
+		var leftBuf, rightBuf bytes.Buffer
+		left := ContextHandler{Handler: slog.NewJSONHandler(&leftBuf, nil)}
+		right := ContextHandler{Handler: slog.NewJSONHandler(&rightBuf, nil)}
+
+		require.NoError(t, left.Handle(ctx, record))
+		require.NoError(t, right.Handle(ctx, record))
+
+		assert.NotContains(t, leftBuf.String(), "!BUG")
+		assert.NotContains(t, rightBuf.String(), "!BUG")
+		assert.Equal(t, "req-1", decodeRecord(t, &rightBuf)["request_id"])
 	})
 }
 

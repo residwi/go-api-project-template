@@ -26,6 +26,10 @@ type ContextHandler struct {
 
 func (h ContextHandler) Handle(ctx context.Context, r slog.Record) error {
 	if attrs, ok := ctx.Value(ctxKey{}).([]slog.Attr); ok {
+		// A caller may hand the same record to several handlers, whose appends would
+		// otherwise land in one shared slot. Clone only clips capacity, so this costs
+		// no allocation.
+		r = r.Clone()
 		r.AddAttrs(attrs...)
 	}
 
