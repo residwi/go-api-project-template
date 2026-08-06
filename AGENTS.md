@@ -220,6 +220,17 @@ prior StockState)`.** Inventory decides whether that means releasing reservation
 - Prefer duplication over abstraction that does not quite fit.
 - Commit messages: conventional-commit prefixes in use on this branch (`refactor(cart): …`, `docs(db): …`, `test(e2e): …`). Match surrounding history.
 
+## Git history
+
+History stays linear. No `Merge branch …` commit — it says nothing about the code and makes `git log` a graph to decode instead of a list to read.
+
+- **Rebase feature branch onto `main` before integrating**, then merge fast-forward:
+  `git switch main && git merge --ff-only <branch>`. If fast-forward refuses, branch is behind — rebase again, do not fall back to a merge commit.
+- **`git pull --rebase`, never plain `git pull`.** Set it once so it cannot be forgotten: `git config pull.rebase true`.
+- Rebase early and often while branch is alive. Cost of rebasing scale with how far the two lines have drifted, so daily is cheap and monthly is not.
+
+**Rebase only works on history that is already linear.** It replay commits in one sequence, so any merge it cross disappear and the two sides interleave into an order that never existed — a commit then land on code it was never written against, and conflict cascade for the rest of the replay. Three merges predate this rule; do not rebase across them.
+
 ## Testing
 
 - `testing` + `stretchr/testify`. `require` when test cannot continue without value, `assert` for soft checks.
