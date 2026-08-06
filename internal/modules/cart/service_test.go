@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	productcontract "github.com/residwi/go-api-project-template/internal/modules/product/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -26,7 +27,7 @@ func TestService_AddItem_RunsInsideTxRunner(t *testing.T) {
 	productID := uuid.New()
 	cartID := uuid.New()
 
-	products.EXPECT().GetByID(mock.Anything, productID).Return(&ProductInfo{
+	products.EXPECT().GetInfo(mock.Anything, productID).Return(&productcontract.Product{
 		ID:        productID,
 		Name:      "Widget",
 		Price:     money.New(1500, "USD"),
@@ -59,8 +60,8 @@ func TestService_AddItem(t *testing.T) {
 		productID := uuid.New()
 		cartID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -83,8 +84,8 @@ func TestService_AddItem(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&ProductInfo{ID: productID, Name: "Draft Item", Price: money.New(500, "USD"), Status: "draft", Available: 10}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Name: "Draft Item", Price: money.New(500, "USD"), Status: "draft", Available: 10}, nil)
 
 		err := svc.AddItem(ctx, userID, AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
@@ -102,8 +103,8 @@ func TestService_AddItem(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 1}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 1}, nil)
 
 		err := svc.AddItem(ctx, userID, AddItemParams{ProductID: productID, Quantity: 5})
 		require.Error(t, err)
@@ -123,8 +124,8 @@ func TestService_AddItem(t *testing.T) {
 		productID := uuid.New()
 		cartID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -148,8 +149,8 @@ func TestService_AddItem(t *testing.T) {
 		productID := uuid.New()
 		cartID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -172,7 +173,7 @@ func TestService_AddItem(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
+		products.EXPECT().GetInfo(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
 
 		err := svc.AddItem(ctx, userID, AddItemParams{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
@@ -190,8 +191,8 @@ func TestService_AddItem(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(uuid.Nil, errors.New("db error"))
 
@@ -211,8 +212,8 @@ func TestService_AddItem(t *testing.T) {
 		productID := uuid.New()
 		cartID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -295,8 +296,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 		productID := uuid.New()
 		cartID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
 		repo.EXPECT().UpdateItemQuantity(mock.Anything, cartID, productID, 3).Return(nil)
 
@@ -315,8 +316,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&ProductInfo{ID: productID, Status: "published", Available: 2}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Status: "published", Available: 2}, nil)
 
 		err := svc.UpdateQuantity(ctx, userID, productID, UpdateQuantityParams{Quantity: 5})
 		assert.ErrorIs(t, err, apperror.ErrInsufficientStock)
@@ -333,8 +334,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&ProductInfo{ID: productID, Status: "draft", Available: 100}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Status: "draft", Available: 100}, nil)
 
 		err := svc.UpdateQuantity(ctx, userID, productID, UpdateQuantityParams{Quantity: 1})
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
@@ -351,7 +352,7 @@ func TestService_UpdateQuantity(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, errors.New("db error"))
+		products.EXPECT().GetInfo(mock.Anything, productID).Return(nil, errors.New("db error"))
 
 		err := svc.UpdateQuantity(ctx, userID, productID, UpdateQuantityParams{Quantity: 3})
 		require.Error(t, err)
@@ -368,8 +369,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&ProductInfo{ID: productID, Status: "published", Available: 10}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, errors.New("db error"))
 
 		err := svc.UpdateQuantity(ctx, userID, productID, UpdateQuantityParams{Quantity: 3})
@@ -438,8 +439,8 @@ func TestService_GetCart_FlagsUnavailableLines(t *testing.T) {
 
 	// A soft-deleted product still comes back carrying its status: cart decides how
 	// to show it, not product.
-	products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{liveID, goneID}).
-		Return(map[uuid.UUID]ProductInfo{
+	products.EXPECT().GetInfoByIDs(mock.Anything, []uuid.UUID{liveID, goneID}).
+		Return(map[uuid.UUID]productcontract.Product{
 			liveID: {ID: liveID, Name: "Widget", Price: money.New(1500, "USD"), Status: "published", Available: 5},
 			goneID: {ID: goneID, Name: "Gone", Price: money.New(900, "USD"), Status: "archived", Available: 0},
 		}, nil)
@@ -470,8 +471,8 @@ func TestService_GetCart_MissingProductBecomesUnavailable(t *testing.T) {
 
 	// Absent from the map, not merely carrying a terminal status: the line must
 	// still render non-nil so no consumer of Item.Product has to nil-check it.
-	products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{missingID}).
-		Return(map[uuid.UUID]ProductInfo{}, nil)
+	products.EXPECT().GetInfoByIDs(mock.Anything, []uuid.UUID{missingID}).
+		Return(map[uuid.UUID]productcontract.Product{}, nil)
 
 	c, err := svc.GetCart(context.Background(), userID)
 	require.NoError(t, err)

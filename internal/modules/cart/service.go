@@ -29,7 +29,7 @@ func NewService(repo Repository, tx database.TxRunner, products ProductLookup, m
 }
 
 func (s *Service) AddItem(ctx context.Context, userID uuid.UUID, p AddItemParams) error {
-	info, err := s.products.GetByID(ctx, p.ProductID)
+	info, err := s.products.GetInfo(ctx, p.ProductID)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (s *Service) RemoveItem(ctx context.Context, userID, productID uuid.UUID) e
 func (s *Service) UpdateQuantity(ctx context.Context, userID, productID uuid.UUID, p UpdateQuantityParams) error {
 	// Mirrors AddItem's guards, or its stock check is bypassed by following it
 	// with an UpdateQuantity.
-	info, err := s.products.GetByID(ctx, productID)
+	info, err := s.products.GetInfo(ctx, productID)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (s *Service) GetCart(ctx context.Context, userID uuid.UUID) (*Cart, error) 
 	for i := range c.Items {
 		ids[i] = c.Items[i].ProductID
 	}
-	infos, err := s.products.GetByIDs(ctx, ids)
+	infos, err := s.products.GetInfoByIDs(ctx, ids)
 	if err != nil {
 		return nil, fmt.Errorf("looking up cart products: %w", err)
 	}

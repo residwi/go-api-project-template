@@ -589,7 +589,7 @@ func TestAdapterErrorPaths(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM users WHERE email = $1`, email)
 	})
 
-	t.Run("productLookupAdapter returns error for nonexistent product", func(t *testing.T) {
+	t.Run("cart add-item returns error for nonexistent product", func(t *testing.T) {
 		body := `{"product_id":"` + uuid.New().String() + `","quantity":1}`
 		req := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")

@@ -13,6 +13,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	productcontract "github.com/residwi/go-api-project-template/internal/modules/product/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
@@ -671,6 +672,116 @@ func TestService_GetByIDsIncludingDeleted(t *testing.T) {
 	})
 }
 
+func TestServiceGetInfoByIDs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("maps a batch in one call and carries an unaffected status through", func(t *testing.T) {
+		t.Parallel()
+
+		repo := NewMockRepository(t)
+		inv := NewMockInventoryReader(t)
+		reg := NewMockInventoryRegistrar(t)
+		svc := NewService(repo, inv, reg)
+
+		liveID, archivedID := uuid.New(), uuid.New()
+		ids := []uuid.UUID{liveID, archivedID}
+		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, ids).
+			Return([]Product{
+				{ID: liveID, Name: "Widget", Price: money.New(1500, "USD"), Status: StatusPublished},
+				{ID: archivedID, Name: "Gone", Price: money.New(900, "USD"), Status: StatusArchived},
+			}, nil)
+		inv.EXPECT().GetAvailability(mock.Anything, ids).
+			Return(map[uuid.UUID]inventorycontract.Availability{
+				liveID: {OnHand: 10, Available: 7},
+			}, nil)
+
+		got, err := svc.GetInfoByIDs(context.Background(), ids)
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		assert.Equal(t, 7, got[liveID].Available, "Available must come from Availability.Available")
+		assert.Equal(t, StatusArchived, got[archivedID].Status,
+			"archived products must still come back, carrying Status")
+	})
+
+	t.Run("reports a withdrawn product as unavailable even though its status is still published", func(t *testing.T) {
+		t.Parallel()
+
+		productID := uuid.New()
+		deletedAt := time.Now()
+
+		repo := NewMockRepository(t)
+		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, []uuid.UUID{productID}).
+			Return([]Product{{
+				ID:        productID,
+				Name:      "Withdrawn Widget",
+				Price:     money.New(1000, "IDR"),
+				Status:    StatusPublished,
+				DeletedAt: &deletedAt,
+			}}, nil)
+
+		inv := NewMockInventoryReader(t)
+		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{productID}).
+			Return(map[uuid.UUID]inventorycontract.Availability{productID: {OnHand: 5, Available: 5}}, nil)
+
+		svc := NewService(repo, inv, NewMockInventoryRegistrar(t))
+
+		got, err := svc.GetInfoByIDs(context.Background(), []uuid.UUID{productID})
+
+		require.NoError(t, err)
+		assert.Equal(t, map[uuid.UUID]productcontract.Product{
+			productID: {
+				ID:        productID,
+				Name:      "Withdrawn Widget",
+				Price:     money.New(1000, "IDR"),
+				Status:    "unavailable",
+				Available: 5,
+			},
+		}, got)
+	})
+
+	t.Run("passes a live product's status through unchanged", func(t *testing.T) {
+		t.Parallel()
+
+		productID := uuid.New()
+
+		repo := NewMockRepository(t)
+		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, []uuid.UUID{productID}).
+			Return([]Product{{
+				ID:     productID,
+				Name:   "Live Widget",
+				Price:  money.New(2500, "IDR"),
+				Status: StatusPublished,
+			}}, nil)
+
+		inv := NewMockInventoryReader(t)
+		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{productID}).
+			Return(map[uuid.UUID]inventorycontract.Availability{productID: {OnHand: 2, Available: 2}}, nil)
+
+		svc := NewService(repo, inv, NewMockInventoryRegistrar(t))
+
+		got, err := svc.GetInfoByIDs(context.Background(), []uuid.UUID{productID})
+
+		require.NoError(t, err)
+		assert.Equal(t, StatusPublished, got[productID].Status)
+	})
+
+	t.Run("propagates a repository error", func(t *testing.T) {
+		t.Parallel()
+
+		repo := NewMockRepository(t)
+		inv := NewMockInventoryReader(t)
+		reg := NewMockInventoryRegistrar(t)
+		svc := NewService(repo, inv, reg)
+
+		ids := []uuid.UUID{uuid.New()}
+		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, ids).Return(nil, errors.New("db error"))
+
+		got, err := svc.GetInfoByIDs(context.Background(), ids)
+		assert.Nil(t, got)
+		assert.Error(t, err)
+	})
+}
+
 func TestService_AvailableQuantity(t *testing.T) {
 	t.Parallel()
 
@@ -729,7 +840,7 @@ func TestService_AvailableQuantity(t *testing.T) {
 	})
 }
 
-func TestService_CountPublishedByCategory(t *testing.T) {
+func TestService_CountPublished(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
@@ -743,7 +854,7 @@ func TestService_CountPublishedByCategory(t *testing.T) {
 		categoryID := uuid.New()
 		repo.EXPECT().CountPublishedByCategory(mock.Anything, categoryID).Return(3, nil)
 
-		count, err := svc.CountPublishedByCategory(context.Background(), categoryID)
+		count, err := svc.CountPublished(context.Background(), categoryID)
 		require.NoError(t, err)
 		assert.Equal(t, 3, count)
 	})
@@ -759,7 +870,7 @@ func TestService_CountPublishedByCategory(t *testing.T) {
 		categoryID := uuid.New()
 		repo.EXPECT().CountPublishedByCategory(mock.Anything, categoryID).Return(0, errors.New("db error"))
 
-		_, err := svc.CountPublishedByCategory(context.Background(), categoryID)
+		_, err := svc.CountPublished(context.Background(), categoryID)
 		assert.Error(t, err)
 	})
 }

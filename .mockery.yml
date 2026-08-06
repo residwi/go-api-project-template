@@ -47,27 +47,18 @@ packages:
     interfaces:
       Repository: {configs: *dual}
       ProductCounter: {configs: *dual}
-  # product and inventory need a third destination: internal/bootstrap tests the
-  # adapters that translate between features, so it builds real product and
-  # inventory services out of their repository mocks. Both interfaces are named
-  # Repository, so both need structname to avoid colliding in one package.
+  # product's Repository/InventoryReader/InventoryRegistrar used to need a third
+  # destination: internal/bootstrap tested the adapter that translated product
+  # into cart.ProductInfo, so it built a real product.Service out of these
+  # mocks. That adapter is gone -- product satisfies cart.ProductLookup
+  # directly now -- so product needs only the two destinations every other
+  # module gets.
   github.com/residwi/go-api-project-template/internal/modules/product:
     interfaces:
-      Repository:
-        configs:
-          - {dir: "{{.InterfaceDir}}", pkgname: "{{.SrcPackageName}}", filename: "mocks_test.go"}
-          - {dir: "{{.InterfaceDir}}/http", pkgname: "http", filename: "mocks_test.go"}
-          - {dir: "internal/bootstrap", pkgname: "bootstrap", filename: "mocks_product_test.go", structname: "MockProductRepository"}
-      InventoryReader:
-        configs:
-          - {dir: "{{.InterfaceDir}}", pkgname: "{{.SrcPackageName}}", filename: "mocks_test.go"}
-          - {dir: "{{.InterfaceDir}}/http", pkgname: "http", filename: "mocks_test.go"}
-          - {dir: "internal/bootstrap", pkgname: "bootstrap", filename: "mocks_product_test.go"}
-      InventoryRegistrar:
-        configs:
-          - {dir: "{{.InterfaceDir}}", pkgname: "{{.SrcPackageName}}", filename: "mocks_test.go"}
-          - {dir: "{{.InterfaceDir}}/http", pkgname: "http", filename: "mocks_test.go"}
-          - {dir: "internal/bootstrap", pkgname: "bootstrap", filename: "mocks_product_test.go"}
+      Repository: {configs: *dual}
+      InventoryReader: {configs: *dual}
+      InventoryRegistrar: {configs: *dual}
+  # inventory needs a third destination for the reason product used to.
   github.com/residwi/go-api-project-template/internal/modules/inventory:
     interfaces:
       Repository:

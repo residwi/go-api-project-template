@@ -8,6 +8,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/product/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
@@ -238,10 +239,53 @@ func (s *Service) AvailableQuantity(ctx context.Context, id uuid.UUID) (int, err
 	return avail, nil
 }
 
-// CountPublishedByCategory backs category's ProductCounter port: category has no
+// CountPublished backs category's ProductCounter port: category has no
 // products access of its own.
-func (s *Service) CountPublishedByCategory(ctx context.Context, categoryID uuid.UUID) (int, error) {
+func (s *Service) CountPublished(ctx context.Context, categoryID uuid.UUID) (int, error) {
 	return s.repo.CountPublishedByCategory(ctx, categoryID)
+}
+
+// GetInfo backs cart's ProductLookup port for a single product.
+func (s *Service) GetInfo(ctx context.Context, id uuid.UUID) (*contract.Product, error) {
+	p, err := s.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &contract.Product{
+		ID:        p.ID,
+		Name:      p.Name,
+		Price:     p.Price,
+		Status:    p.Status,
+		Available: p.Availability.Available,
+	}, nil
+}
+
+// GetInfoByIDs backs cart's ProductLookup port for a whole cart at once.
+func (s *Service) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]contract.Product, error) {
+	products, err := s.GetByIDsIncludingDeleted(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(map[uuid.UUID]contract.Product, len(products))
+	for _, p := range products {
+		status := p.Status
+		if p.DeletedAt != nil {
+			// Delete only sets deleted_at, so a withdrawn product still reads
+			// status='published'. Forwarding that would make the line look sellable
+			// to cart and to order's availability guard.
+			status = "unavailable"
+		}
+		out[p.ID] = contract.Product{
+			ID:        p.ID,
+			Name:      p.Name,
+			Price:     p.Price,
+			Status:    status,
+			Available: p.Availability.Available,
+		}
+	}
+	return out, nil
 }
 
 // One call per page, and a product with no level row reads as zero rather than

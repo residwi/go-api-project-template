@@ -23,6 +23,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
+	productcontract "github.com/residwi/go-api-project-template/internal/modules/product/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -107,8 +108,8 @@ func TestCartHandler_GetCart(t *testing.T) {
 				{ID: uuid.New(), ProductID: eurID, Quantity: 1},
 			},
 		}, nil)
-		products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{usdID, eurID}).
-			Return(map[uuid.UUID]cart.ProductInfo{
+		products.EXPECT().GetInfoByIDs(mock.Anything, []uuid.UUID{usdID, eurID}).
+			Return(map[uuid.UUID]productcontract.Product{
 				usdID: {
 					ID:        usdID,
 					Name:      "Dollar Widget",
@@ -156,8 +157,8 @@ func TestCartHandler_GetCart(t *testing.T) {
 				{ID: uuid.New(), ProductID: goneID, Quantity: 3},
 			},
 		}, nil)
-		products.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{liveID, goneID}).
-			Return(map[uuid.UUID]cart.ProductInfo{
+		products.EXPECT().GetInfoByIDs(mock.Anything, []uuid.UUID{liveID, goneID}).
+			Return(map[uuid.UUID]productcontract.Product{
 				liveID: {ID: liveID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 5},
 				goneID: {ID: goneID, Name: "Archived", Price: money.New(900, "EUR"), Status: "archived", Available: 0},
 			}, nil)
@@ -209,7 +210,7 @@ func TestCartHandler_AddItem(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		products.EXPECT().GetByID(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
+		products.EXPECT().GetInfo(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
 
 		body := fmt.Sprintf(`{"product_id":"%s","quantity":1}`, productID)
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/cart/items", strings.NewReader(body))
@@ -235,8 +236,8 @@ func TestCartHandler_UpdateItem(t *testing.T) {
 
 		// UpdateQuantity validates the product first; let that pass so GetOrCreate is
 		// what fails here.
-		products.EXPECT().GetByID(mock.Anything, productID).
-			Return(&cart.ProductInfo{ID: productID, Status: "published", Available: 10}, nil)
+		products.EXPECT().GetInfo(mock.Anything, productID).
+			Return(&productcontract.Product{ID: productID, Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, apperror.ErrNotFound)
 
 		body := `{"quantity":3}`
@@ -722,8 +723,8 @@ func (s *stubRepo) GetCartForLock(context.Context, uuid.UUID) (uuid.UUID, error)
 
 type stubProducts struct{}
 
-func (s *stubProducts) GetByID(_ context.Context, id uuid.UUID) (*cart.ProductInfo, error) {
-	return &cart.ProductInfo{
+func (s *stubProducts) GetInfo(_ context.Context, id uuid.UUID) (*productcontract.Product, error) {
+	return &productcontract.Product{
 		ID:        id,
 		Name:      "Widget",
 		Price:     money.New(1000, "USD"),
@@ -732,10 +733,10 @@ func (s *stubProducts) GetByID(_ context.Context, id uuid.UUID) (*cart.ProductIn
 	}, nil
 }
 
-func (s *stubProducts) GetByIDs(_ context.Context, ids []uuid.UUID) (map[uuid.UUID]cart.ProductInfo, error) {
-	out := make(map[uuid.UUID]cart.ProductInfo, len(ids))
+func (s *stubProducts) GetInfoByIDs(_ context.Context, ids []uuid.UUID) (map[uuid.UUID]productcontract.Product, error) {
+	out := make(map[uuid.UUID]productcontract.Product, len(ids))
 	for _, id := range ids {
-		out[id] = cart.ProductInfo{
+		out[id] = productcontract.Product{
 			ID:        id,
 			Name:      "Widget",
 			Price:     money.New(1000, "USD"),

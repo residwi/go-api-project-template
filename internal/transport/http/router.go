@@ -15,6 +15,7 @@ import (
 	authhttp "github.com/residwi/go-api-project-template/internal/modules/auth/http"
 	carthttp "github.com/residwi/go-api-project-template/internal/modules/cart/http"
 	cartpg "github.com/residwi/go-api-project-template/internal/modules/cart/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/category"
 	categoryhttp "github.com/residwi/go-api-project-template/internal/modules/category/http"
 	categorypg "github.com/residwi/go-api-project-template/internal/modules/category/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
@@ -85,7 +86,7 @@ func NewRouter(
 	userSvc := user.NewService(userRepo, userCache, deps.Logger)
 	inventorySvc := inventory.NewService(inventoryRepo)
 	productSvc := bootstrap.NewProductService(productRepo, inventorySvc)
-	categorySvc := bootstrap.NewCategoryService(categoryRepo, productSvc)
+	categorySvc := category.NewService(categoryRepo, productSvc)
 	cartSvc := bootstrap.NewCartService(cartRepo, txRunner, productSvc, deps.Config.App.MaxCartItems)
 	authSvc := auth.NewService(
 		userSvc,

@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/modules/product/contract"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -38,24 +39,24 @@ func (_m *MockProductLookup) EXPECT() *MockProductLookup_Expecter {
 	return &MockProductLookup_Expecter{mock: &_m.Mock}
 }
 
-// GetByID provides a mock function for the type MockProductLookup
-func (_mock *MockProductLookup) GetByID(ctx context.Context, id uuid.UUID) (*ProductInfo, error) {
+// GetInfo provides a mock function for the type MockProductLookup
+func (_mock *MockProductLookup) GetInfo(ctx context.Context, id uuid.UUID) (*contract.Product, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetByID")
+		panic("no return value specified for GetInfo")
 	}
 
-	var r0 *ProductInfo
+	var r0 *contract.Product
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*ProductInfo, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*contract.Product, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *ProductInfo); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *contract.Product); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*ProductInfo)
+			r0 = ret.Get(0).(*contract.Product)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -66,19 +67,19 @@ func (_mock *MockProductLookup) GetByID(ctx context.Context, id uuid.UUID) (*Pro
 	return r0, r1
 }
 
-// MockProductLookup_GetByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByID'
-type MockProductLookup_GetByID_Call struct {
+// MockProductLookup_GetInfo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetInfo'
+type MockProductLookup_GetInfo_Call struct {
 	*mock.Call
 }
 
-// GetByID is a helper method to define mock.On call
+// GetInfo is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockProductLookup_Expecter) GetByID(ctx any, id any) *MockProductLookup_GetByID_Call {
-	return &MockProductLookup_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
+func (_e *MockProductLookup_Expecter) GetInfo(ctx any, id any) *MockProductLookup_GetInfo_Call {
+	return &MockProductLookup_GetInfo_Call{Call: _e.mock.On("GetInfo", ctx, id)}
 }
 
-func (_c *MockProductLookup_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockProductLookup_GetByID_Call {
+func (_c *MockProductLookup_GetInfo_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockProductLookup_GetInfo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -96,34 +97,34 @@ func (_c *MockProductLookup_GetByID_Call) Run(run func(ctx context.Context, id u
 	return _c
 }
 
-func (_c *MockProductLookup_GetByID_Call) Return(productInfo *ProductInfo, err error) *MockProductLookup_GetByID_Call {
-	_c.Call.Return(productInfo, err)
+func (_c *MockProductLookup_GetInfo_Call) Return(product *contract.Product, err error) *MockProductLookup_GetInfo_Call {
+	_c.Call.Return(product, err)
 	return _c
 }
 
-func (_c *MockProductLookup_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*ProductInfo, error)) *MockProductLookup_GetByID_Call {
+func (_c *MockProductLookup_GetInfo_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*contract.Product, error)) *MockProductLookup_GetInfo_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// GetByIDs provides a mock function for the type MockProductLookup
-func (_mock *MockProductLookup) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]ProductInfo, error) {
+// GetInfoByIDs provides a mock function for the type MockProductLookup
+func (_mock *MockProductLookup) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]contract.Product, error) {
 	ret := _mock.Called(ctx, ids)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetByIDs")
+		panic("no return value specified for GetInfoByIDs")
 	}
 
-	var r0 map[uuid.UUID]ProductInfo
+	var r0 map[uuid.UUID]contract.Product
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]ProductInfo, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]contract.Product, error)); ok {
 		return returnFunc(ctx, ids)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]ProductInfo); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]contract.Product); ok {
 		r0 = returnFunc(ctx, ids)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[uuid.UUID]ProductInfo)
+			r0 = ret.Get(0).(map[uuid.UUID]contract.Product)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
@@ -134,19 +135,19 @@ func (_mock *MockProductLookup) GetByIDs(ctx context.Context, ids []uuid.UUID) (
 	return r0, r1
 }
 
-// MockProductLookup_GetByIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByIDs'
-type MockProductLookup_GetByIDs_Call struct {
+// MockProductLookup_GetInfoByIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetInfoByIDs'
+type MockProductLookup_GetInfoByIDs_Call struct {
 	*mock.Call
 }
 
-// GetByIDs is a helper method to define mock.On call
+// GetInfoByIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - ids []uuid.UUID
-func (_e *MockProductLookup_Expecter) GetByIDs(ctx any, ids any) *MockProductLookup_GetByIDs_Call {
-	return &MockProductLookup_GetByIDs_Call{Call: _e.mock.On("GetByIDs", ctx, ids)}
+func (_e *MockProductLookup_Expecter) GetInfoByIDs(ctx any, ids any) *MockProductLookup_GetInfoByIDs_Call {
+	return &MockProductLookup_GetInfoByIDs_Call{Call: _e.mock.On("GetInfoByIDs", ctx, ids)}
 }
 
-func (_c *MockProductLookup_GetByIDs_Call) Run(run func(ctx context.Context, ids []uuid.UUID)) *MockProductLookup_GetByIDs_Call {
+func (_c *MockProductLookup_GetInfoByIDs_Call) Run(run func(ctx context.Context, ids []uuid.UUID)) *MockProductLookup_GetInfoByIDs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -164,12 +165,12 @@ func (_c *MockProductLookup_GetByIDs_Call) Run(run func(ctx context.Context, ids
 	return _c
 }
 
-func (_c *MockProductLookup_GetByIDs_Call) Return(uUIDToProductInfo map[uuid.UUID]ProductInfo, err error) *MockProductLookup_GetByIDs_Call {
-	_c.Call.Return(uUIDToProductInfo, err)
+func (_c *MockProductLookup_GetInfoByIDs_Call) Return(uUIDToProduct map[uuid.UUID]contract.Product, err error) *MockProductLookup_GetInfoByIDs_Call {
+	_c.Call.Return(uUIDToProduct, err)
 	return _c
 }
 
-func (_c *MockProductLookup_GetByIDs_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]ProductInfo, error)) *MockProductLookup_GetByIDs_Call {
+func (_c *MockProductLookup_GetInfoByIDs_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]contract.Product, error)) *MockProductLookup_GetInfoByIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }

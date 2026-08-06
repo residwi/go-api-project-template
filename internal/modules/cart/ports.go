@@ -5,21 +5,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/money"
+	productcontract "github.com/residwi/go-api-project-template/internal/modules/product/contract"
 )
 
 type ProductLookup interface {
-	GetByID(ctx context.Context, id uuid.UUID) (*ProductInfo, error)
-	// GetByIDs answers for a whole cart in one call. It returns soft-deleted and
-	// unpublished products too, carrying Status -- cart decides whether to show a
-	// line as unavailable, because the display rule is cart's, not product's.
-	GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]ProductInfo, error)
-}
-
-type ProductInfo struct {
-	ID        uuid.UUID
-	Name      string
-	Price     money.Money
-	Status    string
-	Available int
+	GetInfo(ctx context.Context, id uuid.UUID) (*productcontract.Product, error)
+	// GetInfoByIDs answers for a whole cart at once, and reports a withdrawn
+	// product as unavailable rather than as its stale published status.
+	GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]productcontract.Product, error)
 }

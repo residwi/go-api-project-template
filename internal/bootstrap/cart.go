@@ -1,61 +1,22 @@
 package bootstrap
 
 import (
-	"context"
-
-	"github.com/google/uuid"
-
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
+// NewCartService used to wrap productSvc in an adapter that translated
+// product.Product into cart.ProductInfo, including the deleted_at ->
+// "unavailable" rule. That rule now lives in product.Service.GetInfoByIDs
+// itself, so productSvc satisfies cart.ProductLookup directly and this is a
+// plain forward -- kept only so router.go, router_test.go and test/e2e keep
+// constructing cart the way they always have.
 func NewCartService(
 	repo cart.Repository,
 	tx database.TxRunner,
 	productSvc *product.Service,
 	maxCartItems int,
 ) *cart.Service {
-	return cart.NewService(repo, tx, &productLookupAdapter{svc: productSvc}, maxCartItems)
-}
-
-type productLookupAdapter struct{ svc *product.Service }
-
-func (a *productLookupAdapter) GetByID(ctx context.Context, id uuid.UUID) (*cart.ProductInfo, error) {
-	p, err := a.svc.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return &cart.ProductInfo{
-		ID:        p.ID,
-		Name:      p.Name,
-		Price:     p.Price,
-		Status:    p.Status,
-		Available: p.Availability.Available,
-	}, nil
-}
-
-func (a *productLookupAdapter) GetByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]cart.ProductInfo, error) {
-	products, err := a.svc.GetByIDsIncludingDeleted(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[uuid.UUID]cart.ProductInfo, len(products))
-	for _, p := range products {
-		status := p.Status
-		if p.DeletedAt != nil {
-			// product.Delete only sets deleted_at, so a withdrawn product still reads
-			// status='published'. Forwarding that stale status would make the line look
-			// perfectly sellable to cart and to order's availability guard.
-			status = "unavailable"
-		}
-		out[p.ID] = cart.ProductInfo{
-			ID:        p.ID,
-			Name:      p.Name,
-			Price:     p.Price,
-			Status:    status,
-			Available: p.Availability.Available,
-		}
-	}
-	return out, nil
+	return cart.NewService(repo, tx, productSvc, maxCartItems)
 }
