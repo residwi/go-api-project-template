@@ -180,8 +180,8 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 // Process owns its own retry and status bookkeeping. A returned error is only
 // for the runner to log: the backoff is already persisted here.
 func (s *Service) Process(ctx context.Context, job Job) error {
-	// Only here: Charge and ProcessWebhook reach the same functions with a synthetic
-	// Job that has no ID, so they must not set this.
+	// Only here: InitiatePayment and HandleWebhook reach the same functions with a
+	// synthetic Job that has no ID, so they must not set this.
 	ctx = logger.WithAttrs(ctx, slog.String("job_id", job.ID.String()))
 
 	switch job.Action {
