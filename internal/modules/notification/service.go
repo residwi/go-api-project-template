@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -63,6 +64,8 @@ func (s *Service) EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, orde
 // Process owns the job's terminal state, not the runner. Notification and
 // completion commit atomically, so a lost completion cannot re-deliver.
 func (s *Service) Process(ctx context.Context, job Job) error {
+	ctx = logger.WithAttrs(ctx, slog.String("job_id", job.ID.String()))
+
 	n := &Notification{
 		UserID: job.UserID,
 		Type:   Type(job.Type),
@@ -86,7 +89,6 @@ func (s *Service) Process(ctx context.Context, job Job) error {
 			s.logger.ErrorContext(
 				ctx,
 				"failed to update notification job after failure",
-				slog.Any("job_id", job.ID),
 				slog.Any("error", updateErr),
 			)
 		}

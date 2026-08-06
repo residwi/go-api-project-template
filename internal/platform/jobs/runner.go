@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
 type Queue[T any] interface {
@@ -50,6 +52,8 @@ func NewRunner[T any](name string, queue Queue[T], proc Processor[T], cfg Config
 
 // Start runs the loop until ctx is cancelled.
 func (r *Runner[T]) Start(ctx context.Context) {
+	ctx = logger.WithAttrs(ctx, slog.String("runner", r.name))
+
 	ticker := time.NewTicker(r.cfg.Interval)
 	defer ticker.Stop()
 
@@ -68,23 +72,23 @@ func (r *Runner[T]) tick(ctx context.Context) {
 	// runner down -- and every other runner in the worker binary with it.
 	defer func() {
 		if rec := recover(); rec != nil {
-			r.logger.ErrorContext(ctx, "tick panicked", slog.Any("runner", r.name), slog.Any("panic", rec))
+			r.logger.ErrorContext(ctx, "tick panicked", slog.Any("panic", rec))
 		}
 	}()
 
 	if sweeper, ok := r.proc.(Sweeper); ok {
 		if err := sweeper.Sweep(ctx); err != nil {
-			r.logger.ErrorContext(ctx, "sweep failed", slog.Any("runner", r.name), slog.Any("error", err))
+			r.logger.ErrorContext(ctx, "sweep failed", slog.Any("error", err))
 		}
 	}
 
 	if _, err := r.queue.Prune(ctx, r.cfg.PruneAge, r.cfg.PruneLimit); err != nil {
-		r.logger.ErrorContext(ctx, "prune jobs failed", slog.Any("runner", r.name), slog.Any("error", err))
+		r.logger.ErrorContext(ctx, "prune jobs failed", slog.Any("error", err))
 	}
 
 	batch, err := r.queue.Claim(ctx, r.cfg.BatchSize, r.cfg.LeaseDuration)
 	if err != nil {
-		r.logger.ErrorContext(ctx, "claim jobs failed", slog.Any("runner", r.name), slog.Any("error", err))
+		r.logger.ErrorContext(ctx, "claim jobs failed", slog.Any("error", err))
 		return
 	}
 
@@ -112,12 +116,12 @@ func (r *Runner[T]) processOne(ctx context.Context, job T, deadline time.Time) {
 	// A Process panic must not take down the worker; isolate it to this job.
 	defer func() {
 		if rec := recover(); rec != nil {
-			r.logger.ErrorContext(ctx, "job panicked", slog.Any("runner", r.name), slog.Any("panic", rec))
+			r.logger.ErrorContext(ctx, "job panicked", slog.Any("panic", rec))
 		}
 	}()
 	jobCtx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	if err := r.proc.Process(jobCtx, job); err != nil {
-		r.logger.WarnContext(ctx, "job did not complete", slog.Any("runner", r.name), slog.Any("error", err))
+		r.logger.WarnContext(ctx, "job did not complete", slog.Any("error", err))
 	}
 }

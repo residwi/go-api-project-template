@@ -31,7 +31,6 @@ func Logging(log *slog.Logger) Middleware {
 				slog.Int("status", recorder.statusCode),
 				slog.String("duration", time.Since(start).String()),
 				slog.String("remote_addr", r.RemoteAddr),
-				slog.String("request_id", GetRequestID(r.Context())),
 			)
 		})
 	}

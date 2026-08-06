@@ -17,7 +17,6 @@ func Recovery(log *slog.Logger) Middleware {
 					log.ErrorContext(r.Context(), "panic recovered",
 						slog.Any("error", err),
 						slog.String("stack", string(debug.Stack())),
-						slog.String("request_id", GetRequestID(r.Context())),
 					)
 					// Writing again after the handler started would mean a superfluous WriteHeader
 					// and a corrupt, double-encoded body.

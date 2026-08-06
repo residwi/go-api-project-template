@@ -2,11 +2,13 @@ package middleware
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
 
+	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -112,6 +114,7 @@ func Auth(
 				Role:         claims.Role,
 				TokenVersion: claims.TokenVersion,
 			})
+			ctx = logger.WithAttrs(ctx, slog.String("user_id", claims.UserID.String()))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

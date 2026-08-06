@@ -1,50 +1,20 @@
 package middleware
 
 import (
-	"context"
+	"bytes"
+	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
 func TestRequestID_GeneratesUUIDWhenNoHeader(t *testing.T) {
-	var capturedID string
-	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedID = GetRequestID(r.Context())
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	require.NotEmpty(t, capturedID)
-	assert.Len(t, capturedID, 36) // UUID format: 8-4-4-4-12
-	assert.Equal(t, capturedID, rec.Header().Get("X-Request-ID"))
-}
-
-func TestRequestID_UsesExistingHeader(t *testing.T) {
-	existingID := "my-custom-request-id"
-
-	var capturedID string
-	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedID = GetRequestID(r.Context())
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("X-Request-ID", existingID)
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	assert.Equal(t, existingID, capturedID)
-	assert.Equal(t, existingID, rec.Header().Get("X-Request-ID"))
-}
-
-func TestRequestID_SetsResponseHeader(t *testing.T) {
 	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -53,12 +23,42 @@ func TestRequestID_SetsResponseHeader(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	responseID := rec.Header().Get("X-Request-ID")
-	assert.NotEmpty(t, responseID)
+	id := rec.Header().Get("X-Request-ID")
+	require.NotEmpty(t, id)
+	assert.Len(t, id, 36) // UUID format: 8-4-4-4-12.
 }
 
-func TestGetRequestID_ReturnsEmptyStringFromEmptyContext(t *testing.T) {
-	id := GetRequestID(context.Background())
+func TestRequestID_UsesExistingHeader(t *testing.T) {
+	existingID := "my-custom-request-id"
 
-	assert.Empty(t, id)
+	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Request-ID", existingID)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, existingID, rec.Header().Get("X-Request-ID"))
+}
+
+func TestRequestID_DownstreamLogsCarryTheSameIDAsTheResponseHeader(t *testing.T) {
+	var buf bytes.Buffer
+	log := slog.New(logger.ContextHandler{Handler: slog.NewJSONHandler(&buf, nil)})
+
+	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.InfoContext(r.Context(), "downstream work")
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Request-ID", "req-42")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	var record map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &record))
+	assert.Equal(t, "req-42", record["request_id"])
+	assert.Equal(t, rec.Header().Get("X-Request-ID"), record["request_id"])
 }

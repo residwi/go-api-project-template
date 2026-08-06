@@ -1,7 +1,10 @@
 package middleware
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
 func TestRequireUser(t *testing.T) {
@@ -242,5 +247,41 @@ func TestAuth(t *testing.T) {
 
 		assert.True(t, called)
 		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("downstream logs carry the user id", func(t *testing.T) {
+		var buf bytes.Buffer
+		log := slog.New(logger.ContextHandler{Handler: slog.NewJSONHandler(&buf, nil)})
+
+		userID := uuid.New()
+		tokenValidator := NewMockTokenValidator(t)
+		userStatus := NewMockUserStatusChecker(t)
+		mid := Auth(tokenValidator, userStatus)
+
+		tokenValidator.EXPECT().ValidateToken("good-token").Return(&TokenClaims{
+			UserID:       userID,
+			Email:        "a@example.com",
+			Role:         "user",
+			Type:         "access",
+			TokenVersion: 1,
+		}, nil)
+		userStatus.EXPECT().CheckStatus(mock.Anything, userID).
+			Return(UserStatusResult{Active: true, TokenVersion: 1}, nil)
+
+		handler := mid(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.InfoContext(r.Context(), "downstream work")
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Authorization", "Bearer good-token")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		require.Equal(t, http.StatusOK, rec.Code)
+
+		var record map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &record))
+		assert.Equal(t, userID.String(), record["user_id"])
 	})
 }
