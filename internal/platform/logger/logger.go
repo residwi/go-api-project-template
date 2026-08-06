@@ -35,8 +35,6 @@ func setup(w io.Writer, level, format string) *slog.Logger {
 		handler = slog.NewJSONHandler(w, opts)
 	}
 
-	// Wrapped here, not per call site: an unwrapped logger accepts every ctx and
-	// silently emits none of its attributes.
 	return slog.New(ContextHandler{Handler: handler})
 }
 
