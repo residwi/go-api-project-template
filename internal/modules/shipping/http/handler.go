@@ -56,7 +56,7 @@ func (h *handler) GetShipping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	order, err := h.orders.GetByID(r.Context(), orderID)
+	order, err := h.orders.GetInfo(r.Context(), orderID)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

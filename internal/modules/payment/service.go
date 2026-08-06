@@ -20,16 +20,6 @@ import (
 
 const jitterDivisor = 2
 
-// A paid order has one order line per product, so this cannot collide two
-// OrderItemDTOs into the same key.
-func toStockMap(items []OrderItemDTO) map[uuid.UUID]int {
-	out := make(map[uuid.UUID]int, len(items))
-	for _, it := range items {
-		out[it.ProductID] = it.Quantity
-	}
-	return out
-}
-
 // stockStateFor keeps the contract.StockState enum out of the order module's
 // persisted StockDeducted bool; only this seam translates it.
 func stockStateFor(deducted bool) inventorycontract.StockState {
@@ -213,7 +203,7 @@ func (s *Service) Process(ctx context.Context, job Job) error {
 //nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches; funlen counts golines' wrapping, not added logic (78 lines before this commit's reformat, 108 after)
 func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
-		orderSnap, err := s.orderGet.GetByID(txCtx, job.OrderID)
+		orderSnap, err := s.orderGet.GetSnapshot(txCtx, job.OrderID)
 		if err != nil {
 			return fmt.Errorf("getting order for verification: %w", err)
 		}
@@ -294,12 +284,12 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 			return nil
 		}
 
-		items, err := s.orderItems.ListItemsByOrderID(txCtx, job.OrderID)
+		items, err := s.orderItems.ListItemQuantities(txCtx, job.OrderID)
 		if err != nil {
 			return fmt.Errorf("listing order items: %w", err)
 		}
 
-		if err := s.inventory.DeductBatch(txCtx, toStockMap(items)); err != nil {
+		if err := s.inventory.DeductBatch(txCtx, items); err != nil {
 			return fmt.Errorf("deducting inventory: %w", err)
 		}
 
@@ -718,7 +708,7 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 		// Read BEFORE the flip to refunded: StockDeducted picks restock vs release,
 		// and StockReversed says the hold is already unwound -- reversing twice would
 		// steal another order's reservation.
-		orderSnap, snapErr := s.orderGet.GetByID(txCtx, job.OrderID)
+		orderSnap, snapErr := s.orderGet.GetSnapshot(txCtx, job.OrderID)
 		if snapErr != nil {
 			return fmt.Errorf("getting order for refund: %w", snapErr)
 		}
@@ -741,7 +731,7 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 			)
 		}
 
-		items, listErr := s.orderItems.ListItemsByOrderID(txCtx, job.OrderID)
+		items, listErr := s.orderItems.ListItemQuantities(txCtx, job.OrderID)
 		if listErr != nil {
 			return listErr
 		}
@@ -755,7 +745,7 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 			// Inventory owns release-vs-restock; we pass the order's persisted fact.
 			if restoreErr := s.inventoryRestorer.Restore(
 				txCtx,
-				toStockMap(items),
+				items,
 				stockStateFor(orderSnap.StockDeducted),
 			); restoreErr != nil {
 				s.logger.ErrorContext(txCtx, "failed to restore inventory on refund",

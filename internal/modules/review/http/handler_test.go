@@ -171,11 +171,7 @@ func TestHandler_Create(t *testing.T) {
 		productID := uuid.New()
 		orderID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, review.DeliveredPurchase{
-			UserID:    userID,
-			OrderID:   orderID,
-			ProductID: productID,
-		}).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, orderID, productID).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, nil)
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
@@ -338,11 +334,7 @@ func TestHandler_Create(t *testing.T) {
 		productID := uuid.New()
 		orderID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, review.DeliveredPurchase{
-			UserID:    userID,
-			OrderID:   orderID,
-			ProductID: productID,
-		}).Return(false, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, orderID, productID).Return(false, nil)
 
 		body, _ := json.Marshal(map[string]any{
 			"order_id": orderID,

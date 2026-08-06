@@ -22,7 +22,7 @@ func NewService(repo Repository, tx database.TxRunner, orders OrderProvider, upd
 }
 
 func (s *Service) CreateShipment(ctx context.Context, orderID uuid.UUID, p CreateParams) (*Shipment, error) {
-	order, err := s.orders.GetByID(ctx, orderID)
+	order, err := s.orders.GetInfo(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}

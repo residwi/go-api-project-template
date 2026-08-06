@@ -25,11 +25,7 @@ func NewService(repo Repository, purchase PurchaseVerifier) *Service {
 func (s *Service) Create(ctx context.Context, userID, productID uuid.UUID, p CreateParams) (*Review, error) {
 	// The specific client-supplied order, or p.OrderID could name any existing one
 	// and forge the review's provenance.
-	delivered, err := s.purchase.HasDeliveredOrder(ctx, DeliveredPurchase{
-		UserID:    userID,
-		OrderID:   p.OrderID,
-		ProductID: productID,
-	})
+	delivered, err := s.purchase.HasDeliveredOrder(ctx, userID, p.OrderID, productID)
 	if err != nil {
 		return nil, err
 	}

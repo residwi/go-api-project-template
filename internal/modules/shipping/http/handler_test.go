@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -35,7 +36,7 @@ func TestHandler_GetShipping(t *testing.T) {
 		shipmentID := uuid.New()
 		now := time.Now()
 
-		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{
+		orderProv.EXPECT().GetInfo(mock.Anything, orderID).Return(ordercontract.Order{
 			ID:     orderID,
 			UserID: userID,
 			Status: "shipped",
@@ -128,7 +129,7 @@ func TestHandler_GetShipping(t *testing.T) {
 		mux, _, orderProv, _ := setupShippingMux(t)
 
 		orderID := uuid.New()
-		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{}, apperror.ErrNotFound)
+		orderProv.EXPECT().GetInfo(mock.Anything, orderID).Return(ordercontract.Order{}, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -153,7 +154,7 @@ func TestHandler_GetShipping(t *testing.T) {
 		otherUserID := uuid.New()
 		orderID := uuid.New()
 
-		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{
+		orderProv.EXPECT().GetInfo(mock.Anything, orderID).Return(ordercontract.Order{
 			ID: orderID, UserID: otherUserID, Status: "shipped",
 		}, nil)
 
@@ -177,7 +178,7 @@ func TestHandler_GetShipping(t *testing.T) {
 		userID := uuid.New()
 		orderID := uuid.New()
 
-		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{
+		orderProv.EXPECT().GetInfo(mock.Anything, orderID).Return(ordercontract.Order{
 			ID: orderID, UserID: userID, Status: "shipped",
 		}, nil)
 		repo.EXPECT().GetByOrderID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)

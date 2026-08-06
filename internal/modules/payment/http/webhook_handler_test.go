@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
@@ -156,7 +157,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil).Times(2)
-		orderGet.EXPECT().GetByID(mock.Anything, orderID).Return(payment.OrderSnapshot{
+		orderGet.EXPECT().GetSnapshot(mock.Anything, orderID).Return(ordercontract.Order{
 			Total: money.New(9999, "USD"),
 		}, nil)
 

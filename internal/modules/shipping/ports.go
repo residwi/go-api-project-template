@@ -4,16 +4,12 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+
+	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 )
 
 type OrderProvider interface {
-	GetByID(ctx context.Context, orderID uuid.UUID) (OrderInfo, error)
-}
-
-type OrderInfo struct {
-	ID     uuid.UUID
-	UserID uuid.UUID
-	Status string
+	GetInfo(ctx context.Context, orderID uuid.UUID) (ordercontract.Order, error)
 }
 
 // OrderUpdater flips the order status from the shipping domain via intent

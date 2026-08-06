@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
-	"github.com/residwi/go-api-project-template/internal/money"
+	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 )
 
 // OrderUpdater is intent methods, so payment never imports order: the bootstrap
@@ -23,31 +23,12 @@ type OrderUpdater interface {
 	CancelUnpaid(ctx context.Context, orderID uuid.UUID) error
 }
 
-type OrderItemDTO struct {
-	ProductID uuid.UUID
-	Quantity  int
-}
-
 type OrderItemsGetter interface {
-	ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]OrderItemDTO, error)
-}
-
-type OrderSnapshot struct {
-	Total      money.Money
-	Status     string
-	CouponCode string
-	// Owned by the order module and persisted, not re-derived from Status. Payment
-	// reads them to choose restock vs release, and to skip a reversal that already
-	// happened rather than double-releasing.
-	StockDeducted bool
-	StockReversed bool
-	// The order module owns the mapping from its status enum; payment reads the flag
-	// to skip restocking on refund rather than re-deriving order semantics.
-	Dispatched bool
+	ListItemQuantities(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error)
 }
 
 type OrderGetter interface {
-	GetByID(ctx context.Context, orderID uuid.UUID) (OrderSnapshot, error)
+	GetSnapshot(ctx context.Context, orderID uuid.UUID) (ordercontract.Order, error)
 }
 
 type InventoryDeductor interface {

@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -38,23 +39,23 @@ func (_m *MockOrderProvider) EXPECT() *MockOrderProvider_Expecter {
 	return &MockOrderProvider_Expecter{mock: &_m.Mock}
 }
 
-// GetByID provides a mock function for the type MockOrderProvider
-func (_mock *MockOrderProvider) GetByID(ctx context.Context, orderID uuid.UUID) (OrderInfo, error) {
+// GetInfo provides a mock function for the type MockOrderProvider
+func (_mock *MockOrderProvider) GetInfo(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
 	ret := _mock.Called(ctx, orderID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetByID")
+		panic("no return value specified for GetInfo")
 	}
 
-	var r0 OrderInfo
+	var r0 contract.Order
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (OrderInfo, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (contract.Order, error)); ok {
 		return returnFunc(ctx, orderID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) OrderInfo); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) contract.Order); ok {
 		r0 = returnFunc(ctx, orderID)
 	} else {
-		r0 = ret.Get(0).(OrderInfo)
+		r0 = ret.Get(0).(contract.Order)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, orderID)
@@ -64,19 +65,19 @@ func (_mock *MockOrderProvider) GetByID(ctx context.Context, orderID uuid.UUID) 
 	return r0, r1
 }
 
-// MockOrderProvider_GetByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByID'
-type MockOrderProvider_GetByID_Call struct {
+// MockOrderProvider_GetInfo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetInfo'
+type MockOrderProvider_GetInfo_Call struct {
 	*mock.Call
 }
 
-// GetByID is a helper method to define mock.On call
+// GetInfo is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderProvider_Expecter) GetByID(ctx any, orderID any) *MockOrderProvider_GetByID_Call {
-	return &MockOrderProvider_GetByID_Call{Call: _e.mock.On("GetByID", ctx, orderID)}
+func (_e *MockOrderProvider_Expecter) GetInfo(ctx any, orderID any) *MockOrderProvider_GetInfo_Call {
+	return &MockOrderProvider_GetInfo_Call{Call: _e.mock.On("GetInfo", ctx, orderID)}
 }
 
-func (_c *MockOrderProvider_GetByID_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderProvider_GetByID_Call {
+func (_c *MockOrderProvider_GetInfo_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderProvider_GetInfo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -94,12 +95,12 @@ func (_c *MockOrderProvider_GetByID_Call) Run(run func(ctx context.Context, orde
 	return _c
 }
 
-func (_c *MockOrderProvider_GetByID_Call) Return(orderInfo OrderInfo, err error) *MockOrderProvider_GetByID_Call {
-	_c.Call.Return(orderInfo, err)
+func (_c *MockOrderProvider_GetInfo_Call) Return(order contract.Order, err error) *MockOrderProvider_GetInfo_Call {
+	_c.Call.Return(order, err)
 	return _c
 }
 
-func (_c *MockOrderProvider_GetByID_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (OrderInfo, error)) *MockOrderProvider_GetByID_Call {
+func (_c *MockOrderProvider_GetInfo_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (contract.Order, error)) *MockOrderProvider_GetInfo_Call {
 	_c.Call.Return(run)
 	return _c
 }

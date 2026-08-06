@@ -5,20 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
-
-// Must comfortably exceed a charge job's lease, or the sweep reverts an order
-// whose charge is still running.
-const staleProcessingThreshold = 15 * time.Minute
 
 const housekeepingBatchLimit = 20
 
@@ -263,15 +259,53 @@ func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) er
 	return nil
 }
 
-// CancelUnpaidByID is system-initiated (the payment webhook), so unlike
+// CancelUnpaid is system-initiated (the payment webhook), so unlike
 // CancelOrder it runs no ownership check. The CancelledTransition CAS still
-// rejects an already-paid order as a wrapped apperror.ErrBadRequest.
-func (s *Service) CancelUnpaidByID(ctx context.Context, orderID uuid.UUID) error {
+// rejects an already-paid order as a wrapped apperror.ErrBadRequest. Named
+// for payment.OrderUpdater's intent, which this satisfies directly.
+func (s *Service) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {
 	order, err := s.repo.GetByID(ctx, orderID)
 	if err != nil {
 		return err
 	}
 	return s.cancelWithReversal(ctx, order)
+}
+
+// The Mark* methods below are named for the capability their callers ask for,
+// so payment.OrderUpdater and shipping.OrderUpdater are satisfied without an
+// adapter. Each maps to exactly one named Transition, so the allowed-from set
+// stays declared once, in transition.go.
+
+func (s *Service) MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error {
+	return s.Apply(ctx, orderID, PaymentProcessingTransition)
+}
+
+func (s *Service) MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error {
+	return s.Apply(ctx, orderID, AwaitingPaymentTransition)
+}
+
+func (s *Service) MarkPaid(ctx context.Context, orderID uuid.UUID) error {
+	return s.Apply(ctx, orderID, PaidTransition)
+}
+
+func (s *Service) MarkFulfillmentFailedAfterCharge(ctx context.Context, orderID uuid.UUID) error {
+	return s.Apply(ctx, orderID, FulfillmentFailedAfterChargeTransition)
+}
+
+func (s *Service) MarkFulfillmentFailedCompensating(ctx context.Context, orderID uuid.UUID) error {
+	return s.Apply(ctx, orderID, FulfillmentFailedCompensatingTransition)
+}
+
+func (s *Service) MarkRefunded(ctx context.Context, orderID uuid.UUID) error {
+	return s.Apply(ctx, orderID, RefundTransition)
+}
+
+func (s *Service) MarkShipped(ctx context.Context, orderID uuid.UUID) error {
+	return s.Apply(ctx, orderID, ShippedTransition)
+}
+
+func (s *Service) MarkDelivered(ctx context.Context, orderID uuid.UUID) error {
+	return s.Apply(ctx, orderID, DeliveredTransition)
 }
 
 // ExpireStale is the payment runner's per-tick Sweeper hook. Each order gets
@@ -298,7 +332,7 @@ func (s *Service) ExpireStale(ctx context.Context) error {
 // worker that died mid-charge, handing them back to the retry/expiry path.
 // The CAS only matches payment_processing, so a concurrent recovery no-ops.
 func (s *Service) RecoverStaleProcessing(ctx context.Context) error {
-	orders, err := s.repo.GetStaleProcessingOrders(ctx, staleProcessingThreshold, housekeepingBatchLimit)
+	orders, err := s.repo.GetStaleProcessingOrders(ctx, contract.StaleProcessingThreshold, housekeepingBatchLimit)
 	if err != nil {
 		return fmt.Errorf("getting stale processing orders: %w", err)
 	}
@@ -404,8 +438,58 @@ func (s *Service) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]
 	return s.repo.ListItemsByOrderID(ctx, orderID)
 }
 
+// GetSnapshot backs payment.OrderGetter: everything payment needs to decide a
+// charge or refund outcome, without payment importing order.
+func (s *Service) GetSnapshot(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
+	o, err := s.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return contract.Order{}, err
+	}
+
+	couponCode := ""
+	if o.CouponCode != nil {
+		couponCode = *o.CouponCode
+	}
+
+	return contract.Order{
+		Total:         o.Total,
+		Status:        string(o.Status),
+		CouponCode:    couponCode,
+		StockDeducted: o.StockDeducted,
+		StockReversed: o.StockReversed,
+		Dispatched:    o.Dispatched(),
+	}, nil
+}
+
+// GetInfo backs shipping.OrderProvider's ownership check, which needs only
+// who owns the order and its current status.
+func (s *Service) GetInfo(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
+	o, err := s.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return contract.Order{}, err
+	}
+	return contract.Order{ID: o.ID, UserID: o.UserID, Status: string(o.Status)}, nil
+}
+
+// ListItemQuantities backs payment.OrderItemsGetter. A paid order has one
+// order line per product, so this cannot collide two items into the same key.
+func (s *Service) ListItemQuantities(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error) {
+	items, err := s.ListItemsByOrderID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(map[uuid.UUID]int, len(items))
+	for _, item := range items {
+		out[item.ProductID] = item.Quantity
+	}
+	return out, nil
+}
+
 // DeliveredPurchaseParams names its fields because all three ids are uuid.UUID:
-// a positional swap would compile and answer about the wrong purchase.
+// a positional swap would compile and answer about the wrong purchase. This is
+// order's own repository parameter, not a seam type: review crosses the seam
+// with three plain uuid.UUID arguments instead.
 type DeliveredPurchaseParams struct {
 	UserID    uuid.UUID
 	OrderID   uuid.UUID
@@ -414,8 +498,12 @@ type DeliveredPurchaseParams struct {
 
 // HasDeliveredOrder backs review.PurchaseVerifier, so review confirms a
 // purchase through this module instead of querying the orders schema.
-func (s *Service) HasDeliveredOrder(ctx context.Context, p DeliveredPurchaseParams) (bool, error) {
-	return s.repo.HasDeliveredOrder(ctx, p)
+func (s *Service) HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error) {
+	return s.repo.HasDeliveredOrder(ctx, DeliveredPurchaseParams{
+		UserID:    userID,
+		OrderID:   orderID,
+		ProductID: productID,
+	})
 }
 
 // SetPaymentDeps breaks the order/payment construction cycle.
@@ -443,7 +531,7 @@ func (s *Service) finalizeFreeOrder(ctx context.Context, order *Order) error {
 }
 
 // cancelWithReversal is the single cancel path, shared by the user-facing
-// CancelOrder and the system-facing CancelUnpaidByID. One transaction: a failed
+// CancelOrder and the system-facing CancelUnpaid. One transaction: a failed
 // reversal rolls the cancel back, so no order is cancelled with stock held.
 //
 //nolint:gocognit // the single cancel path: guarded status CAS, conditional stock reversal (release vs restock vs skip), and best-effort coupon release

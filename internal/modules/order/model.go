@@ -46,6 +46,12 @@ type Order struct {
 	UpdatedAt     time.Time
 }
 
+// Dispatched reports whether the goods have left. Payment reads this through
+// contract.Order to decide whether a refund restocks.
+func (o *Order) Dispatched() bool {
+	return o.Status == StatusShipped || o.Status == StatusDelivered
+}
+
 type PlaceResult struct {
 	Order *Order
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
@@ -32,7 +33,7 @@ func TestAdminHandler_CreateShipment(t *testing.T) {
 		shipmentID := uuid.New()
 		now := time.Now()
 
-		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{
+		orderProv.EXPECT().GetInfo(mock.Anything, orderID).Return(ordercontract.Order{
 			ID:     orderID,
 			UserID: uuid.New(),
 			Status: "paid",
@@ -147,7 +148,7 @@ func TestAdminHandler_CreateShipment(t *testing.T) {
 		mux, _, orderProv, _ := setupShippingMux(t)
 
 		orderID := uuid.New()
-		orderProv.EXPECT().GetByID(mock.Anything, orderID).Return(shipping.OrderInfo{}, apperror.ErrNotFound)
+		orderProv.EXPECT().GetInfo(mock.Anything, orderID).Return(ordercontract.Order{}, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{
 			"carrier":         "FedEx",

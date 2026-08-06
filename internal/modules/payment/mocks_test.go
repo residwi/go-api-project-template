@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	contract0 "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -625,24 +626,24 @@ func (_m *MockOrderItemsGetter) EXPECT() *MockOrderItemsGetter_Expecter {
 	return &MockOrderItemsGetter_Expecter{mock: &_m.Mock}
 }
 
-// ListItemsByOrderID provides a mock function for the type MockOrderItemsGetter
-func (_mock *MockOrderItemsGetter) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]OrderItemDTO, error) {
+// ListItemQuantities provides a mock function for the type MockOrderItemsGetter
+func (_mock *MockOrderItemsGetter) ListItemQuantities(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error) {
 	ret := _mock.Called(ctx, orderID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ListItemsByOrderID")
+		panic("no return value specified for ListItemQuantities")
 	}
 
-	var r0 []OrderItemDTO
+	var r0 map[uuid.UUID]int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]OrderItemDTO, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (map[uuid.UUID]int, error)); ok {
 		return returnFunc(ctx, orderID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []OrderItemDTO); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) map[uuid.UUID]int); ok {
 		r0 = returnFunc(ctx, orderID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]OrderItemDTO)
+			r0 = ret.Get(0).(map[uuid.UUID]int)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -653,19 +654,19 @@ func (_mock *MockOrderItemsGetter) ListItemsByOrderID(ctx context.Context, order
 	return r0, r1
 }
 
-// MockOrderItemsGetter_ListItemsByOrderID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListItemsByOrderID'
-type MockOrderItemsGetter_ListItemsByOrderID_Call struct {
+// MockOrderItemsGetter_ListItemQuantities_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListItemQuantities'
+type MockOrderItemsGetter_ListItemQuantities_Call struct {
 	*mock.Call
 }
 
-// ListItemsByOrderID is a helper method to define mock.On call
+// ListItemQuantities is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderItemsGetter_Expecter) ListItemsByOrderID(ctx any, orderID any) *MockOrderItemsGetter_ListItemsByOrderID_Call {
-	return &MockOrderItemsGetter_ListItemsByOrderID_Call{Call: _e.mock.On("ListItemsByOrderID", ctx, orderID)}
+func (_e *MockOrderItemsGetter_Expecter) ListItemQuantities(ctx any, orderID any) *MockOrderItemsGetter_ListItemQuantities_Call {
+	return &MockOrderItemsGetter_ListItemQuantities_Call{Call: _e.mock.On("ListItemQuantities", ctx, orderID)}
 }
 
-func (_c *MockOrderItemsGetter_ListItemsByOrderID_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderItemsGetter_ListItemsByOrderID_Call {
+func (_c *MockOrderItemsGetter_ListItemQuantities_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderItemsGetter_ListItemQuantities_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -683,12 +684,12 @@ func (_c *MockOrderItemsGetter_ListItemsByOrderID_Call) Run(run func(ctx context
 	return _c
 }
 
-func (_c *MockOrderItemsGetter_ListItemsByOrderID_Call) Return(orderItemDTOs []OrderItemDTO, err error) *MockOrderItemsGetter_ListItemsByOrderID_Call {
-	_c.Call.Return(orderItemDTOs, err)
+func (_c *MockOrderItemsGetter_ListItemQuantities_Call) Return(uUIDToInt map[uuid.UUID]int, err error) *MockOrderItemsGetter_ListItemQuantities_Call {
+	_c.Call.Return(uUIDToInt, err)
 	return _c
 }
 
-func (_c *MockOrderItemsGetter_ListItemsByOrderID_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) ([]OrderItemDTO, error)) *MockOrderItemsGetter_ListItemsByOrderID_Call {
+func (_c *MockOrderItemsGetter_ListItemQuantities_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error)) *MockOrderItemsGetter_ListItemQuantities_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -720,23 +721,23 @@ func (_m *MockOrderGetter) EXPECT() *MockOrderGetter_Expecter {
 	return &MockOrderGetter_Expecter{mock: &_m.Mock}
 }
 
-// GetByID provides a mock function for the type MockOrderGetter
-func (_mock *MockOrderGetter) GetByID(ctx context.Context, orderID uuid.UUID) (OrderSnapshot, error) {
+// GetSnapshot provides a mock function for the type MockOrderGetter
+func (_mock *MockOrderGetter) GetSnapshot(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
 	ret := _mock.Called(ctx, orderID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetByID")
+		panic("no return value specified for GetSnapshot")
 	}
 
-	var r0 OrderSnapshot
+	var r0 contract.Order
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (OrderSnapshot, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (contract.Order, error)); ok {
 		return returnFunc(ctx, orderID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) OrderSnapshot); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) contract.Order); ok {
 		r0 = returnFunc(ctx, orderID)
 	} else {
-		r0 = ret.Get(0).(OrderSnapshot)
+		r0 = ret.Get(0).(contract.Order)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, orderID)
@@ -746,19 +747,19 @@ func (_mock *MockOrderGetter) GetByID(ctx context.Context, orderID uuid.UUID) (O
 	return r0, r1
 }
 
-// MockOrderGetter_GetByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByID'
-type MockOrderGetter_GetByID_Call struct {
+// MockOrderGetter_GetSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshot'
+type MockOrderGetter_GetSnapshot_Call struct {
 	*mock.Call
 }
 
-// GetByID is a helper method to define mock.On call
+// GetSnapshot is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderGetter_Expecter) GetByID(ctx any, orderID any) *MockOrderGetter_GetByID_Call {
-	return &MockOrderGetter_GetByID_Call{Call: _e.mock.On("GetByID", ctx, orderID)}
+func (_e *MockOrderGetter_Expecter) GetSnapshot(ctx any, orderID any) *MockOrderGetter_GetSnapshot_Call {
+	return &MockOrderGetter_GetSnapshot_Call{Call: _e.mock.On("GetSnapshot", ctx, orderID)}
 }
 
-func (_c *MockOrderGetter_GetByID_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderGetter_GetByID_Call {
+func (_c *MockOrderGetter_GetSnapshot_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderGetter_GetSnapshot_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -776,12 +777,12 @@ func (_c *MockOrderGetter_GetByID_Call) Run(run func(ctx context.Context, orderI
 	return _c
 }
 
-func (_c *MockOrderGetter_GetByID_Call) Return(orderSnapshot OrderSnapshot, err error) *MockOrderGetter_GetByID_Call {
-	_c.Call.Return(orderSnapshot, err)
+func (_c *MockOrderGetter_GetSnapshot_Call) Return(order contract.Order, err error) *MockOrderGetter_GetSnapshot_Call {
+	_c.Call.Return(order, err)
 	return _c
 }
 
-func (_c *MockOrderGetter_GetByID_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (OrderSnapshot, error)) *MockOrderGetter_GetByID_Call {
+func (_c *MockOrderGetter_GetSnapshot_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (contract.Order, error)) *MockOrderGetter_GetSnapshot_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -898,7 +899,7 @@ func (_m *MockInventoryRestorer) EXPECT() *MockInventoryRestorer_Expecter {
 }
 
 // Restore provides a mock function for the type MockInventoryRestorer
-func (_mock *MockInventoryRestorer) Restore(ctx context.Context, items map[uuid.UUID]int, prior contract.StockState) error {
+func (_mock *MockInventoryRestorer) Restore(ctx context.Context, items map[uuid.UUID]int, prior contract0.StockState) error {
 	ret := _mock.Called(ctx, items, prior)
 
 	if len(ret) == 0 {
@@ -906,7 +907,7 @@ func (_mock *MockInventoryRestorer) Restore(ctx context.Context, items map[uuid.
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, map[uuid.UUID]int, contract.StockState) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[uuid.UUID]int, contract0.StockState) error); ok {
 		r0 = returnFunc(ctx, items, prior)
 	} else {
 		r0 = ret.Error(0)
@@ -922,12 +923,12 @@ type MockInventoryRestorer_Restore_Call struct {
 // Restore is a helper method to define mock.On call
 //   - ctx context.Context
 //   - items map[uuid.UUID]int
-//   - prior contract.StockState
+//   - prior contract0.StockState
 func (_e *MockInventoryRestorer_Expecter) Restore(ctx any, items any, prior any) *MockInventoryRestorer_Restore_Call {
 	return &MockInventoryRestorer_Restore_Call{Call: _e.mock.On("Restore", ctx, items, prior)}
 }
 
-func (_c *MockInventoryRestorer_Restore_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int, prior contract.StockState)) *MockInventoryRestorer_Restore_Call {
+func (_c *MockInventoryRestorer_Restore_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int, prior contract0.StockState)) *MockInventoryRestorer_Restore_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -937,9 +938,9 @@ func (_c *MockInventoryRestorer_Restore_Call) Run(run func(ctx context.Context, 
 		if args[1] != nil {
 			arg1 = args[1].(map[uuid.UUID]int)
 		}
-		var arg2 contract.StockState
+		var arg2 contract0.StockState
 		if args[2] != nil {
-			arg2 = args[2].(contract.StockState)
+			arg2 = args[2].(contract0.StockState)
 		}
 		run(
 			arg0,
@@ -955,7 +956,7 @@ func (_c *MockInventoryRestorer_Restore_Call) Return(err error) *MockInventoryRe
 	return _c
 }
 
-func (_c *MockInventoryRestorer_Restore_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int, prior contract.StockState) error) *MockInventoryRestorer_Restore_Call {
+func (_c *MockInventoryRestorer_Restore_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int, prior contract0.StockState) error) *MockInventoryRestorer_Restore_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -29,11 +29,7 @@ func TestService_Create(t *testing.T) {
 		productID := uuid.New()
 		orderID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, DeliveredPurchase{
-			UserID:    userID,
-			OrderID:   orderID,
-			ProductID: productID,
-		}).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, orderID, productID).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, nil)
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(rv *Review) bool {
 			return rv.UserID == userID &&
@@ -76,7 +72,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(false, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(false, nil)
 
 		req := CreateParams{
 			OrderID: uuid.New(),
@@ -102,7 +98,7 @@ func TestService_Create(t *testing.T) {
 		productID := uuid.New()
 
 		verifyErr := errors.New("purchase check failed")
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(false, verifyErr)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(false, verifyErr)
 
 		req := CreateParams{OrderID: uuid.New(), Rating: 5, Title: "Great"}
 		result, err := svc.Create(ctx, userID, productID, req)
@@ -121,7 +117,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
 		dbErr := errors.New("database error")
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, dbErr)
 
@@ -142,7 +138,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, nil)
 		createErr := errors.New("insert failed")
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*review.Review")).Return(createErr)
@@ -164,7 +160,7 @@ func TestService_Create(t *testing.T) {
 		userID := uuid.New()
 		productID := uuid.New()
 
-		purchase.EXPECT().HasDeliveredOrder(mock.Anything, matchDelivery(userID, productID)).Return(true, nil)
+		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(true, nil)
 
 		req := CreateParams{
@@ -295,7 +291,9 @@ func TestService_Delete(t *testing.T) {
 	})
 }
 
-func TestService_Create_PassesNamedPurchaseFields(t *testing.T) {
+// The argument order is userID, orderID, productID -- this pins it, since
+// there is no longer a named struct to catch a positional swap at compile time.
+func TestService_Create_PassesArgumentsInOrder(t *testing.T) {
 	t.Parallel()
 
 	repo := NewMockRepository(t)
@@ -306,11 +304,7 @@ func TestService_Create_PassesNamedPurchaseFields(t *testing.T) {
 	productID := uuid.New()
 	orderID := uuid.New()
 
-	verifier.EXPECT().HasDeliveredOrder(mock.Anything, DeliveredPurchase{
-		UserID:    userID,
-		OrderID:   orderID,
-		ProductID: productID,
-	}).Return(false, nil)
+	verifier.EXPECT().HasDeliveredOrder(mock.Anything, userID, orderID, productID).Return(false, nil)
 
 	_, err := svc.Create(context.Background(), userID, productID, CreateParams{
 		OrderID: orderID,
@@ -319,10 +313,4 @@ func TestService_Create_PassesNamedPurchaseFields(t *testing.T) {
 		Body:    "Worked well",
 	})
 	require.ErrorIs(t, err, apperror.ErrBadRequest, "a non-delivered purchase must be rejected")
-}
-
-func matchDelivery(userID, productID uuid.UUID) any {
-	return mock.MatchedBy(func(p DeliveredPurchase) bool {
-		return p.UserID == userID && p.ProductID == productID
-	})
 }

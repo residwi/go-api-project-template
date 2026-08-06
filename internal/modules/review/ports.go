@@ -6,14 +6,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// DeliveredPurchase names its fields because all three ids are uuid.UUID: a
-// positional swap would compile and answer about the wrong purchase.
-type DeliveredPurchase struct {
-	UserID    uuid.UUID
-	OrderID   uuid.UUID
-	ProductID uuid.UUID
-}
-
+// PurchaseVerifier takes three uuid.UUID arguments in a fixed order: userID,
+// orderID, productID. The struct that used to name them is gone, so keep the
+// order right at every call.
 type PurchaseVerifier interface {
-	HasDeliveredOrder(ctx context.Context, p DeliveredPurchase) (bool, error)
+	HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error)
 }

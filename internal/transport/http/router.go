@@ -37,8 +37,10 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	promotionhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/http"
 	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/review"
 	reviewhttp "github.com/residwi/go-api-project-template/internal/modules/review/http"
 	reviewpg "github.com/residwi/go-api-project-template/internal/modules/review/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	shippinghttp "github.com/residwi/go-api-project-template/internal/modules/shipping/http"
 	shippingpg "github.com/residwi/go-api-project-template/internal/modules/shipping/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
@@ -125,9 +127,11 @@ func NewRouter(
 	)
 	bootstrap.SetOrderPaymentDeps(orderSvc, paymentSvc)
 
-	shippingSvc, shippingOrderProvider := bootstrap.NewShippingService(shippingRepo, txRunner, orderSvc)
+	// orderSvc satisfies shipping.OrderProvider and shipping.OrderUpdater directly,
+	// and review.PurchaseVerifier directly, so neither needs a bootstrap adapter.
+	shippingSvc := shipping.NewService(shippingRepo, txRunner, orderSvc, orderSvc)
 
-	reviewSvc := bootstrap.NewReviewService(reviewRepo, orderSvc)
+	reviewSvc := review.NewService(reviewRepo, orderSvc)
 
 	tokenValidator := auth.NewTokenValidatorAdapter(authSvc)
 	authMiddleware := middleware.Auth(tokenValidator, userSvc)
@@ -179,7 +183,7 @@ func NewRouter(
 	shippinghttp.RegisterRoutes(
 		authed,
 		admin,
-		shippinghttp.RouteDeps{Validator: v, Service: shippingSvc, Orders: shippingOrderProvider},
+		shippinghttp.RouteDeps{Validator: v, Service: shippingSvc, Orders: orderSvc},
 	)
 	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{Validator: v, Service: reviewSvc})
 	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{Validator: v, Service: promotionSvc})

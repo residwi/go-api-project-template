@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -29,8 +30,8 @@ func TestService_CreateShipment(t *testing.T) {
 		orderID := uuid.New()
 		userID := uuid.New()
 
-		orders.EXPECT().GetByID(mock.Anything, orderID).
-			Return(OrderInfo{
+		orders.EXPECT().GetInfo(mock.Anything, orderID).
+			Return(ordercontract.Order{
 				ID:     orderID,
 				UserID: userID,
 				Status: "paid",
@@ -78,8 +79,8 @@ func TestService_CreateShipment(t *testing.T) {
 		svc := NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		orderID := uuid.New()
-		orders.EXPECT().GetByID(mock.Anything, orderID).
-			Return(OrderInfo{
+		orders.EXPECT().GetInfo(mock.Anything, orderID).
+			Return(ordercontract.Order{
 				ID:     orderID,
 				Status: "pending",
 			}, nil)
@@ -100,8 +101,8 @@ func TestService_CreateShipment(t *testing.T) {
 		svc := NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		orderID := uuid.New()
-		orders.EXPECT().GetByID(mock.Anything, orderID).
-			Return(OrderInfo{}, apperror.ErrNotFound)
+		orders.EXPECT().GetInfo(mock.Anything, orderID).
+			Return(ordercontract.Order{}, apperror.ErrNotFound)
 
 		_, err := svc.CreateShipment(context.Background(), orderID, CreateParams{
 			Carrier:        "DHL",
@@ -119,7 +120,7 @@ func TestService_CreateShipment(t *testing.T) {
 		svc := NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		orderID := uuid.New()
-		orders.EXPECT().GetByID(mock.Anything, orderID).Return(OrderInfo{
+		orders.EXPECT().GetInfo(mock.Anything, orderID).Return(ordercontract.Order{
 			ID:     orderID,
 			UserID: uuid.New(),
 			Status: "paid",
@@ -146,7 +147,7 @@ func TestService_CreateShipment(t *testing.T) {
 		svc := NewService(repo, testhelper.FakeTxRunner{}, orders, updater)
 
 		orderID := uuid.New()
-		orders.EXPECT().GetByID(mock.Anything, orderID).Return(OrderInfo{
+		orders.EXPECT().GetInfo(mock.Anything, orderID).Return(ordercontract.Order{
 			ID:     orderID,
 			UserID: uuid.New(),
 			Status: "paid",

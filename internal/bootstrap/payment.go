@@ -1,10 +1,7 @@
 package bootstrap
 
 import (
-	"context"
 	"log/slog"
-
-	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
@@ -12,76 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
-
-// paymentOrderUpdaterAdapter maps payment.OrderUpdater's intent methods to the
-// matching named order.Transition, applied via order.Service.Apply.
-type paymentOrderUpdaterAdapter struct{ svc *order.Service }
-
-func (a *paymentOrderUpdaterAdapter) MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.Apply(ctx, orderID, order.PaymentProcessingTransition)
-}
-
-func (a *paymentOrderUpdaterAdapter) MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.Apply(ctx, orderID, order.AwaitingPaymentTransition)
-}
-
-func (a *paymentOrderUpdaterAdapter) MarkPaid(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.Apply(ctx, orderID, order.PaidTransition)
-}
-
-func (a *paymentOrderUpdaterAdapter) MarkFulfillmentFailedAfterCharge(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.Apply(ctx, orderID, order.FulfillmentFailedAfterChargeTransition)
-}
-
-func (a *paymentOrderUpdaterAdapter) MarkFulfillmentFailedCompensating(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.Apply(ctx, orderID, order.FulfillmentFailedCompensatingTransition)
-}
-
-func (a *paymentOrderUpdaterAdapter) MarkRefunded(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.Apply(ctx, orderID, order.RefundTransition)
-}
-
-func (a *paymentOrderUpdaterAdapter) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {
-	return a.svc.CancelUnpaidByID(ctx, orderID)
-}
-
-type orderGetterAdapter struct{ svc *order.Service }
-
-func (a *orderGetterAdapter) GetByID(ctx context.Context, orderID uuid.UUID) (payment.OrderSnapshot, error) {
-	o, err := a.svc.GetOrderByID(ctx, orderID)
-	if err != nil {
-		return payment.OrderSnapshot{}, err
-	}
-	couponCode := ""
-	if o.CouponCode != nil {
-		couponCode = *o.CouponCode
-	}
-	return payment.OrderSnapshot{
-		Total:         o.Total,
-		Status:        string(o.Status),
-		CouponCode:    couponCode,
-		StockDeducted: o.StockDeducted,
-		StockReversed: o.StockReversed,
-		Dispatched:    o.Status == order.StatusShipped || o.Status == order.StatusDelivered,
-	}, nil
-}
-
-type orderItemsGetterAdapter struct{ svc *order.Service }
-
-func (a *orderItemsGetterAdapter) ListItemsByOrderID(
-	ctx context.Context,
-	orderID uuid.UUID,
-) ([]payment.OrderItemDTO, error) {
-	items, err := a.svc.ListItemsByOrderID(ctx, orderID)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]payment.OrderItemDTO, len(items))
-	for i, item := range items {
-		result[i] = payment.OrderItemDTO{ProductID: item.ProductID, Quantity: item.Quantity}
-	}
-	return result, nil
-}
 
 func NewPaymentService(
 	repo payment.Repository,
@@ -94,9 +21,9 @@ func NewPaymentService(
 ) *payment.Service {
 	return payment.NewService(
 		repo, tx, gw,
-		&paymentOrderUpdaterAdapter{svc: orderSvc},
-		&orderGetterAdapter{svc: orderSvc},
-		&orderItemsGetterAdapter{svc: orderSvc},
+		orderSvc,     // satisfies payment.OrderUpdater directly
+		orderSvc,     // satisfies payment.OrderGetter directly
+		orderSvc,     // satisfies payment.OrderItemsGetter directly
 		inventorySvc, // satisfies payment.InventoryDeductor directly
 		inventorySvc, // satisfies payment.InventoryRestorer directly
 		promotionSvc, // satisfies payment.CouponReleaser directly

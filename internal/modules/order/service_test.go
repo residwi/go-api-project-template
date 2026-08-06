@@ -13,6 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -1810,6 +1811,87 @@ func TestService_PlaceOrder_RejectsMixedCurrencyCart(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, money.ErrCurrencyMismatch, "the cause must be identifiable")
 	require.ErrorIs(t, err, apperror.ErrBadRequest, "a mixed-currency cart is user input -- 400, not 500")
+}
+
+// TestServiceMarkPaid stands in for all nine Mark* methods: each is a one-line
+// forward to Apply with its named Transition, so proving the wiring for one
+// proves the pattern -- the allowed-from set itself is transition.go's test.
+func TestServiceMarkPaid(t *testing.T) {
+	t.Parallel()
+
+	orderID := uuid.New()
+
+	svc, repo, _, _, _, _, _, _ := newTestService(t)
+	repo.EXPECT().Apply(mock.Anything, orderID, PaidTransition).Return(nil)
+
+	require.NoError(t, svc.MarkPaid(context.Background(), orderID))
+}
+
+func TestServiceGetSnapshot(t *testing.T) {
+	t.Parallel()
+
+	t.Run("reports a shipped order as dispatched and flattens a nil coupon to empty", func(t *testing.T) {
+		t.Parallel()
+
+		orderID := uuid.New()
+
+		svc, repo, _, _, _, _, _, _ := newTestService(t)
+		repo.EXPECT().GetByID(mock.Anything, orderID).Return(&Order{
+			ID:            orderID,
+			Total:         money.New(9000, "IDR"),
+			Status:        StatusShipped,
+			CouponCode:    nil,
+			StockDeducted: true,
+		}, nil)
+
+		got, err := svc.GetSnapshot(context.Background(), orderID)
+
+		require.NoError(t, err)
+		assert.Equal(t, ordercontract.Order{
+			Total:         money.New(9000, "IDR"),
+			Status:        "shipped",
+			CouponCode:    "",
+			StockDeducted: true,
+			Dispatched:    true,
+		}, got)
+	})
+}
+
+func TestServiceListItemQuantities(t *testing.T) {
+	t.Parallel()
+
+	orderID := uuid.New()
+	productA := uuid.New()
+	productB := uuid.New()
+
+	svc, repo, _, _, _, _, _, _ := newTestService(t)
+	repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]Item{
+		{ProductID: productA, Quantity: 2},
+		{ProductID: productB, Quantity: 5},
+	}, nil)
+
+	got, err := svc.ListItemQuantities(context.Background(), orderID)
+
+	require.NoError(t, err)
+	assert.Equal(t, map[uuid.UUID]int{productA: 2, productB: 5}, got)
+}
+
+func TestServiceHasDeliveredOrderTakesThreeIDs(t *testing.T) {
+	t.Parallel()
+
+	userID, orderID, productID := uuid.New(), uuid.New(), uuid.New()
+
+	svc, repo, _, _, _, _, _, _ := newTestService(t)
+	repo.EXPECT().HasDeliveredOrder(mock.Anything, DeliveredPurchaseParams{
+		UserID:    userID,
+		OrderID:   orderID,
+		ProductID: productID,
+	}).Return(true, nil)
+
+	got, err := svc.HasDeliveredOrder(context.Background(), userID, orderID, productID)
+
+	require.NoError(t, err)
+	assert.True(t, got)
 }
 
 func newTestService(t *testing.T) (
