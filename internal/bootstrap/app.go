@@ -39,20 +39,20 @@ import (
 	userredis "github.com/residwi/go-api-project-template/internal/modules/user/redis"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	wishlistpg "github.com/residwi/go-api-project-template/internal/modules/wishlist/postgres"
-	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-// Deps is what New needs to build every service. Config carries JWT, cart and
-// payment-gateway settings that task 8's typed module configs (auth.Config,
-// cart.Config, order.Config, payment.Config) replace; until then New reads
-// them straight off it, exactly as router.go used to. Infra and ReaderPool are
-// not read by New yet -- they round out the shape callers already have on hand
-// (config.LoadInfra's result, a read-replica pool) for whichever later task
-// gives them a use.
+// Deps is what New needs to build every service: infrastructure connections
+// plus each module's own typed config (auth.Config, cart.Config,
+// payment.Config), loaded upstream by that module's own LoadConfig. There is
+// no *config.Config or *config.Infra field here -- New never read Infra
+// (task 7 flagged that field as dead on arrival), and JWT/cart/payment values
+// now live on the modules that declare them rather than on a shared struct
+// New had to reach into.
 type Deps struct {
-	Infra      *config.Infra
-	Config     *config.Config
+	Auth       auth.Config
+	Cart       cart.Config
+	Payment    payment.Config
 	Pool       *pgxpool.Pool
 	ReaderPool *pgxpool.Pool
 	Cache      *redis.Client
@@ -101,14 +101,14 @@ func New(d Deps) (*App, error) {
 	userSvc := user.NewService(userpg.New(d.Pool), userCache, d.Logger)
 	authSvc := auth.NewService(
 		userSvc,
-		d.Config.JWT.Secret,
-		d.Config.JWT.Issuer,
-		d.Config.JWT.AccessTokenTTL,
-		d.Config.JWT.RefreshTokenTTL,
+		d.Auth.Secret,
+		d.Auth.Issuer,
+		d.Auth.AccessTokenTTL,
+		d.Auth.RefreshTokenTTL,
 	)
-	authSvc.SetBcryptCost(d.Config.App.BcryptCost)
+	authSvc.SetBcryptCost(d.Auth.BcryptCost)
 
-	cartSvc := cart.NewService(cartpg.New(d.Pool), txRunner, productSvc, d.Config.App.MaxCartItems)
+	cartSvc := cart.NewService(cartpg.New(d.Pool), txRunner, productSvc, d.Cart.MaxItems)
 
 	orderSvc := order.NewService(
 		orderpg.New(d.Pool), txRunner,
@@ -120,7 +120,7 @@ func New(d Deps) (*App, error) {
 		d.Logger,
 	)
 
-	gw := mockgateway.New(d.Config.Payment.GatewayURL, d.Config.Payment.GatewayTimeout)
+	gw := mockgateway.New(d.Payment.GatewayURL, d.Payment.GatewayTimeout)
 	paymentSvc := payment.NewService(
 		paymentpg.New(d.Pool), txRunner, gw,
 		orderSvc, // OrderUpdater, OrderGetter, OrderItemsGetter -- all by name-match

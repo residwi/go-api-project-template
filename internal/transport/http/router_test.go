@@ -21,6 +21,8 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
+	"github.com/residwi/go-api-project-template/internal/modules/auth"
+	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -31,6 +33,22 @@ var (
 	testRedis *redis.Client
 	testDeps  *Deps
 	testApp   *bootstrap.App
+
+	// Fixed across every App this file builds, so a token minted by one is still
+	// valid against another -- the only config every existing call site actually
+	// varies is Payment's gateway URL, pointed at a local httptest mock server.
+	testAuthCfg = auth.Config{
+		Secret:          "test-secret-key-at-least-32-chars-long",
+		AccessTokenTTL:  15 * time.Minute,
+		RefreshTokenTTL: 168 * time.Hour,
+		Issuer:          "test",
+	}
+	testCartCfg    = cart.Config{MaxItems: 50}
+	testPaymentCfg = payment.Config{
+		Gateway:        "mock",
+		GatewayURL:     "http://localhost:19999",
+		GatewayTimeout: 5 * time.Second,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -43,18 +61,11 @@ func TestMain(m *testing.M) {
 	testRedis = rdb
 
 	testDeps = &Deps{
-		Config: &config.Config{
+		Infra: &config.Infra{
 			App: config.AppConfig{
-				Name:         "test",
-				Env:          "development",
-				Port:         8080,
-				MaxCartItems: 50,
-			},
-			JWT: config.JWTConfig{
-				Secret:          "test-secret-key-at-least-32-chars-long",
-				AccessTokenTTL:  15 * time.Minute,
-				RefreshTokenTTL: 168 * time.Hour,
-				Issuer:          "test",
+				Name: "test",
+				Env:  "development",
+				Port: 8080,
 			},
 			CORS: config.CORSConfig{
 				AllowedOrigins: []string{"*"},
@@ -62,32 +73,31 @@ func TestMain(m *testing.M) {
 				AllowedHeaders: []string{"Content-Type", "Authorization"},
 				MaxAge:         86400,
 			},
-			Payment: config.PaymentConfig{
-				Gateway:        "mock",
-				GatewayURL:     "http://localhost:19999",
-				GatewayTimeout: 5 * time.Second,
-			},
 		},
-		Pool:   pool,
-		Cache:  rdb,
-		Logger: testhelper.DiscardLogger(),
+		Auth:    testAuthCfg,
+		Payment: testPaymentCfg,
+		Pool:    pool,
+		Cache:   rdb,
+		Logger:  testhelper.DiscardLogger(),
 	}
 
-	testApp = newTestApp(testDeps.Config)
+	testApp = newTestApp(testPaymentCfg)
 
 	os.Exit(m.Run())
 }
 
 // newTestApp wires a bootstrap.App against testPool/testRedis for a given
-// Config. TestMain uses it for testApp; tests that need a different payment
-// gateway URL (a local httptest mock server) build their own Config and call
-// this instead of NewRouter's now-removed manual construction.
-func newTestApp(cfg *config.Config) *bootstrap.App {
+// payment config. TestMain uses it for testApp; tests that need a different
+// payment gateway URL (a local httptest mock server) build their own
+// payment.Config and call this instead.
+func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 	app, err := bootstrap.New(bootstrap.Deps{
-		Config: cfg,
-		Pool:   testPool,
-		Cache:  testRedis,
-		Logger: testhelper.DiscardLogger(),
+		Auth:    testAuthCfg,
+		Cart:    testCartCfg,
+		Payment: paymentCfg,
+		Pool:    testPool,
+		Cache:   testRedis,
+		Logger:  testhelper.DiscardLogger(),
 	})
 	if err != nil {
 		panic(err)
@@ -131,10 +141,13 @@ func TestHealthHandler(t *testing.T) {
 		defer badPool.Close()
 
 		badDeps := &Deps{
-			Config: testDeps.Config,
-			Pool:   badPool,
-			Cache:  testRedis,
-			Logger: testhelper.DiscardLogger(),
+			Infra:   testDeps.Infra,
+			Auth:    testDeps.Auth,
+			Order:   testDeps.Order,
+			Payment: testDeps.Payment,
+			Pool:    badPool,
+			Cache:   testRedis,
+			Logger:  testhelper.DiscardLogger(),
 		}
 		h := NewRouter(badDeps, testApp)
 
@@ -162,10 +175,13 @@ func TestHealthHandler(t *testing.T) {
 		defer badRedis.Close()
 
 		badDeps := &Deps{
-			Config: testDeps.Config,
-			Pool:   testPool,
-			Cache:  badRedis,
-			Logger: testhelper.DiscardLogger(),
+			Infra:   testDeps.Infra,
+			Auth:    testDeps.Auth,
+			Order:   testDeps.Order,
+			Payment: testDeps.Payment,
+			Pool:    testPool,
+			Cache:   badRedis,
+			Logger:  testhelper.DiscardLogger(),
 		}
 		h := NewRouter(badDeps, testApp)
 
@@ -185,10 +201,13 @@ func TestHealthHandler(t *testing.T) {
 
 	t.Run("returns not configured when redis is nil", func(t *testing.T) {
 		nilRedisDeps := &Deps{
-			Config: testDeps.Config,
-			Pool:   testPool,
-			Cache:  nil,
-			Logger: testhelper.DiscardLogger(),
+			Infra:   testDeps.Infra,
+			Auth:    testDeps.Auth,
+			Order:   testDeps.Order,
+			Payment: testDeps.Payment,
+			Pool:    testPool,
+			Cache:   nil,
+			Logger:  testhelper.DiscardLogger(),
 		}
 		h := NewRouter(nilRedisDeps, testApp)
 
@@ -535,10 +554,13 @@ func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 func TestHealthHandler_NilRedis(t *testing.T) {
 	setup(t)
 	nilRedisDeps := &Deps{
-		Config: testDeps.Config,
-		Pool:   testDeps.Pool,
-		Cache:  nil,
-		Logger: testhelper.DiscardLogger(),
+		Infra:   testDeps.Infra,
+		Auth:    testDeps.Auth,
+		Order:   testDeps.Order,
+		Payment: testDeps.Payment,
+		Pool:    testDeps.Pool,
+		Cache:   nil,
+		Logger:  testhelper.DiscardLogger(),
 	}
 	handler := NewRouter(nilRedisDeps, testApp)
 
@@ -623,22 +645,21 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
-	deps := &Deps{
-		Config: &config.Config{
-			App:  testDeps.Config.App,
-			JWT:  testDeps.Config.JWT,
-			CORS: testDeps.Config.CORS,
-			Payment: config.PaymentConfig{
-				Gateway:        "mock",
-				GatewayURL:     mockServer.URL + "/mock/payment",
-				GatewayTimeout: 5 * time.Second,
-			},
-		},
-		Pool:   testPool,
-		Cache:  testRedis,
-		Logger: testhelper.DiscardLogger(),
+	customPaymentCfg := payment.Config{
+		Gateway:        "mock",
+		GatewayURL:     mockServer.URL + "/mock/payment",
+		GatewayTimeout: 5 * time.Second,
 	}
-	handler := NewRouter(deps, newTestApp(deps.Config))
+	deps := &Deps{
+		Infra:   testDeps.Infra,
+		Auth:    testDeps.Auth,
+		Order:   testDeps.Order,
+		Payment: customPaymentCfg,
+		Pool:    testPool,
+		Cache:   testRedis,
+		Logger:  testhelper.DiscardLogger(),
+	}
+	handler := NewRouter(deps, newTestApp(customPaymentCfg))
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -781,7 +802,7 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	// ever reaches the gateway, so no URL here is actually dialled.
 	err := newPaymentServiceForTest(
 		t,
-		testDeps.Config.Payment.GatewayURL,
+		testDeps.Payment.GatewayURL,
 	).FinalizePaymentSuccess(context.Background(), fakeJob)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "getting order for verification")
@@ -864,11 +885,13 @@ func TestServerRunListenError(t *testing.T) {
 func TestServerRunConfigError(t *testing.T) {
 	setup(t)
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
+	// JWT_ACCESS_TTL is auth's own tag now (task 8), so a bad value fails inside
+	// auth.LoadConfig rather than a central config.Load.
 	t.Setenv("JWT_ACCESS_TTL", "not-a-duration")
 
 	err := Run()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "loading config")
+	assert.Contains(t, err.Error(), "loading auth config")
 }
 
 func TestServerRunDatabaseError(t *testing.T) {
@@ -941,19 +964,16 @@ func setup(t *testing.T) {
 
 // newPaymentServiceForTest wires a whole App against a custom gateway URL (a
 // local httptest mock server) and hands back just the payment service.
-// test/e2e carries its own copy in testmain_test.go; keep the two in step.
+// test/e2e carries its own copy in testmain_test.go, built against the old
+// shared *config.Config -- the two diverged in this task, since bootstrap.Deps
+// no longer has a field of that type. See task 8's report.
 func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Service {
 	t.Helper()
 
-	return newTestApp(&config.Config{
-		App:  testDeps.Config.App,
-		JWT:  testDeps.Config.JWT,
-		CORS: testDeps.Config.CORS,
-		Payment: config.PaymentConfig{
-			Gateway:        "mock",
-			GatewayURL:     gatewayURL,
-			GatewayTimeout: 5 * time.Second,
-		},
+	return newTestApp(payment.Config{
+		Gateway:        "mock",
+		GatewayURL:     gatewayURL,
+		GatewayTimeout: 5 * time.Second,
 	}).Payments
 }
 

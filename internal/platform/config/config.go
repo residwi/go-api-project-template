@@ -11,10 +11,6 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-// defaultWebhookSecret is the placeholder PAYMENT_WEBHOOK_SECRET; it must be
-// overridden outside development.
-const defaultWebhookSecret = "webhook-secret"
-
 // Infra is the configuration that must exist before anything else can be built,
 // including the log settings themselves. Loading it is phase one of two: once it
 // is parsed, a real logger exists, so every later failure can be logged properly.
@@ -56,17 +52,6 @@ func (i *Infra) validate() error {
 	return nil
 }
 
-type Config struct {
-	App      AppConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	JWT      JWTConfig
-	Log      LogConfig
-	CORS     CORSConfig
-	Worker   WorkerConfig
-	Payment  PaymentConfig
-}
-
 type AppConfig struct {
 	Name            string        `envconfig:"APP_NAME"             default:"ecommerce-api"`
 	Env             string        `envconfig:"APP_ENV"              default:"development"`
@@ -75,12 +60,6 @@ type AppConfig struct {
 	WriteTimeout    time.Duration `envconfig:"APP_WRITE_TIMEOUT"    default:"15s"`
 	IdleTimeout     time.Duration `envconfig:"APP_IDLE_TIMEOUT"     default:"60s"`
 	ShutdownTimeout time.Duration `envconfig:"APP_SHUTDOWN_TIMEOUT" default:"30s"`
-	MaxCartItems    int           `envconfig:"MAX_CART_ITEMS"       default:"50"`
-	OrderRateLimit  int           `envconfig:"ORDER_RATE_LIMIT"     default:"5"`
-	OrderRateWindow time.Duration `envconfig:"ORDER_RATE_WINDOW"    default:"1m"`
-	AuthRateLimit   int           `envconfig:"AUTH_RATE_LIMIT"      default:"10"`
-	AuthRateWindow  time.Duration `envconfig:"AUTH_RATE_WINDOW"     default:"1m"`
-	BcryptCost      int           `envconfig:"BCRYPT_COST"          default:"10"`
 }
 
 type DatabaseConfig struct {
@@ -122,13 +101,6 @@ func (r RedisConfig) Addr() string {
 	return net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
 }
 
-type JWTConfig struct {
-	Secret          string        `envconfig:"JWT_SECRET"      required:"true"`
-	AccessTokenTTL  time.Duration `envconfig:"JWT_ACCESS_TTL"                  default:"15m"`
-	RefreshTokenTTL time.Duration `envconfig:"JWT_REFRESH_TTL"                 default:"168h"`
-	Issuer          string        `envconfig:"JWT_ISSUER"                      default:"ecommerce-api"`
-}
-
 type LogConfig struct {
 	Level  string `envconfig:"LOG_LEVEL"  default:"info"`
 	Format string `envconfig:"LOG_FORMAT" default:"json"`
@@ -148,83 +120,4 @@ type WorkerConfig struct {
 	Concurrency   int           `envconfig:"WORKER_CONCURRENCY"    default:"5"`
 	PruneAge      time.Duration `envconfig:"WORKER_PRUNE_AGE"      default:"168h"`
 	PruneLimit    int           `envconfig:"WORKER_PRUNE_LIMIT"    default:"100"`
-}
-
-type PaymentConfig struct {
-	Gateway        string        `envconfig:"PAYMENT_GATEWAY"         default:"mock"`
-	GatewayURL     string        `envconfig:"PAYMENT_GATEWAY_URL"     default:"http://localhost:8080/mock/payment"`
-	GatewayTimeout time.Duration `envconfig:"PAYMENT_GATEWAY_TIMEOUT" default:"10s"`
-	GatewayAPIKey  string        `envconfig:"PAYMENT_GATEWAY_API_KEY" default:""`
-	WebhookSecret  string        `envconfig:"PAYMENT_WEBHOOK_SECRET"  default:"webhook-secret"`
-}
-
-func Load() (*Config, error) {
-	_ = godotenv.Load()
-
-	var cfg Config
-	if err := envconfig.Process("", &cfg); err != nil {
-		return nil, fmt.Errorf("loading config: %w", err)
-	}
-
-	if err := cfg.validate(); err != nil {
-		return nil, err
-	}
-
-	return &cfg, nil
-}
-
-func (c *Config) validate() error {
-	if c.App.Env != "development" && c.Payment.WebhookSecret == defaultWebhookSecret {
-		return errors.New("PAYMENT_WEBHOOK_SECRET must be set in non-development environments")
-	}
-
-	if c.Worker.LeaseDuration < c.Payment.GatewayTimeout*3 {
-		return errors.New(
-			"WORKER_LEASE_DURATION must be at least 3× PAYMENT_GATEWAY_TIMEOUT to avoid duplicate gateway calls",
-		)
-	}
-
-	// A charge job's lease must expire before order.staleProcessingThreshold
-	// (15m), or the recovery sweep reverts an order whose charge is still leased.
-	// Mirrored here manually — config cannot import the order package.
-	const orderStaleProcessingThreshold = 15 * time.Minute
-	if c.Worker.LeaseDuration >= orderStaleProcessingThreshold {
-		return fmt.Errorf(
-			"WORKER_LEASE_DURATION (%s) must be less than the order stale-processing threshold (%s), or the recovery sweep can revert an order whose charge is still leased",
-			c.Worker.LeaseDuration,
-			orderStaleProcessingThreshold,
-		)
-	}
-
-	// If 3x the gateway timeout already meets the stale threshold, no lease duration
-	// satisfies both bounds above: name that instead of a confusing lease error.
-	if c.Payment.GatewayTimeout*3 >= orderStaleProcessingThreshold {
-		return fmt.Errorf(
-			"PAYMENT_GATEWAY_TIMEOUT (%s) is too large: 3× it must stay below the order stale-processing threshold (%s) so a valid WORKER_LEASE_DURATION range exists",
-			c.Payment.GatewayTimeout,
-			orderStaleProcessingThreshold,
-		)
-	}
-
-	if c.Worker.Interval < 5*time.Second {
-		return errors.New("WORKER_INTERVAL must be at least 5s to avoid database polling overhead")
-	}
-
-	if c.App.AuthRateWindow < time.Second {
-		return errors.New("AUTH_RATE_WINDOW must be at least 1s (sub-second windows divide by zero in the limiter)")
-	}
-
-	if c.App.OrderRateWindow < time.Second {
-		return errors.New("ORDER_RATE_WINDOW must be at least 1s (sub-second windows divide by zero in the limiter)")
-	}
-
-	if c.Worker.Concurrency < 1 {
-		return errors.New("WORKER_CONCURRENCY must be at least 1 (0 deadlocks the worker on its unbuffered semaphore)")
-	}
-
-	if c.Worker.PruneLimit < 1 {
-		return errors.New("WORKER_PRUNE_LIMIT must be at least 1")
-	}
-
-	return nil
 }

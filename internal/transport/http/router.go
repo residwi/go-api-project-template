@@ -53,8 +53,8 @@ func NewRouter(
 	authLimiter := middleware.RateLimit(
 		deps.Logger,
 		deps.Cache,
-		deps.Config.App.AuthRateLimit,
-		deps.Config.App.AuthRateWindow,
+		deps.Auth.RateLimit,
+		deps.Auth.RateWindow,
 	)
 	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
 
@@ -62,8 +62,8 @@ func NewRouter(
 	orderWriteLimiter := middleware.RateLimit(
 		deps.Logger,
 		deps.Cache,
-		deps.Config.App.OrderRateLimit,
-		deps.Config.App.OrderRateWindow,
+		deps.Order.RateLimit,
+		deps.Order.RateWindow,
 	)
 
 	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Service: app.Auth})
@@ -83,7 +83,7 @@ func NewRouter(
 		paymenthttp.RouteDeps{
 			Validator:     v,
 			Service:       app.Payments,
-			WebhookSecret: deps.Config.Payment.WebhookSecret,
+			WebhookSecret: deps.Payment.WebhookSecret,
 			Logger:        deps.Logger,
 		},
 	)
@@ -98,11 +98,11 @@ func NewRouter(
 	notificationhttp.RegisterRoutes(authed, notificationhttp.RouteDeps{Service: app.Notifications})
 	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Service: app.Dashboard})
 
-	if deps.Config.App.Env == "development" {
+	if deps.Infra.App.Env == "development" {
 		mockgatewayserver.RegisterRoutes(
 			mux,
 			deps.Logger,
-			mockgatewayserver.WithWebhookSecret(deps.Config.Payment.WebhookSecret),
+			mockgatewayserver.WithWebhookSecret(deps.Payment.WebhookSecret),
 		)
 	}
 
@@ -110,7 +110,7 @@ func NewRouter(
 		middleware.RequestID,
 		middleware.Logging(deps.Logger),
 		middleware.Recovery(deps.Logger),
-		middleware.CORS(deps.Config.CORS),
+		middleware.CORS(deps.Infra.CORS),
 	)(mux)
 }
 

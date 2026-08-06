@@ -10,7 +10,11 @@ import (
 	"syscall"
 
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
+	"github.com/residwi/go-api-project-template/internal/modules/auth"
+	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
 	paymentworker "github.com/residwi/go-api-project-template/internal/modules/payment/worker"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
@@ -36,16 +40,39 @@ func run() error {
 
 	appLog := logger.Setup(infra.Log.Level, infra.Log.Format)
 
-	cfg, err := config.Load()
+	// Infra must load first: payment and order both validate their own timeouts
+	// against infra.Worker.LeaseDuration.
+	authCfg, err := auth.LoadConfig()
 	if err != nil {
-		appLog.Error("loading config failed", slog.String("error", err.Error()))
-		return fmt.Errorf("loading config: %w", err)
+		appLog.Error("loading auth config failed", slog.String("error", err.Error()))
+		return err
+	}
+
+	cartCfg, err := cart.LoadConfig()
+	if err != nil {
+		appLog.Error("loading cart config failed", slog.String("error", err.Error()))
+		return err
+	}
+
+	// order.Config itself has no reader here -- RateLimit/RateWindow are for the
+	// API's HTTP limiter -- but the worker is the process that actually leases
+	// jobs, so it is the right place to also catch a WORKER_LEASE_DURATION that
+	// outlives order's stale-processing threshold.
+	if _, err = order.LoadConfig(infra.Worker.LeaseDuration); err != nil {
+		appLog.Error("loading order config failed", slog.String("error", err.Error()))
+		return err
+	}
+
+	paymentCfg, err := payment.LoadConfig(infra.App.Env, infra.Worker.LeaseDuration)
+	if err != nil {
+		appLog.Error("loading payment config failed", slog.String("error", err.Error()))
+		return err
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := database.NewPostgres(ctx, cfg.Database)
+	pool, err := database.NewPostgres(ctx, infra.Database)
 	if err != nil {
 		// Reported as well as returned: main only sets the exit code.
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
@@ -54,10 +81,11 @@ func run() error {
 	defer pool.Close()
 
 	app, err := bootstrap.New(bootstrap.Deps{
-		Infra:  infra,
-		Config: cfg,
-		Pool:   pool,
-		Logger: appLog,
+		Auth:    authCfg,
+		Cart:    cartCfg,
+		Payment: paymentCfg,
+		Pool:    pool,
+		Logger:  appLog,
 	})
 	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
@@ -65,12 +93,12 @@ func run() error {
 	}
 
 	jobCfg := jobs.Config{
-		Interval:      cfg.Worker.Interval,
-		BatchSize:     cfg.Worker.BatchSize,
-		LeaseDuration: cfg.Worker.LeaseDuration,
-		Concurrency:   cfg.Worker.Concurrency,
-		PruneAge:      cfg.Worker.PruneAge,
-		PruneLimit:    cfg.Worker.PruneLimit,
+		Interval:      infra.Worker.Interval,
+		BatchSize:     infra.Worker.BatchSize,
+		LeaseDuration: infra.Worker.LeaseDuration,
+		Concurrency:   infra.Worker.Concurrency,
+		PruneAge:      infra.Worker.PruneAge,
+		PruneLimit:    infra.Worker.PruneLimit,
 	}
 
 	// app.Orders satisfies payment.OrderHousekeeper directly, so the processor
@@ -82,7 +110,7 @@ func run() error {
 	paymentRunner := jobs.NewRunner("payment", paymentpg.New(pool), paymentProcessor, jobCfg, appLog)
 	notificationRunner := jobs.NewRunner("notification", notificationpg.New(pool), app.Notifications, jobCfg, appLog)
 
-	appLog.InfoContext(ctx, "worker starting", slog.String("env", cfg.App.Env))
+	appLog.InfoContext(ctx, "worker starting", slog.String("env", infra.App.Env))
 	var wg sync.WaitGroup
 	for _, start := range []func(context.Context){paymentRunner.Start, notificationRunner.Start} {
 		wg.Go(func() {

@@ -15,6 +15,10 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
+	"github.com/residwi/go-api-project-template/internal/modules/auth"
+	"github.com/residwi/go-api-project-template/internal/modules/cart"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/cache"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -42,13 +46,12 @@ func RunContext(ctx context.Context) error {
 
 	appLog := logger.Setup(infra.Log.Level, infra.Log.Format)
 
-	cfg, err := config.Load()
+	authCfg, cartCfg, orderCfg, paymentCfg, err := loadModuleConfigs(ctx, infra, appLog)
 	if err != nil {
-		appLog.ErrorContext(ctx, "loading config failed", slog.String("error", err.Error()))
-		return fmt.Errorf("loading config: %w", err)
+		return err
 	}
 
-	pool, err := database.NewPostgres(ctx, cfg.Database)
+	pool, err := database.NewPostgres(ctx, infra.Database)
 	if err != nil {
 		// Reported as well as returned: main only sets the exit code.
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
@@ -56,7 +59,7 @@ func RunContext(ctx context.Context) error {
 	}
 	defer pool.Close()
 
-	readerPool, err := database.NewReaderPostgres(ctx, cfg.Database)
+	readerPool, err := database.NewReaderPostgres(ctx, infra.Database)
 	if err != nil {
 		if !errors.Is(err, apperror.ErrReaderNotConfigured) {
 			appLog.WarnContext(
@@ -71,7 +74,7 @@ func RunContext(ctx context.Context) error {
 		defer readerPool.Close()
 	}
 
-	rdb, err := cache.NewRedis(ctx, cfg.Redis)
+	rdb, err := cache.NewRedis(ctx, infra.Redis)
 	if err != nil {
 		appLog.WarnContext(
 			ctx,
@@ -84,7 +87,10 @@ func RunContext(ctx context.Context) error {
 	}
 
 	deps := &Deps{
-		Config:     cfg,
+		Infra:      infra,
+		Auth:       authCfg,
+		Order:      orderCfg,
+		Payment:    paymentCfg,
 		Pool:       pool,
 		ReaderPool: readerPool,
 		Cache:      rdb,
@@ -92,8 +98,9 @@ func RunContext(ctx context.Context) error {
 	}
 
 	app, err := bootstrap.New(bootstrap.Deps{
-		Infra:      infra,
-		Config:     cfg,
+		Auth:       authCfg,
+		Cart:       cartCfg,
+		Payment:    paymentCfg,
 		Pool:       pool,
 		ReaderPool: readerPool,
 		Cache:      rdb,
@@ -107,11 +114,11 @@ func RunContext(ctx context.Context) error {
 	handler := NewRouter(deps, app)
 
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.App.Port),
+		Addr:         fmt.Sprintf(":%d", infra.App.Port),
 		Handler:      handler,
-		ReadTimeout:  cfg.App.ReadTimeout,
-		WriteTimeout: cfg.App.WriteTimeout,
-		IdleTimeout:  cfg.App.IdleTimeout,
+		ReadTimeout:  infra.App.ReadTimeout,
+		WriteTimeout: infra.App.WriteTimeout,
+		IdleTimeout:  infra.App.IdleTimeout,
 		// net/http reports its own problems here -- superfluous WriteHeader calls, TLS
 		// handshake failures -- which would otherwise go to plain-text stderr.
 		ErrorLog: slog.NewLogLogger(appLog.Handler(), slog.LevelError),
@@ -121,7 +128,7 @@ func RunContext(ctx context.Context) error {
 	// already taken ctx.Done and nobody receives.
 	serveErr := make(chan error, 1)
 	go func() {
-		appLog.InfoContext(ctx, "server starting", slog.Int("port", cfg.App.Port), slog.String("env", cfg.App.Env))
+		appLog.InfoContext(ctx, "server starting", slog.Int("port", infra.App.Port), slog.String("env", infra.App.Env))
 		serveErr <- srv.ListenAndServe()
 	}()
 
@@ -139,7 +146,7 @@ func RunContext(ctx context.Context) error {
 
 	appLog.InfoContext(ctx, "shutting down server")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.App.ShutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), infra.App.ShutdownTimeout)
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
@@ -151,8 +158,57 @@ func RunContext(ctx context.Context) error {
 	return nil
 }
 
+// loadModuleConfigs loads every module config RunContext needs, in the one
+// order that is safe: infra first, since payment and order each validate
+// their own timeout against infra.Worker.LeaseDuration. Each LoadConfig
+// already names itself in the errors it returns, so this does not wrap them
+// again -- only the "which one failed" log line is added here.
+func loadModuleConfigs(
+	ctx context.Context,
+	infra *config.Infra,
+	appLog *slog.Logger,
+) (auth.Config, cart.Config, order.Config, payment.Config, error) {
+	var cartCfg cart.Config
+	var orderCfg order.Config
+	var paymentCfg payment.Config
+
+	authCfg, err := auth.LoadConfig()
+	if err != nil {
+		appLog.ErrorContext(ctx, "loading auth config failed", slog.String("error", err.Error()))
+		return authCfg, cartCfg, orderCfg, paymentCfg, err
+	}
+
+	cartCfg, err = cart.LoadConfig()
+	if err != nil {
+		appLog.ErrorContext(ctx, "loading cart config failed", slog.String("error", err.Error()))
+		return authCfg, cartCfg, orderCfg, paymentCfg, err
+	}
+
+	orderCfg, err = order.LoadConfig(infra.Worker.LeaseDuration)
+	if err != nil {
+		appLog.ErrorContext(ctx, "loading order config failed", slog.String("error", err.Error()))
+		return authCfg, cartCfg, orderCfg, paymentCfg, err
+	}
+
+	paymentCfg, err = payment.LoadConfig(infra.App.Env, infra.Worker.LeaseDuration)
+	if err != nil {
+		appLog.ErrorContext(ctx, "loading payment config failed", slog.String("error", err.Error()))
+		return authCfg, cartCfg, orderCfg, paymentCfg, err
+	}
+
+	return authCfg, cartCfg, orderCfg, paymentCfg, nil
+}
+
+// Deps is what NewRouter needs beyond the wired App: infra's CORS/App.Env
+// (genuinely cross-cutting, not any one module's), plus the module configs
+// its middleware reads (auth and order's rate limits, payment's webhook
+// secret). Cart's config has no reader here -- MaxItems only matters to
+// bootstrap.New, not to routing.
 type Deps struct {
-	Config     *config.Config
+	Infra      *config.Infra
+	Auth       auth.Config
+	Order      order.Config
+	Payment    payment.Config
 	Pool       *pgxpool.Pool
 	ReaderPool *pgxpool.Pool
 	Cache      *redis.Client

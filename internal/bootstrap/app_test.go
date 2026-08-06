@@ -14,8 +14,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/money"
-	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -43,13 +43,11 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 	ctx := context.Background()
 
 	app, err := bootstrap.New(bootstrap.Deps{
-		Config: &config.Config{
-			Payment: config.PaymentConfig{
-				// Port 1 is reserved and never listens, so the dial fails immediately
-				// with a real error -- proof the port is wired, not a slow timeout.
-				GatewayURL:     "http://127.0.0.1:1",
-				GatewayTimeout: time.Second,
-			},
+		Payment: payment.Config{
+			// Port 1 is reserved and never listens, so the dial fails immediately
+			// with a real error -- proof the port is wired, not a slow timeout.
+			GatewayURL:     "http://127.0.0.1:1",
+			GatewayTimeout: time.Second,
 		},
 		Pool:   testPool,
 		Logger: testhelper.DiscardLogger(),

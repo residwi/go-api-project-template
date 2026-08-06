@@ -1,0 +1,38 @@
+package auth
+
+import (
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/kelseyhightower/envconfig"
+)
+
+// Config is auth's own configuration: the JWT it signs, its login rate limit,
+// and the bcrypt cost it hashes passwords at.
+type Config struct {
+	Secret          string        `envconfig:"JWT_SECRET"       required:"true"`
+	Issuer          string        `envconfig:"JWT_ISSUER"                       default:"ecommerce-api"`
+	AccessTokenTTL  time.Duration `envconfig:"JWT_ACCESS_TTL"                   default:"15m"`
+	RefreshTokenTTL time.Duration `envconfig:"JWT_REFRESH_TTL"                  default:"168h"`
+	RateLimit       int           `envconfig:"AUTH_RATE_LIMIT"                  default:"10"`
+	RateWindow      time.Duration `envconfig:"AUTH_RATE_WINDOW"                 default:"1m"`
+	BcryptCost      int           `envconfig:"BCRYPT_COST"                      default:"10"`
+}
+
+// LoadConfig validates RateWindow because auth is what breaks when it is
+// sub-second: the per-IP login limiter divides by it to pick a bucket.
+func LoadConfig() (Config, error) {
+	var cfg Config
+	if err := envconfig.Process("", &cfg); err != nil {
+		return Config{}, fmt.Errorf("loading auth config: %w", err)
+	}
+
+	if cfg.RateWindow < time.Second {
+		return Config{}, errors.New(
+			"AUTH_RATE_WINDOW must be at least 1s (sub-second windows divide by zero in the limiter)",
+		)
+	}
+
+	return cfg, nil
+}
