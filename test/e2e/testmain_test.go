@@ -17,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
+	"github.com/residwi/go-api-project-template/internal/modules/auth"
+	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -28,6 +30,22 @@ var (
 	testRedis *redis.Client
 	testDeps  *apihttp.Deps
 	testApp   *bootstrap.App
+
+	// Fixed across every App this package builds, so a token minted by one is
+	// still valid against another -- the only config any e2e test actually
+	// varies is Payment's gateway URL, pointed at a local httptest mock server.
+	testAuthCfg = auth.Config{
+		Secret:          "test-secret-key-at-least-32-chars-long",
+		AccessTokenTTL:  15 * time.Minute,
+		RefreshTokenTTL: 168 * time.Hour,
+		Issuer:          "test",
+	}
+	testCartCfg    = cart.Config{MaxItems: 50}
+	testPaymentCfg = payment.Config{
+		Gateway:        "mock",
+		GatewayURL:     "http://localhost:19999",
+		GatewayTimeout: 5 * time.Second,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -40,18 +58,11 @@ func TestMain(m *testing.M) {
 	testRedis = rdb
 
 	testDeps = &apihttp.Deps{
-		Config: &config.Config{
+		Infra: &config.Infra{
 			App: config.AppConfig{
-				Name:         "test",
-				Env:          "development",
-				Port:         8080,
-				MaxCartItems: 50,
-			},
-			JWT: config.JWTConfig{
-				Secret:          "test-secret-key-at-least-32-chars-long",
-				AccessTokenTTL:  15 * time.Minute,
-				RefreshTokenTTL: 168 * time.Hour,
-				Issuer:          "test",
+				Name: "test",
+				Env:  "development",
+				Port: 8080,
 			},
 			CORS: config.CORSConfig{
 				AllowedOrigins: []string{"*"},
@@ -59,18 +70,15 @@ func TestMain(m *testing.M) {
 				AllowedHeaders: []string{"Content-Type", "Authorization"},
 				MaxAge:         86400,
 			},
-			Payment: config.PaymentConfig{
-				Gateway:        "mock",
-				GatewayURL:     "http://localhost:19999",
-				GatewayTimeout: 5 * time.Second,
-			},
 		},
-		Pool:   pool,
-		Cache:  rdb,
-		Logger: testhelper.DiscardLogger(),
+		Auth:    testAuthCfg,
+		Payment: testPaymentCfg,
+		Pool:    pool,
+		Cache:   rdb,
+		Logger:  testhelper.DiscardLogger(),
 	}
 
-	testApp = newTestApp(testDeps.Config)
+	testApp = newTestApp(testPaymentCfg)
 
 	os.Exit(m.Run())
 }
@@ -82,17 +90,19 @@ func setup(t *testing.T) {
 }
 
 // newTestApp wires a bootstrap.App against testPool/testRedis for a given
-// Config. TestMain uses it for testApp; tests that need a different payment
-// gateway URL (a local httptest mock server) build their own Config and call
-// this instead.
+// payment config. TestMain uses it for testApp; tests that need a different
+// payment gateway URL (a local httptest mock server) build their own
+// payment.Config and call this instead.
 //
 // internal/transport/http/router_test.go carries its own copy. Keep them in step.
-func newTestApp(cfg *config.Config) *bootstrap.App {
+func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 	app, err := bootstrap.New(bootstrap.Deps{
-		Config: cfg,
-		Pool:   testPool,
-		Cache:  testRedis,
-		Logger: testhelper.DiscardLogger(),
+		Auth:    testAuthCfg,
+		Cart:    testCartCfg,
+		Payment: paymentCfg,
+		Pool:    testPool,
+		Cache:   testRedis,
+		Logger:  testhelper.DiscardLogger(),
 	})
 	if err != nil {
 		panic(err)
@@ -109,15 +119,10 @@ func newTestApp(cfg *config.Config) *bootstrap.App {
 func newPaymentService(t *testing.T, gatewayURL string) *payment.Service {
 	t.Helper()
 
-	return newTestApp(&config.Config{
-		App:  testDeps.Config.App,
-		JWT:  testDeps.Config.JWT,
-		CORS: testDeps.Config.CORS,
-		Payment: config.PaymentConfig{
-			Gateway:        "mock",
-			GatewayURL:     gatewayURL,
-			GatewayTimeout: 5 * time.Second,
-		},
+	return newTestApp(payment.Config{
+		Gateway:        "mock",
+		GatewayURL:     gatewayURL,
+		GatewayTimeout: 5 * time.Second,
 	}).Payments
 }
 

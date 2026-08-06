@@ -16,7 +16,6 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/platform/config"
 	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -29,22 +28,21 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
-	webhookDeps := &apihttp.Deps{
-		Config: &config.Config{
-			App:  testDeps.Config.App,
-			JWT:  testDeps.Config.JWT,
-			CORS: testDeps.Config.CORS,
-			Payment: config.PaymentConfig{
-				Gateway:        "mock",
-				GatewayURL:     mockServer.URL + "/mock/payment",
-				GatewayTimeout: 5 * time.Second,
-			},
-		},
-		Pool:   testPool,
-		Cache:  testRedis,
-		Logger: testhelper.DiscardLogger(),
+	customPaymentCfg := payment.Config{
+		Gateway:        "mock",
+		GatewayURL:     mockServer.URL + "/mock/payment",
+		GatewayTimeout: 5 * time.Second,
 	}
-	handler := apihttp.NewRouter(webhookDeps, newTestApp(webhookDeps.Config))
+	webhookDeps := &apihttp.Deps{
+		Infra:   testDeps.Infra,
+		Auth:    testDeps.Auth,
+		Order:   testDeps.Order,
+		Payment: customPaymentCfg,
+		Pool:    testPool,
+		Cache:   testRedis,
+		Logger:  testhelper.DiscardLogger(),
+	}
+	handler := apihttp.NewRouter(webhookDeps, newTestApp(customPaymentCfg))
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -227,22 +225,21 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
-	webhookDeps := &apihttp.Deps{
-		Config: &config.Config{
-			App:  testDeps.Config.App,
-			JWT:  testDeps.Config.JWT,
-			CORS: testDeps.Config.CORS,
-			Payment: config.PaymentConfig{
-				Gateway:        "mock",
-				GatewayURL:     mockServer.URL + "/mock/payment",
-				GatewayTimeout: 5 * time.Second,
-			},
-		},
-		Pool:   testPool,
-		Cache:  testRedis,
-		Logger: testhelper.DiscardLogger(),
+	customPaymentCfg := payment.Config{
+		Gateway:        "mock",
+		GatewayURL:     mockServer.URL + "/mock/payment",
+		GatewayTimeout: 5 * time.Second,
 	}
-	handler := apihttp.NewRouter(webhookDeps, newTestApp(webhookDeps.Config))
+	webhookDeps := &apihttp.Deps{
+		Infra:   testDeps.Infra,
+		Auth:    testDeps.Auth,
+		Order:   testDeps.Order,
+		Payment: customPaymentCfg,
+		Pool:    testPool,
+		Cache:   testRedis,
+		Logger:  testhelper.DiscardLogger(),
+	}
+	handler := apihttp.NewRouter(webhookDeps, newTestApp(customPaymentCfg))
 	ctx := context.Background()
 
 	catID := uuid.New()
