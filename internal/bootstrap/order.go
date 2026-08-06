@@ -4,8 +4,6 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/google/uuid"
-
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
@@ -26,7 +24,7 @@ func NewOrderService(
 ) *order.Service {
 	return order.NewService(
 		repo, tx,
-		&cartProviderAdapter{svc: cartSvc},
+		cartSvc,      // satisfies order.CartProvider directly
 		inventorySvc, // satisfies order.InventoryReserver directly
 		nil,          // payment deps are circular — wired by SetOrderPaymentDeps
 		nil,
@@ -43,37 +41,6 @@ func SetOrderPaymentDeps(orderSvc *order.Service, paymentSvc *payment.Service) {
 		&paymentInitiatorAdapter{svc: paymentSvc},
 		paymentSvc, // satisfies order.PaymentJobCanceller directly
 	)
-}
-
-type cartProviderAdapter struct{ svc *cart.Service }
-
-func (a *cartProviderAdapter) LockCart(ctx context.Context, userID uuid.UUID) error {
-	return a.svc.LockCart(ctx, userID)
-}
-
-func (a *cartProviderAdapter) GetCart(ctx context.Context, userID uuid.UUID) (*order.CartSnapshot, error) {
-	c, err := a.svc.GetCart(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	snap := &order.CartSnapshot{ID: c.ID}
-	for _, item := range c.Items {
-		si := order.CartSnapshotItem{
-			ProductID: item.ProductID,
-			Quantity:  item.Quantity,
-		}
-		if item.Product != nil {
-			si.Name = item.Product.Name
-			si.Price = item.Product.Price
-			si.Status = item.Product.Status
-		}
-		snap.Items = append(snap.Items, si)
-	}
-	return snap, nil
-}
-
-func (a *cartProviderAdapter) Clear(ctx context.Context, userID uuid.UUID) error {
-	return a.svc.Clear(ctx, userID)
 }
 
 type paymentInitiatorAdapter struct{ svc *payment.Service }

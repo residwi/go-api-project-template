@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -137,4 +138,25 @@ func (s *Service) GetCart(ctx context.Context, userID uuid.UUID) (*Cart, error) 
 
 func (s *Service) Clear(ctx context.Context, userID uuid.UUID) error {
 	return s.repo.Clear(ctx, userID)
+}
+
+// GetSnapshot freezes the cart for checkout. Order reads this instead of Cart so
+// that cart's own model stays free of a checkout-shaped view.
+func (s *Service) GetSnapshot(ctx context.Context, userID uuid.UUID) (*contract.Cart, error) {
+	c, err := s.GetCart(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	snap := &contract.Cart{ID: c.ID}
+	for _, item := range c.Items {
+		si := contract.CartItem{ProductID: item.ProductID, Quantity: item.Quantity}
+		if item.Product != nil {
+			si.Name = item.Product.Name
+			si.Price = item.Product.Price
+			si.Status = item.Product.Status
+		}
+		snap.Items = append(snap.Items, si)
+	}
+	return snap, nil
 }

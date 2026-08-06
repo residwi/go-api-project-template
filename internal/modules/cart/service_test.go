@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	productcontract "github.com/residwi/go-api-project-template/internal/modules/product/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -512,5 +513,72 @@ func TestService_Clear(t *testing.T) {
 
 		err := svc.Clear(ctx, userID)
 		require.Error(t, err)
+	})
+}
+
+func TestServiceGetSnapshot(t *testing.T) {
+	t.Parallel()
+
+	t.Run("flattens each line's product into the snapshot item", func(t *testing.T) {
+		t.Parallel()
+
+		userID := uuid.New()
+		cartID := uuid.New()
+		productID := uuid.New()
+
+		repo := NewMockRepository(t)
+		repo.EXPECT().GetCart(mock.Anything, userID).Return(&Cart{
+			ID:     cartID,
+			UserID: userID,
+			Items:  []Item{{ProductID: productID, Quantity: 3}},
+		}, nil)
+
+		products := NewMockProductLookup(t)
+		products.EXPECT().GetInfoByIDs(mock.Anything, []uuid.UUID{productID}).
+			Return(map[uuid.UUID]productcontract.Product{
+				productID: {Name: "Widget", Price: money.New(1500, "IDR"), Status: "published"},
+			}, nil)
+
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+
+		got, err := svc.GetSnapshot(context.Background(), userID)
+
+		require.NoError(t, err)
+		assert.Equal(t, &cartcontract.Cart{
+			ID: cartID,
+			Items: []cartcontract.CartItem{{
+				ProductID: productID,
+				Quantity:  3,
+				Name:      "Widget",
+				Price:     money.New(1500, "IDR"),
+				Status:    "published",
+			}},
+		}, got)
+	})
+
+	// GetCart's own fallback for a product it can't resolve is a non-nil
+	// Product carrying "unavailable" -- never a nil Product -- so that is the
+	// value GetSnapshot's flattening loop actually sees.
+	t.Run("a product GetCart could not resolve flattens to its unavailable status", func(t *testing.T) {
+		t.Parallel()
+
+		userID := uuid.New()
+		productID := uuid.New()
+
+		repo := NewMockRepository(t)
+		repo.EXPECT().GetCart(mock.Anything, userID).Return(&Cart{
+			Items: []Item{{ProductID: productID, Quantity: 1}},
+		}, nil)
+
+		products := NewMockProductLookup(t)
+		products.EXPECT().GetInfoByIDs(mock.Anything, []uuid.UUID{productID}).
+			Return(map[uuid.UUID]productcontract.Product{}, nil)
+
+		svc := NewService(repo, testhelper.FakeTxRunner{}, products, 50)
+
+		got, err := svc.GetSnapshot(context.Background(), userID)
+
+		require.NoError(t, err)
+		assert.Equal(t, cartcontract.CartItem{ProductID: productID, Quantity: 1, Status: "unavailable"}, got.Items[0])
 	})
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 )
@@ -13,21 +14,8 @@ type CartProvider interface {
 	// LockCart serializes concurrent checkouts of one cart. Returns
 	// apperror.ErrNotFound when the user has no cart.
 	LockCart(ctx context.Context, userID uuid.UUID) error
-	GetCart(ctx context.Context, userID uuid.UUID) (*CartSnapshot, error)
+	GetSnapshot(ctx context.Context, userID uuid.UUID) (*cartcontract.Cart, error)
 	Clear(ctx context.Context, userID uuid.UUID) error
-}
-
-type CartSnapshot struct {
-	ID    uuid.UUID
-	Items []CartSnapshotItem
-}
-
-type CartSnapshotItem struct {
-	ProductID uuid.UUID
-	Quantity  int
-	Name      string
-	Price     money.Money
-	Status    string
 }
 
 type InventoryReserver interface {

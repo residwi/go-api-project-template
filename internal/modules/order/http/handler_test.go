@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
@@ -336,9 +337,9 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, mock.AnythingOfType("string")).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&order.CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []order.CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: uuid.New(),
 					Quantity:  1,

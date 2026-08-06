@@ -103,7 +103,7 @@ func (s *Service) PlaceOrder(
 			return txErr
 		}
 
-		snapshot, txErr := s.cart.GetCart(txCtx, userID)
+		snapshot, txErr := s.cart.GetSnapshot(txCtx, userID)
 		if txErr != nil {
 			return txErr
 		}

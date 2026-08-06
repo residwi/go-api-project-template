@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
@@ -734,9 +735,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID:    uuid.New(),
-			Items: []CartSnapshotItem{},
+			Items: []cartcontract.CartItem{},
 		}, nil)
 
 		req := PlaceParams{PaymentMethodID: "pm_test"}
@@ -756,9 +757,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: uuid.New(),
 					Quantity:  1,
@@ -787,7 +788,7 @@ func TestService_PlaceOrder(t *testing.T) {
 			Return(nil, apperror.ErrNotFound)
 		cartErr := errors.New("cart service error")
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(nil, cartErr)
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(nil, cartErr)
 
 		req := PlaceParams{PaymentMethodID: "pm_test"}
 		resp, err := svc.PlaceOrder(ctx, userID, req, idempotencyKey)
@@ -809,9 +810,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: productA,
 					Quantity:  2,
@@ -867,9 +868,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: productA,
 					Quantity:  1,
@@ -915,9 +916,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: uuid.New(),
 					Quantity:  1,
@@ -980,9 +981,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: productA,
 					Quantity:  1,
@@ -1021,9 +1022,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: productA,
 					Quantity:  1,
@@ -1066,9 +1067,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: productA,
 					Quantity:  1,
@@ -1100,9 +1101,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: productA,
 					Quantity:  1,
@@ -1137,9 +1138,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: productA,
 					Quantity:  1,
@@ -1175,9 +1176,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: productA,
 					Quantity:  1,
@@ -1215,9 +1216,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: productA,
 					Quantity:  1,
@@ -1266,9 +1267,9 @@ func TestService_PlaceOrder(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
-			Items: []CartSnapshotItem{
+			Items: []cartcontract.CartItem{
 				{
 					ProductID: productA,
 					Quantity:  1,
@@ -1733,9 +1734,9 @@ func TestService_PlaceOrder_RejectsWithdrawnProduct(t *testing.T) {
 
 	repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 	cartProvider.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-	cartProvider.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+	cartProvider.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 		ID: uuid.New(),
-		Items: []CartSnapshotItem{
+		Items: []cartcontract.CartItem{
 			{
 				ProductID: productID, Quantity: 1, Name: "Withdrawn Widget",
 				Price: money.New(1000, "USD"), Status: "archived",
@@ -1764,9 +1765,9 @@ func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
 
 	repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
 	cartProvider.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-	cartProvider.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+	cartProvider.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 		ID: uuid.New(),
-		Items: []CartSnapshotItem{
+		Items: []cartcontract.CartItem{
 			{
 				ProductID: uuid.New(), Quantity: 1, Name: "", Price: money.New(0, "USD"), Status: "unavailable",
 			},
@@ -1784,7 +1785,7 @@ func TestService_PlaceOrder_RejectsUnavailableProduct(t *testing.T) {
 // Both sentinels: money.ErrCurrencyMismatch names the cause but is not a case in
 // response.HandleErr, so alone it would be a 500 for what is user input.
 //
-// Only LockCart and GetCart are expected. The mocks are strict, so that bare set
+// Only LockCart and GetSnapshot are expected. The mocks are strict, so that bare set
 // forbids ReserveBatch, Create, InitiatePayment and the coupon path -- which is
 // what proves the rejection happens in the fold, not merely eventually.
 func TestService_PlaceOrder_RejectsMixedCurrencyCart(t *testing.T) {
@@ -1797,9 +1798,9 @@ func TestService_PlaceOrder_RejectsMixedCurrencyCart(t *testing.T) {
 	repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, "idem-mixed-1").
 		Return(nil, apperror.ErrNotFound)
 	cartProvider.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-	cartProvider.EXPECT().GetCart(mock.Anything, userID).Return(&CartSnapshot{
+	cartProvider.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 		ID: uuid.New(),
-		Items: []CartSnapshotItem{
+		Items: []cartcontract.CartItem{
 			{ProductID: uuid.New(), Quantity: 1, Name: "A", Price: money.New(1000, "USD"), Status: "published"},
 			{ProductID: uuid.New(), Quantity: 1, Name: "B", Price: money.New(1000, "IDR"), Status: "published"},
 		},
