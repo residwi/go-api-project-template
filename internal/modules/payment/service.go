@@ -114,10 +114,7 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 		s.logger.ErrorContext(
 			ctx,
 			"gateway charge failed",
-			slog.String(
-				"payment_id",
-				p.ID.String(),
-			),
+			slog.String("payment_id", p.ID.String()),
 			slog.String("order_id", params.OrderID.String()),
 			slog.String("error", err.Error()),
 		)
@@ -164,10 +161,7 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 		s.logger.WarnContext(
 			ctx,
 			"gateway declined charge synchronously",
-			slog.String(
-				"payment_id",
-				p.ID.String(),
-			),
+			slog.String("payment_id", p.ID.String()),
 			slog.String("order_id", params.OrderID.String()),
 			slog.String("gateway_status", resp.Status),
 		)
@@ -382,10 +376,7 @@ func (s *Service) HandleWebhook(
 			s.logger.ErrorContext(
 				ctx,
 				"webhook finalization failed, running compensating refund",
-				slog.String(
-					"payment_id",
-					p.ID.String(),
-				),
+				slog.String("payment_id", p.ID.String()),
 				slog.String("order_id", p.OrderID.String()),
 				slog.String("error", err.Error()),
 			)
@@ -520,10 +511,7 @@ func (s *Service) processChargeJob(ctx context.Context, job Job) error {
 			"charge failed",
 			slog.String("order_id", job.OrderID.String()),
 			slog.String("payment_id", job.PaymentID.String()),
-			slog.Int(
-				"attempt",
-				job.Attempts,
-			),
+			slog.Int("attempt", job.Attempts),
 			slog.Int("max_attempts", job.MaxAttempts),
 			slog.String("error", gwErr.Error()),
 		)
