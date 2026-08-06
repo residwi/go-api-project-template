@@ -201,3 +201,34 @@ func TestLoad(t *testing.T) {
 		assert.Contains(t, err.Error(), "PAYMENT_WEBHOOK_SECRET")
 	})
 }
+
+func TestLoadInfra(t *testing.T) {
+	// No t.Parallel below: t.Setenv panics in a parallel test.
+	t.Run("parses log settings so a logger can exist before module config loads", func(t *testing.T) {
+		t.Setenv("LOG_LEVEL", "warn")
+		t.Setenv("LOG_FORMAT", "text")
+
+		infra, err := LoadInfra()
+
+		require.NoError(t, err)
+		assert.Equal(t, LogConfig{Level: "warn", Format: "text"}, infra.Log)
+	})
+
+	t.Run("rejects a worker interval that would hammer the database", func(t *testing.T) {
+		t.Setenv("WORKER_INTERVAL", "1s")
+
+		_, err := LoadInfra()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "WORKER_INTERVAL must be at least 5s")
+	})
+
+	t.Run("rejects a zero worker concurrency that would deadlock the runner", func(t *testing.T) {
+		t.Setenv("WORKER_CONCURRENCY", "0")
+
+		_, err := LoadInfra()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "WORKER_CONCURRENCY must be at least 1")
+	})
+}

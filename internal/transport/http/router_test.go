@@ -21,7 +21,6 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/config"
 	cartpg "github.com/residwi/go-api-project-template/internal/modules/cart/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
@@ -34,6 +33,7 @@ import (
 	productpg "github.com/residwi/go-api-project-template/internal/modules/product/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
+	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )

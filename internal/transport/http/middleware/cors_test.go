@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/residwi/go-api-project-template/internal/config"
+	"github.com/residwi/go-api-project-template/internal/platform/config"
 )
 
 func TestCORS_SetsHeadersFromConfig(t *testing.T) {

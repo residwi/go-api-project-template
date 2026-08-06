@@ -10,7 +10,6 @@ import (
 	"syscall"
 
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
@@ -21,6 +20,7 @@ import (
 	paymentworker "github.com/residwi/go-api-project-template/internal/modules/payment/worker"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
+	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
@@ -33,13 +33,21 @@ func main() {
 }
 
 func run() error {
-	cfg, err := config.Load()
+	infra, err := config.LoadInfra()
 	if err != nil {
-		logger.FromEnv().Error("loading config failed", slog.String("error", err.Error()))
-		return fmt.Errorf("loading config: %w", err)
+		// No logger yet by construction: the log settings live in the config that
+		// just failed. Report to stderr and let the caller own the exit code.
+		fmt.Fprintf(os.Stderr, "loading infra config failed: %v\n", err)
+		return err
 	}
 
-	appLog := logger.Setup(cfg.Log.Level, cfg.Log.Format)
+	appLog := logger.Setup(infra.Log.Level, infra.Log.Format)
+
+	cfg, err := config.Load()
+	if err != nil {
+		appLog.Error("loading config failed", slog.String("error", err.Error()))
+		return fmt.Errorf("loading config: %w", err)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

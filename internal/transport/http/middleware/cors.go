@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/residwi/go-api-project-template/internal/config"
+	"github.com/residwi/go-api-project-template/internal/platform/config"
 )
 
 func CORS(cfg config.CORSConfig) Middleware {

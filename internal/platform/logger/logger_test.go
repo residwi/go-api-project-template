@@ -92,32 +92,3 @@ func TestSetup(t *testing.T) {
 		assert.Contains(t, buf.String(), `"request_id":"req-1"`)
 	})
 }
-
-func TestFromEnv(t *testing.T) {
-	// No t.Parallel below: t.Setenv panics in a parallel test.
-	t.Run("reads LOG_LEVEL and LOG_FORMAT", func(t *testing.T) {
-		t.Setenv("LOG_LEVEL", "error")
-		t.Setenv("LOG_FORMAT", "text")
-
-		var buf bytes.Buffer
-		log := fromEnv(&buf)
-		log.Warn("dropped")
-		log.Error("kept")
-
-		assert.NotContains(t, buf.String(), "dropped")
-		assert.Contains(t, buf.String(), "level=ERROR msg=kept")
-	})
-
-	t.Run("unset variables leave the defaults in place", func(t *testing.T) {
-		t.Setenv("LOG_LEVEL", "")
-		t.Setenv("LOG_FORMAT", "")
-
-		var buf bytes.Buffer
-		log := fromEnv(&buf)
-		log.Debug("dropped")
-		log.Info("kept")
-
-		assert.NotContains(t, buf.String(), "dropped")
-		assert.Contains(t, buf.String(), `"level":"INFO","msg":"kept"`)
-	})
-}

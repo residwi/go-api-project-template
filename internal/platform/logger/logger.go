@@ -37,15 +37,3 @@ func setup(w io.Writer, level, format string) *slog.Logger {
 
 	return slog.New(ContextHandler{Handler: handler})
 }
-
-// FromEnv builds a logger for the window before a parsed [config.Config] exists,
-// which is the window in which loading that config can fail. [config.Load]
-// applies .env to the environment before it can fail, so LOG_FORMAT is honoured
-// even then.
-func FromEnv() *slog.Logger {
-	return fromEnv(os.Stdout)
-}
-
-func fromEnv(w io.Writer) *slog.Logger {
-	return setup(w, os.Getenv("LOG_LEVEL"), os.Getenv("LOG_FORMAT"))
-}

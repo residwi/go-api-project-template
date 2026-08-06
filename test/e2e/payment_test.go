@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
-	"github.com/residwi/go-api-project-template/internal/config"
+	"github.com/residwi/go-api-project-template/internal/platform/config"
 	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 
 	"github.com/residwi/go-api-project-template/internal/testhelper"

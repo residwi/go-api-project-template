@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 
@@ -13,8 +14,8 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/platform/cache"
+	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
@@ -30,13 +31,21 @@ func Run() error {
 // RunContext serves until ctx is cancelled, so the caller owns the shutdown
 // trigger -- which is how tests stop it without signalling the whole process.
 func RunContext(ctx context.Context) error {
-	cfg, err := config.Load()
+	infra, err := config.LoadInfra()
 	if err != nil {
-		logger.FromEnv().ErrorContext(ctx, "loading config failed", slog.String("error", err.Error()))
-		return fmt.Errorf("loading config: %w", err)
+		// No logger yet by construction: the log settings live in the config that
+		// just failed. Report to stderr and let the caller own the exit code.
+		fmt.Fprintf(os.Stderr, "loading infra config failed: %v\n", err)
+		return err
 	}
 
-	appLog := logger.Setup(cfg.Log.Level, cfg.Log.Format)
+	appLog := logger.Setup(infra.Log.Level, infra.Log.Format)
+
+	cfg, err := config.Load()
+	if err != nil {
+		appLog.ErrorContext(ctx, "loading config failed", slog.String("error", err.Error()))
+		return fmt.Errorf("loading config: %w", err)
+	}
 
 	pool, err := database.NewPostgres(ctx, cfg.Database)
 	if err != nil {

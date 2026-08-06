@@ -140,11 +140,12 @@ importer_roots() {
 # Exempt by location:
 #   */http/*            the wire adapters -- this is where tags belong
 #   *_test.go           tests may build wire payloads inline
-#   internal/config/    envconfig, not a domain model (no json tags today,
-#                       but the exemption is kept so that adding one to a
-#                       config struct is not mistaken for a domain leak)
-#   internal/platform/  transport infrastructure; internal/platform/paging/
-#                       {cursor,offset}.go are the shared pagination envelope
+#   internal/platform/  transport infrastructure; internal/platform/config/ is
+#                       envconfig, not a domain model (no json tags today, but
+#                       the exemption matters so that adding one to a config
+#                       struct is not mistaken for a domain leak);
+#                       internal/platform/paging/{cursor,offset}.go are the
+#                       shared pagination envelope
 #
 # Exempt by explicit path allowlist -- one entry per line. This is a variable
 # rather than another anonymous `grep -v` so that adding an entry is an
@@ -179,7 +180,6 @@ check_wire_tags() {
 	done < <(find internal -type f -name '*.go' \
 		! -path '*/http/*' \
 		! -name '*_test.go' \
-		! -path 'internal/config/*' \
 		! -path 'internal/platform/*' \
 		| sort)
 

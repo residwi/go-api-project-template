@@ -15,6 +15,47 @@ import (
 // overridden outside development.
 const defaultWebhookSecret = "webhook-secret"
 
+// Infra is the configuration that must exist before anything else can be built,
+// including the log settings themselves. Loading it is phase one of two: once it
+// is parsed, a real logger exists, so every later failure can be logged properly.
+type Infra struct {
+	App      AppConfig
+	Database DatabaseConfig
+	Redis    RedisConfig
+	Log      LogConfig
+	CORS     CORSConfig
+	Worker   WorkerConfig
+}
+
+// LoadInfra applies .env to the environment and parses the infrastructure groups.
+// It runs before any module config, so godotenv lives here and nowhere else.
+func LoadInfra() (*Infra, error) {
+	_ = godotenv.Load()
+
+	var infra Infra
+	if err := envconfig.Process("", &infra); err != nil {
+		return nil, fmt.Errorf("loading infra config: %w", err)
+	}
+
+	return &infra, infra.validate()
+}
+
+func (i *Infra) validate() error {
+	if i.Worker.Interval < 5*time.Second {
+		return errors.New("WORKER_INTERVAL must be at least 5s to avoid database polling overhead")
+	}
+
+	if i.Worker.Concurrency < 1 {
+		return errors.New("WORKER_CONCURRENCY must be at least 1 (0 deadlocks the worker on its unbuffered semaphore)")
+	}
+
+	if i.Worker.PruneLimit < 1 {
+		return errors.New("WORKER_PRUNE_LIMIT must be at least 1")
+	}
+
+	return nil
+}
+
 type Config struct {
 	App      AppConfig
 	Database DatabaseConfig
