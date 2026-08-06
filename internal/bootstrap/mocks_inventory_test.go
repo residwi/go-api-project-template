@@ -188,7 +188,7 @@ func (_c *MockInventoryRepository_Deduct_Call) RunAndReturn(run func(ctx context
 }
 
 // DeductBatch provides a mock function for the type MockInventoryRepository
-func (_mock *MockInventoryRepository) DeductBatch(ctx context.Context, items []inventory.StockChange) error {
+func (_mock *MockInventoryRepository) DeductBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	ret := _mock.Called(ctx, items)
 
 	if len(ret) == 0 {
@@ -196,7 +196,7 @@ func (_mock *MockInventoryRepository) DeductBatch(ctx context.Context, items []i
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []inventory.StockChange) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[uuid.UUID]int) error); ok {
 		r0 = returnFunc(ctx, items)
 	} else {
 		r0 = ret.Error(0)
@@ -211,20 +211,20 @@ type MockInventoryRepository_DeductBatch_Call struct {
 
 // DeductBatch is a helper method to define mock.On call
 //   - ctx context.Context
-//   - items []inventory.StockChange
+//   - items map[uuid.UUID]int
 func (_e *MockInventoryRepository_Expecter) DeductBatch(ctx any, items any) *MockInventoryRepository_DeductBatch_Call {
 	return &MockInventoryRepository_DeductBatch_Call{Call: _e.mock.On("DeductBatch", ctx, items)}
 }
 
-func (_c *MockInventoryRepository_DeductBatch_Call) Run(run func(ctx context.Context, items []inventory.StockChange)) *MockInventoryRepository_DeductBatch_Call {
+func (_c *MockInventoryRepository_DeductBatch_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int)) *MockInventoryRepository_DeductBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 []inventory.StockChange
+		var arg1 map[uuid.UUID]int
 		if args[1] != nil {
-			arg1 = args[1].([]inventory.StockChange)
+			arg1 = args[1].(map[uuid.UUID]int)
 		}
 		run(
 			arg0,
@@ -239,7 +239,7 @@ func (_c *MockInventoryRepository_DeductBatch_Call) Return(err error) *MockInven
 	return _c
 }
 
-func (_c *MockInventoryRepository_DeductBatch_Call) RunAndReturn(run func(ctx context.Context, items []inventory.StockChange) error) *MockInventoryRepository_DeductBatch_Call {
+func (_c *MockInventoryRepository_DeductBatch_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int) error) *MockInventoryRepository_DeductBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -512,7 +512,7 @@ func (_c *MockInventoryRepository_Release_Call) RunAndReturn(run func(ctx contex
 }
 
 // ReleaseBatch provides a mock function for the type MockInventoryRepository
-func (_mock *MockInventoryRepository) ReleaseBatch(ctx context.Context, items []inventory.StockChange) error {
+func (_mock *MockInventoryRepository) ReleaseBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	ret := _mock.Called(ctx, items)
 
 	if len(ret) == 0 {
@@ -520,7 +520,7 @@ func (_mock *MockInventoryRepository) ReleaseBatch(ctx context.Context, items []
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []inventory.StockChange) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[uuid.UUID]int) error); ok {
 		r0 = returnFunc(ctx, items)
 	} else {
 		r0 = ret.Error(0)
@@ -535,20 +535,20 @@ type MockInventoryRepository_ReleaseBatch_Call struct {
 
 // ReleaseBatch is a helper method to define mock.On call
 //   - ctx context.Context
-//   - items []inventory.StockChange
+//   - items map[uuid.UUID]int
 func (_e *MockInventoryRepository_Expecter) ReleaseBatch(ctx any, items any) *MockInventoryRepository_ReleaseBatch_Call {
 	return &MockInventoryRepository_ReleaseBatch_Call{Call: _e.mock.On("ReleaseBatch", ctx, items)}
 }
 
-func (_c *MockInventoryRepository_ReleaseBatch_Call) Run(run func(ctx context.Context, items []inventory.StockChange)) *MockInventoryRepository_ReleaseBatch_Call {
+func (_c *MockInventoryRepository_ReleaseBatch_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int)) *MockInventoryRepository_ReleaseBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 []inventory.StockChange
+		var arg1 map[uuid.UUID]int
 		if args[1] != nil {
-			arg1 = args[1].([]inventory.StockChange)
+			arg1 = args[1].(map[uuid.UUID]int)
 		}
 		run(
 			arg0,
@@ -563,7 +563,7 @@ func (_c *MockInventoryRepository_ReleaseBatch_Call) Return(err error) *MockInve
 	return _c
 }
 
-func (_c *MockInventoryRepository_ReleaseBatch_Call) RunAndReturn(run func(ctx context.Context, items []inventory.StockChange) error) *MockInventoryRepository_ReleaseBatch_Call {
+func (_c *MockInventoryRepository_ReleaseBatch_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int) error) *MockInventoryRepository_ReleaseBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -643,7 +643,7 @@ func (_c *MockInventoryRepository_Reserve_Call) RunAndReturn(run func(ctx contex
 }
 
 // ReserveBatch provides a mock function for the type MockInventoryRepository
-func (_mock *MockInventoryRepository) ReserveBatch(ctx context.Context, items []inventory.StockChange) error {
+func (_mock *MockInventoryRepository) ReserveBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	ret := _mock.Called(ctx, items)
 
 	if len(ret) == 0 {
@@ -651,7 +651,7 @@ func (_mock *MockInventoryRepository) ReserveBatch(ctx context.Context, items []
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []inventory.StockChange) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[uuid.UUID]int) error); ok {
 		r0 = returnFunc(ctx, items)
 	} else {
 		r0 = ret.Error(0)
@@ -666,20 +666,20 @@ type MockInventoryRepository_ReserveBatch_Call struct {
 
 // ReserveBatch is a helper method to define mock.On call
 //   - ctx context.Context
-//   - items []inventory.StockChange
+//   - items map[uuid.UUID]int
 func (_e *MockInventoryRepository_Expecter) ReserveBatch(ctx any, items any) *MockInventoryRepository_ReserveBatch_Call {
 	return &MockInventoryRepository_ReserveBatch_Call{Call: _e.mock.On("ReserveBatch", ctx, items)}
 }
 
-func (_c *MockInventoryRepository_ReserveBatch_Call) Run(run func(ctx context.Context, items []inventory.StockChange)) *MockInventoryRepository_ReserveBatch_Call {
+func (_c *MockInventoryRepository_ReserveBatch_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int)) *MockInventoryRepository_ReserveBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 []inventory.StockChange
+		var arg1 map[uuid.UUID]int
 		if args[1] != nil {
-			arg1 = args[1].([]inventory.StockChange)
+			arg1 = args[1].(map[uuid.UUID]int)
 		}
 		run(
 			arg0,
@@ -694,7 +694,7 @@ func (_c *MockInventoryRepository_ReserveBatch_Call) Return(err error) *MockInve
 	return _c
 }
 
-func (_c *MockInventoryRepository_ReserveBatch_Call) RunAndReturn(run func(ctx context.Context, items []inventory.StockChange) error) *MockInventoryRepository_ReserveBatch_Call {
+func (_c *MockInventoryRepository_ReserveBatch_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int) error) *MockInventoryRepository_ReserveBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -774,7 +774,7 @@ func (_c *MockInventoryRepository_Restock_Call) RunAndReturn(run func(ctx contex
 }
 
 // RestockBatch provides a mock function for the type MockInventoryRepository
-func (_mock *MockInventoryRepository) RestockBatch(ctx context.Context, items []inventory.StockChange) error {
+func (_mock *MockInventoryRepository) RestockBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	ret := _mock.Called(ctx, items)
 
 	if len(ret) == 0 {
@@ -782,7 +782,7 @@ func (_mock *MockInventoryRepository) RestockBatch(ctx context.Context, items []
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []inventory.StockChange) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[uuid.UUID]int) error); ok {
 		r0 = returnFunc(ctx, items)
 	} else {
 		r0 = ret.Error(0)
@@ -797,20 +797,20 @@ type MockInventoryRepository_RestockBatch_Call struct {
 
 // RestockBatch is a helper method to define mock.On call
 //   - ctx context.Context
-//   - items []inventory.StockChange
+//   - items map[uuid.UUID]int
 func (_e *MockInventoryRepository_Expecter) RestockBatch(ctx any, items any) *MockInventoryRepository_RestockBatch_Call {
 	return &MockInventoryRepository_RestockBatch_Call{Call: _e.mock.On("RestockBatch", ctx, items)}
 }
 
-func (_c *MockInventoryRepository_RestockBatch_Call) Run(run func(ctx context.Context, items []inventory.StockChange)) *MockInventoryRepository_RestockBatch_Call {
+func (_c *MockInventoryRepository_RestockBatch_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int)) *MockInventoryRepository_RestockBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 []inventory.StockChange
+		var arg1 map[uuid.UUID]int
 		if args[1] != nil {
-			arg1 = args[1].([]inventory.StockChange)
+			arg1 = args[1].(map[uuid.UUID]int)
 		}
 		run(
 			arg0,
@@ -825,7 +825,7 @@ func (_c *MockInventoryRepository_RestockBatch_Call) Return(err error) *MockInve
 	return _c
 }
 
-func (_c *MockInventoryRepository_RestockBatch_Call) RunAndReturn(run func(ctx context.Context, items []inventory.StockChange) error) *MockInventoryRepository_RestockBatch_Call {
+func (_c *MockInventoryRepository_RestockBatch_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int) error) *MockInventoryRepository_RestockBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -17,17 +17,13 @@ import (
 
 const stockValueCols = 2
 
-// Aggregating by product_id is required for correctness: a duplicate id would
-// join the product row to two VALUES tuples and apply only one quantity.
-// Lock ordering belongs to lockLevels' `ORDER BY product_id`, not to ids.
-func buildStockValues(items []inventory.StockChange) (string, []any, []uuid.UUID) {
-	sums := make(map[uuid.UUID]int, len(items))
+// items is a map, so its keys are already unique -- the summing-by-product-id
+// this used to do is dead once duplicates cannot reach it. Lock ordering
+// belongs to lockLevels' `ORDER BY product_id`, not to ids.
+func buildStockValues(items map[uuid.UUID]int) (string, []any, []uuid.UUID) {
 	ids := make([]uuid.UUID, 0, len(items))
-	for _, it := range items {
-		if _, seen := sums[it.ProductID]; !seen {
-			ids = append(ids, it.ProductID)
-		}
-		sums[it.ProductID] += it.Quantity
+	for id := range items {
+		ids = append(ids, id)
 	}
 
 	placeholders := make([]string, len(ids))
@@ -42,7 +38,7 @@ func buildStockValues(items []inventory.StockChange) (string, []any, []uuid.UUID
 		} else {
 			placeholders[i] = fmt.Sprintf("($%d, $%d)", idCol, qtyCol)
 		}
-		args = append(args, id, sums[id])
+		args = append(args, id, items[id])
 	}
 	return strings.Join(placeholders, ","), args, ids
 }
@@ -118,7 +114,7 @@ func (r *Repository) Release(ctx context.Context, productID uuid.UUID, qty int) 
 // ReserveBatch does not match a missing or short row, so RowsAffected below the
 // input length means the whole batch is insufficient. The caller is in a
 // transaction, so nothing stays reserved.
-func (r *Repository) ReserveBatch(ctx context.Context, items []inventory.StockChange) error {
+func (r *Repository) ReserveBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -146,7 +142,7 @@ func (r *Repository) ReserveBatch(ctx context.Context, items []inventory.StockCh
 
 // ReleaseBatch treats a partial match as an error: a skipped row keeps its
 // reservation, and silent success would strand it.
-func (r *Repository) ReleaseBatch(ctx context.Context, items []inventory.StockChange) error {
+func (r *Repository) ReleaseBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -174,7 +170,7 @@ func (r *Repository) ReleaseBatch(ctx context.Context, items []inventory.StockCh
 
 // DeductBatch moves only reserved_stock: available_stock was already reduced when
 // the hold was taken.
-func (r *Repository) DeductBatch(ctx context.Context, items []inventory.StockChange) error {
+func (r *Repository) DeductBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -200,7 +196,7 @@ func (r *Repository) DeductBatch(ctx context.Context, items []inventory.StockCha
 }
 
 // RestockBatch leaves reserved_stock alone: DeductBatch already consumed it.
-func (r *Repository) RestockBatch(ctx context.Context, items []inventory.StockChange) error {
+func (r *Repository) RestockBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	if len(items) == 0 {
 		return nil
 	}

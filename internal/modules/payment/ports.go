@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 )
 
@@ -49,19 +50,14 @@ type OrderGetter interface {
 	GetByID(ctx context.Context, orderID uuid.UUID) (OrderSnapshot, error)
 }
 
-type InventoryChange struct {
-	ProductID uuid.UUID
-	Quantity  int
-}
-
 type InventoryDeductor interface {
-	DeductBatch(ctx context.Context, items []InventoryChange) error
+	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
 }
 
 type InventoryRestorer interface {
 	// Inventory owns the release-vs-restock choice; payment supplies only the
 	// order's persisted fact, never the mechanics.
-	Restore(ctx context.Context, items []InventoryChange, wasDeducted bool) error
+	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventorycontract.StockState) error
 }
 
 type CouponReleaser interface {

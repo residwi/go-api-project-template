@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -35,7 +36,7 @@ func TestService_ExpireStale(t *testing.T) {
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, expired.ID).
 			Return([]Item{{ProductID: productID, Quantity: 2}}, nil)
 		inventory.EXPECT().
-			Restore(mock.Anything, []InventoryItem{{ProductID: productID, Quantity: 2}}, false).
+			Restore(mock.Anything, map[uuid.UUID]int{productID: 2}, inventorycontract.Reserved).
 			Return(nil)
 		coupons.EXPECT().Release(mock.Anything, expired.ID).Return(nil)
 
@@ -829,9 +830,9 @@ func TestService_PlaceOrder(t *testing.T) {
 		}, nil)
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		inventory.EXPECT().ReserveBatch(mock.Anything, []InventoryItem{
-			{ProductID: productA, Quantity: 2},
-			{ProductID: productB, Quantity: 1},
+		inventory.EXPECT().ReserveBatch(mock.Anything, map[uuid.UUID]int{
+			productA: 2,
+			productB: 1,
 		}).Return(nil)
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
@@ -881,7 +882,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		inventory.EXPECT().
-			ReserveBatch(mock.Anything, []InventoryItem{{ProductID: productA, Quantity: 1}}).
+			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		coupons.EXPECT().Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).Return(int64(1000), nil)
@@ -994,7 +995,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		inventory.EXPECT().
-			ReserveBatch(mock.Anything, []InventoryItem{{ProductID: productA, Quantity: 1}}).
+			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		coupons.EXPECT().
@@ -1035,7 +1036,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		inventory.EXPECT().
-			ReserveBatch(mock.Anything, []InventoryItem{{ProductID: productA, Quantity: 1}}).
+			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
@@ -1114,7 +1115,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		inventory.EXPECT().
-			ReserveBatch(mock.Anything, []InventoryItem{{ProductID: productA, Quantity: 1}}).
+			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(errors.New("insufficient stock"))
 
 		req := PlaceParams{PaymentMethodID: "pm_test"}
@@ -1151,7 +1152,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		inventory.EXPECT().
-			ReserveBatch(mock.Anything, []InventoryItem{{ProductID: productA, Quantity: 1}}).
+			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
@@ -1189,7 +1190,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		inventory.EXPECT().
-			ReserveBatch(mock.Anything, []InventoryItem{{ProductID: productA, Quantity: 1}}).
+			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		cart.EXPECT().Clear(mock.Anything, userID).Return(errors.New("cache error"))
@@ -1229,7 +1230,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		inventory.EXPECT().
-			ReserveBatch(mock.Anything, []InventoryItem{{ProductID: productA, Quantity: 1}}).
+			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		coupons.EXPECT().Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).Return(int64(5000), nil)
@@ -1240,7 +1241,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		// there is nothing to charge.
 		repo.EXPECT().Apply(mock.Anything, mock.Anything, PaidTransition).Return(nil)
 		inventory.EXPECT().
-			DeductBatch(mock.Anything, []InventoryItem{{ProductID: productA, Quantity: 1}}).
+			DeductBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 		_ = payment
@@ -1280,7 +1281,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		inventory.EXPECT().
-			ReserveBatch(mock.Anything, []InventoryItem{{ProductID: productA, Quantity: 1}}).
+			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
@@ -1449,10 +1450,10 @@ func TestService_CancelOrder(t *testing.T) {
 				Subtotal:    money.New(4000, "USD"),
 			},
 		}, nil)
-		inventory.EXPECT().Restore(mock.Anything, []InventoryItem{
-			{ProductID: productA, Quantity: 2},
-			{ProductID: productB, Quantity: 1},
-		}, false).Return(nil)
+		inventory.EXPECT().Restore(mock.Anything, map[uuid.UUID]int{
+			productA: 2,
+			productB: 1,
+		}, inventorycontract.Reserved).Return(nil)
 		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
 
 		err := svc.CancelOrder(ctx, userID, orderID)
@@ -1487,7 +1488,7 @@ func TestService_CancelOrder(t *testing.T) {
 				Subtotal:    money.New(5000, "USD"),
 			},
 		}, nil)
-		inventory.EXPECT().Restore(mock.Anything, mock.Anything, false).Return(nil)
+		inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).Return(nil)
 		coupons.EXPECT().Release(mock.Anything, orderID).Return(nil)
 		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
 
@@ -1544,7 +1545,9 @@ func TestService_CancelOrder(t *testing.T) {
 				Subtotal:    money.New(5000, "USD"),
 			},
 		}, nil)
-		inventory.EXPECT().Restore(mock.Anything, mock.Anything, false).Return(errors.New("inventory error"))
+		inventory.EXPECT().
+			Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).
+			Return(errors.New("inventory error"))
 		// The release failure rolls back the cancellation (the tx returns the error),
 		// so payment-job cancellation is never reached.
 
@@ -1581,7 +1584,7 @@ func TestService_CancelOrder(t *testing.T) {
 				Subtotal:    money.New(5000, "USD"),
 			},
 		}, nil)
-		inventory.EXPECT().Restore(mock.Anything, mock.Anything, false).Return(nil)
+		inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).Return(nil)
 		coupons.EXPECT().Release(mock.Anything, orderID).Return(errors.New("coupon service down"))
 		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
 

@@ -6,18 +6,13 @@ import (
 	"github.com/google/uuid"
 )
 
-type StockChange struct {
-	ProductID uuid.UUID
-	Quantity  int
-}
-
 type Repository interface {
 	Reserve(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error)
 	Release(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error)
-	ReserveBatch(ctx context.Context, items []StockChange) error
-	ReleaseBatch(ctx context.Context, items []StockChange) error
-	DeductBatch(ctx context.Context, items []StockChange) error
-	RestockBatch(ctx context.Context, items []StockChange) error
+	ReserveBatch(ctx context.Context, items map[uuid.UUID]int) error
+	ReleaseBatch(ctx context.Context, items map[uuid.UUID]int) error
+	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
+	RestockBatch(ctx context.Context, items map[uuid.UUID]int) error
 	Deduct(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error)
 	Restock(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error)
 	GetStock(ctx context.Context, productID uuid.UUID) (*Stock, error)

@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -39,23 +40,23 @@ func (_m *MockInventoryReader) EXPECT() *MockInventoryReader_Expecter {
 }
 
 // GetAvailability provides a mock function for the type MockInventoryReader
-func (_mock *MockInventoryReader) GetAvailability(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Availability, error) {
+func (_mock *MockInventoryReader) GetAvailability(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]contract.Availability, error) {
 	ret := _mock.Called(ctx, ids)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAvailability")
 	}
 
-	var r0 map[uuid.UUID]Availability
+	var r0 map[uuid.UUID]contract.Availability
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]Availability, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]contract.Availability, error)); ok {
 		return returnFunc(ctx, ids)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]Availability); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]contract.Availability); ok {
 		r0 = returnFunc(ctx, ids)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[uuid.UUID]Availability)
+			r0 = ret.Get(0).(map[uuid.UUID]contract.Availability)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
@@ -96,12 +97,12 @@ func (_c *MockInventoryReader_GetAvailability_Call) Run(run func(ctx context.Con
 	return _c
 }
 
-func (_c *MockInventoryReader_GetAvailability_Call) Return(uUIDToAvailability map[uuid.UUID]Availability, err error) *MockInventoryReader_GetAvailability_Call {
+func (_c *MockInventoryReader_GetAvailability_Call) Return(uUIDToAvailability map[uuid.UUID]contract.Availability, err error) *MockInventoryReader_GetAvailability_Call {
 	_c.Call.Return(uUIDToAvailability, err)
 	return _c
 }
 
-func (_c *MockInventoryReader_GetAvailability_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Availability, error)) *MockInventoryReader_GetAvailability_Call {
+func (_c *MockInventoryReader_GetAvailability_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]contract.Availability, error)) *MockInventoryReader_GetAvailability_Call {
 	_c.Call.Return(run)
 	return _c
 }

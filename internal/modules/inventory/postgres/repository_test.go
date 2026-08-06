@@ -56,14 +56,14 @@ func TestPostgresRepository_ReleaseBatch(t *testing.T) {
 		repo := New(testPool)
 		ctx := context.Background()
 
-		require.NoError(t, repo.ReserveBatch(ctx, []inventory.StockChange{
-			{ProductID: first, Quantity: 4},
-			{ProductID: second, Quantity: 2},
+		require.NoError(t, repo.ReserveBatch(ctx, map[uuid.UUID]int{
+			first:  4,
+			second: 2,
 		}))
 
-		require.NoError(t, repo.ReleaseBatch(ctx, []inventory.StockChange{
-			{ProductID: first, Quantity: 4},
-			{ProductID: second, Quantity: 2},
+		require.NoError(t, repo.ReleaseBatch(ctx, map[uuid.UUID]int{
+			first:  4,
+			second: 2,
 		}))
 
 		assert.Equal(t, 0, reservedOf(t, first))
@@ -77,13 +77,9 @@ func TestPostgresRepository_ReleaseBatch(t *testing.T) {
 		repo := New(testPool)
 		ctx := context.Background()
 
-		require.NoError(t, repo.ReserveBatch(ctx, []inventory.StockChange{
-			{ProductID: productID, Quantity: 2},
-		}))
+		require.NoError(t, repo.ReserveBatch(ctx, map[uuid.UUID]int{productID: 2}))
 
-		err := repo.ReleaseBatch(ctx, []inventory.StockChange{
-			{ProductID: productID, Quantity: 3},
-		})
+		err := repo.ReleaseBatch(ctx, map[uuid.UUID]int{productID: 3})
 
 		require.ErrorIs(t, err, apperror.ErrBadRequest)
 		assert.Equal(t, 2, reservedOf(t, productID), "the reservation must be left intact")
@@ -94,28 +90,6 @@ func TestPostgresRepository_ReleaseBatch(t *testing.T) {
 		repo := New(testPool)
 
 		assert.NoError(t, repo.ReleaseBatch(context.Background(), nil))
-	})
-}
-
-func TestPostgresRepository_ReserveBatch_DuplicateProduct(t *testing.T) {
-	t.Run("sums quantities for a repeated product id instead of failing", func(t *testing.T) {
-		setup(t)
-		productID := seedProduct(t)
-		repo := New(testPool)
-		ctx := context.Background()
-
-		// The same product appears twice; quantities must be summed (2+3=5),
-		// not joined to the product row twice (which previously made
-		// RowsAffected < len(items) and wrongly reported insufficient stock).
-		err := repo.ReserveBatch(ctx, []inventory.StockChange{
-			{ProductID: productID, Quantity: 2},
-			{ProductID: productID, Quantity: 3},
-		})
-		require.NoError(t, err)
-
-		stock, err := repo.GetStock(ctx, productID)
-		require.NoError(t, err)
-		assert.Equal(t, &inventory.Stock{ProductID: productID, Quantity: 10, Reserved: 5, Available: 5}, stock)
 	})
 }
 
@@ -464,9 +438,7 @@ func TestPostgresRepository_ReserveBatch_UsesInventoryLevels(t *testing.T) {
 		 SET available_stock = 10, reserved_stock = 0`, productID)
 	require.NoError(t, err)
 
-	require.NoError(t, repo.ReserveBatch(ctx, []inventory.StockChange{
-		{ProductID: productID, Quantity: 4},
-	}))
+	require.NoError(t, repo.ReserveBatch(ctx, map[uuid.UUID]int{productID: 4}))
 
 	var available, reserved int
 	require.NoError(t, testPool.QueryRow(ctx,
@@ -489,7 +461,7 @@ func TestPostgresRepository_ReserveBatch_RejectsOverReservation(t *testing.T) {
 		 SET available_stock = 2, reserved_stock = 0`, productID)
 	require.NoError(t, err)
 
-	err = repo.ReserveBatch(ctx, []inventory.StockChange{{ProductID: productID, Quantity: 5}})
+	err = repo.ReserveBatch(ctx, map[uuid.UUID]int{productID: 5})
 	require.ErrorIs(t, err, apperror.ErrInsufficientStock)
 
 	var available int

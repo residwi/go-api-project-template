@@ -83,30 +83,6 @@ func (a *orderItemsGetterAdapter) ListItemsByOrderID(
 	return result, nil
 }
 
-type inventoryDeductorAdapter struct{ svc *inventory.Service }
-
-func (a *inventoryDeductorAdapter) DeductBatch(ctx context.Context, items []payment.InventoryChange) error {
-	return a.svc.DeductBatch(ctx, paymentToStockChanges(items))
-}
-
-type inventoryRestorerAdapter struct{ svc *inventory.Service }
-
-func (a *inventoryRestorerAdapter) Restore(
-	ctx context.Context,
-	items []payment.InventoryChange,
-	wasDeducted bool,
-) error {
-	return a.svc.Restore(ctx, paymentToStockChanges(items), inventoryStateFor(wasDeducted))
-}
-
-func paymentToStockChanges(items []payment.InventoryChange) []inventory.StockChange {
-	changes := make([]inventory.StockChange, len(items))
-	for i, it := range items {
-		changes[i] = inventory.StockChange{ProductID: it.ProductID, Quantity: it.Quantity}
-	}
-	return changes
-}
-
 func NewPaymentService(
 	repo payment.Repository,
 	tx database.TxRunner,
@@ -121,8 +97,8 @@ func NewPaymentService(
 		&paymentOrderUpdaterAdapter{svc: orderSvc},
 		&orderGetterAdapter{svc: orderSvc},
 		&orderItemsGetterAdapter{svc: orderSvc},
-		&inventoryDeductorAdapter{svc: inventorySvc},
-		&inventoryRestorerAdapter{svc: inventorySvc},
+		inventorySvc, // satisfies payment.InventoryDeductor directly
+		inventorySvc, // satisfies payment.InventoryRestorer directly
 		promotionSvc, // satisfies payment.CouponReleaser directly
 		log,
 	)

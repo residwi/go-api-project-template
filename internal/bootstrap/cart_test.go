@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/money"
 )
@@ -35,7 +36,7 @@ func TestProductLookupAdapter_GetByIDs(t *testing.T) {
 				{ID: archivedID, Name: "Gone", Price: money.New(900, "USD"), Status: product.StatusArchived},
 			}, nil)
 		inv.EXPECT().GetAvailability(mock.Anything, ids).
-			Return(map[uuid.UUID]product.Availability{
+			Return(map[uuid.UUID]inventorycontract.Availability{
 				liveID: {OnHand: 10, Available: 7},
 			}, nil)
 
@@ -73,7 +74,7 @@ func TestProductLookupAdapter_GetByIDs(t *testing.T) {
 				},
 			}, nil)
 		inv.EXPECT().GetAvailability(mock.Anything, ids).
-			Return(map[uuid.UUID]product.Availability{}, nil)
+			Return(map[uuid.UUID]inventorycontract.Availability{}, nil)
 
 		result, err := adapter.GetByIDs(context.Background(), ids)
 		require.NoError(t, err)

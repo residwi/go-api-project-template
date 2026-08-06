@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 )
 
@@ -31,7 +32,7 @@ type Product struct {
 
 	// Filled by Service from the InventoryReader port: inventory owns these
 	// numbers and products has no such columns.
-	Availability Availability
+	Availability inventorycontract.Availability
 }
 
 type Image struct {

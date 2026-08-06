@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
@@ -131,7 +132,7 @@ func TestService_GetBySlug(t *testing.T) {
 				{ID: uuid.New(), ProductID: id, URL: "https://img.example.com/1.jpg"},
 			}, nil)
 		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{id}).
-			Return(map[uuid.UUID]Availability{}, nil)
+			Return(map[uuid.UUID]inventorycontract.Availability{}, nil)
 
 		p, err := svc.GetBySlug(context.Background(), "cool-widget")
 		require.NoError(t, err)
@@ -220,7 +221,7 @@ func TestService_GetByID(t *testing.T) {
 				{ID: uuid.New(), ProductID: id, URL: "https://img.example.com/b.jpg"},
 			}, nil)
 		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{id}).
-			Return(map[uuid.UUID]Availability{}, nil)
+			Return(map[uuid.UUID]inventorycontract.Availability{}, nil)
 
 		p, err := svc.GetByID(context.Background(), id)
 		require.NoError(t, err)
@@ -282,7 +283,7 @@ func TestService_ListPublished(t *testing.T) {
 		repo.EXPECT().ListPublished(mock.Anything, params).
 			Return(products, "next-cursor", true, nil)
 		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{id}).
-			Return(map[uuid.UUID]Availability{}, nil)
+			Return(map[uuid.UUID]inventorycontract.Availability{}, nil)
 
 		result, cursor, hasMore, err := svc.ListPublished(context.Background(), params)
 		require.NoError(t, err)
@@ -312,7 +313,7 @@ func TestService_ListAdmin(t *testing.T) {
 		repo.EXPECT().ListAdmin(mock.Anything, params).
 			Return(products, 2, nil)
 		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{idA, idB}).
-			Return(map[uuid.UUID]Availability{}, nil)
+			Return(map[uuid.UUID]inventorycontract.Availability{}, nil)
 
 		result, total, err := svc.ListAdmin(context.Background(), params)
 		require.NoError(t, err)
@@ -611,7 +612,7 @@ func TestService_ListPublished_EnrichesWithAvailability(t *testing.T) {
 
 	// One batch call for the whole page -- not one call per product.
 	inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{id1, id2}).
-		Return(map[uuid.UUID]Availability{
+		Return(map[uuid.UUID]inventorycontract.Availability{
 			id1: {OnHand: 10, Available: 7},
 			id2: {OnHand: 0, Available: 0},
 		}, nil)
@@ -643,7 +644,7 @@ func TestService_GetByIDsIncludingDeleted(t *testing.T) {
 			}, nil)
 		// One batch call for the whole set -- not one call per id.
 		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{liveID, archivedID}).
-			Return(map[uuid.UUID]Availability{
+			Return(map[uuid.UUID]inventorycontract.Availability{
 				liveID: {OnHand: 10, Available: 8},
 			}, nil)
 
@@ -684,7 +685,7 @@ func TestService_AvailableQuantity(t *testing.T) {
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).Return(&Product{ID: id}, nil)
 		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{id}).
-			Return(map[uuid.UUID]Availability{
+			Return(map[uuid.UUID]inventorycontract.Availability{
 				id: {OnHand: 130, Available: 70},
 			}, nil)
 
@@ -704,7 +705,7 @@ func TestService_AvailableQuantity(t *testing.T) {
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).Return(&Product{ID: id}, nil)
 		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{id}).
-			Return(map[uuid.UUID]Availability{
+			Return(map[uuid.UUID]inventorycontract.Availability{
 				id: {OnHand: 5, Available: -5},
 			}, nil)
 

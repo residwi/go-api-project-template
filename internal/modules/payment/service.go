@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
@@ -19,12 +20,23 @@ import (
 
 const jitterDivisor = 2
 
-func toInventoryChanges(items []OrderItemDTO) []InventoryChange {
-	changes := make([]InventoryChange, len(items))
-	for i, it := range items {
-		changes[i] = InventoryChange(it)
+// A paid order has one order line per product, so this cannot collide two
+// OrderItemDTOs into the same key.
+func toStockMap(items []OrderItemDTO) map[uuid.UUID]int {
+	out := make(map[uuid.UUID]int, len(items))
+	for _, it := range items {
+		out[it.ProductID] = it.Quantity
 	}
-	return changes
+	return out
+}
+
+// stockStateFor keeps the contract.StockState enum out of the order module's
+// persisted StockDeducted bool; only this seam translates it.
+func stockStateFor(deducted bool) inventorycontract.StockState {
+	if deducted {
+		return inventorycontract.Deducted
+	}
+	return inventorycontract.Reserved
 }
 
 type Service struct {
@@ -287,7 +299,7 @@ func (s *Service) FinalizePaymentSuccess(ctx context.Context, job Job) error {
 			return fmt.Errorf("listing order items: %w", err)
 		}
 
-		if err := s.inventory.DeductBatch(txCtx, toInventoryChanges(items)); err != nil {
+		if err := s.inventory.DeductBatch(txCtx, toStockMap(items)); err != nil {
 			return fmt.Errorf("deducting inventory: %w", err)
 		}
 
@@ -743,8 +755,8 @@ func (s *Service) processRefundJob(ctx context.Context, job Job) error {
 			// Inventory owns release-vs-restock; we pass the order's persisted fact.
 			if restoreErr := s.inventoryRestorer.Restore(
 				txCtx,
-				toInventoryChanges(items),
-				orderSnap.StockDeducted,
+				toStockMap(items),
+				stockStateFor(orderSnap.StockDeducted),
 			); restoreErr != nil {
 				s.logger.ErrorContext(txCtx, "failed to restore inventory on refund",
 					slog.String("order_id", job.OrderID.String()), slog.String("error", restoreErr.Error()))

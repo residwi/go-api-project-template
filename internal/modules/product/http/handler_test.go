@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
@@ -280,7 +281,7 @@ func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
 		SKU:       &sku,
 		Status:    "published",
 		DeletedAt: &deletedAt,
-		Availability: product.Availability{
+		Availability: inventorycontract.Availability{
 			OnHand:    50,
 			Available: 424242,
 		},
@@ -315,7 +316,7 @@ func setupProductMux(t *testing.T) (*http.ServeMux, *MockRepository) {
 	repo := NewMockRepository(t)
 	inv := NewMockInventoryReader(t)
 	inv.EXPECT().GetAvailability(mock.Anything, mock.Anything).
-		Return(map[uuid.UUID]product.Availability{}, nil).Maybe()
+		Return(map[uuid.UUID]inventorycontract.Availability{}, nil).Maybe()
 	reg := NewMockInventoryRegistrar(t)
 	reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil).Maybe()
 	svc := product.NewService(repo, inv, reg)

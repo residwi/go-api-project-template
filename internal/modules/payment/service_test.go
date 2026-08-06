@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -1832,7 +1833,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(OrderSnapshot{CouponCode: "SAVE10", StockDeducted: false}, nil)
 
-		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, false).
+		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).
 			Return(nil)
 
 		couponRel.EXPECT().Release(mock.Anything, job.OrderID).
@@ -1894,7 +1895,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(OrderSnapshot{StockDeducted: true}, nil)
 
-		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, true).
+		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Deducted).
 			Return(nil)
 
 		repo.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -2119,7 +2120,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(OrderSnapshot{StockDeducted: false}, nil)
 
-		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, false).
+		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).
 			Return(nil)
 
 		repo.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -2174,7 +2175,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(OrderSnapshot{StockDeducted: false}, nil)
 
-		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, false).
+		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).
 			Return(errors.New("release failed"))
 
 		repo.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -2229,7 +2230,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(OrderSnapshot{StockDeducted: true}, nil)
 
-		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, true).
+		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Deducted).
 			Return(errors.New("restock failed"))
 
 		repo.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -2284,7 +2285,7 @@ func TestService_ProcessRefundJob(t *testing.T) {
 		orderGet.EXPECT().GetByID(mock.Anything, job.OrderID).
 			Return(OrderSnapshot{CouponCode: "SAVE10", StockDeducted: false}, nil)
 
-		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, false).
+		inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).
 			Return(nil)
 
 		couponRel.EXPECT().Release(mock.Anything, job.OrderID).

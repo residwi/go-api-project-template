@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 )
 
@@ -29,15 +30,10 @@ type CartSnapshotItem struct {
 	Status    string
 }
 
-type InventoryItem struct {
-	ProductID uuid.UUID
-	Quantity  int
-}
-
 type InventoryReserver interface {
-	ReserveBatch(ctx context.Context, items []InventoryItem) error
-	DeductBatch(ctx context.Context, items []InventoryItem) error
-	Restore(ctx context.Context, items []InventoryItem, wasDeducted bool) error
+	ReserveBatch(ctx context.Context, items map[uuid.UUID]int) error
+	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
+	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventorycontract.StockState) error
 }
 
 type PaymentInitiator interface {

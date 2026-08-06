@@ -9,7 +9,25 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 )
+
+func TestServiceReserveBatchTakesAMap(t *testing.T) {
+	t.Parallel()
+
+	productA := uuid.New()
+	productB := uuid.New()
+
+	repo := NewMockRepository(t)
+	repo.EXPECT().ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 2, productB: 1}).Return(nil)
+
+	svc := NewService(repo)
+
+	err := svc.ReserveBatch(context.Background(), map[uuid.UUID]int{productA: 2, productB: 1})
+
+	require.NoError(t, err)
+}
 
 func TestService_Restore(t *testing.T) {
 	t.Parallel()
@@ -20,10 +38,10 @@ func TestService_Restore(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := NewService(repo)
 
-		items := []StockChange{{ProductID: uuid.New(), Quantity: 2}}
+		items := map[uuid.UUID]int{uuid.New(): 2}
 		repo.EXPECT().ReleaseBatch(mock.Anything, items).Return(nil)
 
-		err := svc.Restore(context.Background(), items, Reserved)
+		err := svc.Restore(context.Background(), items, contract.Reserved)
 		require.NoError(t, err)
 	})
 
@@ -33,10 +51,10 @@ func TestService_Restore(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := NewService(repo)
 
-		items := []StockChange{{ProductID: uuid.New(), Quantity: 3}}
+		items := map[uuid.UUID]int{uuid.New(): 3}
 		repo.EXPECT().RestockBatch(mock.Anything, items).Return(nil)
 
-		err := svc.Restore(context.Background(), items, Deducted)
+		err := svc.Restore(context.Background(), items, contract.Deducted)
 		require.NoError(t, err)
 	})
 }
@@ -253,43 +271,36 @@ func TestService_AdjustStock(t *testing.T) {
 	})
 }
 
-func TestService_GetLevels(t *testing.T) {
+func TestServiceGetAvailabilityDropsReservedCount(t *testing.T) {
 	t.Parallel()
 
-	t.Run("success", func(t *testing.T) {
-		t.Parallel()
+	productID := uuid.New()
 
-		repo := NewMockRepository(t)
-		svc := NewService(repo)
+	repo := NewMockRepository(t)
+	repo.EXPECT().GetLevels(mock.Anything, []uuid.UUID{productID}).
+		Return(map[uuid.UUID]Stock{productID: {Quantity: 10, Reserved: 3, Available: 7}}, nil)
 
-		id1, id2 := uuid.New(), uuid.New()
-		ids := []uuid.UUID{id1, id2}
-		expected := map[uuid.UUID]Stock{
-			id1: {ProductID: id1, Quantity: 100, Reserved: 10, Available: 90},
-			id2: {ProductID: id2, Quantity: 50, Reserved: 0, Available: 50},
-		}
-		repo.EXPECT().GetLevels(mock.Anything, ids).Return(expected, nil)
+	svc := NewService(repo)
 
-		result, err := svc.GetLevels(context.Background(), ids)
+	got, err := svc.GetAvailability(context.Background(), []uuid.UUID{productID})
 
-		require.NoError(t, err)
-		assert.Equal(t, expected, result)
-	})
+	require.NoError(t, err)
+	assert.Equal(t, map[uuid.UUID]contract.Availability{productID: {OnHand: 10, Available: 7}}, got)
+}
 
-	t.Run("error", func(t *testing.T) {
-		t.Parallel()
+func TestService_GetAvailability_Error(t *testing.T) {
+	t.Parallel()
 
-		repo := NewMockRepository(t)
-		svc := NewService(repo)
+	repo := NewMockRepository(t)
+	svc := NewService(repo)
 
-		ids := []uuid.UUID{uuid.New()}
-		repo.EXPECT().GetLevels(mock.Anything, ids).Return(nil, errors.New("db error"))
+	ids := []uuid.UUID{uuid.New()}
+	repo.EXPECT().GetLevels(mock.Anything, ids).Return(nil, errors.New("db error"))
 
-		result, err := svc.GetLevels(context.Background(), ids)
+	result, err := svc.GetAvailability(context.Background(), ids)
 
-		assert.Nil(t, result)
-		assert.Error(t, err)
-	})
+	assert.Nil(t, result)
+	assert.Error(t, err)
 }
 
 func TestService_EnsureLevel(t *testing.T) {

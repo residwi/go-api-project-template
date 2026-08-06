@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
@@ -68,7 +69,7 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (*Product, error) 
 	// (0,0) by construction: EnsureLevel just wrote the row and nothing can hold a
 	// reservation yet, so reading inventory back would be a round trip for a
 	// known value.
-	prod.Availability = Availability{}
+	prod.Availability = inventorycontract.Availability{}
 	return prod, nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -813,7 +814,7 @@ func (_m *MockInventoryDeductor) EXPECT() *MockInventoryDeductor_Expecter {
 }
 
 // DeductBatch provides a mock function for the type MockInventoryDeductor
-func (_mock *MockInventoryDeductor) DeductBatch(ctx context.Context, items []InventoryChange) error {
+func (_mock *MockInventoryDeductor) DeductBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	ret := _mock.Called(ctx, items)
 
 	if len(ret) == 0 {
@@ -821,7 +822,7 @@ func (_mock *MockInventoryDeductor) DeductBatch(ctx context.Context, items []Inv
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []InventoryChange) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[uuid.UUID]int) error); ok {
 		r0 = returnFunc(ctx, items)
 	} else {
 		r0 = ret.Error(0)
@@ -836,20 +837,20 @@ type MockInventoryDeductor_DeductBatch_Call struct {
 
 // DeductBatch is a helper method to define mock.On call
 //   - ctx context.Context
-//   - items []InventoryChange
+//   - items map[uuid.UUID]int
 func (_e *MockInventoryDeductor_Expecter) DeductBatch(ctx any, items any) *MockInventoryDeductor_DeductBatch_Call {
 	return &MockInventoryDeductor_DeductBatch_Call{Call: _e.mock.On("DeductBatch", ctx, items)}
 }
 
-func (_c *MockInventoryDeductor_DeductBatch_Call) Run(run func(ctx context.Context, items []InventoryChange)) *MockInventoryDeductor_DeductBatch_Call {
+func (_c *MockInventoryDeductor_DeductBatch_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int)) *MockInventoryDeductor_DeductBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 []InventoryChange
+		var arg1 map[uuid.UUID]int
 		if args[1] != nil {
-			arg1 = args[1].([]InventoryChange)
+			arg1 = args[1].(map[uuid.UUID]int)
 		}
 		run(
 			arg0,
@@ -864,7 +865,7 @@ func (_c *MockInventoryDeductor_DeductBatch_Call) Return(err error) *MockInvento
 	return _c
 }
 
-func (_c *MockInventoryDeductor_DeductBatch_Call) RunAndReturn(run func(ctx context.Context, items []InventoryChange) error) *MockInventoryDeductor_DeductBatch_Call {
+func (_c *MockInventoryDeductor_DeductBatch_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int) error) *MockInventoryDeductor_DeductBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -897,16 +898,16 @@ func (_m *MockInventoryRestorer) EXPECT() *MockInventoryRestorer_Expecter {
 }
 
 // Restore provides a mock function for the type MockInventoryRestorer
-func (_mock *MockInventoryRestorer) Restore(ctx context.Context, items []InventoryChange, wasDeducted bool) error {
-	ret := _mock.Called(ctx, items, wasDeducted)
+func (_mock *MockInventoryRestorer) Restore(ctx context.Context, items map[uuid.UUID]int, prior contract.StockState) error {
+	ret := _mock.Called(ctx, items, prior)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Restore")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []InventoryChange, bool) error); ok {
-		r0 = returnFunc(ctx, items, wasDeducted)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[uuid.UUID]int, contract.StockState) error); ok {
+		r0 = returnFunc(ctx, items, prior)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -920,25 +921,25 @@ type MockInventoryRestorer_Restore_Call struct {
 
 // Restore is a helper method to define mock.On call
 //   - ctx context.Context
-//   - items []InventoryChange
-//   - wasDeducted bool
-func (_e *MockInventoryRestorer_Expecter) Restore(ctx any, items any, wasDeducted any) *MockInventoryRestorer_Restore_Call {
-	return &MockInventoryRestorer_Restore_Call{Call: _e.mock.On("Restore", ctx, items, wasDeducted)}
+//   - items map[uuid.UUID]int
+//   - prior contract.StockState
+func (_e *MockInventoryRestorer_Expecter) Restore(ctx any, items any, prior any) *MockInventoryRestorer_Restore_Call {
+	return &MockInventoryRestorer_Restore_Call{Call: _e.mock.On("Restore", ctx, items, prior)}
 }
 
-func (_c *MockInventoryRestorer_Restore_Call) Run(run func(ctx context.Context, items []InventoryChange, wasDeducted bool)) *MockInventoryRestorer_Restore_Call {
+func (_c *MockInventoryRestorer_Restore_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int, prior contract.StockState)) *MockInventoryRestorer_Restore_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 []InventoryChange
+		var arg1 map[uuid.UUID]int
 		if args[1] != nil {
-			arg1 = args[1].([]InventoryChange)
+			arg1 = args[1].(map[uuid.UUID]int)
 		}
-		var arg2 bool
+		var arg2 contract.StockState
 		if args[2] != nil {
-			arg2 = args[2].(bool)
+			arg2 = args[2].(contract.StockState)
 		}
 		run(
 			arg0,
@@ -954,7 +955,7 @@ func (_c *MockInventoryRestorer_Restore_Call) Return(err error) *MockInventoryRe
 	return _c
 }
 
-func (_c *MockInventoryRestorer_Restore_Call) RunAndReturn(run func(ctx context.Context, items []InventoryChange, wasDeducted bool) error) *MockInventoryRestorer_Restore_Call {
+func (_c *MockInventoryRestorer_Restore_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int, prior contract.StockState) error) *MockInventoryRestorer_Restore_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -2,9 +2,10 @@ package inventory
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/uuid"
+
+	"github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 )
 
 type Service struct {
@@ -23,33 +24,29 @@ func (s *Service) Release(ctx context.Context, productID uuid.UUID, qty int) (*S
 	return s.repo.Release(ctx, productID, qty)
 }
 
-func (s *Service) ReserveBatch(ctx context.Context, items []StockChange) error {
+func (s *Service) ReserveBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	return s.repo.ReserveBatch(ctx, items)
 }
 
-func (s *Service) ReleaseBatch(ctx context.Context, items []StockChange) error {
+func (s *Service) ReleaseBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	return s.repo.ReleaseBatch(ctx, items)
 }
 
-func (s *Service) DeductBatch(ctx context.Context, items []StockChange) error {
+func (s *Service) DeductBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	return s.repo.DeductBatch(ctx, items)
 }
 
-func (s *Service) RestockBatch(ctx context.Context, items []StockChange) error {
+func (s *Service) RestockBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	return s.repo.RestockBatch(ctx, items)
 }
 
 // Restore keeps the release-vs-restock choice here, so callers need not know that
 // a reservation and a deduction unwind differently.
-func (s *Service) Restore(ctx context.Context, items []StockChange, prior StockState) error {
-	switch prior {
-	case Deducted:
+func (s *Service) Restore(ctx context.Context, items map[uuid.UUID]int, prior contract.StockState) error {
+	if prior == contract.Deducted {
 		return s.repo.RestockBatch(ctx, items)
-	case Reserved:
-		return s.repo.ReleaseBatch(ctx, items)
-	default:
-		return fmt.Errorf("unknown stock state: %d", prior)
 	}
+	return s.repo.ReleaseBatch(ctx, items)
 }
 
 func (s *Service) Deduct(ctx context.Context, productID uuid.UUID, qty int) (*Stock, error) {
@@ -74,6 +71,20 @@ func (s *Service) EnsureLevel(ctx context.Context, productID uuid.UUID) error {
 	return s.repo.EnsureLevel(ctx, productID)
 }
 
-func (s *Service) GetLevels(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Stock, error) {
-	return s.repo.GetLevels(ctx, ids)
+// GetAvailability answers for a whole page at once. A per-product lookup would
+// turn every list endpoint into N+1 queries.
+func (s *Service) GetAvailability(
+	ctx context.Context,
+	ids []uuid.UUID,
+) (map[uuid.UUID]contract.Availability, error) {
+	levels, err := s.repo.GetLevels(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(map[uuid.UUID]contract.Availability, len(levels))
+	for id, st := range levels {
+		out[id] = contract.Availability{OnHand: st.Quantity, Available: st.Available}
+	}
+	return out, nil
 }

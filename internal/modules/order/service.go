@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
@@ -110,11 +111,12 @@ func (s *Service) PlaceOrder(
 			return apperror.ErrCartEmpty
 		}
 
-		reservations := make([]InventoryItem, len(snapshot.Items))
+		// A cart is keyed by product, so this cannot receive a duplicate ProductID.
+		reservations := make(map[uuid.UUID]int, len(snapshot.Items))
 		orderItems = make([]Item, len(snapshot.Items))
 		// Seeded from item 0 so that item runs the loop's availability check too.
 		subtotal := money.New(0, snapshot.Items[0].Price.Currency)
-		for i, item := range snapshot.Items {
+		for _, item := range snapshot.Items {
 			if item.Status != productStatusPublished {
 				return fmt.Errorf("%w: product %s is not available", apperror.ErrBadRequest, item.Name)
 			}
@@ -125,7 +127,7 @@ func (s *Service) PlaceOrder(
 				return fmt.Errorf("%w: cart contains mixed currencies: %w", apperror.ErrBadRequest, addErr)
 			}
 			subtotal = sum
-			reservations[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
+			reservations[item.ProductID] = item.Quantity
 		}
 
 		order.Subtotal = subtotal
@@ -430,9 +432,11 @@ func (s *Service) finalizeFreeOrder(ctx context.Context, order *Order) error {
 		if err := s.repo.Apply(txCtx, order.ID, PaidTransition); err != nil {
 			return err
 		}
-		deductions := make([]InventoryItem, len(order.Items))
-		for i, item := range order.Items {
-			deductions[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
+		// One order line per product by construction (see PlaceOrder), so no
+		// ProductID can collide here.
+		deductions := make(map[uuid.UUID]int, len(order.Items))
+		for _, item := range order.Items {
+			deductions[item.ProductID] = item.Quantity
 		}
 		return s.inventory.DeductBatch(txCtx, deductions)
 	})
@@ -457,11 +461,12 @@ func (s *Service) cancelWithReversal(ctx context.Context, order *Order) error {
 			return txErr
 		}
 		if len(items) > 0 && !order.StockReversed {
-			releases := make([]InventoryItem, len(items))
-			for i, item := range items {
-				releases[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
+			releases := make(map[uuid.UUID]int, len(items))
+			for _, item := range items {
+				releases[item.ProductID] = item.Quantity
 			}
-			if releaseErr := s.inventory.Restore(txCtx, releases, order.StockDeducted); releaseErr != nil {
+			releaseErr := s.inventory.Restore(txCtx, releases, stockStateFor(order.StockDeducted))
+			if releaseErr != nil {
 				return fmt.Errorf("restoring inventory on cancel: %w", releaseErr)
 			}
 		}
@@ -500,11 +505,11 @@ func (s *Service) releaseOrderHolds(ctx context.Context, o Order) error {
 		return err
 	}
 	if len(items) > 0 && !o.StockReversed {
-		releases := make([]InventoryItem, len(items))
-		for i, item := range items {
-			releases[i] = InventoryItem{ProductID: item.ProductID, Quantity: item.Quantity}
+		releases := make(map[uuid.UUID]int, len(items))
+		for _, item := range items {
+			releases[item.ProductID] = item.Quantity
 		}
-		if err := s.inventory.Restore(ctx, releases, o.StockDeducted); err != nil {
+		if err := s.inventory.Restore(ctx, releases, stockStateFor(o.StockDeducted)); err != nil {
 			return fmt.Errorf("restoring inventory on expire: %w", err)
 		}
 	}
@@ -520,4 +525,13 @@ func (s *Service) releaseOrderHolds(ctx context.Context, o Order) error {
 		}
 	}
 	return nil
+}
+
+// stockStateFor keeps the contract.StockState enum out of the persisted Order:
+// StockDeducted stays a plain bool column, and only this seam translates it.
+func stockStateFor(deducted bool) inventorycontract.StockState {
+	if deducted {
+		return inventorycontract.Deducted
+	}
+	return inventorycontract.Reserved
 }

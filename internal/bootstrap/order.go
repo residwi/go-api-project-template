@@ -27,8 +27,8 @@ func NewOrderService(
 	return order.NewService(
 		repo, tx,
 		&cartProviderAdapter{svc: cartSvc},
-		&inventoryReserverAdapter{svc: inventorySvc},
-		nil, // payment deps are circular — wired by SetOrderPaymentDeps
+		inventorySvc, // satisfies order.InventoryReserver directly
+		nil,          // payment deps are circular — wired by SetOrderPaymentDeps
 		nil,
 		promotionSvc,
 		notificationSvc,
@@ -74,37 +74,6 @@ func (a *cartProviderAdapter) GetCart(ctx context.Context, userID uuid.UUID) (*o
 
 func (a *cartProviderAdapter) Clear(ctx context.Context, userID uuid.UUID) error {
 	return a.svc.Clear(ctx, userID)
-}
-
-type inventoryReserverAdapter struct{ svc *inventory.Service }
-
-func (a *inventoryReserverAdapter) ReserveBatch(ctx context.Context, items []order.InventoryItem) error {
-	return a.svc.ReserveBatch(ctx, orderToStockChanges(items))
-}
-
-func (a *inventoryReserverAdapter) DeductBatch(ctx context.Context, items []order.InventoryItem) error {
-	return a.svc.DeductBatch(ctx, orderToStockChanges(items))
-}
-
-func (a *inventoryReserverAdapter) Restore(ctx context.Context, items []order.InventoryItem, wasDeducted bool) error {
-	return a.svc.Restore(ctx, orderToStockChanges(items), inventoryStateFor(wasDeducted))
-}
-
-func orderToStockChanges(items []order.InventoryItem) []inventory.StockChange {
-	changes := make([]inventory.StockChange, len(items))
-	for i, it := range items {
-		changes[i] = inventory.StockChange{ProductID: it.ProductID, Quantity: it.Quantity}
-	}
-	return changes
-}
-
-// Keeps the StockState enum inside inventory while the cross-feature seam speaks
-// in the bool each caller already has.
-func inventoryStateFor(wasDeducted bool) inventory.StockState {
-	if wasDeducted {
-		return inventory.Deducted
-	}
-	return inventory.Reserved
 }
 
 type paymentInitiatorAdapter struct{ svc *payment.Service }
