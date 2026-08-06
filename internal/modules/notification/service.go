@@ -89,7 +89,7 @@ func (s *Service) Process(ctx context.Context, job Job) error {
 			s.logger.ErrorContext(
 				ctx,
 				"failed to update notification job after failure",
-				slog.Any("error", updateErr),
+				slog.String("error", updateErr.Error()),
 			)
 		}
 		return fmt.Errorf("processing notification: %w", err)

@@ -186,16 +186,16 @@ func (s *Service) PlaceOrder(
 			PaymentMethodID: p.PaymentMethodID,
 		}); payErr != nil {
 			s.logger.ErrorContext(ctx, "failed to initiate payment, order stays in awaiting_payment",
-				slog.Any("order_id", order.ID), slog.Any("error", payErr))
+				slog.String("order_id", order.ID.String()), slog.String("error", payErr.Error()))
 		}
 	} else if freeErr := s.finalizeFreeOrder(ctx, order); freeErr != nil {
 		s.logger.ErrorContext(ctx, "failed to finalize zero-total order, it stays in awaiting_payment",
-			slog.Any("order_id", order.ID), slog.Any("error", freeErr))
+			slog.String("order_id", order.ID.String()), slog.String("error", freeErr.Error()))
 	}
 
 	if s.notifications != nil {
 		if err := s.notifications.EnqueueOrderPlaced(ctx, userID, order.ID); err != nil {
-			s.logger.WarnContext(ctx, "failed to enqueue order placed notification", slog.Any("error", err))
+			s.logger.WarnContext(ctx, "failed to enqueue order placed notification", slog.String("error", err.Error()))
 		}
 	}
 
@@ -252,8 +252,8 @@ func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) er
 			s.logger.WarnContext(
 				ctx,
 				"failed to cancel payment jobs",
-				slog.Any("order_id", orderID),
-				slog.Any("error", err),
+				slog.String("order_id", orderID.String()),
+				slog.String("error", err.Error()),
 			)
 		}
 	}
@@ -281,7 +281,12 @@ func (s *Service) ExpireStale(ctx context.Context) error {
 	}
 	for _, o := range orders {
 		if err := s.expireOne(ctx, o); err != nil {
-			s.logger.ErrorContext(ctx, "failed to expire order", slog.Any("order_id", o.ID), slog.Any("error", err))
+			s.logger.ErrorContext(
+				ctx,
+				"failed to expire order",
+				slog.String("order_id", o.ID.String()),
+				slog.String("error", err.Error()),
+			)
 		}
 	}
 	return nil
@@ -303,8 +308,8 @@ func (s *Service) RecoverStaleProcessing(ctx context.Context) error {
 			s.logger.ErrorContext(
 				ctx,
 				"failed to recover stale processing order",
-				slog.Any("order_id", o.ID),
-				slog.Any("error", err),
+				slog.String("order_id", o.ID.String()),
+				slog.String("error", err.Error()),
 			)
 		}
 	}
@@ -463,7 +468,11 @@ func (s *Service) cancelWithReversal(ctx context.Context, order *Order) error {
 
 		if s.coupons != nil && order.CouponCode != nil && *order.CouponCode != "" {
 			if releaseErr := s.coupons.Release(txCtx, order.ID); releaseErr != nil {
-				s.logger.WarnContext(txCtx, "failed to release coupon on cancel", slog.Any("error", releaseErr))
+				s.logger.WarnContext(
+					txCtx,
+					"failed to release coupon on cancel",
+					slog.String("error", releaseErr.Error()),
+				)
 			}
 		}
 
@@ -505,8 +514,8 @@ func (s *Service) releaseOrderHolds(ctx context.Context, o Order) error {
 			s.logger.WarnContext(
 				ctx,
 				"failed to release coupon on expire",
-				slog.Any("order_id", o.ID),
-				slog.Any("error", err),
+				slog.String("order_id", o.ID.String()),
+				slog.String("error", err.Error()),
 			)
 		}
 	}

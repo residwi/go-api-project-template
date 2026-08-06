@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -15,7 +16,7 @@ func Recovery(log *slog.Logger) Middleware {
 			defer func() {
 				if err := recover(); err != nil {
 					log.ErrorContext(r.Context(), "panic recovered",
-						slog.Any("error", err),
+						slog.String("panic", fmt.Sprint(err)),
 						slog.String("stack", string(debug.Stack())),
 					)
 					// Writing again after the handler started would mean a superfluous WriteHeader

@@ -179,7 +179,7 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 			bytes.NewReader(body),
 		)
 		if reqErr != nil {
-			s.logger.ErrorContext(r.Context(), "webhook request creation failed", slog.Any("error", reqErr))
+			s.logger.ErrorContext(r.Context(), "webhook request creation failed", slog.String("error", reqErr.Error()))
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -190,15 +190,15 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
-			s.logger.ErrorContext(r.Context(), "webhook trigger failed", slog.Any("error", err))
+			s.logger.ErrorContext(r.Context(), "webhook trigger failed", slog.String("error", err.Error()))
 			return
 		}
 		_ = resp.Body.Close()
 		s.logger.InfoContext(
 			r.Context(),
 			"webhook triggered",
-			slog.Any("status", resp.StatusCode),
-			slog.Any("event", event),
+			slog.Int("status", resp.StatusCode),
+			slog.String("event", event),
 		)
 	}()
 

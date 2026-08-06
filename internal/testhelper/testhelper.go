@@ -81,7 +81,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 
 	dt, err := dockertest.NewPool("")
 	if err != nil {
-		harnessLogger().Error("testhelper: dockertest.NewPool", slog.Any("error", err))
+		harnessLogger().Error("testhelper: dockertest.NewPool", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	dt.MaxWait = 60e9
@@ -122,7 +122,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		adminConn = conn
 		return nil
 	}); retryErr != nil {
-		harnessLogger().Error("testhelper: waiting for postgres", slog.Any("error", retryErr))
+		harnessLogger().Error("testhelper: waiting for postgres", slog.String("error", retryErr.Error()))
 		os.Exit(1)
 	}
 
@@ -130,10 +130,18 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	// swallowed either: it is the usual explanation for the CREATE below failing
 	// with "already exists".
 	if _, dropErr := adminConn.Exec(ctx, "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)"); dropErr != nil {
-		harnessLogger().Warn("testhelper: dropping stale database", slog.Any("db", dbName), slog.Any("error", dropErr))
+		harnessLogger().Warn(
+			"testhelper: dropping stale database",
+			slog.String("db", dbName),
+			slog.String("error", dropErr.Error()),
+		)
 	}
 	if _, execErr := adminConn.Exec(ctx, "CREATE DATABASE "+dbName); execErr != nil {
-		harnessLogger().Error("testhelper: creating database", slog.Any("db", dbName), slog.Any("error", execErr))
+		harnessLogger().Error(
+			"testhelper: creating database",
+			slog.String("db", dbName),
+			slog.String("error", execErr.Error()),
+		)
 		os.Exit(1)
 	}
 	_ = adminConn.Close(ctx)
@@ -143,11 +151,19 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	// pool and its goroutines on every attempt.
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
-		harnessLogger().Error("testhelper: building package pool", slog.Any("db", dbName), slog.Any("error", err))
+		harnessLogger().Error(
+			"testhelper: building package pool",
+			slog.String("db", dbName),
+			slog.String("error", err.Error()),
+		)
 		os.Exit(1)
 	}
 	if retryErr := dt.Retry(func() error { return pool.Ping(ctx) }); retryErr != nil {
-		harnessLogger().Error("testhelper: connecting to package db", slog.Any("db", dbName), slog.Any("error", retryErr))
+		harnessLogger().Error(
+			"testhelper: connecting to package db",
+			slog.String("db", dbName),
+			slog.String("error", retryErr.Error()),
+		)
 		os.Exit(1)
 	}
 
@@ -171,7 +187,7 @@ func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 
 	dt, err := dockertest.NewPool("")
 	if err != nil {
-		harnessLogger().Error("testhelper: dockertest.NewPool", slog.Any("error", err))
+		harnessLogger().Error("testhelper: dockertest.NewPool", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	dt.MaxWait = 30e9
@@ -188,7 +204,7 @@ func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 		client = redis.NewClient(&redis.Options{Addr: addr, DB: dbIndex})
 		return client.Ping(ctx).Err()
 	}); retryErr != nil {
-		harnessLogger().Error("testhelper: waiting for redis", slog.Any("error", retryErr))
+		harnessLogger().Error("testhelper: waiting for redis", slog.String("error", retryErr.Error()))
 		os.Exit(1)
 	}
 
@@ -262,12 +278,16 @@ func getOrCreateContainer(dt *dockertest.Pool, name, portID string, opts *docker
 			cfg.AutoRemove = false
 			cfg.RestartPolicy = docker.RestartPolicy{Name: "no"}
 		}); err != nil && !isAlreadyExists(err) {
-			harnessLogger().Error("testhelper: starting container", slog.Any("name", name), slog.Any("error", err))
+			harnessLogger().Error("testhelper: starting container", slog.String("name", name), slog.String("error", err.Error()))
 			os.Exit(1)
 		}
 
 		if time.Since(start) > containerReadyTimeout {
-			harnessLogger().Error("testhelper: container never became ready", slog.Any("name", name), slog.Any("waited", time.Since(start)))
+			harnessLogger().Error(
+				"testhelper: container never became ready",
+				slog.String("name", name),
+				slog.Duration("waited", time.Since(start)),
+			)
 			os.Exit(1)
 		}
 		time.Sleep(200 * time.Millisecond)
@@ -297,12 +317,17 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) {
 
 	if err := goose.SetDialect("postgres"); err != nil {
 		_ = db.Close()
-		harnessLogger().ErrorContext(ctx, "testhelper: goose.SetDialect", slog.Any("error", err))
+		harnessLogger().ErrorContext(ctx, "testhelper: goose.SetDialect", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	if err := goose.UpContext(ctx, db, migrationsDir); err != nil {
 		_ = db.Close()
-		harnessLogger().ErrorContext(ctx, "testhelper: goose.Up", slog.Any("dir", migrationsDir), slog.Any("error", err))
+		harnessLogger().ErrorContext(
+			ctx,
+			"testhelper: goose.Up",
+			slog.String("dir", migrationsDir),
+			slog.String("error", err.Error()),
+		)
 		os.Exit(1)
 	}
 	_ = db.Close()

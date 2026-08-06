@@ -24,7 +24,7 @@ const webhookSignatureHeader = "X-Webhook-Signature"
 func (h *webhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 	if err != nil {
-		h.logger.ErrorContext(r.Context(), "webhook: failed to read body", slog.Any("error", err))
+		h.logger.ErrorContext(r.Context(), "webhook: failed to read body", slog.String("error", err.Error()))
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -39,13 +39,13 @@ func (h *webhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
-		h.logger.ErrorContext(r.Context(), "webhook: invalid payload", slog.Any("error", err))
+		h.logger.ErrorContext(r.Context(), "webhook: invalid payload", slog.String("error", err.Error()))
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
 	if err := h.service.HandleWebhook(r.Context(), payload); err != nil {
-		h.logger.ErrorContext(r.Context(), "webhook processing failed", slog.Any("error", err))
+		h.logger.ErrorContext(r.Context(), "webhook processing failed", slog.String("error", err.Error()))
 		response.InternalError(w)
 		return
 	}

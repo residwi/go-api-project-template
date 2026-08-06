@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -72,23 +73,23 @@ func (r *Runner[T]) tick(ctx context.Context) {
 	// runner down -- and every other runner in the worker binary with it.
 	defer func() {
 		if rec := recover(); rec != nil {
-			r.logger.ErrorContext(ctx, "tick panicked", slog.Any("panic", rec))
+			r.logger.ErrorContext(ctx, "tick panicked", slog.String("panic", fmt.Sprint(rec)))
 		}
 	}()
 
 	if sweeper, ok := r.proc.(Sweeper); ok {
 		if err := sweeper.Sweep(ctx); err != nil {
-			r.logger.ErrorContext(ctx, "sweep failed", slog.Any("error", err))
+			r.logger.ErrorContext(ctx, "sweep failed", slog.String("error", err.Error()))
 		}
 	}
 
 	if _, err := r.queue.Prune(ctx, r.cfg.PruneAge, r.cfg.PruneLimit); err != nil {
-		r.logger.ErrorContext(ctx, "prune jobs failed", slog.Any("error", err))
+		r.logger.ErrorContext(ctx, "prune jobs failed", slog.String("error", err.Error()))
 	}
 
 	batch, err := r.queue.Claim(ctx, r.cfg.BatchSize, r.cfg.LeaseDuration)
 	if err != nil {
-		r.logger.ErrorContext(ctx, "claim jobs failed", slog.Any("error", err))
+		r.logger.ErrorContext(ctx, "claim jobs failed", slog.String("error", err.Error()))
 		return
 	}
 
@@ -116,12 +117,12 @@ func (r *Runner[T]) processOne(ctx context.Context, job T, deadline time.Time) {
 	// A Process panic must not take down the worker; isolate it to this job.
 	defer func() {
 		if rec := recover(); rec != nil {
-			r.logger.ErrorContext(ctx, "job panicked", slog.Any("panic", rec))
+			r.logger.ErrorContext(ctx, "job panicked", slog.String("panic", fmt.Sprint(rec)))
 		}
 	}()
 	jobCtx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	if err := r.proc.Process(jobCtx, job); err != nil {
-		r.logger.WarnContext(ctx, "job did not complete", slog.Any("error", err))
+		r.logger.WarnContext(ctx, "job did not complete", slog.String("error", err.Error()))
 	}
 }

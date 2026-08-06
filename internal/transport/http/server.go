@@ -49,7 +49,11 @@ func RunContext(ctx context.Context) error {
 	readerPool, err := database.NewReaderPostgres(ctx, cfg.Database)
 	if err != nil {
 		if !errors.Is(err, apperror.ErrReaderNotConfigured) {
-			appLog.WarnContext(ctx, "failed to connect reader database, using primary", slog.Any("error", err))
+			appLog.WarnContext(
+				ctx,
+				"failed to connect reader database, using primary",
+				slog.String("error", err.Error()),
+			)
 		}
 		readerPool = nil
 	}
@@ -62,7 +66,7 @@ func RunContext(ctx context.Context) error {
 		appLog.WarnContext(
 			ctx,
 			"failed to connect to redis, continuing without cache/rate-limiting",
-			slog.Any("error", err),
+			slog.String("error", err.Error()),
 		)
 	}
 	if rdb != nil {
@@ -104,7 +108,7 @@ func RunContext(ctx context.Context) error {
 	case err := <-serveErr:
 		// ErrServerClosed is the Shutdown below, not a failure.
 		if !errors.Is(err, http.ErrServerClosed) {
-			appLog.ErrorContext(ctx, "server failed to start", slog.Any("error", err))
+			appLog.ErrorContext(ctx, "server failed to start", slog.String("error", err.Error()))
 			return fmt.Errorf("starting server: %w", err)
 		}
 	case <-ctx.Done():
@@ -116,7 +120,7 @@ func RunContext(ctx context.Context) error {
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		appLog.ErrorContext(ctx, "server shutdown failed", slog.Any("error", err))
+		appLog.ErrorContext(ctx, "server shutdown failed", slog.String("error", err.Error()))
 		return fmt.Errorf("server shutdown: %w", err)
 	}
 

@@ -47,7 +47,7 @@ func run() error {
 	pool, err := database.NewPostgres(ctx, cfg.Database)
 	if err != nil {
 		// Reported as well as returned: main only sets the exit code.
-		appLog.ErrorContext(ctx, "connecting to database failed", slog.Any("error", err))
+		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
 		return fmt.Errorf("connecting to database: %w", err)
 	}
 	defer pool.Close()

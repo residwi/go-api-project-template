@@ -24,7 +24,7 @@ func NewProcessor(svc *payment.Service, orders payment.OrderHousekeeper, log *sl
 // returned, so it never blocks the expiry half.
 func (p *Processor) Sweep(ctx context.Context) error {
 	if err := p.orders.RecoverStaleProcessing(ctx); err != nil {
-		p.logger.ErrorContext(ctx, "recover stale processing orders failed", slog.Any("error", err))
+		p.logger.ErrorContext(ctx, "recover stale processing orders failed", slog.String("error", err.Error()))
 	}
 	return p.orders.ExpireStale(ctx)
 }

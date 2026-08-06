@@ -90,7 +90,11 @@ const userStatusCacheTTL = 30 * time.Second
 func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware.UserStatusResult, error) {
 	snap, found, err := s.cache.Get(ctx, userID)
 	if err != nil {
-		s.logger.WarnContext(ctx, "user status cache read failed, falling back to DB", slog.Any("error", err))
+		s.logger.WarnContext(
+			ctx,
+			"user status cache read failed, falling back to DB",
+			slog.String("error", err.Error()),
+		)
 	} else if found {
 		return middleware.UserStatusResult{Active: snap.Active, TokenVersion: snap.TokenVersion}, nil
 	}
@@ -107,7 +111,7 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware
 
 	if err := s.cache.Put(ctx, userID,
 		StatusSnapshot{Active: active, TokenVersion: tokenVersion}, userStatusCacheTTL); err != nil {
-		s.logger.WarnContext(ctx, "user status cache write failed", slog.Any("error", err))
+		s.logger.WarnContext(ctx, "user status cache write failed", slog.String("error", err.Error()))
 	}
 
 	return middleware.UserStatusResult{Active: active, TokenVersion: tokenVersion}, nil
@@ -260,8 +264,8 @@ func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
 		s.logger.WarnContext(
 			ctx,
 			"failed to invalidate user status cache",
-			slog.Any("target_user_id", userID),
-			slog.Any("error", err),
+			slog.String("target_user_id", userID.String()),
+			slog.String("error", err.Error()),
 		)
 	}
 }

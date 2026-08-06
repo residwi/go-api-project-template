@@ -212,7 +212,7 @@ func healthHandler(log *slog.Logger, pool *pgxpool.Pool, rdb *redis.Client) http
 			status = "unhealthy"
 			httpStatus = http.StatusServiceUnavailable
 			details["postgres"] = "down"
-			log.ErrorContext(r.Context(), "health check: postgres down", slog.Any("error", err))
+			log.ErrorContext(r.Context(), "health check: postgres down", slog.String("error", err.Error()))
 		} else {
 			details["postgres"] = "up"
 		}
@@ -247,7 +247,7 @@ func checkRedis(
 			*httpStatus = http.StatusServiceUnavailable
 		}
 		details["redis"] = "down"
-		log.WarnContext(ctx, "health check: redis down", slog.Any("error", err))
+		log.WarnContext(ctx, "health check: redis down", slog.String("error", err.Error()))
 		return
 	}
 

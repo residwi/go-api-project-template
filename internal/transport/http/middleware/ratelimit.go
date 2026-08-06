@@ -53,14 +53,18 @@ func RateLimit(log *slog.Logger, rdb *redis.Client, maxRequests int, window time
 
 			count, err := rdb.Incr(r.Context(), key).Result()
 			if err != nil {
-				log.WarnContext(r.Context(), "rate limit redis error, allowing request", slog.Any("error", err))
+				log.WarnContext(
+					r.Context(),
+					"rate limit redis error, allowing request",
+					slog.String("error", err.Error()),
+				)
 				next.ServeHTTP(w, r)
 				return
 			}
 
 			if count == 1 {
 				if err := rdb.Expire(r.Context(), key, window+5*time.Second).Err(); err != nil {
-					log.WarnContext(r.Context(), "rate limit expire error", slog.Any("error", err))
+					log.WarnContext(r.Context(), "rate limit expire error", slog.String("error", err.Error()))
 				}
 			}
 
