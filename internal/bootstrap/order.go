@@ -1,7 +1,6 @@
 package bootstrap
 
 import (
-	"context"
 	"log/slog"
 
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
@@ -34,32 +33,9 @@ func NewOrderService(
 	)
 }
 
-// SetOrderPaymentDeps breaks the order⇄payment cycle: it wires payment-backed
-// deps onto the order service once the payment service exists.
+// SetOrderPaymentDeps breaks the order-payment cycle: at whole-service
+// granularity each needs the other, so one of them must be wired after
+// construction. Both ports are satisfied by paymentSvc directly.
 func SetOrderPaymentDeps(orderSvc *order.Service, paymentSvc *payment.Service) {
-	orderSvc.SetPaymentDeps(
-		&paymentInitiatorAdapter{svc: paymentSvc},
-		paymentSvc, // satisfies order.PaymentJobCanceller directly
-	)
-}
-
-type paymentInitiatorAdapter struct{ svc *payment.Service }
-
-func (a *paymentInitiatorAdapter) InitiatePayment(
-	ctx context.Context,
-	params order.InitiatePaymentParams,
-) (order.PaymentResult, error) {
-	result, err := a.svc.InitiatePayment(ctx, payment.InitiatePaymentParams{
-		OrderID:         params.OrderID,
-		Amount:          params.Amount,
-		PaymentMethodID: params.PaymentMethodID,
-	})
-	if err != nil {
-		return order.PaymentResult{}, err
-	}
-	return order.PaymentResult{
-		PaymentID:  result.PaymentID,
-		PaymentURL: result.PaymentURL,
-		Charged:    result.Charged,
-	}, nil
+	orderSvc.SetPaymentDeps(paymentSvc, paymentSvc)
 }

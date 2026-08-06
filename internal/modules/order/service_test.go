@@ -14,6 +14,7 @@ import (
 	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -82,12 +83,12 @@ func TestService_RetryPayment(t *testing.T) {
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
 
-		expectedResult := PaymentResult{
+		expectedResult := paymentcontract.ChargeResult{
 			PaymentID:  uuid.New(),
 			PaymentURL: "https://pay.example.com/checkout",
 			Charged:    false,
 		}
-		payment.EXPECT().InitiatePayment(mock.Anything, InitiatePaymentParams{
+		payment.EXPECT().InitiatePayment(mock.Anything, paymentcontract.ChargeRequest{
 			OrderID:         orderID,
 			Amount:          money.New(5000, "USD"),
 			PaymentMethodID: paymentMethodID,
@@ -185,13 +186,43 @@ func TestService_RetryPayment(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
 
 		paymentErr := errors.New("payment gateway error")
-		payment.EXPECT().InitiatePayment(mock.Anything, mock.Anything).Return(PaymentResult{}, paymentErr)
+		payment.EXPECT().InitiatePayment(mock.Anything, mock.Anything).
+			Return(paymentcontract.ChargeResult{}, paymentErr)
 
 		result, err := svc.RetryPayment(ctx, userID, orderID, paymentMethodID)
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, paymentErr)
 	})
+}
+
+// TestServiceRetryPaymentUsesPaymentContract pins PaymentInitiator to payment's
+// published types, so a signature drift on either side fails the mock's
+// argument match here instead of silently compiling against the wrong shape.
+func TestServiceRetryPaymentUsesPaymentContract(t *testing.T) {
+	t.Parallel()
+
+	svc, repo, _, _, payment, _, _, _ := newTestService(t)
+
+	userID, orderID, paymentID := uuid.New(), uuid.New(), uuid.New()
+
+	repo.EXPECT().GetByID(mock.Anything, orderID).Return(&Order{
+		ID:     orderID,
+		UserID: userID,
+		Status: StatusAwaitingPayment,
+		Total:  money.New(7500, "IDR"),
+	}, nil)
+
+	payment.EXPECT().InitiatePayment(mock.Anything, paymentcontract.ChargeRequest{
+		OrderID:         orderID,
+		Amount:          money.New(7500, "IDR"),
+		PaymentMethodID: "card",
+	}).Return(paymentcontract.ChargeResult{PaymentID: paymentID, Charged: true}, nil)
+
+	got, err := svc.RetryPayment(context.Background(), userID, orderID, "card")
+
+	require.NoError(t, err)
+	assert.Equal(t, paymentID, got.PaymentID)
 }
 
 func TestService_GetByID(t *testing.T) {
@@ -841,7 +872,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
-			Return(PaymentResult{PaymentID: uuid.New()}, nil)
+			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
 		req := PlaceParams{PaymentMethodID: "pm_test"}
@@ -893,7 +924,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
-			Return(PaymentResult{PaymentID: uuid.New()}, nil)
+			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
 		req := PlaceParams{PaymentMethodID: "pm_test", CouponCode: &couponCode}
@@ -1045,7 +1076,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
-			Return(PaymentResult{PaymentID: uuid.New()}, nil)
+			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(errors.New("queue full"))
 
 		req := PlaceParams{PaymentMethodID: "pm_test"}
@@ -1290,7 +1321,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
-			Return(PaymentResult{}, errors.New("gateway down"))
+			Return(paymentcontract.ChargeResult{}, errors.New("gateway down"))
 		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
 		req := PlaceParams{PaymentMethodID: "pm_test"}
@@ -1714,7 +1745,7 @@ func TestService_SetPaymentDeps(t *testing.T) {
 		}
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
 
-		expectedResult := PaymentResult{PaymentID: uuid.New(), Charged: false}
+		expectedResult := paymentcontract.ChargeResult{PaymentID: uuid.New(), Charged: false}
 		payment.EXPECT().InitiatePayment(mock.Anything, mock.Anything).Return(expectedResult, nil)
 
 		result, err := svc.RetryPayment(ctx, userID, orderID, "pm_test")

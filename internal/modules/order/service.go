@@ -11,6 +11,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
@@ -178,7 +179,7 @@ func (s *Service) PlaceOrder(
 	if order.Total.Amount > 0 {
 		// Not fatal: the order stays awaiting_payment for the webhook, a retry, or
 		// the expiry sweep.
-		if _, payErr := s.payment.InitiatePayment(ctx, InitiatePaymentParams{
+		if _, payErr := s.payment.InitiatePayment(ctx, paymentcontract.ChargeRequest{
 			OrderID:         order.ID,
 			Amount:          order.Total,
 			PaymentMethodID: p.PaymentMethodID,
@@ -204,7 +205,7 @@ func (s *Service) RetryPayment(
 	ctx context.Context,
 	userID, orderID uuid.UUID,
 	paymentMethodID string,
-) (*PaymentResult, error) {
+) (*paymentcontract.ChargeResult, error) {
 	order, err := s.repo.GetByID(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -216,7 +217,7 @@ func (s *Service) RetryPayment(
 		return nil, apperror.ErrOrderNotPayable
 	}
 
-	result, err := s.payment.InitiatePayment(ctx, InitiatePaymentParams{
+	result, err := s.payment.InitiatePayment(ctx, paymentcontract.ChargeRequest{
 		OrderID:         order.ID,
 		Amount:          order.Total,
 		PaymentMethodID: paymentMethodID,

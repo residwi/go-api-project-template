@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
+	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -393,8 +394,8 @@ func TestHandler_RetryPayment(t *testing.T) {
 			CreatedAt: now,
 			UpdatedAt: now,
 		}, nil)
-		payment.EXPECT().InitiatePayment(mock.Anything, mock.AnythingOfType("order.InitiatePaymentParams")).
-			Return(order.PaymentResult{PaymentID: uuid.New()}, nil)
+		payment.EXPECT().InitiatePayment(mock.Anything, mock.AnythingOfType("contract.ChargeRequest")).
+			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`

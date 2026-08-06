@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/order"
+	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
@@ -239,7 +240,7 @@ type payResultResponse struct {
 	Charged    bool      `json:"charged"`
 }
 
-func toPayResultResponse(r *order.PaymentResult) payResultResponse {
+func toPayResultResponse(r *paymentcontract.ChargeResult) payResultResponse {
 	return payResultResponse{
 		PaymentID:  r.PaymentID,
 		PaymentURL: r.PaymentURL,

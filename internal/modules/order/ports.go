@@ -7,7 +7,7 @@ import (
 
 	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
-	"github.com/residwi/go-api-project-template/internal/money"
+	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 )
 
 type CartProvider interface {
@@ -25,19 +25,7 @@ type InventoryReserver interface {
 }
 
 type PaymentInitiator interface {
-	InitiatePayment(ctx context.Context, params InitiatePaymentParams) (PaymentResult, error)
-}
-
-type InitiatePaymentParams struct {
-	OrderID         uuid.UUID
-	Amount          money.Money
-	PaymentMethodID string
-}
-
-type PaymentResult struct {
-	PaymentID  uuid.UUID
-	PaymentURL string
-	Charged    bool
+	InitiatePayment(ctx context.Context, p paymentcontract.ChargeRequest) (paymentcontract.ChargeResult, error)
 }
 
 type PaymentJobCanceller interface {

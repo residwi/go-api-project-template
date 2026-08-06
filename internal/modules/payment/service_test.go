@@ -13,6 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -22,7 +23,7 @@ func TestService_InitiatePayment(t *testing.T) {
 
 	ctx := context.Background()
 	orderID := uuid.New()
-	params := InitiatePaymentParams{
+	params := paymentcontract.ChargeRequest{
 		OrderID:         orderID,
 		Amount:          money.New(10000, "USD"),
 		PaymentMethodID: "pm_test_123",
@@ -706,7 +707,7 @@ func TestService_InitiatePayment_UpdateGatewayError(t *testing.T) {
 
 	ctx := context.Background()
 	orderID := uuid.New()
-	params := InitiatePaymentParams{
+	params := paymentcontract.ChargeRequest{
 		OrderID:         orderID,
 		Amount:          money.New(10000, "USD"),
 		PaymentMethodID: "pm_test_123",

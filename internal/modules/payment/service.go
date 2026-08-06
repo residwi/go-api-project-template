@@ -13,7 +13,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
-	"github.com/residwi/go-api-project-template/internal/money"
+	"github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
@@ -68,22 +68,10 @@ func NewService(
 	}
 }
 
-type InitiatePaymentParams struct {
-	OrderID         uuid.UUID
-	Amount          money.Money
-	PaymentMethodID string
-}
-
-type InitiatePaymentResult struct {
-	PaymentID  uuid.UUID
-	PaymentURL string
-	Charged    bool
-}
-
-func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentParams) (InitiatePaymentResult, error) {
-	existing, err := s.repo.GetActiveByOrderID(ctx, params.OrderID)
+func (s *Service) InitiatePayment(ctx context.Context, req contract.ChargeRequest) (contract.ChargeResult, error) {
+	existing, err := s.repo.GetActiveByOrderID(ctx, req.OrderID)
 	if err != nil && !errors.Is(err, apperror.ErrNotFound) {
-		return InitiatePaymentResult{}, err
+		return contract.ChargeResult{}, err
 	}
 
 	var p *Payment
@@ -91,23 +79,24 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 		p = existing
 	} else {
 		p = &Payment{
-			OrderID:         params.OrderID,
-			Amount:          params.Amount,
+			OrderID:         req.OrderID,
+			Amount:          req.Amount,
 			Status:          StatusPending,
-			PaymentMethodID: params.PaymentMethodID,
+			PaymentMethodID: req.PaymentMethodID,
 		}
 		if createErr := s.repo.Create(ctx, p); createErr != nil {
-			return InitiatePaymentResult{}, createErr
+			return contract.ChargeResult{}, createErr
 		}
 	}
 
-	// ChargeRequest is the gateway's wire contract: this is the seam, not a leak.
+	// ChargeRequest here is the gateway's wire contract, a different type from
+	// contract.ChargeRequest above: this is the seam, not a leak.
 	chargeReq := ChargeRequest{
 		IdempotencyKey:  p.ID.String(),
-		OrderID:         params.OrderID.String(),
-		Amount:          params.Amount.Amount,
-		Currency:        params.Amount.Currency,
-		PaymentMethodID: params.PaymentMethodID,
+		OrderID:         req.OrderID.String(),
+		Amount:          req.Amount.Amount,
+		Currency:        req.Amount.Currency,
+		PaymentMethodID: req.PaymentMethodID,
 		Metadata:        map[string]string{"payment_id": p.ID.String()},
 	}
 
@@ -117,10 +106,10 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 			ctx,
 			"gateway charge failed",
 			slog.String("payment_id", p.ID.String()),
-			slog.String("order_id", params.OrderID.String()),
+			slog.String("order_id", req.OrderID.String()),
 			slog.String("error", err.Error()),
 		)
-		return InitiatePaymentResult{PaymentID: p.ID}, fmt.Errorf("gateway charge: %w", err)
+		return contract.ChargeResult{PaymentID: p.ID}, fmt.Errorf("gateway charge: %w", err)
 	}
 
 	respJSON, _ := json.Marshal(resp)
@@ -128,14 +117,14 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 		s.logger.ErrorContext(ctx, "failed to update gateway info", slog.String("error", err.Error()))
 	}
 
-	result := InitiatePaymentResult{PaymentID: p.ID}
+	result := contract.ChargeResult{PaymentID: p.ID}
 
 	switch resp.Status {
 	case string(StatusSuccess):
 		result.Charged = true
 		// Funds are already captured, so finalize now rather than wait for a webhook
 		// or job that never comes.
-		finalizeJob := Job{PaymentID: p.ID, OrderID: params.OrderID, Action: ActionCharge}
+		finalizeJob := Job{PaymentID: p.ID, OrderID: req.OrderID, Action: ActionCharge}
 		if finalizeErr := s.FinalizePaymentSuccess(
 			ctx,
 			finalizeJob,
@@ -145,7 +134,7 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 				ctx,
 				"synchronous charge succeeded but finalization failed, running compensating refund",
 				slog.String("payment_id", p.ID.String()),
-				slog.String("order_id", params.OrderID.String()),
+				slog.String("order_id", req.OrderID.String()),
 				slog.String("error", finalizeErr.Error()),
 			)
 			s.runCompensatingRefund(ctx, finalizeJob)
@@ -164,7 +153,7 @@ func (s *Service) InitiatePayment(ctx context.Context, params InitiatePaymentPar
 			ctx,
 			"gateway declined charge synchronously",
 			slog.String("payment_id", p.ID.String()),
-			slog.String("order_id", params.OrderID.String()),
+			slog.String("order_id", req.OrderID.String()),
 			slog.String("gateway_status", resp.Status),
 		)
 		return result, fmt.Errorf("%w: payment was declined", apperror.ErrBadRequest)
