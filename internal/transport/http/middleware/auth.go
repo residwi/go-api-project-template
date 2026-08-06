@@ -8,6 +8,8 @@ import (
 
 	"github.com/google/uuid"
 
+	authcontract "github.com/residwi/go-api-project-template/internal/modules/auth/contract"
+	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
@@ -41,25 +43,12 @@ func RequireUser(w http.ResponseWriter, r *http.Request) (UserContext, bool) {
 	return uc, true
 }
 
-type UserStatusResult struct {
-	Active       bool
-	TokenVersion int
-}
-
 type UserStatusChecker interface {
-	CheckStatus(ctx context.Context, userID uuid.UUID) (UserStatusResult, error)
-}
-
-type TokenClaims struct {
-	UserID       uuid.UUID
-	Email        string
-	Role         string
-	Type         string // "access" or "refresh"
-	TokenVersion int
+	CheckStatus(ctx context.Context, userID uuid.UUID) (usercontract.AccountStatus, error)
 }
 
 type TokenValidator interface {
-	ValidateToken(tokenString string) (*TokenClaims, error)
+	ValidateToken(tokenString string) (authcontract.Claims, error)
 }
 
 //nolint:gocognit // token parse + claims validation + fail-open status-check branches are inherently branchy

@@ -11,7 +11,6 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	authhttp "github.com/residwi/go-api-project-template/internal/modules/auth/http"
 	carthttp "github.com/residwi/go-api-project-template/internal/modules/cart/http"
 	categoryhttp "github.com/residwi/go-api-project-template/internal/modules/category/http"
@@ -40,8 +39,7 @@ func NewRouter(
 
 	v := validator.New()
 
-	tokenValidator := auth.NewTokenValidatorAdapter(app.Auth)
-	authMiddleware := middleware.Auth(tokenValidator, app.Users)
+	authMiddleware := middleware.Auth(app.Auth, app.Users)
 	adminMiddleware := middleware.RequireAdmin
 
 	api := middleware.NewRouteGroup(mux, "/api")

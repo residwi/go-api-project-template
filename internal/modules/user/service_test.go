@@ -12,9 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
-
+	"github.com/residwi/go-api-project-template/internal/modules/user/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -36,7 +34,7 @@ func TestService_CheckStatus(t *testing.T) {
 		got, err := svc.CheckStatus(context.Background(), userID)
 
 		require.NoError(t, err)
-		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 42}, got)
+		assert.Equal(t, contract.AccountStatus{Active: true, TokenVersion: 42}, got)
 	})
 
 	t.Run("reads the repository on a miss and writes the snapshot back", func(t *testing.T) {
@@ -53,7 +51,7 @@ func TestService_CheckStatus(t *testing.T) {
 		got, err := svc.CheckStatus(context.Background(), userID)
 
 		require.NoError(t, err)
-		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 7}, got)
+		assert.Equal(t, contract.AccountStatus{Active: true, TokenVersion: 7}, got)
 	})
 
 	t.Run("falls back to the repository when the cache read errors", func(t *testing.T) {
@@ -70,7 +68,7 @@ func TestService_CheckStatus(t *testing.T) {
 		got, err := svc.CheckStatus(context.Background(), userID)
 
 		require.NoError(t, err)
-		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 3}, got)
+		assert.Equal(t, contract.AccountStatus{Active: true, TokenVersion: 3}, got)
 	})
 
 	t.Run("caches an inactive user as inactive", func(t *testing.T) {
@@ -87,7 +85,7 @@ func TestService_CheckStatus(t *testing.T) {
 		got, err := svc.CheckStatus(context.Background(), userID)
 
 		require.NoError(t, err)
-		assert.Equal(t, middleware.UserStatusResult{Active: false, TokenVersion: 4}, got)
+		assert.Equal(t, contract.AccountStatus{Active: false, TokenVersion: 4}, got)
 	})
 
 	t.Run("reports a deleted user as inactive rather than an error", func(t *testing.T) {
@@ -102,7 +100,7 @@ func TestService_CheckStatus(t *testing.T) {
 		got, err := svc.CheckStatus(context.Background(), userID)
 
 		require.NoError(t, err)
-		assert.Equal(t, middleware.UserStatusResult{Active: false, TokenVersion: 0}, got)
+		assert.Equal(t, contract.AccountStatus{Active: false, TokenVersion: 0}, got)
 	})
 
 	t.Run("still returns the result when the cache write fails", func(t *testing.T) {
@@ -119,7 +117,7 @@ func TestService_CheckStatus(t *testing.T) {
 		got, err := svc.CheckStatus(context.Background(), userID)
 
 		require.NoError(t, err)
-		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 1}, got)
+		assert.Equal(t, contract.AccountStatus{Active: true, TokenVersion: 1}, got)
 	})
 
 	t.Run("works with NoCache, always reading through to the repository", func(t *testing.T) {
@@ -132,7 +130,7 @@ func TestService_CheckStatus(t *testing.T) {
 		got, err := svc.CheckStatus(context.Background(), userID)
 
 		require.NoError(t, err)
-		assert.Equal(t, middleware.UserStatusResult{Active: true, TokenVersion: 9}, got)
+		assert.Equal(t, contract.AccountStatus{Active: true, TokenVersion: 9}, got)
 	})
 }
 
@@ -160,7 +158,7 @@ func TestService_GetByEmail(t *testing.T) {
 
 		creds, err := svc.GetByEmail(context.Background(), "alice@example.com")
 		require.NoError(t, err)
-		assert.Equal(t, auth.UserCredentials{
+		assert.Equal(t, contract.Credentials{
 			ID:           id,
 			Email:        "alice@example.com",
 			PasswordHash: "hash123",
@@ -203,7 +201,7 @@ func TestService_Create(t *testing.T) {
 			}).
 			Return(nil)
 
-		result, err := svc.Create(context.Background(), auth.CreateUserParams{
+		result, err := svc.Create(context.Background(), contract.NewUser{
 			Email:        "bob@example.com",
 			PasswordHash: "hashed",
 			FirstName:    "Bob",
@@ -212,7 +210,7 @@ func TestService_Create(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEqual(t, uuid.Nil, result.ID)
 		result.ID = uuid.Nil
-		assert.Equal(t, auth.UserResult{
+		assert.Equal(t, contract.User{
 			Email:     "bob@example.com",
 			FirstName: "Bob",
 			LastName:  "Jones",
@@ -230,7 +228,7 @@ func TestService_Create(t *testing.T) {
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*user.User")).
 			Return(apperror.ErrConflict)
 
-		_, err := svc.Create(context.Background(), auth.CreateUserParams{
+		_, err := svc.Create(context.Background(), contract.NewUser{
 			Email:        "dup@example.com",
 			PasswordHash: "hashed",
 			FirstName:    "Dup",
@@ -263,7 +261,7 @@ func TestService_GetByID(t *testing.T) {
 
 		result, err := svc.GetByID(context.Background(), id)
 		require.NoError(t, err)
-		assert.Equal(t, auth.UserResult{
+		assert.Equal(t, contract.User{
 			ID:           id,
 			Email:        "alice@example.com",
 			FirstName:    "Alice",

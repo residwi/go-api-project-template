@@ -10,8 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
+	"github.com/residwi/go-api-project-template/internal/modules/user/contract"
 )
 
 type Service struct {
@@ -24,12 +23,12 @@ func NewService(repo Repository, c StatusCache, log *slog.Logger) *Service {
 	return &Service{repo: repo, cache: c, logger: log}
 }
 
-func (s *Service) GetByEmail(ctx context.Context, email string) (auth.UserCredentials, error) {
+func (s *Service) GetByEmail(ctx context.Context, email string) (contract.Credentials, error) {
 	u, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
-		return auth.UserCredentials{}, err
+		return contract.Credentials{}, err
 	}
-	return auth.UserCredentials{
+	return contract.Credentials{
 		ID:           u.ID,
 		Email:        u.Email,
 		PasswordHash: u.PasswordHash,
@@ -41,7 +40,7 @@ func (s *Service) GetByEmail(ctx context.Context, email string) (auth.UserCreden
 	}, nil
 }
 
-func (s *Service) Create(ctx context.Context, params auth.CreateUserParams) (auth.UserResult, error) {
+func (s *Service) Create(ctx context.Context, params contract.NewUser) (contract.User, error) {
 	user := &User{
 		Email:        params.Email,
 		PasswordHash: params.PasswordHash,
@@ -52,10 +51,10 @@ func (s *Service) Create(ctx context.Context, params auth.CreateUserParams) (aut
 	}
 
 	if err := s.repo.Create(ctx, user); err != nil {
-		return auth.UserResult{}, err
+		return contract.User{}, err
 	}
 
-	return auth.UserResult{
+	return contract.User{
 		ID:           user.ID,
 		Email:        user.Email,
 		FirstName:    user.FirstName,
@@ -66,12 +65,12 @@ func (s *Service) Create(ctx context.Context, params auth.CreateUserParams) (aut
 	}, nil
 }
 
-func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (auth.UserResult, error) {
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (contract.User, error) {
 	u, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return auth.UserResult{}, err
+		return contract.User{}, err
 	}
-	return auth.UserResult{
+	return contract.User{
 		ID:           u.ID,
 		Email:        u.Email,
 		FirstName:    u.FirstName,
@@ -87,7 +86,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (auth.UserResult, e
 const userStatusCacheTTL = 30 * time.Second
 
 // CheckStatus satisfies middleware.UserStatusChecker. Cached for 30s, fails open.
-func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware.UserStatusResult, error) {
+func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (contract.AccountStatus, error) {
 	snap, found, err := s.cache.Get(ctx, userID)
 	if err != nil {
 		s.logger.WarnContext(
@@ -96,7 +95,7 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware
 			slog.String("error", err.Error()),
 		)
 	} else if found {
-		return middleware.UserStatusResult{Active: snap.Active, TokenVersion: snap.TokenVersion}, nil
+		return contract.AccountStatus{Active: snap.Active, TokenVersion: snap.TokenVersion}, nil
 	}
 
 	active, tokenVersion, err := s.repo.GetStatusByID(ctx, userID)
@@ -104,9 +103,9 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware
 		// A deleted/non-existent user is a definitive "deny", not an infra error:
 		// report inactive so middleware returns 401 instead of 500.
 		if errors.Is(err, apperror.ErrNotFound) {
-			return middleware.UserStatusResult{Active: false}, nil
+			return contract.AccountStatus{Active: false}, nil
 		}
-		return middleware.UserStatusResult{}, err
+		return contract.AccountStatus{}, err
 	}
 
 	if err := s.cache.Put(ctx, userID,
@@ -114,7 +113,7 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (middleware
 		s.logger.WarnContext(ctx, "user status cache write failed", slog.String("error", err.Error()))
 	}
 
-	return middleware.UserStatusResult{Active: active, TokenVersion: tokenVersion}, nil
+	return contract.AccountStatus{Active: active, TokenVersion: tokenVersion}, nil
 }
 
 func (s *Service) GetProfile(ctx context.Context, id uuid.UUID) (*User, error) {

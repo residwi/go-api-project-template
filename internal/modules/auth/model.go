@@ -7,6 +7,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+
+	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
 )
 
 type Claims struct {
@@ -27,13 +29,13 @@ type jwtClaims struct {
 	TokenVersion int
 }
 
-// TokenPair is a core type, not a wire type: it carries the full UserResult, so
-// http's mapper decides which fields reach a client.
+// TokenPair is a core type, not a wire type: it carries the full
+// usercontract.User, so http's mapper decides which fields reach a client.
 type TokenPair struct {
 	AccessToken  string
 	RefreshToken string
 	ExpiresIn    int
-	User         UserResult
+	User         usercontract.User
 }
 
 func GenerateTokenPair(

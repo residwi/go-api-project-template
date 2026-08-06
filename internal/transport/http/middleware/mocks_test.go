@@ -8,6 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	contract0 "github.com/residwi/go-api-project-template/internal/modules/auth/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/user/contract"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -39,22 +41,22 @@ func (_m *MockUserStatusChecker) EXPECT() *MockUserStatusChecker_Expecter {
 }
 
 // CheckStatus provides a mock function for the type MockUserStatusChecker
-func (_mock *MockUserStatusChecker) CheckStatus(ctx context.Context, userID uuid.UUID) (UserStatusResult, error) {
+func (_mock *MockUserStatusChecker) CheckStatus(ctx context.Context, userID uuid.UUID) (contract.AccountStatus, error) {
 	ret := _mock.Called(ctx, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CheckStatus")
 	}
 
-	var r0 UserStatusResult
+	var r0 contract.AccountStatus
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (UserStatusResult, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (contract.AccountStatus, error)); ok {
 		return returnFunc(ctx, userID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) UserStatusResult); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) contract.AccountStatus); ok {
 		r0 = returnFunc(ctx, userID)
 	} else {
-		r0 = ret.Get(0).(UserStatusResult)
+		r0 = ret.Get(0).(contract.AccountStatus)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, userID)
@@ -94,12 +96,12 @@ func (_c *MockUserStatusChecker_CheckStatus_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockUserStatusChecker_CheckStatus_Call) Return(userStatusResult UserStatusResult, err error) *MockUserStatusChecker_CheckStatus_Call {
-	_c.Call.Return(userStatusResult, err)
+func (_c *MockUserStatusChecker_CheckStatus_Call) Return(accountStatus contract.AccountStatus, err error) *MockUserStatusChecker_CheckStatus_Call {
+	_c.Call.Return(accountStatus, err)
 	return _c
 }
 
-func (_c *MockUserStatusChecker_CheckStatus_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (UserStatusResult, error)) *MockUserStatusChecker_CheckStatus_Call {
+func (_c *MockUserStatusChecker_CheckStatus_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (contract.AccountStatus, error)) *MockUserStatusChecker_CheckStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -132,24 +134,22 @@ func (_m *MockTokenValidator) EXPECT() *MockTokenValidator_Expecter {
 }
 
 // ValidateToken provides a mock function for the type MockTokenValidator
-func (_mock *MockTokenValidator) ValidateToken(tokenString string) (*TokenClaims, error) {
+func (_mock *MockTokenValidator) ValidateToken(tokenString string) (contract0.Claims, error) {
 	ret := _mock.Called(tokenString)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ValidateToken")
 	}
 
-	var r0 *TokenClaims
+	var r0 contract0.Claims
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (*TokenClaims, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) (contract0.Claims, error)); ok {
 		return returnFunc(tokenString)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) *TokenClaims); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) contract0.Claims); ok {
 		r0 = returnFunc(tokenString)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*TokenClaims)
-		}
+		r0 = ret.Get(0).(contract0.Claims)
 	}
 	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
 		r1 = returnFunc(tokenString)
@@ -183,12 +183,12 @@ func (_c *MockTokenValidator_ValidateToken_Call) Run(run func(tokenString string
 	return _c
 }
 
-func (_c *MockTokenValidator_ValidateToken_Call) Return(tokenClaims *TokenClaims, err error) *MockTokenValidator_ValidateToken_Call {
-	_c.Call.Return(tokenClaims, err)
+func (_c *MockTokenValidator_ValidateToken_Call) Return(claims contract0.Claims, err error) *MockTokenValidator_ValidateToken_Call {
+	_c.Call.Return(claims, err)
 	return _c
 }
 
-func (_c *MockTokenValidator_ValidateToken_Call) RunAndReturn(run func(tokenString string) (*TokenClaims, error)) *MockTokenValidator_ValidateToken_Call {
+func (_c *MockTokenValidator_ValidateToken_Call) RunAndReturn(run func(tokenString string) (contract0.Claims, error)) *MockTokenValidator_ValidateToken_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -8,7 +8,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
+	"github.com/residwi/go-api-project-template/internal/modules/auth/contract"
+	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
 )
 
 // maxPasswordBytes is bcrypt's hard input limit; inputs longer than this error
@@ -63,7 +64,7 @@ func (s *Service) Register(ctx context.Context, p RegisterParams) (*TokenPair, e
 		return nil, fmt.Errorf("hashing password: %w", err)
 	}
 
-	result, err := s.users.Create(ctx, CreateUserParams{
+	result, err := s.users.Create(ctx, usercontract.NewUser{
 		Email:        p.Email,
 		PasswordHash: string(hash),
 		FirstName:    p.FirstName,
@@ -93,7 +94,7 @@ func (s *Service) Login(ctx context.Context, p LoginParams) (*TokenPair, error) 
 		return nil, apperror.ErrInvalidCredentials
 	}
 
-	return s.buildTokenPair(UserResult{
+	return s.buildTokenPair(usercontract.User{
 		ID:           creds.ID,
 		Email:        creds.Email,
 		FirstName:    creds.FirstName,
@@ -130,24 +131,14 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*Token
 	return s.buildTokenPair(result)
 }
 
-func (s *Service) ValidateAccessToken(tokenString string) (*Claims, error) {
-	return ValidateToken(tokenString, s.jwtSecret, s.jwtIssuer)
-}
-
-type TokenValidatorAdapter struct {
-	service *Service
-}
-
-func NewTokenValidatorAdapter(s *Service) *TokenValidatorAdapter {
-	return &TokenValidatorAdapter{service: s}
-}
-
-func (a *TokenValidatorAdapter) ValidateToken(tokenString string) (*middleware.TokenClaims, error) {
-	claims, err := a.service.ValidateAccessToken(tokenString)
+// ValidateToken satisfies middleware.TokenValidator directly, so the router
+// wires app.Auth straight in without an adapter in between.
+func (s *Service) ValidateToken(tokenString string) (contract.Claims, error) {
+	claims, err := ValidateToken(tokenString, s.jwtSecret, s.jwtIssuer)
 	if err != nil {
-		return nil, err
+		return contract.Claims{}, err
 	}
-	return &middleware.TokenClaims{
+	return contract.Claims{
 		UserID:       claims.UserID,
 		Email:        claims.Email,
 		Role:         claims.Role,
@@ -156,7 +147,7 @@ func (a *TokenValidatorAdapter) ValidateToken(tokenString string) (*middleware.T
 	}, nil
 }
 
-func (s *Service) buildTokenPair(user UserResult) (*TokenPair, error) {
+func (s *Service) buildTokenPair(user usercontract.User) (*TokenPair, error) {
 	claims := Claims{
 		UserID:       user.ID,
 		Email:        user.Email,

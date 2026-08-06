@@ -18,6 +18,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
+	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -32,12 +33,12 @@ func TestHandler_Register(t *testing.T) {
 		mux, users := newTestMux(t)
 
 		userID := uuid.New()
-		users.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p auth.CreateUserParams) bool {
+		users.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p usercontract.NewUser) bool {
 			return p.Email == "test@example.com" &&
 				p.FirstName == "John" &&
 				p.LastName == "Doe" &&
 				bcrypt.CompareHashAndPassword([]byte(p.PasswordHash), []byte("password123")) == nil
-		})).Return(auth.UserResult{
+		})).Return(usercontract.User{
 			ID:        userID,
 			Email:     "test@example.com",
 			FirstName: "John",
@@ -130,7 +131,7 @@ func TestHandler_Register(t *testing.T) {
 
 		mux, users := newTestMux(t)
 
-		users.EXPECT().Create(mock.Anything, mock.Anything).Return(auth.UserResult{}, apperror.ErrConflict)
+		users.EXPECT().Create(mock.Anything, mock.Anything).Return(usercontract.User{}, apperror.ErrConflict)
 
 		body, _ := json.Marshal(map[string]any{
 			"email":      "test@example.com",
@@ -165,7 +166,7 @@ func TestHandler_Login(t *testing.T) {
 		userID := uuid.New()
 		hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 
-		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(auth.UserCredentials{
+		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(usercontract.Credentials{
 			ID:           userID,
 			Email:        "test@example.com",
 			PasswordHash: string(hash),
@@ -249,7 +250,7 @@ func TestHandler_Login(t *testing.T) {
 
 		users.EXPECT().
 			GetByEmail(mock.Anything, "notfound@example.com").
-			Return(auth.UserCredentials{}, apperror.ErrNotFound)
+			Return(usercontract.Credentials{}, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{
 			"email":    "notfound@example.com",
@@ -294,7 +295,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(auth.UserResult{
+		users.EXPECT().GetByID(mock.Anything, userID).Return(usercontract.User{
 			ID:           userID,
 			Email:        "test@example.com",
 			FirstName:    "John",
@@ -397,7 +398,7 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 		AccessToken:  "access-token-value",
 		RefreshToken: "refresh-token-value",
 		ExpiresIn:    900,
-		User: auth.UserResult{
+		User: usercontract.User{
 			ID:           userID,
 			Email:        "user@example.com",
 			FirstName:    "John",

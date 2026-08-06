@@ -14,6 +14,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/modules/auth/contract"
+	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
 )
 
 func TestService_Register(t *testing.T) {
@@ -33,12 +35,12 @@ func TestService_Register(t *testing.T) {
 			LastName:  "Doe",
 		}
 
-		users.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p CreateUserParams) bool {
+		users.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p usercontract.NewUser) bool {
 			return p.Email == req.Email &&
 				p.FirstName == req.FirstName &&
 				p.LastName == req.LastName &&
 				bcrypt.CompareHashAndPassword([]byte(p.PasswordHash), []byte(req.Password)) == nil
-		})).Return(UserResult{
+		})).Return(usercontract.User{
 			ID:           userID,
 			Email:        req.Email,
 			FirstName:    req.FirstName,
@@ -68,7 +70,7 @@ func TestService_Register(t *testing.T) {
 		svc := NewService(users, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
 
 		users.EXPECT().Create(mock.Anything, mock.Anything).
-			Return(UserResult{}, apperror.ErrConflict)
+			Return(usercontract.User{}, apperror.ErrConflict)
 
 		resp, err := svc.Register(context.Background(), RegisterParams{
 			Email:     "dup@example.com",
@@ -112,7 +114,7 @@ func TestService_Login(t *testing.T) {
 		userID := uuid.New()
 		hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 
-		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(UserCredentials{
+		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(usercontract.Credentials{
 			ID:           userID,
 			Email:        "test@example.com",
 			PasswordHash: string(hash),
@@ -142,7 +144,7 @@ func TestService_Login(t *testing.T) {
 
 		hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
 
-		users.EXPECT().GetByEmail(mock.Anything, "inactive@example.com").Return(UserCredentials{
+		users.EXPECT().GetByEmail(mock.Anything, "inactive@example.com").Return(usercontract.Credentials{
 			ID:           uuid.New(),
 			Email:        "inactive@example.com",
 			PasswordHash: string(hash),
@@ -166,7 +168,7 @@ func TestService_Login(t *testing.T) {
 
 		hash, _ := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
 
-		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(UserCredentials{
+		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(usercontract.Credentials{
 			ID:           uuid.New(),
 			Email:        "test@example.com",
 			PasswordHash: string(hash),
@@ -190,7 +192,7 @@ func TestService_Login(t *testing.T) {
 
 		users.EXPECT().
 			GetByEmail(mock.Anything, "notfound@example.com").
-			Return(UserCredentials{}, errors.New("not found"))
+			Return(usercontract.Credentials{}, errors.New("not found"))
 
 		resp, err := svc.Login(context.Background(), LoginParams{
 			Email:    "notfound@example.com",
@@ -227,7 +229,7 @@ func TestService_RefreshToken(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(UserResult{
+		users.EXPECT().GetByID(mock.Anything, userID).Return(usercontract.User{
 			ID:           userID,
 			Email:        "test@example.com",
 			FirstName:    "John",
@@ -306,7 +308,7 @@ func TestService_RefreshToken(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(UserResult{
+		users.EXPECT().GetByID(mock.Anything, userID).Return(usercontract.User{
 			ID:           userID,
 			Email:        "test@example.com",
 			Active:       false,
@@ -341,7 +343,7 @@ func TestService_RefreshToken(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(UserResult{
+		users.EXPECT().GetByID(mock.Anything, userID).Return(usercontract.User{
 			ID:           userID,
 			Email:        "test@example.com",
 			Active:       true,
@@ -377,7 +379,7 @@ func TestService_RefreshToken(t *testing.T) {
 		require.NoError(t, err)
 
 		dbErr := errors.New("database connection lost")
-		users.EXPECT().GetByID(mock.Anything, userID).Return(UserResult{}, dbErr)
+		users.EXPECT().GetByID(mock.Anything, userID).Return(usercontract.User{}, dbErr)
 
 		resp, err := svc.RefreshToken(context.Background(), refreshToken)
 
@@ -386,7 +388,10 @@ func TestService_RefreshToken(t *testing.T) {
 	})
 }
 
-func TestService_ValidateAccessToken(t *testing.T) {
+// TestService_ValidateToken also covers what used to be a separate
+// TokenValidatorAdapter test: ValidateToken now satisfies
+// middleware.TokenValidator directly, so there is no adapter left to test.
+func TestService_ValidateToken(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
@@ -410,10 +415,10 @@ func TestService_ValidateAccessToken(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		result, err := svc.ValidateAccessToken(accessToken)
+		result, err := svc.ValidateToken(accessToken)
 
 		require.NoError(t, err)
-		assert.Equal(t, &Claims{
+		assert.Equal(t, contract.Claims{
 			UserID:       userID,
 			Email:        "test@example.com",
 			Role:         "customer",
@@ -442,57 +447,20 @@ func TestService_ValidateAccessToken(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		result, err := svc.ValidateAccessToken(accessToken)
+		result, err := svc.ValidateToken(accessToken)
 
-		assert.Nil(t, result)
+		assert.Equal(t, contract.Claims{}, result)
 		assert.Error(t, err)
-	})
-}
-
-func TestTokenValidatorAdapter(t *testing.T) {
-	t.Parallel()
-
-	t.Run("success", func(t *testing.T) {
-		t.Parallel()
-
-		svc := NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
-		adapter := NewTokenValidatorAdapter(svc)
-
-		userID := uuid.New()
-		claims := Claims{
-			UserID:       userID,
-			Email:        "test@example.com",
-			Role:         "customer",
-			TokenVersion: 2,
-		}
-		accessToken, _, err := GenerateTokenPair(
-			"test-secret",
-			"test-issuer",
-			15*time.Minute,
-			24*time.Hour,
-			claims,
-		)
-		require.NoError(t, err)
-
-		result, err := adapter.ValidateToken(accessToken)
-
-		require.NoError(t, err)
-		assert.Equal(t, userID, result.UserID)
-		assert.Equal(t, "test@example.com", result.Email)
-		assert.Equal(t, "customer", result.Role)
-		assert.Equal(t, "access", result.Type)
-		assert.Equal(t, 2, result.TokenVersion)
 	})
 
 	t.Run("invalid token error", func(t *testing.T) {
 		t.Parallel()
 
 		svc := NewService(nil, "test-secret", "test-issuer", 15*time.Minute, 24*time.Hour)
-		adapter := NewTokenValidatorAdapter(svc)
 
-		result, err := adapter.ValidateToken("not-a-valid-token")
+		result, err := svc.ValidateToken("not-a-valid-token")
 
-		assert.Nil(t, result)
+		assert.Equal(t, contract.Claims{}, result)
 		assert.Error(t, err)
 	})
 }

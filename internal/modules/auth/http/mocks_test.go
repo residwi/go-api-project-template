@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
+	"github.com/residwi/go-api-project-template/internal/modules/user/contract"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -40,25 +40,25 @@ func (_m *MockUserProvider) EXPECT() *MockUserProvider_Expecter {
 }
 
 // Create provides a mock function for the type MockUserProvider
-func (_mock *MockUserProvider) Create(ctx context.Context, params auth.CreateUserParams) (auth.UserResult, error) {
-	ret := _mock.Called(ctx, params)
+func (_mock *MockUserProvider) Create(ctx context.Context, p contract.NewUser) (contract.User, error) {
+	ret := _mock.Called(ctx, p)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
-	var r0 auth.UserResult
+	var r0 contract.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, auth.CreateUserParams) (auth.UserResult, error)); ok {
-		return returnFunc(ctx, params)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, contract.NewUser) (contract.User, error)); ok {
+		return returnFunc(ctx, p)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, auth.CreateUserParams) auth.UserResult); ok {
-		r0 = returnFunc(ctx, params)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, contract.NewUser) contract.User); ok {
+		r0 = returnFunc(ctx, p)
 	} else {
-		r0 = ret.Get(0).(auth.UserResult)
+		r0 = ret.Get(0).(contract.User)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, auth.CreateUserParams) error); ok {
-		r1 = returnFunc(ctx, params)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, contract.NewUser) error); ok {
+		r1 = returnFunc(ctx, p)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -72,20 +72,20 @@ type MockUserProvider_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - params auth.CreateUserParams
-func (_e *MockUserProvider_Expecter) Create(ctx any, params any) *MockUserProvider_Create_Call {
-	return &MockUserProvider_Create_Call{Call: _e.mock.On("Create", ctx, params)}
+//   - p contract.NewUser
+func (_e *MockUserProvider_Expecter) Create(ctx any, p any) *MockUserProvider_Create_Call {
+	return &MockUserProvider_Create_Call{Call: _e.mock.On("Create", ctx, p)}
 }
 
-func (_c *MockUserProvider_Create_Call) Run(run func(ctx context.Context, params auth.CreateUserParams)) *MockUserProvider_Create_Call {
+func (_c *MockUserProvider_Create_Call) Run(run func(ctx context.Context, p contract.NewUser)) *MockUserProvider_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 auth.CreateUserParams
+		var arg1 contract.NewUser
 		if args[1] != nil {
-			arg1 = args[1].(auth.CreateUserParams)
+			arg1 = args[1].(contract.NewUser)
 		}
 		run(
 			arg0,
@@ -95,33 +95,33 @@ func (_c *MockUserProvider_Create_Call) Run(run func(ctx context.Context, params
 	return _c
 }
 
-func (_c *MockUserProvider_Create_Call) Return(userResult auth.UserResult, err error) *MockUserProvider_Create_Call {
-	_c.Call.Return(userResult, err)
+func (_c *MockUserProvider_Create_Call) Return(user contract.User, err error) *MockUserProvider_Create_Call {
+	_c.Call.Return(user, err)
 	return _c
 }
 
-func (_c *MockUserProvider_Create_Call) RunAndReturn(run func(ctx context.Context, params auth.CreateUserParams) (auth.UserResult, error)) *MockUserProvider_Create_Call {
+func (_c *MockUserProvider_Create_Call) RunAndReturn(run func(ctx context.Context, p contract.NewUser) (contract.User, error)) *MockUserProvider_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByEmail provides a mock function for the type MockUserProvider
-func (_mock *MockUserProvider) GetByEmail(ctx context.Context, email string) (auth.UserCredentials, error) {
+func (_mock *MockUserProvider) GetByEmail(ctx context.Context, email string) (contract.Credentials, error) {
 	ret := _mock.Called(ctx, email)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByEmail")
 	}
 
-	var r0 auth.UserCredentials
+	var r0 contract.Credentials
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (auth.UserCredentials, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (contract.Credentials, error)); ok {
 		return returnFunc(ctx, email)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) auth.UserCredentials); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) contract.Credentials); ok {
 		r0 = returnFunc(ctx, email)
 	} else {
-		r0 = ret.Get(0).(auth.UserCredentials)
+		r0 = ret.Get(0).(contract.Credentials)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = returnFunc(ctx, email)
@@ -161,33 +161,33 @@ func (_c *MockUserProvider_GetByEmail_Call) Run(run func(ctx context.Context, em
 	return _c
 }
 
-func (_c *MockUserProvider_GetByEmail_Call) Return(userCredentials auth.UserCredentials, err error) *MockUserProvider_GetByEmail_Call {
-	_c.Call.Return(userCredentials, err)
+func (_c *MockUserProvider_GetByEmail_Call) Return(credentials contract.Credentials, err error) *MockUserProvider_GetByEmail_Call {
+	_c.Call.Return(credentials, err)
 	return _c
 }
 
-func (_c *MockUserProvider_GetByEmail_Call) RunAndReturn(run func(ctx context.Context, email string) (auth.UserCredentials, error)) *MockUserProvider_GetByEmail_Call {
+func (_c *MockUserProvider_GetByEmail_Call) RunAndReturn(run func(ctx context.Context, email string) (contract.Credentials, error)) *MockUserProvider_GetByEmail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockUserProvider
-func (_mock *MockUserProvider) GetByID(ctx context.Context, id uuid.UUID) (auth.UserResult, error) {
+func (_mock *MockUserProvider) GetByID(ctx context.Context, id uuid.UUID) (contract.User, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByID")
 	}
 
-	var r0 auth.UserResult
+	var r0 contract.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (auth.UserResult, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (contract.User, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) auth.UserResult); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) contract.User); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
-		r0 = ret.Get(0).(auth.UserResult)
+		r0 = ret.Get(0).(contract.User)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, id)
@@ -227,12 +227,12 @@ func (_c *MockUserProvider_GetByID_Call) Run(run func(ctx context.Context, id uu
 	return _c
 }
 
-func (_c *MockUserProvider_GetByID_Call) Return(userResult auth.UserResult, err error) *MockUserProvider_GetByID_Call {
-	_c.Call.Return(userResult, err)
+func (_c *MockUserProvider_GetByID_Call) Return(user contract.User, err error) *MockUserProvider_GetByID_Call {
+	_c.Call.Return(user, err)
 	return _c
 }
 
-func (_c *MockUserProvider_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (auth.UserResult, error)) *MockUserProvider_GetByID_Call {
+func (_c *MockUserProvider_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (contract.User, error)) *MockUserProvider_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
