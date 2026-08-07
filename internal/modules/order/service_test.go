@@ -1844,7 +1844,7 @@ func TestService_PlaceOrder_RejectsMixedCurrencyCart(t *testing.T) {
 	require.ErrorIs(t, err, apperror.ErrBadRequest, "a mixed-currency cart is user input -- 400, not 500")
 }
 
-// TestServiceMarkPaid stands in for all nine Mark* methods: each is a one-line
+// TestServiceMarkPaid stands in for all eight Mark* methods: each is a one-line
 // forward to Apply with its named Transition, so proving the wiring for one
 // proves the pattern -- the allowed-from set itself is transition.go's test.
 func TestServiceMarkPaid(t *testing.T) {

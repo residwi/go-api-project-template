@@ -1,5 +1,6 @@
-// Package contract is auth's published surface. middleware.Auth imports it so
-// that auth does not have to import the transport layer to describe a token.
+// Package contract is auth's published surface. It imports no module and no
+// platform package. middleware.Auth imports it so that auth does not have to
+// import the transport layer to describe a token.
 package contract
 
 import "github.com/google/uuid"
