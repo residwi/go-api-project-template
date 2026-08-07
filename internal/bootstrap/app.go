@@ -45,10 +45,9 @@ import (
 // Deps is what New needs to build every service: infrastructure connections
 // plus each module's own typed config (auth.Config, cart.Config,
 // payment.Config), loaded upstream by that module's own LoadConfig. There is
-// no *config.Config or *config.Infra field here -- New never read Infra
-// (task 7 flagged that field as dead on arrival), and JWT/cart/payment values
-// now live on the modules that declare them rather than on a shared struct
-// New had to reach into.
+// no *config.Settings field here -- New never read one, and JWT/cart/payment
+// values now live on the modules that declare them rather than on a shared
+// struct New had to reach into.
 type Deps struct {
 	Auth       auth.Config
 	Cart       cart.Config

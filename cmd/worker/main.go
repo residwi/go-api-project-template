@@ -30,7 +30,7 @@ func main() {
 }
 
 func run() error {
-	infra, err := config.LoadInfra()
+	infra, err := config.Load()
 	if err != nil {
 		// No logger yet by construction: the log settings live in the config that
 		// just failed. Report to stderr and let the caller own the exit code.

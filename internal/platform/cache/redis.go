@@ -9,7 +9,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 )
 
-func NewRedis(ctx context.Context, cfg config.RedisConfig) (*redis.Client, error) {
+func NewRedis(ctx context.Context, cfg config.Redis) (*redis.Client, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:         cfg.Addr(),
 		Password:     cfg.Password,

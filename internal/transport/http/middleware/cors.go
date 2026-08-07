@@ -8,7 +8,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 )
 
-func CORS(cfg config.CORSConfig) Middleware {
+func CORS(cfg config.CORS) Middleware {
 	// Header values are derived from fixed config; compute them once at
 	// construction instead of on every request.
 	allowMethods := strings.Join(cfg.AllowedMethods, ",")

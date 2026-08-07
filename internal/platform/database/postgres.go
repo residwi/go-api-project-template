@@ -11,7 +11,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 )
 
-func NewPostgres(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
+func NewPostgres(ctx context.Context, cfg config.Database) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.DSN())
 	if err != nil {
 		return nil, fmt.Errorf("parsing database config: %w", err)
@@ -32,7 +32,7 @@ func NewPostgres(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool,
 	return pool, nil
 }
 
-func NewReaderPostgres(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool.Pool, error) {
+func NewReaderPostgres(ctx context.Context, cfg config.Database) (*pgxpool.Pool, error) {
 	if cfg.ReaderURL == "" {
 		return nil, apperror.ErrReaderNotConfigured
 	}
@@ -58,7 +58,7 @@ func NewReaderPostgres(ctx context.Context, cfg config.DatabaseConfig) (*pgxpool
 }
 
 // Shared by the primary and reader pools, so neither runs on pgx defaults.
-func applyPoolTuning(poolCfg *pgxpool.Config, cfg config.DatabaseConfig) {
+func applyPoolTuning(poolCfg *pgxpool.Config, cfg config.Database) {
 	poolCfg.MaxConns = int32(min(cfg.MaxConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32
 	poolCfg.MinConns = int32(min(cfg.MinConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32
 	poolCfg.MaxConnLifetime = cfg.MaxConnLifetime

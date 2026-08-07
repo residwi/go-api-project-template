@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDatabaseConfig_DSN(t *testing.T) {
+func TestDatabase_DSN(t *testing.T) {
 	t.Run("returns correctly formatted DSN with all fields", func(t *testing.T) {
-		cfg := DatabaseConfig{
+		cfg := Database{
 			Host:                            "db.example.com",
 			Port:                            5432,
 			User:                            "admin",
@@ -26,7 +26,7 @@ func TestDatabaseConfig_DSN(t *testing.T) {
 	})
 
 	t.Run("includes statement_timeout and idle_in_tx_session_timeout in milliseconds", func(t *testing.T) {
-		cfg := DatabaseConfig{
+		cfg := Database{
 			Host:                            "localhost",
 			Port:                            5432,
 			User:                            "postgres",
@@ -43,9 +43,9 @@ func TestDatabaseConfig_DSN(t *testing.T) {
 	})
 }
 
-func TestRedisConfig_Addr(t *testing.T) {
+func TestRedis_Addr(t *testing.T) {
 	t.Run("returns host:port format", func(t *testing.T) {
-		cfg := RedisConfig{
+		cfg := Redis{
 			Host: "redis.example.com",
 			Port: 6380,
 		}
@@ -54,22 +54,22 @@ func TestRedisConfig_Addr(t *testing.T) {
 	})
 }
 
-func TestLoadInfra(t *testing.T) {
+func TestLoad(t *testing.T) {
 	// No t.Parallel below: t.Setenv panics in a parallel test.
 	t.Run("parses log settings so a logger can exist before module config loads", func(t *testing.T) {
 		t.Setenv("LOG_LEVEL", "warn")
 		t.Setenv("LOG_FORMAT", "text")
 
-		infra, err := LoadInfra()
+		appConfig, err := Load()
 
 		require.NoError(t, err)
-		assert.Equal(t, LogConfig{Level: "warn", Format: "text"}, infra.Log)
+		assert.Equal(t, Log{Level: "warn", Format: "text"}, appConfig.Log)
 	})
 
 	t.Run("rejects a worker interval that would hammer the database", func(t *testing.T) {
 		t.Setenv("WORKER_INTERVAL", "1s")
 
-		_, err := LoadInfra()
+		_, err := Load()
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "WORKER_INTERVAL must be at least 5s")
@@ -78,7 +78,7 @@ func TestLoadInfra(t *testing.T) {
 	t.Run("rejects a zero worker concurrency that would deadlock the runner", func(t *testing.T) {
 		t.Setenv("WORKER_CONCURRENCY", "0")
 
-		_, err := LoadInfra()
+		_, err := Load()
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "WORKER_CONCURRENCY must be at least 1")

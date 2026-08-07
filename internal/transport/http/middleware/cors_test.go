@@ -11,7 +11,7 @@ import (
 )
 
 func TestCORS_SetsHeadersFromConfig(t *testing.T) {
-	cfg := config.CORSConfig{
+	cfg := config.CORS{
 		AllowedOrigins: []string{"https://example.com"},
 		AllowedMethods: []string{"GET", "POST"},
 		AllowedHeaders: []string{"Content-Type", "Authorization"},
@@ -34,7 +34,7 @@ func TestCORS_SetsHeadersFromConfig(t *testing.T) {
 }
 
 func TestCORS_Returns204OnOptionsPreflight(t *testing.T) {
-	cfg := config.CORSConfig{
+	cfg := config.CORS{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Content-Type"},
@@ -56,7 +56,7 @@ func TestCORS_Returns204OnOptionsPreflight(t *testing.T) {
 }
 
 func TestCORS_PassesThroughNonOptionsRequests(t *testing.T) {
-	cfg := config.CORSConfig{
+	cfg := config.CORS{
 		AllowedOrigins: []string{"https://example.com"},
 		AllowedMethods: []string{"GET"},
 		AllowedHeaders: []string{"Content-Type"},

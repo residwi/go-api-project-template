@@ -36,7 +36,7 @@ func Run() error {
 // RunContext serves until ctx is cancelled, so the caller owns the shutdown
 // trigger -- which is how tests stop it without signalling the whole process.
 func RunContext(ctx context.Context) error {
-	infra, err := config.LoadInfra()
+	infra, err := config.Load()
 	if err != nil {
 		// No logger yet by construction: the log settings live in the config that
 		// just failed. Report to stderr and let the caller own the exit code.
@@ -165,7 +165,7 @@ func RunContext(ctx context.Context) error {
 // again -- only the "which one failed" log line is added here.
 func loadModuleConfigs(
 	ctx context.Context,
-	infra *config.Infra,
+	infra *config.Settings,
 	appLog *slog.Logger,
 ) (auth.Config, cart.Config, order.Config, payment.Config, error) {
 	var cartCfg cart.Config
@@ -205,7 +205,7 @@ func loadModuleConfigs(
 // secret). Cart's config has no reader here -- MaxItems only matters to
 // bootstrap.New, not to routing.
 type Deps struct {
-	Infra      *config.Infra
+	Infra      *config.Settings
 	Auth       auth.Config
 	Order      order.Config
 	Payment    payment.Config

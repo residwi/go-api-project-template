@@ -11,48 +11,45 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-// Infra is the configuration that must exist before anything else can be built,
-// including the log settings themselves. Loading it is phase one of two: once it
-// is parsed, a real logger exists, so every later failure can be logged properly.
-type Infra struct {
-	App      AppConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	Log      LogConfig
-	CORS     CORSConfig
-	Worker   WorkerConfig
+// Settings is the configuration that must exist before anything else can be
+// built, including the log settings themselves.
+type Settings struct {
+	App      App
+	Database Database
+	Redis    Redis
+	Log      Log
+	CORS     CORS
+	Worker   Worker
 }
 
-// LoadInfra applies .env to the environment and parses the infrastructure groups.
-// It runs before any module config, so godotenv lives here and nowhere else.
-func LoadInfra() (*Infra, error) {
+func Load() (*Settings, error) {
 	_ = godotenv.Load()
 
-	var infra Infra
-	if err := envconfig.Process("", &infra); err != nil {
+	var settings Settings
+	if err := envconfig.Process("", &settings); err != nil {
 		return nil, fmt.Errorf("loading infra config: %w", err)
 	}
 
-	return &infra, infra.validate()
+	return &settings, settings.validate()
 }
 
-func (i *Infra) validate() error {
-	if i.Worker.Interval < 5*time.Second {
+func (s *Settings) validate() error {
+	if s.Worker.Interval < 5*time.Second {
 		return errors.New("WORKER_INTERVAL must be at least 5s to avoid database polling overhead")
 	}
 
-	if i.Worker.Concurrency < 1 {
+	if s.Worker.Concurrency < 1 {
 		return errors.New("WORKER_CONCURRENCY must be at least 1 (0 deadlocks the worker on its unbuffered semaphore)")
 	}
 
-	if i.Worker.PruneLimit < 1 {
+	if s.Worker.PruneLimit < 1 {
 		return errors.New("WORKER_PRUNE_LIMIT must be at least 1")
 	}
 
 	return nil
 }
 
-type AppConfig struct {
+type App struct {
 	Name            string        `envconfig:"APP_NAME"             default:"ecommerce-api"`
 	Env             string        `envconfig:"APP_ENV"              default:"development"`
 	Port            int           `envconfig:"APP_PORT"             default:"8080"`
@@ -62,7 +59,7 @@ type AppConfig struct {
 	ShutdownTimeout time.Duration `envconfig:"APP_SHUTDOWN_TIMEOUT" default:"30s"`
 }
 
-type DatabaseConfig struct {
+type Database struct {
 	Host                            string        `envconfig:"DB_HOST"                       default:"localhost"`
 	Port                            int           `envconfig:"DB_PORT"                       default:"5432"`
 	User                            string        `envconfig:"DB_USER"                       default:"postgres"`
@@ -78,13 +75,13 @@ type DatabaseConfig struct {
 	IdleInTransactionSessionTimeout time.Duration `envconfig:"DB_IDLE_IN_TX_SESSION_TIMEOUT" default:"60s"`
 }
 
-func (d DatabaseConfig) DSN() string {
+func (d Database) DSN() string {
 	return fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s&statement_timeout=%d&idle_in_transaction_session_timeout=%d",
 		d.User, d.Password, net.JoinHostPort(d.Host, strconv.Itoa(d.Port)), d.Name, d.SSLMode,
 		d.StatementTimeout.Milliseconds(), d.IdleInTransactionSessionTimeout.Milliseconds())
 }
 
-type RedisConfig struct {
+type Redis struct {
 	Host         string        `envconfig:"REDIS_HOST"           default:"localhost"`
 	Port         int           `envconfig:"REDIS_PORT"           default:"6379"`
 	Password     string        `envconfig:"REDIS_PASSWORD"       default:""`
@@ -97,23 +94,23 @@ type RedisConfig struct {
 	PoolTimeout  time.Duration `envconfig:"REDIS_POOL_TIMEOUT"   default:"4s"`
 }
 
-func (r RedisConfig) Addr() string {
+func (r Redis) Addr() string {
 	return net.JoinHostPort(r.Host, strconv.Itoa(r.Port))
 }
 
-type LogConfig struct {
+type Log struct {
 	Level  string `envconfig:"LOG_LEVEL"  default:"info"`
 	Format string `envconfig:"LOG_FORMAT" default:"json"`
 }
 
-type CORSConfig struct {
+type CORS struct {
 	AllowedOrigins []string `envconfig:"CORS_ALLOWED_ORIGINS" default:"*"`
 	AllowedMethods []string `envconfig:"CORS_ALLOWED_METHODS" default:"GET,POST,PUT,DELETE,OPTIONS"`
 	AllowedHeaders []string `envconfig:"CORS_ALLOWED_HEADERS" default:"Content-Type,Authorization,X-Request-ID,Idempotency-Key"`
 	MaxAge         int      `envconfig:"CORS_MAX_AGE"         default:"86400"`
 }
 
-type WorkerConfig struct {
+type Worker struct {
 	Interval      time.Duration `envconfig:"WORKER_INTERVAL"       default:"10s"`
 	BatchSize     int           `envconfig:"WORKER_BATCH_SIZE"     default:"10"`
 	LeaseDuration time.Duration `envconfig:"WORKER_LEASE_DURATION" default:"2m"`

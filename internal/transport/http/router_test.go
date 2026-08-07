@@ -61,13 +61,13 @@ func TestMain(m *testing.M) {
 	testRedis = rdb
 
 	testDeps = &Deps{
-		Infra: &config.Infra{
-			App: config.AppConfig{
+		Infra: &config.Settings{
+			App: config.App{
 				Name: "test",
 				Env:  "development",
 				Port: 8080,
 			},
-			CORS: config.CORSConfig{
+			CORS: config.CORS{
 				AllowedOrigins: []string{"*"},
 				AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
 				AllowedHeaders: []string{"Content-Type", "Authorization"},
