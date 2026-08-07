@@ -24,33 +24,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestPostgresRepository_Create(t *testing.T) {
-	t.Run("creates shipment with correct fields", func(t *testing.T) {
-		setup(t)
-		userID := seedUser(t)
-		orderID := seedOrder(t, userID)
-		repo := New(testPool)
-
-		s := &shipping.Shipment{
-			OrderID:        orderID,
-			Carrier:        "FedEx",
-			TrackingNumber: "TRACK123",
-			Status:         shipping.StatusPending,
-		}
-		err := repo.Create(context.Background(), s)
-		require.NoError(t, err)
-		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM shipments WHERE id = $1`, s.ID) })
-
-		assert.NotEqual(t, uuid.Nil, s.ID)
-		assert.Equal(t, orderID, s.OrderID)
-		assert.Equal(t, "FedEx", s.Carrier)
-		assert.Equal(t, "TRACK123", s.TrackingNumber)
-		assert.Equal(t, shipping.StatusPending, s.Status)
-		assert.False(t, s.CreatedAt.IsZero())
-		assert.False(t, s.UpdatedAt.IsZero())
-	})
-}
-
 func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns shipment", func(t *testing.T) {
 		setup(t)
@@ -230,17 +203,6 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancel()
 
 	repo := New(testPool)
-
-	t.Run("Create", func(t *testing.T) {
-		setup(t)
-		s := &shipping.Shipment{
-			OrderID: uuid.New(),
-			Carrier: "FedEx",
-			Status:  shipping.StatusPending,
-		}
-		err := repo.Create(cancelledCtx, s)
-		assert.Error(t, err)
-	})
 
 	t.Run("GetByID", func(t *testing.T) {
 		setup(t)

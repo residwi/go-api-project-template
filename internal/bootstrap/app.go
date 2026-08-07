@@ -40,6 +40,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	wishlistpg "github.com/residwi/go-api-project-template/internal/modules/wishlist/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/validator"
 )
 
 // Deps is what New needs to build every service: infrastructure connections
@@ -138,10 +139,7 @@ func New(d Deps) (*App, error) {
 	shippingSvc := shipping.NewService(shippingpg.New(d.Pool), txRunner, orderSvc, orderSvc)
 	// orderSvc also satisfies shipping.OrderPorts directly -- GetInfo, MarkShipped
 	// and MarkDelivered all live on it already.
-	//
-	// Validator is nil until task 5's create slice validates a request; the field
-	// exists now so Deps does not change shape twice.
-	shippingMod := shipping.New(shipping.Deps{Pool: d.Pool, Tx: txRunner, Validator: nil, Orders: orderSvc})
+	shippingMod := shipping.New(shipping.Deps{Pool: d.Pool, Tx: txRunner, Validator: validator.New(), Orders: orderSvc})
 	reviewSvc := review.NewService(reviewpg.New(d.Pool), orderSvc)
 
 	return &App{

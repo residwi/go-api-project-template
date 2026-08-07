@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/shipping/create"
+	createpg "github.com/residwi/go-api-project-template/internal/modules/shipping/create/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/query"
 	querypg "github.com/residwi/go-api-project-template/internal/modules/shipping/query/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -36,11 +38,13 @@ type OrderPorts interface {
 }
 
 type Module struct {
-	Query *query.Reader
+	Query  *query.Reader
+	Create *create.Command
 }
 
 func New(d Deps) *Module {
 	return &Module{
-		Query: query.New(querypg.New(d.Pool), d.Orders),
+		Query:  query.New(querypg.New(d.Pool), d.Orders),
+		Create: create.New(createpg.New(d.Pool), d.Tx, d.Orders),
 	}
 }

@@ -2,7 +2,6 @@ package http
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -16,158 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
-
-func TestAdminHandler_CreateShipment(t *testing.T) {
-	t.Parallel()
-
-	t.Run("success", func(t *testing.T) {
-		t.Parallel()
-
-		mux, repo, orderProv, orderUpd := setupShippingMux(t)
-
-		orderID := uuid.New()
-		shipmentID := uuid.New()
-		now := time.Now()
-
-		orderProv.EXPECT().GetInfo(mock.Anything, orderID).Return(ordercontract.Order{
-			ID:     orderID,
-			UserID: uuid.New(),
-			Status: "paid",
-		}, nil)
-		repo.EXPECT().Create(mock.Anything, mock.Anything).
-			Run(func(_ context.Context, s *shipping.Shipment) {
-				s.ID = shipmentID
-				s.CreatedAt = now
-				s.UpdatedAt = now
-			}).Return(nil)
-		orderUpd.EXPECT().MarkShipped(mock.Anything, orderID).Return(nil)
-
-		body, _ := json.Marshal(map[string]any{
-			"carrier":         "FedEx",
-			"tracking_number": "TRACK123",
-		})
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(
-			http.MethodPost,
-			"/api/v1/admin/orders/"+orderID.String()+"/ship",
-			bytes.NewReader(body),
-		)
-		r.Header.Set("Content-Type", "application/json")
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusCreated, w.Code)
-
-		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.True(t, resp.Success)
-
-		dataJSON, err := json.Marshal(resp.Data)
-		require.NoError(t, err)
-		var got struct {
-			Carrier string `json:"carrier"`
-		}
-		require.NoError(t, json.Unmarshal(dataJSON, &got))
-		assert.Equal(t, struct {
-			Carrier string `json:"carrier"`
-		}{Carrier: "FedEx"}, got)
-	})
-
-	t.Run("invalid UUID", func(t *testing.T) {
-		t.Parallel()
-
-		mux, _, _, _ := setupShippingMux(t)
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/orders/bad/ship", nil)
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-
-		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.False(t, resp.Success)
-		assert.Equal(t, "invalid id", resp.Error.Message)
-	})
-
-	t.Run("invalid JSON", func(t *testing.T) {
-		t.Parallel()
-
-		mux, _, _, _ := setupShippingMux(t)
-
-		orderID := uuid.New()
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(
-			http.MethodPost,
-			"/api/v1/admin/orders/"+orderID.String()+"/ship",
-			bytes.NewReader([]byte("{bad")),
-		)
-		r.Header.Set("Content-Type", "application/json")
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-	})
-
-	t.Run("validation error missing fields", func(t *testing.T) {
-		t.Parallel()
-
-		mux, _, _, _ := setupShippingMux(t)
-
-		orderID := uuid.New()
-		body, _ := json.Marshal(map[string]string{})
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(
-			http.MethodPost,
-			"/api/v1/admin/orders/"+orderID.String()+"/ship",
-			bytes.NewReader(body),
-		)
-		r.Header.Set("Content-Type", "application/json")
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
-
-		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.False(t, resp.Success)
-		assert.Equal(t, "validation failed", resp.Error.Message)
-	})
-
-	t.Run("service error", func(t *testing.T) {
-		t.Parallel()
-
-		mux, _, orderProv, _ := setupShippingMux(t)
-
-		orderID := uuid.New()
-		orderProv.EXPECT().GetInfo(mock.Anything, orderID).Return(ordercontract.Order{}, apperror.ErrNotFound)
-
-		body, _ := json.Marshal(map[string]any{
-			"carrier":         "FedEx",
-			"tracking_number": "TRACK123",
-		})
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(
-			http.MethodPost,
-			"/api/v1/admin/orders/"+orderID.String()+"/ship",
-			bytes.NewReader(body),
-		)
-		r.Header.Set("Content-Type", "application/json")
-
-		mux.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusNotFound, w.Code)
-	})
-}
 
 func TestAdminHandler_UpdateTracking(t *testing.T) {
 	t.Parallel()
@@ -175,7 +25,7 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo, _, _ := setupShippingMux(t)
+		mux, repo, _ := setupShippingMux(t)
 
 		shipmentID := uuid.New()
 		orderID := uuid.New()
@@ -238,7 +88,7 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _, _, _ := setupShippingMux(t)
+		mux, _, _ := setupShippingMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/shipments/bad/tracking", nil)
@@ -256,7 +106,7 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 	t.Run("invalid JSON", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _, _, _ := setupShippingMux(t)
+		mux, _, _ := setupShippingMux(t)
 
 		shipmentID := uuid.New()
 
@@ -276,7 +126,7 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 	t.Run("validation error missing fields", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _, _, _ := setupShippingMux(t)
+		mux, _, _ := setupShippingMux(t)
 
 		shipmentID := uuid.New()
 		body, _ := json.Marshal(map[string]string{})
@@ -302,7 +152,7 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo, _, _ := setupShippingMux(t)
+		mux, repo, _ := setupShippingMux(t)
 
 		shipmentID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
@@ -332,7 +182,7 @@ func TestAdminHandler_MarkDelivered(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo, _, orderUpd := setupShippingMux(t)
+		mux, repo, orderUpd := setupShippingMux(t)
 
 		shipmentID := uuid.New()
 		orderID := uuid.New()
@@ -384,7 +234,7 @@ func TestAdminHandler_MarkDelivered(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _, _, _ := setupShippingMux(t)
+		mux, _, _ := setupShippingMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/shipments/bad/deliver", nil)
@@ -402,7 +252,7 @@ func TestAdminHandler_MarkDelivered(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo, _, _ := setupShippingMux(t)
+		mux, repo, _ := setupShippingMux(t)
 
 		shipmentID := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, errors.New("db error"))

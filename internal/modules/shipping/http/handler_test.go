@@ -46,7 +46,7 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 
 func setupShippingMux(
 	t *testing.T,
-) (*http.ServeMux, *MockRepository, *MockOrderProvider, *MockOrderUpdater) {
+) (*http.ServeMux, *MockRepository, *MockOrderUpdater) {
 	repo := NewMockRepository(t)
 	orderProv := NewMockOrderProvider(t)
 	orderUpd := NewMockOrderUpdater(t)
@@ -60,8 +60,9 @@ func setupShippingMux(
 	// repo and orderProv already satisfy query.Repository and query.OrderProvider
 	// -- shipping.Shipment is a type alias for domain.Shipment and GetInfo's
 	// signature matches exactly -- so the authed route's module needs no mock of
-	// its own. Admin tests never exercise it, and nothing calls a method with no
-	// expectation set.
+	// its own. Module.Create is left nil: nothing in this file drives
+	// POST /orders/{id}/ship any more, that route's tests live in
+	// create/http/handler_test.go against its own mock.
 	mod := &shipping.Module{Query: query.New(repo, orderProv)}
 
 	RegisterRoutes(authed, admin, RouteDeps{
@@ -70,5 +71,5 @@ func setupShippingMux(
 		Module:    mod,
 	})
 
-	return mux, repo, orderProv, orderUpd
+	return mux, repo, orderUpd
 }
