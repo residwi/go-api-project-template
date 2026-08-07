@@ -2,7 +2,6 @@ package http
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"maps"
 	"net/http"
@@ -13,14 +12,13 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/create"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
@@ -35,10 +33,20 @@ func TestHandler_Create(t *testing.T) {
 		shipmentID := uuid.New()
 		now := time.Now()
 
-		mux := setupCreateMux(t,
-			fakeRepository{shipmentID: shipmentID, now: now},
-			fakeOrderPort{order: ordercontract.Order{ID: orderID, UserID: uuid.New(), Status: "paid"}},
-		)
+		cmd := NewMockShipmentCreator(t)
+		cmd.EXPECT().
+			Execute(mock.Anything, orderID, create.Params{Carrier: "FedEx", TrackingNumber: "TRACK123"}).
+			Return(&domain.Shipment{
+				ID:             shipmentID,
+				OrderID:        orderID,
+				Carrier:        "FedEx",
+				TrackingNumber: "TRACK123",
+				Status:         domain.StatusShipped,
+				CreatedAt:      now,
+				UpdatedAt:      now,
+			}, nil)
+
+		mux := setupCreateMux(t, cmd)
 
 		body, _ := json.Marshal(map[string]any{
 			"carrier":         "FedEx",
@@ -75,7 +83,7 @@ func TestHandler_Create(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		t.Parallel()
 
-		mux := setupCreateMux(t, fakeRepository{}, fakeOrderPort{})
+		mux := setupCreateMux(t, NewMockShipmentCreator(t))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/orders/bad/ship", nil)
@@ -93,7 +101,7 @@ func TestHandler_Create(t *testing.T) {
 	t.Run("invalid JSON", func(t *testing.T) {
 		t.Parallel()
 
-		mux := setupCreateMux(t, fakeRepository{}, fakeOrderPort{})
+		mux := setupCreateMux(t, NewMockShipmentCreator(t))
 
 		orderID := uuid.New()
 
@@ -113,7 +121,7 @@ func TestHandler_Create(t *testing.T) {
 	t.Run("validation error missing fields", func(t *testing.T) {
 		t.Parallel()
 
-		mux := setupCreateMux(t, fakeRepository{}, fakeOrderPort{})
+		mux := setupCreateMux(t, NewMockShipmentCreator(t))
 
 		orderID := uuid.New()
 		body, _ := json.Marshal(map[string]string{})
@@ -141,7 +149,12 @@ func TestHandler_Create(t *testing.T) {
 
 		orderID := uuid.New()
 
-		mux := setupCreateMux(t, fakeRepository{}, fakeOrderPort{getInfoErr: apperror.ErrNotFound})
+		cmd := NewMockShipmentCreator(t)
+		cmd.EXPECT().
+			Execute(mock.Anything, orderID, create.Params{Carrier: "FedEx", TrackingNumber: "TRACK123"}).
+			Return(nil, apperror.ErrNotFound)
+
+		mux := setupCreateMux(t, cmd)
 
 		body, _ := json.Marshal(map[string]any{
 			"carrier":         "FedEx",
@@ -187,47 +200,11 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 		"shipped_at and delivered_at are omitempty and absent when nil")
 }
 
-// fakeRepository and fakeOrderPort are hand-rolled rather than generated:
-// create.Repository and create.OrderPort are declared in create, so their
-// mockery mocks live there too (create/mocks_test.go), private to that
-// package. This package needs its own doubles to drive Handler through a real
-// *create.Command.
-type fakeRepository struct {
-	shipmentID uuid.UUID
-	now        time.Time
-	err        error
-}
-
-func (f fakeRepository) Create(_ context.Context, s *domain.Shipment) error {
-	if f.err != nil {
-		return f.err
-	}
-	s.ID = f.shipmentID
-	s.CreatedAt = f.now
-	s.UpdatedAt = f.now
-	return nil
-}
-
-type fakeOrderPort struct {
-	order       ordercontract.Order
-	getInfoErr  error
-	markShipErr error
-}
-
-func (f fakeOrderPort) GetInfo(context.Context, uuid.UUID) (ordercontract.Order, error) {
-	return f.order, f.getInfoErr
-}
-
-func (f fakeOrderPort) MarkShipped(context.Context, uuid.UUID) error {
-	return f.markShipErr
-}
-
-func setupCreateMux(t *testing.T, repo create.Repository, orders create.OrderPort) *http.ServeMux {
+func setupCreateMux(t *testing.T, cmd ShipmentCreator) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	cmd := create.New(repo, testhelper.FakeTxRunner{}, orders)
 	New(cmd, validator.New()).RegisterHTTP(admin)
 
 	return mux

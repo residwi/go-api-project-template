@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -13,12 +14,19 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
+// ShipmentCreator is what Handler needs from create.Command: create.Command
+// satisfies it directly, so nothing sits between them, and the
+// mockery-generated mock is the other implementation, used in handler_test.go.
+type ShipmentCreator interface {
+	Execute(ctx context.Context, orderID uuid.UUID, p create.Params) (*domain.Shipment, error)
+}
+
 type Handler struct {
-	cmd       *create.Command
+	cmd       ShipmentCreator
 	validator *validator.Validator
 }
 
-func New(cmd *create.Command, v *validator.Validator) *Handler {
+func New(cmd ShipmentCreator, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
 }
 

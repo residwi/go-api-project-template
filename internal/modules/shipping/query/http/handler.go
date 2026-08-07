@@ -1,22 +1,29 @@
 package http
 
 import (
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
-	"github.com/residwi/go-api-project-template/internal/modules/shipping/query"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type Handler struct {
-	reader *query.Reader
+// ShipmentReader is what Handler needs from query.Reader: query.Reader
+// satisfies it directly, so nothing sits between them, and the
+// mockery-generated mock is the other implementation, used in handler_test.go.
+type ShipmentReader interface {
+	GetByOrderIDForUser(ctx context.Context, userID, orderID uuid.UUID) (*domain.Shipment, error)
 }
 
-func New(reader *query.Reader) *Handler {
+type Handler struct {
+	reader ShipmentReader
+}
+
+func New(reader ShipmentReader) *Handler {
 	return &Handler{reader: reader}
 }
 

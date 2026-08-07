@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"encoding/json"
 	"maps"
 	"net/http"
@@ -12,12 +11,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
-	"github.com/residwi/go-api-project-template/internal/modules/shipping/query"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
@@ -33,18 +31,18 @@ func TestHandler_Get(t *testing.T) {
 		shipmentID := uuid.New()
 		now := time.Now()
 
-		mux := setupQueryMux(t,
-			fakeRepository{shipment: &domain.Shipment{
-				ID:             shipmentID,
-				OrderID:        orderID,
-				Carrier:        "FedEx",
-				TrackingNumber: "TRACK123",
-				Status:         domain.StatusShipped,
-				CreatedAt:      now,
-				UpdatedAt:      now,
-			}},
-			fakeOrderProvider{order: ordercontract.Order{ID: orderID, UserID: userID, Status: "shipped"}},
-		)
+		reader := NewMockShipmentReader(t)
+		reader.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(&domain.Shipment{
+			ID:             shipmentID,
+			OrderID:        orderID,
+			Carrier:        "FedEx",
+			TrackingNumber: "TRACK123",
+			Status:         domain.StatusShipped,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		}, nil)
+
+		mux := setupQueryMux(t, reader)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -78,7 +76,7 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("missing auth", func(t *testing.T) {
 		t.Parallel()
 
-		mux := setupQueryMux(t, fakeRepository{}, fakeOrderProvider{})
+		mux := setupQueryMux(t, NewMockShipmentReader(t))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+uuid.NewString()+"/shipping", nil)
@@ -95,7 +93,7 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		t.Parallel()
 
-		mux := setupQueryMux(t, fakeRepository{}, fakeOrderProvider{})
+		mux := setupQueryMux(t, NewMockShipmentReader(t))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/bad/shipping", nil)
@@ -118,15 +116,18 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
+		userID := uuid.New()
 		orderID := uuid.New()
-		mux := setupQueryMux(t, fakeRepository{}, fakeOrderProvider{err: apperror.ErrNotFound})
+
+		reader := NewMockShipmentReader(t)
+		reader.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+
+		mux := setupQueryMux(t, reader)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
 		r = r.WithContext(middleware.SetUserContext(r.Context(), middleware.UserContext{
-			UserID: uuid.New(),
-			Email:  "test@example.com",
-			Role:   "user",
+			UserID: userID, Email: "test@example.com", Role: "user",
 		}))
 
 		mux.ServeHTTP(w, r)
@@ -134,17 +135,19 @@ func TestHandler_Get(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 
+	// query.Reader.GetByOrderIDForUser turns an ownership mismatch into
+	// apperror.ErrNotFound itself (see query/reader_test.go) -- from this
+	// handler's side of the port, that looks identical to any other not-found.
 	t.Run("not owned by user", func(t *testing.T) {
 		t.Parallel()
 
 		userID := uuid.New()
-		otherUserID := uuid.New()
 		orderID := uuid.New()
 
-		mux := setupQueryMux(t,
-			fakeRepository{},
-			fakeOrderProvider{order: ordercontract.Order{ID: orderID, UserID: otherUserID, Status: "shipped"}},
-		)
+		reader := NewMockShipmentReader(t)
+		reader.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+
+		mux := setupQueryMux(t, reader)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -163,10 +166,10 @@ func TestHandler_Get(t *testing.T) {
 		userID := uuid.New()
 		orderID := uuid.New()
 
-		mux := setupQueryMux(t,
-			fakeRepository{err: apperror.ErrNotFound},
-			fakeOrderProvider{order: ordercontract.Order{ID: orderID, UserID: userID, Status: "shipped"}},
-		)
+		reader := NewMockShipmentReader(t)
+		reader.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+
+		mux := setupQueryMux(t, reader)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -205,35 +208,12 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 		"shipped_at and delivered_at are omitempty and absent when nil")
 }
 
-// fakeRepository and fakeOrderProvider are hand-rolled rather than generated:
-// query.Repository and query.OrderProvider are declared in query, so their
-// mockery mocks live there too (query/mocks_test.go), private to that package.
-// This package needs its own doubles to drive Handler through a real
-// *query.Reader.
-type fakeRepository struct {
-	shipment *domain.Shipment
-	err      error
-}
-
-func (f fakeRepository) GetByOrderID(context.Context, uuid.UUID) (*domain.Shipment, error) {
-	return f.shipment, f.err
-}
-
-type fakeOrderProvider struct {
-	order ordercontract.Order
-	err   error
-}
-
-func (f fakeOrderProvider) GetInfo(context.Context, uuid.UUID) (ordercontract.Order, error) {
-	return f.order, f.err
-}
-
-func setupQueryMux(t *testing.T, repo query.Repository, orders query.OrderProvider) *http.ServeMux {
+func setupQueryMux(t *testing.T, reader ShipmentReader) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	New(query.New(repo, orders)).RegisterHTTP(authed)
+	New(reader).RegisterHTTP(authed)
 
 	return mux
 }
