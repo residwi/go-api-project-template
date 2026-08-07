@@ -23,26 +23,6 @@ func (s *Service) GetByOrderID(ctx context.Context, orderID uuid.UUID) (*Shipmen
 	return s.repo.GetByOrderID(ctx, orderID)
 }
 
-func (s *Service) UpdateTracking(ctx context.Context, shipmentID uuid.UUID, p UpdateTrackingParams) (*Shipment, error) {
-	shipment, err := s.repo.GetByID(ctx, shipmentID)
-	if err != nil {
-		return nil, err
-	}
-
-	if p.Carrier != "" {
-		shipment.Carrier = p.Carrier
-	}
-	if p.TrackingNumber != "" {
-		shipment.TrackingNumber = p.TrackingNumber
-	}
-
-	if err := s.repo.Update(ctx, shipment); err != nil {
-		return nil, err
-	}
-
-	return s.repo.GetByID(ctx, shipmentID)
-}
-
 func (s *Service) MarkDelivered(ctx context.Context, shipmentID uuid.UUID) (*Shipment, error) {
 	shipment, err := s.repo.GetByID(ctx, shipmentID)
 	if err != nil {

@@ -14,6 +14,8 @@ import (
 	createpg "github.com/residwi/go-api-project-template/internal/modules/shipping/create/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/query"
 	querypg "github.com/residwi/go-api-project-template/internal/modules/shipping/query/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/shipping/updatetracking"
+	updatetrackingpg "github.com/residwi/go-api-project-template/internal/modules/shipping/updatetracking/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -36,13 +38,15 @@ type OrderPorts interface {
 }
 
 type Module struct {
-	Query  *query.Reader
-	Create *create.Command
+	Query          *query.Reader
+	Create         *create.Command
+	UpdateTracking *updatetracking.Command
 }
 
 func New(d Deps) *Module {
 	return &Module{
-		Query:  query.New(querypg.New(d.Pool), d.Orders),
-		Create: create.New(createpg.New(d.Pool), d.Tx, d.Orders),
+		Query:          query.New(querypg.New(d.Pool), d.Orders),
+		Create:         create.New(createpg.New(d.Pool), d.Tx, d.Orders),
+		UpdateTracking: updatetracking.New(updatetrackingpg.New(d.Pool)),
 	}
 }
