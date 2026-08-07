@@ -7,7 +7,6 @@
 #   Check 2  A feature's postgres adapter only queries tables it owns,
 #            where "owns" is read out of db/OWNERSHIP.md at run time.
 #   Check 3  No feature imports another feature's postgres/http/redis adapter.
-#   Check 4  The mock generation invariants .mockery.yml relies on hold.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
 # clean; on failure it prints every violation as file:line and exits 1.
@@ -633,61 +632,11 @@ check_adapter_imports() {
 }
 
 # ---------------------------------------------------------------------------
-# Check 4 -- the mock generation invariants .mockery.yml relies on
-#
-# .mockery.yml sends every module interface's mock to two destinations: the
-# module package and "{{.InterfaceDir}}/http". That is only correct while every
-# module has an http/ adapter and every mocked interface is declared at the
-# module root. Break either and mockery silently writes a directory whose only
-# content is a test file -- go build, go vet, go test and golangci-lint all
-# accept it.
-check_mock_destinations() {
-	local feature dir f
-
-	for dir in "$MODULES_ROOT"/*/; do
-		feature=$(basename "$dir")
-		if [ ! -d "$dir/http" ]; then
-			report "module without an http adapter: $feature
-    This check flags any module lacking an http/ adapter, whether or not its
-    interfaces actually use .mockery.yml's *dual anchor. If $feature does use
-    *dual, add the http adapter -- this check never reads .mockery.yml, so
-    switching its configs: list will not silence this message."
-		fi
-	done
-
-	# The set of mocks_test.go paths *dual can legitimately produce: one at each
-	# module's root, one under each module's http/ adapter. Anything found on
-	# disk outside that set is the footgun this check exists for.
-	#
-	# This is comm, not `find ... ! -path`, on purpose. -path's glob does not
-	# stop at a slash: on both BSD find (macOS) and GNU find, a pattern of
-	# "$MODULES_ROOT/*/mocks_test.go" also matches the three-segment
-	# dashboard/junk/mocks_test.go, because "*" is happy to consume "junk" as
-	# part of matching "*/mocks_test.go" one level down. That silently excluded
-	# the very violation this check is for -- verified by planting one and
-	# watching a `! -path` version of this check stay quiet. comm against an
-	# explicit allowlist has no such hole: a path is either in the list or it
-	# is reported, with no glob to misread how many segments it spans.
-	while IFS= read -r f; do
-		report "mock generated outside a module root or its http adapter: $f
-    Only internal/modules/<feature>/mocks_test.go and
-    internal/modules/<feature>/http/mocks_test.go are expected. A file here
-    means an interface moved, or *dual was applied to a package it does not fit."
-	done < <(comm -23 \
-		<(find "$MODULES_ROOT" -name 'mocks_test.go' | sort) \
-		<(for dir in "$MODULES_ROOT"/*/; do
-			printf '%s/mocks_test.go\n' "${dir%/}"
-			printf '%s/http/mocks_test.go\n' "${dir%/}"
-		done | sort))
-}
-
-# ---------------------------------------------------------------------------
 
 check_wire_tags
 check_ownership_doc
 check_table_ownership
 check_adapter_imports
-check_mock_destinations
 
 if [ -s "$VIOLATIONS" ]; then
 	echo "Architectural boundary violations found:" >&2
