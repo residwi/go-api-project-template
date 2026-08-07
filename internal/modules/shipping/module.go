@@ -15,13 +15,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/query"
 	querypg "github.com/residwi/go-api-project-template/internal/modules/shipping/query/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 )
 
 type Deps struct {
-	Pool      *pgxpool.Pool
-	Tx        database.TxRunner
-	Validator *validator.Validator
+	Pool *pgxpool.Pool
+	Tx   database.TxRunner
 
 	// Orders is order's service. It satisfies each slice's own port by name-match,
 	// so no adapter stands between them.

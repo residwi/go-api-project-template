@@ -2,6 +2,7 @@ package query
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -61,5 +62,22 @@ func TestReaderGetByOrderIDForUser(t *testing.T) {
 		_, err := New(NewMockRepository(t), orders).GetByOrderIDForUser(context.Background(), uuid.New(), orderID)
 
 		require.ErrorIs(t, err, apperror.ErrNotFound)
+	})
+
+	t.Run("propagates the shipment lookup failure unchanged when ownership checks out", func(t *testing.T) {
+		t.Parallel()
+		userID, orderID := uuid.New(), uuid.New()
+		repoErr := errors.New("connection reset")
+
+		orders := NewMockOrderProvider(t)
+		orders.EXPECT().GetInfo(mock.Anything, orderID).
+			Return(ordercontract.Order{ID: orderID, UserID: userID, Status: "shipped"}, nil)
+
+		repo := NewMockRepository(t)
+		repo.EXPECT().GetByOrderID(mock.Anything, orderID).Return(nil, repoErr)
+
+		_, err := New(repo, orders).GetByOrderIDForUser(context.Background(), userID, orderID)
+
+		require.ErrorIs(t, err, repoErr)
 	})
 }
