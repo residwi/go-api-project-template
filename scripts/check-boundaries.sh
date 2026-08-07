@@ -597,7 +597,10 @@ check_table_ownership() {
 # feature to another feature's storage or transport shape. The same is true one
 # level deeper: internal/modules/<other>/<slice>/postgres is still <other>'s
 # adapter, just wired by a vertical slice instead of the feature root, so it is
-# just as off-limits to everyone but <other> itself.
+# just as off-limits to everyone but <other> itself -- and the same rule
+# applies *inside* one feature too: internal/modules/shipping/create/postgres
+# is not shipping/query's to import either. A slice is its own boundary, not
+# just the feature it lives in.
 #
 # Exempt: the wiring layer, and only the wiring layer. internal/bootstrap/ and
 # internal/transport/ exist precisely to import adapters and wire them together,
@@ -606,20 +609,40 @@ check_table_ownership() {
 # feature" is not the same permission as "may wire adapters", and
 # internal/platform must not import product/postgres either.
 #
-# A feature's *own* module.go is not on that WIRING_DIRS list, and does not
-# need to be: internal/modules/<feature>/ itself is scanned as one importer
-# (importer_roots hands over the whole directory, not module.go by name), and
-# the loop below only reports a hit whose target feature differs from that
-# importer's own name. module.go composing internal/modules/shipping/query/postgres
-# is shipping importing shipping, which is exactly as legitimate as the
-# top-level case this already permitted -- shipping/module.go wiring
-# shipping/postgres -- and for the same reason: a feature assembling its own
-# slices is not a boundary crossing. Naming module.go specifically and
-# exempting it by filename would have been the wrong shape: that grants the
-# same pass to a *different* feature's module.go importing shipping's adapter,
-# which is precisely what this check exists to catch. Comparing the import's
-# target feature against the importing file's own feature, whatever that file
-# is called, is what tells those two cases apart.
+# A feature's own composition surface is not on that WIRING_DIRS list, and
+# does not need to be: it is *within* the feature that a feature root legally
+# reaches into any of its own slices, and every other combination -- a slice
+# reaching a sibling slice, a slice reaching the feature's own top-level
+# adapter, or one feature reaching another's, sliced or not -- is refused.
+# "Feature root" here means two things, both of which internal/modules/shipping/
+# already has an example of:
+#   - a file directly under internal/modules/<feature>/ -- module.go composing
+#     internal/modules/shipping/query/postgres to build the slice's reader;
+#   - a file inside the feature's own top-level postgres/, http/ or redis/
+#     directory (not a slice's) -- internal/modules/shipping/http/routes.go
+#     importing internal/modules/shipping/query/http to register the slice's
+#     routes on the feature's route table. routes.go does not live at the
+#     literal feature root, but it plays module.go's role for HTTP: it is the
+#     one place the feature's own route table gets assembled, so it needs the
+#     same reach into every slice that module.go has for adapters.
+# A slice's own files -- anything one level under the feature that is not
+# postgres/, http/ or redis/ itself, e.g. internal/modules/shipping/query/
+# -- get the narrower permission: they may import that same slice's own
+# adapters and nothing else belonging to the feature.
+#
+# feature_and_slice() below computes this classification identically for the
+# importing file (from its own path) and for each import found (from the
+# import string), and the two are compared feature-for-feature and, when the
+# importer is itself scoped to one slice, slice-for-slice. This is what tells
+# apart every combination above -- module.go's own feature matches and its
+# slice is empty (root), so it may reach any slice; shipping/query/reader.go's
+# slice is "query", so an import naming any other slice, or naming the
+# feature's own top-level adapter (which reads as slice ""), is refused.
+# Comparing derived identity beats naming module.go or routes.go by filename:
+# a filename allowlist would grant the same pass to another feature's
+# module.go reaching into shipping, which is exactly what this check exists to
+# stop, and it would still miss a slice reaching a *sibling* slice, which is
+# the hole this file's own history already had.
 #
 # The *target* pattern is anchored under $MODULES_ROOT, which is what keeps
 # internal/transport/http/middleware and internal/transport/http/response --
@@ -627,8 +650,38 @@ check_table_ownership() {
 # mistaken for feature adapters. That used to rest on the feature alternation
 # alone; now the path prefix rules them out on its own and the alternation is a
 # second, narrower fence. Test files are exempt too.
+
+# feature_and_slice prints "<feature> <slice>" for $1, a path already relative
+# to $MODULES_ROOT -- "shipping/module.go", "shipping/http/routes.go",
+# "shipping/query/postgres/repository.go". Slice is empty for a file with no
+# subdirectory under the feature and for one whose first subdirectory is
+# itself named postgres, http or redis: both are the feature's own root-level
+# composition surface, per the comment above. Anything else in that first
+# subdirectory position is a slice name, however deep the real file sits
+# beneath it -- shipping/query/postgres/repository.go is still slice "query".
+#
+# Pure parameter expansion, no subprocess: this runs once per file and once
+# per hit inside two nested loops, and bash 3.2 (macOS) pays for every `sed`
+# or `awk` fork this script does not have to make here.
+feature_and_slice() {
+	local rest="$1" feature tail seg slice=''
+	feature="${rest%%/*}"
+	tail="${rest#*/}"
+	case "$tail" in
+	*/*)
+		seg="${tail%%/*}"
+		case "$seg" in
+		postgres | http | redis) ;;
+		*) slice="$seg" ;;
+		esac
+		;;
+	esac
+	printf '%s %s\n' "$feature" "$slice"
+}
+
 check_adapter_imports() {
-	local module module_re modules_re feature_alt importer importer_name file target hit
+	local module module_re modules_re feature_alt importer importer_name file hit
+	local imp file_feature file_slice target target_slice
 
 	module="$(awk '/^module /{print $2; exit}' go.mod)"
 	if [ -z "$module" ]; then
@@ -637,7 +690,7 @@ check_adapter_imports() {
 	fi
 	# Escape regex metacharacters in the module path ("github.com/..." has dots).
 	module_re="$(printf '%s' "$module" | sed -e 's/[.[\*^$\/]/\\&/g')"
-	# $MODULES_ROOT is a path with slashes; escape it for the sed below too.
+	# $MODULES_ROOT is a path with slashes; escape it for the grep below too.
 	modules_re="$(printf '%s' "$MODULES_ROOT" | sed -e 's/[.[\*^$\/]/\\&/g')"
 
 	# feature_dirs cannot be empty by the time this runs -- the guard beside its
@@ -652,20 +705,57 @@ check_adapter_imports() {
 	while IFS= read -r importer; do
 		importer_name="$(basename "$importer")"
 		while IFS= read -r file; do
+			# The importing file's own feature and slice, derived from where it
+			# sits -- not from $importer, which importer_roots hands over as one
+			# whole feature directory. Two files under the same $importer can
+			# belong to two different slices, and this is what keeps them from
+			# being blurred into one "same feature, anything goes" permission.
+			file_feature=''
+			file_slice=''
+			case "$file" in
+			"$MODULES_ROOT"/*/*)
+				set -- $(feature_and_slice "${file#"$MODULES_ROOT"/}")
+				file_feature="$1"
+				# Word-splitting on feature_and_slice's output drops a trailing
+				# empty slice field entirely rather than leaving $2 as "" -- $2
+				# is genuinely unset then, and this script runs with `set -u`.
+				file_slice="${2:-}"
+				;;
+			esac
+
 			while IFS= read -r hit; do
 				[ -n "$hit" ] || continue
 				# hit looks like "12:<module>/internal/modules/<target>/postgres"
 				# (also http, redis), or, one slice directory deeper,
 				# "12:<module>/internal/modules/<target>/<slice>/postgres". The
-				# optional `([^/"]+/)?` group is what reaches the slice case;
-				# group 1 is always the feature name regardless of whether that
-				# group matched, because both forms end in the same
-				# `/(postgres|http|redis)"` and a bare `[^/]+` cannot itself
-				# contain the `/` that would let it swallow a slice name too.
-				target="$(printf '%s' "$hit" | sed -E "s#^.*/${modules_re}/([^/]+)/([^/\"]+/)?(postgres|http|redis)\$#\1#")"
-				[ "$target" = "$importer_name" ] && continue
+				# optional `([^/"]+/)?` group in the grep below is what reaches
+				# the slice case.
+				imp="${hit#*:}"
+				set -- $(feature_and_slice "${imp##*"$MODULES_ROOT"/}")
+				target="$1"
+				target_slice="${2:-}"
+
+				if [ "$target" = "$file_feature" ]; then
+					# Same feature. A root-scoped importer (file_slice empty)
+					# may reach any of its own slices; a slice-scoped importer
+					# may reach only its own slice, including "" -- the
+					# feature's own top-level adapter is exactly as off-limits
+					# to a slice as a sibling slice is.
+					if [ -z "$file_slice" ] || [ "$file_slice" = "$target_slice" ]; then
+						continue
+					fi
+					report "'${file_feature}/${file_slice}' imports a sibling slice's adapter: ${file}:${hit%%:*}
+    ${imp}
+    A slice may import only its own slice's postgres/http/redis package.
+    Cross-slice reads go through a port declared on the consuming slice, the
+    same as cross-feature reads (see ARCHITECTURE.md section 6). Only a file
+    at the feature root -- module.go, routes.go, or any other file directly
+    under internal/modules/${file_feature}/ or its own top-level postgres/,
+    http/ or redis/ directory -- may wire more than one of its slices."
+					continue
+				fi
 				report "'$importer_name' imports another module's adapter: ${file}:${hit%%:*}
-    ${hit#*:}
+    ${imp}
     Modules talk through consumer-declared ports (e.g. internal/modules/product/inventory.go
     or internal/modules/category/product.go; most features group them in ports.go), not by
     importing a sibling's postgres/http package. Only internal/bootstrap/ and
