@@ -33,7 +33,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/review"
 	reviewpg "github.com/residwi/go-api-project-template/internal/modules/review/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
-	shippingpg "github.com/residwi/go-api-project-template/internal/modules/shipping/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	userpg "github.com/residwi/go-api-project-template/internal/modules/user/postgres"
 	userredis "github.com/residwi/go-api-project-template/internal/modules/user/redis"
@@ -69,8 +68,7 @@ type App struct {
 	Carts         *cart.Service
 	Orders        *order.Service
 	Payments      *payment.Service
-	Shipping      *shipping.Service
-	ShippingMod   *shipping.Module
+	Shipping      *shipping.Module
 	Reviews       *review.Service
 	Promotions    *promotion.Service
 	Wishlists     *wishlist.Service
@@ -133,11 +131,8 @@ func New(d Deps) (*App, error) {
 	)
 	SetOrderPaymentDeps(orderSvc, paymentSvc)
 
-	// orderSvc satisfies shipping.OrderProvider and shipping.OrderUpdater directly,
-	// and review.PurchaseVerifier directly, so neither needs a bootstrap adapter.
-	shippingSvc := shipping.NewService(shippingpg.New(d.Pool), txRunner, orderSvc, orderSvc)
-	// orderSvc also satisfies shipping.OrderPorts directly -- GetInfo, MarkShipped
-	// and MarkDelivered all live on it already.
+	// orderSvc satisfies shipping.OrderPorts and review.PurchaseVerifier directly,
+	// so neither needs a bootstrap adapter.
 	shippingMod := shipping.New(shipping.Deps{Pool: d.Pool, Tx: txRunner, Orders: orderSvc})
 	reviewSvc := review.NewService(reviewpg.New(d.Pool), orderSvc)
 
@@ -150,8 +145,7 @@ func New(d Deps) (*App, error) {
 		Carts:         cartSvc,
 		Orders:        orderSvc,
 		Payments:      paymentSvc,
-		Shipping:      shippingSvc,
-		ShippingMod:   shippingMod,
+		Shipping:      shippingMod,
 		Reviews:       reviewSvc,
 		Promotions:    promotionSvc,
 		Wishlists:     wishlist.NewService(wishlistpg.New(d.Pool)),
