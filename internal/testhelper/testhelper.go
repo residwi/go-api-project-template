@@ -41,6 +41,12 @@ const (
 //	3 — internal/transport/http
 //	5 — test/e2e
 //	6 — internal/modules/user/redis
+//
+// Postgres databases are per-module from phase 1 on: every slice test package in
+// internal/modules/<feature>/ claims "test_<feature>". The database is created
+// once and never dropped, so packages sharing it do not tear each other down --
+// but they also do not get a clean table. Seed rows your subtest owns, scope
+// every assertion to them, and never TRUNCATE.
 
 // DiscardLogger makes a caller say out loud that it wants log output thrown
 // away. Nothing in the suite asserts on it.
@@ -73,9 +79,11 @@ func init() {
 	}
 }
 
-// MustStartPostgres creates a fresh migrated database named dbName and returns a
-// pool plus a cleanup that drops it. The shared container is left running for
-// the next test binary; remove it with `make test-clean`.
+// MustStartPostgres creates and migrates a database named dbName the first time
+// any caller asks for it, and just connects to it afterward. The returned
+// cleanup only closes the pool -- the database outlives the process, since
+// other test binaries may still be using it. The shared container is left
+// running too; remove both with `make test-clean`.
 func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	ctx := context.Background()
 
@@ -103,16 +111,13 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	port := resource.GetPort("5432/tcp")
 	adminDSN := fmt.Sprintf("postgres://test:test@localhost:%s/postgres?sslmode=disable", port)
 
-	// The retry wraps the *connect*, never the DROP/CREATE pair below.
+	// The retry wraps the *connect*, never ensureDatabase below.
 	//
 	// Every package binary dials this container at once, so single dials come
-	// back "connection reset by peer". Holding one pgx.Conn across both
-	// statements means no dial can happen between them; a pool would not, since
-	// it acquires lazily and Ping only proves one connection worked once.
-	//
-	// Never repeat the DROP: WITH (FORCE) calls pg_terminate_backend, so a retry
-	// turns one transient error into a termination storm on a container every
-	// other package is using.
+	// back "connection reset by peer". Holding one pgx.Conn across the exists
+	// check and the CREATE means no dial can happen between them; a pool would
+	// not, since it acquires lazily and Ping only proves one connection worked
+	// once.
 	var adminConn *pgx.Conn
 	if retryErr := dt.Retry(func() error {
 		conn, e := pgx.Connect(ctx, adminDSN)
@@ -126,25 +131,16 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		os.Exit(1)
 	}
 
-	// Not fatal -- IF EXISTS makes it a no-op on a clean cluster -- but not
-	// swallowed either: it is the usual explanation for the CREATE below failing
-	// with "already exists".
-	if _, dropErr := adminConn.Exec(ctx, "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)"); dropErr != nil {
-		harnessLogger().Warn(
-			"testhelper: dropping stale database",
-			slog.String("db", dbName),
-			slog.String("error", dropErr.Error()),
-		)
-	}
-	if _, execErr := adminConn.Exec(ctx, "CREATE DATABASE "+dbName); execErr != nil {
+	created, ensureErr := ensureDatabase(ctx, adminConn, dbName)
+	_ = adminConn.Close(ctx)
+	if ensureErr != nil {
 		harnessLogger().Error(
-			"testhelper: creating database",
+			"testhelper: ensuring database",
 			slog.String("db", dbName),
-			slog.String("error", execErr.Error()),
+			slog.String("error", ensureErr.Error()),
 		)
 		os.Exit(1)
 	}
-	_ = adminConn.Close(ctx)
 
 	dsn := fmt.Sprintf("postgres://test:test@localhost:%s/%s?sslmode=disable", port, dbName)
 	// Outside the retry: pgxpool.New only parses the DSN, so retrying it leaked a
@@ -167,16 +163,50 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		os.Exit(1)
 	}
 
-	runMigrations(ctx, pool)
+	// Only the process that created the database migrates it. Every other
+	// caller of this dbName -- in this run or a future one -- finds it already
+	// at the latest schema, and running goose concurrently against one database
+	// from several processes is a race the other callers should not join.
+	if created {
+		runMigrations(ctx, pool)
+	}
 
 	return pool, func() {
 		pool.Close()
-		conn, connErr := pgx.Connect(ctx, adminDSN)
-		if connErr == nil {
-			_, _ = conn.Exec(ctx, "DROP DATABASE IF EXISTS "+dbName+" WITH (FORCE)")
-			_ = conn.Close(ctx)
-		}
 	}
+}
+
+// ensureDatabase creates dbName if it does not already exist and reports
+// whether it did the creating. Test binaries are separate processes, so two
+// packages sharing a module's database can reach here at the same moment; a
+// session-level advisory lock on a hash of dbName makes the exists-check and
+// the CREATE atomic across them. admin is the caller's maintenance connection
+// -- the lock is session-scoped, so it is released explicitly here rather than
+// relying on the caller to close the connection afterward.
+func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName string) (created bool, err error) {
+	if _, lockErr := admin.Exec(ctx, `SELECT pg_advisory_lock(hashtext($1))`, dbName); lockErr != nil {
+		return false, fmt.Errorf("locking for database create: %w", lockErr)
+	}
+	defer func() { _, _ = admin.Exec(ctx, `SELECT pg_advisory_unlock(hashtext($1))`, dbName) }()
+
+	var exists bool
+	if scanErr := admin.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, dbName,
+	).Scan(&exists); scanErr != nil {
+		return false, fmt.Errorf("checking for database: %w", scanErr)
+	}
+	if exists {
+		return false, nil
+	}
+
+	// CREATE DATABASE cannot run in a transaction and takes no parameters, so the
+	// name is interpolated. dbName comes from a literal at each call site, never
+	// from request input.
+	if _, execErr := admin.Exec(ctx, `CREATE DATABASE "`+dbName+`"`); execErr != nil {
+		return false, fmt.Errorf("creating database %s: %w", dbName, execErr)
+	}
+
+	return true, nil
 }
 
 // MustStartRedis attaches to (or starts) the shared named Redis container and
