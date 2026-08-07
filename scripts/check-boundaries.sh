@@ -610,21 +610,35 @@ check_table_ownership() {
 # internal/platform must not import product/postgres either.
 #
 # A feature's own composition surface is not on that WIRING_DIRS list, and
-# does not need to be: it is *within* the feature that a feature root legally
-# reaches into any of its own slices, and every other combination -- a slice
-# reaching a sibling slice, a slice reaching the feature's own top-level
-# adapter, or one feature reaching another's, sliced or not -- is refused.
-# "Feature root" here means two things, both of which internal/modules/shipping/
-# already has an example of:
-#   - a file directly under internal/modules/<feature>/ -- module.go composing
-#     internal/modules/shipping/query/postgres to build the slice's reader;
-#   - a file inside the feature's own top-level postgres/, http/ or redis/
-#     directory (not a slice's) -- internal/modules/shipping/http/routes.go
-#     importing internal/modules/shipping/query/http to register the slice's
-#     routes on the feature's route table. routes.go does not live at the
-#     literal feature root, but it plays module.go's role for HTTP: it is the
-#     one place the feature's own route table gets assembled, so it needs the
-#     same reach into every slice that module.go has for adapters.
+# does not need to be: within one feature, that feature's own composition
+# scope may reach into any of its own slices, and every other combination --
+# a slice reaching a sibling slice, a slice reaching the feature's own
+# top-level adapter, or one feature reaching another's, sliced or not -- is
+# refused. "Composition scope" is granted per *directory*, not per file:
+#   - every file directly under internal/modules/<feature>/ -- module.go
+#     composes internal/modules/shipping/query/postgres there;
+#   - every file inside the feature's own top-level postgres/, http/ or
+#     redis/ directory (not a slice's) -- internal/modules/shipping/http/
+#     routes.go composes internal/modules/shipping/query/http there, to
+#     register the slice's routes on the feature's route table. routes.go
+#     does not live at the literal feature root, but it plays module.go's
+#     role for HTTP, so its directory gets the same reach module.go's does.
+# That grant covers the whole directory, not only the one file in it that
+# today happens to compose something -- internal/modules/shipping/http/
+# today also holds the husk's handler.go and admin_handler.go, and both could
+# import a sibling slice's adapter without this check objecting, even though
+# neither has any reason to. Two things make that acceptable rather than a
+# gap to close: task 8 of this phase deletes the husk, after which
+# internal/modules/shipping/http/ holds only routes.go and the directory
+# grant and the file-scoped intent are the same set; and keeping a handler
+# from importing postgres/http/redis directly is rule 9 ("a service runs no
+# SQL and holds no pool") plus handler-vs-adapter layering generally -- both
+# convention, never machine-checked, and never this check's job to enforce.
+# Narrowing the grant to a filename allowlist (only module.go, only
+# routes.go) was considered and rejected: it is the same filename-allowlist
+# trap the paragraph below already argues against for module.go, it breaks
+# the moment a feature's composition legitimately spans two files, and it
+# buys nothing that rule 9 is not already responsible for.
 # A slice's own files -- anything one level under the feature that is not
 # postgres/, http/ or redis/ itself, e.g. internal/modules/shipping/query/
 # -- get the narrower permission: they may import that same slice's own
@@ -659,6 +673,9 @@ check_table_ownership() {
 # composition surface, per the comment above. Anything else in that first
 # subdirectory position is a slice name, however deep the real file sits
 # beneath it -- shipping/query/postgres/repository.go is still slice "query".
+# This assumes no slice is ever itself named postgres, http or redis --
+# true of every slice in this codebase today -- because a slice that were
+# would be classified as composition scope here and inherit its full reach.
 #
 # Pure parameter expansion, no subprocess: this runs once per file and once
 # per hit inside two nested loops, and bash 3.2 (macOS) pays for every `sed`
