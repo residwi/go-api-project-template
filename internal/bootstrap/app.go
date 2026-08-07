@@ -70,6 +70,7 @@ type App struct {
 	Orders        *order.Service
 	Payments      *payment.Service
 	Shipping      *shipping.Service
+	ShippingMod   *shipping.Module
 	Reviews       *review.Service
 	Promotions    *promotion.Service
 	Wishlists     *wishlist.Service
@@ -135,6 +136,12 @@ func New(d Deps) (*App, error) {
 	// orderSvc satisfies shipping.OrderProvider and shipping.OrderUpdater directly,
 	// and review.PurchaseVerifier directly, so neither needs a bootstrap adapter.
 	shippingSvc := shipping.NewService(shippingpg.New(d.Pool), txRunner, orderSvc, orderSvc)
+	// orderSvc also satisfies shipping.OrderPorts directly -- GetInfo, MarkShipped
+	// and MarkDelivered all live on it already.
+	//
+	// Validator is nil until task 5's create slice validates a request; the field
+	// exists now so Deps does not change shape twice.
+	shippingMod := shipping.New(shipping.Deps{Pool: d.Pool, Tx: txRunner, Validator: nil, Orders: orderSvc})
 	reviewSvc := review.NewService(reviewpg.New(d.Pool), orderSvc)
 
 	return &App{
@@ -147,6 +154,7 @@ func New(d Deps) (*App, error) {
 		Orders:        orderSvc,
 		Payments:      paymentSvc,
 		Shipping:      shippingSvc,
+		ShippingMod:   shippingMod,
 		Reviews:       reviewSvc,
 		Promotions:    promotionSvc,
 		Wishlists:     wishlist.NewService(wishlistpg.New(d.Pool)),

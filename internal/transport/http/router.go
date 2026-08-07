@@ -88,7 +88,7 @@ func NewRouter(
 	shippinghttp.RegisterRoutes(
 		authed,
 		admin,
-		shippinghttp.RouteDeps{Validator: v, Service: app.Shipping, Orders: app.Orders},
+		shippinghttp.RouteDeps{Validator: v, Service: app.Shipping, Module: app.ShippingMod},
 	)
 	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{Validator: v, Service: app.Reviews})
 	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{Validator: v, Service: app.Promotions})

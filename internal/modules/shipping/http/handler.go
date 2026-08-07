@@ -1,24 +1,16 @@
 package http
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
-	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type handler struct {
-	service *shipping.Service
-	orders  shipping.OrderProvider
-}
-
-// Mirrors shipping.Shipment 1:1: nothing on it is internal or sensitive. Shared
-// by GetShipping and every admin_handler.go method returning a shipment.
+// Mirrors shipping.Shipment 1:1: nothing on it is internal or sensitive. Kept
+// here for the admin_handler.go methods; query/http declares its own copy for
+// the authed route rather than sharing this one.
 type shipmentResponse struct {
 	ID             uuid.UUID               `json:"id"`
 	OrderID        uuid.UUID               `json:"order_id"`
@@ -43,35 +35,4 @@ func toShipmentResponse(s *shipping.Shipment) shipmentResponse {
 		CreatedAt:      s.CreatedAt,
 		UpdatedAt:      s.UpdatedAt,
 	}
-}
-
-func (h *handler) GetShipping(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.RequireUser(w, r)
-	if !ok {
-		return
-	}
-
-	orderID, ok := response.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
-	}
-
-	order, err := h.orders.GetInfo(r.Context(), orderID)
-	if err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	if order.UserID != uc.UserID {
-		response.HandleErr(w, apperror.ErrNotFound)
-		return
-	}
-
-	shipment, err := h.service.GetByOrderID(r.Context(), orderID)
-	if err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	response.OK(w, toShipmentResponse(shipment))
 }
