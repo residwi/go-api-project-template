@@ -3,7 +3,6 @@ package http
 import (
 	"encoding/json"
 	"maps"
-	"net/http"
 	"slices"
 	"testing"
 	"time"
@@ -13,10 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
-	"github.com/residwi/go-api-project-template/internal/modules/shipping/query"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
@@ -42,34 +37,4 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 		[]string{"id", "order_id", "carrier", "tracking_number", "status", "created_at", "updated_at"},
 		slices.Collect(maps.Keys(fields)),
 		"shipped_at and delivered_at are omitempty and absent when nil")
-}
-
-func setupShippingMux(
-	t *testing.T,
-) (*http.ServeMux, *MockRepository, *MockOrderUpdater) {
-	repo := NewMockRepository(t)
-	orderProv := NewMockOrderProvider(t)
-	orderUpd := NewMockOrderUpdater(t)
-	svc := shipping.NewService(repo, testhelper.FakeTxRunner{}, orderProv, orderUpd)
-	v := validator.New()
-
-	mux := http.NewServeMux()
-	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-
-	// repo and orderProv already satisfy query.Repository and query.OrderProvider
-	// -- shipping.Shipment is a type alias for domain.Shipment and GetInfo's
-	// signature matches exactly -- so the authed route's module needs no mock of
-	// its own. Module.Create is left nil: nothing in this file drives
-	// POST /orders/{id}/ship any more, that route's tests live in
-	// create/http/handler_test.go against its own mock.
-	mod := &shipping.Module{Query: query.New(repo, orderProv)}
-
-	RegisterRoutes(authed, admin, RouteDeps{
-		Validator: v,
-		Service:   svc,
-		Module:    mod,
-	})
-
-	return mux, repo, orderUpd
 }
