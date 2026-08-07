@@ -110,6 +110,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 
 	port := resource.GetPort("5432/tcp")
 	adminDSN := fmt.Sprintf("postgres://test:test@localhost:%s/postgres?sslmode=disable", port)
+	dsn := fmt.Sprintf("postgres://test:test@localhost:%s/%s?sslmode=disable", port, dbName)
 
 	// The retry wraps the *connect*, never ensureDatabase below.
 	//
@@ -131,7 +132,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		os.Exit(1)
 	}
 
-	created, ensureErr := ensureDatabase(ctx, adminConn, dbName)
+	ensureErr := ensureDatabase(ctx, adminConn, dbName, dsn)
 	_ = adminConn.Close(ctx)
 	if ensureErr != nil {
 		harnessLogger().Error(
@@ -142,8 +143,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		os.Exit(1)
 	}
 
-	dsn := fmt.Sprintf("postgres://test:test@localhost:%s/%s?sslmode=disable", port, dbName)
-	// Outside the retry: pgxpool.New only parses the DSN, so retrying it leaked a
+	// Outside any retry: pgxpool.New only parses the DSN, so retrying it leaked a
 	// pool and its goroutines on every attempt.
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
@@ -163,29 +163,29 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		os.Exit(1)
 	}
 
-	// Only the process that created the database migrates it. Every other
-	// caller of this dbName -- in this run or a future one -- finds it already
-	// at the latest schema, and running goose concurrently against one database
-	// from several processes is a race the other callers should not join.
-	if created {
-		runMigrations(ctx, pool)
-	}
-
+	// No migration call here: ensureDatabase already migrated dbName before
+	// releasing its advisory lock, whether this process or an earlier one did
+	// the creating. By the time it returns, the schema is current.
 	return pool, func() {
 		pool.Close()
 	}
 }
 
-// ensureDatabase creates dbName if it does not already exist and reports
-// whether it did the creating. Test binaries are separate processes, so two
-// packages sharing a module's database can reach here at the same moment; a
-// session-level advisory lock on a hash of dbName makes the exists-check and
-// the CREATE atomic across them. admin is the caller's maintenance connection
-// -- the lock is session-scoped, so it is released explicitly here rather than
-// relying on the caller to close the connection afterward.
-func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName string) (created bool, err error) {
+// ensureDatabase creates and migrates dbName if it does not already exist.
+// Test binaries are separate processes, so two packages sharing a module's
+// database can reach here at the same moment; a session-level advisory lock on
+// a hash of dbName makes the exists-check, the CREATE, and the migration one
+// atomic unit across them. Migrating before the lock is released is what makes
+// it safe to drop the exists-check's result on the floor: a second process's
+// pg_advisory_lock call on this dbName blocks until the first process's unlock
+// fires, so "acquired the lock" already means "schema is current" by the time
+// this returns, for the creator and every waiter alike. admin is the caller's
+// maintenance connection -- the lock is session-scoped, so it is released
+// explicitly here rather than relying on the caller to close the connection
+// afterward.
+func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) error {
 	if _, lockErr := admin.Exec(ctx, `SELECT pg_advisory_lock(hashtext($1))`, dbName); lockErr != nil {
-		return false, fmt.Errorf("locking for database create: %w", lockErr)
+		return fmt.Errorf("locking for database create: %w", lockErr)
 	}
 	defer func() { _, _ = admin.Exec(ctx, `SELECT pg_advisory_unlock(hashtext($1))`, dbName) }()
 
@@ -193,20 +193,31 @@ func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName string) (create
 	if scanErr := admin.QueryRow(ctx,
 		`SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, dbName,
 	).Scan(&exists); scanErr != nil {
-		return false, fmt.Errorf("checking for database: %w", scanErr)
+		return fmt.Errorf("checking for database: %w", scanErr)
 	}
 	if exists {
-		return false, nil
+		return nil
 	}
 
 	// CREATE DATABASE cannot run in a transaction and takes no parameters, so the
 	// name is interpolated. dbName comes from a literal at each call site, never
 	// from request input.
 	if _, execErr := admin.Exec(ctx, `CREATE DATABASE "`+dbName+`"`); execErr != nil {
-		return false, fmt.Errorf("creating database %s: %w", dbName, execErr)
+		return fmt.Errorf("creating database %s: %w", dbName, execErr)
 	}
 
-	return true, nil
+	// A connection to the target database, not the maintenance one the lock is
+	// held on -- migrating against "postgres" would migrate the wrong database.
+	// No retry needed to reach it: CREATE DATABASE only returns once Postgres has
+	// finished the copy, and adminConn already proved this server is up.
+	migratePool, poolErr := pgxpool.New(ctx, dsn)
+	if poolErr != nil {
+		return fmt.Errorf("connecting to migrate %s: %w", dbName, poolErr)
+	}
+	defer migratePool.Close()
+	runMigrations(ctx, migratePool)
+
+	return nil
 }
 
 // MustStartRedis attaches to (or starts) the shared named Redis container and
