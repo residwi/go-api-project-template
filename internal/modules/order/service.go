@@ -273,7 +273,7 @@ func (s *Service) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {
 }
 
 // The Mark* methods below are named for the capability their callers ask for,
-// so payment.OrderUpdater and shipping.OrderUpdater are satisfied without an
+// so payment.OrderUpdater and shipping.OrderPorts are satisfied without an
 // adapter. Each maps to exactly one named Transition, so the allowed-from set
 // stays declared once, in transition.go.
 
@@ -462,8 +462,8 @@ func (s *Service) GetSnapshot(ctx context.Context, orderID uuid.UUID) (contract.
 	}, nil
 }
 
-// GetInfo backs shipping.OrderProvider's ownership check, which needs only
-// who owns the order and its current status.
+// GetInfo backs shipping's per-slice ownership checks (query.OrderProvider,
+// create.OrderPort), which need only who owns the order and its current status.
 func (s *Service) GetInfo(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
 	o, err := s.GetOrderByID(ctx, orderID)
 	if err != nil {
