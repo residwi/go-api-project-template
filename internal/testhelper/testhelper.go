@@ -260,8 +260,8 @@ func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 	}
 }
 
-// ResetDB truncates every table in the public schema and restarts sequences.
-// Call it at the start of each subtest.
+// ResetDB truncates every table in the public schema except goose_db_version
+// and restarts sequences. Call it at the start of each subtest.
 func ResetDB(t testing.TB, pool *pgxpool.Pool) {
 	t.Helper()
 	ctx := context.Background()

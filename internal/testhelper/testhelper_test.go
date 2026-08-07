@@ -4,12 +4,16 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"sync"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -89,6 +93,51 @@ func TestMustStartPostgresConcurrentCreateWaitsForMigration(t *testing.T) {
 	}
 }
 
+// TestMustStartPostgresReattachRepairsPartialMigration covers the reattach
+// path that TestMustStartPostgresConcurrentCreateWaitsForMigration cannot
+// reach: under a freshly dropped name, the winner of that race holds the lock
+// through its own migration whether or not an exists-gate sits in front of
+// runMigrations, and the loser only ever observes exists=true once the winner
+// is already done -- so that test cannot tell "migrate unconditionally" apart
+// from "skip migration if it already existed". Both pass it.
+//
+// This test instead attaches to a database that already exists with a
+// genuinely partial schema -- the one state a real crash can produce here,
+// since every migration in db/migrations runs in its own goose transaction
+// and so either fully applies or fully rolls back, never half of one. goose's
+// own Down produces that exact state: it reverts the last migration's SQL and
+// removes its goose_db_version row together, leaving the database indistinguishable
+// from a process that exited right before that migration committed.
+func TestMustStartPostgresReattachRepairsPartialMigration(t *testing.T) {
+	const name = "test_helper_reattach"
+
+	probe, probeCleanup := testhelper.MustStartPostgres(name)
+	dsn := adminDSN(probe)
+	probeCleanup()
+	dropDatabase(t, dsn, name)
+	t.Cleanup(func() { dropDatabase(t, dsn, name) })
+
+	pool, cleanup := testhelper.MustStartPostgres(name)
+	t.Cleanup(cleanup)
+
+	db := stdlib.OpenDBFromPool(pool)
+	require.NoError(t, goose.SetDialect("postgres"))
+	require.NoError(t, goose.DownContext(context.Background(), db, migrationsDir()))
+	require.NoError(t, db.Close())
+
+	// products.stock_quantity is what the last migration (20260424120018) drops;
+	// rolling it back should have restored the column, confirming the rollback
+	// actually did something before we test whether reattaching undoes it.
+	require.True(t, hasStockQuantityColumn(t, pool),
+		"test setup: goose Down should have restored the column")
+
+	pool2, cleanup2 := testhelper.MustStartPostgres(name)
+	t.Cleanup(cleanup2)
+
+	assert.False(t, hasStockQuantityColumn(t, pool2),
+		"reattaching must reapply the pending migration, not skip it because the database already existed")
+}
+
 // adminDSN reconstructs the maintenance-database DSN from an already-connected
 // pool's own config, so this file does not need to know the container's port
 // or duplicate testhelper's internal connection details.
@@ -98,10 +147,9 @@ func adminDSN(pool *pgxpool.Pool) string {
 	return fmt.Sprintf("postgres://%s:%s@%s/postgres?sslmode=disable", cfg.User, cfg.Password, hostPort)
 }
 
-// dropDatabase removes name outright. Only
-// TestMustStartPostgresConcurrentCreateWaitsForMigration may call this --
-// everywhere else in the suite, seed the rows a subtest asserts on and never
-// drop or truncate.
+// dropDatabase removes name outright. Only the two tests above that own a
+// fixed, test-owned name may call this -- everywhere else in the suite, seed
+// the rows a subtest asserts on and never drop or truncate.
 func dropDatabase(t *testing.T, dsn, name string) {
 	t.Helper()
 	conn, err := pgx.Connect(context.Background(), dsn)
@@ -109,4 +157,25 @@ func dropDatabase(t *testing.T, dsn, name string) {
 	defer func() { _ = conn.Close(context.Background()) }()
 	_, err = conn.Exec(context.Background(), `DROP DATABASE IF EXISTS "`+name+`" WITH (FORCE)`)
 	require.NoError(t, err)
+}
+
+// migrationsDir mirrors the path testhelper's own runMigrations computes --
+// this file cannot import that unexported function, so it locates the
+// migrations directory the same way, relative to its own source file.
+func migrationsDir() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(file), "..", "..", "db", "migrations")
+}
+
+// hasStockQuantityColumn checks the column the last migration
+// (20260424120018) drops, so tests can tell whether that migration is
+// currently applied.
+func hasStockQuantityColumn(t *testing.T, pool *pgxpool.Pool) bool {
+	t.Helper()
+	var present bool
+	require.NoError(t, pool.QueryRow(context.Background(), `
+		SELECT EXISTS (SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'products' AND column_name = 'stock_quantity')`,
+	).Scan(&present))
+	return present
 }
