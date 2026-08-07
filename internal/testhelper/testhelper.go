@@ -171,18 +171,24 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	}
 }
 
-// ensureDatabase creates and migrates dbName if it does not already exist.
+// ensureDatabase creates dbName if it does not already exist, then migrates it
+// either way -- never gated on whether this call did the creating. CREATE
+// DATABASE commits immediately and outlives a crash: if a prior call's
+// runMigrations [os.Exit]'d partway through, the pg_database row survives with a
+// partial schema, and a "just created it" gate would let every later caller
+// skip straight past that. goose tracks applied versions in goose_db_version
+// and Up only applies what is pending, so re-migrating an already-current
+// schema is idempotent and cheap, and a partial one self-heals on the next
+// call.
+//
 // Test binaries are separate processes, so two packages sharing a module's
 // database can reach here at the same moment; a session-level advisory lock on
 // a hash of dbName makes the exists-check, the CREATE, and the migration one
 // atomic unit across them. Migrating before the lock is released is what makes
-// it safe to drop the exists-check's result on the floor: a second process's
-// pg_advisory_lock call on this dbName blocks until the first process's unlock
-// fires, so "acquired the lock" already means "schema is current" by the time
-// this returns, for the creator and every waiter alike. admin is the caller's
-// maintenance connection -- the lock is session-scoped, so it is released
-// explicitly here rather than relying on the caller to close the connection
-// afterward.
+// "acquired the lock" mean "schema is current", for the creator and every
+// waiter alike. admin is the caller's maintenance connection -- the lock is
+// session-scoped, so it is released explicitly here rather than relying on the
+// caller to close the connection afterward.
 func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) error {
 	if _, lockErr := admin.Exec(ctx, `SELECT pg_advisory_lock(hashtext($1))`, dbName); lockErr != nil {
 		return fmt.Errorf("locking for database create: %w", lockErr)
@@ -195,21 +201,21 @@ func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) er
 	).Scan(&exists); scanErr != nil {
 		return fmt.Errorf("checking for database: %w", scanErr)
 	}
-	if exists {
-		return nil
-	}
 
-	// CREATE DATABASE cannot run in a transaction and takes no parameters, so the
-	// name is interpolated. dbName comes from a literal at each call site, never
-	// from request input.
-	if _, execErr := admin.Exec(ctx, `CREATE DATABASE "`+dbName+`"`); execErr != nil {
-		return fmt.Errorf("creating database %s: %w", dbName, execErr)
+	if !exists {
+		// CREATE DATABASE cannot run in a transaction and takes no parameters, so
+		// the name is interpolated. dbName comes from a literal at each call site,
+		// never from request input.
+		if _, execErr := admin.Exec(ctx, `CREATE DATABASE "`+dbName+`"`); execErr != nil {
+			return fmt.Errorf("creating database %s: %w", dbName, execErr)
+		}
 	}
 
 	// A connection to the target database, not the maintenance one the lock is
 	// held on -- migrating against "postgres" would migrate the wrong database.
 	// No retry needed to reach it: CREATE DATABASE only returns once Postgres has
-	// finished the copy, and adminConn already proved this server is up.
+	// finished the copy (or, if exists was already true, adminConn already proved
+	// the server -- and therefore this database -- is reachable).
 	migratePool, poolErr := pgxpool.New(ctx, dsn)
 	if poolErr != nil {
 		return fmt.Errorf("connecting to migrate %s: %w", dbName, poolErr)
@@ -260,11 +266,18 @@ func ResetDB(t testing.TB, pool *pgxpool.Pool) {
 	t.Helper()
 	ctx := context.Background()
 
+	// Excludes goose_db_version: it is migration bookkeeping, not the domain
+	// data this call exists to clear. Migration now runs unconditionally on
+	// every MustStartPostgres call (see ensureDatabase), so wiping it here would
+	// make the very next call -- in this process or, since the database is never
+	// dropped, a much later one -- see zero applied versions and error with
+	// goose's ErrNoNextVersion instead of the current, fully migrated schema it
+	// is actually looking at.
 	var tableList string
 	err := pool.QueryRow(ctx, `
 		SELECT string_agg(quote_ident(tablename), ', ')
 		FROM pg_tables
-		WHERE schemaname = 'public'
+		WHERE schemaname = 'public' AND tablename != 'goose_db_version'
 	`).Scan(&tableList)
 	if err != nil || tableList == "" {
 		return
