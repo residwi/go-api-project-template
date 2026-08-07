@@ -39,7 +39,7 @@ func TestService_CreateShipment(t *testing.T) {
 
 		shippedID := uuid.New()
 		now := time.Now()
-		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*shipping.Shipment")).
+		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Shipment")).
 			Run(func(_ context.Context, s *Shipment) {
 				s.ID = shippedID
 				s.ShippedAt = &now
@@ -127,7 +127,7 @@ func TestService_CreateShipment(t *testing.T) {
 		}, nil)
 
 		dbErr := errors.New("insert failed")
-		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*shipping.Shipment")).Return(dbErr)
+		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Shipment")).Return(dbErr)
 
 		ctx := context.Background()
 		result, err := svc.CreateShipment(ctx, orderID, CreateParams{
@@ -153,7 +153,7 @@ func TestService_CreateShipment(t *testing.T) {
 			Status: "paid",
 		}, nil)
 
-		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*shipping.Shipment")).
+		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Shipment")).
 			Run(func(_ context.Context, s *Shipment) {
 				s.ID = uuid.New()
 			}).Return(nil)
@@ -235,7 +235,7 @@ func TestService_UpdateTracking(t *testing.T) {
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(existing, nil).Once()
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*shipping.Shipment")).Return(nil)
+		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.Shipment")).Return(nil)
 
 		updated := &Shipment{
 			ID:             shipmentID,
@@ -290,7 +290,7 @@ func TestService_UpdateTracking(t *testing.T) {
 		}
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(existing, nil)
 		dbErr := errors.New("update failed")
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*shipping.Shipment")).Return(dbErr)
+		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.Shipment")).Return(dbErr)
 
 		result, err := svc.UpdateTracking(context.Background(), shipmentID, UpdateTrackingParams{
 			Carrier: "UPS",

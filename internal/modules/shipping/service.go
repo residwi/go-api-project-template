@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -27,7 +28,7 @@ func (s *Service) CreateShipment(ctx context.Context, orderID uuid.UUID, p Creat
 		return nil, err
 	}
 
-	if order.Status != "paid" && order.Status != "processing" {
+	if !domain.CanShipOrder(order.Status) {
 		return nil, fmt.Errorf("%w: order must be in paid or processing status", apperror.ErrBadRequest)
 	}
 

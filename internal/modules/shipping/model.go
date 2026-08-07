@@ -1,29 +1,20 @@
 package shipping
 
-import (
-	"time"
+import "github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 
-	"github.com/google/uuid"
+// Aliases keep service.go, postgres/ and http/ compiling while the slices
+// are extracted one at a time. Task 8 deletes this file along with the husk.
+type (
+	// Shipment aliases domain.Shipment.
+	Shipment = domain.Shipment
+	// ShipmentStatus aliases domain.ShipmentStatus.
+	ShipmentStatus = domain.ShipmentStatus
 )
-
-type ShipmentStatus string
 
 const (
-	StatusPending   ShipmentStatus = "pending"
-	StatusShipped   ShipmentStatus = "shipped"
-	StatusInTransit ShipmentStatus = "in_transit"
-	StatusDelivered ShipmentStatus = "delivered"
-	StatusReturned  ShipmentStatus = "returned"
+	StatusPending   = domain.StatusPending
+	StatusShipped   = domain.StatusShipped
+	StatusInTransit = domain.StatusInTransit
+	StatusDelivered = domain.StatusDelivered
+	StatusReturned  = domain.StatusReturned
 )
-
-type Shipment struct {
-	ID             uuid.UUID
-	OrderID        uuid.UUID
-	Carrier        string
-	TrackingNumber string
-	Status         ShipmentStatus
-	ShippedAt      *time.Time
-	DeliveredAt    *time.Time
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-}

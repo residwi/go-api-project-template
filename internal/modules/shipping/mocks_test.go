@@ -388,8 +388,8 @@ func (_c *MockRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid
 	return _c
 }
 
-func (_c *MockRepository_GetByID_Call) Return(shipment *Shipment, err error) *MockRepository_GetByID_Call {
-	_c.Call.Return(shipment, err)
+func (_c *MockRepository_GetByID_Call) Return(v *Shipment, err error) *MockRepository_GetByID_Call {
+	_c.Call.Return(v, err)
 	return _c
 }
 
@@ -456,8 +456,8 @@ func (_c *MockRepository_GetByOrderID_Call) Run(run func(ctx context.Context, or
 	return _c
 }
 
-func (_c *MockRepository_GetByOrderID_Call) Return(shipment *Shipment, err error) *MockRepository_GetByOrderID_Call {
-	_c.Call.Return(shipment, err)
+func (_c *MockRepository_GetByOrderID_Call) Return(v *Shipment, err error) *MockRepository_GetByOrderID_Call {
+	_c.Call.Return(v, err)
 	return _c
 }
 
@@ -524,8 +524,8 @@ func (_c *MockRepository_MarkDelivered_Call) Run(run func(ctx context.Context, i
 	return _c
 }
 
-func (_c *MockRepository_MarkDelivered_Call) Return(shipment *Shipment, err error) *MockRepository_MarkDelivered_Call {
-	_c.Call.Return(shipment, err)
+func (_c *MockRepository_MarkDelivered_Call) Return(v *Shipment, err error) *MockRepository_MarkDelivered_Call {
+	_c.Call.Return(v, err)
 	return _c
 }
 
