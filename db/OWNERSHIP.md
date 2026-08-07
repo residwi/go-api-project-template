@@ -230,10 +230,15 @@ in the script to keep in step.
 
 **What it catches.**
 
-* A production query anywhere under `internal/modules/<module>/postgres/` — the whole
-  subtree, not just its top level — naming a table the module does not own, via
-  `FROM`, `JOIN`, `INSERT INTO`, `UPDATE`, `TRUNCATE` or `COPY`. `DELETE FROM`
-  and `MERGE INTO` come along through `FROM` and `INTO`.
+* A production query naming a table the module does not own, via `FROM`,
+  `JOIN`, `INSERT INTO`, `UPDATE`, `TRUNCATE` or `COPY`, in any directory
+  literally named `postgres` under the module — the whole subtree of each,
+  not just its top level, and at any depth under the module, not only
+  `internal/modules/<module>/postgres/`. A vertical slice's adapter at
+  `internal/modules/<module>/<slice>/postgres/` is scanned the same as the
+  top-level one; a module is skipped only when it has no `postgres/`
+  directory anywhere under it. `DELETE FROM` and `MERGE INTO` come along
+  through `FROM` and `INTO`.
 * The same, when the keyword and the table name are on different lines.
   Whitespace is collapsed across newlines before matching, so
   `INSERT INTO\n    products (...)` is caught. It was not, before Phase 5.
@@ -276,10 +281,15 @@ check trusted past its reach is worse than no check.
   keys, and that is fixture setup, not an architectural crossing. The cost is
   that the check cannot distinguish a fixture from a real violation that happens
   to live in a `_test.go` helper.
-* **Anything outside `internal/modules/<module>/postgres/`.** A stray query in a service
-  file, in `db/seeds/data.sql`, or in a migration is not scanned. Everything
-  *inside* that directory is, including subdirectories — moving a query into
-  `internal/modules/<module>/postgres/queries/` does not hide it.
+* **Anything outside a directory literally named `postgres` under the module.**
+  A stray query in a service file, in a slice's non-adapter code, in
+  `db/seeds/data.sql`, or in a migration is not scanned. Everything inside any
+  `postgres/` directory under the module is, including its subdirectories and
+  every slice's own `postgres/` — moving a query into
+  `internal/modules/<module>/postgres/queries/` or into
+  `internal/modules/<module>/<slice>/postgres/` does not hide it. A directory
+  merely named *like* `postgres` (`postgresql/`, say) is not swept in — the
+  match is on the exact path component, not a substring.
 * **Column-level coupling.** Ownership is per table. `dashboard` depending on
   `order_items.unit_price`, or any module depending on a column it does not
   control, is invisible to a table-name grep even where the table is allowed.

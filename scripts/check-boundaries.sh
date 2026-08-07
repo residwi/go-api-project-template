@@ -281,10 +281,15 @@ check_wire_tags() {
 #     table can hide, and a phrase-based one is not. The cost is that
 #     `FOR UPDATE OF <table>` goes unseen, which is fine -- it is a lock hint on
 #     a table the same query has already named.
-#   - Only non-test files are scanned, and the whole subtree of
-#     internal/modules/<feature>/postgres/ is walked, not just its top level. Test files
-#     legitimately seed and assert against sibling tables to satisfy foreign
-#     keys; that is fixture setup, not an architectural crossing.
+#   - Only non-test files are scanned, and every directory named `postgres`
+#     under a feature is walked, at any depth, not only
+#     internal/modules/<feature>/postgres/ itself. A vertical slice's adapter
+#     lives at internal/modules/<feature>/<slice>/postgres/, and that SQL is
+#     this feature's own adapter as much as the top-level one is -- the table
+#     it may name does not change because a slice sits between the feature and
+#     its postgres/ directory. Test files legitimately seed and assert against
+#     sibling tables to satisfy foreign keys; that is fixture setup, not an
+#     architectural crossing.
 #   - Skipping tests removed the prose false positives that lived in test names
 #     ("removes all items from cart", "returns top products from paid orders"),
 #     but not all of them: prose in a *production* string literal still trips
@@ -515,7 +520,17 @@ check_table_ownership() {
 		case " $CHECK_2_EXEMPT_FEATURES " in
 		*" $feature "*) continue ;;
 		esac
-		[ -d "$MODULES_ROOT/$feature/postgres" ] || continue
+
+		# A postgres/ directory can sit at the feature root or inside a slice
+		# (internal/modules/<feature>/<slice>/postgres/), so presence is a
+		# search by name under the whole feature, not a test of one fixed
+		# path. Testing only the fixed path was the bug: it skipped a
+		# feature's SQL entirely once that feature's adapters moved into
+		# slices, and would have skipped the feature outright the day its
+		# last top-level postgres/ was deleted. A feature with no postgres/
+		# anywhere legitimately owns no table -- auth is today's example --
+		# and is still skipped exactly as before.
+		[ -n "$(find "$MODULES_ROOT/$feature" -type d -name postgres)" ] || continue
 
 		allowed="$(allowed_tables "$feature")"
 		if [ -z "${allowed// /}" ]; then
@@ -557,10 +572,15 @@ check_table_ownership() {
 						"$file" "$ref" "$feature" "$feature" "${allowed% }" "$OWNERSHIP_DOC")"
 				fi
 			done < <(sql_table_refs "$file")
-			# The whole subtree, not just the top level: a query moved into
-			# internal/modules/<feature>/postgres/queries/ is still that adapter's
-			# SQL, and both this script and the docs promise it is scanned.
-		done < <(find "$MODULES_ROOT/$feature/postgres" -type f -name '*.go' ! -name '*_test.go' | sort)
+			# Every postgres/ directory under the feature, at any depth: a
+			# query moved into internal/modules/<feature>/postgres/queries/
+			# is still that adapter's SQL, and so is one that lives in
+			# internal/modules/<feature>/<slice>/postgres/ -- both this
+			# script and the docs promise it is scanned. `-path '*/postgres/*'`
+			# matches the directory component exactly, not merely the
+			# substring, so a hypothetical `postgresql/` sibling would not
+			# be swept in by accident.
+		done < <(find "$MODULES_ROOT/$feature" -type f -name '*.go' ! -name '*_test.go' -path '*/postgres/*' | sort)
 	done < <(feature_dirs)
 }
 
@@ -574,7 +594,10 @@ check_table_ownership() {
 # InventoryRegistrar, and internal/modules/category/product.go declares ProductCounter.
 # Never by grabbing a sibling's concrete adapter: importing
 # internal/modules/<other>/postgres or internal/modules/<other>/http couples a
-# feature to another feature's storage or transport shape.
+# feature to another feature's storage or transport shape. The same is true one
+# level deeper: internal/modules/<other>/<slice>/postgres is still <other>'s
+# adapter, just wired by a vertical slice instead of the feature root, so it is
+# just as off-limits to everyone but <other> itself.
 #
 # Exempt: the wiring layer, and only the wiring layer. internal/bootstrap/ and
 # internal/transport/ exist precisely to import adapters and wire them together,
@@ -582,6 +605,21 @@ check_table_ownership() {
 # internal/ is scanned, features and shared infrastructure alike -- "not a
 # feature" is not the same permission as "may wire adapters", and
 # internal/platform must not import product/postgres either.
+#
+# A feature's *own* module.go is not on that WIRING_DIRS list, and does not
+# need to be: internal/modules/<feature>/ itself is scanned as one importer
+# (importer_roots hands over the whole directory, not module.go by name), and
+# the loop below only reports a hit whose target feature differs from that
+# importer's own name. module.go composing internal/modules/shipping/query/postgres
+# is shipping importing shipping, which is exactly as legitimate as the
+# top-level case this already permitted -- shipping/module.go wiring
+# shipping/postgres -- and for the same reason: a feature assembling its own
+# slices is not a boundary crossing. Naming module.go specifically and
+# exempting it by filename would have been the wrong shape: that grants the
+# same pass to a *different* feature's module.go importing shipping's adapter,
+# which is precisely what this check exists to catch. Comparing the import's
+# target feature against the importing file's own feature, whatever that file
+# is called, is what tells those two cases apart.
 #
 # The *target* pattern is anchored under $MODULES_ROOT, which is what keeps
 # internal/transport/http/middleware and internal/transport/http/response --
@@ -616,8 +654,15 @@ check_adapter_imports() {
 		while IFS= read -r file; do
 			while IFS= read -r hit; do
 				[ -n "$hit" ] || continue
-				# hit looks like "12:<module>/internal/modules/<target>/postgres" (also http, redis)
-				target="$(printf '%s' "$hit" | sed -E "s#^.*/${modules_re}/([^/]+)/(postgres|http|redis)\$#\1#")"
+				# hit looks like "12:<module>/internal/modules/<target>/postgres"
+				# (also http, redis), or, one slice directory deeper,
+				# "12:<module>/internal/modules/<target>/<slice>/postgres". The
+				# optional `([^/"]+/)?` group is what reaches the slice case;
+				# group 1 is always the feature name regardless of whether that
+				# group matched, because both forms end in the same
+				# `/(postgres|http|redis)"` and a bare `[^/]+` cannot itself
+				# contain the `/` that would let it swallow a slice name too.
+				target="$(printf '%s' "$hit" | sed -E "s#^.*/${modules_re}/([^/]+)/([^/\"]+/)?(postgres|http|redis)\$#\1#")"
 				[ "$target" = "$importer_name" ] && continue
 				report "'$importer_name' imports another module's adapter: ${file}:${hit%%:*}
     ${hit#*:}
@@ -625,7 +670,7 @@ check_adapter_imports() {
     or internal/modules/category/product.go; most features group them in ports.go), not by
     importing a sibling's postgres/http package. Only internal/bootstrap/ and
     internal/transport/ may wire adapters together."
-			done < <(grep -noE "\"${module_re}/${modules_re}/(${feature_alt})/(postgres|http|redis)\"" "$file" \
+			done < <(grep -noE "\"${module_re}/${modules_re}/(${feature_alt})/([^/\"]+/)?(postgres|http|redis)\"" "$file" \
 				| tr -d '"' || true)
 		done < <(find "$importer" -type f -name '*.go' ! -name '*_test.go' | sort)
 	done < <(importer_roots)
