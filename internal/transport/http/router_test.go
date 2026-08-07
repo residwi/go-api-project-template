@@ -629,7 +629,7 @@ func TestAdapterErrorPaths(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 
-	t.Run("shippingOrderProviderAdapter returns error for nonexistent order", func(t *testing.T) {
+	t.Run("shipping query slice returns error for nonexistent order", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/orders/"+uuid.New().String()+"/shipping", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()

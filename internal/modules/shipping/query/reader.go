@@ -11,10 +11,10 @@ import (
 
 type Reader struct {
 	repo   Repository
-	orders OrderProvider
+	orders OrderPort
 }
 
-func New(repo Repository, orders OrderProvider) *Reader {
+func New(repo Repository, orders OrderPort) *Reader {
 	return &Reader{repo: repo, orders: orders}
 }
 

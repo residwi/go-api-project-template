@@ -22,7 +22,7 @@ func TestReaderGetByOrderIDForUser(t *testing.T) {
 		t.Parallel()
 		userID, orderID, shipmentID := uuid.New(), uuid.New(), uuid.New()
 
-		orders := NewMockOrderProvider(t)
+		orders := NewMockOrderPort(t)
 		orders.EXPECT().GetInfo(mock.Anything, orderID).
 			Return(ordercontract.Order{ID: orderID, UserID: userID, Status: "shipped"}, nil)
 
@@ -40,7 +40,7 @@ func TestReaderGetByOrderIDForUser(t *testing.T) {
 		t.Parallel()
 		userID, orderID := uuid.New(), uuid.New()
 
-		orders := NewMockOrderProvider(t)
+		orders := NewMockOrderPort(t)
 		orders.EXPECT().GetInfo(mock.Anything, orderID).
 			Return(ordercontract.Order{ID: orderID, UserID: uuid.New(), Status: "shipped"}, nil)
 
@@ -55,7 +55,7 @@ func TestReaderGetByOrderIDForUser(t *testing.T) {
 		t.Parallel()
 		orderID := uuid.New()
 
-		orders := NewMockOrderProvider(t)
+		orders := NewMockOrderPort(t)
 		orders.EXPECT().GetInfo(mock.Anything, orderID).
 			Return(ordercontract.Order{}, apperror.ErrNotFound)
 
@@ -69,7 +69,7 @@ func TestReaderGetByOrderIDForUser(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 		repoErr := errors.New("connection reset")
 
-		orders := NewMockOrderProvider(t)
+		orders := NewMockOrderPort(t)
 		orders.EXPECT().GetInfo(mock.Anything, orderID).
 			Return(ordercontract.Order{ID: orderID, UserID: userID, Status: "shipped"}, nil)
 

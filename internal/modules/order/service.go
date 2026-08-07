@@ -462,7 +462,7 @@ func (s *Service) GetSnapshot(ctx context.Context, orderID uuid.UUID) (contract.
 	}, nil
 }
 
-// GetInfo backs shipping's per-slice ownership checks (query.OrderProvider,
+// GetInfo backs shipping's per-slice ownership checks (query.OrderPort,
 // create.OrderPort), which need only who owns the order and its current status.
 func (s *Service) GetInfo(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
 	o, err := s.GetOrderByID(ctx, orderID)
