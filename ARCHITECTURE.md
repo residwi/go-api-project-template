@@ -67,8 +67,8 @@ file after it instead (`internal/modules/product/inventory.go`,
 construction and each module's port list exactly API it would need if
 extracted. Pays off immediately: because interfaces declared
 narrow at consumer, `promotion.Service` satisfies `payment.CouponReleaser`
-directly and `notification.Service` satisfies `jobs.Processor` directly — two
-adapters never needed writing.
+directly and notification's `jobs.Worker` satisfies `platform/jobs`'
+`Processor` directly — two adapters never needed writing.
 
 **Cost accepted:** none, where a producer's own method already matches what
 the consumer's port asks for — that is free to declare. Where what crosses is
@@ -100,7 +100,8 @@ slices next — so every composition site needs import aliases (`paymentpg`,
 
 `payment/` has six _adapter_ subpackages (`postgres http midtrans mock stripe
 worker`); `wishlist/` has two. `notification` has **no** `worker/` package
-because its `Service` satisfies `jobs.Processor` directly. `contract/` is not
+because its `jobs/` slice's `Worker` satisfies `platform/jobs`' `Processor`
+directly. `contract/` is not
 counted here — it adapts no technology, decision 13 covers it on its own
 terms, and a module gets one independently of how many adapters it needs:
 `payment/` has both six adapters and a `contract/`, `auth/` has one adapter
@@ -329,7 +330,7 @@ installs the wrapper, so every logger in both binaries has it. Services
 keep their constructor-injected `*slog.Logger` and their existing
 `InfoContext(ctx, ...)` calls unchanged. Only the four edges that name an
 attribute gained one `logger.WithAttrs` line each — two of them,
-`payment.Service.Process` and `notification.Service.Process`, inside a
+`payment.Service.Process` and notification's `jobs.Worker.Process`, inside a
 feature package. Every other call, in every other feature, needed no
 change to start carrying the context's attributes.
 
@@ -511,9 +512,9 @@ signature verification — already handled by route group.
 
 ## `notification/worker/`
 
-**Rejected.** `notification.Service` satisfies `jobs.Processor` directly. Writing
-`worker.NewProcessor(svc)` that returns `svc` to fill slot would be ceremony
-teaching opposite of decision 4.
+**Rejected.** Notification's `jobs/` slice's `Worker` satisfies `jobs.Processor`
+directly. Writing `worker.NewProcessor(w)` that returns `w` to fill slot would
+be ceremony teaching opposite of decision 4.
 
 ## `platform/uuid`
 

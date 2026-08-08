@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -12,18 +13,29 @@ import (
 )
 
 // Worker owns every operation on the queue table: order/place enqueues
-// through EnqueueOrderPlaced, and platform/jobs.Runner drains it through the
-// embedded Repository's Claim and Prune plus Process below. One value
-// satisfying both platform/jobs' Queue and Processor is why notification
-// still needs no separate worker/ package.
+// through EnqueueOrderPlaced, and platform/jobs.Runner drains it through
+// Claim, Prune and Process below -- one value satisfying both platform/jobs'
+// Queue and Processor is why notification still needs no separate worker/
+// package. repo stays unexported: CreateJob, UpdateJob and CreateAndComplete
+// are internal plumbing for EnqueueOrderPlaced and Process, not a surface
+// anything else should reach -- a caller that skipped EnqueueOrderPlaced and
+// called CreateJob direct would leave MaxAttempts at zero, and Claim's
+// `attempts < max_attempts` would then never be true, stranding the job.
 type Worker struct {
-	Repository
-
+	repo   Repository
 	logger *slog.Logger
 }
 
 func New(repo Repository, log *slog.Logger) *Worker {
-	return &Worker{Repository: repo, logger: log}
+	return &Worker{repo: repo, logger: log}
+}
+
+func (w *Worker) Claim(ctx context.Context, batch int, lease time.Duration) ([]domain.Job, error) {
+	return w.repo.Claim(ctx, batch, lease)
+}
+
+func (w *Worker) Prune(ctx context.Context, age time.Duration, limit int) (int, error) {
+	return w.repo.Prune(ctx, age, limit)
 }
 
 func (w *Worker) EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) error {
@@ -36,7 +48,7 @@ func (w *Worker) EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, order
 		Attempts:    0,
 		MaxAttempts: 3,
 	}
-	return w.CreateJob(ctx, job)
+	return w.repo.CreateJob(ctx, job)
 }
 
 // Process owns the job's terminal state, not the runner. Notification and
@@ -54,7 +66,7 @@ func (w *Worker) Process(ctx context.Context, job domain.Job) error {
 	}
 
 	job.Status = domain.JobStatusCompleted
-	if err := w.CreateAndComplete(ctx, n, &job); err != nil {
+	if err := w.repo.CreateAndComplete(ctx, n, &job); err != nil {
 		// Record the attempt so the job retries and reaches 'failed' after MaxAttempts.
 		job.Attempts++
 		job.LastError = err.Error()
@@ -63,7 +75,7 @@ func (w *Worker) Process(ctx context.Context, job domain.Job) error {
 		} else {
 			job.Status = domain.JobStatusPending
 		}
-		if updateErr := w.UpdateJob(ctx, &job); updateErr != nil {
+		if updateErr := w.repo.UpdateJob(ctx, &job); updateErr != nil {
 			w.logger.ErrorContext(
 				ctx,
 				"failed to update notification job after failure",
