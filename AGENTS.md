@@ -49,13 +49,14 @@ Being infrastructure exempts directory from checks 2 and 3 _ownership_ questions
 
 ### Inside a feature
 
-**Two shapes coexist while phase 2 is in flight.** `shipping` is sliced into
-vertical use-case packages (`query create updatetracking deliver`, each with
-its own storage port and adapters) — `ARCHITECTURE.md` §14 is the target
-shape, `shipping` its only instance so far. Everything below this note
-describes the **layered** shape, still accurate for the other thirteen
-modules — `auth cart category dashboard inventory notification order payment
-product promotion review user wishlist` — until phase 2 reaches each in turn.
+**Two shapes coexist while phase 2 is in flight.** `shipping` (`query create
+updatetracking deliver`) and `dashboard` (`summary topproducts revenue`) are
+sliced into vertical use-case packages, each with its own storage port and
+adapters — `ARCHITECTURE.md` §14 is the target shape, two modules there so
+far. Everything below this note describes the **layered** shape, still
+accurate for the other twelve modules — `auth cart category inventory
+notification order payment product promotion review user wishlist` — until
+phase 2 reaches each in turn.
 `ls internal/modules/<feature>/` tells you which shape a given module is in:
 a `domain/` directory plus no root `model.go`/`service.go`/`repository.go`
 means sliced; those three files at the root mean still layered.
@@ -99,9 +100,9 @@ show for it. `ARCHITECTURE.md` decision 13 is why, and its cost.
 | ------------ | ----------------------------------------------------------------- |
 | `payment`    | `postgres/ http/ stripe/ midtrans/ mock/ worker/`                 |
 | `auth`       | `http/` only — no storage; asks `user` via `auth.UserProvider`    |
-| `dashboard`  | `postgres/ http/` — but owns no table (see reporting carve-out)   |
 | `user`       | `postgres/ http/ redis/` — only feature with second backing store |
 | `shipping`   | `http/` (routes.go only) plus `query/ create/ updatetracking/ deliver/`, each its own `postgres/` and `http/` — the sliced shape, see the two-shapes note above |
+| `dashboard`  | `http/` (routes.go only) plus `summary/ topproducts/ revenue/`, each its own `postgres/` and `http/` — sliced, but still owns no table (see reporting carve-out) |
 | the other 9  | `postgres/ http/`                                                 |
 
 `notification` has no `worker/` package because `notification.Service` satisfies `jobs.Processor` direct. That absence is the lesson — `ARCHITECTURE.md` decision 4 — not omission to fix. `user/redis/` is positive case of same rule: subpackage exists where feature has that kind of backing store, and `user` only feature caching, so `ls internal/modules/user/` still tells truth about which features do. Feature declares one port per store — `repository.go` for Postgres, `cache.go` for cache — and gets one adapter subpackage per port: `user.Repository` pairs with `postgres/`, `user.StatusCache` with `redis/`. That adapter requires Redis 8.0 or later; built on `HSETEX`, which sets hash fields and their expiry in one atomic command, and that command not exist on earlier Redis. There are 12 packages named `postgres` and 14 named `http` at each feature's own root, and one named `redis` — 16 and 18 once slices' own count too (`shipping`'s four slices are the only ones there yet; phase 2 raises both figures again each time it slices another module). That is why the composition root (`internal/bootstrap/app.go`) needs 14 aliased adapter imports to build every service: `shipping`'s own `postgres/` wiring now happens inside `shipping/module.go`, so `app.go` carries no `shippingpg` alias any more, and gained none in its place. `internal/transport/http/router.go` still needs another 15 (14 `http` packages plus the dev-only mock gateway's route registrar) to mount their routes — that count holds regardless of slicing, because `router.go` only ever imports a feature's own top-level `http/routes.go`, never a slice's.
@@ -122,7 +123,7 @@ Counted across `internal/modules/*/http/`: `routes.go` ×14, `handler.go` and
 `handler_test.go` ×10, `admin_handler.go` and `admin_handler_test.go` ×9,
 `webhook_handler.go` and `webhook_handler_test.go` ×1.
 
-Four features have **no** `handler.go` at their own `http/` root, for two different reasons. `payment`, `dashboard`, `inventory` register every route on admin group, so their only handler really is an `adminHandler` — for these three, no `handler.go` does mean no non-admin surface, fact worth reading off `ls`. `shipping` breaks that reading: its own `http/` holds only `routes.go`, yet it has a non-admin surface — `query` — living in that slice's own `http/` package instead of the feature root. Read `ls internal/modules/<feature>/http/` together with the two-shapes note above; alone, once a feature is sliced, it can no longer tell you.
+Four features have **no** `handler.go` at their own `http/` root, for two different reasons. `payment`, `inventory` register every route on admin group, so their only handler really is an `adminHandler` — for these two, no `handler.go` does mean no non-admin surface, fact worth reading off `ls`. `shipping` and `dashboard` break that reading: each one's own `http/` holds only `routes.go`, because both are sliced. `shipping` does have a non-admin surface — `query` — living in that slice's own `http/` package instead of the feature root; `dashboard` happens to have none, since all three of its slices still register on the admin group. Neither fact is readable from the root `ls` once a feature is sliced — you have to check inside its slices, and `dashboard`'s answer could as easily have gone the other way. Read `ls internal/modules/<feature>/http/` together with the two-shapes note above; alone, once a feature is sliced, it can no longer tell you.
 
 **Tests live in package they test, except where import cycle forbids it.** `handler_test.go`, `admin_handler_test.go`, `webhook_handler_test.go` are `package http`, holding both route-level tests driven through mux and leak tests calling unexported mappers (`toProductResponse`, …) direct — tests that stop domain field reaching unauthenticated response body. In-package permits white-box testing without preventing black-box testing, so one file now does both; that dissolves old constraint that split them, which is why separate leak-test file per feature is gone — contents moved beside implementation file declaring what they test.
 
