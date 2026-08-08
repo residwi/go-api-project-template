@@ -527,14 +527,18 @@ linters:
           - mnd
       # A package that owns a database or a Redis index is excluded whole --
       # every file in it, not just the ones that visibly reset state.
-      # testhelper.ResetDB TRUNCATEs every table in the package's database and
-      # ratelimit_test.go FlushDB's its Redis index, so a parallel sibling
-      # anywhere in the same package gets its rows deleted mid-assertion, even
-      # if that sibling never calls a reset itself. Excluding per-file instead
-      # of per-package is what made this list wrong the first time.
+      # testhelper.ResetDB TRUNCATEs every table in the package's database
+      # except goose_db_version, and ratelimit_test.go FlushDB's its Redis
+      # index, so a parallel sibling anywhere in the same package gets its
+      # rows deleted mid-assertion, even if that sibling never calls a reset
+      # itself. Excluding per-file instead of per-package is what made this
+      # list wrong the first time.
       # Nothing is lost: `go test` already runs these packages concurrently
-      # with each other, and each owns its own database, so the only
-      # concurrency t.Parallel could add here is the unsafe kind.
+      # with each other. Most own their database outright; shipping's four
+      # slice postgres/ packages share test_shipping instead and, for exactly
+      # this reason, none of them calls ResetDB -- they seed and delete their
+      # own rows by id. Either way, the only concurrency t.Parallel could add
+      # within one package is the unsafe kind.
       - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testhelper/|^internal/platform/(cache|database)/|^internal/modules/user/redis/|^internal/transport/http/([^/]+_test\.go|middleware/)|^internal/bootstrap/)
         linters: [paralleltest]
       # t.Setenv panics when the test also calls t.Parallel.

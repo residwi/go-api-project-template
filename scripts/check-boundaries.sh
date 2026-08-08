@@ -624,16 +624,17 @@ check_table_ownership() {
 #     does not live at the literal feature root, but it plays module.go's
 #     role for HTTP, so its directory gets the same reach module.go's does.
 # That grant covers the whole directory, not only the one file in it that
-# today happens to compose something -- internal/modules/shipping/http/
-# today also holds the husk's handler.go and admin_handler.go, and both could
-# import a sibling slice's adapter without this check objecting, even though
-# neither has any reason to. Two things make that acceptable rather than a
-# gap to close: task 8 of this phase deletes the husk, after which
-# internal/modules/shipping/http/ holds only routes.go and the directory
-# grant and the file-scoped intent are the same set; and keeping a handler
-# from importing postgres/http/redis directly is rule 9 ("a service runs no
-# SQL and holds no pool") plus handler-vs-adapter layering generally -- both
-# convention, never machine-checked, and never this check's job to enforce.
+# happens to compose something. Before task 8 of this phase deleted the husk,
+# internal/modules/shipping/http/ also held handler.go and admin_handler.go,
+# and both could have imported a sibling slice's adapter without this check
+# objecting, even though neither had any reason to. That was accepted rather
+# than closed as a gap, for two reasons: the husk was already scheduled for
+# deletion, after which internal/modules/shipping/http/ would hold only
+# routes.go and the directory grant and the file-scoped intent would become
+# the same set -- true now; and keeping a handler from importing
+# postgres/http/redis directly is rule 9 ("a service runs no SQL and holds no
+# pool") plus handler-vs-adapter layering generally -- both convention, never
+# machine-checked, and never this check's job to enforce.
 # Narrowing the grant to a filename allowlist (only module.go, only
 # routes.go) was considered and rejected: it is the same filename-allowlist
 # trap the paragraph below already argues against for module.go, it breaks

@@ -13,7 +13,9 @@ type Params struct {
 	TrackingNumber string
 }
 
-// Command takes no TxRunner: it writes one row in one statement.
+// Command takes no TxRunner: it changes fields on a row it already fetched
+// and writes it back -- there is nothing outside itself to ask
+// (ARCHITECTURE.md decision 14).
 type Command struct{ repo Repository }
 
 func New(repo Repository) *Command { return &Command{repo: repo} }
