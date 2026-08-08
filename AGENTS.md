@@ -82,7 +82,7 @@ internal/modules/order/
 
 Every feature has `model.go`, `service.go`, `repository.go` except `auth`, which has no storage of own. There is **no** `handler.go` or `routes.go` at feature root — those live in `internal/modules/<feature>/http/`. A `dto.go` belongs nowhere at all: check 1c refuses that filename **anywhere** under `internal/`, `http/` included. Wire types live in handler file that serialises them.
 
-Ports usually in `ports.go`, but two features name file after module they depend on instead: `internal/modules/category/product.go` declares `ProductCounter`, and `internal/modules/product/inventory.go` declares `InventoryReader` and `InventoryRegistrar`. Either fine. Rule about _who declares the interface_ (consumer), not filename.
+Ports usually in `ports.go`, but a still-layered feature may name the file after the module it depends on instead — `internal/modules/product/inventory.go` declares `InventoryReader` and `InventoryRegistrar`. Either fine; the rule is about _who declares the interface_ (the consumer), not the filename. Slicing settles it as a side effect: a sliced feature's port moves into the one slice that needs it, as `<slice>/ports.go`, so the question stops arising per feature and starts arising per slice.
 
 Seven of the fourteen features — `auth cart inventory order payment product
 user` — also have a `contract/` package: the one place another feature may
