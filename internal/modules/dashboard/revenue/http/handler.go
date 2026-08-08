@@ -1,15 +1,32 @@
 package http
 
 import (
+	"context"
 	"net/http"
 	"time"
 
-	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
+	"github.com/residwi/go-api-project-template/internal/modules/dashboard/domain"
+	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type adminHandler struct {
-	service *dashboard.Service
+// RevenueReader is what Handler needs from revenue.Reader: revenue.Reader
+// satisfies it directly, so nothing sits between them, and the
+// mockery-generated mock is the other implementation, used in handler_test.go.
+type RevenueReader interface {
+	GetRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error)
+}
+
+type Handler struct {
+	reader RevenueReader
+}
+
+func New(reader RevenueReader) *Handler {
+	return &Handler{reader: reader}
+}
+
+func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
+	admin.HandleFunc("GET /dashboard/revenue", h.revenue)
 }
 
 func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok bool) {
@@ -38,13 +55,15 @@ func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time,
 	return from, to, true
 }
 
+// Declared here, not shared with dashboard's other slices. Each endpoint holds
+// its own copy so one endpoint's new field cannot appear in another's response.
 type revenueDataResponse struct {
 	Date       time.Time `json:"date"`
 	Revenue    int64     `json:"revenue"`
 	OrderCount int       `json:"order_count"`
 }
 
-func toRevenueDataResponse(d dashboard.RevenueData) revenueDataResponse {
+func toRevenueDataResponse(d domain.RevenueData) revenueDataResponse {
 	return revenueDataResponse{
 		Date:       d.Date,
 		Revenue:    d.Revenue,
@@ -52,13 +71,13 @@ func toRevenueDataResponse(d dashboard.RevenueData) revenueDataResponse {
 	}
 }
 
-func (h *adminHandler) Revenue(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) revenue(w http.ResponseWriter, r *http.Request) {
 	from, to, ok := parseDateRange(w, r)
 	if !ok {
 		return
 	}
 
-	data, err := h.service.GetRevenueByDay(r.Context(), from, to)
+	data, err := h.reader.GetRevenueByDay(r.Context(), from, to)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

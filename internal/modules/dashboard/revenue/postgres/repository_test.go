@@ -17,7 +17,7 @@ import (
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_features_dashboard")
+	pool, cleanup := testhelper.MustStartPostgres("test_dashboard")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
@@ -25,7 +25,6 @@ func TestMain(m *testing.M) {
 
 func TestPostgresRepository_GetRevenueByDay(t *testing.T) {
 	t.Run("returns revenue grouped by day", func(t *testing.T) {
-		setup(t)
 		userID := seedUser(t)
 		seedPaidOrder(t, userID)
 		repo := New(testPool)
@@ -47,7 +46,6 @@ func TestPostgresRepository_GetRevenueByDay(t *testing.T) {
 
 func TestPostgresRepository_GetRevenueByDay_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		setup(t)
 		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
@@ -55,11 +53,6 @@ func TestPostgresRepository_GetRevenueByDay_CancelledContext(t *testing.T) {
 		_, err := repo.GetRevenueByDay(ctx, time.Now(), time.Now())
 		assert.Error(t, err)
 	})
-}
-
-func setup(t *testing.T) {
-	t.Helper()
-	testhelper.ResetDB(t, testPool)
 }
 
 func seedUser(t *testing.T) uuid.UUID {

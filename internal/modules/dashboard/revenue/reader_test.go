@@ -1,4 +1,4 @@
-package dashboard
+package revenue
 
 import (
 	"context"
@@ -9,28 +9,29 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/modules/dashboard/domain"
 )
 
-func TestService_GetRevenueByDay(t *testing.T) {
+func TestReader_GetRevenueByDay(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := NewService(repo)
 
 		from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		to := time.Date(2026, 1, 3, 23, 59, 59, 0, time.UTC)
 
-		expected := []RevenueData{
+		expected := []domain.RevenueData{
 			{Date: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Revenue: 100000, OrderCount: 10},
 			{Date: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), Revenue: 200000, OrderCount: 20},
 			{Date: time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC), Revenue: 150000, OrderCount: 15},
 		}
 		repo.EXPECT().GetRevenueByDay(mock.Anything, from, to).Return(expected, nil)
 
-		result, err := svc.GetRevenueByDay(context.Background(), from, to)
+		result, err := New(repo).GetRevenueByDay(context.Background(), from, to)
 
 		require.NoError(t, err)
 		assert.Len(t, result, 3)
@@ -41,7 +42,6 @@ func TestService_GetRevenueByDay(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := NewService(repo)
 
 		from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		to := time.Date(2026, 1, 3, 23, 59, 59, 0, time.UTC)
@@ -49,7 +49,7 @@ func TestService_GetRevenueByDay(t *testing.T) {
 		dbErr := errors.New("revenue query failed")
 		repo.EXPECT().GetRevenueByDay(mock.Anything, from, to).Return(nil, dbErr)
 
-		result, err := svc.GetRevenueByDay(context.Background(), from, to)
+		result, err := New(repo).GetRevenueByDay(context.Background(), from, to)
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, dbErr)
