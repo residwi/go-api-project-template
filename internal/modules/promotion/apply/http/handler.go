@@ -1,17 +1,33 @@
 package http
 
 import (
+	"context"
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type handler struct {
-	service   *promotion.Service
+// PromotionApplier is what Handler needs from apply.Command: apply.Command
+// satisfies it directly, so nothing sits between them, and the
+// mockery-generated mock is the other implementation, used in
+// handler_test.go.
+type PromotionApplier interface {
+	Execute(ctx context.Context, code string, orderAmount int64) (int64, error)
+}
+
+type Handler struct {
+	cmd       PromotionApplier
 	validator *validator.Validator
+}
+
+func New(cmd PromotionApplier, v *validator.Validator) *Handler {
+	return &Handler{cmd: cmd, validator: v}
+}
+
+func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
+	authed.HandleFunc("POST /promotions/apply", h.apply)
 }
 
 type applyRequest struct {
@@ -33,7 +49,7 @@ func toApplyResponse(code string, discount int64) applyResponse {
 	}
 }
 
-func (h *handler) Apply(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) apply(w http.ResponseWriter, r *http.Request) {
 	_, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
@@ -44,7 +60,7 @@ func (h *handler) Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	discount, err := h.service.Validate(r.Context(), req.Code, req.Subtotal)
+	discount, err := h.cmd.Execute(r.Context(), req.Code, req.Subtotal)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

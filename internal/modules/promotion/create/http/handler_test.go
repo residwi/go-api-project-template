@@ -1,0 +1,142 @@
+package http
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
+	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+)
+
+func TestAdminHandler_Create_Success(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		mux, cmd := setupCreateMux(t)
+
+		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(&domain.Promotion{
+			Code: "NEW10",
+		}, nil)
+
+		startsAt := time.Now().Truncate(time.Second)
+		expiresAt := time.Now().Add(24 * time.Hour).Truncate(time.Second)
+		body, _ := json.Marshal(map[string]any{
+			"code":       "NEW10",
+			"type":       domain.TypePercentage,
+			"value":      10,
+			"starts_at":  startsAt,
+			"expires_at": expiresAt,
+			"active":     true,
+		})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/promotions", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.True(t, resp.Success)
+	})
+}
+
+func TestAdminHandler_Create_ServiceError(t *testing.T) {
+	t.Parallel()
+
+	t.Run("repo conflict", func(t *testing.T) {
+		t.Parallel()
+
+		mux, cmd := setupCreateMux(t)
+
+		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil, apperror.ErrConflict)
+
+		startsAt := time.Now().Truncate(time.Second)
+		expiresAt := time.Now().Add(24 * time.Hour).Truncate(time.Second)
+		body, _ := json.Marshal(map[string]any{
+			"code":       "DUP",
+			"type":       domain.TypePercentage,
+			"value":      10,
+			"starts_at":  startsAt,
+			"expires_at": expiresAt,
+			"active":     true,
+		})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/promotions", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+	})
+}
+
+func TestAdminHandler_Create_InvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupCreateMux(t)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/promotions", bytes.NewReader([]byte("{bad")))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+func TestAdminHandler_Create_ValidationError(t *testing.T) {
+	t.Parallel()
+
+	t.Run("validation error missing fields", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupCreateMux(t)
+
+		body, _ := json.Marshal(map[string]string{})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/promotions", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.False(t, resp.Success)
+		assert.Equal(t, "validation failed", resp.Error.Message)
+	})
+}
+
+func setupCreateMux(t *testing.T) (*http.ServeMux, *MockPromotionCreator) {
+	t.Helper()
+
+	cmd := NewMockPromotionCreator(t)
+	v := validator.New()
+
+	mux := http.NewServeMux()
+	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+	New(cmd, v).RegisterHTTP(admin)
+
+	return mux, cmd
+}

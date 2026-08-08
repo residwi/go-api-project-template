@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -17,9 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
@@ -30,9 +27,9 @@ func TestHandler_Apply_ServiceError(t *testing.T) {
 	t.Run("service returns not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo := setupPromotionMux(t)
+		mux, cmd := setupApplyMux(t)
 
-		repo.EXPECT().GetByCode(mock.Anything, "NOTEXIST").Return(nil, apperror.ErrNotFound)
+		cmd.EXPECT().Execute(mock.Anything, "NOTEXIST", int64(5000)).Return(int64(0), apperror.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{
 			"code":     "NOTEXIST",
@@ -54,15 +51,10 @@ func TestHandler_Apply_ServiceError(t *testing.T) {
 	t.Run("service returns bad request for inactive promo", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo := setupPromotionMux(t)
+		mux, cmd := setupApplyMux(t)
 
-		repo.EXPECT().GetByCode(mock.Anything, "INACTIVE").Return(&promotion.Promotion{
-			ID:        uuid.New(),
-			Code:      "INACTIVE",
-			Active:    false,
-			StartsAt:  time.Now().Add(-time.Hour),
-			ExpiresAt: time.Now().Add(time.Hour),
-		}, nil)
+		cmd.EXPECT().Execute(mock.Anything, "INACTIVE", int64(5000)).
+			Return(int64(0), apperror.ErrBadRequest)
 
 		body, _ := json.Marshal(map[string]any{
 			"code":     "INACTIVE",
@@ -85,18 +77,9 @@ func TestHandler_Apply_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo := setupPromotionMux(t)
+		mux, cmd := setupApplyMux(t)
 
-		repo.EXPECT().GetByCode(mock.Anything, "SAVE10").Return(&promotion.Promotion{
-			ID:             uuid.New(),
-			Code:           "SAVE10",
-			Type:           promotion.TypeFixedAmount,
-			Value:          1000,
-			MinOrderAmount: 500,
-			Active:         true,
-			StartsAt:       time.Now().Add(-time.Hour),
-			ExpiresAt:      time.Now().Add(time.Hour),
-		}, nil)
+		cmd.EXPECT().Execute(mock.Anything, "SAVE10", int64(5000)).Return(int64(1000), nil)
 
 		body, _ := json.Marshal(map[string]any{
 			"code":     "SAVE10",
@@ -119,32 +102,32 @@ func TestHandler_Apply_Success(t *testing.T) {
 func TestHandler_Apply(t *testing.T) {
 	t.Parallel()
 
-	h := newTestHandler()
-
 	t.Run("missing auth", func(t *testing.T) {
 		t.Parallel()
 
-		r := httptest.NewRequest(http.MethodPost, "/promotions/apply", nil)
-		w := httptest.NewRecorder()
+		mux, _ := setupApplyMux(t)
 
-		h.Apply(w, r)
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/promotions/apply", nil)
+
+		mux.ServeHTTP(w, r)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		var resp map[string]any
+		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		success, ok := resp["success"].(bool)
-		require.True(t, ok)
-		assert.False(t, success)
+		assert.False(t, resp.Success)
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
 		t.Parallel()
 
-		r := httptest.NewRequest(http.MethodPost, "/promotions/apply", strings.NewReader("{bad"))
-		r = setAuthContext(r)
-		w := httptest.NewRecorder()
+		mux, _ := setupApplyMux(t)
 
-		h.Apply(w, r)
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/promotions/apply", strings.NewReader("{bad"))
+		r = setPromoAuthContext(r)
+
+		mux.ServeHTTP(w, r)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
@@ -152,21 +135,19 @@ func TestHandler_Apply(t *testing.T) {
 	t.Run("validation error missing fields", func(t *testing.T) {
 		t.Parallel()
 
-		r := httptest.NewRequest(http.MethodPost, "/promotions/apply", strings.NewReader(`{}`))
-		r = setAuthContext(r)
-		w := httptest.NewRecorder()
+		mux, _ := setupApplyMux(t)
 
-		h.Apply(w, r)
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/promotions/apply", strings.NewReader(`{}`))
+		r = setPromoAuthContext(r)
+
+		mux.ServeHTTP(w, r)
 
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
-		var resp map[string]any
+		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		success, ok := resp["success"].(bool)
-		require.True(t, ok)
-		assert.False(t, success)
-		errBody, ok := resp["error"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "validation failed", errBody["message"])
+		assert.False(t, resp.Success)
+		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
 }
 
@@ -184,37 +165,17 @@ func TestApplyResponse_OmitsUsageCountersAndLimits(t *testing.T) {
 		"the apply response must expose exactly the code and the computed discount")
 }
 
-func newTestHandler() *handler {
-	return &handler{
-		service:   &promotion.Service{},
-		validator: validator.New(),
-	}
-}
+func setupApplyMux(t *testing.T) (*http.ServeMux, *MockPromotionApplier) {
+	t.Helper()
 
-func setAuthContext(r *http.Request) *http.Request {
-	ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-		UserID: uuid.New(),
-		Email:  "test@example.com",
-		Role:   "user",
-	})
-	return r.WithContext(ctx)
-}
-
-func setupPromotionMux(t *testing.T) (*http.ServeMux, *MockRepository) {
-	repo := NewMockRepository(t)
-	svc := promotion.NewService(repo, testhelper.FakeTxRunner{})
+	cmd := NewMockPromotionApplier(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+	New(cmd, v).RegisterHTTP(authed)
 
-	RegisterRoutes(authed, admin, RouteDeps{
-		Validator: v,
-		Service:   svc,
-	})
-
-	return mux, repo
+	return mux, cmd
 }
 
 func setPromoAuthContext(r *http.Request) *http.Request {

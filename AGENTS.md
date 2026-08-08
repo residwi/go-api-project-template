@@ -53,14 +53,18 @@ Being infrastructure exempts directory from checks 2 and 3 _ownership_ questions
 updatetracking deliver`), `dashboard` (`summary topproducts revenue`),
 `wishlist` (`query add remove`), `review` (`query create remove`),
 `category` (`query create update remove`), `auth` (`token register login
-refresh`), and `notification` (`query markread markallread jobs`) are sliced
-into vertical use-case packages, each with its own storage port and adapters
-— except `auth`, which owns no table, so none of its four slices has one,
-and `notification`'s `jobs`, which owns the queue table but has no route —
-`ARCHITECTURE.md` §14 is the target shape, seven modules there so far.
+refresh`), `notification` (`query markread markallread jobs`), and
+`promotion` (`query create update remove apply reserve`) are sliced into
+vertical use-case packages, each with its own storage port and adapters —
+except `auth`, which owns no table, so none of its four slices has one,
+`notification`'s `jobs`, which owns the queue table but has no route, and
+`promotion`'s `apply` and `reserve`, which are read/write twins over the same
+table rather than one route each — `apply` has a route and no
+`database.TxRunner`, `reserve` has a `TxRunner` and no route —
+`ARCHITECTURE.md` §14 is the target shape, eight modules there so far.
 Everything below this note describes the **layered** shape, still accurate
-for the other seven modules — `cart inventory order payment product
-promotion user` — until phase 2 reaches each in turn.
+for the other six modules — `cart inventory order payment product
+user` — until phase 2 reaches each in turn.
 `ls internal/modules/<feature>/` tells you which shape a given module is in:
 a `domain/` directory plus no root `model.go`/`service.go`/`repository.go`
 means sliced; those three files at the root mean still layered.
@@ -111,7 +115,8 @@ show for it. `ARCHITECTURE.md` decision 13 is why, and its cost.
 | `review`     | `http/` (routes.go only) plus `query/ create/ remove/`, each its own `postgres/` and `http/` — the sliced shape, see the two-shapes note above |
 | `category`   | `http/` (routes.go only) plus `query/ create/ update/ remove/`, each its own `postgres/` and `http/` — the sliced shape, see the two-shapes note above |
 | `notification` | `http/` (routes.go only) plus `query/ markread/ markallread/ jobs/`, each its own `postgres/`; `jobs/` has no `http/` of its own — no route, so no route to serve — the sliced shape, see the two-shapes note above |
-| the other 5  | `postgres/ http/`                                                 |
+| `promotion`  | `http/` (routes.go only) plus `query/ create/ update/ remove/ apply/ reserve/`, each its own `postgres/`; `apply/` and `reserve/` both have `postgres/` but only `apply/` has `http/` — `reserve/` is consumed by `order` and `payment` directly, not through a route — the sliced shape, see the two-shapes note above |
+| the other 4  | `postgres/ http/`                                                 |
 
 `notification` has no `worker/` package because its `jobs/` slice's `Worker` type satisfies `platform/jobs`' `Queue` and `Processor` directly — one value does both. That absence is the lesson — `ARCHITECTURE.md` decision 4 — not omission to fix. `user/redis/` is positive case of same rule: subpackage exists where feature has that kind of backing store, and `user` only feature caching, so `ls internal/modules/user/` still tells truth about which features do. Feature declares one port per store — `repository.go` for Postgres, `cache.go` for cache — and gets one adapter subpackage per port: `user.Repository` pairs with `postgres/`, `user.StatusCache` with `redis/`. That adapter requires Redis 8.0 or later; built on `HSETEX`, which sets hash fields and their expiry in one atomic command, and that command not exist on earlier Redis. There are 12 packages named `postgres` and 14 named `http` at each feature's own root, and one named `redis` — more once slices' own count too, since every module phase 2 slices trades its one root `postgres/` for one per slice. Both figures move with every task in the phase, so they are swept once at the end rather than restated thirteen times; the two-shapes note above is the current answer to which modules are sliced. That is why the composition root (`internal/bootstrap/app.go`) needs 14 aliased adapter imports to build every service: `shipping`'s own `postgres/` wiring now happens inside `shipping/module.go`, so `app.go` carries no `shippingpg` alias any more, and gained none in its place. `internal/transport/http/router.go` still needs another 15 (14 `http` packages plus the dev-only mock gateway's route registrar) to mount their routes — that count holds regardless of slicing, because `router.go` only ever imports a feature's own top-level `http/routes.go`, never a slice's.
 
@@ -218,7 +223,7 @@ Read "What it does not catch" section of `db/OWNERSHIP.md` before trusting green
 ### Conventions — not checked, so they need you
 
 6. **A feature never imports another feature's root package or adapter.** Declare interface _the consumer_ needs in consumer's own package (`internal/modules/order/ports.go` declares what `order` needs from inventory). `internal/bootstrap/` supplies zero adapters now; two mechanisms satisfy the port instead:
-   - **Name-match.** The producer's service already has a method named what the consumer's port asks for, so the service value itself satisfies the interface with no adapter written — `promotion.Service` already satisfies `payment.CouponReleaser`, notification's `jobs.Worker` already satisfies `platform/jobs`' `Processor`, `order.Service` satisfies `payment.OrderUpdater` directly, and each of shipping's slice ports the same way — `query.OrderPort` and `create.OrderPort` by `GetInfo`, `deliver.OrderPort` by `MarkDelivered`.
+   - **Name-match.** The producer's service already has a method named what the consumer's port asks for, so the service value itself satisfies the interface with no adapter written — promotion's `reserve.Command` already satisfies both `order.CouponReserver` and `payment.CouponReleaser`, notification's `jobs.Worker` already satisfies `platform/jobs`' `Processor`, `order.Service` satisfies `payment.OrderUpdater` directly, and each of shipping's slice ports the same way — `query.OrderPort` and `create.OrderPort` by `GetInfo`, `deliver.OrderPort` by `MarkDelivered`.
    - **A `<feature>/contract/` package**, when what crosses is a struct rather than a scalar or an interface a producer already satisfies. The consumer's port still names the type it needs (`refresh.UserProvider.GetByID(ctx, id) (usercontract.User, error)`); the contract package only supplies the shape, never the interface.
 
    No shared ports package, and adding one would defeat the point. _(Rule 3 catches the crudest violation — importing a sibling's `postgres`/`http`/`redis` adapter — but importing a sibling's root package directly, as opposed to its `contract/` package, is not caught.)_

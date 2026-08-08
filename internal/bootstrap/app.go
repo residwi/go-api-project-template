@@ -26,7 +26,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	productpg "github.com/residwi/go-api-project-template/internal/modules/product/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
-	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/review"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
@@ -65,7 +64,7 @@ type App struct {
 	Payments      *payment.Service
 	Shipping      *shipping.Module
 	Reviews       *review.Module
-	Promotions    *promotion.Service
+	Promotions    *promotion.Module
 	Wishlists     *wishlist.Module
 	Notifications *notification.Module
 	Dashboard     *dashboard.Module
@@ -89,7 +88,7 @@ func New(d Deps) (*App, error) {
 	productSvc := product.NewService(productpg.New(d.Pool), inventorySvc, inventorySvc)
 	// productSvc satisfies remove.ProductCounter by name-match.
 	categoryMod := category.New(category.Deps{Pool: d.Pool, Products: productSvc})
-	promotionSvc := promotion.NewService(promotionpg.New(d.Pool), txRunner)
+	promotionMod := promotion.New(promotion.Deps{Pool: d.Pool, Tx: txRunner})
 	notificationMod := notification.New(notification.Deps{Pool: d.Pool, Logger: d.Logger})
 
 	userSvc := user.NewService(userpg.New(d.Pool), userCache, d.Logger)
@@ -103,7 +102,7 @@ func New(d Deps) (*App, error) {
 		cartSvc,      // CartProvider
 		inventorySvc, // InventoryReserver
 		nil, nil,     // payment ports: the cycle, set below by SetOrderPaymentDeps
-		promotionSvc,         // CouponReserver
+		promotionMod.Reserve, // CouponReserver
 		notificationMod.Jobs, // NotificationEnqueuer -- EnqueueOrderPlaced by name-match
 		d.Logger,
 	)
@@ -116,7 +115,7 @@ func New(d Deps) (*App, error) {
 		orderSvc,
 		inventorySvc, // InventoryDeductor, InventoryRestorer
 		inventorySvc,
-		promotionSvc, // CouponReleaser
+		promotionMod.Reserve, // CouponReleaser
 		d.Logger,
 	)
 	SetOrderPaymentDeps(orderSvc, paymentSvc)
@@ -137,7 +136,7 @@ func New(d Deps) (*App, error) {
 		Payments:      paymentSvc,
 		Shipping:      shippingMod,
 		Reviews:       reviewMod,
-		Promotions:    promotionSvc,
+		Promotions:    promotionMod,
 		Wishlists:     wishlist.New(wishlist.Deps{Pool: d.Pool}),
 		Notifications: notificationMod,
 		Dashboard:     dashboard.New(dashboard.Deps{Pool: d.Pool}),
