@@ -1,31 +1,12 @@
 package dashboard
 
-import (
-	"time"
+import "github.com/residwi/go-api-project-template/internal/modules/dashboard/domain"
 
-	"github.com/google/uuid"
+// Aliases keep service.go, postgres/ and http/ compiling while the slices are
+// extracted one at a time. Deleted along with the husk.
+type (
+	SalesSummary    = domain.SalesSummary
+	TopProduct      = domain.TopProduct
+	RevenueData     = domain.RevenueData
+	StatusBreakdown = domain.StatusBreakdown
 )
-
-type SalesSummary struct {
-	TotalOrders       int
-	TotalRevenue      int64
-	AverageOrderValue float64
-}
-
-type TopProduct struct {
-	ProductID uuid.UUID
-	Name      string
-	TotalSold int
-	Revenue   int64
-}
-
-type RevenueData struct {
-	Date       time.Time
-	Revenue    int64
-	OrderCount int
-}
-
-type StatusBreakdown struct {
-	Status string
-	Count  int
-}
