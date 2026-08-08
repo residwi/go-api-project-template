@@ -1,0 +1,75 @@
+package http
+
+import (
+	"context"
+	"net/http"
+	"time"
+
+	"github.com/google/uuid"
+
+	"github.com/residwi/go-api-project-template/internal/modules/wishlist/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
+	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+)
+
+// ItemReader is what Handler needs from query.Reader: query.Reader satisfies
+// it directly, so nothing sits between them, and the mockery-generated mock
+// is the other implementation, used in handler_test.go.
+type ItemReader interface {
+	ListItemsForUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Item, error)
+}
+
+type Handler struct {
+	reader ItemReader
+}
+
+func New(reader ItemReader) *Handler {
+	return &Handler{reader: reader}
+}
+
+func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
+	authed.HandleFunc("GET /wishlist", h.list)
+}
+
+// Declared here, not shared with wishlist's other slices. Each endpoint holds
+// its own copy so one endpoint's new field cannot appear in another's
+// response. WishlistID is dropped: an internal join key a client has no use
+// for.
+type itemResponse struct {
+	ID        uuid.UUID `json:"id"`
+	ProductID uuid.UUID `json:"product_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func toItemResponse(it domain.Item) itemResponse {
+	return itemResponse{
+		ID:        it.ID,
+		ProductID: it.ProductID,
+		CreatedAt: it.CreatedAt,
+	}
+}
+
+func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+	uc, ok := middleware.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	cursor := paging.ParseCursorPage(r)
+
+	items, err := h.reader.ListItemsForUser(r.Context(), uc.UserID, cursor)
+	if err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	out := make([]itemResponse, len(items))
+	for i, it := range items {
+		out[i] = toItemResponse(it)
+	}
+
+	response.CursorPage(w, out, cursor.Limit, func(it itemResponse) (time.Time, uuid.UUID) {
+		return it.CreatedAt, it.ID
+	})
+}

@@ -1,17 +1,12 @@
-package wishlist
+// Package domain holds wishlist's aggregate. It is module-private: what
+// leaves wishlist leaves through a slice's return type.
+package domain
 
 import (
 	"time"
 
 	"github.com/google/uuid"
 )
-
-type Wishlist struct {
-	ID        uuid.UUID
-	UserID    uuid.UUID
-	Items     []Item
-	CreatedAt time.Time
-}
 
 type Item struct {
 	ID         uuid.UUID

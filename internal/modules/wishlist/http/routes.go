@@ -2,19 +2,20 @@ package http
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
+	addhttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/add/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/query/http"
+	removehttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/remove/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
 	Validator *validator.Validator
-	Service   *wishlist.Service
+	Module    *wishlist.Module
 }
 
 func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {
-	h := &handler{service: deps.Service, validator: deps.Validator}
-
-	authed.HandleFunc("GET /wishlist", h.GetWishlist)
-	authed.HandleFunc("POST /wishlist/items", h.AddItem)
-	authed.HandleFunc("DELETE /wishlist/items/{product_id}", h.RemoveItem)
+	queryhttp.New(deps.Module.Query).RegisterHTTP(authed)
+	addhttp.New(deps.Module.AddItem, deps.Validator).RegisterHTTP(authed)
+	removehttp.New(deps.Module.RemoveItem).RegisterHTTP(authed)
 }
