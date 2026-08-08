@@ -15,6 +15,6 @@ func New(repo Repository) *Reader {
 	return &Reader{repo: repo}
 }
 
-func (r *Reader) GetRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error) {
-	return r.repo.GetRevenueByDay(ctx, from, to)
+func (r *Reader) ListRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error) {
+	return r.repo.ListRevenueByDay(ctx, from, to)
 }

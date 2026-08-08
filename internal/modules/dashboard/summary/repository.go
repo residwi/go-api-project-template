@@ -11,5 +11,5 @@ import (
 // summary/postgres, constructed in dashboard/module.go.
 type Repository interface {
 	GetSalesSummary(ctx context.Context, from, to time.Time) (domain.SalesSummary, error)
-	GetOrderStatusBreakdown(ctx context.Context, from, to time.Time) ([]domain.StatusBreakdown, error)
+	ListOrderStatusBreakdown(ctx context.Context, from, to time.Time) ([]domain.StatusBreakdown, error)
 }

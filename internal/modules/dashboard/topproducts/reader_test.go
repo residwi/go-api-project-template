@@ -14,7 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard/domain"
 )
 
-func TestReader_GetTopProducts(t *testing.T) {
+func TestReader_ListTopProducts(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
@@ -29,9 +29,9 @@ func TestReader_GetTopProducts(t *testing.T) {
 			{ProductID: uuid.New(), Name: "Widget A", TotalSold: 500, Revenue: 2500000},
 			{ProductID: uuid.New(), Name: "Widget B", TotalSold: 300, Revenue: 1500000},
 		}
-		repo.EXPECT().GetTopProducts(mock.Anything, 10, from, to).Return(expected, nil)
+		repo.EXPECT().ListTopProducts(mock.Anything, 10, from, to).Return(expected, nil)
 
-		result, err := New(repo).GetTopProducts(context.Background(), 10, from, to)
+		result, err := New(repo).ListTopProducts(context.Background(), 10, from, to)
 
 		require.NoError(t, err)
 		assert.Len(t, result, 2)
@@ -47,9 +47,9 @@ func TestReader_GetTopProducts(t *testing.T) {
 		to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
 
 		dbErr := errors.New("top products failed")
-		repo.EXPECT().GetTopProducts(mock.Anything, 10, from, to).Return(nil, dbErr)
+		repo.EXPECT().ListTopProducts(mock.Anything, 10, from, to).Return(nil, dbErr)
 
-		result, err := New(repo).GetTopProducts(context.Background(), 10, from, to)
+		result, err := New(repo).ListTopProducts(context.Background(), 10, from, to)
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, dbErr)

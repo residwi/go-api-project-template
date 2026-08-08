@@ -39,80 +39,6 @@ func (_m *MockRepository) EXPECT() *MockRepository_Expecter {
 	return &MockRepository_Expecter{mock: &_m.Mock}
 }
 
-// GetOrderStatusBreakdown provides a mock function for the type MockRepository
-func (_mock *MockRepository) GetOrderStatusBreakdown(ctx context.Context, from time.Time, to time.Time) ([]domain.StatusBreakdown, error) {
-	ret := _mock.Called(ctx, from, to)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetOrderStatusBreakdown")
-	}
-
-	var r0 []domain.StatusBreakdown
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) ([]domain.StatusBreakdown, error)); ok {
-		return returnFunc(ctx, from, to)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) []domain.StatusBreakdown); ok {
-		r0 = returnFunc(ctx, from, to)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]domain.StatusBreakdown)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) error); ok {
-		r1 = returnFunc(ctx, from, to)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockRepository_GetOrderStatusBreakdown_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetOrderStatusBreakdown'
-type MockRepository_GetOrderStatusBreakdown_Call struct {
-	*mock.Call
-}
-
-// GetOrderStatusBreakdown is a helper method to define mock.On call
-//   - ctx context.Context
-//   - from time.Time
-//   - to time.Time
-func (_e *MockRepository_Expecter) GetOrderStatusBreakdown(ctx any, from any, to any) *MockRepository_GetOrderStatusBreakdown_Call {
-	return &MockRepository_GetOrderStatusBreakdown_Call{Call: _e.mock.On("GetOrderStatusBreakdown", ctx, from, to)}
-}
-
-func (_c *MockRepository_GetOrderStatusBreakdown_Call) Run(run func(ctx context.Context, from time.Time, to time.Time)) *MockRepository_GetOrderStatusBreakdown_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 time.Time
-		if args[1] != nil {
-			arg1 = args[1].(time.Time)
-		}
-		var arg2 time.Time
-		if args[2] != nil {
-			arg2 = args[2].(time.Time)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockRepository_GetOrderStatusBreakdown_Call) Return(statusBreakdowns []domain.StatusBreakdown, err error) *MockRepository_GetOrderStatusBreakdown_Call {
-	_c.Call.Return(statusBreakdowns, err)
-	return _c
-}
-
-func (_c *MockRepository_GetOrderStatusBreakdown_Call) RunAndReturn(run func(ctx context.Context, from time.Time, to time.Time) ([]domain.StatusBreakdown, error)) *MockRepository_GetOrderStatusBreakdown_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetSalesSummary provides a mock function for the type MockRepository
 func (_mock *MockRepository) GetSalesSummary(ctx context.Context, from time.Time, to time.Time) (domain.SalesSummary, error) {
 	ret := _mock.Called(ctx, from, to)
@@ -181,6 +107,80 @@ func (_c *MockRepository_GetSalesSummary_Call) Return(salesSummary domain.SalesS
 }
 
 func (_c *MockRepository_GetSalesSummary_Call) RunAndReturn(run func(ctx context.Context, from time.Time, to time.Time) (domain.SalesSummary, error)) *MockRepository_GetSalesSummary_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListOrderStatusBreakdown provides a mock function for the type MockRepository
+func (_mock *MockRepository) ListOrderStatusBreakdown(ctx context.Context, from time.Time, to time.Time) ([]domain.StatusBreakdown, error) {
+	ret := _mock.Called(ctx, from, to)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListOrderStatusBreakdown")
+	}
+
+	var r0 []domain.StatusBreakdown
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) ([]domain.StatusBreakdown, error)); ok {
+		return returnFunc(ctx, from, to)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) []domain.StatusBreakdown); ok {
+		r0 = returnFunc(ctx, from, to)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.StatusBreakdown)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) error); ok {
+		r1 = returnFunc(ctx, from, to)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_ListOrderStatusBreakdown_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListOrderStatusBreakdown'
+type MockRepository_ListOrderStatusBreakdown_Call struct {
+	*mock.Call
+}
+
+// ListOrderStatusBreakdown is a helper method to define mock.On call
+//   - ctx context.Context
+//   - from time.Time
+//   - to time.Time
+func (_e *MockRepository_Expecter) ListOrderStatusBreakdown(ctx any, from any, to any) *MockRepository_ListOrderStatusBreakdown_Call {
+	return &MockRepository_ListOrderStatusBreakdown_Call{Call: _e.mock.On("ListOrderStatusBreakdown", ctx, from, to)}
+}
+
+func (_c *MockRepository_ListOrderStatusBreakdown_Call) Run(run func(ctx context.Context, from time.Time, to time.Time)) *MockRepository_ListOrderStatusBreakdown_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_ListOrderStatusBreakdown_Call) Return(statusBreakdowns []domain.StatusBreakdown, err error) *MockRepository_ListOrderStatusBreakdown_Call {
+	_c.Call.Return(statusBreakdowns, err)
+	return _c
+}
+
+func (_c *MockRepository_ListOrderStatusBreakdown_Call) RunAndReturn(run func(ctx context.Context, from time.Time, to time.Time) ([]domain.StatusBreakdown, error)) *MockRepository_ListOrderStatusBreakdown_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -33,7 +33,7 @@ func TestHandler_Revenue(t *testing.T) {
 			{Date: from.AddDate(0, 0, 1), Revenue: 15000, OrderCount: 8},
 		}
 
-		reader.EXPECT().GetRevenueByDay(mock.Anything, from, toEnd).Return(data, nil)
+		reader.EXPECT().ListRevenueByDay(mock.Anything, from, toEnd).Return(data, nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/revenue?from=2025-01-01&to=2025-01-31", nil)
 		w := httptest.NewRecorder()
@@ -111,7 +111,7 @@ func TestHandler_Revenue(t *testing.T) {
 
 		mux, reader := setupRevenueMux(t)
 
-		reader.EXPECT().GetRevenueByDay(mock.Anything, mock.Anything, mock.Anything).
+		reader.EXPECT().ListRevenueByDay(mock.Anything, mock.Anything, mock.Anything).
 			Return(nil, errors.New("db error"))
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/revenue?from=2025-01-01&to=2025-01-31", nil)

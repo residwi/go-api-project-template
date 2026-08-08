@@ -34,7 +34,7 @@ func TestHandler_TopProducts(t *testing.T) {
 			{ProductID: uuid.New(), Name: "Gadget", TotalSold: 80, Revenue: 40000},
 		}
 
-		reader.EXPECT().GetTopProducts(mock.Anything, 5, from, toEnd).Return(products, nil)
+		reader.EXPECT().ListTopProducts(mock.Anything, 5, from, toEnd).Return(products, nil)
 
 		r := httptest.NewRequest(
 			http.MethodGet,
@@ -77,7 +77,7 @@ func TestHandler_TopProducts(t *testing.T) {
 			{ProductID: uuid.New(), Name: "Widget", TotalSold: 100, Revenue: 50000},
 		}
 
-		reader.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).Return(products, nil)
+		reader.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).Return(products, nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31", nil)
 		w := httptest.NewRecorder()
@@ -92,7 +92,7 @@ func TestHandler_TopProducts(t *testing.T) {
 
 		mux, reader := setupTopProductsMux(t)
 
-		reader.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
+		reader.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]domain.TopProduct{}, nil)
 
 		r := httptest.NewRequest(
@@ -112,7 +112,7 @@ func TestHandler_TopProducts(t *testing.T) {
 
 		mux, reader := setupTopProductsMux(t)
 
-		reader.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
+		reader.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]domain.TopProduct{}, nil)
 
 		r := httptest.NewRequest(
@@ -132,7 +132,7 @@ func TestHandler_TopProducts(t *testing.T) {
 
 		mux, reader := setupTopProductsMux(t)
 
-		reader.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
+		reader.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]domain.TopProduct{}, nil)
 
 		r := httptest.NewRequest(
@@ -152,7 +152,7 @@ func TestHandler_TopProducts(t *testing.T) {
 
 		mux, reader := setupTopProductsMux(t)
 
-		reader.EXPECT().GetTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
+		reader.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]domain.TopProduct{}, nil)
 
 		r := httptest.NewRequest(
@@ -216,7 +216,7 @@ func TestHandler_TopProducts(t *testing.T) {
 
 		mux, reader := setupTopProductsMux(t)
 
-		reader.EXPECT().GetTopProducts(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		reader.EXPECT().ListTopProducts(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(nil, errors.New("db error"))
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31", nil)

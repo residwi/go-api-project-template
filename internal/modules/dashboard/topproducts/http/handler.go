@@ -18,7 +18,7 @@ import (
 // the mockery-generated mock is the other implementation, used in
 // handler_test.go.
 type TopProductsReader interface {
-	GetTopProducts(ctx context.Context, limit int, from, to time.Time) ([]domain.TopProduct, error)
+	ListTopProducts(ctx context.Context, limit int, from, to time.Time) ([]domain.TopProduct, error)
 }
 
 type Handler struct {
@@ -88,7 +88,7 @@ func (h *Handler) topProducts(w http.ResponseWriter, r *http.Request) {
 		limit = 10
 	}
 
-	products, err := h.reader.GetTopProducts(r.Context(), limit, from, to)
+	products, err := h.reader.ListTopProducts(r.Context(), limit, from, to)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

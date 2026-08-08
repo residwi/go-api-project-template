@@ -14,7 +14,7 @@ import (
 // satisfies it directly, so nothing sits between them, and the
 // mockery-generated mock is the other implementation, used in handler_test.go.
 type RevenueReader interface {
-	GetRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error)
+	ListRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error)
 }
 
 type Handler struct {
@@ -77,7 +77,7 @@ func (h *Handler) revenue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := h.reader.GetRevenueByDay(r.Context(), from, to)
+	data, err := h.reader.ListRevenueByDay(r.Context(), from, to)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

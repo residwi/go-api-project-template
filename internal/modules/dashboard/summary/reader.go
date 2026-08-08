@@ -36,19 +36,11 @@ func (r *Reader) GetSummary(
 	})
 	g.Go(func() error {
 		var err error
-		breakdown, err = r.repo.GetOrderStatusBreakdown(gctx, from, to)
+		breakdown, err = r.repo.ListOrderStatusBreakdown(gctx, from, to)
 		return err
 	})
 	if err := g.Wait(); err != nil {
 		return domain.SalesSummary{}, nil, err
 	}
 	return sales, breakdown, nil
-}
-
-func (r *Reader) GetSalesSummary(ctx context.Context, from, to time.Time) (domain.SalesSummary, error) {
-	return r.repo.GetSalesSummary(ctx, from, to)
-}
-
-func (r *Reader) GetOrderStatusBreakdown(ctx context.Context, from, to time.Time) ([]domain.StatusBreakdown, error) {
-	return r.repo.GetOrderStatusBreakdown(ctx, from, to)
 }

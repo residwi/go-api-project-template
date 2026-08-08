@@ -44,7 +44,7 @@ func (r *Repository) GetSalesSummary(ctx context.Context, from, to time.Time) (d
 	return s, nil
 }
 
-func (r *Repository) GetOrderStatusBreakdown(
+func (r *Repository) ListOrderStatusBreakdown(
 	ctx context.Context,
 	from, to time.Time,
 ) ([]domain.StatusBreakdown, error) {

@@ -15,6 +15,6 @@ func New(repo Repository) *Reader {
 	return &Reader{repo: repo}
 }
 
-func (r *Reader) GetTopProducts(ctx context.Context, limit int, from, to time.Time) ([]domain.TopProduct, error) {
-	return r.repo.GetTopProducts(ctx, limit, from, to)
+func (r *Reader) ListTopProducts(ctx context.Context, limit int, from, to time.Time) ([]domain.TopProduct, error) {
+	return r.repo.ListTopProducts(ctx, limit, from, to)
 }

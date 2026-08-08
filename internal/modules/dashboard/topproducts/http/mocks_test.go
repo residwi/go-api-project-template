@@ -39,12 +39,12 @@ func (_m *MockTopProductsReader) EXPECT() *MockTopProductsReader_Expecter {
 	return &MockTopProductsReader_Expecter{mock: &_m.Mock}
 }
 
-// GetTopProducts provides a mock function for the type MockTopProductsReader
-func (_mock *MockTopProductsReader) GetTopProducts(ctx context.Context, limit int, from time.Time, to time.Time) ([]domain.TopProduct, error) {
+// ListTopProducts provides a mock function for the type MockTopProductsReader
+func (_mock *MockTopProductsReader) ListTopProducts(ctx context.Context, limit int, from time.Time, to time.Time) ([]domain.TopProduct, error) {
 	ret := _mock.Called(ctx, limit, from, to)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetTopProducts")
+		panic("no return value specified for ListTopProducts")
 	}
 
 	var r0 []domain.TopProduct
@@ -67,21 +67,21 @@ func (_mock *MockTopProductsReader) GetTopProducts(ctx context.Context, limit in
 	return r0, r1
 }
 
-// MockTopProductsReader_GetTopProducts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTopProducts'
-type MockTopProductsReader_GetTopProducts_Call struct {
+// MockTopProductsReader_ListTopProducts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTopProducts'
+type MockTopProductsReader_ListTopProducts_Call struct {
 	*mock.Call
 }
 
-// GetTopProducts is a helper method to define mock.On call
+// ListTopProducts is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
 //   - from time.Time
 //   - to time.Time
-func (_e *MockTopProductsReader_Expecter) GetTopProducts(ctx any, limit any, from any, to any) *MockTopProductsReader_GetTopProducts_Call {
-	return &MockTopProductsReader_GetTopProducts_Call{Call: _e.mock.On("GetTopProducts", ctx, limit, from, to)}
+func (_e *MockTopProductsReader_Expecter) ListTopProducts(ctx any, limit any, from any, to any) *MockTopProductsReader_ListTopProducts_Call {
+	return &MockTopProductsReader_ListTopProducts_Call{Call: _e.mock.On("ListTopProducts", ctx, limit, from, to)}
 }
 
-func (_c *MockTopProductsReader_GetTopProducts_Call) Run(run func(ctx context.Context, limit int, from time.Time, to time.Time)) *MockTopProductsReader_GetTopProducts_Call {
+func (_c *MockTopProductsReader_ListTopProducts_Call) Run(run func(ctx context.Context, limit int, from time.Time, to time.Time)) *MockTopProductsReader_ListTopProducts_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -109,12 +109,12 @@ func (_c *MockTopProductsReader_GetTopProducts_Call) Run(run func(ctx context.Co
 	return _c
 }
 
-func (_c *MockTopProductsReader_GetTopProducts_Call) Return(topProducts []domain.TopProduct, err error) *MockTopProductsReader_GetTopProducts_Call {
+func (_c *MockTopProductsReader_ListTopProducts_Call) Return(topProducts []domain.TopProduct, err error) *MockTopProductsReader_ListTopProducts_Call {
 	_c.Call.Return(topProducts, err)
 	return _c
 }
 
-func (_c *MockTopProductsReader_GetTopProducts_Call) RunAndReturn(run func(ctx context.Context, limit int, from time.Time, to time.Time) ([]domain.TopProduct, error)) *MockTopProductsReader_GetTopProducts_Call {
+func (_c *MockTopProductsReader_ListTopProducts_Call) RunAndReturn(run func(ctx context.Context, limit int, from time.Time, to time.Time) ([]domain.TopProduct, error)) *MockTopProductsReader_ListTopProducts_Call {
 	_c.Call.Return(run)
 	return _c
 }

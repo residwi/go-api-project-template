@@ -52,13 +52,13 @@ func TestPostgresRepository_GetSalesSummary(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_GetOrderStatusBreakdown(t *testing.T) {
+func TestPostgresRepository_ListOrderStatusBreakdown(t *testing.T) {
 	t.Run("returns breakdown including seeded order status", func(t *testing.T) {
 		userID := seedUser(t)
 		seedPaidOrder(t, userID)
 		repo := New(testPool)
 
-		breakdowns, err := repo.GetOrderStatusBreakdown(context.Background(),
+		breakdowns, err := repo.ListOrderStatusBreakdown(context.Background(),
 			time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour))
 		require.NoError(t, err)
 		assert.NotEmpty(t, breakdowns)
@@ -86,13 +86,13 @@ func TestPostgresRepository_GetSalesSummary_CancelledContext(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_GetOrderStatusBreakdown_CancelledContext(t *testing.T) {
+func TestPostgresRepository_ListOrderStatusBreakdown_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.GetOrderStatusBreakdown(ctx, time.Now().Add(-24*time.Hour), time.Now())
+		_, err := repo.ListOrderStatusBreakdown(ctx, time.Now().Add(-24*time.Hour), time.Now())
 		assert.Error(t, err)
 	})
 }

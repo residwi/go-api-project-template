@@ -29,7 +29,7 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-func (r *Repository) GetRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error) {
+func (r *Repository) ListRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error) {
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
 		`SELECT DATE(created_at) AS date, COALESCE(SUM(total_amount), 0) AS revenue, COUNT(*) AS order_count

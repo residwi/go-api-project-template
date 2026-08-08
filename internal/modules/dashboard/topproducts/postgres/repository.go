@@ -29,7 +29,7 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-func (r *Repository) GetTopProducts(
+func (r *Repository) ListTopProducts(
 	ctx context.Context,
 	limit int,
 	from, to time.Time,

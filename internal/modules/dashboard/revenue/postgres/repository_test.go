@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestPostgresRepository_GetRevenueByDay(t *testing.T) {
+func TestPostgresRepository_ListRevenueByDay(t *testing.T) {
 	t.Run("returns revenue grouped by day", func(t *testing.T) {
 		userID := seedUser(t)
 		seedPaidOrder(t, userID)
@@ -32,7 +32,7 @@ func TestPostgresRepository_GetRevenueByDay(t *testing.T) {
 		from := time.Now().Add(-24 * time.Hour)
 		to := time.Now().Add(24 * time.Hour)
 
-		data, err := repo.GetRevenueByDay(context.Background(), from, to)
+		data, err := repo.ListRevenueByDay(context.Background(), from, to)
 		require.NoError(t, err)
 		assert.NotEmpty(t, data)
 
@@ -44,13 +44,13 @@ func TestPostgresRepository_GetRevenueByDay(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_GetRevenueByDay_CancelledContext(t *testing.T) {
+func TestPostgresRepository_ListRevenueByDay_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.GetRevenueByDay(ctx, time.Now(), time.Now())
+		_, err := repo.ListRevenueByDay(ctx, time.Now(), time.Now())
 		assert.Error(t, err)
 	})
 }

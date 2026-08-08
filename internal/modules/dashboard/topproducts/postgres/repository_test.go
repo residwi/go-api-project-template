@@ -23,14 +23,14 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestPostgresRepository_GetTopProducts(t *testing.T) {
+func TestPostgresRepository_ListTopProducts(t *testing.T) {
 	t.Run("returns empty slice when no orders", func(t *testing.T) {
 		repo := New(testPool)
 
 		from := time.Now().Add(100 * 24 * time.Hour)
 		to := time.Now().Add(200 * 24 * time.Hour)
 
-		products, err := repo.GetTopProducts(context.Background(), 10, from, to)
+		products, err := repo.ListTopProducts(context.Background(), 10, from, to)
 		require.NoError(t, err)
 		assert.Empty(t, products)
 	})
@@ -45,7 +45,7 @@ func TestPostgresRepository_GetTopProducts(t *testing.T) {
 		from := time.Now().Add(-24 * time.Hour)
 		to := time.Now().Add(24 * time.Hour)
 
-		products, err := repo.GetTopProducts(context.Background(), 10, from, to)
+		products, err := repo.ListTopProducts(context.Background(), 10, from, to)
 		require.NoError(t, err)
 		assert.NotEmpty(t, products)
 
@@ -62,13 +62,13 @@ func TestPostgresRepository_GetTopProducts(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_GetTopProducts_CancelledContext(t *testing.T) {
+func TestPostgresRepository_ListTopProducts_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
 		repo := New(testPool)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.GetTopProducts(ctx, 10, time.Now(), time.Now())
+		_, err := repo.ListTopProducts(ctx, 10, time.Now(), time.Now())
 		assert.Error(t, err)
 	})
 }

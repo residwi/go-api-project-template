@@ -39,12 +39,12 @@ func (_m *MockRevenueReader) EXPECT() *MockRevenueReader_Expecter {
 	return &MockRevenueReader_Expecter{mock: &_m.Mock}
 }
 
-// GetRevenueByDay provides a mock function for the type MockRevenueReader
-func (_mock *MockRevenueReader) GetRevenueByDay(ctx context.Context, from time.Time, to time.Time) ([]domain.RevenueData, error) {
+// ListRevenueByDay provides a mock function for the type MockRevenueReader
+func (_mock *MockRevenueReader) ListRevenueByDay(ctx context.Context, from time.Time, to time.Time) ([]domain.RevenueData, error) {
 	ret := _mock.Called(ctx, from, to)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetRevenueByDay")
+		panic("no return value specified for ListRevenueByDay")
 	}
 
 	var r0 []domain.RevenueData
@@ -67,20 +67,20 @@ func (_mock *MockRevenueReader) GetRevenueByDay(ctx context.Context, from time.T
 	return r0, r1
 }
 
-// MockRevenueReader_GetRevenueByDay_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRevenueByDay'
-type MockRevenueReader_GetRevenueByDay_Call struct {
+// MockRevenueReader_ListRevenueByDay_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListRevenueByDay'
+type MockRevenueReader_ListRevenueByDay_Call struct {
 	*mock.Call
 }
 
-// GetRevenueByDay is a helper method to define mock.On call
+// ListRevenueByDay is a helper method to define mock.On call
 //   - ctx context.Context
 //   - from time.Time
 //   - to time.Time
-func (_e *MockRevenueReader_Expecter) GetRevenueByDay(ctx any, from any, to any) *MockRevenueReader_GetRevenueByDay_Call {
-	return &MockRevenueReader_GetRevenueByDay_Call{Call: _e.mock.On("GetRevenueByDay", ctx, from, to)}
+func (_e *MockRevenueReader_Expecter) ListRevenueByDay(ctx any, from any, to any) *MockRevenueReader_ListRevenueByDay_Call {
+	return &MockRevenueReader_ListRevenueByDay_Call{Call: _e.mock.On("ListRevenueByDay", ctx, from, to)}
 }
 
-func (_c *MockRevenueReader_GetRevenueByDay_Call) Run(run func(ctx context.Context, from time.Time, to time.Time)) *MockRevenueReader_GetRevenueByDay_Call {
+func (_c *MockRevenueReader_ListRevenueByDay_Call) Run(run func(ctx context.Context, from time.Time, to time.Time)) *MockRevenueReader_ListRevenueByDay_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -103,12 +103,12 @@ func (_c *MockRevenueReader_GetRevenueByDay_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockRevenueReader_GetRevenueByDay_Call) Return(revenueDatas []domain.RevenueData, err error) *MockRevenueReader_GetRevenueByDay_Call {
+func (_c *MockRevenueReader_ListRevenueByDay_Call) Return(revenueDatas []domain.RevenueData, err error) *MockRevenueReader_ListRevenueByDay_Call {
 	_c.Call.Return(revenueDatas, err)
 	return _c
 }
 
-func (_c *MockRevenueReader_GetRevenueByDay_Call) RunAndReturn(run func(ctx context.Context, from time.Time, to time.Time) ([]domain.RevenueData, error)) *MockRevenueReader_GetRevenueByDay_Call {
+func (_c *MockRevenueReader_ListRevenueByDay_Call) RunAndReturn(run func(ctx context.Context, from time.Time, to time.Time) ([]domain.RevenueData, error)) *MockRevenueReader_ListRevenueByDay_Call {
 	_c.Call.Return(run)
 	return _c
 }

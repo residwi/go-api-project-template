@@ -10,5 +10,5 @@ import (
 // Repository is revenue's own storage. Its only implementation is
 // revenue/postgres, constructed in dashboard/module.go.
 type Repository interface {
-	GetRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error)
+	ListRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error)
 }
