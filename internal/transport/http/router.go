@@ -94,7 +94,7 @@ func NewRouter(
 	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{Validator: v, Service: app.Promotions})
 	wishlisthttp.RegisterRoutes(authed, wishlisthttp.RouteDeps{Validator: v, Service: app.Wishlists})
 	notificationhttp.RegisterRoutes(authed, notificationhttp.RouteDeps{Service: app.Notifications})
-	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Module: app.DashboardMod})
+	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Module: app.Dashboard})
 
 	if deps.Infra.App.Env == "development" {
 		mockgatewayserver.RegisterRoutes(

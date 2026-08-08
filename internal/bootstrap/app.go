@@ -16,7 +16,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/category"
 	categorypg "github.com/residwi/go-api-project-template/internal/modules/category/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
-	dashboardpg "github.com/residwi/go-api-project-template/internal/modules/dashboard/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
@@ -73,8 +72,7 @@ type App struct {
 	Promotions    *promotion.Service
 	Wishlists     *wishlist.Service
 	Notifications *notification.Service
-	Dashboard     *dashboard.Service
-	DashboardMod  *dashboard.Module
+	Dashboard     *dashboard.Module
 	TxRunner      database.TxRunner
 	Gateway       payment.Gateway
 }
@@ -151,8 +149,7 @@ func New(d Deps) (*App, error) {
 		Promotions:    promotionSvc,
 		Wishlists:     wishlist.NewService(wishlistpg.New(d.Pool)),
 		Notifications: notificationSvc,
-		Dashboard:     dashboard.NewService(dashboardpg.New(d.Pool)),
-		DashboardMod:  dashboard.New(dashboard.Deps{Pool: d.Pool}),
+		Dashboard:     dashboard.New(dashboard.Deps{Pool: d.Pool}),
 		TxRunner:      txRunner,
 		Gateway:       gw,
 	}, nil
