@@ -1,6 +1,6 @@
 # Limitations this architecture creates
 
-`ARCHITECTURE.md` record fourteen decisions and fifteen things this codebase deliberately not do. Every one bought something and charged for it. This file the invoice.
+`ARCHITECTURE.md` record fifteen decisions and fifteen things this codebase deliberately not do. Every one bought something and charged for it. This file the invoice.
 
 Exist because this repo a **template**: structure is product, someone about to copy into real system. Doc listing only what design make easy teach nothing — design never in danger of blame there. Reader need list of moments where they hit wall, so they recognize wall as this design's, not own mistake.
 
@@ -204,7 +204,7 @@ Same shape as read-replica seam above: mechanism that exist, compile, is dispatc
 
 `internal/testhelper` start two long-lived containers by fixed name — `go-api-test-postgres` and `go-api-test-redis` — and every test binary attach to whichever already exist. Isolation by **claimed slot**, not by container:
 
-- **Postgres: one database per package.** `MustStartPostgres(dbName)` do `DROP DATABASE IF EXISTS <name> WITH (FORCE)` then `CREATE DATABASE`, then run migrations. Two packages passing same name will drop each other's database mid-run — `WITH (FORCE)` terminate other backend, so not even polite failure.
+- **Postgres: one database per module now, not per package.** Since phase 1, `MustStartPostgres(dbName)` create and migrate `dbName` once, under an advisory lock, and nothing ever drop it — every slice's test package under one module passes the same name on purpose (`"test_shipping"` today). See [Slice test packages share a database and never get a clean table](#slice-test-packages-share-a-database-and-never-get-a-clean-table) for the cost that trades in for.
 - **Redis: a hand-assigned integer.** `MustStartRedis(dbIndex)` take index from comment block in `internal/testhelper/testhelper.go`. Indices 0, 1, 2, 3, 5, and 6 claimed today (`platform/cache`, `transport/http/middleware`, `modules/user/postgres`, `transport/http`, `test/e2e`, `modules/user/redis`); 4 sit free. `ResetRedis` call `FlushDB`, so reusing index flush other package's fixtures.
 
 Nothing enforce either claim. Duplicate name or index compile, pass review, and fail as flake in unrelated package — worst possible signal, because failure nowhere near the change.
@@ -215,6 +215,14 @@ Two further consequences worth knowing before writing tests:
 - **`make test` cannot run without Docker.** No build tags, no short mode. Every package touching Postgres or Redis fail outright.
 
 **What you would do:** when adding test package, claim database name and (if it need Redis) next free index, and update registry comment in `internal/testhelper/testhelper.go` in same commit. If suite grow much past 15 Redis-using packages, index space run out and allocation must become dynamic.
+
+## Slice test packages share a database and never get a clean table
+
+**Where you hit it:** you write a slice test asserting `SELECT count(*)`, and it pass alone and fail under `go test ./...`.
+
+`internal/modules/shipping/query/postgres`, `create/postgres`, `updatetracking/postgres` and `deliver/postgres` are four separate test binaries, and all four call `testhelper.MustStartPostgres("test_shipping")` — same name, on purpose. Since phase 1, that function create and migrate a database once, under an advisory lock, and never drop it: dropping it mid-run would tear down whichever sibling package still hold it open. So there is no `ResetDB` between these four packages and no clean table to assume, even though `go test ./...` run them concurrently against the one database.
+
+**What you would do:** seed the rows your subtest owns and scope every assertion to them — by a freshly generated `uuid.New()`, the way shipping's own tests do (`seedOrder`, `seedShipment`). Never `TRUNCATE`: the sibling package whose rows you delete is not in your file, and will fail somewhere else, possibly minutes later in an unrelated CI run. Nothing enforce this — the failure look like a flake in a package you never touched.
 
 ## The composition site is deliberately tedious
 
@@ -322,6 +330,6 @@ Do copy it if you want boundaries checkable not aspirational, and willing to pay
 
 Read alongside:
 
-- `ARCHITECTURE.md` — the fourteen decisions and fifteen rejections these are shadow of.
+- `ARCHITECTURE.md` — the fifteen decisions and fifteen rejections these are shadow of.
 - `db/OWNERSHIP.md` — table-ownership map, foreign-key inventory, and full blind-spot list for `make check-boundaries`.
 - `AGENTS.md` — working rules, and which of them machine-checked.

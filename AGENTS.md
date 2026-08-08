@@ -4,7 +4,7 @@ Orientation for agents and humans in this repo. Describes tree as it actually is
 
 Three docs carry the reasoning; this one no duplicate:
 
-- **`ARCHITECTURE.md`** — fourteen decisions that shaped this codebase, fifteen things it deliberately not do, each with cost.
+- **`ARCHITECTURE.md`** — fifteen decisions that shaped this codebase, fifteen things it deliberately not do, each with cost.
 - **`ARCHITECTURE-LIMITATIONS.md`** — what those decisions make hard or impossible, and what you must build to get past each. Read before proposing feature that crosses module boundary.
 - **`db/OWNERSHIP.md`** — which module owns which table, parsed at run time by `make check-boundaries`, plus what that check cannot see.
 
@@ -48,6 +48,17 @@ wishlist`. Everything else under `internal/` is infrastructure —
 Being infrastructure exempts directory from checks 2 and 3 _ownership_ questions, not from check 3 itself: only wiring layer — `bootstrap` and `transport`, script's `WIRING_DIRS` — may import feature's adapter, so `internal/platform/` importing `internal/modules/product/postgres` still fails, and so does `internal/platform/` importing a feature's slice adapter one level deeper, `internal/modules/shipping/query/postgres`.
 
 ### Inside a feature
+
+**Two shapes coexist while phase 2 is in flight.** `shipping` is sliced into
+vertical use-case packages (`query create updatetracking deliver`, each with
+its own storage port and adapters) — `ARCHITECTURE.md` §14 is the target
+shape, `shipping` its only instance so far. Everything below this note
+describes the **layered** shape, still accurate for the other thirteen
+modules — `auth cart category dashboard inventory notification order payment
+product promotion review user wishlist` — until phase 2 reaches each in turn.
+`ls internal/modules/<feature>/` tells you which shape a given module is in:
+a `domain/` directory plus no root `model.go`/`service.go`/`repository.go`
+means sliced; those three files at the root means still layered.
 
 Feature holds its domain types, its service, its repository _interface_, and ports it needs from other features. Adapters are subpackages.
 

@@ -380,6 +380,54 @@ same cost at every call site instead of at the one file that changed;
 `ARCHITECTURE-LIMITATIONS.md` for where that published surface can go wrong on
 its own account.
 
+## 14. A module is a business boundary containing vertical slices
+
+`internal/modules/shipping/` is the reference — first of fourteen modules
+moved to this shape, thirteen still to go. It holds `domain/` (its aggregate
+and rules — `Shipment`, `ShipmentStatus`, `CanShipOrder` — module-private by
+convention, not by any check: nothing outside `shipping` needs it, so nothing
+imports it), `module.go` (constructs the slices, imports no transport
+package), `http/routes.go` (holds only `RouteDeps` and `RegisterRoutes`,
+assembling each slice's own `http` package), a `contract/` **only if another
+module consumes a struct from it** (`shipping` has none: only
+`internal/bootstrap` and `internal/transport` import it at all, and both are
+the wiring layer, not a consumer), and one package per use case — `query`,
+`create`, `updatetracking`, `deliver`.
+
+A slice owns its use case (a `Command` with one `Execute`, for the three that
+write; a `Reader` named for what it answers, for the one that only reads —
+`query.Reader.GetByOrderIDForUser`), its own storage port, its `postgres/`
+adapter and its `http/` adapter. "Own" is literal: `updatetracking.Repository`
+and `deliver.Repository` both need `GetByID`; each declares it rather than
+sharing one. A slice declares a port for anything it does not implement
+itself — another module's capability or a sibling slice's — and `module.go`
+wires it. Three of shipping's four slices declare one (`query.OrderPort`,
+`create.OrderPort`, `deliver.OrderPort`, each satisfied by `order.Service` by
+name-match, same trick as decision 2); `updatetracking` declares none and
+takes no `TxRunner` either, because it changes two fields on a row it already
+fetched and writes it back — there is nothing outside itself to ask.
+
+**Why:** a use case's whole implementation is one directory, and what it
+depends on is its own `ports.go`, or its absence. `ls
+internal/modules/shipping/` is the module's use-case list, and a slice with no
+`ports.go` reaches nothing beyond itself — `updatetracking` is that case, not
+an oversight.
+
+**Cost accepted:** three packages per slice (root, `postgres/`, `http/`), so
+shipping alone went from 3 packages, layered, to 15, sliced. `module.go`
+imports each slice's own package plus that slice's `postgres/` adapter;
+`http/routes.go` imports each slice's `http/` adapter and reaches its command
+or reader through `shipping.Module`'s fields instead of importing the slice
+package directly. Every slice's adapter is named `postgres` or `http`, same as
+every other slice's, so importing it needs an alias, not merely permits one —
+four aliased imports in each file today, one per slice. Response DTOs are
+duplicated across slices that return the same shape: `query`, `create`,
+`updatetracking` and `deliver` each declare their own unexported
+`shipmentResponse` rather than share one — deliberately, so one endpoint's new
+field cannot appear in another's output. The other thirteen modules pay the
+same multiplier once sliced, scaled to however many use cases each turns out
+to need.
+
 ---
 
 # Rejected
