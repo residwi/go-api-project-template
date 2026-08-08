@@ -5,28 +5,23 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/notification"
+	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
+	"github.com/residwi/go-api-project-template/internal/modules/notification/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-func scanNotification(row pgx.CollectableRow) (notification.Notification, error) {
-	var n notification.Notification
-	err := row.Scan(&n.ID, &n.UserID, &n.Type, &n.Title, &n.Body, &n.IsRead, &n.CreatedAt)
-	return n, err
-}
+var _ jobs.Repository = (*Repository)(nil)
 
-func scanJob(row pgx.CollectableRow) (notification.Job, error) {
-	var j notification.Job
+func scanJob(row pgx.CollectableRow) (domain.Job, error) {
+	var j domain.Job
 	var lastError *string
 	if err := row.Scan(&j.ID, &j.UserID, &j.Type, &j.Title, &j.Body, &j.Data,
 		&j.Status, &j.Attempts, &j.MaxAttempts, &lastError, &j.CreatedAt); err != nil {
-		return notification.Job{}, err
+		return domain.Job{}, err
 	}
 	if lastError != nil {
 		j.LastError = *lastError
@@ -42,7 +37,9 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-func (r *Repository) Create(ctx context.Context, n *notification.Notification) error {
+// Create writes one notification row. It has no port of its own -- only
+// CreateAndComplete calls it, as half of one atomic transaction.
+func (r *Repository) Create(ctx context.Context, n *domain.Notification) error {
 	db := database.DB(ctx, r.pool)
 	err := db.QueryRow(ctx,
 		`INSERT INTO notifications (user_id, type, title, body, is_read, data)
@@ -56,83 +53,7 @@ func (r *Repository) Create(ctx context.Context, n *notification.Notification) e
 	return nil
 }
 
-func (r *Repository) ListByUser(
-	ctx context.Context,
-	userID uuid.UUID,
-	cursor paging.CursorPage,
-) ([]notification.Notification, error) {
-	db := database.DB(ctx, r.pool)
-
-	args := []any{userID}
-	where := "user_id = $1"
-	argIdx := 2
-
-	if cursor.Cursor != "" {
-		var err error
-		where, args, argIdx, err = database.KeysetCursor(where, args, argIdx, "created_at, id", cursor.Cursor)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	query := fmt.Sprintf(
-		`SELECT id, user_id, type, title, body, is_read, created_at
-		FROM notifications WHERE %s ORDER BY created_at DESC, id DESC LIMIT $%d`,
-		where, argIdx,
-	)
-	args = append(args, cursor.Limit+1)
-
-	rows, err := db.Query(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("listing notifications: %w", err)
-	}
-	notifications, err := pgx.CollectRows(rows, scanNotification)
-	if err != nil {
-		return nil, fmt.Errorf("listing notifications: %w", err)
-	}
-
-	return notifications, nil
-}
-
-func (r *Repository) MarkRead(ctx context.Context, userID, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
-	// Scope by user_id so a user can only mark their own notifications read (IDOR).
-	tag, err := db.Exec(ctx,
-		`UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2`, id, userID,
-	)
-	if err != nil {
-		return fmt.Errorf("marking notification read: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
-	}
-	return nil
-}
-
-func (r *Repository) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
-	_, err := db.Exec(ctx,
-		`UPDATE notifications SET is_read = true WHERE user_id = $1 AND is_read = false`, userID,
-	)
-	if err != nil {
-		return fmt.Errorf("marking all notifications read: %w", err)
-	}
-	return nil
-}
-
-func (r *Repository) CountUnread(ctx context.Context, userID uuid.UUID) (int, error) {
-	db := database.DB(ctx, r.pool)
-	var count int
-	err := db.QueryRow(ctx,
-		`SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = false`, userID,
-	).Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("counting unread notifications: %w", err)
-	}
-	return count, nil
-}
-
-func (r *Repository) CreateJob(ctx context.Context, job *notification.Job) error {
+func (r *Repository) CreateJob(ctx context.Context, job *domain.Job) error {
 	db := database.DB(ctx, r.pool)
 	err := db.QueryRow(ctx,
 		`INSERT INTO notification_jobs (user_id, type, title, body, data, status, attempts, max_attempts)
@@ -146,7 +67,7 @@ func (r *Repository) CreateJob(ctx context.Context, job *notification.Job) error
 	return nil
 }
 
-func (r *Repository) Claim(ctx context.Context, batchSize int, lease time.Duration) ([]notification.Job, error) {
+func (r *Repository) Claim(ctx context.Context, batchSize int, lease time.Duration) ([]domain.Job, error) {
 	db := database.DB(ctx, r.pool)
 
 	// Also reclaims 'processing' jobs whose lease expired, so a worker that died
@@ -172,15 +93,15 @@ func (r *Repository) Claim(ctx context.Context, batchSize int, lease time.Durati
 	if err != nil {
 		return nil, fmt.Errorf("claiming pending jobs: %w", err)
 	}
-	jobs, err := pgx.CollectRows(rows, scanJob)
+	jobList, err := pgx.CollectRows(rows, scanJob)
 	if err != nil {
 		return nil, fmt.Errorf("claiming pending jobs: %w", err)
 	}
 
-	return jobs, nil
+	return jobList, nil
 }
 
-func (r *Repository) UpdateJob(ctx context.Context, job *notification.Job) error {
+func (r *Repository) UpdateJob(ctx context.Context, job *domain.Job) error {
 	db := database.DB(ctx, r.pool)
 	tag, err := db.Exec(ctx,
 		`UPDATE notification_jobs SET status = $1, attempts = $2, last_error = $3
@@ -198,7 +119,7 @@ func (r *Repository) UpdateJob(ctx context.Context, job *notification.Job) error
 
 // CreateAndComplete runs in one transaction, so the job is never left claimable
 // with the notification already written -- which would re-deliver it.
-func (r *Repository) CreateAndComplete(ctx context.Context, n *notification.Notification, job *notification.Job) error {
+func (r *Repository) CreateAndComplete(ctx context.Context, n *domain.Notification, job *domain.Job) error {
 	return database.WithTx(ctx, r.pool, func(txCtx context.Context) error {
 		if err := r.Create(txCtx, n); err != nil {
 			return err
@@ -224,5 +145,3 @@ func (r *Repository) Prune(ctx context.Context, olderThan time.Duration, limit i
 	}
 	return int(tag.RowsAffected()), nil
 }
-
-var _ notification.Repository = (*Repository)(nil)

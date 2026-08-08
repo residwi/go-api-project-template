@@ -12,7 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
-	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
@@ -102,13 +101,13 @@ func run() error {
 	}
 
 	// app.Orders satisfies payment.OrderHousekeeper directly, so the processor
-	// needs no adapter. The queue side still needs the bare repository: a
-	// service holds no pool (rule 9), but Runner drains payment_jobs/
-	// notifications by Claim/Prune on the repository itself, not through the
-	// service.
+	// needs no adapter. Payment's queue side still needs the bare repository: a
+	// service holds no pool (rule 9), and payment's Processor is a separate
+	// value from its Queue. notification's Jobs is both at once, so it needs
+	// no such split.
 	paymentProcessor := paymentworker.NewProcessor(app.Payments, app.Orders, appLog)
 	paymentRunner := jobs.NewRunner("payment", paymentpg.New(pool), paymentProcessor, jobCfg, appLog)
-	notificationRunner := jobs.NewRunner("notification", notificationpg.New(pool), app.Notifications, jobCfg, appLog)
+	notificationRunner := jobs.NewRunner("notification", app.Notifications.Jobs, app.Notifications.Jobs, jobCfg, appLog)
 
 	appLog.InfoContext(ctx, "worker starting", slog.String("env", infra.App.Env))
 	var wg sync.WaitGroup

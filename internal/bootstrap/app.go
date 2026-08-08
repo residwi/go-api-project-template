@@ -18,7 +18,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
-	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
@@ -68,7 +67,7 @@ type App struct {
 	Reviews       *review.Module
 	Promotions    *promotion.Service
 	Wishlists     *wishlist.Module
-	Notifications *notification.Service
+	Notifications *notification.Module
 	Dashboard     *dashboard.Module
 	TxRunner      database.TxRunner
 	Gateway       payment.Gateway
@@ -91,7 +90,7 @@ func New(d Deps) (*App, error) {
 	// productSvc satisfies remove.ProductCounter by name-match.
 	categoryMod := category.New(category.Deps{Pool: d.Pool, Products: productSvc})
 	promotionSvc := promotion.NewService(promotionpg.New(d.Pool), txRunner)
-	notificationSvc := notification.NewService(notificationpg.New(d.Pool), d.Logger)
+	notificationMod := notification.New(notification.Deps{Pool: d.Pool, Logger: d.Logger})
 
 	userSvc := user.NewService(userpg.New(d.Pool), userCache, d.Logger)
 	// userSvc satisfies auth.UserPorts by name-match.
@@ -104,8 +103,8 @@ func New(d Deps) (*App, error) {
 		cartSvc,      // CartProvider
 		inventorySvc, // InventoryReserver
 		nil, nil,     // payment ports: the cycle, set below by SetOrderPaymentDeps
-		promotionSvc, // CouponReserver
-		notificationSvc,
+		promotionSvc,         // CouponReserver
+		notificationMod.Jobs, // NotificationEnqueuer -- EnqueueOrderPlaced by name-match
 		d.Logger,
 	)
 
@@ -140,7 +139,7 @@ func New(d Deps) (*App, error) {
 		Reviews:       reviewMod,
 		Promotions:    promotionSvc,
 		Wishlists:     wishlist.New(wishlist.Deps{Pool: d.Pool}),
-		Notifications: notificationSvc,
+		Notifications: notificationMod,
 		Dashboard:     dashboard.New(dashboard.Deps{Pool: d.Pool}),
 		TxRunner:      txRunner,
 		Gateway:       gw,

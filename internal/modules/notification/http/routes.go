@@ -2,18 +2,18 @@ package http
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
+	markallreadhttp "github.com/residwi/go-api-project-template/internal/modules/notification/markallread/http"
+	markreadhttp "github.com/residwi/go-api-project-template/internal/modules/notification/markread/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/notification/query/http"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
-	Service *notification.Service
+	Module *notification.Module
 }
 
 func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {
-	h := &handler{service: deps.Service}
-
-	authed.HandleFunc("GET /notifications", h.List)
-	authed.HandleFunc("PUT /notifications/{id}/read", h.MarkRead)
-	authed.HandleFunc("PUT /notifications/read-all", h.MarkAllRead)
-	authed.HandleFunc("GET /notifications/unread-count", h.UnreadCount)
+	queryhttp.New(deps.Module.Query).RegisterHTTP(authed)
+	markreadhttp.New(deps.Module.MarkRead).RegisterHTTP(authed)
+	markallreadhttp.New(deps.Module.MarkAllRead).RegisterHTTP(authed)
 }
