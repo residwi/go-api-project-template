@@ -30,6 +30,11 @@ has the ones it needs, so the tree is deliberately **non-uniform**. Seven
 modules also have a `contract/` subpackage — not an adapter, but the published
 struct types other modules are allowed to import directly.
 
+Two shapes coexist while a slice-by-slice migration is in flight: 13 modules
+are still **layered** (one `model.go`/`service.go`/`repository.go` at the
+feature root), and `shipping` is **sliced** into vertical use-case packages
+instead — the target shape the other 13 migrate to next, one at a time.
+
 ```text
 /go-api-project-template
 ├── /cmd
@@ -39,8 +44,8 @@ struct types other modules are allowed to import directly.
 ├── /internal
 │   ├── /modules
 │   │   ├── /auth /user /category /product /inventory /cart /order /payment
-│   │   ├── /shipping /review /promotion /wishlist /notification /dashboard
-│   │   │                       # ^ the 14 feature modules
+│   │   ├── /review /promotion /wishlist /notification /dashboard
+│   │   │                       # ^ 13 feature modules, still layered
 │   │   │   ├── model.go            # domain types -- no json tags, no SQL
 │   │   │   ├── service.go          # use cases; takes database.TxRunner, never a pool
 │   │   │   ├── repository.go       # the interface; the implementation is in postgres/
@@ -48,7 +53,7 @@ struct types other modules are allowed to import directly.
 │   │   │   ├── ports.go            # ports THIS module needs, or one file per
 │   │   │   │                       # dependency (product/inventory.go, category/product.go)
 │   │   │   ├── /contract           # published struct types another module may
-│   │   │   │                       # import directly (7 of 14 modules have one)
+│   │   │   │                       # import directly (7 of 13 have one)
 │   │   │   ├── /postgres           # SQL adapter -- may only name tables it owns
 │   │   │   └── /http               # routes.go plus one file per handler role --
 │   │   │                           # handler.go, plus admin_handler.go where
@@ -56,6 +61,13 @@ struct types other modules are allowed to import directly.
 │   │   │                           # each, holding both route-level and
 │   │   │                           # unexported-mapper tests
 │   │   │                           # (payment also has /stripe /midtrans /mock /worker)
+│   │   └── /shipping            # the 14th -- sliced into vertical use cases
+│   │       ├── domain/          # aggregate + rules shared by every slice
+│   │       ├── module.go        # wires each slice's adapters + cross-slice ports
+│   │       ├── http/routes.go   # mounts each slice's own http/ package
+│   │       └── query/ create/ updatetracking/ deliver/
+│   │                            # one dir per use case, each its own
+│   │                            # command.go or reader.go, ports.go, postgres/, http/
 │   ├── /money                  # Money value object (amount + currency, paired)
 │   ├── /apperror               # Error vocabulary (ErrNotFound, ErrBadRequest, ...)
 │   ├── /bootstrap              # The composition root: builds every service,
