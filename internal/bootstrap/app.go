@@ -14,7 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	cartpg "github.com/residwi/go-api-project-template/internal/modules/cart/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/category"
-	categorypg "github.com/residwi/go-api-project-template/internal/modules/category/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
@@ -59,7 +58,7 @@ type Deps struct {
 type App struct {
 	Users         *user.Service
 	Auth          *auth.Service
-	Categories    *category.Service
+	Categories    *category.Module
 	Products      *product.Service
 	Inventory     *inventory.Service
 	Carts         *cart.Service
@@ -89,7 +88,8 @@ func New(d Deps) (*App, error) {
 	// inventorySvc satisfies both product.InventoryReader and
 	// product.InventoryRegistrar by name-match.
 	productSvc := product.NewService(productpg.New(d.Pool), inventorySvc, inventorySvc)
-	categorySvc := category.NewService(categorypg.New(d.Pool), productSvc)
+	// productSvc satisfies remove.ProductCounter by name-match.
+	categoryMod := category.New(category.Deps{Pool: d.Pool, Products: productSvc})
 	promotionSvc := promotion.NewService(promotionpg.New(d.Pool), txRunner)
 	notificationSvc := notification.NewService(notificationpg.New(d.Pool), d.Logger)
 
@@ -136,7 +136,7 @@ func New(d Deps) (*App, error) {
 	return &App{
 		Users:         userSvc,
 		Auth:          authSvc,
-		Categories:    categorySvc,
+		Categories:    categoryMod,
 		Products:      productSvc,
 		Inventory:     inventorySvc,
 		Carts:         cartSvc,

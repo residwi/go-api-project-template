@@ -16,22 +16,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/category"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-func TestHandler_ListCategories(t *testing.T) {
+func TestHandler_List(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo, _ := setupCategoryMux(t)
+		mux, reader := setupQueryMux(t)
 
 		now := time.Now()
-		repo.EXPECT().List(mock.Anything).Return([]category.Category{
+		reader.EXPECT().List(mock.Anything).Return([]domain.Category{
 			{
 				ID:        uuid.New(),
 				Name:      "Electronics",
@@ -67,12 +66,12 @@ func TestHandler_ListCategories(t *testing.T) {
 		assert.NotContains(t, item, "description")
 	})
 
-	t.Run("service error", func(t *testing.T) {
+	t.Run("reader error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo, _ := setupCategoryMux(t)
+		mux, reader := setupQueryMux(t)
 
-		repo.EXPECT().List(mock.Anything).Return(nil, errors.New("db error"))
+		reader.EXPECT().List(mock.Anything).Return(nil, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/categories", nil)
@@ -89,11 +88,11 @@ func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo, _ := setupCategoryMux(t)
+		mux, reader := setupQueryMux(t)
 
 		catID := uuid.New()
 		now := time.Now()
-		repo.EXPECT().GetBySlug(mock.Anything, "electronics").Return(&category.Category{
+		reader.EXPECT().GetBySlug(mock.Anything, "electronics").Return(&domain.Category{
 			ID:        catID,
 			Name:      "Electronics",
 			Slug:      "electronics",
@@ -136,9 +135,9 @@ func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo, _ := setupCategoryMux(t)
+		mux, reader := setupQueryMux(t)
 
-		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
+		reader.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/categories/nonexistent", nil)
@@ -152,12 +151,12 @@ func TestHandler_GetBySlug(t *testing.T) {
 		assert.False(t, resp.Success)
 	})
 
-	t.Run("service error", func(t *testing.T) {
+	t.Run("reader error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo, _ := setupCategoryMux(t)
+		mux, reader := setupQueryMux(t)
 
-		repo.EXPECT().GetBySlug(mock.Anything, "fail").Return(nil, errors.New("db error"))
+		reader.EXPECT().GetBySlug(mock.Anything, "fail").Return(nil, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/categories/fail", nil)
@@ -171,15 +170,12 @@ func TestHandler_GetBySlug(t *testing.T) {
 func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
 	t.Parallel()
 
-	h := &handler{
-		service:   &category.Service{},
-		validator: validator.New(),
-	}
+	h := &Handler{}
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/categories/", nil)
 
-	h.GetBySlug(w, r)
+	h.getBySlug(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
@@ -195,7 +191,7 @@ func TestToCategoryResponse_OmitsModerationAndAuditFields(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	description := "Phones, laptops and audio"
 	parentID := uuid.New()
-	got := toCategoryResponse(&category.Category{
+	got := toCategoryResponse(&domain.Category{
 		ID:          uuid.New(),
 		Name:        "Electronics",
 		Slug:        "electronics",
@@ -223,20 +219,14 @@ func TestToCategoryResponse_OmitsModerationAndAuditFields(t *testing.T) {
 		"description must carry the category's own value, not be dropped or defaulted")
 }
 
-func setupCategoryMux(t *testing.T) (*http.ServeMux, *MockRepository, *MockProductCounter) {
-	repo := NewMockRepository(t)
-	counter := NewMockProductCounter(t)
-	svc := category.NewService(repo, counter)
-	v := validator.New()
+func setupQueryMux(t *testing.T) (*http.ServeMux, *MockCategoryReader) {
+	t.Helper()
+
+	reader := NewMockCategoryReader(t)
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api/v1")
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+	New(reader).RegisterHTTP(api)
 
-	RegisterRoutes(api, admin, RouteDeps{
-		Validator: v,
-		Service:   svc,
-	})
-
-	return mux, repo, counter
+	return mux, reader
 }

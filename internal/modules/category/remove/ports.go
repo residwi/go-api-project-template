@@ -1,4 +1,4 @@
-package category
+package remove
 
 import (
 	"context"
