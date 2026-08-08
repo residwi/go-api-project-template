@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -78,6 +80,35 @@ func TestPostgresRepository_Create(t *testing.T) {
 		}
 		err := repo.Create(cancelledCtx, s)
 		assert.Error(t, err)
+	})
+
+	t.Run("rolls back the insert when the enclosing transaction fails", func(t *testing.T) {
+		userID := testhelper.SeedUser(t, testPool)
+		orderID := seedOrder(t, userID)
+		repo := New(testPool)
+		tx := database.NewTxRunner(testPool)
+
+		s := &domain.Shipment{
+			OrderID:        orderID,
+			Carrier:        "FedEx",
+			TrackingNumber: "ROLLBACK123",
+			Status:         domain.StatusPending,
+		}
+
+		wantErr := errors.New("order flip failed")
+		err := tx.Run(context.Background(), func(ctx context.Context) error {
+			if err := repo.Create(ctx, s); err != nil {
+				return err
+			}
+			return wantErr
+		})
+		require.ErrorIs(t, err, wantErr)
+		assert.NotEqual(t, uuid.Nil, s.ID, "Create must still populate the id from RETURNING before rollback")
+
+		var count int
+		require.NoError(t, testPool.QueryRow(context.Background(),
+			`SELECT count(*) FROM shipments WHERE id = $1`, s.ID).Scan(&count))
+		assert.Equal(t, 0, count, "shipment must not survive a transaction that rolled back")
 	})
 }
 
