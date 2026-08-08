@@ -8,6 +8,8 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard/summary"
 	summarypg "github.com/residwi/go-api-project-template/internal/modules/dashboard/summary/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/dashboard/topproducts"
+	topproductspg "github.com/residwi/go-api-project-template/internal/modules/dashboard/topproducts/postgres"
 )
 
 type Deps struct {
@@ -15,11 +17,13 @@ type Deps struct {
 }
 
 type Module struct {
-	Summary *summary.Reader
+	Summary     *summary.Reader
+	TopProducts *topproducts.Reader
 }
 
 func New(d Deps) *Module {
 	return &Module{
-		Summary: summary.New(summarypg.New(d.Pool)),
+		Summary:     summary.New(summarypg.New(d.Pool)),
+		TopProducts: topproducts.New(topproductspg.New(d.Pool)),
 	}
 }
