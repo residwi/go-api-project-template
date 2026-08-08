@@ -30,7 +30,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/review"
-	reviewpg "github.com/residwi/go-api-project-template/internal/modules/review/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	userpg "github.com/residwi/go-api-project-template/internal/modules/user/postgres"
@@ -67,7 +66,7 @@ type App struct {
 	Orders        *order.Service
 	Payments      *payment.Service
 	Shipping      *shipping.Module
-	Reviews       *review.Service
+	Reviews       *review.Module
 	Promotions    *promotion.Service
 	Wishlists     *wishlist.Module
 	Notifications *notification.Service
@@ -129,10 +128,10 @@ func New(d Deps) (*App, error) {
 	)
 	SetOrderPaymentDeps(orderSvc, paymentSvc)
 
-	// orderSvc satisfies shipping.OrderPorts and review.PurchaseVerifier directly,
+	// orderSvc satisfies shipping.OrderPorts and create.PurchaseVerifier directly,
 	// so neither needs a bootstrap adapter.
 	shippingMod := shipping.New(shipping.Deps{Pool: d.Pool, Tx: txRunner, Orders: orderSvc})
-	reviewSvc := review.NewService(reviewpg.New(d.Pool), orderSvc)
+	reviewMod := review.New(review.Deps{Pool: d.Pool, Purchase: orderSvc})
 
 	return &App{
 		Users:         userSvc,
@@ -144,7 +143,7 @@ func New(d Deps) (*App, error) {
 		Orders:        orderSvc,
 		Payments:      paymentSvc,
 		Shipping:      shippingMod,
-		Reviews:       reviewSvc,
+		Reviews:       reviewMod,
 		Promotions:    promotionSvc,
 		Wishlists:     wishlist.New(wishlist.Deps{Pool: d.Pool}),
 		Notifications: notificationSvc,

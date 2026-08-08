@@ -50,13 +50,14 @@ Being infrastructure exempts directory from checks 2 and 3 _ownership_ questions
 ### Inside a feature
 
 **Two shapes coexist while phase 2 is in flight.** `shipping` (`query create
-updatetracking deliver`), `dashboard` (`summary topproducts revenue`), and
-`wishlist` (`query add remove`) are sliced into vertical use-case packages,
-each with its own storage port and adapters — `ARCHITECTURE.md` §14 is the
-target shape, three modules there so far. Everything below this note
-describes the **layered** shape, still accurate for the other eleven modules
-— `auth cart category inventory notification order payment product promotion
-review user` — until phase 2 reaches each in turn.
+updatetracking deliver`), `dashboard` (`summary topproducts revenue`),
+`wishlist` (`query add remove`), and `review` (`query create remove`) are
+sliced into vertical use-case packages, each with its own storage port and
+adapters — `ARCHITECTURE.md` §14 is the target shape, four modules there so
+far. Everything below this note describes the **layered** shape, still
+accurate for the other ten modules — `auth cart category inventory
+notification order payment product promotion user` — until phase 2 reaches
+each in turn.
 `ls internal/modules/<feature>/` tells you which shape a given module is in:
 a `domain/` directory plus no root `model.go`/`service.go`/`repository.go`
 means sliced; those three files at the root mean still layered.
@@ -104,7 +105,8 @@ show for it. `ARCHITECTURE.md` decision 13 is why, and its cost.
 | `shipping`   | `http/` (routes.go only) plus `query/ create/ updatetracking/ deliver/`, each its own `postgres/` and `http/` — the sliced shape, see the two-shapes note above |
 | `dashboard`  | `http/` (routes.go only) plus `summary/ topproducts/ revenue/`, each its own `postgres/` and `http/` — sliced, but still owns no table (see reporting carve-out) |
 | `wishlist`   | `http/` (routes.go only) plus `query/ add/ remove/`, each its own `postgres/` and `http/` — the sliced shape, see the two-shapes note above |
-| the other 8  | `postgres/ http/`                                                 |
+| `review`     | `http/` (routes.go only) plus `query/ create/ remove/`, each its own `postgres/` and `http/` — the sliced shape, see the two-shapes note above |
+| the other 7  | `postgres/ http/`                                                 |
 
 `notification` has no `worker/` package because `notification.Service` satisfies `jobs.Processor` direct. That absence is the lesson — `ARCHITECTURE.md` decision 4 — not omission to fix. `user/redis/` is positive case of same rule: subpackage exists where feature has that kind of backing store, and `user` only feature caching, so `ls internal/modules/user/` still tells truth about which features do. Feature declares one port per store — `repository.go` for Postgres, `cache.go` for cache — and gets one adapter subpackage per port: `user.Repository` pairs with `postgres/`, `user.StatusCache` with `redis/`. That adapter requires Redis 8.0 or later; built on `HSETEX`, which sets hash fields and their expiry in one atomic command, and that command not exist on earlier Redis. There are 12 packages named `postgres` and 14 named `http` at each feature's own root, and one named `redis` — more once slices' own count too, since every module phase 2 slices trades its one root `postgres/` for one per slice. Both figures move with every task in the phase, so they are swept once at the end rather than restated thirteen times; the two-shapes note above is the current answer to which modules are sliced. That is why the composition root (`internal/bootstrap/app.go`) needs 14 aliased adapter imports to build every service: `shipping`'s own `postgres/` wiring now happens inside `shipping/module.go`, so `app.go` carries no `shippingpg` alias any more, and gained none in its place. `internal/transport/http/router.go` still needs another 15 (14 `http` packages plus the dev-only mock gateway's route registrar) to mount their routes — that count holds regardless of slicing, because `router.go` only ever imports a feature's own top-level `http/routes.go`, never a slice's.
 

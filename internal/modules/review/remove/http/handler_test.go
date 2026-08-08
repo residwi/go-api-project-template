@@ -12,19 +12,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-func TestAdminHandler_Delete(t *testing.T) {
+func TestHandler_Delete(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo, _ := setupReviewMux(t)
+		mux, cmd := setupRemoveMux(t)
 
 		reviewID := uuid.New()
-		repo.EXPECT().Delete(mock.Anything, reviewID).Return(nil)
+		cmd.EXPECT().Execute(mock.Anything, reviewID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/reviews/"+reviewID.String(), nil)
@@ -37,7 +38,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _, _ := setupReviewMux(t)
+		mux, _ := setupRemoveMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/reviews/bad", nil)
@@ -55,10 +56,10 @@ func TestAdminHandler_Delete(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo, _ := setupReviewMux(t)
+		mux, cmd := setupRemoveMux(t)
 
 		reviewID := uuid.New()
-		repo.EXPECT().Delete(mock.Anything, reviewID).Return(apperror.ErrNotFound)
+		cmd.EXPECT().Execute(mock.Anything, reviewID).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/reviews/"+reviewID.String(), nil)
@@ -67,4 +68,16 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+}
+
+func setupRemoveMux(t *testing.T) (*http.ServeMux, *MockReviewDeleter) {
+	t.Helper()
+
+	cmd := NewMockReviewDeleter(t)
+
+	mux := http.NewServeMux()
+	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+	New(cmd).RegisterHTTP(admin)
+
+	return mux, cmd
 }

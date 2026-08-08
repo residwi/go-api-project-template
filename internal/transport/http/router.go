@@ -90,7 +90,7 @@ func NewRouter(
 		admin,
 		shippinghttp.RouteDeps{Validator: v, Module: app.Shipping},
 	)
-	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{Validator: v, Service: app.Reviews})
+	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{Validator: v, Module: app.Reviews})
 	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{Validator: v, Service: app.Promotions})
 	wishlisthttp.RegisterRoutes(authed, wishlisthttp.RouteDeps{Validator: v, Module: app.Wishlists})
 	notificationhttp.RegisterRoutes(authed, notificationhttp.RouteDeps{Service: app.Notifications})

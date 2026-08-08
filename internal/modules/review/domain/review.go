@@ -1,4 +1,6 @@
-package review
+// Package domain holds review's aggregate. It is module-private: what leaves
+// review leaves through a slice's return type.
+package domain
 
 import (
 	"time"
