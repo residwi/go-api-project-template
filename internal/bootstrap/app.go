@@ -74,6 +74,7 @@ type App struct {
 	Wishlists     *wishlist.Service
 	Notifications *notification.Service
 	Dashboard     *dashboard.Service
+	DashboardMod  *dashboard.Module
 	TxRunner      database.TxRunner
 	Gateway       payment.Gateway
 }
@@ -151,6 +152,7 @@ func New(d Deps) (*App, error) {
 		Wishlists:     wishlist.NewService(wishlistpg.New(d.Pool)),
 		Notifications: notificationSvc,
 		Dashboard:     dashboard.NewService(dashboardpg.New(d.Pool)),
+		DashboardMod:  dashboard.New(dashboard.Deps{Pool: d.Pool}),
 		TxRunner:      txRunner,
 		Gateway:       gw,
 	}, nil

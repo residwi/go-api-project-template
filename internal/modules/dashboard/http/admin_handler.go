@@ -41,55 +41,6 @@ func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time,
 	return from, to, true
 }
 
-// Mirror their domain counterparts 1:1: dashboard is the reporting read-model,
-// already shaped for this admin UI, so there is nothing to omit.
-type salesSummaryResponse struct {
-	TotalOrders       int     `json:"total_orders"`
-	TotalRevenue      int64   `json:"total_revenue"`
-	AverageOrderValue float64 `json:"average_order_value"`
-}
-
-type statusBreakdownResponse struct {
-	Status string `json:"status"`
-	Count  int    `json:"count"`
-}
-
-type summaryResponse struct {
-	Sales           salesSummaryResponse      `json:"sales"`
-	StatusBreakdown []statusBreakdownResponse `json:"status_breakdown"`
-}
-
-func toSummaryResponse(sales dashboard.SalesSummary, breakdown []dashboard.StatusBreakdown) summaryResponse {
-	sb := make([]statusBreakdownResponse, len(breakdown))
-	for i, b := range breakdown {
-		sb[i] = statusBreakdownResponse{Status: b.Status, Count: b.Count}
-	}
-
-	return summaryResponse{
-		Sales: salesSummaryResponse{
-			TotalOrders:       sales.TotalOrders,
-			TotalRevenue:      sales.TotalRevenue,
-			AverageOrderValue: sales.AverageOrderValue,
-		},
-		StatusBreakdown: sb,
-	}
-}
-
-func (h *adminHandler) Summary(w http.ResponseWriter, r *http.Request) {
-	from, to, ok := parseDateRange(w, r)
-	if !ok {
-		return
-	}
-
-	sales, breakdown, err := h.service.GetSummary(r.Context(), from, to)
-	if err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	response.OK(w, toSummaryResponse(sales, breakdown))
-}
-
 type topProductResponse struct {
 	ProductID uuid.UUID `json:"product_id"`
 	Name      string    `json:"name"`
