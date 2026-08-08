@@ -90,9 +90,11 @@ not a local one.
 `payment` cannot import `payment/postgres` without cycle, so SQL physically
 cannot leak into core.
 
-**Cost accepted:** 13 packages named `postgres` and 14 named `http` (15 if you
-count `transport/http`), so every composition site needs import aliases
-(`paymentpg`, `paymenthttp`). Cost concentrates in one file, deliberately.
+**Cost accepted:** 12 packages named `postgres` and 14 named `http` at each
+feature's own root (15 if you count `transport/http`) — 16 and 18 once
+slices' own count too, a total phase 2 raises further with every module it
+slices next — so every composition site needs import aliases (`paymentpg`,
+`paymenthttp`). Cost concentrates in one file, deliberately.
 
 ## 4. Adapter subpackages exist only where adaptation is needed
 
