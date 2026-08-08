@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
 )
 
@@ -52,7 +51,15 @@ func (c *Command) Execute(ctx context.Context, id uuid.UUID, p Params) (*domain.
 	}
 
 	if cat.ParentID != nil {
-		if err := c.validateParent(ctx, *cat.ParentID, cat.ID); err != nil {
+		if err := domain.ValidateParentSelf(*cat.ParentID, cat.ID); err != nil {
+			return nil, err
+		}
+
+		depth, formsCycle, err := c.repo.AncestorDepthAndCycle(ctx, *cat.ParentID, cat.ID, domain.MaxDepth)
+		if err != nil {
+			return nil, fmt.Errorf("validating parent: %w", err)
+		}
+		if err := domain.ValidateParentDepth(depth, formsCycle); err != nil {
 			return nil, err
 		}
 	}
@@ -62,28 +69,4 @@ func (c *Command) Execute(ctx context.Context, id uuid.UUID, p Params) (*domain.
 	}
 
 	return cat, nil
-}
-
-func (c *Command) validateParent(ctx context.Context, parentID, selfID uuid.UUID) error {
-	if parentID == selfID && selfID != uuid.Nil {
-		return fmt.Errorf("%w: category cannot be its own parent", apperror.ErrBadRequest)
-	}
-
-	depth, formsCycle, err := c.repo.AncestorDepthAndCycle(ctx, parentID, selfID, domain.MaxDepth)
-	if err != nil {
-		return fmt.Errorf("validating parent: %w", err)
-	}
-
-	if depth == 0 {
-		return fmt.Errorf("%w: parent category not found", apperror.ErrBadRequest)
-	}
-	if formsCycle {
-		return fmt.Errorf("%w: circular parent reference", apperror.ErrBadRequest)
-	}
-	// depth is the distance from parent to root. Adding this child makes it depth+1.
-	if depth+1 > domain.MaxDepth {
-		return fmt.Errorf("%w: category depth exceeds maximum of %d", apperror.ErrBadRequest, domain.MaxDepth)
-	}
-
-	return nil
 }
