@@ -261,7 +261,14 @@ func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 }
 
 // ResetDB truncates every table in the public schema except goose_db_version
-// and restarts sequences. Call it at the start of each subtest.
+// and restarts sequences. Safe only for a package that is the sole claimant of
+// its database name -- most repository_test.go files still are. A feature
+// sliced into several test packages sharing one test_<feature> (see the
+// registry comment above) must not call this from any of them: one package's
+// TRUNCATE deletes rows a sibling package seeded and is still asserting on.
+// ResetDB takes a *pgxpool.Pool, not a package name, so it has no way to tell
+// how many packages share it -- check before copying a setup helper that
+// calls it.
 func ResetDB(t testing.TB, pool *pgxpool.Pool) {
 	t.Helper()
 	ctx := context.Background()
