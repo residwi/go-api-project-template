@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Config is auth's own configuration: the JWT it signs, its login rate limit,
@@ -31,6 +32,15 @@ func LoadConfig() (Config, error) {
 	if cfg.RateWindow < time.Second {
 		return Config{}, errors.New(
 			"AUTH_RATE_WINDOW must be at least 1s (sub-second windows divide by zero in the limiter)",
+		)
+	}
+
+	// register and login both hash at this cost -- a value bcrypt.GenerateFromPassword
+	// would reject (or silently reinterpret) is a boot-time misconfiguration,
+	// not something to guard on every request.
+	if cfg.BcryptCost < bcrypt.MinCost || cfg.BcryptCost > bcrypt.MaxCost {
+		return Config{}, fmt.Errorf(
+			"BCRYPT_COST must be between %d and %d", bcrypt.MinCost, bcrypt.MaxCost,
 		)
 	}
 

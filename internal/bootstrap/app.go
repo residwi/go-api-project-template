@@ -57,7 +57,7 @@ type Deps struct {
 // register routes and jobs against.
 type App struct {
 	Users         *user.Service
-	Auth          *auth.Service
+	Auth          *auth.Module
 	Categories    *category.Module
 	Products      *product.Service
 	Inventory     *inventory.Service
@@ -94,14 +94,8 @@ func New(d Deps) (*App, error) {
 	notificationSvc := notification.NewService(notificationpg.New(d.Pool), d.Logger)
 
 	userSvc := user.NewService(userpg.New(d.Pool), userCache, d.Logger)
-	authSvc := auth.NewService(
-		userSvc,
-		d.Auth.Secret,
-		d.Auth.Issuer,
-		d.Auth.AccessTokenTTL,
-		d.Auth.RefreshTokenTTL,
-	)
-	authSvc.SetBcryptCost(d.Auth.BcryptCost)
+	// userSvc satisfies auth.UserPorts by name-match.
+	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userSvc})
 
 	cartSvc := cart.NewService(cartpg.New(d.Pool), txRunner, productSvc, d.Cart.MaxItems)
 
@@ -135,7 +129,7 @@ func New(d Deps) (*App, error) {
 
 	return &App{
 		Users:         userSvc,
-		Auth:          authSvc,
+		Auth:          authMod,
 		Categories:    categoryMod,
 		Products:      productSvc,
 		Inventory:     inventorySvc,

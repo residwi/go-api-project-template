@@ -1,18 +1,36 @@
 package http
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
+	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
+	"github.com/residwi/go-api-project-template/internal/modules/auth/register"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type handler struct {
-	service   *auth.Service
+// Registerer is what Handler needs from register.Command: register.Command
+// satisfies it directly, so nothing sits between them, and the
+// mockery-generated mock is the other implementation, used in handler_test.go.
+type Registerer interface {
+	Execute(ctx context.Context, p register.Params) (*domain.TokenPair, error)
+}
+
+type Handler struct {
+	cmd       Registerer
 	validator *validator.Validator
+}
+
+func New(cmd Registerer, v *validator.Validator) *Handler {
+	return &Handler{cmd: cmd, validator: v}
+}
+
+func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
+	api.HandleFunc("POST /auth/register", h.register)
 }
 
 // Validation lives here, not in the core: a service called from a worker should
@@ -24,8 +42,8 @@ type registerRequest struct {
 	LastName  string `json:"last_name"  validate:"required,min=1,max=100"`
 }
 
-func (r registerRequest) toRegisterParams() auth.RegisterParams {
-	return auth.RegisterParams{
+func (r registerRequest) toParams() register.Params {
+	return register.Params{
 		Email:     r.Email,
 		Password:  r.Password,
 		FirstName: r.FirstName,
@@ -33,8 +51,10 @@ func (r registerRequest) toRegisterParams() auth.RegisterParams {
 	}
 }
 
+// Declared here, not shared with auth's other slices: each endpoint holds its
+// own copy so one endpoint's new field cannot appear in another's response.
 // Mapped explicitly from usercontract.User, which also carries Active and
-// TokenVersion: adding a field there does not publish it.
+// TokenVersion -- adding a field there does not publish it.
 type authUserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
@@ -50,7 +70,7 @@ type tokenResponse struct {
 	User         authUserResponse `json:"user"`
 }
 
-func toTokenResponse(tp *auth.TokenPair) tokenResponse {
+func toTokenResponse(tp *domain.TokenPair) tokenResponse {
 	return tokenResponse{
 		AccessToken:  tp.AccessToken,
 		RefreshToken: tp.RefreshToken,
@@ -65,61 +85,17 @@ func toTokenResponse(tp *auth.TokenPair) tokenResponse {
 	}
 }
 
-func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 	req, ok := response.Bind[registerRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
 
-	result, err := h.service.Register(r.Context(), req.toRegisterParams())
+	result, err := h.cmd.Execute(r.Context(), req.toParams())
 	if err != nil {
 		response.HandleErr(w, err)
 		return
 	}
 
 	response.Created(w, toTokenResponse(result))
-}
-
-type loginRequest struct {
-	Email    string `json:"email"    validate:"required,email"`
-	Password string `json:"password" validate:"required"`
-}
-
-func (r loginRequest) toLoginParams() auth.LoginParams {
-	return auth.LoginParams{Email: r.Email, Password: r.Password}
-}
-
-func (h *handler) Login(w http.ResponseWriter, r *http.Request) {
-	req, ok := response.Bind[loginRequest](w, r, h.validator)
-	if !ok {
-		return
-	}
-
-	result, err := h.service.Login(r.Context(), req.toLoginParams())
-	if err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	response.OK(w, toTokenResponse(result))
-}
-
-// Exists only to carry the validate tag: RefreshToken takes a plain string.
-type refreshRequest struct {
-	RefreshToken string `json:"refresh_token" validate:"required"`
-}
-
-func (h *handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
-	req, ok := response.Bind[refreshRequest](w, r, h.validator)
-	if !ok {
-		return
-	}
-
-	result, err := h.service.RefreshToken(r.Context(), req.RefreshToken)
-	if err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	response.OK(w, toTokenResponse(result))
 }

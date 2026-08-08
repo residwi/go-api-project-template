@@ -51,13 +51,15 @@ Being infrastructure exempts directory from checks 2 and 3 _ownership_ questions
 
 **Two shapes coexist while phase 2 is in flight.** `shipping` (`query create
 updatetracking deliver`), `dashboard` (`summary topproducts revenue`),
-`wishlist` (`query add remove`), `review` (`query create remove`), and
-`category` (`query create update remove`) are sliced into vertical use-case
-packages, each with its own storage port and adapters — `ARCHITECTURE.md`
-§14 is the target shape, five modules there so far. Everything below this
-note describes the **layered** shape, still accurate for the other nine
-modules — `auth cart inventory notification order payment product promotion
-user` — until phase 2 reaches each in turn.
+`wishlist` (`query add remove`), `review` (`query create remove`),
+`category` (`query create update remove`), and `auth` (`token register login
+refresh`) are sliced into vertical use-case packages, each with its own
+storage port and adapters — except `auth`, which owns no table, so none of
+its four slices has one — `ARCHITECTURE.md` §14 is the target shape, six
+modules there so far. Everything below this note describes the **layered**
+shape, still accurate for the other eight modules — `cart inventory
+notification order payment product promotion user` — until phase 2 reaches
+each in turn.
 `ls internal/modules/<feature>/` tells you which shape a given module is in:
 a `domain/` directory plus no root `model.go`/`service.go`/`repository.go`
 means sliced; those three files at the root mean still layered.
@@ -80,7 +82,7 @@ internal/modules/order/
                   and each with a _test.go beside it
 ```
 
-Every feature has `model.go`, `service.go`, `repository.go` except `auth`, which has no storage of own. There is **no** `handler.go` or `routes.go` at feature root — those live in `internal/modules/<feature>/http/`. A `dto.go` belongs nowhere at all: check 1c refuses that filename **anywhere** under `internal/`, `http/` included. Wire types live in handler file that serialises them.
+Every layered feature has `model.go`, `service.go`, `repository.go`. There is **no** `handler.go` or `routes.go` at feature root — those live in `internal/modules/<feature>/http/`. A `dto.go` belongs nowhere at all: check 1c refuses that filename **anywhere** under `internal/`, `http/` included. Wire types live in handler file that serialises them.
 
 Ports usually in `ports.go`, but a still-layered feature may name the file after the module it depends on instead — `internal/modules/product/inventory.go` declares `InventoryReader` and `InventoryRegistrar`. Either fine; the rule is about _who declares the interface_ (the consumer), not the filename. Slicing settles it as a side effect: a sliced feature's port moves into the one slice that needs it, as `<slice>/ports.go`, so the question stops arising per feature and starts arising per slice.
 
@@ -100,8 +102,8 @@ show for it. `ARCHITECTURE.md` decision 13 is why, and its cost.
 | Feature      | Subpackages                                                       |
 | ------------ | ----------------------------------------------------------------- |
 | `payment`    | `postgres/ http/ stripe/ midtrans/ mock/ worker/`                 |
-| `auth`       | `http/` only — no storage; asks `user` via `auth.UserProvider`    |
 | `user`       | `postgres/ http/ redis/` — only feature with second backing store |
+| `auth`       | `http/` (routes.go only) plus `token/ register/ login/ refresh/` — the sliced shape, see the two-shapes note above; `token/` has no `http/` of its own — no route, so no route to serve |
 | `shipping`   | `http/` (routes.go only) plus `query/ create/ updatetracking/ deliver/`, each its own `postgres/` and `http/` — the sliced shape, see the two-shapes note above |
 | `dashboard`  | `http/` (routes.go only) plus `summary/ topproducts/ revenue/`, each its own `postgres/` and `http/` — sliced, but still owns no table (see reporting carve-out) |
 | `wishlist`   | `http/` (routes.go only) plus `query/ add/ remove/`, each its own `postgres/` and `http/` — the sliced shape, see the two-shapes note above |
@@ -215,7 +217,7 @@ Read "What it does not catch" section of `db/OWNERSHIP.md` before trusting green
 
 6. **A feature never imports another feature's root package or adapter.** Declare interface _the consumer_ needs in consumer's own package (`internal/modules/order/ports.go` declares what `order` needs from inventory). `internal/bootstrap/` supplies zero adapters now; two mechanisms satisfy the port instead:
    - **Name-match.** The producer's service already has a method named what the consumer's port asks for, so the service value itself satisfies the interface with no adapter written — `promotion.Service` already satisfies `payment.CouponReleaser`, `notification.Service` already satisfies `jobs.Processor`, `order.Service` satisfies `payment.OrderUpdater` directly, and each of shipping's slice ports the same way — `query.OrderPort` and `create.OrderPort` by `GetInfo`, `deliver.OrderPort` by `MarkDelivered`.
-   - **A `<feature>/contract/` package**, when what crosses is a struct rather than a scalar or an interface a producer already satisfies. The consumer's port still names the type it needs (`auth.UserProvider.GetByID(ctx, id) (usercontract.User, error)`); the contract package only supplies the shape, never the interface.
+   - **A `<feature>/contract/` package**, when what crosses is a struct rather than a scalar or an interface a producer already satisfies. The consumer's port still names the type it needs (`refresh.UserProvider.GetByID(ctx, id) (usercontract.User, error)`); the contract package only supplies the shape, never the interface.
 
    No shared ports package, and adding one would defeat the point. _(Rule 3 catches the crudest violation — importing a sibling's `postgres`/`http`/`redis` adapter — but importing a sibling's root package directly, as opposed to its `contract/` package, is not caught.)_
 7. **Services take `database.TxRunner`, never `*pgxpool.Pool`.** Service needs atomicity, not DB handle. `TxRunner` declared once in `internal/platform/database` not per consumer — one deliberate exception to rule 6's consumer-declaration pattern, because features already import `platform/database`. Service that opens no transaction takes no runner at all.

@@ -22,4 +22,14 @@ func TestLoadConfig(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "AUTH_RATE_WINDOW must be at least 1s")
 	})
+
+	t.Run("rejects a bcrypt cost outside bcrypt's valid range", func(t *testing.T) {
+		t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
+		t.Setenv("BCRYPT_COST", "99")
+
+		_, err := LoadConfig()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "BCRYPT_COST must be between")
+	})
 }
