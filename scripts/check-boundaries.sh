@@ -137,7 +137,20 @@ importer_roots() {
 # transport type again, which is what the phase existed to undo.
 #
 # Exempt by location:
-#   */http/*            the wire adapters -- this is where tags belong
+#   internal/modules/<feature>/<slice>/http/*.go
+#                       the wire adapters -- this is where tags belong. A
+#                       feature's own root http/ (internal/modules/<feature>/http/)
+#                       is one directory level short of this and is deliberately
+#                       NOT exempt: that directory holds routes.go -- RouteDeps
+#                       and RegisterRoutes only, per AGENTS.md -- so a json tag
+#                       appearing there means a DTO has drifted into the route
+#                       table instead of the slice that owns it. Likewise
+#                       internal/transport/http/ (the top-level router) is not
+#                       exempt: it wires slices together and defines no wire
+#                       types of its own. `is_slice_http` below is the one
+#                       predicate for "is this path the exempt location", used
+#                       by both the walk and its filter, so the two cannot drift
+#                       apart the way a glob and a prose description can.
 #   *_test.go           tests may build wire payloads inline
 #   internal/platform/  transport infrastructure; internal/platform/config/ is
 #                       envconfig, not a domain model (no json tags today, but
@@ -165,28 +178,52 @@ importer_roots() {
 #     allowlist entry itself stays exactly as wide as the one file that
 #     earns it. An unexplained exemption in a lint rule is how the rule
 #     erodes, so this one carries its reason.
+#
+#   internal/transport/http/response/response.go
+#     Response and Error are the shared envelope every handler in every
+#     slice writes through -- the same role internal/platform/paging's
+#     cursor/offset envelope plays, just one layer up in the wiring tier
+#     instead of platform. It used to be exempt for free, as a side effect
+#     of the old */http/* glob matching any path containing "/http/"
+#     (transport/http/ qualified); narrowing that glob to slice http/
+#     directories dropped it, so it is named here instead. The other three
+#     files in this package (bind.go, error_mapper.go, pagination_cursor.go)
+#     need no entry -- they carry no json tags today.
 JSON_TAG_ALLOWLIST='
 internal/modules/payment/gateway/gateway.go
+internal/transport/http/response/response.go
 '
 
 is_json_tag_allowlisted() {
 	printf '%s\n' "$JSON_TAG_ALLOWLIST" | grep -qxF -- "$1"
 }
 
+# is_slice_http is true only for a slice's own http adapter --
+# internal/modules/<feature>/<slice>/http/*.go. A feature's root http/
+# (internal/modules/<feature>/http/*.go) is exactly one path segment short of
+# this pattern and correctly returns false: that directory holds routes.go,
+# never a DTO.
+is_slice_http() {
+	case "$1" in
+	"$MODULES_ROOT"/*/*/http/*.go) return 0 ;;
+	esac
+	return 1
+}
+
 check_wire_tags() {
 	local file line
 
-	# 1a. json: tags on types this system owns, outside the http adapters.
+	# 1a. json: tags on types this system owns, outside a slice's http adapter.
 	while IFS= read -r file; do
+		is_slice_http "$file" && continue
 		is_json_tag_allowlisted "$file" && continue
 		while IFS= read -r line; do
 			report "json tag outside an http adapter: ${file}:${line%%:*}
-    Wire DTOs belong in internal/modules/<feature>/http/. Domain models carry no json tags.
+    Wire DTOs belong in internal/modules/<feature>/<slice>/http/. Domain models carry no json tags.
     If this type really is someone else's wire contract, add it to
     JSON_TAG_ALLOWLIST in scripts/check-boundaries.sh with a reason."
 		done < <(grep -n 'json:"' "$file" || true)
 	done < <(find internal -type f -name '*.go' \
-		! -path '*/http/*' \
 		! -name '*_test.go' \
 		! -path 'internal/platform/*' \
 		| sort)
