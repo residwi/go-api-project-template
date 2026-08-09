@@ -1,22 +1,40 @@
 package http
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/modules/product"
+	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
+	"github.com/residwi/go-api-project-template/internal/modules/product/query"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type handler struct {
-	service   *product.Service
-	validator *validator.Validator
+// ProductReader is what Handler needs from query.Reader: query.Reader
+// satisfies it directly, so nothing sits between them, and the
+// mockery-generated mock is the other implementation, used in handler_test.go.
+type ProductReader interface {
+	ListPublished(ctx context.Context, params query.PublishedListParams) ([]domain.Product, string, bool, error)
+	GetBySlug(ctx context.Context, slug string) (*domain.Product, error)
+}
+
+type Handler struct {
+	reader ProductReader
+}
+
+func New(reader ProductReader) *Handler {
+	return &Handler{reader: reader}
+}
+
+func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
+	api.HandleFunc("GET /products", h.list)
+	api.HandleFunc("GET /products/{slug}", h.getBySlug)
 }
 
 // The public shape. SKU is a merchandising detail; Status would be the constant
@@ -61,7 +79,7 @@ func compareAtPriceAmount(m *money.Money) *int64 {
 
 // Shared by the public and admin responses: an image carries no field that
 // needs hiding from either audience.
-func toImageResponses(images []product.Image) []imageResponse {
+func toImageResponses(images []domain.Image) []imageResponse {
 	out := make([]imageResponse, len(images))
 	for i, img := range images {
 		out[i] = imageResponse{
@@ -76,7 +94,7 @@ func toImageResponses(images []product.Image) []imageResponse {
 	return out
 }
 
-func toProductResponse(p *product.Product) productResponse {
+func toProductResponse(p *domain.Product) productResponse {
 	return productResponse{
 		ID:             p.ID,
 		CategoryID:     p.CategoryID,
@@ -93,10 +111,10 @@ func toProductResponse(p *product.Product) productResponse {
 	}
 }
 
-func (h *handler) List(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	cursor := paging.ParseCursorPage(r)
 
-	params := product.PublishedListParams{
+	params := query.PublishedListParams{
 		Cursor: cursor.Cursor,
 		Limit:  cursor.Limit,
 		Search: r.URL.Query().Get("search"),
@@ -127,7 +145,7 @@ func (h *handler) List(w http.ResponseWriter, r *http.Request) {
 		params.MaxPrice = &v
 	}
 
-	products, nextCursor, hasMore, err := h.service.ListPublished(r.Context(), params)
+	products, nextCursor, hasMore, err := h.reader.ListPublished(r.Context(), params)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -141,14 +159,14 @@ func (h *handler) List(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, paging.NewCursorPageResult(out, nextCursor, hasMore))
 }
 
-func (h *handler) GetBySlug(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	if slug == "" {
 		response.BadRequest(w, "slug is required")
 		return
 	}
 
-	p, err := h.service.GetBySlug(r.Context(), slug)
+	p, err := h.reader.GetBySlug(r.Context(), slug)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

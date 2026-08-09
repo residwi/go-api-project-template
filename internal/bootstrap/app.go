@@ -23,7 +23,6 @@ import (
 	mockgateway "github.com/residwi/go-api-project-template/internal/modules/payment/mock"
 	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
-	productpg "github.com/residwi/go-api-project-template/internal/modules/product/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/modules/review"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
@@ -54,7 +53,7 @@ type App struct {
 	Users         *user.Module
 	Auth          *auth.Module
 	Categories    *category.Module
-	Products      *product.Service
+	Products      *product.Module
 	Inventory     *inventory.Module
 	Carts         *cart.Service
 	Orders        *order.Service
@@ -75,11 +74,11 @@ func New(d Deps) (*App, error) {
 	txRunner := database.NewTxRunner(d.Pool)
 
 	inv := inventory.New(inventory.Deps{Pool: d.Pool})
-	// inv.Query satisfies product.InventoryReader and inv.Register satisfies
-	// product.InventoryRegistrar, both by name-match.
-	productSvc := product.NewService(productpg.New(d.Pool), inv.Query, inv.Register)
-	// productSvc satisfies remove.ProductCounter by name-match.
-	categoryMod := category.New(category.Deps{Pool: d.Pool, Products: productSvc})
+	// inv.Query satisfies product's query and images InventoryReader ports, and
+	// inv.Register satisfies create's InventoryRegistrar port, all by name-match.
+	prod := product.New(product.Deps{Pool: d.Pool, InventoryReader: inv.Query, InventoryRegistrar: inv.Register})
+	// prod.Query satisfies remove.ProductCounter by name-match.
+	categoryMod := category.New(category.Deps{Pool: d.Pool, Products: prod.Query})
 	promotionMod := promotion.New(promotion.Deps{Pool: d.Pool, Tx: txRunner})
 	notificationMod := notification.New(notification.Deps{Pool: d.Pool, Logger: d.Logger})
 
@@ -87,7 +86,8 @@ func New(d Deps) (*App, error) {
 	// userMod.Credentials satisfies auth.UserPorts by name-match.
 	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userMod.Credentials})
 
-	cartSvc := cart.NewService(cartpg.New(d.Pool), txRunner, productSvc, d.Cart.MaxItems)
+	// prod.Query satisfies cart.ProductLookup by name-match.
+	cartSvc := cart.NewService(cartpg.New(d.Pool), txRunner, prod.Query, d.Cart.MaxItems)
 
 	orderSvc := order.NewService(
 		orderpg.New(d.Pool), txRunner,
@@ -121,7 +121,7 @@ func New(d Deps) (*App, error) {
 		Users:         userMod,
 		Auth:          authMod,
 		Categories:    categoryMod,
-		Products:      productSvc,
+		Products:      prod,
 		Inventory:     inv,
 		Carts:         cartSvc,
 		Orders:        orderSvc,

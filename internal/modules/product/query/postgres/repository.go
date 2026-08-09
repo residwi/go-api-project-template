@@ -10,11 +10,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/product"
+	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
+	"github.com/residwi/go-api-project-template/internal/modules/product/query"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
+
+var _ query.Repository = (*Repository)(nil)
 
 // A NULL compare_at_price stays nil rather than becoming a denominated zero.
 type amountColumns struct {
@@ -23,7 +26,7 @@ type amountColumns struct {
 	currency       string
 }
 
-func (a amountColumns) assignTo(p *product.Product) {
+func (a amountColumns) assignTo(p *domain.Product) {
 	p.Price = money.New(a.price, a.currency)
 	p.CompareAtPrice = nil
 	if a.compareAtPrice != nil {
@@ -32,15 +35,8 @@ func (a amountColumns) assignTo(p *product.Product) {
 	}
 }
 
-func compareAtPriceAmount(p *product.Product) *int64 {
-	if p.CompareAtPrice == nil {
-		return nil
-	}
-	return &p.CompareAtPrice.Amount
-}
-
-func scanProduct(row pgx.CollectableRow) (product.Product, error) {
-	var p product.Product
+func scanProduct(row pgx.CollectableRow) (domain.Product, error) {
+	var p domain.Product
 	var amt amountColumns
 	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &amt.price, &amt.compareAtPrice,
 		&amt.currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
@@ -54,8 +50,8 @@ func scanProduct(row pgx.CollectableRow) (product.Product, error) {
 // Every other query filters deleted_at IS NULL, so only
 // GetByIDsIncludingDeleted needs this column -- a withdrawn product's status
 // stays 'published', so DeletedAt is the honest signal.
-func scanProductIncludingDeleted(row pgx.CollectableRow) (product.Product, error) {
-	var p product.Product
+func scanProductIncludingDeleted(row pgx.CollectableRow) (domain.Product, error) {
+	var p domain.Product
 	var amt amountColumns
 	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &amt.price, &amt.compareAtPrice,
 		&amt.currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt)
@@ -66,8 +62,8 @@ func scanProductIncludingDeleted(row pgx.CollectableRow) (product.Product, error
 	return p, nil
 }
 
-func scanImage(row pgx.CollectableRow) (product.Image, error) {
-	var img product.Image
+func scanImage(row pgx.CollectableRow) (domain.Image, error) {
+	var img domain.Image
 	err := row.Scan(&img.ID, &img.ProductID, &img.URL, &img.AltText, &img.SortOrder, &img.CreatedAt)
 	return img, err
 }
@@ -80,28 +76,9 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-func (r *Repository) Create(ctx context.Context, p *product.Product) error {
+func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Product, error) {
 	db := database.DB(ctx, r.pool)
-	err := db.QueryRow(ctx,
-		`INSERT INTO products (category_id, name, slug, description, price, compare_at_price, currency, sku, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, created_at, updated_at`,
-		p.CategoryID, p.Name, p.Slug, p.Description, p.Price.Amount, compareAtPriceAmount(p),
-		// Price's currency wins; Service guarantees CompareAtPrice agrees with it.
-		p.Price.Currency, p.SKU, p.Status,
-	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
-	if err != nil {
-		if database.IsUniqueViolation(err) {
-			return apperror.ErrConflict
-		}
-		return fmt.Errorf("creating product: %w", err)
-	}
-	return nil
-}
-
-func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*product.Product, error) {
-	db := database.DB(ctx, r.pool)
-	var p product.Product
+	var p domain.Product
 	var amt amountColumns
 	err := db.QueryRow(ctx,
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,
@@ -119,9 +96,9 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*product.Produc
 	return &p, nil
 }
 
-func (r *Repository) GetBySlug(ctx context.Context, slug string) (*product.Product, error) {
+func (r *Repository) GetBySlug(ctx context.Context, slug string) (*domain.Product, error) {
 	db := database.DB(ctx, r.pool)
-	var p product.Product
+	var p domain.Product
 	var amt amountColumns
 	err := db.QueryRow(ctx,
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,
@@ -139,45 +116,10 @@ func (r *Repository) GetBySlug(ctx context.Context, slug string) (*product.Produ
 	return &p, nil
 }
 
-func (r *Repository) Update(ctx context.Context, p *product.Product) error {
-	db := database.DB(ctx, r.pool)
-	tag, err := db.Exec(ctx,
-		`UPDATE products SET category_id=$1, name=$2, slug=$3, description=$4, price=$5,
-		        compare_at_price=$6, currency=$7, sku=$8, status=$9
-		WHERE id = $10 AND deleted_at IS NULL`,
-		p.CategoryID, p.Name, p.Slug, p.Description, p.Price.Amount, compareAtPriceAmount(p),
-		p.Price.Currency, p.SKU, p.Status, p.ID,
-	)
-	if err != nil {
-		if database.IsUniqueViolation(err) {
-			return apperror.ErrConflict
-		}
-		return fmt.Errorf("updating product: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
-	}
-	return nil
-}
-
-func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
-	tag, err := db.Exec(ctx,
-		`UPDATE products SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id,
-	)
-	if err != nil {
-		return fmt.Errorf("deleting product: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
-	}
-	return nil
-}
-
 func (r *Repository) ListPublished(
 	ctx context.Context,
-	params product.PublishedListParams,
-) ([]product.Product, string, bool, error) {
+	params query.PublishedListParams,
+) ([]domain.Product, string, bool, error) {
 	db := database.DB(ctx, r.pool)
 
 	where := "deleted_at IS NULL AND status = 'published'"
@@ -215,7 +157,7 @@ func (r *Repository) ListPublished(
 
 	// Fetch one extra to determine hasMore
 	limit := params.Limit + 1
-	query := fmt.Sprintf(
+	sqlQuery := fmt.Sprintf(
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,
 		        status, created_at, updated_at
 		FROM products WHERE %s ORDER BY created_at DESC, id DESC LIMIT $%d`,
@@ -223,7 +165,7 @@ func (r *Repository) ListPublished(
 	)
 	args = append(args, limit)
 
-	rows, err := db.Query(ctx, query, args...)
+	rows, err := db.Query(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, "", false, fmt.Errorf("listing published products: %w", err)
 	}
@@ -246,7 +188,7 @@ func (r *Repository) ListPublished(
 	return products, nextCursor, hasMore, nil
 }
 
-func (r *Repository) ListAdmin(ctx context.Context, params product.AdminListParams) ([]product.Product, int, error) {
+func (r *Repository) ListAdmin(ctx context.Context, params query.AdminListParams) ([]domain.Product, int, error) {
 	db := database.DB(ctx, r.pool)
 
 	where := "deleted_at IS NULL"
@@ -275,7 +217,7 @@ func (r *Repository) ListAdmin(ctx context.Context, params product.AdminListPara
 		return nil, 0, fmt.Errorf("counting products: %w", err)
 	}
 
-	query := fmt.Sprintf(
+	sqlQuery := fmt.Sprintf(
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,
 		        status, created_at, updated_at
 		FROM products WHERE %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`,
@@ -283,7 +225,7 @@ func (r *Repository) ListAdmin(ctx context.Context, params product.AdminListPara
 	)
 	args = append(args, params.Limit(), params.Offset())
 
-	rows, err := db.Query(ctx, query, args...)
+	rows, err := db.Query(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("listing products: %w", err)
 	}
@@ -295,9 +237,9 @@ func (r *Repository) ListAdmin(ctx context.Context, params product.AdminListPara
 	return products, total, nil
 }
 
-func (r *Repository) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UUID) ([]product.Product, error) {
+func (r *Repository) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UUID) ([]domain.Product, error) {
 	if len(ids) == 0 {
-		return []product.Product{}, nil
+		return []domain.Product{}, nil
 	}
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
@@ -311,35 +253,7 @@ func (r *Repository) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UU
 	return pgx.CollectRows(rows, scanProductIncludingDeleted)
 }
 
-func (r *Repository) AddImage(ctx context.Context, img *product.Image) error {
-	db := database.DB(ctx, r.pool)
-	err := db.QueryRow(ctx,
-		`INSERT INTO product_images (product_id, url, alt_text, sort_order)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, created_at`,
-		img.ProductID, img.URL, img.AltText, img.SortOrder,
-	).Scan(&img.ID, &img.CreatedAt)
-	if err != nil {
-		return fmt.Errorf("adding product image: %w", err)
-	}
-	return nil
-}
-
-func (r *Repository) DeleteImage(ctx context.Context, imageID uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
-	tag, err := db.Exec(ctx,
-		`DELETE FROM product_images WHERE id = $1`, imageID,
-	)
-	if err != nil {
-		return fmt.Errorf("deleting product image: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
-	}
-	return nil
-}
-
-func (r *Repository) GetImagesByProductID(ctx context.Context, productID uuid.UUID) ([]product.Image, error) {
+func (r *Repository) GetImagesByProductID(ctx context.Context, productID uuid.UUID) ([]domain.Image, error) {
 	db := database.DB(ctx, r.pool)
 	rows, err := db.Query(ctx,
 		`SELECT id, product_id, url, alt_text, sort_order, created_at

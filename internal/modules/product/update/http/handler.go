@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -8,21 +9,39 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/product"
+	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
+	"github.com/residwi/go-api-project-template/internal/modules/product/update"
 	"github.com/residwi/go-api-project-template/internal/money"
-	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type adminHandler struct {
-	service   *product.Service
+// ProductUpdater is what Handler needs from update.Command: update.Command
+// satisfies it directly, so nothing sits between them, and the
+// mockery-generated mock is the other implementation, used in handler_test.go.
+type ProductUpdater interface {
+	Execute(ctx context.Context, id uuid.UUID, p update.Params) (*domain.Product, error)
+}
+
+type Handler struct {
+	cmd       ProductUpdater
 	validator *validator.Validator
 }
 
-// Keeps SKU and Status, which the public productResponse drops: an operator
-// reconciles inventory by SKU and needs draft and archived to look different.
-type adminProductResponse struct {
+func New(cmd ProductUpdater, v *validator.Validator) *Handler {
+	return &Handler{cmd: cmd, validator: v}
+}
+
+func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
+	admin.HandleFunc("PUT /products/{id}", h.update)
+}
+
+// Declared here, not shared with product's other slices. Each endpoint holds
+// its own copy so one endpoint's new field cannot appear in another's
+// response. The caller is always an admin route, so this keeps SKU and Status,
+// which the public productResponse in query/http drops.
+type productResponse struct {
 	ID             uuid.UUID       `json:"id"`
 	CategoryID     *uuid.UUID      `json:"category_id,omitempty"`
 	Name           string          `json:"name"`
@@ -39,8 +58,41 @@ type adminProductResponse struct {
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
-func toAdminProductResponse(p *product.Product) adminProductResponse {
-	return adminProductResponse{
+type imageResponse struct {
+	ID        uuid.UUID `json:"id"`
+	ProductID uuid.UUID `json:"product_id"`
+	URL       string    `json:"url"`
+	AltText   *string   `json:"alt_text,omitempty"`
+	SortOrder int       `json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// *int64, not money.Money: a struct is never empty to encoding/json, so an
+// `omitempty` money key would appear as 0 on every product that should omit it.
+func compareAtPriceAmount(m *money.Money) *int64 {
+	if m == nil {
+		return nil
+	}
+	return &m.Amount
+}
+
+func toImageResponses(images []domain.Image) []imageResponse {
+	out := make([]imageResponse, len(images))
+	for i, img := range images {
+		out[i] = imageResponse{
+			ID:        img.ID,
+			ProductID: img.ProductID,
+			URL:       img.URL,
+			AltText:   img.AltText,
+			SortOrder: img.SortOrder,
+			CreatedAt: img.CreatedAt,
+		}
+	}
+	return out
+}
+
+func toProductResponse(p *domain.Product) productResponse {
+	return productResponse{
 		ID:             p.ID,
 		CategoryID:     p.CategoryID,
 		Name:           p.Name,
@@ -56,97 +108,6 @@ func toAdminProductResponse(p *product.Product) adminProductResponse {
 		CreatedAt:      p.CreatedAt,
 		UpdatedAt:      p.UpdatedAt,
 	}
-}
-
-type createProductRequest struct {
-	CategoryID     *uuid.UUID `json:"category_id"      validate:"omitempty"`
-	Name           string     `json:"name"             validate:"required,min=1,max=255"`
-	Description    *string    `json:"description"      validate:"omitempty"`
-	Price          int64      `json:"price"            validate:"required,min=0"`
-	CompareAtPrice *int64     `json:"compare_at_price" validate:"omitempty,min=0"`
-	Currency       string     `json:"currency"         validate:"omitempty,len=3"`
-	SKU            *string    `json:"sku"              validate:"omitempty,max=100"`
-	Status         string     `json:"status"           validate:"omitempty,oneof=draft published archived"`
-}
-
-// An empty `currency` is passed through: the default is a business rule
-// Service.Create owns.
-func (r createProductRequest) toCreateParams() product.CreateParams {
-	p := product.CreateParams{
-		CategoryID:  r.CategoryID,
-		Name:        r.Name,
-		Description: r.Description,
-		Price:       money.New(r.Price, r.Currency),
-		SKU:         r.SKU,
-		Status:      r.Status,
-	}
-	if r.CompareAtPrice != nil {
-		compareAt := money.New(*r.CompareAtPrice, r.Currency)
-		p.CompareAtPrice = &compareAt
-	}
-	return p
-}
-
-func (h *adminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := response.Bind[createProductRequest](w, r, h.validator)
-	if !ok {
-		return
-	}
-
-	p, err := h.service.Create(r.Context(), req.toCreateParams())
-	if err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	response.Created(w, toAdminProductResponse(p))
-}
-
-func (h *adminHandler) List(w http.ResponseWriter, r *http.Request) {
-	page := paging.ParseOffsetPage(r)
-
-	params := product.AdminListParams{
-		OffsetPage: page,
-		Status:     r.URL.Query().Get("status"),
-		Search:     r.URL.Query().Get("search"),
-	}
-
-	if catID := r.URL.Query().Get("category_id"); catID != "" {
-		id, err := uuid.Parse(catID)
-		if err != nil {
-			response.BadRequest(w, "invalid category_id")
-			return
-		}
-		params.CategoryID = &id
-	}
-
-	products, total, err := h.service.ListAdmin(r.Context(), params)
-	if err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	out := make([]adminProductResponse, len(products))
-	for i, p := range products {
-		out[i] = toAdminProductResponse(&p)
-	}
-
-	response.OK(w, paging.NewOffsetPageResult(out, page, total))
-}
-
-func (h *adminHandler) Get(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
-	}
-
-	p, err := h.service.GetByID(r.Context(), id)
-	if err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	response.OK(w, toAdminProductResponse(p))
 }
 
 type updateProductRequest struct {
@@ -169,8 +130,8 @@ type updateProductRequest struct {
 // The validate tags cannot express this: `omitempty` makes each field
 // independently optional, and a `required_with` group would surface as the 422
 // response.Bind returns, not the 400 a well-formed contradiction deserves.
-func (r updateProductRequest) toUpdateParams() (product.UpdateParams, error) {
-	p := product.UpdateParams{
+func (r updateProductRequest) toParams() (update.Params, error) {
+	p := update.Params{
 		CategoryID:  r.CategoryID,
 		Name:        r.Name,
 		Description: r.Description,
@@ -182,7 +143,7 @@ func (r updateProductRequest) toUpdateParams() (product.UpdateParams, error) {
 	case r.Price == nil && r.Currency == nil && r.CompareAtPrice == nil:
 		return p, nil
 	case r.Price == nil || r.Currency == nil:
-		return product.UpdateParams{}, fmt.Errorf(
+		return update.Params{}, fmt.Errorf(
 			"%w: price and currency must be supplied together, and compare_at_price requires both",
 			apperror.ErrBadRequest)
 	}
@@ -196,7 +157,7 @@ func (r updateProductRequest) toUpdateParams() (product.UpdateParams, error) {
 	return p, nil
 }
 
-func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
@@ -207,31 +168,17 @@ func (h *adminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	params, err := req.toUpdateParams()
+	params, err := req.toParams()
 	if err != nil {
 		response.HandleErr(w, err)
 		return
 	}
 
-	p, err := h.service.Update(r.Context(), id, params)
+	p, err := h.cmd.Execute(r.Context(), id, params)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
 	}
 
-	response.OK(w, toAdminProductResponse(p))
-}
-
-func (h *adminHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
-	}
-
-	if err := h.service.Delete(r.Context(), id); err != nil {
-		response.HandleErr(w, err)
-		return
-	}
-
-	response.NoContent(w)
+	response.OK(w, toProductResponse(p))
 }

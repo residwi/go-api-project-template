@@ -2,25 +2,24 @@ package http
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/product"
+	createhttp "github.com/residwi/go-api-project-template/internal/modules/product/create/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/product/query/http"
+	removehttp "github.com/residwi/go-api-project-template/internal/modules/product/remove/http"
+	updatehttp "github.com/residwi/go-api-project-template/internal/modules/product/update/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
 	Validator *validator.Validator
-	Service   *product.Service
+	Module    *product.Module
 }
 
-func RegisterRoutes(api *middleware.RouteGroup, adminGroup *middleware.RouteGroup, deps RouteDeps) {
-	pub := &handler{service: deps.Service, validator: deps.Validator}
-	admin := &adminHandler{service: deps.Service, validator: deps.Validator}
+func RegisterRoutes(api, admin *middleware.RouteGroup, deps RouteDeps) {
+	queryhttp.New(deps.Module.Query).RegisterHTTP(api)
+	queryhttp.NewAdmin(deps.Module.Query).RegisterHTTP(admin)
 
-	api.HandleFunc("GET /products", pub.List)
-	api.HandleFunc("GET /products/{slug}", pub.GetBySlug)
-
-	adminGroup.HandleFunc("POST /products", admin.Create)
-	adminGroup.HandleFunc("GET /products", admin.List)
-	adminGroup.HandleFunc("GET /products/{id}", admin.Get)
-	adminGroup.HandleFunc("PUT /products/{id}", admin.Update)
-	adminGroup.HandleFunc("DELETE /products/{id}", admin.Delete)
+	createhttp.New(deps.Module.Create, deps.Validator).RegisterHTTP(admin)
+	updatehttp.New(deps.Module.Update, deps.Validator).RegisterHTTP(admin)
+	removehttp.New(deps.Module.Delete).RegisterHTTP(admin)
 }

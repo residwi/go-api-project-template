@@ -17,9 +17,9 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
-	"github.com/residwi/go-api-project-template/internal/modules/product"
+	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
+	"github.com/residwi/go-api-project-template/internal/modules/product/query"
 	"github.com/residwi/go-api-project-template/internal/money"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
@@ -30,11 +30,11 @@ func TestHandler_ListProducts(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo := setupProductMux(t)
+		mux, reader := setupMux(t)
 
 		now := time.Now()
 		sku := "SKU-123"
-		repo.EXPECT().ListPublished(mock.Anything, mock.Anything).Return([]product.Product{
+		reader.EXPECT().ListPublished(mock.Anything, mock.Anything).Return([]domain.Product{
 			{
 				ID:        uuid.New(),
 				Name:      "Widget",
@@ -84,9 +84,9 @@ func TestHandler_ListProducts(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo := setupProductMux(t)
+		mux, reader := setupMux(t)
 
-		repo.EXPECT().ListPublished(mock.Anything, mock.Anything).Return(nil, "", false, errors.New("db error"))
+		reader.EXPECT().ListPublished(mock.Anything, mock.Anything).Return(nil, "", false, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products", nil)
@@ -99,7 +99,7 @@ func TestHandler_ListProducts(t *testing.T) {
 	t.Run("invalid category_id", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _ := setupProductMux(t)
+		mux, _ := setupMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products?category_id=bad", nil)
@@ -116,7 +116,7 @@ func TestHandler_ListProducts(t *testing.T) {
 	t.Run("invalid min_price", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _ := setupProductMux(t)
+		mux, _ := setupMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products?min_price=abc", nil)
@@ -133,7 +133,7 @@ func TestHandler_ListProducts(t *testing.T) {
 	t.Run("invalid max_price", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _ := setupProductMux(t)
+		mux, _ := setupMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products?max_price=abc", nil)
@@ -150,10 +150,10 @@ func TestHandler_ListProducts(t *testing.T) {
 	t.Run("with valid filters", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo := setupProductMux(t)
+		mux, reader := setupMux(t)
 
 		catID := uuid.New()
-		repo.EXPECT().ListPublished(mock.Anything, mock.MatchedBy(func(p product.PublishedListParams) bool {
+		reader.EXPECT().ListPublished(mock.Anything, mock.MatchedBy(func(p query.PublishedListParams) bool {
 			return p.CategoryID != nil && *p.CategoryID == catID &&
 				p.MinPrice != nil && *p.MinPrice == 100 &&
 				p.MaxPrice != nil && *p.MaxPrice == 5000
@@ -178,13 +178,12 @@ func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo := setupProductMux(t)
+		mux, reader := setupMux(t)
 
-		prodID := uuid.New()
 		now := time.Now()
 		sku := "SKU-123"
-		repo.EXPECT().GetBySlug(mock.Anything, "widget").Return(&product.Product{
-			ID:        prodID,
+		reader.EXPECT().GetBySlug(mock.Anything, "widget").Return(&domain.Product{
+			ID:        uuid.New(),
 			Name:      "Widget",
 			Slug:      "widget",
 			Price:     money.New(1999, "USD"),
@@ -193,7 +192,6 @@ func TestHandler_GetBySlug(t *testing.T) {
 			CreatedAt: now,
 			UpdatedAt: now,
 		}, nil)
-		repo.EXPECT().GetImagesByProductID(mock.Anything, prodID).Return(nil, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products/widget", nil)
@@ -229,9 +227,9 @@ func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, repo := setupProductMux(t)
+		mux, reader := setupMux(t)
 
-		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
+		reader.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products/nonexistent", nil)
@@ -249,15 +247,12 @@ func TestHandler_GetBySlug(t *testing.T) {
 func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
 	t.Parallel()
 
-	h := &handler{
-		service:   &product.Service{},
-		validator: validator.New(),
-	}
+	h := &Handler{}
 
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/products/", nil)
 
-	h.GetBySlug(w, r)
+	h.getBySlug(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 
@@ -273,7 +268,7 @@ func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
 	deletedAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	sku := "SKU-DISTINGUISHABLE-424242"
 
-	got := toProductResponse(&product.Product{
+	got := toProductResponse(&domain.Product{
 		ID:        uuid.New(),
 		Name:      "Widget",
 		Slug:      "widget",
@@ -312,24 +307,13 @@ func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
 	assert.Equal(t, 50, stock.StockQuantity, "stock_quantity must come from Availability.OnHand")
 }
 
-func setupProductMux(t *testing.T) (*http.ServeMux, *MockRepository) {
-	repo := NewMockRepository(t)
-	inv := NewMockInventoryReader(t)
-	inv.EXPECT().GetAvailability(mock.Anything, mock.Anything).
-		Return(map[uuid.UUID]inventorycontract.Availability{}, nil).Maybe()
-	reg := NewMockInventoryRegistrar(t)
-	reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil).Maybe()
-	svc := product.NewService(repo, inv, reg)
-	v := validator.New()
+func setupMux(t *testing.T) (*http.ServeMux, *MockProductReader) {
+	reader := NewMockProductReader(t)
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api/v1")
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	RegisterRoutes(api, admin, RouteDeps{
-		Validator: v,
-		Service:   svc,
-	})
+	New(reader).RegisterHTTP(api)
 
-	return mux, repo
+	return mux, reader
 }

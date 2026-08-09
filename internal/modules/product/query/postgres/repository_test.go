@@ -11,97 +11,26 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/product"
-	"github.com/residwi/go-api-project-template/internal/money"
+	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
+	"github.com/residwi/go-api-project-template/internal/modules/product/query"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
+// This package shares test_product with every other product slice's postgres/
+// package. It never resets or truncates -- every row it touches is seeded here
+// with a fresh uuid.New() and cleaned up by name.
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_features_product")
+	pool, cleanup := testhelper.MustStartPostgres("test_product")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
 }
 
-func TestPostgresRepository_Create(t *testing.T) {
-	t.Run("creates product", func(t *testing.T) {
-		setup(t)
-		repo := New(testPool)
-		desc := "A description"
-		p := &product.Product{
-			Name:        "New Product",
-			Slug:        "new-product-" + uuid.New().String(),
-			Description: &desc,
-			Price:       money.New(1000, "USD"),
-			Status:      product.StatusPublished,
-		}
-
-		err := repo.Create(context.Background(), p)
-		require.NoError(t, err)
-		assert.NotEqual(t, uuid.Nil, p.ID)
-		assert.False(t, p.CreatedAt.IsZero())
-		t.Cleanup(func() {
-			testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, p.ID)
-		})
-	})
-
-	// Nothing else in this package writes a compare-at price, so this is the only
-	// test that exercises the scanner's nil branch -- where an absent price coming
-	// back as a denominated zero would publish `compare_at_price: 0`.
-	t.Run("round-trips both amounts under the row's single currency", func(t *testing.T) {
-		setup(t)
-		repo := New(testPool)
-		compareAt := money.New(2999, "EUR")
-		p := &product.Product{
-			Name:           "Denominated Product",
-			Slug:           "denominated-" + uuid.New().String(),
-			Price:          money.New(1999, "EUR"),
-			CompareAtPrice: &compareAt,
-			Status:         product.StatusPublished,
-		}
-		require.NoError(t, repo.Create(context.Background(), p))
-		t.Cleanup(func() {
-			testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, p.ID)
-		})
-
-		got, err := repo.GetByID(context.Background(), p.ID)
-		require.NoError(t, err)
-		assert.Equal(t, money.New(1999, "EUR"), got.Price)
-		require.NotNil(t, got.CompareAtPrice)
-		assert.Equal(t, money.New(2999, "EUR"), *got.CompareAtPrice,
-			"compare_at_price has no currency column of its own, so it must read back denominated from the row's")
-
-		// The NULL case: an absent compare-at price stays absent rather than
-		// becoming a denominated zero.
-		p.CompareAtPrice = nil
-		require.NoError(t, repo.Update(context.Background(), p))
-		got, err = repo.GetByID(context.Background(), p.ID)
-		require.NoError(t, err)
-		assert.Nil(t, got.CompareAtPrice)
-	})
-
-	t.Run("returns conflict on duplicate slug", func(t *testing.T) {
-		setup(t)
-		existing := seedProduct(t)
-		repo := New(testPool)
-
-		dup := &product.Product{
-			Name:   "Duplicate",
-			Slug:   existing.Slug,
-			Price:  money.New(500, "USD"),
-			Status: product.StatusDraft,
-		}
-		err := repo.Create(context.Background(), dup)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
-	})
-}
-
 func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns product", func(t *testing.T) {
-		setup(t)
 		p := seedProduct(t)
 		repo := New(testPool)
 
@@ -112,7 +41,6 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		setup(t)
 		repo := New(testPool)
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
@@ -122,7 +50,6 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 func TestPostgresRepository_GetBySlug(t *testing.T) {
 	t.Run("returns product by slug", func(t *testing.T) {
-		setup(t)
 		p := seedProduct(t)
 		repo := New(testPool)
 
@@ -133,7 +60,6 @@ func TestPostgresRepository_GetBySlug(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		setup(t)
 		repo := New(testPool)
 
 		_, err := repo.GetBySlug(context.Background(), "nonexistent-slug")
@@ -141,87 +67,8 @@ func TestPostgresRepository_GetBySlug(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_Update(t *testing.T) {
-	t.Run("updates product fields", func(t *testing.T) {
-		setup(t)
-		p := seedProduct(t)
-		repo := New(testPool)
-
-		p.Name = "Updated Product"
-		p.Price = money.New(2000, "EUR")
-		p.Status = product.StatusArchived
-		err := repo.Update(context.Background(), p)
-		require.NoError(t, err)
-
-		got, err := repo.GetByID(context.Background(), p.ID)
-		require.NoError(t, err)
-		assert.Equal(t, "Updated Product", got.Name)
-		// The whole Money: asserting only the amount would pass even if Update wrote
-		// the price under the wrong denomination.
-		assert.Equal(t, money.New(2000, "EUR"), got.Price)
-		assert.Equal(t, product.StatusArchived, got.Status)
-	})
-
-	t.Run("returns not found", func(t *testing.T) {
-		setup(t)
-		repo := New(testPool)
-
-		p := &product.Product{
-			ID:     uuid.New(),
-			Name:   "Ghost",
-			Slug:   "ghost-" + uuid.New().String(),
-			Price:  money.New(100, "USD"),
-			Status: product.StatusDraft,
-		}
-		err := repo.Update(context.Background(), p)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
-	})
-
-	t.Run("returns conflict on duplicate slug", func(t *testing.T) {
-		setup(t)
-		p1 := seedProduct(t)
-		p2 := seedProduct(t)
-		repo := New(testPool)
-
-		p2.Slug = p1.Slug
-		err := repo.Update(context.Background(), p2)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
-	})
-}
-
-func TestPostgresRepository_Delete(t *testing.T) {
-	t.Run("soft deletes product", func(t *testing.T) {
-		setup(t)
-		p := seedProduct(t)
-		repo := New(testPool)
-
-		err := repo.Delete(context.Background(), p.ID)
-		require.NoError(t, err)
-	})
-
-	t.Run("returns not found after delete", func(t *testing.T) {
-		setup(t)
-		p := seedProduct(t)
-		repo := New(testPool)
-		ctx := context.Background()
-
-		require.NoError(t, repo.Delete(ctx, p.ID))
-
-		_, err := repo.GetByID(ctx, p.ID)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
-	})
-
-	t.Run("returns not found for nonexistent product", func(t *testing.T) {
-		setup(t)
-		repo := New(testPool)
-		err := repo.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
-	})
-}
-
 func TestPostgresRepository_ListPublished(t *testing.T) {
 	t.Run("returns published products", func(t *testing.T) {
-		setup(t)
 		id := uuid.New()
 		_, err := testPool.Exec(context.Background(),
 			`INSERT INTO products (id, name, slug, description, price, currency, status)
@@ -234,18 +81,17 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		})
 
 		repo := New(testPool)
-		products, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
+		products, _, _, err := repo.ListPublished(context.Background(), query.PublishedListParams{
 			Limit: 10,
 		})
 		require.NoError(t, err)
 		assert.NotEmpty(t, products)
 		for _, p := range products {
-			assert.Equal(t, product.StatusPublished, p.Status)
+			assert.Equal(t, domain.StatusPublished, p.Status)
 		}
 	})
 
 	t.Run("filters by category ID", func(t *testing.T) {
-		setup(t)
 		catID := uuid.New()
 		_, err := testPool.Exec(context.Background(),
 			`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Filter Cat', $2, true)`,
@@ -262,7 +108,7 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
 		repo := New(testPool)
-		products, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
+		products, _, _, err := repo.ListPublished(context.Background(), query.PublishedListParams{
 			CategoryID: &catID,
 			Limit:      10,
 		})
@@ -274,7 +120,6 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 	})
 
 	t.Run("filters by search", func(t *testing.T) {
-		setup(t)
 		id := uuid.New()
 		_, err := testPool.Exec(context.Background(),
 			`INSERT INTO products (id, name, slug, description, price, currency, status)
@@ -284,7 +129,7 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
 		repo := New(testPool)
-		products, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
+		products, _, _, err := repo.ListPublished(context.Background(), query.PublishedListParams{
 			Search: "UniqueSearchable",
 			Limit:  10,
 		})
@@ -294,7 +139,6 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 	})
 
 	t.Run("filters by min and max price", func(t *testing.T) {
-		setup(t)
 		id := uuid.New()
 		_, err := testPool.Exec(context.Background(),
 			`INSERT INTO products (id, name, slug, description, price, currency, status)
@@ -306,7 +150,7 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		repo := New(testPool)
 		minPrice := int64(4000)
 		maxPrice := int64(6000)
-		products, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
+		products, _, _, err := repo.ListPublished(context.Background(), query.PublishedListParams{
 			MinPrice: &minPrice,
 			MaxPrice: &maxPrice,
 			Limit:    10,
@@ -322,7 +166,6 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 	})
 
 	t.Run("cursor pagination", func(t *testing.T) {
-		setup(t)
 		for range 3 {
 			id := uuid.New()
 			_, err := testPool.Exec(context.Background(),
@@ -335,7 +178,7 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 
 		repo := New(testPool)
 
-		products, nextCursor, hasMore, err := repo.ListPublished(context.Background(), product.PublishedListParams{
+		products, nextCursor, hasMore, err := repo.ListPublished(context.Background(), query.PublishedListParams{
 			Limit: 2,
 		})
 		require.NoError(t, err)
@@ -343,7 +186,7 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		assert.NotEmpty(t, nextCursor)
 		assert.Len(t, products, 2)
 
-		products2, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
+		products2, _, _, err := repo.ListPublished(context.Background(), query.PublishedListParams{
 			Cursor: nextCursor,
 			Limit:  2,
 		})
@@ -359,9 +202,8 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 
 func TestPostgresRepository_ListPublished_InvalidCursor(t *testing.T) {
 	t.Run("returns bad request error on invalid cursor", func(t *testing.T) {
-		setup(t)
 		repo := New(testPool)
-		_, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
+		_, _, _, err := repo.ListPublished(context.Background(), query.PublishedListParams{
 			Cursor: "invalid-cursor-value",
 			Limit:  10,
 		})
@@ -372,12 +214,11 @@ func TestPostgresRepository_ListPublished_InvalidCursor(t *testing.T) {
 
 func TestPostgresRepository_ListAdmin(t *testing.T) {
 	t.Run("returns all products with total", func(t *testing.T) {
-		setup(t)
 		seedProduct(t)
 		seedProduct(t)
 		repo := New(testPool)
 
-		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
+		products, total, err := repo.ListAdmin(context.Background(), query.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 		})
 		require.NoError(t, err)
@@ -386,7 +227,6 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 	})
 
 	t.Run("filters by status", func(t *testing.T) {
-		setup(t)
 		id := uuid.New()
 		_, err := testPool.Exec(context.Background(),
 			`INSERT INTO products (id, name, slug, description, price, currency, status)
@@ -396,19 +236,18 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
 		repo := New(testPool)
-		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
+		products, total, err := repo.ListAdmin(context.Background(), query.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 			Status:     "draft",
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
 		for _, p := range products {
-			assert.Equal(t, product.StatusDraft, p.Status)
+			assert.Equal(t, domain.StatusDraft, p.Status)
 		}
 	})
 
 	t.Run("filters by category ID", func(t *testing.T) {
-		setup(t)
 		catID := uuid.New()
 		_, err := testPool.Exec(context.Background(),
 			`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Admin Cat', $2, true)`,
@@ -425,7 +264,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
 		repo := New(testPool)
-		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
+		products, total, err := repo.ListAdmin(context.Background(), query.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 			CategoryID: &catID,
 		})
@@ -437,7 +276,6 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 	})
 
 	t.Run("filters by search on name, description, and sku", func(t *testing.T) {
-		setup(t)
 		sku := "UNIQSKU-" + uuid.New().String()[:8]
 		id := uuid.New()
 		_, err := testPool.Exec(context.Background(),
@@ -448,7 +286,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
 		repo := New(testPool)
-		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
+		products, total, err := repo.ListAdmin(context.Background(), query.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 			Search:     sku,
 		})
@@ -461,7 +299,6 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 
 func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 	t.Run("returns soft-deleted and unpublished products alongside live ones", func(t *testing.T) {
-		setup(t)
 		live := seedProduct(t)
 
 		archivedID := uuid.New()
@@ -472,7 +309,7 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, archivedID) })
 
-		// status is left 'published': product.Delete only sets deleted_at, so this
+		// status is left 'published': remove.Execute only sets deleted_at, so this
 		// mirrors a real withdrawn-but-still-published row.
 		deletedID := uuid.New()
 		_, err = testPool.Exec(context.Background(),
@@ -489,7 +326,7 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		byID := make(map[uuid.UUID]product.Product, len(got))
+		byID := make(map[uuid.UUID]domain.Product, len(got))
 		for _, p := range got {
 			byID[p.ID] = p
 		}
@@ -499,7 +336,7 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		assert.Equal(t, "archived", byID[archivedID].Status)
 		assert.Nil(t, byID[archivedID].DeletedAt)
 		assert.Contains(t, byID, deletedID, "a soft-deleted product must still be returned")
-		// product.Delete changes only deleted_at, so a caller must read DeletedAt, not
+		// remove.Execute changes only deleted_at, so a caller must read DeletedAt, not
 		// Status, to know this product is unsellable.
 		assert.Equal(t, "published", byID[deletedID].Status)
 		require.NotNil(
@@ -510,7 +347,6 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 	})
 
 	t.Run("returns empty slice for empty ids", func(t *testing.T) {
-		setup(t)
 		repo := New(testPool)
 
 		got, err := repo.GetByIDsIncludingDeleted(context.Background(), nil)
@@ -521,7 +357,6 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 
 func TestPostgresRepository_CountPublishedByCategory(t *testing.T) {
 	t.Run("returns zero when no products", func(t *testing.T) {
-		setup(t)
 		catID := uuid.New()
 		_, err := testPool.Exec(context.Background(),
 			`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Empty Cat', $2, true)`,
@@ -536,7 +371,6 @@ func TestPostgresRepository_CountPublishedByCategory(t *testing.T) {
 	})
 
 	t.Run("returns count of published products", func(t *testing.T) {
-		setup(t)
 		ctx := context.Background()
 		catID := uuid.New()
 		_, err := testPool.Exec(ctx,
@@ -567,152 +401,49 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	repo := New(testPool)
 
-	t.Run("Create", func(t *testing.T) {
-		setup(t)
-		p := &product.Product{
-			Name:   "X",
-			Slug:   "x-" + uuid.New().String(),
-			Price:  money.New(100, "USD"),
-			Status: product.StatusDraft,
-		}
-		err := repo.Create(cancelledCtx, p)
-		assert.Error(t, err)
-	})
-
 	t.Run("GetByID", func(t *testing.T) {
-		setup(t)
 		_, err := repo.GetByID(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
 
 	t.Run("GetBySlug", func(t *testing.T) {
-		setup(t)
 		_, err := repo.GetBySlug(cancelledCtx, "nonexistent")
 		assert.Error(t, err)
 	})
 
-	t.Run("Update", func(t *testing.T) {
-		setup(t)
-		p := &product.Product{
-			ID:     uuid.New(),
-			Name:   "X",
-			Slug:   "x-" + uuid.New().String(),
-			Price:  money.New(100, "USD"),
-			Status: product.StatusDraft,
-		}
-		err := repo.Update(cancelledCtx, p)
-		assert.Error(t, err)
-	})
-
-	t.Run("Delete", func(t *testing.T) {
-		setup(t)
-		err := repo.Delete(cancelledCtx, uuid.New())
-		assert.Error(t, err)
-	})
-
 	t.Run("ListPublished", func(t *testing.T) {
-		setup(t)
-		_, _, _, err := repo.ListPublished(cancelledCtx, product.PublishedListParams{Limit: 10})
+		_, _, _, err := repo.ListPublished(cancelledCtx, query.PublishedListParams{Limit: 10})
 		assert.Error(t, err)
 	})
 
 	t.Run("ListAdmin", func(t *testing.T) {
-		setup(t)
 		_, _, err := repo.ListAdmin(
 			cancelledCtx,
-			product.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}},
+			query.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}},
 		)
 		assert.Error(t, err)
 	})
 
 	t.Run("GetByIDsIncludingDeleted", func(t *testing.T) {
-		setup(t)
 		_, err := repo.GetByIDsIncludingDeleted(cancelledCtx, []uuid.UUID{uuid.New()})
 		assert.Error(t, err)
 	})
 
-	t.Run("AddImage", func(t *testing.T) {
-		setup(t)
-		img := &product.Image{ProductID: uuid.New(), URL: "https://example.com/img.jpg", SortOrder: 0}
-		err := repo.AddImage(cancelledCtx, img)
-		assert.Error(t, err)
-	})
-
-	t.Run("DeleteImage", func(t *testing.T) {
-		setup(t)
-		err := repo.DeleteImage(cancelledCtx, uuid.New())
-		assert.Error(t, err)
-	})
-
 	t.Run("GetImagesByProductID", func(t *testing.T) {
-		setup(t)
 		_, err := repo.GetImagesByProductID(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
 
 	t.Run("CountPublishedByCategory", func(t *testing.T) {
-		setup(t)
 		_, err := repo.CountPublishedByCategory(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
 }
 
-func TestSearchString(t *testing.T) {
-	t.Run("returns false when substring not found", func(t *testing.T) {
-		setup(t)
-		existing := seedProduct(t)
-		repo := New(testPool)
-
-		// Update without changing slug — no unique violation, exercises isUniqueViolation returning false
-		existing.Name = "Updated Name"
-		err := repo.Update(context.Background(), existing)
-		require.NoError(t, err)
-	})
-}
-
-func TestPostgresRepository_Images(t *testing.T) {
-	t.Run("add, list, and delete image", func(t *testing.T) {
-		setup(t)
-		p := seedProduct(t)
-		repo := New(testPool)
-		ctx := context.Background()
-
-		altText := "Test alt"
-		img := &product.Image{
-			ProductID: p.ID,
-			URL:       "https://example.com/image.jpg",
-			AltText:   &altText,
-			SortOrder: 0,
-		}
-
-		err := repo.AddImage(ctx, img)
-		require.NoError(t, err)
-		assert.NotEqual(t, uuid.Nil, img.ID)
-
-		images, err := repo.GetImagesByProductID(ctx, p.ID)
-		require.NoError(t, err)
-		require.Len(t, images, 1)
-		assert.Equal(t, img.ID, images[0].ID)
-		assert.Equal(t, img.URL, images[0].URL)
-
-		err = repo.DeleteImage(ctx, img.ID)
-		require.NoError(t, err)
-
-		images, err = repo.GetImagesByProductID(ctx, p.ID)
-		require.NoError(t, err)
-		assert.Empty(t, images)
-
-		err = repo.DeleteImage(ctx, img.ID)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
-	})
-}
-
-func setup(t *testing.T) {
-	t.Helper()
-	testhelper.ResetDB(t, testPool)
-}
-
-func seedProduct(t *testing.T) *product.Product {
+// seedProduct inserts a product with a fresh id and cleans it up on test
+// completion -- this package never truncates a table it shares with every
+// other product slice.
+func seedProduct(t *testing.T) *domain.Product {
 	t.Helper()
 	id := uuid.New()
 	_, err := testPool.Exec(context.Background(),

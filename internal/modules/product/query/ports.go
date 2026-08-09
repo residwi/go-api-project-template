@@ -1,4 +1,4 @@
-package product
+package query
 
 import (
 	"context"
@@ -13,10 +13,4 @@ import (
 // pushes people back to a cross-module JOIN.
 type InventoryReader interface {
 	GetAvailability(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]inventorycontract.Availability, error)
-}
-
-// InventoryRegistrar takes no initial quantity: writing stock from product's
-// create transaction would be a cross-module write.
-type InventoryRegistrar interface {
-	EnsureLevel(ctx context.Context, productID uuid.UUID) error
 }

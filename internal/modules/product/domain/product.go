@@ -1,4 +1,7 @@
-package product
+// Package domain holds product's aggregate and its rules. It is
+// module-private: what leaves product leaves through a slice's return type or
+// contract/.
+package domain
 
 import (
 	"time"
@@ -30,8 +33,8 @@ type Product struct {
 	UpdatedAt      time.Time
 	DeletedAt      *time.Time
 
-	// Filled by Service from the InventoryReader port: inventory owns these
-	// numbers and products has no such columns.
+	// Filled by query's Reader from the InventoryReader port: inventory owns
+	// these numbers and product has no such columns.
 	Availability inventorycontract.Availability
 }
 

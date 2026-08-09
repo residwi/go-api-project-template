@@ -67,7 +67,7 @@ func NewRouter(
 	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Module: app.Auth})
 	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Module: app.Users})
 	categoryhttp.RegisterRoutes(api, admin, categoryhttp.RouteDeps{Validator: v, Module: app.Categories})
-	producthttp.RegisterRoutes(api, admin, producthttp.RouteDeps{Validator: v, Service: app.Products})
+	producthttp.RegisterRoutes(api, admin, producthttp.RouteDeps{Validator: v, Module: app.Products})
 	inventoryhttp.RegisterRoutes(admin, inventoryhttp.RouteDeps{Validator: v, Module: app.Inventory})
 	carthttp.RegisterRoutes(authed, carthttp.RouteDeps{Validator: v, Service: app.Carts})
 	orderhttp.RegisterRoutes(
