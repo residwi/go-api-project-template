@@ -13,6 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/product/query"
+	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -45,6 +46,39 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
+	})
+
+	// Both handlers serialise CompareAtPrice as *int64 with omitempty, so a
+	// scan that turned a NULL column into a pointer-to-zero would publish
+	// "compare_at_price": 0 on every product that has no compare-at price --
+	// omitempty does not suppress a non-nil pointer. This slice owns its own
+	// copy of the scan helper, so the other slices' tests cannot cover it.
+	t.Run("leaves a NULL compare_at_price nil rather than a denominated zero", func(t *testing.T) {
+		p := seedProduct(t)
+		repo := New(testPool)
+
+		got, err := repo.GetByID(context.Background(), p.ID)
+		require.NoError(t, err)
+		assert.Nil(t, got.CompareAtPrice)
+	})
+
+	t.Run("reads a set compare_at_price back at its stored amount", func(t *testing.T) {
+		id := uuid.New()
+		_, err := testPool.Exec(context.Background(),
+			`INSERT INTO products (id, name, slug, description, price, compare_at_price, currency)
+			 VALUES ($1, 'Discounted', $2, 'desc', 1000, 2999, 'USD')`,
+			id, "slug-"+id.String(),
+		)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id)
+		})
+
+		repo := New(testPool)
+		got, err := repo.GetByID(context.Background(), id)
+		require.NoError(t, err)
+		require.NotNil(t, got.CompareAtPrice)
+		assert.Equal(t, money.New(2999, "USD"), *got.CompareAtPrice)
 	})
 }
 
