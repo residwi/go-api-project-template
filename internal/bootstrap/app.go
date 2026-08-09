@@ -16,7 +16,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/category"
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
@@ -56,7 +55,7 @@ type App struct {
 	Auth          *auth.Module
 	Categories    *category.Module
 	Products      *product.Service
-	Inventory     *inventory.Service
+	Inventory     *inventory.Module
 	Carts         *cart.Service
 	Orders        *order.Service
 	Payments      *payment.Service
@@ -75,10 +74,10 @@ type App struct {
 func New(d Deps) (*App, error) {
 	txRunner := database.NewTxRunner(d.Pool)
 
-	inventorySvc := inventory.NewService(inventorypg.New(d.Pool))
-	// inventorySvc satisfies both product.InventoryReader and
-	// product.InventoryRegistrar by name-match.
-	productSvc := product.NewService(productpg.New(d.Pool), inventorySvc, inventorySvc)
+	inv := inventory.New(inventory.Deps{Pool: d.Pool})
+	// inv.Query satisfies product.InventoryReader and inv.Register satisfies
+	// product.InventoryRegistrar, both by name-match.
+	productSvc := product.NewService(productpg.New(d.Pool), inv.Query, inv.Register)
 	// productSvc satisfies remove.ProductCounter by name-match.
 	categoryMod := category.New(category.Deps{Pool: d.Pool, Products: productSvc})
 	promotionMod := promotion.New(promotion.Deps{Pool: d.Pool, Tx: txRunner})
@@ -92,9 +91,9 @@ func New(d Deps) (*App, error) {
 
 	orderSvc := order.NewService(
 		orderpg.New(d.Pool), txRunner,
-		cartSvc,      // CartProvider
-		inventorySvc, // InventoryReserver
-		nil, nil,     // payment ports: the cycle, set below by SetOrderPaymentDeps
+		cartSvc,  // CartProvider
+		inv,      // InventoryReserver -- ReserveBatch, DeductBatch, Restore, by name-match
+		nil, nil, // payment ports: the cycle, set below by SetOrderPaymentDeps
 		promotionMod.Reserve, // CouponReserver
 		notificationMod.Jobs, // NotificationEnqueuer -- EnqueueOrderPlaced by name-match
 		d.Logger,
@@ -106,8 +105,8 @@ func New(d Deps) (*App, error) {
 		orderSvc, // OrderUpdater, OrderGetter, OrderItemsGetter -- all by name-match
 		orderSvc,
 		orderSvc,
-		inventorySvc, // InventoryDeductor, InventoryRestorer
-		inventorySvc,
+		inv, // InventoryDeductor, InventoryRestorer -- DeductBatch and Restore, by name-match
+		inv,
 		promotionMod.Reserve, // CouponReleaser
 		d.Logger,
 	)
@@ -123,7 +122,7 @@ func New(d Deps) (*App, error) {
 		Auth:          authMod,
 		Categories:    categoryMod,
 		Products:      productSvc,
-		Inventory:     inventorySvc,
+		Inventory:     inv,
 		Carts:         cartSvc,
 		Orders:        orderSvc,
 		Payments:      paymentSvc,
