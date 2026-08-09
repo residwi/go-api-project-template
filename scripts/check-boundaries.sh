@@ -11,6 +11,9 @@
 #            is read out of db/OWNERSHIP.md at run time.
 #   Check 4  A module imports only <feature>/contract from another module.
 #   Check 5  A slice imports no sibling slice within its own module.
+#   Check 6  A module may not import internal/transport/, except a slice's
+#            own http adapter.
+#   Check 7  contract/ stays a leaf: only stdlib, uuid and internal/money.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
 # clean; on failure it prints every violation as file:line and exits 1.
@@ -955,12 +958,178 @@ check_sibling_slice_imports() {
 }
 
 # ---------------------------------------------------------------------------
+# Check 6 -- the transport arrow points one way
+# ---------------------------------------------------------------------------
+#
+# A module may not import internal/transport/. Only a slice's own http/
+# adapter may, because that package exists to speak HTTP and nothing
+# constructs it except the route table.
+#
+# Two things this catches that a module.go-only check would miss:
+#   - a service returning a transport type, which is how user.Service came to
+#     return middleware.UserStatusResult and auth.Service *middleware.TokenClaims
+#     (both fixed in phase 0, before this check existed to stop the third)
+#   - module.go registering routes, which would make every binary
+#     constructing the module link HTTP -- including the worker, which
+#     serves nothing
+#
+# Go imports are per-package, so splitting module.go into module.go plus
+# http.go would not help: one import of the module pulls every file in it.
+#
+# A module that needs to describe something the transport also describes puts
+# the type in its own contract/ and lets middleware import that instead. That
+# is what user/contract.AccountStatus and auth/contract.Claims are for.
+#
+# Matching is on a quoted import path, not on any occurrence of the text --
+# internal/modules/payment/jobs/dispatcher.go's doc comment explains, in
+# prose, why a setter was removed by saying it "would compile from cmd/, from
+# internal/transport/, from any test". That sentence contains the string
+# "internal/transport" with no surrounding quotes and no module prefix; a
+# check that grepped for the bare text would flag a comment that imports
+# nothing. Requiring the full module path inside quotes -- the same shape
+# check_cross_module_imports and check_sibling_slice_imports already require
+# for their own cross-module greps -- only matches a real import.
+check_transport_direction() {
+	local module module_re
+	local feature files file rc hits hit
+
+	module="$(awk '/^module /{print $2; exit}' go.mod)"
+	if [ -z "$module" ]; then
+		report 'could not read the module path from go.mod'
+		return 0
+	fi
+	# Escaped the same way checks 4 and 5 escape it: github.com/... has dots,
+	# which are regex metacharacters.
+	module_re="$(printf '%s' "$module" | sed -e 's/[.[\*^$\/]/\\&/g')"
+
+	while IFS= read -r feature; do
+		[ -n "$feature" ] || continue
+
+		files="$(find "$MODULES_ROOT/$feature" -type f -name '*.go' | sort)"
+		[ -n "$files" ] || continue
+
+		while IFS= read -r file; do
+			[ -f "$file" ] || continue
+
+			# A slice's own http adapter (internal/modules/<feature>/<slice>/http/)
+			# and the feature's own route table (internal/modules/<feature>/http/)
+			# are the two legitimate importers -- both speak HTTP by design, and
+			# routes.go needs middleware.RouteGroup for RegisterRoutes' own
+			# parameters.
+			case "$file" in
+			"$MODULES_ROOT/$feature"/*/http/*.go) continue ;;
+			"$MODULES_ROOT/$feature"/http/*.go) continue ;;
+			esac
+
+			# A status-checked assignment, not `done < <(grep ...)` -- the shape
+			# that once made BSD grep exit via SIGTRAP while a downstream process
+			# substitution read the death as EOF and reported nothing checked
+			# (see the note above check_cross_module_imports). grep exits 1 for
+			# "no match", which is not a failure here; anything greater than 1
+			# is, and is reported rather than silently treated as a clean file.
+			rc=0
+			hits="$(grep -noE "\"${module_re}/internal/transport(/[^\"]*)?\"" "$file")" || rc=$?
+			if [ "$rc" -gt 1 ]; then
+				report "grep exited $rc scanning $file for internal/transport imports -- the check could not run on this file, which is not the same as it passing"
+				continue
+			fi
+			[ -n "$hits" ] || continue
+
+			while IFS= read -r hit; do
+				[ -n "$hit" ] || continue
+				report "'${feature}' imports internal/transport: ${file}:${hit%%:*}
+    A module may not import internal/transport -- only a slice's own http/
+    adapter may, because that package exists to speak HTTP and nothing
+    constructs it but the route table. Put the shared type in
+    ${MODULES_ROOT}/${feature}/contract/ and let the transport import that
+    instead."
+			done <<<"$hits"
+		done <<<"$files"
+	done < <(feature_dirs)
+}
+
+# ---------------------------------------------------------------------------
+# Check 7 -- contract/ is a leaf
+# ---------------------------------------------------------------------------
+#
+# contract/ is what other modules import. If it imports its own module's
+# domain, then importing the contract drags the rich model along and the
+# module's published surface silently becomes everything. Permitted: stdlib,
+# github.com/google/uuid, and internal/money -- the value object that already
+# crosses every seam.
+#
+# check 4 cannot see this: a contract/ file importing its own module's
+# domain/ is a same-module import, not a cross-module one, so it never
+# produces a cross-module path for check 4's grep to flag.
+#
+# The allowlist is closed under "not a github.com/... path" rather than an
+# open stdlib list: an import path is read as third-party (and therefore
+# subject to the allowlist) only if it contains a dot before its first slash
+# -- what distinguishes github.com/google/uuid from stdlib time or
+# encoding/json, without this script needing to know the stdlib's contents.
+check_contract_leaf() {
+	local module
+	local feature dir files file rc hits hit path
+
+	module="$(awk '/^module /{print $2; exit}' go.mod)"
+	if [ -z "$module" ]; then
+		report 'could not read the module path from go.mod'
+		return 0
+	fi
+
+	while IFS= read -r feature; do
+		[ -n "$feature" ] || continue
+		dir="$MODULES_ROOT/$feature/contract"
+		[ -d "$dir" ] || continue
+
+		files="$(find "$dir" -type f -name '*.go' | sort)"
+		[ -n "$files" ] || continue
+
+		while IFS= read -r file; do
+			[ -f "$file" ] || continue
+
+			# Same status-checked-assignment-plus-here-string shape as every
+			# other grep in this script that walks production files: grep's
+			# exit 1 ("no match") is not a failure, anything greater is, and is
+			# reported rather than read as a clean file.
+			rc=0
+			hits="$(grep -noE '"[a-z0-9./-]*\.[a-z]*/[^"]*"' "$file")" || rc=$?
+			if [ "$rc" -gt 1 ]; then
+				report "grep exited $rc scanning $file for contract/ imports -- the check could not run on this file, which is not the same as it passing"
+				continue
+			fi
+			[ -n "$hits" ] || continue
+
+			while IFS= read -r hit; do
+				[ -n "$hit" ] || continue
+				path="${hit#*:}"
+				path="${path#\"}"
+				path="${path%\"}"
+
+				case "$path" in
+				github.com/google/uuid) continue ;;
+				"$module/internal/money") continue ;;
+				esac
+
+				report "'${feature}/contract' imports $path: ${file}:${hit%%:*}
+    contract/ must stay a leaf -- stdlib, github.com/google/uuid, and
+    internal/money only. Importing another module or a platform package would
+    drag that module's own domain along with it, and the whole point of
+    contract/ is that another module can import it without pulling that in."
+			done <<<"$hits"
+		done <<<"$files"
+	done < <(feature_dirs)
+}
+
+# ---------------------------------------------------------------------------
 
 check_wire_tags
 check_ownership_doc
 check_table_ownership
 check_cross_module_imports
 check_sibling_slice_imports
+check_transport_direction
+check_contract_leaf
 
 if [ -s "$VIOLATIONS" ]; then
 	echo "Architectural boundary violations found:" >&2
