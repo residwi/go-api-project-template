@@ -4,8 +4,9 @@
 # instead of a paragraph in a plan document.
 #
 #   Check 1  Wire (`json:`) tags live only in a feature's http adapter.
-#   Check 2  A feature's postgres adapter only queries tables it owns,
-#            where "owns" is read out of db/OWNERSHIP.md at run time.
+#   Check 2  A feature's SQL -- anywhere under the module, not only its
+#            postgres adapter -- only queries tables it owns, where "owns"
+#            is read out of db/OWNERSHIP.md at run time.
 #   Check 3  No feature imports another feature's postgres/http/redis adapter.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
@@ -551,8 +552,20 @@ sql_cte_names() {
 		| sort -u || true
 }
 
+# module_go_files prints every non-test .go file under a module, not just the
+# ones inside a directory named postgres. Before slicing, a feature's SQL all
+# lived in one <feature>/postgres/, so scanning that one directory was scanning
+# all of it. Slices put SQL in <feature>/<slice>/postgres/ instead, and there
+# is no longer a single privileged directory to point a narrower scan at --
+# and SQL was never guaranteed to stay inside postgres/ in the first place, so
+# service.go or a slice's command.go naming a table was already invisible to
+# the old scan. Widening to the whole module closes that hole for free.
+module_go_files() {
+	find "$MODULES_ROOT/$1" -name '*.go' ! -name '*_test.go' -type f
+}
+
 check_table_ownership() {
-	local feature allowed file ref legit found known cte cte_names
+	local feature allowed file ref legit found known cte cte_names files
 
 	# With no ownership data there is nothing to check, and looping anyway would
 	# bury check_ownership_doc's one accurate diagnosis under a "feature X owns
@@ -587,6 +600,17 @@ check_table_ownership() {
 			continue
 		fi
 
+		# Captured into a variable rather than read straight off a
+		# `< <(module_go_files ...)` process substitution on purpose: a
+		# process substitution's exit status is invisible to its consumer, so
+		# a crash inside it reads as "produced zero lines" and the while loop
+		# below would finish having checked nothing, same silent-pass shape as
+		# the crash in check 3's grep. Assigning to a variable puts the
+		# pipeline's status (`set -o pipefail` is on for the whole script)
+		# back in a position where `set -e` sees it: a real failure here kills
+		# the script loudly instead of reporting Boundaries OK having skipped
+		# a feature.
+		files="$(module_go_files "$feature" | sort)"
 		while IFS= read -r file; do
 			[ -f "$file" ] || continue
 
@@ -609,6 +633,24 @@ check_table_ownership() {
 
 			while IFS= read -r ref; do
 				[ -n "$ref" ] || continue
+
+				# Scanning the whole module, not just postgres/, means
+				# sql_table_refs now runs over service and command files whose
+				# only "SQL" is an slog message: `errorContext(ctx, "failed to
+				# update payment status", ...)` matches the update+identifier
+				# pattern the same way `UPDATE payments SET ...` does. Requiring
+				# the match to also be a real table name -- not merely absent
+				# from $legit -- is what tells "payment" (a word) apart from
+				# "payments" (the table): the former is never in $known and so
+				# never reported, the latter still is. This does not loosen
+				# which keywords trigger a match, only which matches are worth
+				# reporting; a word that names no table cannot be a table-
+				# ownership violation.
+				case "$known" in
+				*" $ref "*) ;;
+				*) continue ;;
+				esac
+
 				found=1
 				case " $legit " in
 				*" $ref "*) found=0 ;;
@@ -618,15 +660,15 @@ check_table_ownership() {
 						"$file" "$ref" "$feature" "$feature" "${allowed% }" "$OWNERSHIP_DOC")"
 				fi
 			done < <(sql_table_refs "$file")
-			# Every postgres/ directory under the feature, at any depth: a
-			# query moved into internal/modules/<feature>/postgres/queries/
-			# is still that adapter's SQL, and so is one that lives in
-			# internal/modules/<feature>/<slice>/postgres/ -- both this
-			# script and the docs promise it is scanned. `-path '*/postgres/*'`
-			# matches the directory component exactly, not merely the
-			# substring, so a hypothetical `postgresql/` sibling would not
-			# be swept in by accident.
-		done < <(find "$MODULES_ROOT/$feature" -type f -name '*.go' ! -name '*_test.go' -path '*/postgres/*' | sort)
+			# Every .go file under the feature, at any depth, not only the
+			# ones inside a directory named postgres: a query moved into
+			# internal/modules/<feature>/postgres/queries/ was already
+			# scanned before this widening, and so was one that lives in
+			# internal/modules/<feature>/<slice>/postgres/ -- but SQL sitting
+			# in service.go or a slice's command.go, outside any postgres/
+			# directory, was not. That was the hole db/OWNERSHIP.md's "what
+			# it does not catch" section named; module_go_files closes it.
+		done <<<"$files"
 	done < <(feature_dirs)
 }
 

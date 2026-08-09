@@ -231,13 +231,19 @@ in the script to keep in step.
 **What it catches.**
 
 * A production query naming a table the module does not own, via `FROM`,
-  `JOIN`, `INSERT INTO`, `UPDATE`, `TRUNCATE` or `COPY`, in any directory
-  literally named `postgres` under the module — the whole subtree of each,
-  not just its top level, and at any depth under the module, not only
-  `internal/modules/<module>/postgres/`. A vertical slice's adapter at
-  `internal/modules/<module>/<slice>/postgres/` is scanned the same as the
-  top-level one; a module is skipped only when it has no `postgres/`
-  directory anywhere under it. `DELETE FROM` and `MERGE INTO` come along
+  `JOIN`, `INSERT INTO`, `UPDATE`, `TRUNCATE` or `COPY`, anywhere under the
+  module — every non-test `.go` file under `internal/modules/<module>/`, not
+  only the ones inside a directory named `postgres`. The scan used to be
+  scoped to `postgres/` directories only, which meant a query in `service.go`
+  or a slice's `command.go` was invisible; there is no longer a privileged
+  directory, so the whole module is scanned. A module is skipped only when
+  it has no `postgres/` directory anywhere under it — a legitimate no-storage
+  feature, e.g. `auth`. Only a match against a table actually listed in this
+  document is reported: the identifier a keyword is followed by must be a
+  real table name, not merely a word absent from the scanning module's own
+  list, or every `slog` call shaped like `"failed to update payment
+  status"` — common once service and command files are in scope — would
+  report a violation on every run. `DELETE FROM` and `MERGE INTO` come along
   through `FROM` and `INTO`.
 * The same, when the keyword and the table name are on different lines.
   Whitespace is collapsed across newlines before matching, so
@@ -281,15 +287,11 @@ check trusted past its reach is worse than no check.
   keys, and that is fixture setup, not an architectural crossing. The cost is
   that the check cannot distinguish a fixture from a real violation that happens
   to live in a `_test.go` helper.
-* **Anything outside a directory literally named `postgres` under the module.**
-  A stray query in a service file, in a slice's non-adapter code, in
-  `db/seeds/data.sql`, or in a migration is not scanned. Everything inside any
-  `postgres/` directory under the module is, including its subdirectories and
-  every slice's own `postgres/` — moving a query into
-  `internal/modules/<module>/postgres/queries/` or into
-  `internal/modules/<module>/<slice>/postgres/` does not hide it. A directory
-  merely named *like* `postgres` (`postgresql/`, say) is not swept in — the
-  match is on the exact path component, not a substring.
+* **`db/seeds/data.sql` and `db/migrations/*.sql`.** This check only reads
+  `.go` files, so raw SQL outside Go source is never scanned. This is
+  unrelated to which directory under a module gets scanned (see "What it
+  catches" above) — a `.sql` file carries no Go package for a violation to
+  be attributed to, so widening which `.go` files are read cannot reach it.
 * **Column-level coupling.** Ownership is per table. `dashboard` depending on
   `order_items.unit_price`, or any module depending on a column it does not
   control, is invisible to a table-name grep even where the table is allowed.
