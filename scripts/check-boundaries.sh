@@ -10,6 +10,7 @@
 #            postgres adapter -- only queries tables it owns, where "owns"
 #            is read out of db/OWNERSHIP.md at run time.
 #   Check 4  A module imports only <feature>/contract from another module.
+#   Check 5  A slice imports no sibling slice within its own module.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
 # clean; on failure it prints every violation as file:line and exits 1.
@@ -810,11 +811,156 @@ check_cross_module_imports() {
 }
 
 # ---------------------------------------------------------------------------
+# Check 5 -- a slice imports no sibling slice within its own module
+# ---------------------------------------------------------------------------
+#
+# Check 4 enforces contract-only imports ACROSS modules. It cannot see this
+# rule at all: two slices reaching into each other are both inside the same
+# module, so grep never sees a cross-module path to flag. A slice that needs a
+# sibling's capability is supposed to declare a port for it in its own
+# ports.go and let <feature>/module.go supply the sibling by name-match or via
+# a contract/ package -- importing the sibling directly is exactly the
+# coupling that pattern exists to prevent. Every one of the 14 sliced modules
+# followed this voluntarily through phase 2; nothing enforced it until now.
+#
+# "Slice" is defined structurally rather than as a list of real slice names,
+# because a name-based allowlist is a place a genuine violation can hide (miss
+# one entry and it silently passes) and a name-based denylist is a place a
+# false positive can hide (miss one entry and a legitimate shared adapter gets
+# reported). A directory directly under a feature IS a slice unless its name
+# is one of these -- everything below is a shared, non-slice thing every
+# slice may reach into on its own terms, or an adapter family module.go (or,
+# for payment/worker, cmd/worker) constructs directly rather than composing as
+# one of Module's slices:
+#
+#   domain    shared domain types; every slice may import it.
+#   contract  the feature's published cross-module surface (check 4's
+#             concern); every slice may import it too.
+#   http      the route table (routes.go) plus, where a feature's routes
+#             split by caller role, its own handlers -- assembles slices,
+#             never the reverse. AGENTS.md rule 3's own commentary already
+#             allows a handler to reach a sibling's adapter without any check
+#             objecting, this one included.
+#   gateway   payment's outbound-port adapter family (stripe/midtrans/mock).
+#             No command.go, no http/, no entry in Module's slice list --
+#             module.go picks one implementation from Config.Gateway, the
+#             same relationship a slice has with its own postgres/ adapter.
+#   worker    payment's jobs.Processor/jobs.Sweeper wrapper. Also absent from
+#             Module's slice list: cmd/worker/main.go constructs it directly,
+#             never payment.New, so it gets the same treatment as gateway --
+#             not composed by module.go, therefore not a slice, whichever way
+#             the import points.
+#   postgres  a feature-root Postgres adapter, if one is ever added outside a
+#             slice. None exists today -- every adapter now sits inside the
+#             slice it backs -- named here so adding one at the root is not
+#             mistaken for a new slice on day one.
+#   redis     likewise, for a feature-root cache adapter. user's is nested at
+#             user/query/redis/, inside the slice that owns it, not here.
+#
+# module.go and module_test.go need no entry in this list at all: both sit at
+# the feature root, one level above where the walk below looks, so the "for
+# dir in .../*/" loop -- a glob with a trailing slash matches directories
+# only, the same trick feature_dirs and importer_roots already rely on --
+# never reaches them. That is what exempts order/module_test.go's imports of
+# order/place and order/retrypayment: it is the module-level composition test
+# proving order.New wires every payment-consuming slice, sitting beside the
+# module.go it tests, not inside any slice directory.
+NOT_A_SLICE='domain contract http gateway worker postgres redis'
+
+is_slice() {
+	case " $NOT_A_SLICE " in
+	*" $1 "*) return 1 ;;
+	esac
+	return 0
+}
+
+# _test.go files are in scope, matching check 4: a test reaching into a
+# sibling slice's internals proves the same coupling a production import
+# would, and mocks are the cheapest place to introduce one (payment/charge's
+# mocks_test.go imports payment/gateway for the interface it fakes -- that
+# passes here because gateway is not a slice, not because tests are exempt).
+check_sibling_slice_imports() {
+	local module module_re modules_re feature slice dir
+	local files file rc hits hit imp rest target
+
+	module="$(awk '/^module /{print $2; exit}' go.mod)"
+	if [ -z "$module" ]; then
+		report 'could not read the module path from go.mod'
+		return 0
+	fi
+	# Escaped the same way check 4 escapes them, for the same reason: both
+	# strings land in an ERE below and github.com/... contains dots.
+	module_re="$(printf '%s' "$module" | sed -e 's/[.[\*^$\/]/\\&/g')"
+	modules_re="$(printf '%s' "$MODULES_ROOT" | sed -e 's/[.[\*^$\/]/\\&/g')"
+
+	while IFS= read -r feature; do
+		[ -n "$feature" ] || continue
+
+		for dir in "$MODULES_ROOT/$feature"/*/; do
+			[ -d "$dir" ] || continue
+			slice="$(basename "$dir")"
+			is_slice "$slice" || continue
+
+			files="$(find "$dir" -type f -name '*.go' | sort)"
+			[ -n "$files" ] || continue
+
+			while IFS= read -r file; do
+				[ -f "$file" ] || continue
+
+				# A status-checked assignment, not `done < <(grep ...)`, and a
+				# single feature name rather than an alternation -- the shape
+				# that once made BSD grep exit via SIGTRAP while a downstream
+				# process substitution read the death as EOF and reported
+				# nothing checked (see the note above check_cross_module_imports).
+				# grep exits 1 for "no match", which is not a failure here;
+				# anything greater than 1 is, and is reported rather than
+				# silently treated as a clean file.
+				rc=0
+				hits="$(grep -noE "\"${module_re}/${modules_re}/${feature}/[^\"]*\"" "$file")" || rc=$?
+				if [ "$rc" -gt 1 ]; then
+					report "grep exited $rc scanning $file for sibling-slice imports -- the check could not run on this file, which is not the same as it passing"
+					continue
+				fi
+				[ -n "$hits" ] || continue
+
+				while IFS= read -r hit; do
+					[ -n "$hit" ] || continue
+					# hit looks like "12:\"<module>/internal/modules/<feature>/<slice>...\"".
+					imp="${hit#*:}"
+					imp="${imp#\"}"
+					imp="${imp%\"}"
+					rest="${imp#*"$MODULES_ROOT"/"$feature"/}"
+					target="${rest%%/*}"
+
+					# Own adapter or own handler importing its own slice root --
+					# the compile-time port assertion in <slice>/postgres and the
+					# handler in <slice>/http both do this, and both are fine.
+					[ "$target" = "$slice" ] && continue
+					# domain, contract, http, gateway, worker, and a feature-root
+					# postgres/redis if one is ever added: not a slice, so not the
+					# coupling this check exists to catch.
+					is_slice "$target" || continue
+
+					report "'${slice}' imports sibling slice '${target}': ${file}:${hit%%:*}
+    ${imp}
+    A slice may not import a sibling slice directly -- check 4 cannot see this,
+    since both live in the same module. Declare a port for the capability in
+    ${MODULES_ROOT}/${feature}/${slice}/ports.go and let
+    ${MODULES_ROOT}/${feature}/module.go supply ${target} by name-match or a
+    contract/ package."
+				done <<<"$hits"
+			done <<<"$files"
+		done
+	done < <(feature_dirs)
+}
+
+# ---------------------------------------------------------------------------
 
 check_wire_tags
 check_ownership_doc
 check_table_ownership
 check_cross_module_imports
+check_sibling_slice_imports
 
 if [ -s "$VIOLATIONS" ]; then
 	echo "Architectural boundary violations found:" >&2
