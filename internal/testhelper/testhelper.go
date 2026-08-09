@@ -47,6 +47,14 @@ const (
 // once and never dropped, so packages sharing it do not tear each other down --
 // but they also do not get a clean table. Seed rows your subtest owns, scope
 // every assertion to them, and never TRUNCATE.
+//
+// A subtest that asserts its own row appears in a LIMIT-ed, ordered query
+// result must make that row sort first (e.g. backdate its timestamp by 100
+// years, not 2 hours), because rows never get truncated and accumulate across
+// every run forever -- eventually there are more matching rows than the LIMIT,
+// the seeded row sorts behind all of them, and the assertion fails on code
+// that never changed. order/expire's repository_test.go hit exactly this: 18
+// accumulated rows against a LIMIT of 10.
 
 // DiscardLogger makes a caller say out loud that it wants log output thrown
 // away. Nothing in the suite asserts on it.

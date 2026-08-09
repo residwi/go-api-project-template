@@ -92,9 +92,14 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 			Action:      domain.ActionCharge,
 			Status:      domain.JobStatusPending,
 			MaxAttempts: 3,
-			// Backdated so the job is unambiguously due: time.Now() lands on the
-			// next_retry_at <= NOW() boundary the claim query tests.
-			NextRetryAt: time.Now().Add(-time.Minute),
+			// Claim sorts due jobs oldest-next_retry_at-first with a LIMIT, over
+			// test_payment, a shared database that is never truncated (see the
+			// registry comment in internal/testhelper/testhelper.go). 100 years
+			// is arbitrary -- it only needs to predate every job that has ever
+			// accumulated so this one is always claimed first and never crowded
+			// out of the LIMIT, while still landing on the next_retry_at <= NOW()
+			// boundary the claim query tests.
+			NextRetryAt: time.Now().AddDate(-100, 0, 0),
 		}
 		err := repo.CreateJob(ctx, job)
 		require.NoError(t, err)
@@ -150,7 +155,13 @@ func TestPostgresRepository_Claim_WithOptionalFields(t *testing.T) {
 			Action:      domain.ActionRefund,
 			Status:      domain.JobStatusPending,
 			MaxAttempts: 3,
-			NextRetryAt: time.Now(),
+			// Claim sorts by next_retry_at (regardless of the pending/processing
+			// branch that matched) with a LIMIT, over test_payment, a shared
+			// database that is never truncated (see the registry comment in
+			// internal/testhelper/testhelper.go). 100 years is arbitrary -- it
+			// only needs to predate every job that has ever accumulated so this
+			// one is always claimed first and never crowded out of the LIMIT.
+			NextRetryAt: time.Now().AddDate(-100, 0, 0),
 		}
 		require.NoError(t, repo.CreateJob(ctx, job))
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, job.ID) })
@@ -222,7 +233,13 @@ func TestPostgresRepository_MarkJobCompletedByPaymentID(t *testing.T) {
 			Action:      domain.ActionCharge,
 			Status:      domain.JobStatusPending,
 			MaxAttempts: 3,
-			NextRetryAt: time.Now().Add(-time.Minute),
+			// Claim sorts oldest-next_retry_at-first with a LIMIT, over
+			// test_payment, a shared database that is never truncated (see the
+			// registry comment in internal/testhelper/testhelper.go). 100 years
+			// is arbitrary -- it only needs to predate every job that has ever
+			// accumulated so this one is always claimed first and never crowded
+			// out of the LIMIT.
+			NextRetryAt: time.Now().AddDate(-100, 0, 0),
 		}
 		err := repo.CreateJob(ctx, job)
 		require.NoError(t, err)

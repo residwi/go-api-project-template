@@ -29,10 +29,16 @@ func TestPostgresRepository_GetExpiredOrders(t *testing.T) {
 		ctx := context.Background()
 
 		oldOrderID := uuid.New()
+		// GetExpiredOrders sorts oldest-first with a LIMIT, and test_order is a
+		// shared database that is never truncated (see the registry comment in
+		// internal/testhelper/testhelper.go), so accumulated rows from earlier
+		// runs sort ahead of this one. 100 years is arbitrary -- it only needs to
+		// predate every row that has ever accumulated so this order is always
+		// oldest and never crowded out of the LIMIT.
 		_, err := testPool.Exec(
 			ctx,
 			`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency, created_at)
-			 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD', NOW() - INTERVAL '2 hours')`,
+			 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD', NOW() - INTERVAL '100 years')`,
 			oldOrderID,
 			userID,
 		)
