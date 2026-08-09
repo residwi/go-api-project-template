@@ -1,4 +1,4 @@
-package cart
+package updatequantity
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	productcontract "github.com/residwi/go-api-project-template/internal/modules/product/contract"
 )
 
+// ProductLookup is satisfied by product's query slice by name-match. Kept as
+// its own copy rather than sharing one with add/ or query/, because a slice
+// may not import a sibling's port.
 type ProductLookup interface {
 	GetInfo(ctx context.Context, id uuid.UUID) (*productcontract.Product, error)
-	// GetInfoByIDs answers for a whole cart at once, and reports a withdrawn
-	// product as unavailable rather than as its stale published status.
-	GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]productcontract.Product, error)
 }

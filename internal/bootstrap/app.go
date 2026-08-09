@@ -12,7 +12,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
-	cartpg "github.com/residwi/go-api-project-template/internal/modules/cart/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/category"
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
@@ -55,7 +54,7 @@ type App struct {
 	Categories    *category.Module
 	Products      *product.Module
 	Inventory     *inventory.Module
-	Carts         *cart.Service
+	Carts         *cart.Module
 	Orders        *order.Service
 	Payments      *payment.Service
 	Shipping      *shipping.Module
@@ -86,12 +85,12 @@ func New(d Deps) (*App, error) {
 	// userMod.Credentials satisfies auth.UserPorts by name-match.
 	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userMod.Credentials})
 
-	// prod.Query satisfies cart.ProductLookup by name-match.
-	cartSvc := cart.NewService(cartpg.New(d.Pool), txRunner, prod.Query, d.Cart.MaxItems)
+	// prod.Query satisfies cart.ProductPorts by name-match.
+	cartMod := cart.New(cart.Deps{Pool: d.Pool, Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod.Query})
 
 	orderSvc := order.NewService(
 		orderpg.New(d.Pool), txRunner,
-		cartSvc,  // CartProvider
+		cartMod,  // CartProvider -- LockCart, GetSnapshot, Clear, by name-match
 		inv,      // InventoryReserver -- ReserveBatch, DeductBatch, Restore, by name-match
 		nil, nil, // payment ports: the cycle, set below by SetOrderPaymentDeps
 		promotionMod.Reserve, // CouponReserver
@@ -123,7 +122,7 @@ func New(d Deps) (*App, error) {
 		Categories:    categoryMod,
 		Products:      prod,
 		Inventory:     inv,
-		Carts:         cartSvc,
+		Carts:         cartMod,
 		Orders:        orderSvc,
 		Payments:      paymentSvc,
 		Shipping:      shippingMod,

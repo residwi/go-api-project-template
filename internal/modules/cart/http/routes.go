@@ -2,21 +2,26 @@ package http
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
+	addhttp "github.com/residwi/go-api-project-template/internal/modules/cart/add/http"
+	emptyhttp "github.com/residwi/go-api-project-template/internal/modules/cart/empty/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/cart/query/http"
+	removehttp "github.com/residwi/go-api-project-template/internal/modules/cart/remove/http"
+	updatequantityhttp "github.com/residwi/go-api-project-template/internal/modules/cart/updatequantity/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
 	Validator *validator.Validator
-	Service   *cart.Service
+	Module    *cart.Module
 }
 
+// RegisterRoutes mounts every routed slice. lock/ registers no route:
+// order/place is its only caller.
 func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {
-	h := &handler{service: deps.Service, validator: deps.Validator}
-
-	authed.HandleFunc("GET /cart", h.GetCart)
-	authed.HandleFunc("POST /cart/items", h.AddItem)
-	authed.HandleFunc("PUT /cart/items/{product_id}", h.UpdateItem)
-	authed.HandleFunc("DELETE /cart/items/{product_id}", h.RemoveItem)
-	authed.HandleFunc("DELETE /cart", h.Clear)
+	queryhttp.New(deps.Module.Query).RegisterHTTP(authed)
+	addhttp.New(deps.Module.Add, deps.Validator).RegisterHTTP(authed)
+	updatequantityhttp.New(deps.Module.UpdateQuantity, deps.Validator).RegisterHTTP(authed)
+	removehttp.New(deps.Module.Remove).RegisterHTTP(authed)
+	emptyhttp.New(deps.Module.Empty).RegisterHTTP(authed)
 }

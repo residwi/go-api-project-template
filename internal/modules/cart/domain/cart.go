@@ -1,4 +1,6 @@
-package cart
+// Package domain holds cart's aggregate and its rules. It is module-private:
+// what leaves cart leaves through a slice's return type or contract/.
+package domain
 
 import (
 	"fmt"
@@ -9,6 +11,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/money"
 )
+
+// StatusPublished is the only product status a cart line may be added or
+// bumped against. add/ and updatequantity/ both guard on it before touching
+// storage; Sellable below reuses it so a line's display state and its
+// admission rule can never drift apart.
+const StatusPublished = "published"
 
 type Cart struct {
 	ID        uuid.UUID
@@ -38,7 +46,7 @@ type Product struct {
 // Sellable goes false once the product is archived, unpublished or removed, but
 // the line stays visible: callers decide how to show it, not whether to.
 func (p *Product) Sellable() bool {
-	return p.Status == productStatusPublished
+	return p.Status == StatusPublished
 }
 
 // Total sums the sellable lines only, so an unsellable line's currency cannot
