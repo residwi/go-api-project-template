@@ -8,14 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/modules/order"
-	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/order/retrypayment"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -32,9 +31,14 @@ func TestMain(m *testing.M) {
 // TestNewWiresOrderAndPaymentToEachOther pins the one wiring step New cannot
 // express through constructor arguments alone: order and payment need each
 // other, so SetOrderPaymentDeps closes that cycle after both exist. Skipping
-// it leaves order.Service.payment nil, which panics the instant a caller
-// reaches it -- so this test reaches it, on a real order, instead of checking
-// the field is non-nil from outside.
+// it leaves order.Module's place/retrypayment/cancel slices with a nil
+// PaymentInitiator, which panics the instant a caller reaches it -- so this
+// test reaches it, on a real order, instead of checking the field is non-nil
+// from outside.
+//
+// The order is seeded with raw SQL, not order's own adapters: domain.Order is
+// module-private, so nothing outside order can construct one, and this
+// package -- outside every module -- is no exception.
 //
 // This package owns Postgres database "test_bootstrap", so it is on the
 // paralleltest exclusion list in .golangci.yml and does not call t.Parallel().
@@ -55,21 +59,20 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 	require.NoError(t, err)
 
 	userID := testhelper.SeedUser(t, testPool)
-	o := &order.Order{
-		UserID:         userID,
-		IdempotencyKey: userID.String(),
-		RequestHash:    "hash-" + userID.String(),
-		Status:         order.StatusAwaitingPayment,
-		Subtotal:       money.New(1000, "USD"),
-		Discount:       money.New(0, "USD"),
-		Total:          money.New(1000, "USD"),
-	}
-	require.NoError(t, orderpg.New(testPool).Create(ctx, o))
+	var orderID uuid.UUID
+	require.NoError(t, testPool.QueryRow(
+		ctx,
+		`INSERT INTO orders (user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency)
+		 VALUES ($1, $2, $3, 'awaiting_payment', 1000, 0, 1000, 'USD') RETURNING id`,
+		userID,
+		userID.String(),
+		"hash-"+userID.String(),
+	).Scan(&orderID))
 
-	_, err = app.Orders.RetryPayment(ctx, userID, o.ID, "card")
+	_, err = app.Orders.RetryPayment.Execute(ctx, userID, orderID, retrypayment.Params{PaymentMethodID: "card"})
 
-	// A nil PaymentInitiator would panic inside RetryPayment and crash this
-	// test outright; reaching a returned error at all proves SetOrderPaymentDeps
-	// ran. The error itself is just the closed-port dial failing.
+	// A nil PaymentInitiator would panic inside Execute and crash this test
+	// outright; reaching a returned error at all proves SetOrderPaymentDeps ran.
+	// The error itself is just the closed-port dial failing.
 	require.Error(t, err)
 }

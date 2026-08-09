@@ -758,7 +758,16 @@ func newTestCommand(t *testing.T) (
 	notifications := NewMockNotificationEnqueuer(t)
 	transition := NewMockTransitionApplier(t)
 
-	cmd := New(repo, testhelper.FakeTxRunner{}, cart, inventory, coupons, notifications, transition, testhelper.DiscardLogger())
+	cmd := New(
+		repo,
+		testhelper.FakeTxRunner{},
+		cart,
+		inventory,
+		coupons,
+		notifications,
+		transition,
+		testhelper.DiscardLogger(),
+	)
 	cmd.SetPaymentDeps(payment)
 	return cmd, repo, cart, inventory, payment, coupons, notifications, transition
 }

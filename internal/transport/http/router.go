@@ -73,7 +73,7 @@ func NewRouter(
 	orderhttp.RegisterRoutes(
 		authed,
 		admin,
-		orderhttp.RouteDeps{Validator: v, Service: app.Orders, WriteLimiter: orderWriteLimiter},
+		orderhttp.RouteDeps{Validator: v, Module: app.Orders, WriteLimiter: orderWriteLimiter},
 	)
 	paymenthttp.RegisterRoutes(
 		api,

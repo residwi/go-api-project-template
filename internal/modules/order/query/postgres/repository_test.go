@@ -48,10 +48,13 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		ctx := context.Background()
 
 		orderID := uuid.New()
-		_, err := testPool.Exec(ctx,
+		_, err := testPool.Exec(
+			ctx,
 			`INSERT INTO orders (id, user_id, idempotency_key, status, subtotal_amount, discount_amount, total_amount, currency)
 			 VALUES ($1, $2, $3, 'awaiting_payment', 9500, 1500, 8000, 'IDR')`,
-			orderID, userID, uuid.New().String(),
+			orderID,
+			userID,
+			uuid.New().String(),
 		)
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })

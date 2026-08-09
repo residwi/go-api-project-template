@@ -17,7 +17,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
-	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	mockgateway "github.com/residwi/go-api-project-template/internal/modules/payment/mock"
 	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
@@ -55,7 +54,7 @@ type App struct {
 	Products      *product.Module
 	Inventory     *inventory.Module
 	Carts         *cart.Module
-	Orders        *order.Service
+	Orders        *order.Module
 	Payments      *payment.Service
 	Shipping      *shipping.Module
 	Reviews       *review.Module
@@ -88,33 +87,33 @@ func New(d Deps) (*App, error) {
 	// prod.Query satisfies cart.ProductPorts by name-match.
 	cartMod := cart.New(cart.Deps{Pool: d.Pool, Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod.Query})
 
-	orderSvc := order.NewService(
-		orderpg.New(d.Pool), txRunner,
-		cartMod,  // CartProvider -- LockCart, GetSnapshot, Clear, by name-match
-		inv,      // InventoryReserver -- ReserveBatch, DeductBatch, Restore, by name-match
-		nil, nil, // payment ports: the cycle, set below by SetOrderPaymentDeps
-		promotionMod.Reserve, // CouponReserver
-		notificationMod.Jobs, // NotificationEnqueuer -- EnqueueOrderPlaced by name-match
-		d.Logger,
-	)
+	ordMod := order.New(order.Deps{
+		Pool: d.Pool, Tx: txRunner, Logger: d.Logger,
+		Cart:          cartMod,              // CartProvider -- LockCart, GetSnapshot, Clear, by name-match
+		Inventory:     inv,                  // InventoryPort -- ReserveBatch, DeductBatch, Restore, by name-match
+		Promotions:    promotionMod.Reserve, // CouponPort -- Reserve, Release, by name-match
+		Notifications: notificationMod.Jobs, // NotificationEnqueuer -- EnqueueOrderPlaced by name-match
+	})
+	// Payment ports (InitiatePayment, CancelJobsByOrderID) are the cycle, set
+	// below by SetOrderPaymentDeps.
 
 	gw := mockgateway.New(d.Payment.GatewayURL, d.Payment.GatewayTimeout)
 	paymentSvc := payment.NewService(
 		paymentpg.New(d.Pool), txRunner, gw,
-		orderSvc, // OrderUpdater, OrderGetter, OrderItemsGetter -- all by name-match
-		orderSvc,
-		orderSvc,
+		ordMod, // OrderUpdater, OrderGetter, OrderItemsGetter -- all by name-match
+		ordMod,
+		ordMod,
 		inv, // InventoryDeductor, InventoryRestorer -- DeductBatch and Restore, by name-match
 		inv,
 		promotionMod.Reserve, // CouponReleaser
 		d.Logger,
 	)
-	SetOrderPaymentDeps(orderSvc, paymentSvc)
+	SetOrderPaymentDeps(ordMod, paymentSvc)
 
-	// orderSvc satisfies shipping.OrderPorts and create.PurchaseVerifier directly,
+	// ordMod satisfies shipping.OrderPorts and create.PurchaseVerifier directly,
 	// so neither needs a bootstrap adapter.
-	shippingMod := shipping.New(shipping.Deps{Pool: d.Pool, Tx: txRunner, Orders: orderSvc})
-	reviewMod := review.New(review.Deps{Pool: d.Pool, Purchase: orderSvc})
+	shippingMod := shipping.New(shipping.Deps{Pool: d.Pool, Tx: txRunner, Orders: ordMod})
+	reviewMod := review.New(review.Deps{Pool: d.Pool, Purchase: ordMod})
 
 	return &App{
 		Users:         userMod,
@@ -123,7 +122,7 @@ func New(d Deps) (*App, error) {
 		Products:      prod,
 		Inventory:     inv,
 		Carts:         cartMod,
-		Orders:        orderSvc,
+		Orders:        ordMod,
 		Payments:      paymentSvc,
 		Shipping:      shippingMod,
 		Reviews:       reviewMod,
@@ -136,9 +135,9 @@ func New(d Deps) (*App, error) {
 	}, nil
 }
 
-// SetOrderPaymentDeps breaks the order-payment cycle: at whole-service
+// SetOrderPaymentDeps breaks the order-payment cycle: at whole-module
 // granularity each needs the other, so one of them must be wired after
 // construction. Both ports are satisfied by paymentSvc directly.
-func SetOrderPaymentDeps(orderSvc *order.Service, paymentSvc *payment.Service) {
-	orderSvc.SetPaymentDeps(paymentSvc, paymentSvc)
+func SetOrderPaymentDeps(orderMod *order.Module, paymentSvc *payment.Service) {
+	orderMod.SetPaymentDeps(paymentSvc, paymentSvc)
 }

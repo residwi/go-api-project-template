@@ -44,10 +44,3 @@ type InventoryRestorer interface {
 type CouponReleaser interface {
 	Release(ctx context.Context, orderID uuid.UUID) error
 }
-
-// OrderHousekeeper is owned by the order module -- expiring stale orders,
-// recovering ones stuck in payment_processing -- and supplied by bootstrap.
-type OrderHousekeeper interface {
-	ExpireStale(ctx context.Context) error
-	RecoverStaleProcessing(ctx context.Context) error
-}

@@ -81,7 +81,12 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 		orderID := seedOrder(t, userID, domain.StatusAwaitingPayment)
 		repo := New(testPool)
 
-		err := repo.UpdateStatus(context.Background(), orderID, domain.StatusAwaitingPayment, domain.StatusPaymentProcessing)
+		err := repo.UpdateStatus(
+			context.Background(),
+			orderID,
+			domain.StatusAwaitingPayment,
+			domain.StatusPaymentProcessing,
+		)
 		require.NoError(t, err)
 
 		assert.Equal(t, domain.StatusPaymentProcessing, statusOf(t, orderID))

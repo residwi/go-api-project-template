@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
-	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -43,7 +42,7 @@ func TestE2EChargeJob(t *testing.T) {
 
 		assert.Equal(t, string(payment.JobStatusCompleted), jobStatusOf(t, f.job.ID))
 		assert.Equal(t, string(payment.StatusSuccess), paymentStatusOf(t, f.paymentID))
-		assert.Equal(t, order.StatusPaid, orderStatusOf(t, f.job.OrderID))
+		assert.Equal(t, "paid", orderStatusOf(t, f.job.OrderID))
 
 		// A DeductBatch on the wrong column would still affect one row and return nil,
 		// so only this available/reserved split says which column moved.
@@ -74,7 +73,7 @@ func TestE2EChargeJob(t *testing.T) {
 		// handleChargeFailure logs MarkAwaitingPayment's error and moves on, so a broken
 		// CAS would strand the order in payment_processing with every other assertion
 		// here still green.
-		assert.Equal(t, order.StatusAwaitingPayment, orderStatusOf(t, f.job.OrderID))
+		assert.Equal(t, "awaiting_payment", orderStatusOf(t, f.job.OrderID))
 	})
 }
 

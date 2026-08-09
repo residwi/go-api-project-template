@@ -207,10 +207,29 @@ func TestReader_GetByID(t *testing.T) {
 		repo := NewMockRepository(t)
 		r := New(repo)
 
-		existingOrder := &domain.Order{ID: orderID, UserID: uuid.New(), Status: domain.StatusShipped, Total: money.New(15000, "USD")}
+		existingOrder := &domain.Order{
+			ID:     orderID,
+			UserID: uuid.New(),
+			Status: domain.StatusShipped,
+			Total:  money.New(15000, "USD"),
+		}
 		items := []domain.Item{
-			{ID: uuid.New(), OrderID: orderID, ProductName: "Gadget A", Price: money.New(7500, "USD"), Quantity: 1, Subtotal: money.New(7500, "USD")},
-			{ID: uuid.New(), OrderID: orderID, ProductName: "Gadget B", Price: money.New(7500, "USD"), Quantity: 1, Subtotal: money.New(7500, "USD")},
+			{
+				ID:          uuid.New(),
+				OrderID:     orderID,
+				ProductName: "Gadget A",
+				Price:       money.New(7500, "USD"),
+				Quantity:    1,
+				Subtotal:    money.New(7500, "USD"),
+			},
+			{
+				ID:          uuid.New(),
+				OrderID:     orderID,
+				ProductName: "Gadget B",
+				Price:       money.New(7500, "USD"),
+				Quantity:    1,
+				Subtotal:    money.New(7500, "USD"),
+			},
 		}
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)

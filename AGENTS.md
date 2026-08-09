@@ -57,9 +57,10 @@ refresh`), `notification` (`query markread markallread jobs`),
 `promotion` (`query create update remove apply reserve`), `user` (`query
 credentials updateprofile adminupdate updaterole remove`), `inventory`
 (`query restock adjust reserve deduct restore register`), `product`
-(`query create update remove images`), and `cart` (`query add
-updatequantity remove empty lock`) are sliced into vertical use-case
-packages, each with its own storage port and adapters —
+(`query create update remove images`), `cart` (`query add
+updatequantity remove empty lock`), and `order` (`place query retrypayment
+cancel changestatus expire recoverstale transition`) are sliced into
+vertical use-case packages, each with its own storage port and adapters —
 except `auth`, which owns no table, so none of its four slices has one,
 `notification`'s `jobs`, which owns the queue table but has no route,
 `promotion`'s `apply` and `reserve`, which are read/write twins over the same
@@ -81,11 +82,18 @@ calls `inventory`'s routeless slices, to serialize two concurrent checkouts
 of one cart.
 `restore` alone also holds `ReleaseBatch` and `RestockBatch`, unexported from
 its `Command` — the two undo primitives it picks between, out of reach of
-every other slice and every other module.
-`ARCHITECTURE.md` §14 is the target shape, twelve modules there so far.
+every other slice and every other module — and `order`'s `transition`,
+`expire` and `recoverstale`, none of which has a route: `transition` holds
+the eight `Mark*` appliers plus `Apply` and `UpdateStatus`, and every other
+slice that needs one reaches it through its own narrow port (`place`,
+`cancel`, `changestatus`, `expire` and `recoverstale` each declare their
+own), all satisfied by the one `*transition.Applier` value `order/module.go`
+builds — while `expire` and `recoverstale` are worker-tick sweeps `cmd/worker`
+drives directly on a plain ticker, the way it drives payment's and
+notification's job queues, just without a queue behind either.
+`ARCHITECTURE.md` §14 is the target shape, thirteen modules there so far.
 Everything below this note describes the **layered** shape, still accurate
-for the other two modules — `order
-payment` — until phase 2 reaches each in turn.
+for the other module — `payment` — until phase 2 reaches it in turn.
 `ls internal/modules/<feature>/` tells you which shape a given module is in:
 a `domain/` directory plus no root `model.go`/`service.go`/`repository.go`
 means sliced; those three files at the root mean still layered.
@@ -93,24 +101,24 @@ means sliced; those three files at the root mean still layered.
 Feature holds its domain types, its service, its repository _interface_, and ports it needs from other features. Adapters are subpackages.
 
 ```text
-internal/modules/order/
+internal/modules/payment/
   model.go        domain types
-  params.go       input structs for service methods
-  ports.go        interfaces order needs from other features
-  repository.go   the Repository interface order's own storage must satisfy
+  ports.go        interfaces payment needs from other features
+  repository.go   the Repository interface payment's own storage must satisfy
   service.go      Service struct and its methods
-  transition.go   order's state machine (feature-specific file)
-  address.go      feature-specific file
-  postgres/       the Postgres repository — the only place order's tables are named
-  http/           routes.go plus one file per handler role: order's is split into
-                  handler.go and admin_handler.go, each owning the
+  gateway.go      the outbound Gateway port and the external gateway's own
+                  wire DTOs (feature-specific file; check 1's json-tag
+                  exemption names this path)
+  postgres/       the Postgres repository — the only place payment's tables are named
+  http/           routes.go plus one file per handler role: payment's is split into
+                  admin_handler.go and webhook_handler.go, each owning the
                   request/response DTOs and mapping for its own handlers,
                   and each with a _test.go beside it
 ```
 
 Every layered feature has `model.go`, `service.go`, `repository.go`. There is **no** `handler.go` or `routes.go` at feature root — those live in `internal/modules/<feature>/http/`. A `dto.go` belongs nowhere at all: check 1c refuses that filename **anywhere** under `internal/`, `http/` included. Wire types live in handler file that serialises them.
 
-Ports usually in `ports.go`, but a still-layered feature may name the file after the module it depends on instead — `internal/modules/product/inventory.go` used to declare `InventoryReader` and `InventoryRegistrar` this way, before product sliced (task 10) and each moved into the one slice that names it, `query/ports.go` and `images/ports.go` for the reader, `create/ports.go` for the registrar. Either naming was fine; the rule is about _who declares the interface_ (the consumer), not the filename. Neither module still layered — `order payment` — happens to use this second form today, so `ports.go` is where every layered feature's port sits for now; slicing settles the question anyway, since a sliced feature's port moves into the one slice that needs it, so it stops arising per feature and starts arising per slice.
+Ports usually in `ports.go`, but a still-layered feature may name the file after the module it depends on instead — `internal/modules/product/inventory.go` used to declare `InventoryReader` and `InventoryRegistrar` this way, before product sliced (task 10) and each moved into the one slice that names it, `query/ports.go` and `images/ports.go` for the reader, `create/ports.go` for the registrar. Either naming was fine; the rule is about _who declares the interface_ (the consumer), not the filename. The one module still layered — `payment` — happens to use the plain `ports.go` form today; slicing settles the question anyway, since a sliced feature's port moves into the one slice that needs it, so it stops arising per feature and starts arising per slice.
 
 Seven of the fourteen features — `auth cart inventory order payment product
 user` — also have a `contract/` package: the one place another feature may
@@ -140,7 +148,7 @@ show for it. `ARCHITECTURE.md` decision 13 is why, and its cost.
 | `inventory`  | `http/` (routes.go only) plus `query/ restock/ adjust/ reserve/ deduct/ restore/ register/`; `query/`, `restock/` and `adjust/` each have their own `postgres/` and `http/` — `reserve/`, `deduct/`, `restore/` and `register/` each have `postgres/` but no `http/` of their own: order, payment and product call them directly, not through a route — the sliced shape, see the two-shapes note above |
 | `product`    | `http/` (routes.go only) plus `query/ create/ update/ remove/ images/`; `query/`, `create/`, `update/` and `remove/` each have their own `postgres/` and `http/` — `images/` has `postgres/` but no `http/` of its own: `AddImage`, `DeleteImage` and `AvailableQuantity` have no route and no caller outside the module — the sliced shape, see the two-shapes note above |
 | `cart`       | `http/` (routes.go only) plus `query/ add/ updatequantity/ remove/ empty/ lock/`, each its own `postgres/`; `query/`, `add/`, `updatequantity/`, `remove/` and `empty/` each also have their own `http/` — `lock/` has no `http/` of its own: `order`'s checkout transaction calls its `LockCart` directly, not through a route — `empty/`, not `clear/`: `clear` is a Go 1.21+ predeclared identifier (the builtin that clears a map or slice), so `package clear` fails the same `predeclared` lint check that ruled out `package delete` for the item-delete slice, which is `remove` here instead — the sliced shape, see the two-shapes note above |
-| the other 1  | `postgres/ http/`                                                 |
+| `order`      | `http/` (routes.go only) plus `place/ query/ retrypayment/ cancel/ changestatus/ expire/ recoverstale/ transition/`; `place/`, `query/`, `retrypayment/`, `cancel/` and `changestatus/` each have their own `postgres/` and `http/` — `changestatus/`'s whole surface is one admin route, `PUT /orders/{id}/status` — `expire/`, `recoverstale/` and `transition/` each have `postgres/` but no `http/` of their own: `expire` and `recoverstale` are worker-tick sweeps `cmd/worker` drives directly, and `transition` is reached only through each consuming slice's own narrow port, never a route or an import — the sliced shape, see the two-shapes note above |
 
 `notification` has no `worker/` package because its `jobs/` slice's `Worker` type satisfies `platform/jobs`' `Queue` and `Processor` directly — one value does both. That absence is the lesson — `ARCHITECTURE.md` decision 4 — not omission to fix. `user/query/redis/` is positive case of same rule: subpackage exists where a slice has that kind of backing store, and `query` is the only slice — indeed the only slice in the repo — with one, so `ls internal/modules/user/query/` still tells truth about which slice caches. `query` declares one port per store — `Repository` for Postgres, `StatusCache` for cache — and gets one adapter subpackage per port: `query.Repository` pairs with `postgres/`, `query.StatusCache` with `redis/`. That adapter requires Redis 8.0 or later; built on `HSETEX`, which sets hash fields and their expiry in one atomic command, and that command not exist on earlier Redis. There are 12 packages named `postgres` and 14 named `http` at each feature's own root, and one named `redis` — more once slices' own count too, since every module phase 2 slices trades its one root `postgres/` for one per slice. Both figures move with every task in the phase, so they are swept once at the end rather than restated thirteen times; the two-shapes note above is the current answer to which modules are sliced. That is why the composition root (`internal/bootstrap/app.go`) needs 14 aliased adapter imports to build every service: `shipping`'s own `postgres/` wiring now happens inside `shipping/module.go`, so `app.go` carries no `shippingpg` alias any more, and gained none in its place. `internal/transport/http/router.go` still needs another 15 (14 `http` packages plus the dev-only mock gateway's route registrar) to mount their routes — that count holds regardless of slicing, because `router.go` only ever imports a feature's own top-level `http/routes.go`, never a slice's.
 
