@@ -95,7 +95,7 @@ protect, because `dashboard` never writes.
    answer is a real read model — a projection `dashboard` owns and other modules
    write to — not a wider exemption.
 3. Read-only is a convention here, not a constraint. No grant, no separate role,
-   and no check enforces it. An `UPDATE` in `internal/modules/dashboard/postgres` would
+   and no check enforces it. An `UPDATE` in any of `internal/modules/dashboard/{summary,topproducts,revenue}/postgres` would
    pass CI today.
 
 ## Cross-module foreign keys are kept
@@ -223,10 +223,14 @@ does mean deleting its lines.
 
 ## Enforcement
 
-`make check-boundaries` runs `scripts/check-boundaries.sh`. Its second check
-reads the table above — it parses this file at run time, so this document is the
-source of truth and not a copy of one. Change ownership here; there is no list
-in the script to keep in step.
+`make check-boundaries` runs `scripts/check-boundaries.sh`, which registers
+seven checks. Two of them read the table above, straight out of this
+document at run time, so this document is the source of truth and not a
+copy of one: check 2 (`check_ownership_doc`) validates the table itself —
+no duplicate row, no row for a table no migration creates, no table with
+no owning row — and check 3 (`check_table_ownership`) is the one described
+below, enforcing what each module's own SQL may name. Change ownership
+here; there is no list in the script to keep in step.
 
 **What it catches.**
 
@@ -249,8 +253,8 @@ in the script to keep in step.
   Whitespace is collapsed across newlines before matching, so
   `INSERT INTO\n    products (...)` is caught. It was not, before Phase 5.
 * The same, when the table is written as a quoted identifier: `FROM "products"`.
-* A CTE named after a real table — `WITH orders AS (...)` in
-  `internal/modules/payment/postgres/`. This is refused rather than exempted, because
+* A CTE named after a real table — `WITH orders AS (...)` in, say,
+  `internal/modules/payment/webhook/postgres/`. This is refused rather than exempted, because
   exempting it hid every genuine reference to `orders` in that file, reads and
   writes alike, without anyone touching this document. Per-statement CTE scoping
   would not have been enough: SQL says a non-recursive CTE body does not see the
@@ -278,8 +282,8 @@ check trusted past its reach is worse than no check.
 * **Prose it mistakes for SQL — a false positive, not a false negative.** Go
   `//` and SQL `--` comments are stripped, and `_test.go` files are skipped,
   which between them removed most of it. What remains is prose in a *production*
-  string literal: `var msg = "update orders failed"` in
-  `internal/modules/cart/postgres/` reports `orders`. Nothing available to a grep can
+  string literal: `var msg = "update orders failed"` in, say,
+  `internal/modules/cart/remove/postgres/` reports `orders`. Nothing available to a grep can
   tell that string from a query. It fails loudly rather than silently, so the
   cost is an afternoon of confusion, not a boundary crossing — but if it starts
   happening often the answer is a SQL parser, not a wider allowlist.

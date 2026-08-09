@@ -35,16 +35,24 @@ freely where better design demanded.
 
 ## 1. Feature modules, not layers
 
-`internal/modules/order/` holds order's domain types, service, repository
-interface, and ports it needs — not `internal/domain/order` plus
-`internal/application/order` plus `internal/infrastructure/order`.
+`internal/modules/order/` holds everything order owns — not
+`internal/domain/order` plus `internal/application/order` plus
+`internal/infrastructure/order`. This decision is about that outer
+boundary only; decision 14 covers what now sits inside it — a `domain/`,
+one `module.go`, and one package per use case, in place of the single
+`service.go`/`repository.go` this decision originally described. Both are
+true at once: `order` is still one feature package, not three layer
+packages: it is now also a boundary containing several slice packages,
+not one flat package.
 
-**Why:** `payment.NewService()` and `payment.Repository` read naturally in Go;
-`application.NewService()` and `domain.Repository` put layer name in every
-import and tell nothing about what code for. Layered trees also scatter
-one change across three directories.
+**Why:** `payment.charge.New()` and `payment/charge.Repository` read
+naturally in Go; `application.NewService()` and `domain.Repository` put the
+layer name in every import and tell nothing about what the code is for.
+Layered trees also scatter one change across three directories.
 
-**Cost accepted:** feature package bigger than any single layer file.
+**Cost accepted:** a feature is a directory tree, not a file — bigger than
+any single layer file was, and now one level deeper than the flat feature
+package this decision first proposed.
 
 **Why the `modules/` wrapper:** 14 feature packages sit under
 `internal/modules/`, one directory below old home, so
@@ -57,18 +65,27 @@ construction cannot drift way list of exceptions can.
 
 ## 2. Ports live with the consumer
 
-`internal/modules/order/ports.go` declares `InventoryReserver` — interface
-_order_ needs. `inventory` does not publish it; `order` names exactly what it
-needs and something else satisfies it. Module with single dependency names
-file after it instead (`internal/modules/product/inventory.go`,
-`internal/modules/category/product.go`); `order` has seven, so grouped.
+The consumer is now a slice, or the module composing several of them.
+`internal/modules/product/query/ports.go` declares `InventoryReader` —
+the interface `query` alone needs from inventory. `inventory` does not
+publish it; `query` names exactly what it needs and something else
+satisfies it. `internal/modules/category/remove/ports.go` does the same
+for `ProductCounter`, one dependency, one slice. `order/module.go` is the
+other shape: `place`, `cancel` and `expire` all need inventory, so
+`order`'s port lives in `module.go` instead, as one interface plus one
+`Deps` field every slice that needs it shares — grouping at the module
+level when several slices would otherwise each declare the same
+interface. Naming a port file after the dependency instead of `ports.go`
+— an alternative this decision once allowed — no longer happens anywhere
+in the tree: every port file, at either level, is `ports.go`.
 
-**Why:** no module imports another, so dependency graph has no cycles by
-construction and each module's port list exactly API it would need if
-extracted. Pays off immediately: because interfaces declared
-narrow at consumer, `promotion.Service` satisfies `payment.CouponReleaser`
-directly and notification's `jobs.Worker` satisfies `platform/jobs`'
-`Processor` directly — two adapters never needed writing.
+**Why:** no module imports another's implementation, so the dependency
+graph has no cycles by construction and each slice's — or module's — port
+list is exactly the API it would need if extracted. Pays off immediately:
+because interfaces are declared narrow at the consumer,
+`promotion/reserve.Command` satisfies both `order.CouponPort` and
+`payment.CouponPort` directly, and notification's `jobs.Worker` satisfies
+`platform/jobs.Processor` directly — adapters never needed writing.
 
 **Cost accepted:** none, where a producer's own method already matches what
 the consumer's port asks for — that is free to declare. Where what crosses is
@@ -82,35 +99,63 @@ not a local one.
 
 ## 3. Adapters are subpackages named for their technology
 
-`internal/modules/payment/postgres`, `internal/modules/payment/http`,
-`internal/modules/payment/stripe`, `internal/modules/payment/midtrans`,
-`internal/modules/payment/worker`.
+Now one level deeper, per slice: `internal/modules/payment/charge/postgres`,
+`internal/modules/payment/webhook/postgres`, `internal/modules/payment/webhook/http`.
+`payment/gateway/stripe`, `payment/gateway/midtrans` and `payment/gateway/mock`
+are the exception that proves the rule at a different scope — an adapter
+family for one outbound port shared by two slices, still named for its
+technology, just not nested inside either slice that uses it.
 
-**Why:** dependency rule becomes compile error not convention —
-`payment` cannot import `payment/postgres` without cycle, so SQL physically
-cannot leak into core.
+**Why:** dependency rule becomes a compile error, not a convention — a
+slice cannot import its own `postgres/` without a cycle, so SQL physically
+cannot leak into its command or reader.
 
-**Cost accepted:** 12 packages named `postgres` and 14 named `http` at each
-feature's own root (15 if you count `transport/http`) — 16 and 18 once
-slices' own count too, a total phase 2 raises further with every module it
-slices next — so every composition site needs import aliases (`paymentpg`,
-`paymenthttp`). Cost concentrates in one file, deliberately.
+**Cost accepted:** 64 packages named `postgres` and 67 named `http` under
+`internal/modules` today (one more `http`, `internal/transport/http`, outside
+it), one named `redis` — re-run `find internal/modules -type d -name
+postgres | wc -l` (and `http`, `redis`) rather than trust these; they move
+with every slice added. Every module's own `module.go` needs one import
+alias per slice adapter it wires (`addpg`, `queryhttp`, …) — from 1
+(`auth`) to 11 (`order`) aliases per file today, counted with
+`grep -cE '^\s+[a-z]+ "github.com/residwi' internal/modules/<feature>/module.go` —
+and `internal/transport/http/router.go` needs one per feature's route
+table (`authhttp`, `carthttp`, …, 14 in total, plus the dev-only mock
+gateway's registrar). The composition root, `internal/bootstrap/app.go`,
+mostly escapes this now: it imports each module by its unaliased root
+package and lets `module.go` wire that module's own adapters, so aliasing
+survives there only where the order/payment cycle forces bootstrap to
+reach one level past a module boundary before that module exists yet — 6
+aliased imports today (`ordercancel`, `ordercancelpg`, `ordertransition`,
+`ordertransitionpg`, `orderquery`, `orderquerypg`), down from the double
+digits a flat, unsliced `app.go` used to carry. Cost still concentrates in
+one file per module, deliberately — just no longer in one file for the
+whole binary.
 
 ## 4. Adapter subpackages exist only where adaptation is needed
 
-`payment/` has six _adapter_ subpackages (`postgres http midtrans mock stripe
-worker`); `wishlist/` has two. `notification` has **no** `worker/` package
-because its `jobs/` slice's `Worker` satisfies `platform/jobs`' `Processor`
-directly. `contract/` is not
-counted here — it adapts no technology, decision 13 covers it on its own
-terms, and a module gets one independently of how many adapters it needs:
-`payment/` has both six adapters and a `contract/`, `auth/` has one adapter
-and a `contract/`, `wishlist/` has two adapters and no `contract/` at all.
+True at the slice level now, and the evidence is sharper for it: `auth`
+has **no** `postgres/` anywhere in the module — none of its four slices
+stores anything, because the one thing `auth` needs from storage
+(`UserProvider.GetByID`) is `user`'s to hold. `user/query` is the one
+slice in the whole repo with two backing stores, `postgres/` and `redis/`
+— every other slice in every other module has at most one. `wishlist` has
+no `ports.go` at all, in any of its three slices: nothing it does reaches
+outside the module, so there is no cross-module dependency for a port to
+name. `notification` has **no** `worker/` package because its `jobs/`
+slice's `Worker` satisfies `platform/jobs.Processor` directly — one value
+does both roles `payment` needs two packages for (`jobs/` the queue,
+`worker/` the processor that also drives order's housekeeping sweep).
+`contract/` is not counted as an adapter — it adapts no technology,
+decision 13 covers it on its own terms, and a module gets one
+independently of how many adapters it needs.
 
-**Why:** pass-through package created to make trees look uniform teaches that
-adapters are bureaucracy. Absence is lesson.
+**Why:** a pass-through package created to make the tree look uniform
+teaches that adapters are bureaucracy. Absence is the lesson, and it reads
+the same way whether the module doing without is one flat feature or,
+now, one slice inside a sliced one.
 
-**Cost accepted:** cannot predict module's shape without looking.
+**Cost accepted:** cannot predict a module's shape, or a slice's, without
+looking.
 
 ## 5. Services take `database.TxRunner`, never `*pgxpool.Pool`
 
@@ -194,33 +239,53 @@ load-bearing in Go — category's delete catches FK violation as backstop.
 soft-deleted, so cascade could never fire — while schema implied cart
 cleanup that never happened. Lie in schema worse than absence.
 
-## 9. `x/http` owns the wire format
+## 9. `<slice>/http` owns the wire format
 
-No `json` tag exists on type **this system owns** outside
-`internal/modules/*/http/`. Every endpoint owns its request DTO, response DTO
-and explicit mapping; those live beside handler that serialises them. Files
-inside `http/` split by **handler role**, not one per use case:
-`handler.go` for default handler, `admin_handler.go` where routes split
-by caller role, and `webhook_handler.go` in `payment`, whose only non-admin
-route is gateway callback and which therefore has no `handler.go` at all.
-Each has `_test.go` beside it, `package http`, holding both route-level
-tests and tests that must reach unexported mappers directly. `routes.go`
-holds only `RouteDeps` and `RegisterRoutes`.
+No `json` tag exists on a type **this system owns** outside
+`internal/modules/<feature>/<slice>/http/` — one directory deeper than
+this decision first drew it, now that every feature is slices rather than
+one flat package. Every endpoint owns its request DTO, response DTO and
+explicit mapping; those live beside the handler that serialises them.
+Files inside a slice's `http/` split by **handler role**, not one per use
+case: `handler.go` for the default handler, `admin_handler.go` where that
+slice's routes split by caller role, and `webhook_handler.go` in
+`payment/webhook`, whose only route is the gateway callback and which
+therefore has no `handler.go` at all. Each has a `_test.go` beside it,
+`package http`, holding both route-level tests and tests that must reach
+unexported mappers directly. A feature's own root `http/` holds only
+`routes.go` — `RouteDeps` and `RegisterRoutes`, nothing else — and mounts
+every slice's own `http/` package.
 
-`make check-boundaries` enforces tag rule, not file layout. Nothing
-checks how handlers distributed across files; what script does
-check is `json` tags outside `http` adapter, cross-module table references
-in SQL, and one feature importing another's `postgres`/`http`/`redis` package.
+**Response DTOs are duplicated across slices on purpose.** `order/place`,
+`order/query`, `order/retrypayment` and every other slice that returns an
+order all declare their own unexported response type rather than share
+one, even where two slices' shapes happen to match today. This is the
+same trade decision 14 makes explicit for shipping's four slices — one
+endpoint's new field cannot leak into another's response by sharing its
+struct — generalised to all fourteen modules now that all fourteen are
+sliced. Someone will read the duplication as an oversight and try to
+collapse it into one shared type; that is the one thing not to do here.
 
-Two exemptions, both deliberate and both allowlisted by name in check:
+`make check-boundaries` enforces the tag rule, not the file layout.
+Nothing checks how handlers are distributed across files; what the
+script checks is `json` tags outside a slice's `http/` (check 1),
+cross-module table references in SQL (check 3), and a module importing
+anything from another module beyond its `contract/` (check 4) — no
+longer phrased as naming a sibling's `postgres`/`http`/`redis` package
+specifically, since check 4 also catches a bare root-package import that
+never touched an adapter.
 
-- **`internal/modules/payment/gateway.go`** — `ChargeRequest`/`ChargeResponse`/`RefundRequest`/
+Two exemptions, both deliberate and both allowlisted by name in the check:
+
+- **`internal/modules/payment/gateway/gateway.go`** — `ChargeRequest`/`ChargeResponse`/`RefundRequest`/
   `RefundResponse` are _external_ gateway's wire contract, not ours. Those tags
-  describe someone else's API, and `payment/stripe` and `payment/midtrans` marshal
-  them on way out. Mapping `Money` down to their plain `int64`+`string` fields
-  in those adapters is correct seam, not leak.
-- **`internal/platform/paging/`** — shared cursor/offset pagination envelope,
-  i.e. transport infrastructure rather than domain model.
+  describe someone else's API, and `payment/gateway/stripe` and `payment/gateway/midtrans`
+  marshal them on the way out. Mapping `Money` down to their plain `int64`+`string`
+  fields in those adapters is a correct seam, not a leak.
+- **`internal/transport/http/response/response.go`** — the shared envelope
+  every handler, in every slice, writes through: transport infrastructure,
+  not a domain model, the same role `internal/platform/paging/`'s
+  cursor/offset envelope plays one layer down.
 
 Unexplained exemption in lint rule is how rule erodes, so each one
 named in `scripts/check-boundaries.sh` with its reason next to it.
@@ -228,12 +293,14 @@ named in `scripts/check-boundaries.sh` with its reason next to it.
 **Why:** thirteen `json:"-"` tags were load-bearing security controls —
 `user.PasswordHash`, `payment.GatewayResponse`, `order.RequestHash`. Two deleted
 characters published password hash. This inverts default: field now
-private unless DTO names it. Also makes `x/http` mean something; with tags on
-model, core still dictates API and adapter just folder.
+private unless DTO names it. Also makes `<slice>/http` mean something; with
+tags on the model, the model still dictates the API and the adapter is
+just a folder.
 
-**Cost accepted:** ~40 mapper functions, and request DTOs had to split into
-core `…Params` type (no tags) plus unexported wire type — otherwise core
-would import its own adapter.
+**Cost accepted:** ~40 mapper functions, now one set per slice rather than
+one set per feature, and request DTOs had to split into a core `…Params`
+type (no tags) plus an unexported wire type — otherwise the core would
+import its own adapter.
 
 ## 10. `money.Money`, not `int64` beside a `Currency string`
 
@@ -245,9 +312,9 @@ currency" unrepresentable, and collapses both hand-rolled checks into one
 `ErrCurrencyMismatch` from `Add`/`Equal`.
 
 Exactly **one** loose `Currency string` now survives outside adapter, and it
-the deliberate exemption in §9: `internal/modules/payment/gateway.go`, external
+the deliberate exemption in §9: `internal/modules/payment/gateway/gateway.go`, external
 gateway's own contract. `Money` maps down to its plain `int64`+`string` fields in
-`payment/stripe` and `payment/midtrans`, which correct seam.
+`payment/gateway/stripe` and `payment/gateway/midtrans`, which correct seam.
 
 **Scope: four features — `order`, `payment`, `product`, `cart`.** Those
 only ones whose data model carries currency at all. Two deliberately
@@ -284,10 +351,10 @@ that states its policy in its name.
 **Two seams where `Money` deliberately stops.** Both places reader will
 otherwise read as oversight:
 
-1. **`order.CouponReserver`** (`internal/modules/order/ports.go`) still passes `orderSubtotal int64`
+1. **`place.CouponReserver`** (`internal/modules/order/place/ports.go`) still passes `orderSubtotal int64`
    and returns `discountAmount int64`. Its implementer is `promotion`, which has no
    currency to honour `Money` with. Pairing happens on order's side of
-   seam — `internal/modules/order/service.go` passes `subtotal.Amount` and rebuilds
+   seam — `internal/modules/order/place/command.go` passes `subtotal.Amount` and rebuilds
    `money.New(discount, subtotal.Currency)` — which also where clamp policy
    lives: `max(subtotal-discount, 0)`, so over-large coupon cannot produce
    negative charge. `Money.Sub` deliberately does not decide that, so clamp
@@ -309,13 +376,29 @@ empty cart yields `total: 0`, not error.
 
 ## 11. Integration tests stay next to their code; only e2e is centralised
 
-**Why:** `go test ./...` runs 19 test binaries concurrently against one shared
-container. Collapsing them into single `test/integration` package makes them
-sequential, and `t.Parallel()` cannot recover it because subtests share
-database. `test/e2e` exists for checkout and refund sagas — flows spanning
-five modules no single feature package can own.
+**Why:** `go test ./...` runs every test binary concurrently against one
+shared container per binary. Collapsing them into a single `test/integration`
+package makes them sequential, and `t.Parallel()` cannot recover it because
+subtests would share one database. `test/e2e` exists for checkout and
+refund sagas — flows spanning five modules no single feature package can
+own.
 
-**Cost accepted:** 19 `TestMain` functions instead of one.
+Now that every module is sliced, "next to their code" means next to the
+*slice*: `internal/modules/<feature>/<slice>/postgres/repository_test.go`
+is its own package and its own test binary, and every slice's test package
+under one module claims that module's database by the same name
+(`test_order`, `test_payment`, …) rather than one name per package. They
+never tear each other down — the database is created once, under an
+advisory lock, and never dropped — but they also never get a clean table
+between them, which is why `ResetDB` is off-limits to any of them (see
+`ARCHITECTURE-LIMITATIONS.md`).
+
+**Cost accepted:** 75 packages call `testhelper.MustStartPostgres` or
+`MustStartRedis` today (`grep -rl testhelper.MustStart --include='*_test.go'
+. | xargs -n1 dirname | sort -u | wc -l`) — up from 19 test binaries before
+this phase's slicing, each still with its own `TestMain`, none of it
+collapsed into fewer database claims: a module gained test binaries in the
+same slicing that left it with one database name shared across them.
 
 ## 12. Log attributes travel in the context, not in signatures
 
@@ -330,8 +413,8 @@ installs the wrapper, so every logger in both binaries has it. Services
 keep their constructor-injected `*slog.Logger` and their existing
 `InfoContext(ctx, ...)` calls unchanged. Only the four edges that name an
 attribute gained one `logger.WithAttrs` line each — two of them,
-`payment.Service.Process` and notification's `jobs.Worker.Process`, inside a
-feature package. Every other call, in every other feature, needed no
+`payment/jobs.Dispatcher.Process` and `notification/jobs.Worker.Process`,
+inside a slice package. Every other call, in every other slice, needed no
 change to start carrying the context's attributes.
 
 Two details are load-bearing rather than stylistic. `ContextHandler`
@@ -343,8 +426,8 @@ derived from one parent would otherwise share a backing array and
 overwrite each other.
 
 **The cost:** you can no longer read a single log call and know everything
-it emits. `order.Service.ExpireStale`'s
-`s.logger.ErrorContext(ctx, "failed to expire order", slog.String("order_id", o.ID.String()), slog.String("error", err.Error()))`
+it emits. `order/expire.Command.Sweep`'s
+`c.logger.ErrorContext(ctx, "failed to expire order", slog.String("order_id", o.ID.String()), slog.String("error", err.Error()))`
 also emits `runner`, because it runs inside the payment runner's per-tick
 sweep, and nothing at that line names it. In exchange, 32 repeated
 attributes are gone and `request_id` reaches code that has never heard of
@@ -359,13 +442,13 @@ have a `contract/` package: `user/contract.User`, `product/contract.Product`,
 imports no module and no platform package, so importing one can never pull the
 producer's implementation along with it — a consumer takes the type by value
 and never learns how it is built. A port still names the type it needs
-(`auth.UserProvider.GetByID(ctx, id) (usercontract.User, error)`); the
+(`refresh.UserProvider.GetByID(ctx, id) (usercontract.User, error)`); the
 contract package supplies only the shape, never the interface — that stays
 declared by the consumer, per decision 2.
 
-**Why:** decision 2's trick — a producer's own method already named what the
-consumer's port asked for, so `promotion.Service` satisfies
-`payment.CouponReleaser` with no adapter at all — works for scalars and for
+**Why:** decision 2's trick — a producer's own value already had a method
+named what the consumer's port asked for, so `promotion/reserve.Command`
+satisfies `payment.CouponPort` with no adapter at all — works for scalars and for
 interfaces a producer already implements. It does not work when what crosses
 is a struct: two modules cannot each declare their own `User` and have the
 compiler agree the two are the same type. Every module that names a struct
@@ -386,7 +469,8 @@ its own account.
 ## 14. A module is a business boundary containing vertical slices
 
 `internal/modules/shipping/` is the reference — first of fourteen modules
-moved to this shape, thirteen still to go. It holds `domain/` (its aggregate
+moved to this shape; `payment` was the last, and all fourteen now hold it.
+It holds `domain/` (its aggregate
 and rules — `Shipment`, `ShipmentStatus`, `CanShipOrder` — module-private by
 convention, not by any check: nothing outside `shipping` needs it, so nothing
 imports it), `module.go` (constructs the slices, imports no transport
@@ -405,8 +489,11 @@ and `deliver.Repository` both need `GetByID`; each declares it rather than
 sharing one. A slice declares a port for anything it does not implement
 itself — another module's capability or a sibling slice's — and `module.go`
 wires it. Three of shipping's four slices declare one (`query.OrderPort`,
-`create.OrderPort`, `deliver.OrderPort`, each satisfied by `order.Service` by
-name-match, same trick as decision 2); `updatetracking` declares none and
+`create.OrderPort`, `deliver.OrderPort`), all three folded into one
+`shipping.OrderPorts` union at `module.go`'s `Deps` — order's own `Module`
+value satisfies it by name-match, same trick as decision 2, and Go's
+interface-assignability rule lets that one wider value stand in for each
+slice's narrower port without a cast. `updatetracking` declares none and
 takes no `TxRunner` either, because it changes two fields on a row it already
 fetched and writes it back — there is nothing outside itself to ask.
 
@@ -427,9 +514,11 @@ four aliased imports in each file today, one per slice. Response DTOs are
 duplicated across slices that return the same shape: `query`, `create`,
 `updatetracking` and `deliver` each declare their own unexported
 `shipmentResponse` rather than share one — deliberately, so one endpoint's new
-field cannot appear in another's output. The other thirteen modules pay the
-same multiplier once sliced, scaled to however many use cases each turns out
-to need.
+field cannot appear in another's output. The other thirteen modules paid the
+same multiplier as each was sliced in turn, scaled to however many use cases
+each module turned out to need — decision 3's package counts, and decision
+9's response-DTO-duplication note, are the tally now that all fourteen have
+paid it.
 
 ---
 
@@ -450,8 +539,18 @@ gun with warning label. Absent directory cannot be filled. `money` lives at
 `internal/money`, and `apperror` stayed where it was — moving it would have
 touched nearly every file for nothing.
 
-If third genuinely cross-module vocabulary type ever appears, introduce it
-then; move mechanical.
+The rejection has a sharper answer now than "introduce it when a third
+type needs it": `<feature>/contract/` is what a cross-module vocabulary
+type belongs in instead, and it is scoped per producer rather than pooled
+where anyone can reach it — `usercontract.User` lives with `user`, not in
+a shared namespace every module imports. Check 7 (`check_contract_leaf`)
+is what keeps that answer from decaying into `internal/shared/` by another
+name: a `contract/` package that started importing another module's
+`contract/`, or its own `domain/`, would be `shared/` again with extra
+steps, and the check refuses both. If a vocabulary type genuinely serves
+no single producer — the case `internal/shared/` would have existed for —
+that case has not appeared yet; introduce it then, and expect the same
+scrutiny a `contract/` package gets.
 
 ## Typed IDs (`ProductID`, `UserID`)
 
@@ -474,9 +573,11 @@ shared kernel.
 
 ## `shared/address`
 
-**Rejected.** Exactly one module defines address type (`internal/modules/order/address.go`), and
-`shipping` has none — shipments key off `order_id`. Promoting single-consumer
-type to shared package is opposite of what "shared" should mean.
+**Rejected.** Exactly one module defines an address type — `Address`, in
+`internal/modules/order/domain/order.go` now that `order`'s domain types
+live in `domain/` rather than at the feature root — and `shipping` has
+none — shipments key off `order_id`. Promoting a single-consumer type to a
+shared package is the opposite of what "shared" should mean.
 
 ## `shared/events` / a domain event bus
 
@@ -505,10 +606,12 @@ never fill. Add when there is proto.
 
 ## `x/webhook/` as a package
 
-**Rejected** in favour of `internal/modules/payment/http/webhook_handler.go`. Webhook _is_ HTTP;
-splitting it out fragments route registration across two packages for one feature.
-Things that actually need protecting — no JWT middleware, raw body access,
-signature verification — already handled by route group.
+**Rejected** in favour of `internal/modules/payment/webhook/http/webhook_handler.go`
+— the callback is `payment`'s own slice now, not a bolt-on file at the feature
+root. Webhook _is_ HTTP; splitting it out fragments route registration across
+two packages for one use case. Things that actually need protecting — no JWT
+middleware, raw body access, signature verification — already handled by
+route group.
 
 ## `notification/worker/`
 
