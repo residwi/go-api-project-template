@@ -89,23 +89,26 @@ type CouponPort interface {
 }
 
 // Module is Webhook, Query, Refund, Charge and Jobs. Charge satisfies order's
-// PaymentInitiator; Jobs satisfies order/cancel's PaymentJobCanceller.
+// PaymentInitiator; Jobs satisfies order/cancel's PaymentJobCanceller and
+// platform/jobs.Queue; JobProcessor satisfies platform/jobs.Processor,
+// separately from Jobs -- see jobs.Dispatcher for why.
 type Module struct {
-	Webhook *webhook.Command
-	Query   *query.Reader
-	Refund  *refund.Command
-	Charge  *charge.Command
-	Jobs    *jobs.Command
+	Webhook      *webhook.Command
+	Query        *query.Reader
+	Refund       *refund.Command
+	Charge       *charge.Command
+	Jobs         *jobs.Command
+	JobProcessor *jobs.Dispatcher
 }
 
 func New(d Deps) *Module {
 	gw := newGateway(d.Config)
 
 	// jobs needs nothing but the pool: charge and refund each need jobs back
-	// (to enqueue a follow-up job or settle their own), so jobs is built first
-	// and SetProcessors wires the other two in once they exist -- payment's own
-	// internal cycle, contained entirely inside this function.
-	jobsCmd := jobs.New(jobspg.New(d.Pool), d.Logger)
+	// (to enqueue a follow-up job or settle their own), so jobs is built first.
+	// jobs never needs charge or refund back -- only the Dispatcher, built
+	// after both exist, does -- so no setter and no cycle on Command itself.
+	jobsCmd := jobs.New(jobspg.New(d.Pool))
 
 	chargeCmd := charge.New(
 		chargepg.New(d.Pool), d.Tx, gw,
@@ -117,7 +120,7 @@ func New(d Deps) *Module {
 		d.OrderTransition, d.OrderReader, d.OrderReader, d.Inventory, d.Promotions, jobsCmd,
 		d.Logger,
 	)
-	jobsCmd.SetProcessors(chargeCmd, refundCmd)
+	dispatcher := jobs.NewDispatcher(chargeCmd, refundCmd, d.Logger)
 
 	webhookCmd := webhook.New(
 		webhookpg.New(d.Pool), d.OrderCanceller, chargeCmd, jobsCmd,
@@ -125,23 +128,27 @@ func New(d Deps) *Module {
 	)
 
 	return &Module{
-		Webhook: webhookCmd,
-		Query:   query.New(querypg.New(d.Pool)),
-		Refund:  refundCmd,
-		Charge:  chargeCmd,
-		Jobs:    jobsCmd,
+		Webhook:      webhookCmd,
+		Query:        query.New(querypg.New(d.Pool)),
+		Refund:       refundCmd,
+		Charge:       chargeCmd,
+		Jobs:         jobsCmd,
+		JobProcessor: dispatcher,
 	}
 }
 
 // newGateway picks one Gateway implementation from Config.Gateway. gateway/
 // is an adapter family, not a slice: charge and refund both depend on the
 // same two-method Gateway interface, so module.go is the one place that
-// chooses which real implementation backs it.
+// chooses which real implementation backs it. LoadConfig already rejected
+// anything but gatewayMock/gatewayStripe/gatewayMidtrans, so the default case
+// here is reached only by gatewayMock -- never by a typo silently routing
+// real charges at the mock.
 func newGateway(cfg Config) gateway.Gateway {
 	switch cfg.Gateway {
-	case "stripe":
+	case gatewayStripe:
 		return gatewaystripe.New(cfg.GatewayAPIKey, cfg.GatewayTimeout)
-	case "midtrans":
+	case gatewayMidtrans:
 		return gatewaymidtrans.New(cfg.GatewayAPIKey, cfg.GatewayTimeout)
 	default:
 		return gatewaymock.New(cfg.GatewayURL, cfg.GatewayTimeout)

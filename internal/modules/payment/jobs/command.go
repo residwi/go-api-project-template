@@ -1,43 +1,26 @@
-// Package jobs owns the payment_jobs queue table and drains it: Claim and
-// Prune satisfy platform/jobs.Queue, Process satisfies platform/jobs.Processor,
-// and cmd/worker runs one value as both. Process only dispatches -- charge and
-// refund own the mechanics of a charge or refund attempt, including the
-// finalize/compensate dance, because that logic decides order and inventory
-// state that belongs to their own slice, not to the queue that merely
-// schedules it.
+// Package jobs owns the payment_jobs queue table and every operation on it.
+// Command satisfies platform/jobs.Queue (Claim, Prune) and holds the
+// bookkeeping methods charge and refund settle their own retries and
+// follow-ups through; Dispatcher, a separate value built after charge and
+// refund exist, satisfies platform/jobs.Processor. Splitting the two is what
+// keeps Command free of a cycle back into charge/refund -- see dispatcher.go.
 package jobs
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
-	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
 type Command struct {
-	repo   Repository
-	charge ChargeProcessor
-	refund RefundProcessor
-	logger *slog.Logger
+	repo Repository
 }
 
-func New(repo Repository, log *slog.Logger) *Command {
-	return &Command{repo: repo, logger: log}
-}
-
-// SetProcessors breaks the jobs/charge/refund construction cycle: charge and
-// refund each need jobs (to enqueue a follow-up job or complete their own),
-// and jobs needs both of them back to dispatch a claimed job, so
-// payment/module.go builds jobs first and wires this in once charge and
-// refund exist too.
-func (c *Command) SetProcessors(charge ChargeProcessor, refund RefundProcessor) {
-	c.charge = charge
-	c.refund = refund
+func New(repo Repository) *Command {
+	return &Command{repo: repo}
 }
 
 func (c *Command) Claim(ctx context.Context, batchSize int, leaseDuration time.Duration) ([]domain.Job, error) {
@@ -85,22 +68,4 @@ func (c *Command) EnqueueRefund(ctx context.Context, paymentID, orderID uuid.UUI
 		Status:      domain.JobStatusPending,
 		NextRetryAt: time.Now(),
 	})
-}
-
-// Process owns no retry logic of its own: it dispatches to whichever slice
-// owns the action, and that slice's own bookkeeping decides the backoff.
-func (c *Command) Process(ctx context.Context, job domain.Job) error {
-	// Only here: InitiatePayment and the webhook reach the same finalize path
-	// with a synthetic Job that has no ID, so they must not set this.
-	ctx = logger.WithAttrs(ctx, slog.String("job_id", job.ID.String()))
-
-	switch job.Action {
-	case domain.ActionCharge:
-		return c.charge.ProcessCharge(ctx, job)
-	case domain.ActionRefund:
-		return c.refund.ProcessRefund(ctx, job)
-	default:
-		c.logger.ErrorContext(ctx, "unknown job action", slog.String("action", string(job.Action)))
-		return fmt.Errorf("unknown job action: %s", job.Action)
-	}
 }

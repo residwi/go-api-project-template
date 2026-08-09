@@ -148,42 +148,29 @@ importer_roots() {
 #
 # Exempt by explicit path allowlist -- one entry per line. This is a variable
 # rather than another anonymous `grep -v` so that adding an entry is an
-# obvious, reviewable act that shows up in a diff with its justification. An
-# entry ending in `/` allowlists a directory (every file under it, at any
-# depth); anything else is matched as an exact file path.
+# obvious, reviewable act that shows up in a diff with its justification.
 #
-#   internal/modules/payment/gateway/
+#   internal/modules/payment/gateway/gateway.go
 #     ChargeRequest / ChargeResponse / RefundRequest / RefundResponse are the
 #     *external* payment gateway's wire contract, not this system's. The tags
-#     describe someone else's API, and gateway/stripe + gateway/midtrans
-#     marshal these structs when calling out to it. This was a single file
-#     (payment/gateway.go) before payment was sliced into vertical slices;
-#     grouping gateway.go with its stripe/midtrans/mock implementations under
-#     payment/gateway/ narrows the exemption from "the whole module root" to
-#     just that directory, so a json tag on a domain type in payment's own
-#     model can never sit in the same file as this exemption again. An
-#     unexplained exemption in a lint rule is how the rule erodes, so this one
-#     carries its reason.
+#     describe someone else's API. Only this one file needs the exemption --
+#     gateway/stripe, gateway/midtrans and gateway/mock call out to it with
+#     these same structs but declare none of their own, so allowlisting the
+#     whole gateway/ directory would exempt three files that carry zero json
+#     tags today, on the strength of one that does. This was a single file
+#     at the module root (payment/gateway.go) before payment was sliced into
+#     vertical slices; moving it under payment/gateway/ still narrows the
+#     exemption, because a json tag on a domain type in payment's own model
+#     can no longer land in the same file as this one by accident -- but the
+#     allowlist entry itself stays exactly as wide as the one file that
+#     earns it. An unexplained exemption in a lint rule is how the rule
+#     erodes, so this one carries its reason.
 JSON_TAG_ALLOWLIST='
-internal/modules/payment/gateway/
+internal/modules/payment/gateway/gateway.go
 '
 
 is_json_tag_allowlisted() {
-	local file="$1" entry
-	while IFS= read -r entry; do
-		[ -n "$entry" ] || continue
-		case "$entry" in
-		*/)
-			case "$file" in
-			"$entry"*) return 0 ;;
-			esac
-			;;
-		"$file") return 0 ;;
-		esac
-	done <<-EOF
-	$JSON_TAG_ALLOWLIST
-	EOF
-	return 1
+	printf '%s\n' "$JSON_TAG_ALLOWLIST" | grep -qxF -- "$1"
 }
 
 check_wire_tags() {

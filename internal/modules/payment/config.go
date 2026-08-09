@@ -25,6 +25,18 @@ type Config struct {
 // development.
 const defaultWebhookSecret = "webhook-secret"
 
+// The three gateways newGateway (module.go) knows how to build. Named here,
+// not just there, so LoadConfig can reject an unrecognised Config.Gateway at
+// boot instead of newGateway silently falling back to the mock on a typo --
+// the same invariant, checked where a wrong value is loud instead of where a
+// wrong value would otherwise stay quiet until every real charge fails or,
+// worse, a reachable dev mock gateway fakes one through unpaid.
+const (
+	gatewayMock     = "mock"
+	gatewayStripe   = "stripe"
+	gatewayMidtrans = "midtrans"
+)
+
 // LoadConfig takes appEnv and jobsLease because payment's invariants span them:
 // the placeholder secret is only tolerable in development, and a lease shorter
 // than three gateway timeouts lets the runner re-claim a charge that is still
@@ -33,6 +45,12 @@ func LoadConfig(appEnv string, jobsLease time.Duration) (Config, error) {
 	var cfg Config
 	if err := envconfig.Process("", &cfg); err != nil {
 		return Config{}, fmt.Errorf("loading payment config: %w", err)
+	}
+
+	if cfg.Gateway != gatewayMock && cfg.Gateway != gatewayStripe && cfg.Gateway != gatewayMidtrans {
+		return Config{}, fmt.Errorf(
+			"PAYMENT_GATEWAY must be %q, %q or %q, got %q", gatewayMock, gatewayStripe, gatewayMidtrans, cfg.Gateway,
+		)
 	}
 
 	if appEnv != "development" && cfg.WebhookSecret == defaultWebhookSecret {

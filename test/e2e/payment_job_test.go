@@ -38,7 +38,7 @@ func TestE2EChargeJob(t *testing.T) {
 
 		f := seedChargeJob(t, 3)
 
-		require.NoError(t, newPaymentService(t, mockServer.URL+"/mock/payment").Jobs.Process(ctx, f.job))
+		require.NoError(t, newPaymentService(t, mockServer.URL+"/mock/payment").JobProcessor.Process(ctx, f.job))
 
 		assert.Equal(t, string(domain.JobStatusCompleted), jobStatusOf(t, f.job.ID))
 		assert.Equal(t, string(domain.StatusSuccess), paymentStatusOf(t, f.paymentID))
@@ -65,7 +65,7 @@ func TestE2EChargeJob(t *testing.T) {
 		// max_attempts=1, so this first failure is also the final one.
 		f := seedChargeJob(t, 1)
 
-		err := newPaymentService(t, failingServer.URL+"/mock/payment").Jobs.Process(ctx, f.job)
+		err := newPaymentService(t, failingServer.URL+"/mock/payment").JobProcessor.Process(ctx, f.job)
 		require.Error(t, err)
 
 		assert.Equal(t, string(domain.JobStatusFailed), jobStatusOf(t, f.job.ID))

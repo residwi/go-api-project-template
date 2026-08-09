@@ -776,7 +776,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 
 		// The outcome is not asserted: this exists to drive the order-facing adapters
 		// with an order whose items are gone.
-		_ = newPaymentServiceForTest(t, mockServer.URL+"/mock/payment").Jobs.Process(ctx, job)
+		_ = newPaymentServiceForTest(t, mockServer.URL+"/mock/payment").JobProcessor.Process(ctx, job)
 
 		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, refundJobID)
 

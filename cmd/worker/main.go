@@ -100,11 +100,13 @@ func run() error {
 	}
 
 	// app.Orders satisfies paymentworker.OrderHousekeeper directly, so the
-	// processor needs no adapter. payment.Module.Jobs is both platform/jobs.Queue
-	// and platform/jobs.Processor at once (the same rule notification's Jobs
-	// follows), so the runner claims and drains through the same value the
-	// processor wraps to add its per-tick Sweep hook.
-	paymentProcessor := paymentworker.NewProcessor(app.Payments.Jobs, app.Orders, appLog)
+	// processor needs no adapter. Unlike notification's Jobs, payment splits
+	// its queue (app.Payments.Jobs, platform/jobs.Queue) from its processor
+	// (app.Payments.JobProcessor, platform/jobs.Processor) into two values:
+	// the processor needs charge and refund, built after Jobs, so giving Jobs
+	// itself a Process method would need a setter reachable from everywhere
+	// Jobs is (this call included).
+	paymentProcessor := paymentworker.NewProcessor(app.Payments.JobProcessor, app.Orders, appLog)
 	paymentRunner := jobs.NewRunner("payment", app.Payments.Jobs, paymentProcessor, jobCfg, appLog)
 	notificationRunner := jobs.NewRunner("notification", app.Notifications.Jobs, app.Notifications.Jobs, jobCfg, appLog)
 

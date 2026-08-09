@@ -193,7 +193,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 
 		stockBefore, _ := inventoryLevelOf(t, prodID)
 
-		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").Jobs.Process(ctx, job)
+		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").JobProcessor.Process(ctx, job)
 		require.NoError(t, processErr)
 
 		var orderStatus string
@@ -388,7 +388,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").Jobs.Process(ctx, job)
+		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").JobProcessor.Process(ctx, job)
 		require.NoError(t, processErr)
 
 		// Restocked, not released: available_stock returns to its seeded 100 and

@@ -22,16 +22,16 @@ type OrderHousekeeper interface {
 }
 
 type Processor struct {
-	*jobs.Command
+	*jobs.Dispatcher
 
 	orders OrderHousekeeper
-	// logger is its own field rather than the embedded Command's: that one is
-	// unexported and so unreachable from this package.
+	// logger is its own field rather than the embedded Dispatcher's: that one
+	// is unexported and so unreachable from this package.
 	logger *slog.Logger
 }
 
-func NewProcessor(cmd *jobs.Command, orders OrderHousekeeper, log *slog.Logger) *Processor {
-	return &Processor{Command: cmd, orders: orders, logger: log}
+func NewProcessor(dispatcher *jobs.Dispatcher, orders OrderHousekeeper, log *slog.Logger) *Processor {
+	return &Processor{Dispatcher: dispatcher, orders: orders, logger: log}
 }
 
 // Sweep is the runner's optional per-tick hook. A recovery failure is logged, not
