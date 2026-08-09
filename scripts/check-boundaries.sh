@@ -3,11 +3,13 @@
 # check-boundaries.sh -- turn Phase 4's module boundaries into a build failure
 # instead of a paragraph in a plan document.
 #
-#   Check 1  Wire (`json:`) tags live only in a feature's http adapter.
-#   Check 2  A feature's SQL -- anywhere under the module, not only its
+#   Check 1  Wire (`json:`) tags live only in a slice's http adapter.
+#   Check 2  db/OWNERSHIP.md itself has no duplicate rows, no row for a
+#            table no migration creates, and no table with no owning row.
+#   Check 3  A feature's SQL -- anywhere under the module, not only its
 #            postgres adapter -- only queries tables it owns, where "owns"
 #            is read out of db/OWNERSHIP.md at run time.
-#   Check 3  No feature imports another feature's postgres/http/redis adapter.
+#   Check 4  A module imports only <feature>/contract from another module.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
 # clean; on failure it prints every violation as file:line and exits 1.
@@ -42,7 +44,7 @@ report() { printf '%s\n' "$*" >>"$VIOLATIONS"; }
 MODULES_ROOT='internal/modules'
 
 # The directories whose entire job is to import adapters and wire them together.
-# Only these are exempt from check 3 as importers. This one stays a list because
+# Only these are exempt from check 4 as importers. This one stays a list because
 # it is a genuine permission grant, not a classification: it should be short, and
 # adding to it should be a visible, argued diff.
 WIRING_DIRS='bootstrap transport'
@@ -64,9 +66,9 @@ feature_dirs() {
 	done
 }
 
-# $MODULES_ROOT is asserted, not assumed. Checks 2 and 3 are both driven by
+# $MODULES_ROOT is asserted, not assumed. Checks 3 and 4 are both driven by
 # feature_dirs, and both fail *open* when it yields nothing: check_table_ownership
-# loops zero times, and check_adapter_imports returns early on an empty feature
+# loops zero times, and check_cross_module_imports bails out on an empty feature
 # alternation. Rename or empty this directory and those two report nothing at
 # all, whatever is in the tree -- verified by moving internal/modules aside with
 # a cross-module `INSERT INTO orders` and a sibling postgres import planted:
@@ -82,7 +84,7 @@ feature_dirs() {
 if [ -z "$(feature_dirs)" ]; then
 	echo "check-boundaries: MODULES_ROOT ($MODULES_ROOT) holds no feature module directories." >&2
 	echo >&2
-	echo "  Checks 2 (table ownership) and 3 (adapter imports) enumerate every feature" >&2
+	echo "  Checks 3 (table ownership) and 4 (cross-module imports) enumerate every feature" >&2
 	echo "  out of MODULES_ROOT. With nothing there they would pass while checking" >&2
 	echo "  nothing, so this is refused instead." >&2
 	echo >&2
@@ -90,16 +92,16 @@ if [ -z "$(feature_dirs)" ]; then
 	exit 1
 fi
 
-# importer_roots prints every path check 3 walks: everything under internal/
-# that may not import a feature's adapter -- that is, everything except the
-# wiring layer. It is a superset of feature_dirs: internal/platform must not
-# import product/postgres either, and "not a feature" is not the same permission
+# importer_roots prints every path check 4 walks: everything under internal/
+# that may not import another module's internals -- that is, everything except
+# the wiring layer. It is a superset of feature_dirs: internal/platform must not
+# import product/domain either, and "not a feature" is not the same permission
 # as "may wire adapters", which is why shared infrastructure is scanned too.
 #
 # It prints paths rather than bare names because the two kinds of directory now
 # sit at different depths: internal/platform against internal/modules/product.
 # $MODULES_ROOT itself is expanded into its children rather than scanned as one
-# directory, so that check 3 can tell which module an offending file belongs to:
+# directory, so that check 4 can tell which module an offending file belongs to:
 # the caller takes the basename of what it is given, and walking the root as one
 # directory would call every module's file "modules" and report each feature's
 # own adapter imports as violations.
@@ -673,121 +675,40 @@ check_table_ownership() {
 }
 
 # ---------------------------------------------------------------------------
-# Check 3 -- nothing but the wiring layer reaches into a feature's adapter
+# Check 4 -- a module imports only <feature>/contract from another module
 # ---------------------------------------------------------------------------
 #
-# Features talk to each other through consumer-declared ports -- usually
-# <feature>/ports.go, but two features name the file after the module they
-# depend on instead: internal/modules/product/inventory.go declares InventoryReader and
-# InventoryRegistrar, and internal/modules/category/product.go declares ProductCounter.
-# Never by grabbing a sibling's concrete adapter: importing
-# internal/modules/<other>/postgres or internal/modules/<other>/http couples a
-# feature to another feature's storage or transport shape. The same is true one
-# level deeper: internal/modules/<other>/<slice>/postgres is still <other>'s
-# adapter, just wired by a vertical slice instead of the feature root, so it is
-# just as off-limits to everyone but <other> itself -- and the same rule
-# applies *inside* one feature too: internal/modules/shipping/create/postgres
-# is not shipping/query's to import either. A slice is its own boundary, not
-# just the feature it lives in.
+# This replaces the old check 3, which named three adapter package types
+# (postgres, http, redis) and asked who imported them. The new rule is one
+# sentence and covers strictly more: from another module, only contract/ is
+# importable. domain/ is private, every slice -- root package and adapter
+# alike -- is private, and contract/ is the whole published surface. Neither
+# domain/ nor a slice's bare root package (internal/modules/order/place, with
+# no adapter suffix) was nameable by the old check's pattern; this one does
+# not need to name what is forbidden, only what is allowed.
+#
+# Same-module imports are unrestricted here: a slice reaching a sibling slice
+# in its own module is not a cross-module import at all -- both packages live
+# under the same feature -- and is a separate rule, for a later check to add,
+# not this one's job.
 #
 # Exempt: the wiring layer, and only the wiring layer. internal/bootstrap/ and
-# internal/transport/ exist precisely to import adapters and wire them together,
-# so they are skipped as importers via WIRING_DIRS. Everything else under
-# internal/ is scanned, features and shared infrastructure alike -- "not a
-# feature" is not the same permission as "may wire adapters", and
-# internal/platform must not import product/postgres either.
+# internal/transport/ exist precisely to import adapters and wire them
+# together, so they are skipped as importers via WIRING_DIRS (importer_roots
+# applies that exemption once, for every check that walks it). Everything else
+# under internal/ is scanned, features and shared infrastructure alike -- "not
+# a feature" is not the same permission as "may wire adapters", and
+# internal/platform must not import product/domain any more than it may
+# import product/postgres.
 #
-# A feature's own composition surface is not on that WIRING_DIRS list, and
-# does not need to be: within one feature, that feature's own composition
-# scope may reach into any of its own slices, and every other combination --
-# a slice reaching a sibling slice, a slice reaching the feature's own
-# top-level adapter, or one feature reaching another's, sliced or not -- is
-# refused. "Composition scope" is granted per *directory*, not per file:
-#   - every file directly under internal/modules/<feature>/ -- module.go
-#     composes internal/modules/shipping/query/postgres there;
-#   - every file inside the feature's own top-level postgres/, http/ or
-#     redis/ directory (not a slice's) -- internal/modules/shipping/http/
-#     routes.go composes internal/modules/shipping/query/http there, to
-#     register the slice's routes on the feature's route table. routes.go
-#     does not live at the literal feature root, but it plays module.go's
-#     role for HTTP, so its directory gets the same reach module.go's does.
-# That grant covers the whole directory, not only the one file in it that
-# happens to compose something. Before task 8 of this phase deleted the husk,
-# internal/modules/shipping/http/ also held handler.go and admin_handler.go,
-# and both could have imported a sibling slice's adapter without this check
-# objecting, even though neither had any reason to. That was accepted rather
-# than closed as a gap, for two reasons: the husk was already scheduled for
-# deletion, after which internal/modules/shipping/http/ would hold only
-# routes.go and the directory grant and the file-scoped intent would become
-# the same set -- true now; and keeping a handler from importing
-# postgres/http/redis directly is rule 9 ("a service runs no SQL and holds no
-# pool") plus handler-vs-adapter layering generally -- both convention, never
-# machine-checked, and never this check's job to enforce.
-# Narrowing the grant to a filename allowlist (only module.go, only
-# routes.go) was considered and rejected: it is the same filename-allowlist
-# trap the paragraph below already argues against for module.go, it breaks
-# the moment a feature's composition legitimately spans two files, and it
-# buys nothing that rule 9 is not already responsible for.
-# A slice's own files -- anything one level under the feature that is not
-# postgres/, http/ or redis/ itself, e.g. internal/modules/shipping/query/
-# -- get the narrower permission: they may import that same slice's own
-# adapters and nothing else belonging to the feature.
-#
-# feature_and_slice() below computes this classification identically for the
-# importing file (from its own path) and for each import found (from the
-# import string), and the two are compared feature-for-feature and, when the
-# importer is itself scoped to one slice, slice-for-slice. This is what tells
-# apart every combination above -- module.go's own feature matches and its
-# slice is empty (root), so it may reach any slice; shipping/query/reader.go's
-# slice is "query", so an import naming any other slice, or naming the
-# feature's own top-level adapter (which reads as slice ""), is refused.
-# Comparing derived identity beats naming module.go or routes.go by filename:
-# a filename allowlist would grant the same pass to another feature's
-# module.go reaching into shipping, which is exactly what this check exists to
-# stop, and it would still miss a slice reaching a *sibling* slice, which is
-# the hole this file's own history already had.
-#
-# The *target* pattern is anchored under $MODULES_ROOT, which is what keeps
-# internal/transport/http/middleware and internal/transport/http/response --
-# shared infrastructure that happens to live at an `http` path -- from being
-# mistaken for feature adapters. That used to rest on the feature alternation
-# alone; now the path prefix rules them out on its own and the alternation is a
-# second, narrower fence. Test files are exempt too.
-
-# feature_and_slice prints "<feature> <slice>" for $1, a path already relative
-# to $MODULES_ROOT -- "shipping/module.go", "shipping/http/routes.go",
-# "shipping/query/postgres/repository.go". Slice is empty for a file with no
-# subdirectory under the feature and for one whose first subdirectory is
-# itself named postgres, http or redis: both are the feature's own root-level
-# composition surface, per the comment above. Anything else in that first
-# subdirectory position is a slice name, however deep the real file sits
-# beneath it -- shipping/query/postgres/repository.go is still slice "query".
-# This assumes no slice is ever itself named postgres, http or redis --
-# true of every slice in this codebase today -- because a slice that were
-# would be classified as composition scope here and inherit its full reach.
-#
-# Pure parameter expansion, no subprocess: this runs once per file and once
-# per hit inside two nested loops, and bash 3.2 (macOS) pays for every `sed`
-# or `awk` fork this script does not have to make here.
-feature_and_slice() {
-	local rest="$1" feature tail seg slice=''
-	feature="${rest%%/*}"
-	tail="${rest#*/}"
-	case "$tail" in
-	*/*)
-		seg="${tail%%/*}"
-		case "$seg" in
-		postgres | http | redis) ;;
-		*) slice="$seg" ;;
-		esac
-		;;
-	esac
-	printf '%s %s\n' "$feature" "$slice"
-}
-
-check_adapter_imports() {
-	local module module_re modules_re feature_alt importer importer_name file hit
-	local imp file_feature file_slice target target_slice
+# _test.go files are in scope, unlike check_table_ownership's scan. A test
+# reaching into a sibling module's slice proves the same coupling a production
+# import would, and it is the cheaper place to introduce one.
+check_cross_module_imports() {
+	local module module_re modules_re feature_alt
+	local importers importer importer_name
+	local files file file_feature rest
+	local hits hit rc imp target target_rest
 
 	module="$(awk '/^module /{print $2; exit}' go.mod)"
 	if [ -z "$module" ]; then
@@ -803,73 +724,89 @@ check_adapter_imports() {
 	# definition exits the script first -- and that guard is what makes this bail
 	# safe to keep as belt and braces. On its own it was the silent death of this
 	# check: with no features the alternation collapses to `()`, which matches the
-	# empty string, so the pattern would demand `internal/modules//postgres`, match
+	# empty string, so the pattern would demand `internal/modules//contract`, match
 	# nothing, and contribute no violations.
 	feature_alt="$(feature_dirs | tr '\n' '|' | sed -e 's/|$//')"
 	[ -n "$feature_alt" ] || return 0
 
+	# Captured into a variable rather than read straight off a
+	# `done < <(importer_roots)` process substitution: importer_roots is cheap
+	# and has never been the crashing grep, but capturing it costs nothing and
+	# keeps every producer in this check on the same footing as the one below
+	# that matters -- a real failure surfaces under `set -e` instead of being
+	# read as "importer_roots produced nothing".
+	importers="$(importer_roots)"
+
 	while IFS= read -r importer; do
+		[ -n "$importer" ] || continue
 		importer_name="$(basename "$importer")"
+
+		files="$(find "$importer" -type f -name '*.go' | sort)"
+		[ -n "$files" ] || continue
+
 		while IFS= read -r file; do
-			# The importing file's own feature and slice, derived from where it
-			# sits -- not from $importer, which importer_roots hands over as one
-			# whole feature directory. Two files under the same $importer can
-			# belong to two different slices, and this is what keeps them from
-			# being blurred into one "same feature, anything goes" permission.
+			[ -f "$file" ] || continue
+
+			# The importing file's own feature, derived from where it sits.
+			# Empty for anything outside $MODULES_ROOT -- internal/platform, a
+			# stray file directly at the modules root -- which is deliberate:
+			# such a file belongs to no module, so it is held to exactly the
+			# same contract-only rule as a sibling module would be.
 			file_feature=''
-			file_slice=''
 			case "$file" in
-			"$MODULES_ROOT"/*/*)
-				set -- $(feature_and_slice "${file#"$MODULES_ROOT"/}")
-				file_feature="$1"
-				# Word-splitting on feature_and_slice's output drops a trailing
-				# empty slice field entirely rather than leaving $2 as "" -- $2
-				# is genuinely unset then, and this script runs with `set -u`.
-				file_slice="${2:-}"
+			"$MODULES_ROOT"/*)
+				rest="${file#"$MODULES_ROOT"/}"
+				file_feature="${rest%%/*}"
 				;;
 			esac
 
+			# A status-checked assignment, not `done < <(grep ...)`. This
+			# pattern -- a 14-way feature alternation -- is exactly the shape
+			# that once made BSD grep exit via SIGTRAP while a process
+			# substitution downstream read the death as EOF and reported
+			# nothing checked. grep exits 1 for "no match", which is not a
+			# failure here; anything greater than 1 is, and is reported rather
+			# than silently treated as a clean file.
+			rc=0
+			hits="$(grep -noE "\"${module_re}/${modules_re}/(${feature_alt})(/[^\"]*)?\"" "$file")" || rc=$?
+			if [ "$rc" -gt 1 ]; then
+				report "grep exited $rc scanning $file for cross-module imports -- the check could not run on this file, which is not the same as it passing"
+				continue
+			fi
+			[ -n "$hits" ] || continue
+
 			while IFS= read -r hit; do
 				[ -n "$hit" ] || continue
-				# hit looks like "12:<module>/internal/modules/<target>/postgres"
-				# (also http, redis), or, one slice directory deeper,
-				# "12:<module>/internal/modules/<target>/<slice>/postgres". The
-				# optional `([^/"]+/)?` group in the grep below is what reaches
-				# the slice case.
+				# hit looks like "12:\"<module>/internal/modules/<target>\"" or,
+				# with anything past the feature name, ".../<target>/domain",
+				# ".../<target>/<slice>", ".../<target>/<slice>/postgres", or
+				# ".../<target>/contract" -- the only shape this check accepts
+				# from another module.
 				imp="${hit#*:}"
-				set -- $(feature_and_slice "${imp##*"$MODULES_ROOT"/}")
-				target="$1"
-				target_slice="${2:-}"
+				imp="${imp#\"}"
+				imp="${imp%\"}"
+				rest="${imp#*"$MODULES_ROOT"/}"
+				target="${rest%%/*}"
 
-				if [ "$target" = "$file_feature" ]; then
-					# Same feature. A root-scoped importer (file_slice empty)
-					# may reach any of its own slices; a slice-scoped importer
-					# may reach only its own slice, including "" -- the
-					# feature's own top-level adapter is exactly as off-limits
-					# to a slice as a sibling slice is.
-					if [ -z "$file_slice" ] || [ "$file_slice" = "$target_slice" ]; then
-						continue
-					fi
-					report "'${file_feature}/${file_slice}' imports a sibling slice's adapter: ${file}:${hit%%:*}
+				[ "$target" = "$file_feature" ] && continue
+
+				target_rest="${rest#"$target"}"
+				target_rest="${target_rest#/}"
+				case "$target_rest" in
+				contract | contract/*) continue ;;
+				esac
+
+				report "'${importer_name}' imports another module's internals: ${file}:${hit%%:*}
     ${imp}
-    A slice may import only its own slice's postgres/http/redis package.
-    Cross-slice reads go through a port declared on the consuming slice, the
-    same as cross-feature reads (see ARCHITECTURE.md section 6). Only a file
-    at the feature root -- module.go, routes.go, or any other file directly
-    under internal/modules/${file_feature}/ or its own top-level postgres/,
-    http/ or redis/ directory -- may wire more than one of its slices."
-					continue
-				fi
-				report "'$importer_name' imports another module's adapter: ${file}:${hit%%:*}
-    ${imp}
-    Modules talk through consumer-declared ports (e.g. internal/modules/product/inventory.go
-    or internal/modules/category/product.go; most features group them in ports.go), not by
-    importing a sibling's postgres/http package. Only internal/bootstrap/ and
-    internal/transport/ may wire adapters together."
-			done < <(grep -noE "\"${module_re}/${modules_re}/(${feature_alt})/([^/\"]+/)?(postgres|http|redis)\"" "$file" \
-				| tr -d '"' || true)
-		done < <(find "$importer" -type f -name '*.go' ! -name '*_test.go' | sort)
-	done < <(importer_roots)
+    A module may import only <feature>/contract from another module -- domain
+    types and every slice, root package or adapter alike, are private to the
+    module that owns them. Declare a consumer-side port instead (AGENTS.md
+    rule 6; e.g. internal/modules/product/inventory.go or
+    internal/modules/category/product.go), or add a contract/ package if a
+    struct genuinely needs to cross."
+			done <<<"$hits"
+		done <<<"$files"
+	done <<<"$importers"
 }
 
 # ---------------------------------------------------------------------------
@@ -877,7 +814,7 @@ check_adapter_imports() {
 check_wire_tags
 check_ownership_doc
 check_table_ownership
-check_adapter_imports
+check_cross_module_imports
 
 if [ -s "$VIOLATIONS" ]; then
 	echo "Architectural boundary violations found:" >&2
