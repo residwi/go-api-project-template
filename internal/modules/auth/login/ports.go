@@ -7,7 +7,7 @@ import (
 	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
 )
 
-// UserProvider is satisfied directly by user.Service.GetByEmail -- no adapter.
+// UserProvider is satisfied directly by credentials.Store.GetByEmail -- no adapter.
 type UserProvider interface {
 	GetByEmail(ctx context.Context, email string) (usercontract.Credentials, error)
 }

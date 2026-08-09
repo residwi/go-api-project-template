@@ -53,18 +53,22 @@ Being infrastructure exempts directory from checks 2 and 3 _ownership_ questions
 updatetracking deliver`), `dashboard` (`summary topproducts revenue`),
 `wishlist` (`query add remove`), `review` (`query create remove`),
 `category` (`query create update remove`), `auth` (`token register login
-refresh`), `notification` (`query markread markallread jobs`), and
-`promotion` (`query create update remove apply reserve`) are sliced into
+refresh`), `notification` (`query markread markallread jobs`),
+`promotion` (`query create update remove apply reserve`), and `user` (`query
+credentials updateprofile adminupdate updaterole remove`) are sliced into
 vertical use-case packages, each with its own storage port and adapters —
 except `auth`, which owns no table, so none of its four slices has one,
-`notification`'s `jobs`, which owns the queue table but has no route, and
+`notification`'s `jobs`, which owns the queue table but has no route,
 `promotion`'s `apply` and `reserve`, which are read/write twins over the same
 table rather than one route each — `apply` has a route and no
-`database.TxRunner`, `reserve` has a `TxRunner` and no route —
-`ARCHITECTURE.md` §14 is the target shape, eight modules there so far.
+`database.TxRunner`, `reserve` has a `TxRunner` and no route — and `user`'s
+`credentials`, which owns no route of its own: auth's login, register and
+refresh slices call it directly, wiring to `credentials.Store` by name-match,
+so it has no `http/` to hold one.
+`ARCHITECTURE.md` §14 is the target shape, nine modules there so far.
 Everything below this note describes the **layered** shape, still accurate
-for the other six modules — `cart inventory order payment product
-user` — until phase 2 reaches each in turn.
+for the other five modules — `cart inventory order payment
+product` — until phase 2 reaches each in turn.
 `ls internal/modules/<feature>/` tells you which shape a given module is in:
 a `domain/` directory plus no root `model.go`/`service.go`/`repository.go`
 means sliced; those three files at the root mean still layered.
@@ -107,7 +111,7 @@ show for it. `ARCHITECTURE.md` decision 13 is why, and its cost.
 | Feature      | Subpackages                                                       |
 | ------------ | ----------------------------------------------------------------- |
 | `payment`    | `postgres/ http/ stripe/ midtrans/ mock/ worker/`                 |
-| `user`       | `postgres/ http/ redis/` — only feature with second backing store |
+| `user`       | `http/` (routes.go only) plus `query/ credentials/ updateprofile/ adminupdate/ updaterole/ remove/`; `query/` alone has `postgres/ http/ redis/` — the only slice in the repo with a second backing store — `credentials/` has `postgres/` but no `http/` of its own: auth calls it directly, not through a route — the sliced shape, see the two-shapes note above |
 | `auth`       | `http/` (routes.go only) plus `token/ register/ login/ refresh/` — the sliced shape, see the two-shapes note above; `token/` has no `http/` of its own — no route, so no route to serve |
 | `shipping`   | `http/` (routes.go only) plus `query/ create/ updatetracking/ deliver/`, each its own `postgres/` and `http/` — the sliced shape, see the two-shapes note above |
 | `dashboard`  | `http/` (routes.go only) plus `summary/ topproducts/ revenue/`, each its own `postgres/` and `http/` — sliced, but still owns no table (see reporting carve-out) |
@@ -118,7 +122,7 @@ show for it. `ARCHITECTURE.md` decision 13 is why, and its cost.
 | `promotion`  | `http/` (routes.go only) plus `query/ create/ update/ remove/ apply/ reserve/`, each its own `postgres/`; `apply/` and `reserve/` both have `postgres/` but only `apply/` has `http/` — `reserve/` is consumed by `order` and `payment` directly, not through a route — the sliced shape, see the two-shapes note above |
 | the other 4  | `postgres/ http/`                                                 |
 
-`notification` has no `worker/` package because its `jobs/` slice's `Worker` type satisfies `platform/jobs`' `Queue` and `Processor` directly — one value does both. That absence is the lesson — `ARCHITECTURE.md` decision 4 — not omission to fix. `user/redis/` is positive case of same rule: subpackage exists where feature has that kind of backing store, and `user` only feature caching, so `ls internal/modules/user/` still tells truth about which features do. Feature declares one port per store — `repository.go` for Postgres, `cache.go` for cache — and gets one adapter subpackage per port: `user.Repository` pairs with `postgres/`, `user.StatusCache` with `redis/`. That adapter requires Redis 8.0 or later; built on `HSETEX`, which sets hash fields and their expiry in one atomic command, and that command not exist on earlier Redis. There are 12 packages named `postgres` and 14 named `http` at each feature's own root, and one named `redis` — more once slices' own count too, since every module phase 2 slices trades its one root `postgres/` for one per slice. Both figures move with every task in the phase, so they are swept once at the end rather than restated thirteen times; the two-shapes note above is the current answer to which modules are sliced. That is why the composition root (`internal/bootstrap/app.go`) needs 14 aliased adapter imports to build every service: `shipping`'s own `postgres/` wiring now happens inside `shipping/module.go`, so `app.go` carries no `shippingpg` alias any more, and gained none in its place. `internal/transport/http/router.go` still needs another 15 (14 `http` packages plus the dev-only mock gateway's route registrar) to mount their routes — that count holds regardless of slicing, because `router.go` only ever imports a feature's own top-level `http/routes.go`, never a slice's.
+`notification` has no `worker/` package because its `jobs/` slice's `Worker` type satisfies `platform/jobs`' `Queue` and `Processor` directly — one value does both. That absence is the lesson — `ARCHITECTURE.md` decision 4 — not omission to fix. `user/query/redis/` is positive case of same rule: subpackage exists where a slice has that kind of backing store, and `query` is the only slice — indeed the only slice in the repo — with one, so `ls internal/modules/user/query/` still tells truth about which slice caches. `query` declares one port per store — `Repository` for Postgres, `StatusCache` for cache — and gets one adapter subpackage per port: `query.Repository` pairs with `postgres/`, `query.StatusCache` with `redis/`. That adapter requires Redis 8.0 or later; built on `HSETEX`, which sets hash fields and their expiry in one atomic command, and that command not exist on earlier Redis. There are 12 packages named `postgres` and 14 named `http` at each feature's own root, and one named `redis` — more once slices' own count too, since every module phase 2 slices trades its one root `postgres/` for one per slice. Both figures move with every task in the phase, so they are swept once at the end rather than restated thirteen times; the two-shapes note above is the current answer to which modules are sliced. That is why the composition root (`internal/bootstrap/app.go`) needs 14 aliased adapter imports to build every service: `shipping`'s own `postgres/` wiring now happens inside `shipping/module.go`, so `app.go` carries no `shippingpg` alias any more, and gained none in its place. `internal/transport/http/router.go` still needs another 15 (14 `http` packages plus the dev-only mock gateway's route registrar) to mount their routes — that count holds regardless of slicing, because `router.go` only ever imports a feature's own top-level `http/routes.go`, never a slice's.
 
 Inside `http/`, file split by **handler role**, not endpoint. Unqualified name = default handler; `admin_` and `webhook_` = qualified exceptions. Every feature holds subset of exactly these eight names and nothing else:
 

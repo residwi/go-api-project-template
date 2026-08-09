@@ -7,7 +7,7 @@ import (
 	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
 )
 
-// UserCreator is satisfied directly by user.Service.Create -- no adapter.
+// UserCreator is satisfied directly by credentials.Store.Create -- no adapter.
 type UserCreator interface {
 	Create(ctx context.Context, p usercontract.NewUser) (usercontract.User, error)
 }

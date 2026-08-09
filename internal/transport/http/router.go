@@ -39,7 +39,7 @@ func NewRouter(
 
 	v := validator.New()
 
-	authMiddleware := middleware.Auth(app.Auth.Token, app.Users)
+	authMiddleware := middleware.Auth(app.Auth.Token, app.Users.Query)
 	adminMiddleware := middleware.RequireAdmin
 
 	api := middleware.NewRouteGroup(mux, "/api")
@@ -65,7 +65,7 @@ func NewRouter(
 	)
 
 	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Module: app.Auth})
-	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Service: app.Users})
+	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Module: app.Users})
 	categoryhttp.RegisterRoutes(api, admin, categoryhttp.RouteDeps{Validator: v, Module: app.Categories})
 	producthttp.RegisterRoutes(api, admin, producthttp.RouteDeps{Validator: v, Service: app.Products})
 	inventoryhttp.RegisterRoutes(admin, inventoryhttp.RouteDeps{Validator: v, Service: app.Inventory})

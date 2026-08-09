@@ -37,10 +37,10 @@ const (
 //
 //	0 — internal/platform/cache
 //	1 — internal/transport/http/middleware
-//	2 — internal/modules/user/postgres
+//	2 — (free)
 //	3 — internal/transport/http
 //	5 — test/e2e
-//	6 — internal/modules/user/redis
+//	6 — internal/modules/user/query/redis
 //
 // Postgres databases are per-module from phase 1 on: every slice test package in
 // internal/modules/<feature>/ claims "test_<feature>". The database is created

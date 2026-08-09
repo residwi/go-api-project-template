@@ -29,8 +29,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/review"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
-	userpg "github.com/residwi/go-api-project-template/internal/modules/user/postgres"
-	userredis "github.com/residwi/go-api-project-template/internal/modules/user/redis"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
@@ -54,7 +52,7 @@ type Deps struct {
 // App is every wired service, exported for the router and worker binaries to
 // register routes and jobs against.
 type App struct {
-	Users         *user.Service
+	Users         *user.Module
 	Auth          *auth.Module
 	Categories    *category.Module
 	Products      *product.Service
@@ -73,14 +71,9 @@ type App struct {
 }
 
 // New builds every service. Cache may be nil: user's status cache degrades to
-// user.NoCache rather than failing the boot.
+// query.NoCache rather than failing the boot.
 func New(d Deps) (*App, error) {
 	txRunner := database.NewTxRunner(d.Pool)
-
-	var userCache user.StatusCache = user.NoCache{}
-	if d.Cache != nil {
-		userCache = userredis.New(d.Cache)
-	}
 
 	inventorySvc := inventory.NewService(inventorypg.New(d.Pool))
 	// inventorySvc satisfies both product.InventoryReader and
@@ -91,9 +84,9 @@ func New(d Deps) (*App, error) {
 	promotionMod := promotion.New(promotion.Deps{Pool: d.Pool, Tx: txRunner})
 	notificationMod := notification.New(notification.Deps{Pool: d.Pool, Logger: d.Logger})
 
-	userSvc := user.NewService(userpg.New(d.Pool), userCache, d.Logger)
-	// userSvc satisfies auth.UserPorts by name-match.
-	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userSvc})
+	userMod := user.New(user.Deps{Pool: d.Pool, Cache: d.Cache, Logger: d.Logger})
+	// userMod.Credentials satisfies auth.UserPorts by name-match.
+	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userMod.Credentials})
 
 	cartSvc := cart.NewService(cartpg.New(d.Pool), txRunner, productSvc, d.Cart.MaxItems)
 
@@ -126,7 +119,7 @@ func New(d Deps) (*App, error) {
 	reviewMod := review.New(review.Deps{Pool: d.Pool, Purchase: orderSvc})
 
 	return &App{
-		Users:         userSvc,
+		Users:         userMod,
 		Auth:          authMod,
 		Categories:    categoryMod,
 		Products:      productSvc,

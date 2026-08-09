@@ -10,7 +10,7 @@ import (
 	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
 )
 
-// UserProvider is satisfied directly by user.Service.GetByID -- no adapter.
+// UserProvider is satisfied directly by credentials.Store.GetByID -- no adapter.
 type UserProvider interface {
 	GetByID(ctx context.Context, id uuid.UUID) (usercontract.User, error)
 }
