@@ -50,6 +50,7 @@ func New(
 	tx database.TxRunner,
 	cart CartProvider,
 	inventory InventoryReserver,
+	payment PaymentInitiator,
 	coupons CouponReserver,
 	notifications NotificationEnqueuer,
 	transition TransitionApplier,
@@ -60,18 +61,12 @@ func New(
 		tx:            tx,
 		cart:          cart,
 		inventory:     inventory,
+		payment:       payment,
 		coupons:       coupons,
 		notifications: notifications,
 		transition:    transition,
 		logger:        log,
 	}
-}
-
-// SetPaymentDeps breaks the order/payment construction cycle: payment is not
-// sliced yet, so bootstrap builds order.Module first, then payment.Service,
-// then wires payment back in here.
-func (c *Command) SetPaymentDeps(payment PaymentInitiator) {
-	c.payment = payment
 }
 
 //nolint:gocognit,funlen // checkout orchestrates idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction

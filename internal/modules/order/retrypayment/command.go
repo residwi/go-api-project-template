@@ -25,15 +25,8 @@ type Command struct {
 	payment PaymentInitiator
 }
 
-func New(repo Repository) *Command {
-	return &Command{repo: repo}
-}
-
-// SetPaymentDeps breaks the order/payment construction cycle: payment is not
-// sliced yet, so bootstrap builds order.Module first, then payment.Service,
-// then wires payment back in here.
-func (c *Command) SetPaymentDeps(payment PaymentInitiator) {
-	c.payment = payment
+func New(repo Repository, payment PaymentInitiator) *Command {
+	return &Command{repo: repo, payment: payment}
 }
 
 func (c *Command) Execute(ctx context.Context, userID, orderID uuid.UUID, p Params) (*Result, error) {

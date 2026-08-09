@@ -17,9 +17,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
+	ordercancel "github.com/residwi/go-api-project-template/internal/modules/order/cancel"
+	ordercancelpg "github.com/residwi/go-api-project-template/internal/modules/order/cancel/postgres"
+	ordertransition "github.com/residwi/go-api-project-template/internal/modules/order/transition"
+	ordertransitionpg "github.com/residwi/go-api-project-template/internal/modules/order/transition/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	mockgateway "github.com/residwi/go-api-project-template/internal/modules/payment/mock"
-	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/modules/review"
@@ -27,6 +29,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+
+	orderquery "github.com/residwi/go-api-project-template/internal/modules/order/query"
+	orderquerypg "github.com/residwi/go-api-project-template/internal/modules/order/query/postgres"
 )
 
 // Deps is what New needs to build every service: infrastructure connections
@@ -55,7 +60,7 @@ type App struct {
 	Inventory     *inventory.Module
 	Carts         *cart.Module
 	Orders        *order.Module
-	Payments      *payment.Service
+	Payments      *payment.Module
 	Shipping      *shipping.Module
 	Reviews       *review.Module
 	Promotions    *promotion.Module
@@ -63,7 +68,6 @@ type App struct {
 	Notifications *notification.Module
 	Dashboard     *dashboard.Module
 	TxRunner      database.TxRunner
-	Gateway       payment.Gateway
 }
 
 // New builds every service. Cache may be nil: user's status cache degrades to
@@ -87,28 +91,47 @@ func New(d Deps) (*App, error) {
 	// prod.Query satisfies cart.ProductPorts by name-match.
 	cartMod := cart.New(cart.Deps{Pool: d.Pool, Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod.Query})
 
+	// order/transition and order/query need nothing but the pool, so a second,
+	// throwaway pair can be built here purely for payment to read from -- both
+	// are stateless wrappers over the same orders/order_items tables order.Module
+	// builds its own copy of below, so two instances behave identically to one
+	// shared instance. That is what removes the order<->payment setter: at slice
+	// granularity the cycle runs through four packages, not two, so payment can
+	// be built before order needs anything back from it.
+	//
+	// order/cancel gets the same treatment, for CancelUnpaid alone: unlike a bare
+	// Mark*, order.Module's own Cancel command needs payment.Jobs as its
+	// paymentCancel dependency, which does not exist yet either. CancelUnpaid
+	// itself never reads that dependency (only the user-triggered Execute path
+	// does), so this second command is built with a nil one and is safe to call
+	// for CancelUnpaid only.
+	orderTransition := ordertransition.New(ordertransitionpg.New(d.Pool))
+	orderQuery := orderquery.New(orderquerypg.New(d.Pool))
+	orderCanceller := ordercancel.New(
+		ordercancelpg.New(d.Pool), txRunner, orderTransition, inv, promotionMod.Reserve, nil, d.Logger,
+	)
+
+	paymentMod := payment.New(payment.Deps{
+		Pool:            d.Pool,
+		Tx:              txRunner,
+		Config:          d.Payment,
+		Logger:          d.Logger,
+		OrderTransition: orderTransition, // order.Mark* -- by name-match
+		OrderCanceller:  orderCanceller,  // CancelUnpaid -- by name-match
+		OrderReader:     orderQuery,      // GetSnapshot, ListItemQuantities -- by name-match
+		Inventory:       inv,             // DeductBatch, Restore -- by name-match
+		Promotions:      promotionMod.Reserve,
+	})
+
 	ordMod := order.New(order.Deps{
 		Pool: d.Pool, Tx: txRunner, Logger: d.Logger,
 		Cart:          cartMod,              // CartProvider -- LockCart, GetSnapshot, Clear, by name-match
 		Inventory:     inv,                  // InventoryPort -- ReserveBatch, DeductBatch, Restore, by name-match
 		Promotions:    promotionMod.Reserve, // CouponPort -- Reserve, Release, by name-match
 		Notifications: notificationMod.Jobs, // NotificationEnqueuer -- EnqueueOrderPlaced by name-match
+		Payment:       paymentMod.Charge,    // PaymentInitiator -- InitiatePayment, by name-match
+		PaymentJobs:   paymentMod.Jobs,      // PaymentJobCanceller -- CancelPendingByOrderID, by name-match
 	})
-	// Payment ports (InitiatePayment, CancelJobsByOrderID) are the cycle, set
-	// below by SetOrderPaymentDeps.
-
-	gw := mockgateway.New(d.Payment.GatewayURL, d.Payment.GatewayTimeout)
-	paymentSvc := payment.NewService(
-		paymentpg.New(d.Pool), txRunner, gw,
-		ordMod, // OrderUpdater, OrderGetter, OrderItemsGetter -- all by name-match
-		ordMod,
-		ordMod,
-		inv, // InventoryDeductor, InventoryRestorer -- DeductBatch and Restore, by name-match
-		inv,
-		promotionMod.Reserve, // CouponReleaser
-		d.Logger,
-	)
-	SetOrderPaymentDeps(ordMod, paymentSvc)
 
 	// ordMod satisfies shipping.OrderPorts and create.PurchaseVerifier directly,
 	// so neither needs a bootstrap adapter.
@@ -123,7 +146,7 @@ func New(d Deps) (*App, error) {
 		Inventory:     inv,
 		Carts:         cartMod,
 		Orders:        ordMod,
-		Payments:      paymentSvc,
+		Payments:      paymentMod,
 		Shipping:      shippingMod,
 		Reviews:       reviewMod,
 		Promotions:    promotionMod,
@@ -131,13 +154,5 @@ func New(d Deps) (*App, error) {
 		Notifications: notificationMod,
 		Dashboard:     dashboard.New(dashboard.Deps{Pool: d.Pool}),
 		TxRunner:      txRunner,
-		Gateway:       gw,
 	}, nil
-}
-
-// SetOrderPaymentDeps breaks the order-payment cycle: at whole-module
-// granularity each needs the other, so one of them must be wired after
-// construction. Both ports are satisfied by paymentSvc directly.
-func SetOrderPaymentDeps(orderMod *order.Module, paymentSvc *payment.Service) {
-	orderMod.SetPaymentDeps(paymentSvc, paymentSvc)
 }

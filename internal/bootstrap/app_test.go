@@ -28,13 +28,15 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// TestNewWiresOrderAndPaymentToEachOther pins the one wiring step New cannot
-// express through constructor arguments alone: order and payment need each
-// other, so SetOrderPaymentDeps closes that cycle after both exist. Skipping
-// it leaves order.Module's place/retrypayment/cancel slices with a nil
-// PaymentInitiator, which panics the instant a caller reaches it -- so this
-// test reaches it, on a real order, instead of checking the field is non-nil
-// from outside.
+// TestNewWiresOrderAndPaymentToEachOther pins the order/payment wiring across
+// the module boundary: at slice granularity the cycle runs through four
+// packages (order/transition, order/query, payment/charge, payment/jobs), not
+// two, so New builds order's and payment's shared reads first, then payment,
+// then hands payment.Charge and payment.Jobs to order's own constructor.
+// Getting that sequencing wrong leaves order.Module's place/retrypayment/cancel
+// slices with a nil PaymentInitiator, which panics the instant a caller
+// reaches it -- so this test reaches it, on a real order, instead of checking
+// the field is non-nil from outside.
 //
 // The order is seeded with raw SQL, not order's own adapters: domain.Order is
 // module-private, so nothing outside order can construct one, and this
@@ -72,7 +74,8 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 	_, err = app.Orders.RetryPayment.Execute(ctx, userID, orderID, retrypayment.Params{PaymentMethodID: "card"})
 
 	// A nil PaymentInitiator would panic inside Execute and crash this test
-	// outright; reaching a returned error at all proves SetOrderPaymentDeps ran.
-	// The error itself is just the closed-port dial failing.
+	// outright; reaching a returned error at all proves New wired payment.Charge
+	// into order's constructor. The error itself is just the closed-port dial
+	// failing.
 	require.Error(t, err)
 }

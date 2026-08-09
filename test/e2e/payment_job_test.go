@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
-	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -38,10 +38,10 @@ func TestE2EChargeJob(t *testing.T) {
 
 		f := seedChargeJob(t, 3)
 
-		require.NoError(t, newPaymentService(t, mockServer.URL+"/mock/payment").Process(ctx, f.job))
+		require.NoError(t, newPaymentService(t, mockServer.URL+"/mock/payment").Jobs.Process(ctx, f.job))
 
-		assert.Equal(t, string(payment.JobStatusCompleted), jobStatusOf(t, f.job.ID))
-		assert.Equal(t, string(payment.StatusSuccess), paymentStatusOf(t, f.paymentID))
+		assert.Equal(t, string(domain.JobStatusCompleted), jobStatusOf(t, f.job.ID))
+		assert.Equal(t, string(domain.StatusSuccess), paymentStatusOf(t, f.paymentID))
 		assert.Equal(t, "paid", orderStatusOf(t, f.job.OrderID))
 
 		// A DeductBatch on the wrong column would still affect one row and return nil,
@@ -65,10 +65,10 @@ func TestE2EChargeJob(t *testing.T) {
 		// max_attempts=1, so this first failure is also the final one.
 		f := seedChargeJob(t, 1)
 
-		err := newPaymentService(t, failingServer.URL+"/mock/payment").Process(ctx, f.job)
+		err := newPaymentService(t, failingServer.URL+"/mock/payment").Jobs.Process(ctx, f.job)
 		require.Error(t, err)
 
-		assert.Equal(t, string(payment.JobStatusFailed), jobStatusOf(t, f.job.ID))
+		assert.Equal(t, string(domain.JobStatusFailed), jobStatusOf(t, f.job.ID))
 
 		// handleChargeFailure logs MarkAwaitingPayment's error and moves on, so a broken
 		// CAS would strand the order in payment_processing with every other assertion
@@ -80,7 +80,7 @@ func TestE2EChargeJob(t *testing.T) {
 type chargeJobFixture struct {
 	paymentID uuid.UUID
 	productID uuid.UUID
-	job       payment.Job
+	job       domain.Job
 }
 
 // SQL rather than checkout, because checkout cannot leave an order where
@@ -136,7 +136,7 @@ func seedChargeJob(t *testing.T, maxAttempts int) chargeJobFixture {
 
 	// Read back rather than built in Go, so Process runs over the row the database
 	// holds, defaults included.
-	var job payment.Job
+	var job domain.Job
 	require.NoError(t, testPool.QueryRow(ctx,
 		`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
 		        COALESCE(last_error, ''), locked_until, next_retry_at,

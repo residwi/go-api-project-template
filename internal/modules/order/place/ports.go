@@ -25,9 +25,11 @@ type InventoryReserver interface {
 	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
 }
 
-// PaymentInitiator is set after construction by SetPaymentDeps: payment is not
-// sliced yet, and order/payment need each other at construction time, so
-// bootstrap wires this one after both exist.
+// PaymentInitiator is a constructor argument, not a setter: at slice
+// granularity the order/payment cycle runs through four packages
+// (order/transition, order/query, payment/charge, payment/jobs), not two, so
+// bootstrap builds order's and payment's shared reads first, then payment,
+// then hands payment.Charge in here at construction time.
 type PaymentInitiator interface {
 	InitiatePayment(ctx context.Context, p paymentcontract.ChargeRequest) (paymentcontract.ChargeResult, error)
 }

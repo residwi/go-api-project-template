@@ -180,45 +180,10 @@ func TestCommandExecuteUsesPaymentContract(t *testing.T) {
 	assert.Equal(t, paymentID, got.PaymentID)
 }
 
-func TestCommand_SetPaymentDeps(t *testing.T) {
-	t.Parallel()
-
-	t.Run("sets payment dependency and allows retry", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		cmd := New(repo)
-
-		payment := NewMockPaymentInitiator(t)
-		cmd.SetPaymentDeps(payment)
-
-		ctx := context.Background()
-		userID := uuid.New()
-		orderID := uuid.New()
-
-		existingOrder := &domain.Order{
-			ID:     orderID,
-			UserID: userID,
-			Status: domain.StatusAwaitingPayment,
-			Total:  money.New(5000, "USD"),
-		}
-		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-
-		expectedResult := paymentcontract.ChargeResult{PaymentID: uuid.New(), Charged: false}
-		payment.EXPECT().InitiatePayment(mock.Anything, mock.Anything).Return(expectedResult, nil)
-
-		result, err := cmd.Execute(ctx, userID, orderID, Params{PaymentMethodID: "pm_test"})
-
-		require.NoError(t, err)
-		assert.Equal(t, &expectedResult, result)
-	})
-}
-
 func newTestCommand(t *testing.T) (*Command, *MockRepository, *MockPaymentInitiator) {
 	repo := NewMockRepository(t)
 	payment := NewMockPaymentInitiator(t)
 
-	cmd := New(repo)
-	cmd.SetPaymentDeps(payment)
+	cmd := New(repo, payment)
 	return cmd, repo, payment
 }

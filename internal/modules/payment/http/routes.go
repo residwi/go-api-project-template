@@ -4,24 +4,23 @@ import (
 	"log/slog"
 
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/payment/query/http"
+	refundhttp "github.com/residwi/go-api-project-template/internal/modules/payment/refund/http"
+	webhookhttp "github.com/residwi/go-api-project-template/internal/modules/payment/webhook/http"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 type RouteDeps struct {
-	Validator     *validator.Validator
-	Service       *payment.Service
-	WebhookSecret string
-	Logger        *slog.Logger
+	Module *payment.Module
+	Logger *slog.Logger
 }
 
-func RegisterRoutes(api *middleware.RouteGroup, admin *middleware.RouteGroup, deps RouteDeps) {
-	wh := &webhookHandler{service: deps.Service, secret: deps.WebhookSecret, logger: deps.Logger}
-	adm := &adminHandler{service: deps.Service, validator: deps.Validator}
+// RegisterRoutes mounts every routed slice. charge/ and jobs/ register no
+// route: charge is reached only through order's PaymentInitiator port, and
+// jobs is drained by the worker and reached by order/cancel's port.
+func RegisterRoutes(api, admin *middleware.RouteGroup, deps RouteDeps) {
+	webhookhttp.New(deps.Module.Webhook, deps.Logger).RegisterHTTP(api)
 
-	api.HandleFunc("POST /payments/webhook", wh.HandleWebhook)
-
-	admin.HandleFunc("GET /payments", adm.List)
-	admin.HandleFunc("GET /payments/{id}", adm.Get)
-	admin.HandleFunc("POST /payments/{id}/refund", adm.Refund)
+	queryhttp.New(deps.Module.Query).RegisterHTTP(admin)
+	refundhttp.New(deps.Module.Refund).RegisterHTTP(admin)
 }

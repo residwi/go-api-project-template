@@ -2,109 +2,94 @@ package order
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
-	"github.com/residwi/go-api-project-template/internal/modules/order/cancel"
-	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/order/place"
 	"github.com/residwi/go-api-project-template/internal/modules/order/retrypayment"
 	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-// TestModule_SetPaymentDeps proves the fan-out itself, not each slice's own
-// setter (already covered in place/cancel/retrypayment's own tests): Place and
-// RetryPayment panic on a nil PaymentInitiator, and Cancel's paymentCancel is
-// nil-guarded, so a dropped leg there fails silently instead. Each of the
-// three assertions below drives its slice's own Execute far enough to reach
-// the payment call SetPaymentDeps is supposed to have wired, so dropping any
-// one of the three fan-out calls in Module.SetPaymentDeps fails this test --
+var testPool *pgxpool.Pool
+
+func TestMain(m *testing.M) {
+	pool, cleanup := testhelper.MustStartPostgres("test_order")
+	defer cleanup()
+	testPool = pool
+	os.Exit(m.Run())
+}
+
+// TestNew_WiresPaymentDeps proves the fan-out that a since-deleted setter
+// method used to perform now happens at construction: Place, RetryPayment and
+// Cancel each panic or mock-fail if order.New did not forward Deps.Payment
+// and Deps.PaymentJobs to them. Cancel's paymentCancel is nil-guarded, so a
+// dropped leg there fails silently instead of panicking -- this drives each
+// slice's own Execute far enough to reach the payment call that Deps is
+// supposed to have wired, which is what makes a dropped leg fail this test:
 // by panic for Place/RetryPayment, by an unmet mock expectation for Cancel.
-func TestModule_SetPaymentDeps(t *testing.T) {
+//
+// order.New always builds real postgres adapters from Deps.Pool -- module.go
+// composes its own storage, so there is no seam to hand it a fake repository
+// -- which is why this test needs a real database instead of the hand-rolled
+// fakes the old setter-based version used.
+func TestNew_WiresPaymentDeps(t *testing.T) {
 	t.Parallel()
 
-	userID := uuid.New()
-	productID := uuid.New()
-	placeOrderID := uuid.New()
-	retryOrderID := uuid.New()
-	cancelOrderID := uuid.New()
-
-	m := &Module{
-		Place: place.New(
-			&fanOutPlaceRepo{orderID: placeOrderID},
-			testhelper.FakeTxRunner{},
-			&fanOutCartProvider{productID: productID},
-			fanOutInventory{},
-			fanOutCoupons{},
-			fanOutNotifications{},
-			fanOutTransition{},
-			testhelper.DiscardLogger(),
-		),
-		RetryPayment: retrypayment.New(&fanOutRetryRepo{orderID: retryOrderID, userID: userID}),
-		Cancel: cancel.New(
-			&fanOutCancelRepo{orderID: cancelOrderID, userID: userID},
-			testhelper.FakeTxRunner{},
-			fanOutTransition{},
-			fanOutInventory{},
-			nil,
-			testhelper.DiscardLogger(),
-		),
-	}
+	userID := seedUser(t)
+	productID := seedProduct(t)
+	retryOrderID := seedOrder(t, userID)
+	cancelOrderID := seedOrder(t, userID)
 
 	payment := NewMockPaymentInitiator(t)
-	paymentCancel := NewMockPaymentJobCanceller(t)
-	m.SetPaymentDeps(payment, paymentCancel)
+	paymentJobs := NewMockPaymentJobCanceller(t)
+
+	m := New(Deps{
+		Pool:          testPool,
+		Tx:            database.NewTxRunner(testPool),
+		Logger:        testhelper.DiscardLogger(),
+		Cart:          &fanOutCartProvider{productID: productID},
+		Inventory:     fanOutInventory{},
+		Promotions:    fanOutCoupons{},
+		Notifications: fanOutNotifications{},
+		Payment:       payment,
+		PaymentJobs:   paymentJobs,
+	})
 
 	ctx := context.Background()
 
 	payment.EXPECT().
 		InitiatePayment(mock.Anything, mock.MatchedBy(func(r paymentcontract.ChargeRequest) bool {
-			return r.OrderID == placeOrderID
+			return r.PaymentMethodID == "pm_fanout_place"
 		})).
 		Return(paymentcontract.ChargeResult{}, nil)
-	_, err := m.Place.Execute(ctx, userID, place.Params{PaymentMethodID: "pm_test"}, "idem-fanout-place")
-	require.NoError(t, err, "Place's payment leg must be wired by SetPaymentDeps")
+	_, err := m.Place.Execute(ctx, userID, place.Params{PaymentMethodID: "pm_fanout_place"}, "idem-fanout-place")
+	require.NoError(t, err, "Place's payment leg must be wired by order.New")
 
 	payment.EXPECT().
 		InitiatePayment(mock.Anything, mock.MatchedBy(func(r paymentcontract.ChargeRequest) bool {
 			return r.OrderID == retryOrderID
 		})).
 		Return(paymentcontract.ChargeResult{}, nil)
-	_, err = m.RetryPayment.Execute(ctx, userID, retryOrderID, retrypayment.Params{PaymentMethodID: "pm_test"})
-	require.NoError(t, err, "RetryPayment's payment leg must be wired by SetPaymentDeps")
+	_, err = m.RetryPayment.Execute(ctx, userID, retryOrderID, retrypayment.Params{PaymentMethodID: "pm_fanout_retry"})
+	require.NoError(t, err, "RetryPayment's payment leg must be wired by order.New")
 
-	paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, cancelOrderID).Return(nil)
+	paymentJobs.EXPECT().CancelPendingByOrderID(mock.Anything, cancelOrderID).Return(nil)
 	require.NoError(
 		t,
 		m.Cancel.Execute(ctx, userID, cancelOrderID),
-		"Cancel's payment leg must be wired by SetPaymentDeps",
+		"Cancel's payment leg must be wired by order.New",
 	)
 }
-
-type fanOutPlaceRepo struct{ orderID uuid.UUID }
-
-func (f *fanOutPlaceRepo) Create(_ context.Context, o *domain.Order) error {
-	o.ID = f.orderID
-	return nil
-}
-func (f *fanOutPlaceRepo) CreateItems(context.Context, []domain.Item) error { return nil }
-func (f *fanOutPlaceRepo) GetByUserIDAndIdempotencyKey(context.Context, uuid.UUID, string) (*domain.Order, error) {
-	return nil, apperror.ErrNotFound
-}
-
-func (f *fanOutPlaceRepo) ListItemsByOrderID(context.Context, uuid.UUID) ([]domain.Item, error) {
-	return nil, nil
-}
-
-func (f *fanOutPlaceRepo) UpdateTotals(context.Context, uuid.UUID, int64, int64) error { return nil }
 
 type fanOutCartProvider struct{ productID uuid.UUID }
 
@@ -119,9 +104,6 @@ func (f *fanOutCartProvider) GetSnapshot(context.Context, uuid.UUID) (*cartcontr
 }
 func (f *fanOutCartProvider) Clear(context.Context, uuid.UUID) error { return nil }
 
-// fanOutInventory satisfies both place.InventoryReserver and
-// cancel.InventoryRestorer -- the two only overlap on shape, never on a
-// shared instance in production.
 type fanOutInventory struct{}
 
 func (fanOutInventory) ReserveBatch(context.Context, map[uuid.UUID]int) error { return nil }
@@ -135,6 +117,7 @@ type fanOutCoupons struct{}
 func (fanOutCoupons) Reserve(context.Context, string, uuid.UUID, uuid.UUID, int64) (int64, error) {
 	return 0, nil
 }
+func (fanOutCoupons) Release(context.Context, uuid.UUID) error { return nil }
 
 type fanOutNotifications struct{}
 
@@ -142,29 +125,35 @@ func (fanOutNotifications) EnqueueOrderPlaced(context.Context, uuid.UUID, uuid.U
 	return nil
 }
 
-// fanOutTransition satisfies place.TransitionApplier and
-// cancel.TransitionApplier, both a bare Apply.
-type fanOutTransition struct{}
-
-func (fanOutTransition) Apply(context.Context, uuid.UUID, domain.Transition) error { return nil }
-
-type fanOutRetryRepo struct{ orderID, userID uuid.UUID }
-
-func (f *fanOutRetryRepo) GetByID(context.Context, uuid.UUID) (*domain.Order, error) {
-	return &domain.Order{
-		ID: f.orderID, UserID: f.userID, Status: domain.StatusAwaitingPayment, Total: money.New(1000, "USD"),
-	}, nil
+func seedUser(t *testing.T) uuid.UUID {
+	t.Helper()
+	return testhelper.SeedUser(t, testPool)
 }
 
-type fanOutCancelRepo struct{ orderID, userID uuid.UUID }
-
-func (f *fanOutCancelRepo) GetByID(context.Context, uuid.UUID) (*domain.Order, error) {
-	return &domain.Order{ID: f.orderID, UserID: f.userID, Status: domain.StatusAwaitingPayment}, nil
+func seedProduct(t *testing.T) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO products (id, name, slug, description, price, currency)
+		 VALUES ($1, 'Product', $2, 'desc', 1000, 'USD')`,
+		id, "slug-"+id.String(),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
+	return id
 }
 
-// ListItemsByOrderID returns none, on purpose: this test is about the payment
-// leg, so it keeps inventory.Restore out of the picture entirely rather than
-// mocking a call this test does not care about.
-func (f *fanOutCancelRepo) ListItemsByOrderID(context.Context, uuid.UUID) ([]domain.Item, error) {
-	return nil, nil
+// seedOrder seeds an order in awaiting_payment: fresh for RetryPayment and
+// Cancel to each own, since neither may collide with the other's write.
+func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency)
+		 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD')`,
+		id, userID,
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, id) })
+	return id
 }

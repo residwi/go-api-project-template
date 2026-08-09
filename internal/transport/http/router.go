@@ -78,12 +78,7 @@ func NewRouter(
 	paymenthttp.RegisterRoutes(
 		api,
 		admin,
-		paymenthttp.RouteDeps{
-			Validator:     v,
-			Service:       app.Payments,
-			WebhookSecret: deps.Payment.WebhookSecret,
-			Logger:        deps.Logger,
-		},
+		paymenthttp.RouteDeps{Module: app.Payments, Logger: deps.Logger},
 	)
 	shippinghttp.RegisterRoutes(
 		authed,

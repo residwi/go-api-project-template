@@ -16,6 +16,7 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -196,7 +197,7 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		require.Equal(t, 100, stockBefore)
 		require.Equal(t, 0, reservedBefore)
 
-		var job payment.Job
+		var job domain.Job
 		require.NoError(t, testPool.QueryRow(ctx,
 			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
 			        COALESCE(last_error, ''), locked_until, next_retry_at,
@@ -209,7 +210,7 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 			&job.NextRetryAt, &job.CreatedAt, &job.UpdatedAt,
 		))
 
-		require.NoError(t, newPaymentService(t, mockServer.URL+"/mock/payment").Process(ctx, job))
+		require.NoError(t, newPaymentService(t, mockServer.URL+"/mock/payment").Jobs.Process(ctx, job))
 
 		var status string
 		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&status))

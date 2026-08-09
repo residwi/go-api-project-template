@@ -34,23 +34,18 @@ func New(
 	transition TransitionApplier,
 	inventory InventoryRestorer,
 	coupons CouponReleaser,
+	paymentCancel PaymentJobCanceller,
 	log *slog.Logger,
 ) *Command {
 	return &Command{
-		repo:       repo,
-		tx:         tx,
-		transition: transition,
-		inventory:  inventory,
-		coupons:    coupons,
-		logger:     log,
+		repo:          repo,
+		tx:            tx,
+		transition:    transition,
+		inventory:     inventory,
+		coupons:       coupons,
+		paymentCancel: paymentCancel,
+		logger:        log,
 	}
-}
-
-// SetPaymentDeps breaks the order/payment construction cycle: payment is not
-// sliced yet, so bootstrap builds order.Module first, then payment.Service,
-// then wires payment back in here.
-func (c *Command) SetPaymentDeps(paymentCancel PaymentJobCanceller) {
-	c.paymentCancel = paymentCancel
 }
 
 func (c *Command) Execute(ctx context.Context, userID, orderID uuid.UUID) error {
@@ -71,7 +66,7 @@ func (c *Command) Execute(ctx context.Context, userID, orderID uuid.UUID) error 
 	}
 
 	if c.paymentCancel != nil {
-		if err := c.paymentCancel.CancelJobsByOrderID(ctx, orderID); err != nil {
+		if err := c.paymentCancel.CancelPendingByOrderID(ctx, orderID); err != nil {
 			c.logger.WarnContext(
 				ctx,
 				"failed to cancel payment jobs",

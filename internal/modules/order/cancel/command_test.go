@@ -170,7 +170,7 @@ func TestCommand_Execute(t *testing.T) {
 			productA: 2,
 			productB: 1,
 		}, inventorycontract.Reserved).Return(nil)
-		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
+		paymentCancel.EXPECT().CancelPendingByOrderID(mock.Anything, orderID).Return(nil)
 
 		err := cmd.Execute(ctx, userID, orderID)
 
@@ -206,7 +206,7 @@ func TestCommand_Execute(t *testing.T) {
 		}, nil)
 		inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).Return(nil)
 		coupons.EXPECT().Release(mock.Anything, orderID).Return(nil)
-		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
+		paymentCancel.EXPECT().CancelPendingByOrderID(mock.Anything, orderID).Return(nil)
 
 		err := cmd.Execute(ctx, userID, orderID)
 
@@ -228,7 +228,7 @@ func TestCommand_Execute(t *testing.T) {
 
 		transition.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{}, nil)
-		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(errors.New("redis down"))
+		paymentCancel.EXPECT().CancelPendingByOrderID(mock.Anything, orderID).Return(errors.New("redis down"))
 
 		err := cmd.Execute(ctx, userID, orderID)
 
@@ -302,7 +302,7 @@ func TestCommand_Execute(t *testing.T) {
 		}, nil)
 		inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).Return(nil)
 		coupons.EXPECT().Release(mock.Anything, orderID).Return(errors.New("coupon service down"))
-		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Return(nil)
+		paymentCancel.EXPECT().CancelPendingByOrderID(mock.Anything, orderID).Return(nil)
 
 		err := cmd.Execute(ctx, userID, orderID)
 
@@ -316,7 +316,7 @@ func TestCommand_Execute(t *testing.T) {
 		transition := NewMockTransitionApplier(t)
 		inventory := NewMockInventoryRestorer(t)
 
-		cmd := New(repo, testhelper.FakeTxRunner{}, transition, inventory, nil, testhelper.DiscardLogger())
+		cmd := New(repo, testhelper.FakeTxRunner{}, transition, inventory, nil, nil, testhelper.DiscardLogger())
 
 		existingOrder := &domain.Order{
 			ID:     orderID,
@@ -399,7 +399,7 @@ func TestCommand_CancelUnpaid(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
 		transition.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(nil)
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{}, nil)
-		paymentCancel.EXPECT().CancelJobsByOrderID(mock.Anything, orderID).Maybe().Return(nil)
+		paymentCancel.EXPECT().CancelPendingByOrderID(mock.Anything, orderID).Maybe().Return(nil)
 		inventory.AssertNotCalled(t, "Restore", mock.Anything, mock.Anything, mock.Anything)
 
 		err := cmd.CancelUnpaid(ctx, orderID)
@@ -434,8 +434,7 @@ func newTestCommand(t *testing.T) (
 	inventory := NewMockInventoryRestorer(t)
 	paymentCancel := NewMockPaymentJobCanceller(t)
 
-	cmd := New(repo, testhelper.FakeTxRunner{}, transition, inventory, nil, testhelper.DiscardLogger())
-	cmd.SetPaymentDeps(paymentCancel)
+	cmd := New(repo, testhelper.FakeTxRunner{}, transition, inventory, nil, paymentCancel, testhelper.DiscardLogger())
 	return cmd, repo, transition, inventory, paymentCancel
 }
 
@@ -453,7 +452,14 @@ func newTestCommandWithCoupons(t *testing.T) (
 	coupons := NewMockCouponReleaser(t)
 	paymentCancel := NewMockPaymentJobCanceller(t)
 
-	cmd := New(repo, testhelper.FakeTxRunner{}, transition, inventory, coupons, testhelper.DiscardLogger())
-	cmd.SetPaymentDeps(paymentCancel)
+	cmd := New(
+		repo,
+		testhelper.FakeTxRunner{},
+		transition,
+		inventory,
+		coupons,
+		paymentCancel,
+		testhelper.DiscardLogger(),
+	)
 	return cmd, repo, transition, inventory, coupons, paymentCancel
 }

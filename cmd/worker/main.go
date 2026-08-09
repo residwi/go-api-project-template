@@ -14,7 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
 	paymentworker "github.com/residwi/go-api-project-template/internal/modules/payment/worker"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -100,13 +99,13 @@ func run() error {
 		PruneLimit:    infra.Worker.PruneLimit,
 	}
 
-	// app.Orders satisfies payment.OrderHousekeeper directly, so the processor
-	// needs no adapter. Payment's queue side still needs the bare repository: a
-	// service holds no pool (rule 9), and payment's Processor is a separate
-	// value from its Queue. notification's Jobs is both at once, so it needs
-	// no such split.
-	paymentProcessor := paymentworker.NewProcessor(app.Payments, app.Orders, appLog)
-	paymentRunner := jobs.NewRunner("payment", paymentpg.New(pool), paymentProcessor, jobCfg, appLog)
+	// app.Orders satisfies paymentworker.OrderHousekeeper directly, so the
+	// processor needs no adapter. payment.Module.Jobs is both platform/jobs.Queue
+	// and platform/jobs.Processor at once (the same rule notification's Jobs
+	// follows), so the runner claims and drains through the same value the
+	// processor wraps to add its per-tick Sweep hook.
+	paymentProcessor := paymentworker.NewProcessor(app.Payments.Jobs, app.Orders, appLog)
+	paymentRunner := jobs.NewRunner("payment", app.Payments.Jobs, paymentProcessor, jobCfg, appLog)
 	notificationRunner := jobs.NewRunner("notification", app.Notifications.Jobs, app.Notifications.Jobs, jobCfg, appLog)
 
 	appLog.InfoContext(ctx, "worker starting", slog.String("env", infra.App.Env))

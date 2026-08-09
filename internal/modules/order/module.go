@@ -43,6 +43,15 @@ type Deps struct {
 	Inventory     InventoryPort
 	Promotions    CouponPort
 	Notifications NotificationEnqueuer
+
+	// Payment and PaymentJobs are constructor arguments, not a setter: at
+	// slice granularity the order/payment cycle runs through four packages
+	// (order/transition, order/query, payment/charge, payment/jobs), not two,
+	// so bootstrap builds order's own transition and query reads, then
+	// payment (which needs them), then hands payment.Charge and payment.Jobs
+	// in here to finish building order.
+	Payment     PaymentInitiator
+	PaymentJobs PaymentJobCanceller
 }
 
 // CartProvider is what place needs from cart. cart.Module satisfies it
@@ -74,27 +83,34 @@ type NotificationEnqueuer interface {
 	EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) error
 }
 
-// PaymentInitiator and PaymentJobCanceller are set after construction by
-// SetPaymentDeps: payment is not sliced yet, and order/payment need each
-// other at construction time, so bootstrap wires these back in after both
-// exist.
+// PaymentInitiator and PaymentJobCanceller are constructor arguments: at
+// slice granularity the order/payment cycle runs through four packages, not
+// two, so bootstrap can build payment.Charge and payment.Jobs before order
+// needs them, and hand them in here instead of setting them after the fact.
 type PaymentInitiator interface {
 	InitiatePayment(ctx context.Context, p paymentcontract.ChargeRequest) (paymentcontract.ChargeResult, error)
 }
 
 type PaymentJobCanceller interface {
-	CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID) error
+	CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) error
 }
 
 // Module is Place, Query, RetryPayment, Cancel, ChangeStatus, Expire,
-// RecoverStale and Transition -- payment is not sliced yet (task 13), and its
-// OrderUpdater/OrderGetter/OrderItemsGetter/OrderHousekeeper ports, plus
-// shipping's OrderPort and review's PurchaseVerifier, each ask for a subset of
-// this module's capabilities as one whole-module value. That bundle is why
-// Module itself exposes the Mark*/GetSnapshot/GetInfo/ListItemQuantities/
-// HasDeliveredOrder/ExpireStale/RecoverStaleProcessing delegators below: a
-// single Go value can only satisfy those interfaces by carrying the methods
-// itself.
+// RecoverStale and Transition. shipping's OrderPort, review's
+// PurchaseVerifier and cmd/worker's OrderHousekeeper each ask for a subset of
+// this module's capabilities as one whole-module value (bootstrap passes
+// ordMod itself for each), which is why Module still exposes the
+// MarkShipped/MarkDelivered/GetInfo/HasDeliveredOrder/ExpireStale/
+// RecoverStaleProcessing delegators below: a single Go value can only satisfy
+// those interfaces by carrying the methods itself.
+//
+// payment no longer consumes ordMod this way: at slice granularity it reads
+// order/transition and order/query directly, built early enough in
+// bootstrap.New that no whole-module value is needed. The remaining Mark*,
+// GetSnapshot and ListItemQuantities delegators below now have no caller
+// outside this package's own tests -- left in place rather than pruned in
+// this task, since removing them is an order.Module API change this task's
+// mandate did not ask for.
 type Module struct {
 	Place        *place.Command
 	Query        *query.Reader
@@ -111,12 +127,13 @@ func New(d Deps) *Module {
 
 	return &Module{
 		Place: place.New(
-			placepg.New(d.Pool), d.Tx, d.Cart, d.Inventory, d.Promotions, d.Notifications, transitionApplier, d.Logger,
+			placepg.New(d.Pool), d.Tx, d.Cart, d.Inventory, d.Payment, d.Promotions, d.Notifications,
+			transitionApplier, d.Logger,
 		),
 		Query:        query.New(querypg.New(d.Pool)),
-		RetryPayment: retrypayment.New(retrypaymentpg.New(d.Pool)),
+		RetryPayment: retrypayment.New(retrypaymentpg.New(d.Pool), d.Payment),
 		Cancel: cancel.New(
-			cancelpg.New(d.Pool), d.Tx, transitionApplier, d.Inventory, d.Promotions, d.Logger,
+			cancelpg.New(d.Pool), d.Tx, transitionApplier, d.Inventory, d.Promotions, d.PaymentJobs, d.Logger,
 		),
 		ChangeStatus: changestatus.New(changestatuspg.New(d.Pool), transitionApplier),
 		Expire: expire.New(
@@ -127,18 +144,10 @@ func New(d Deps) *Module {
 	}
 }
 
-// SetPaymentDeps breaks the order/payment construction cycle: at whole-module
-// granularity each needs the other, so bootstrap wires this one after both
-// exist. Both ports are satisfied by payment.Service directly.
-func (m *Module) SetPaymentDeps(payment PaymentInitiator, paymentCancel PaymentJobCanceller) {
-	m.Place.SetPaymentDeps(payment)
-	m.RetryPayment.SetPaymentDeps(payment)
-	m.Cancel.SetPaymentDeps(paymentCancel)
-}
-
-// The eight Mark* delegators below are payment's OrderUpdater and shipping's
-// OrderPort, satisfied without an adapter: each is a passthrough to
-// Transition, which is where every allowed-from set actually lives.
+// The eight Mark* delegators below are passthroughs to Transition, which is
+// where every allowed-from set actually lives. MarkShipped and MarkDelivered
+// back shipping's OrderPort; the other six had no caller left once payment
+// started reading order/transition directly instead of through this Module.
 
 func (m *Module) MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error {
 	return m.Transition.MarkPaymentProcessing(ctx, orderID)
@@ -172,13 +181,8 @@ func (m *Module) MarkDelivered(ctx context.Context, orderID uuid.UUID) error {
 	return m.Transition.MarkDelivered(ctx, orderID)
 }
 
-// CancelUnpaid is payment's OrderUpdater intent method for the webhook's
-// cancel-on-non-payment path, satisfied without an adapter.
-func (m *Module) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {
-	return m.Cancel.CancelUnpaid(ctx, orderID)
-}
-
-// GetSnapshot backs payment's OrderGetter.
+// GetSnapshot had no caller left once payment started reading order/query
+// directly instead of through this Module.
 func (m *Module) GetSnapshot(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
 	return m.Query.GetSnapshot(ctx, orderID)
 }
@@ -188,7 +192,8 @@ func (m *Module) GetInfo(ctx context.Context, orderID uuid.UUID) (contract.Order
 	return m.Query.GetInfo(ctx, orderID)
 }
 
-// ListItemQuantities backs payment's OrderItemsGetter.
+// ListItemQuantities had no caller left once payment started reading
+// order/query directly instead of through this Module.
 func (m *Module) ListItemQuantities(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error) {
 	return m.Query.ListItemQuantities(ctx, orderID)
 }
@@ -198,10 +203,11 @@ func (m *Module) HasDeliveredOrder(ctx context.Context, userID, orderID, product
 	return m.Query.HasDeliveredOrder(ctx, userID, orderID, productID)
 }
 
-// ExpireStale and RecoverStaleProcessing back payment's OrderHousekeeper,
-// which cmd/worker wires into payment's own queue runner as its per-tick
-// Sweep hook -- the same shape as before order was sliced. They also keep
-// test/e2e's existing call surface (order_expiry_test.go) intact.
+// ExpireStale and RecoverStaleProcessing back cmd/worker's
+// paymentworker.OrderHousekeeper, which wires them into payment's own queue
+// runner as its per-tick Sweep hook -- the same shape as before order was
+// sliced. They also keep test/e2e's existing call surface
+// (order_expiry_test.go) intact.
 
 func (m *Module) ExpireStale(ctx context.Context) error {
 	return m.Expire.Sweep(ctx)

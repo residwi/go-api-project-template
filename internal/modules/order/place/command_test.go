@@ -763,11 +763,11 @@ func newTestCommand(t *testing.T) (
 		testhelper.FakeTxRunner{},
 		cart,
 		inventory,
+		payment,
 		coupons,
 		notifications,
 		transition,
 		testhelper.DiscardLogger(),
 	)
-	cmd.SetPaymentDeps(payment)
 	return cmd, repo, cart, inventory, payment, coupons, notifications, transition
 }

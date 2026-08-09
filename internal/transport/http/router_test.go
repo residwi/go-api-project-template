@@ -24,6 +24,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -761,7 +762,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id = $1`, orderID)
 		testPool.Exec(ctx, `DELETE FROM orders WHERE id = $1`, orderID)
 
-		var job payment.Job
+		var job domain.Job
 		err = testPool.QueryRow(ctx,
 			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
 			        COALESCE(last_error, ''), locked_until, next_retry_at,
@@ -775,7 +776,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 
 		// The outcome is not asserted: this exists to drive the order-facing adapters
 		// with an order whose items are gone.
-		_ = newPaymentServiceForTest(t, mockServer.URL+"/mock/payment").Process(ctx, job)
+		_ = newPaymentServiceForTest(t, mockServer.URL+"/mock/payment").Jobs.Process(ctx, job)
 
 		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, refundJobID)
 
@@ -790,11 +791,11 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	setup(t)
 
 	// A missing order drives orderGetterAdapter.GetByID down its error path.
-	fakeJob := payment.Job{
+	fakeJob := domain.Job{
 		ID:        uuid.New(),
 		PaymentID: uuid.New(),
 		OrderID:   uuid.New(), // does not exist in DB
-		Action:    payment.ActionCharge,
+		Action:    domain.ActionCharge,
 	}
 
 	// GatewayURL is the placeholder from TestMain (never a real listener):
@@ -803,7 +804,7 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	err := newPaymentServiceForTest(
 		t,
 		testDeps.Payment.GatewayURL,
-	).FinalizePaymentSuccess(context.Background(), fakeJob)
+	).Charge.FinalizePaymentSuccess(context.Background(), fakeJob)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "getting order for verification")
 }
@@ -963,11 +964,11 @@ func setup(t *testing.T) {
 }
 
 // newPaymentServiceForTest wires a whole App against a custom gateway URL (a
-// local httptest mock server) and hands back just the payment service.
+// local httptest mock server) and hands back the payment module.
 // test/e2e carries its own copy in testmain_test.go, built against the old
 // shared *config.Config -- the two diverged in this task, since bootstrap.Deps
 // no longer has a field of that type. See task 8's report.
-func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Service {
+func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Module {
 	t.Helper()
 
 	return newTestApp(payment.Config{

@@ -16,6 +16,7 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -175,7 +176,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	})
 
 	t.Run("processing refund job restocks inventory and releases coupon", func(t *testing.T) {
-		var job payment.Job
+		var job domain.Job
 		err := testPool.QueryRow(ctx,
 			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
 			        COALESCE(last_error, ''), locked_until, next_retry_at,
@@ -188,11 +189,11 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 			&job.NextRetryAt, &job.CreatedAt, &job.UpdatedAt,
 		)
 		require.NoError(t, err)
-		assert.Equal(t, payment.ActionRefund, job.Action)
+		assert.Equal(t, domain.ActionRefund, job.Action)
 
 		stockBefore, _ := inventoryLevelOf(t, prodID)
 
-		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").Process(ctx, job)
+		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").Jobs.Process(ctx, job)
 		require.NoError(t, processErr)
 
 		var orderStatus string
@@ -375,7 +376,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, usageBefore)
 
-		var job payment.Job
+		var job domain.Job
 		err = testPool.QueryRow(ctx,
 			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
 			        COALESCE(last_error, ''), locked_until, next_retry_at,
@@ -387,7 +388,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").Process(ctx, job)
+		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").Jobs.Process(ctx, job)
 		require.NoError(t, processErr)
 
 		// Restocked, not released: available_stock returns to its seeded 100 and

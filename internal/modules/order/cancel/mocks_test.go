@@ -304,12 +304,12 @@ func (_m *MockPaymentJobCanceller) EXPECT() *MockPaymentJobCanceller_Expecter {
 	return &MockPaymentJobCanceller_Expecter{mock: &_m.Mock}
 }
 
-// CancelJobsByOrderID provides a mock function for the type MockPaymentJobCanceller
-func (_mock *MockPaymentJobCanceller) CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID) error {
+// CancelPendingByOrderID provides a mock function for the type MockPaymentJobCanceller
+func (_mock *MockPaymentJobCanceller) CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) error {
 	ret := _mock.Called(ctx, orderID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for CancelJobsByOrderID")
+		panic("no return value specified for CancelPendingByOrderID")
 	}
 
 	var r0 error
@@ -321,19 +321,19 @@ func (_mock *MockPaymentJobCanceller) CancelJobsByOrderID(ctx context.Context, o
 	return r0
 }
 
-// MockPaymentJobCanceller_CancelJobsByOrderID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CancelJobsByOrderID'
-type MockPaymentJobCanceller_CancelJobsByOrderID_Call struct {
+// MockPaymentJobCanceller_CancelPendingByOrderID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CancelPendingByOrderID'
+type MockPaymentJobCanceller_CancelPendingByOrderID_Call struct {
 	*mock.Call
 }
 
-// CancelJobsByOrderID is a helper method to define mock.On call
+// CancelPendingByOrderID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockPaymentJobCanceller_Expecter) CancelJobsByOrderID(ctx any, orderID any) *MockPaymentJobCanceller_CancelJobsByOrderID_Call {
-	return &MockPaymentJobCanceller_CancelJobsByOrderID_Call{Call: _e.mock.On("CancelJobsByOrderID", ctx, orderID)}
+func (_e *MockPaymentJobCanceller_Expecter) CancelPendingByOrderID(ctx any, orderID any) *MockPaymentJobCanceller_CancelPendingByOrderID_Call {
+	return &MockPaymentJobCanceller_CancelPendingByOrderID_Call{Call: _e.mock.On("CancelPendingByOrderID", ctx, orderID)}
 }
 
-func (_c *MockPaymentJobCanceller_CancelJobsByOrderID_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockPaymentJobCanceller_CancelJobsByOrderID_Call {
+func (_c *MockPaymentJobCanceller_CancelPendingByOrderID_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockPaymentJobCanceller_CancelPendingByOrderID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -351,12 +351,12 @@ func (_c *MockPaymentJobCanceller_CancelJobsByOrderID_Call) Run(run func(ctx con
 	return _c
 }
 
-func (_c *MockPaymentJobCanceller_CancelJobsByOrderID_Call) Return(err error) *MockPaymentJobCanceller_CancelJobsByOrderID_Call {
+func (_c *MockPaymentJobCanceller_CancelPendingByOrderID_Call) Return(err error) *MockPaymentJobCanceller_CancelPendingByOrderID_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockPaymentJobCanceller_CancelJobsByOrderID_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) error) *MockPaymentJobCanceller_CancelJobsByOrderID_Call {
+func (_c *MockPaymentJobCanceller_CancelPendingByOrderID_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) error) *MockPaymentJobCanceller_CancelPendingByOrderID_Call {
 	_c.Call.Return(run)
 	return _c
 }

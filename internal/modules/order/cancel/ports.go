@@ -27,9 +27,12 @@ type CouponReleaser interface {
 	Release(ctx context.Context, orderID uuid.UUID) error
 }
 
-// PaymentJobCanceller is set after construction by SetPaymentDeps: payment is
-// not sliced yet, and order/payment need each other at construction time, so
-// bootstrap wires this one after both exist.
+// PaymentJobCanceller is a constructor argument, not a setter: at slice
+// granularity the order/payment cycle runs through four packages
+// (order/transition, order/query, payment/charge, payment/jobs), not two, so
+// bootstrap builds order's and payment's shared reads first, then payment,
+// then hands payment.Jobs in here at construction time. Named
+// CancelPendingByOrderID to match the capability name payment/jobs exports.
 type PaymentJobCanceller interface {
-	CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID) error
+	CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) error
 }
