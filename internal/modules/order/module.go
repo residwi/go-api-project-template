@@ -198,11 +198,10 @@ func (m *Module) HasDeliveredOrder(ctx context.Context, userID, orderID, product
 	return m.Query.HasDeliveredOrder(ctx, userID, orderID, productID)
 }
 
-// ExpireStale and RecoverStaleProcessing are kept as top-level delegators for
-// test/e2e's existing call shape (order_expiry_test.go). cmd/worker itself
-// drives Expire.Sweep and RecoverStale.Sweep directly on their own tick,
-// independent of payment's queue runner -- payment no longer houses either
-// sweep now that order owns its own worker-tick slices.
+// ExpireStale and RecoverStaleProcessing back payment's OrderHousekeeper,
+// which cmd/worker wires into payment's own queue runner as its per-tick
+// Sweep hook -- the same shape as before order was sliced. They also keep
+// test/e2e's existing call surface (order_expiry_test.go) intact.
 
 func (m *Module) ExpireStale(ctx context.Context) error {
 	return m.Expire.Sweep(ctx)

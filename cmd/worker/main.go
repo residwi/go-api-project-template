@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
@@ -16,6 +15,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/postgres"
+	paymentworker "github.com/residwi/go-api-project-template/internal/modules/payment/worker"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
@@ -100,10 +100,13 @@ func run() error {
 		PruneLimit:    infra.Worker.PruneLimit,
 	}
 
-	// payment.Service satisfies jobs.Processor directly: a service holds no pool
-	// (rule 9), and the queue side still needs the bare repository. notification's
-	// Jobs is both at once, so it needs no such split.
-	paymentRunner := jobs.NewRunner("payment", paymentpg.New(pool), app.Payments, jobCfg, appLog)
+	// app.Orders satisfies payment.OrderHousekeeper directly, so the processor
+	// needs no adapter. Payment's queue side still needs the bare repository: a
+	// service holds no pool (rule 9), and payment's Processor is a separate
+	// value from its Queue. notification's Jobs is both at once, so it needs
+	// no such split.
+	paymentProcessor := paymentworker.NewProcessor(app.Payments, app.Orders, appLog)
+	paymentRunner := jobs.NewRunner("payment", paymentpg.New(pool), paymentProcessor, jobCfg, appLog)
 	notificationRunner := jobs.NewRunner("notification", app.Notifications.Jobs, app.Notifications.Jobs, jobCfg, appLog)
 
 	appLog.InfoContext(ctx, "worker starting", slog.String("env", infra.App.Env))
@@ -113,48 +116,7 @@ func run() error {
 			start(ctx)
 		})
 	}
-	// Expire and RecoverStale are order's own housekeeping sweeps, not job
-	// queues -- there is nothing to claim or lease -- so they run on a plain
-	// ticker instead of a jobs.Runner, independent of payment's queue tick.
-	wg.Go(func() { runSweep(ctx, "order-expire", infra.Worker.Interval, app.Orders.Expire.Sweep, appLog) })
-	wg.Go(func() {
-		runSweep(ctx, "order-recoverstale", infra.Worker.Interval, app.Orders.RecoverStale.Sweep, appLog)
-	})
 	wg.Wait()
 	appLog.InfoContext(ctx, "worker stopped")
 	return nil
-}
-
-// runSweep drives a housekeeping sweep with no queue behind it. Recovered
-// separately per tick, same as jobs.Runner.tick, so a panic here takes down
-// only this sweep's next tick, never the whole worker binary.
-func runSweep(
-	ctx context.Context,
-	name string,
-	interval time.Duration,
-	sweep func(context.Context) error,
-	log *slog.Logger,
-) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			sweepOnce(ctx, name, sweep, log)
-		}
-	}
-}
-
-func sweepOnce(ctx context.Context, name string, sweep func(context.Context) error, log *slog.Logger) {
-	defer func() {
-		if rec := recover(); rec != nil {
-			log.ErrorContext(ctx, name+" sweep panicked", slog.String("panic", fmt.Sprint(rec)))
-		}
-	}()
-	if err := sweep(ctx); err != nil {
-		log.ErrorContext(ctx, name+" sweep failed", slog.String("error", err.Error()))
-	}
 }
