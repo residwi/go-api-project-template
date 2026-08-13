@@ -12,10 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// Command is what AdminHandler needs from changestatus.Command:
-// changestatus.Command satisfies it directly, so nothing sits between them,
-// and the mockery-generated mock is the other implementation, used in
-// admin_handler_test.go.
 type Command interface {
 	Execute(ctx context.Context, orderID uuid.UUID, toStatus domain.Status) error
 }

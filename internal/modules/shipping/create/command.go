@@ -43,8 +43,6 @@ func (c *Command) Execute(ctx context.Context, orderID uuid.UUID, p Params) (*do
 		Status:         domain.StatusShipped,
 	}
 
-	// One transaction: a failed order flip rolls the shipment back instead of
-	// orphaning it. Order's repository picks the transaction up from ctx.
 	if err := c.tx.Run(ctx, func(txCtx context.Context) error {
 		if err := c.repo.Create(txCtx, shipment); err != nil {
 			return err

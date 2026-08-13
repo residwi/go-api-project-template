@@ -8,10 +8,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 )
 
-// Repository is charge's own storage: InitiatePayment's synchronous path and
-// ProcessCharge's worker-driven retry both write here, since both end in the
-// same finalize dance. The rest of the payments table's operations belong to
-// whichever slice actually calls them -- refund, webhook, query.
 type Repository interface {
 	Create(ctx context.Context, p *domain.Payment) error
 	GetActiveByOrderID(ctx context.Context, orderID uuid.UUID) (*domain.Payment, error)

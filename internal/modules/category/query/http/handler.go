@@ -11,9 +11,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// CategoryReader is what Handler needs from query.Reader: query.Reader
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type CategoryReader interface {
 	List(ctx context.Context) ([]domain.Category, error)
 	GetBySlug(ctx context.Context, slug string) (*domain.Category, error)
@@ -32,10 +29,6 @@ func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
 	api.HandleFunc("GET /categories/{slug}", h.getBySlug)
 }
 
-// The public shape. Omitting Active and SortOrder is what matters: these
-// endpoints are unauthenticated and List has no WHERE active filter, so
-// naming them would let anyone enumerate unpublished categories. Admin
-// endpoints get the fuller response create and update return.
 type categoryResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Name        string     `json:"name"`

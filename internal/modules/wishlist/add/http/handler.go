@@ -12,9 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// ItemAdder is what Handler needs from add.Command: add.Command satisfies it
-// directly, so nothing sits between them, and the mockery-generated mock is
-// the other implementation, used in handler_test.go.
 type ItemAdder interface {
 	Execute(ctx context.Context, userID uuid.UUID, p add.Params) error
 }
@@ -32,9 +29,6 @@ func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
 	authed.HandleFunc("POST /wishlist/items", h.add)
 }
 
-// addItemRequest carries the validation rules. They live here, not in the
-// core: a service called from a worker should not inherit HTTP's validation
-// vocabulary.
 type addItemRequest struct {
 	ProductID uuid.UUID `json:"product_id" validate:"required"`
 }

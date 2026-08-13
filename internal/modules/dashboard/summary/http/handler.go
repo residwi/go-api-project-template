@@ -10,9 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// SummaryReader is what Handler needs from summary.Reader: summary.Reader
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type SummaryReader interface {
 	GetSummary(ctx context.Context, from, to time.Time) (domain.SalesSummary, []domain.StatusBreakdown, error)
 }
@@ -55,8 +52,6 @@ func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time,
 	return from, to, true
 }
 
-// Declared here, not shared with dashboard's other slices. Each endpoint holds
-// its own copy so one endpoint's new field cannot appear in another's response.
 type salesSummaryResponse struct {
 	TotalOrders       int     `json:"total_orders"`
 	TotalRevenue      int64   `json:"total_revenue"`

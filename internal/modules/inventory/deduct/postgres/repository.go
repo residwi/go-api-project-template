@@ -20,9 +20,6 @@ var _ deduct.Repository = (*Repository)(nil)
 
 const stockValueCols = 2
 
-// items is a map, so its keys are already unique -- the summing-by-product-id
-// this used to do is dead once duplicates cannot reach it. Lock ordering
-// belongs to lockLevels' `ORDER BY product_id`, not to ids.
 func buildStockValues(items map[uuid.UUID]int) (string, []any, []uuid.UUID) {
 	ids := make([]uuid.UUID, 0, len(items))
 	for id := range items {
@@ -36,7 +33,6 @@ func buildStockValues(items map[uuid.UUID]int) (string, []any, []uuid.UUID) {
 		idCol, qtyCol := param, param+1
 		param += stockValueCols
 		if i == 0 {
-			// Cast the first row so Postgres infers the VALUES column types.
 			placeholders[i] = fmt.Sprintf("($%d::uuid, $%d::int)", idCol, qtyCol)
 		} else {
 			placeholders[i] = fmt.Sprintf("($%d, $%d)", idCol, qtyCol)
@@ -46,9 +42,6 @@ func buildStockValues(items map[uuid.UUID]int) (string, []any, []uuid.UUID) {
 	return strings.Join(placeholders, ","), args, ids
 }
 
-// Deterministic order, so overlapping batches cannot deadlock. Locking
-// inventory_levels rather than products keeps a checkout from blocking an admin
-// editing a name or price.
 func lockLevels(ctx context.Context, db database.DBTX, ids []uuid.UUID) error {
 	_, err := db.Exec(ctx,
 		`SELECT 1 FROM inventory_levels WHERE product_id = ANY($1) ORDER BY product_id FOR UPDATE`, ids)
@@ -58,7 +51,6 @@ func lockLevels(ctx context.Context, db database.DBTX, ids []uuid.UUID) error {
 	return nil
 }
 
-// Total on hand is derived from the two stored columns, not stored itself.
 func stockFrom(productID uuid.UUID, available, reserved int) *domain.Stock {
 	return &domain.Stock{
 		ProductID: productID,
@@ -76,8 +68,6 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-// DeductBatch moves only reserved_stock: available_stock was already reduced
-// when the hold was taken.
 func (r *Repository) DeductBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	if len(items) == 0 {
 		return nil

@@ -12,14 +12,10 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// ShipmentDeliverer is what Handler needs from deliver.Command: deliver.Command
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type ShipmentDeliverer interface {
 	Execute(ctx context.Context, shipmentID uuid.UUID) (*domain.Shipment, error)
 }
 
-// Handler holds no validator: the endpoint takes no body.
 type Handler struct {
 	cmd ShipmentDeliverer
 }
@@ -32,8 +28,6 @@ func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
 	admin.HandleFunc("POST /shipments/{id}/deliver", h.deliver)
 }
 
-// Declared here, not shared with shipping's other slices. Each endpoint holds
-// its own copy so one endpoint's new field cannot appear in another's response.
 type shipmentResponse struct {
 	ID             uuid.UUID             `json:"id"`
 	OrderID        uuid.UUID             `json:"order_id"`

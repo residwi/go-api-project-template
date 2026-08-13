@@ -13,9 +13,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// Authenticator is what Handler needs from login.Command: login.Command
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type Authenticator interface {
 	Execute(ctx context.Context, p login.Params) (*domain.TokenPair, error)
 }
@@ -42,10 +39,6 @@ func (r loginRequest) toParams() login.Params {
 	return login.Params{Email: r.Email, Password: r.Password}
 }
 
-// Declared here, not shared with auth's other slices: each endpoint holds its
-// own copy so one endpoint's new field cannot appear in another's response.
-// Mapped explicitly from usercontract.User, which also carries Active and
-// TokenVersion -- adding a field there does not publish it.
 type authUserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`

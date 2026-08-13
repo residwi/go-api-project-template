@@ -1,6 +1,3 @@
-// Package user composes user's slices. It imports no transport package, so a
-// worker or a future grpc server can construct this module without linking
-// HTTP.
 package user
 
 import (
@@ -30,9 +27,6 @@ type Deps struct {
 	Logger *slog.Logger
 }
 
-// Module is Query, UpdateProfile, AdminUpdate, UpdateRole, Delete,
-// Credentials. Credentials is exported because auth's login, register and
-// refresh ports all need it -- the only slice consumed outside this module.
 type Module struct {
 	Query         *query.Reader
 	UpdateProfile *updateprofile.Command
@@ -42,8 +36,6 @@ type Module struct {
 	Credentials   *credentials.Store
 }
 
-// New builds every slice. Cache may be nil: query's status cache degrades to
-// query.NoCache rather than failing the boot.
 func New(d Deps) *Module {
 	var statusCache query.StatusCache = query.NoCache{}
 	if d.Cache != nil {
@@ -55,10 +47,6 @@ func New(d Deps) *Module {
 		UpdateProfile: updateprofile.New(
 			updateprofilepg.New(d.Pool),
 		),
-		// adminupdate, updaterole and remove each invalidate the cache through
-		// their own narrow StatusInvalidator port; statusCache satisfies all
-		// three by structural typing, so none of them imports query, its
-		// sibling slice.
 		AdminUpdate: adminupdate.New(adminupdatepg.New(d.Pool), statusCache, d.Logger),
 		UpdateRole:  updaterole.New(updaterolepg.New(d.Pool), statusCache, d.Logger),
 		Delete:      remove.New(removepg.New(d.Pool), statusCache, d.Logger),

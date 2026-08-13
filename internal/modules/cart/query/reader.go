@@ -40,8 +40,6 @@ func (r *Reader) GetCart(ctx context.Context, userID uuid.UUID) (*domain.Cart, e
 	for i := range c.Items {
 		info, ok := infos[c.Items[i].ProductID]
 		if !ok {
-			// Gone entirely: keep the line visible and unsellable rather than let the
-			// customer's total change silently.
 			c.Items[i].Product = &domain.Product{Status: "unavailable"}
 			continue
 		}
@@ -55,11 +53,6 @@ func (r *Reader) GetCart(ctx context.Context, userID uuid.UUID) (*domain.Cart, e
 	return c, nil
 }
 
-// GetSnapshot freezes the cart for checkout. Order reads this instead of Cart
-// so that cart's own model stays free of a checkout-shaped view.
-//
-// GetSnapshot is one of the three names order.CartProvider declares, and
-// order/place calls it directly against cart.Module by name-match.
 func (r *Reader) GetSnapshot(ctx context.Context, userID uuid.UUID) (*contract.Cart, error) {
 	c, err := r.GetCart(ctx, userID)
 	if err != nil {

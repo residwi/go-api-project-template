@@ -1,6 +1,3 @@
-// Package promotion composes promotion's slices. It imports no transport
-// package, so a worker or a future grpc server can construct this module
-// without linking HTTP.
 package promotion
 
 import (
@@ -26,9 +23,6 @@ type Deps struct {
 	Tx   database.TxRunner
 }
 
-// Module is Query, Create, Update, Delete, Apply, Reserve. Reserve is
-// exported because order's CouponReserver port and payment's CouponReleaser
-// port both need it -- the only slice consumed outside this module.
 type Module struct {
 	Query   *query.Reader
 	Create  *create.Command

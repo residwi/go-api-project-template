@@ -1,6 +1,3 @@
-// Package domain holds notification's aggregate and its rules. It is
-// module-private: what leaves notification leaves through a slice's return
-// type or contract/.
 package domain
 
 import (

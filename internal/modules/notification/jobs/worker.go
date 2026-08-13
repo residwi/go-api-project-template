@@ -12,15 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
-// Worker owns every operation on the queue table: order/place enqueues
-// through EnqueueOrderPlaced, and platform/jobs.Runner drains it through
-// Claim, Prune and Process below -- one value satisfying both platform/jobs'
-// Queue and Processor is why notification still needs no separate worker/
-// package. repo stays unexported: CreateJob, UpdateJob and CreateAndComplete
-// are internal plumbing for EnqueueOrderPlaced and Process, not a surface
-// anything else should reach -- a caller that skipped EnqueueOrderPlaced and
-// called CreateJob direct would leave MaxAttempts at zero, and Claim's
-// `attempts < max_attempts` would then never be true, stranding the job.
 type Worker struct {
 	repo   Repository
 	logger *slog.Logger
@@ -51,8 +42,6 @@ func (w *Worker) EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, order
 	return w.repo.CreateJob(ctx, job)
 }
 
-// Process owns the job's terminal state, not the runner. Notification and
-// completion commit atomically, so a lost completion cannot re-deliver.
 func (w *Worker) Process(ctx context.Context, job domain.Job) error {
 	ctx = logger.WithAttrs(ctx, slog.String("job_id", job.ID.String()))
 
@@ -67,7 +56,6 @@ func (w *Worker) Process(ctx context.Context, job domain.Job) error {
 
 	job.Status = domain.JobStatusCompleted
 	if err := w.repo.CreateAndComplete(ctx, n, &job); err != nil {
-		// Record the attempt so the job retries and reaches 'failed' after MaxAttempts.
 		job.Attempts++
 		job.LastError = err.Error()
 		if job.Attempts >= job.MaxAttempts {

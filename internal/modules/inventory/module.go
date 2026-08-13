@@ -1,6 +1,3 @@
-// Package inventory composes inventory's slices. It imports no transport
-// package, so a worker or a future grpc server can construct this module
-// without linking HTTP.
 package inventory
 
 import (
@@ -30,15 +27,6 @@ type Deps struct {
 	Pool *pgxpool.Pool
 }
 
-// Module is Query, Restock, Adjust, Register plus Reserve, Deduct and Restore
-// -- three slices order and payment still consume as one whole-service port,
-// because neither is sliced yet. That bundle is why Module itself exposes
-// ReserveBatch, DeductBatch and Restore: order.InventoryReserver alone asks
-// for all three across three different slices, and a single Go value can only
-// satisfy that by carrying the methods itself. Restore's underlying slice is
-// unexported for exactly that reason -- Go forbids a field and a method of the
-// same struct sharing a name, and Restore is the one delegator whose name
-// collides with its slice's package name.
 type Module struct {
 	Query    *query.Reader
 	Restock  *restock.Command
@@ -62,11 +50,6 @@ func New(d Deps) *Module {
 	}
 }
 
-// ReserveBatch is one of three delegators -- ReserveBatch, DeductBatch and
-// Restore are the names order.InventoryReserver and payment's
-// InventoryDeductor/InventoryRestorer declare. Delegating them here lets
-// bootstrap pass the whole Module for those ports, unchanged from passing the
-// old inventory.Service, with no adapter written.
 func (m *Module) ReserveBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	return m.Reserve.ReserveBatch(ctx, items)
 }

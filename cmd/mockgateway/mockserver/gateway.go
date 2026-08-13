@@ -1,6 +1,3 @@
-// Package mockserver holds the dev-only fake payment gateway handlers. Unlike
-// package main in cmd/mockgateway it is importable, so internal/transport/http can
-// mount it in-process for local development.
 package mockserver
 
 import (
@@ -29,22 +26,18 @@ type chargeRecord struct {
 
 type mockServer struct {
 	mu            sync.Mutex
-	charges       map[string]chargeRecord           // idempotency_key -> record
-	refunds       map[string]gateway.RefundResponse // idempotency_key -> response
+	charges       map[string]chargeRecord
+	refunds       map[string]gateway.RefundResponse
 	webhookSecret string
 	logger        *slog.Logger
 }
 
 type Option func(*mockServer)
 
-// WithWebhookSecret makes the mock sign triggered webhooks with the same
-// HMAC-SHA256 scheme the real webhook handler verifies.
 func WithWebhookSecret(secret string) Option {
 	return func(s *mockServer) { s.webhookSecret = secret }
 }
 
-// RegisterRoutes takes an explicit logger rather than defaulting to a discard
-// handler, so throwing the webhook diagnostics away is something a caller asks for.
 func RegisterRoutes(mux *http.ServeMux, log *slog.Logger, opts ...Option) {
 	s := &mockServer{
 		charges: make(map[string]chargeRecord),
@@ -115,8 +108,6 @@ func (s *mockServer) handleRefund(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Dedupe on the idempotency key: a refund retried after a crash returns the
-	// original response instead of issuing a second refund.
 	if req.IdempotencyKey != "" {
 		if existing, ok := s.refunds[req.IdempotencyKey]; ok {
 			writeJSONResponse(w, existing)
@@ -138,7 +129,7 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 	var triggerReq struct {
 		IdempotencyKey string `json:"idempotency_key"`
 		WebhookURL     string `json:"webhook_url"`
-		Event          string `json:"event"` // success, failed
+		Event          string `json:"event"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&triggerReq); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

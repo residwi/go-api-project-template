@@ -17,7 +17,6 @@ import (
 
 var _ query.Repository = (*Repository)(nil)
 
-// Total on hand is derived from the two stored columns, not stored itself.
 func stockFrom(productID uuid.UUID, available, reserved int) *domain.Stock {
 	return &domain.Stock{
 		ProductID: productID,
@@ -60,8 +59,6 @@ func (r *Repository) GetStock(ctx context.Context, productID uuid.UUID) (*domain
 	return stockFrom(productID, available, reserved), nil
 }
 
-// GetLevels leaves a missing id absent from the map: the caller decides what
-// that means.
 func (r *Repository) GetLevels(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]domain.Stock, error) {
 	if len(ids) == 0 {
 		return map[uuid.UUID]domain.Stock{}, nil

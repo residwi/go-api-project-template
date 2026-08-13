@@ -1,5 +1,3 @@
-// Package expire sweeps orders left in awaiting_payment past the payment
-// window, releasing their reservation and any coupon hold.
 package expire
 
 import (
@@ -38,8 +36,6 @@ func New(
 	return &Command{repo: repo, tx: tx, transition: transition, inventory: inventory, coupons: coupons, logger: log}
 }
 
-// Sweep is the worker's per-tick hook. Each order gets its own transaction, so
-// one failure is logged and the sweep continues.
 func (c *Command) Sweep(ctx context.Context) error {
 	orders, err := c.repo.GetExpiredOrders(ctx, housekeepingBatchLimit)
 	if err != nil {
@@ -62,7 +58,7 @@ func (c *Command) expireOne(ctx context.Context, o domain.Order) error {
 	return c.tx.Run(ctx, func(txCtx context.Context) error {
 		if err := c.transition.Apply(txCtx, o.ID, domain.ExpiredTransition); err != nil {
 			if errors.Is(err, apperror.ErrConflict) {
-				return nil // another worker already moved it out of awaiting_payment
+				return nil
 			}
 			return err
 		}
@@ -70,8 +66,6 @@ func (c *Command) expireOne(ctx context.Context, o domain.Order) error {
 	})
 }
 
-// releaseOrderHolds serves the expire path only, which sees awaiting_payment
-// orders: their stock is reserved, never deducted, so a release is always right.
 func (c *Command) releaseOrderHolds(ctx context.Context, o domain.Order) error {
 	items, err := c.repo.ListItemsByOrderID(ctx, o.ID)
 	if err != nil {
@@ -100,8 +94,6 @@ func (c *Command) releaseOrderHolds(ctx context.Context, o domain.Order) error {
 	return nil
 }
 
-// stockStateFor keeps the contract.StockState enum out of the persisted Order:
-// StockDeducted stays a plain bool column, and only this seam translates it.
 func stockStateFor(deducted bool) inventorycontract.StockState {
 	if deducted {
 		return inventorycontract.Deducted

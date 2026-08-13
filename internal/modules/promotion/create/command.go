@@ -19,8 +19,6 @@ type Params struct {
 	Active         bool
 }
 
-// Command takes no TxRunner: it writes one row through its own repository and
-// asks nothing else.
 type Command struct {
 	repo Repository
 }

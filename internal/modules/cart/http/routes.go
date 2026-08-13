@@ -16,8 +16,6 @@ type RouteDeps struct {
 	Module    *cart.Module
 }
 
-// RegisterRoutes mounts every routed slice. lock/ registers no route:
-// order/place is its only caller.
 func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {
 	queryhttp.New(deps.Module.Query).RegisterHTTP(authed)
 	addhttp.New(deps.Module.Add, deps.Validator).RegisterHTTP(authed)

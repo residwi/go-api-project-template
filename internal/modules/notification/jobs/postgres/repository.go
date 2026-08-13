@@ -37,8 +37,6 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-// Create writes one notification row. It has no port of its own -- only
-// CreateAndComplete calls it, as half of one atomic transaction.
 func (r *Repository) Create(ctx context.Context, n *domain.Notification) error {
 	db := database.DB(ctx, r.pool)
 	err := db.QueryRow(ctx,
@@ -70,8 +68,6 @@ func (r *Repository) CreateJob(ctx context.Context, job *domain.Job) error {
 func (r *Repository) Claim(ctx context.Context, batchSize int, lease time.Duration) ([]domain.Job, error) {
 	db := database.DB(ctx, r.pool)
 
-	// Also reclaims 'processing' jobs whose lease expired, so a worker that died
-	// mid-processing cannot strand one.
 	rows, err := db.Query(ctx,
 		`WITH picked AS (
 			SELECT id
@@ -117,8 +113,6 @@ func (r *Repository) UpdateJob(ctx context.Context, job *domain.Job) error {
 	return nil
 }
 
-// CreateAndComplete runs in one transaction, so the job is never left claimable
-// with the notification already written -- which would re-deliver it.
 func (r *Repository) CreateAndComplete(ctx context.Context, n *domain.Notification, job *domain.Job) error {
 	return database.WithTx(ctx, r.pool, func(txCtx context.Context) error {
 		if err := r.Create(txCtx, n); err != nil {

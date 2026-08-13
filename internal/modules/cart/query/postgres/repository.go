@@ -16,9 +16,6 @@ import (
 
 var _ query.Repository = (*Repository)(nil)
 
-// Cart's own columns only. Joining products here would put product's lifecycle
-// rule (deleted_at IS NULL) inside cart's query; the reader fills the rest
-// through ProductLookup.
 func scanCartItem(row pgx.CollectableRow) (domain.Item, error) {
 	var item domain.Item
 	err := row.Scan(&item.ID, &item.CartID, &item.ProductID, &item.Quantity,

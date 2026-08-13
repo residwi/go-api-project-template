@@ -21,8 +21,6 @@ type Params struct {
 	Active         *bool
 }
 
-// Command takes no TxRunner: it loads one row through its own repository,
-// patches it and writes it back, with nothing else to ask.
 type Command struct {
 	repo Repository
 }
@@ -65,8 +63,6 @@ func (c *Command) Execute(ctx context.Context, id uuid.UUID, p Params) (*domain.
 		promo.Active = *p.Active
 	}
 
-	// Type and/or Value may be partially supplied; validate the final
-	// persisted combination, not just the incoming fields.
 	if err := domain.ValidatePercentageValue(promo.Type, promo.Value); err != nil {
 		return nil, err
 	}

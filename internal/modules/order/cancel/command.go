@@ -1,7 +1,3 @@
-// Package cancel is the single cancel path, shared by the user-facing Execute
-// and the system-facing CancelUnpaid (the payment webhook). One transaction: a
-// failed reversal rolls the cancel back, so no order is cancelled with stock
-// held.
 package cancel
 
 import (
@@ -79,10 +75,6 @@ func (c *Command) Execute(ctx context.Context, userID, orderID uuid.UUID) error 
 	return nil
 }
 
-// CancelUnpaid is system-initiated (the payment webhook), so unlike Execute it
-// runs no ownership check. The CancelledTransition CAS still rejects an
-// already-paid order as a wrapped apperror.ErrBadRequest. Named for payment's
-// OrderUpdater intent, which this satisfies directly.
 func (c *Command) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {
 	order, err := c.repo.GetByID(ctx, orderID)
 	if err != nil {
@@ -91,10 +83,6 @@ func (c *Command) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {
 	return c.cancelWithReversal(ctx, order)
 }
 
-// cancelWithReversal is the single cancel path, shared by the user-facing
-// Execute and the system-facing CancelUnpaid. One transaction: a failed
-// reversal rolls the cancel back, so no order is cancelled with stock held.
-//
 //nolint:gocognit // the single cancel path: guarded status CAS, conditional stock reversal (release vs restock vs skip), and best-effort coupon release
 func (c *Command) cancelWithReversal(ctx context.Context, order *domain.Order) error {
 	return c.tx.Run(ctx, func(txCtx context.Context) error {
@@ -134,8 +122,6 @@ func (c *Command) cancelWithReversal(ctx context.Context, order *domain.Order) e
 	})
 }
 
-// stockStateFor keeps the contract.StockState enum out of the persisted Order:
-// StockDeducted stays a plain bool column, and only this seam translates it.
 func stockStateFor(deducted bool) inventorycontract.StockState {
 	if deducted {
 		return inventorycontract.Deducted

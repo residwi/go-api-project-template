@@ -1,7 +1,3 @@
-// Package webhook is the gateway's callback: POST /payments/webhook. Execute
-// verifies the signature before doing anything else -- that check is the only
-// thing between a forged callback and a paid order -- then dispatches the
-// event.
 package webhook
 
 import (
@@ -40,12 +36,6 @@ func New(
 	return &Command{repo: repo, orders: orders, finalizer: finalizer, jobs: jobs, secret: secret, logger: log}
 }
 
-// Execute verifies the HMAC signature on the raw body before it does
-// anything else -- when a secret is configured, an invalid or missing
-// signature returns apperror.ErrUnauthorized and neither the payload nor the
-// event is looked at. A malformed payload past that point is logged and
-// acknowledged (nil), matching a gateway that retries on anything but 2xx.
-//
 //nolint:gocognit,funlen // resolves the payment then dispatches success/failed/cancelled/expired event branches; funlen counts golines' wrapping, not added logic
 func (c *Command) Execute(ctx context.Context, payload []byte, signature string) error {
 	if c.secret != "" && !verifySignature(c.secret, payload, signature) {
@@ -105,8 +95,6 @@ func (c *Command) Execute(ctx context.Context, payload []byte, signature string)
 		return nil
 	}
 
-	// requires_review means a compensating refund already owns this payment: a
-	// replayed webhook would cancel its job or re-finalize the payment.
 	if p.Status == domain.StatusSuccess || p.Status == domain.StatusRefunded ||
 		p.Status == domain.StatusRequiresReview {
 		return nil
@@ -123,9 +111,6 @@ func (c *Command) Execute(ctx context.Context, payload []byte, signature string)
 			if errors.Is(err, apperror.ErrAlreadyFinalized) {
 				break
 			}
-			// Funds are captured, so a 5xx here would leave money taken and the order
-			// unpaid forever. Compensate, then ack so the gateway stops retrying into a
-			// failure already handled.
 			c.logger.ErrorContext(
 				ctx,
 				"webhook finalization failed, running compensating refund",
@@ -171,8 +156,6 @@ func (c *Command) Execute(ctx context.Context, payload []byte, signature string)
 				slog.String("error", err.Error()),
 			)
 		}
-		// The expiry sweep cannot touch a payment_processing order, so release here.
-		// ErrBadRequest means a concurrent charge already paid it; leave it be.
 		if err := c.orders.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, apperror.ErrBadRequest) {
 			c.logger.ErrorContext(
 				ctx,
@@ -188,8 +171,6 @@ func (c *Command) Execute(ctx context.Context, payload []byte, signature string)
 	return nil
 }
 
-// verifySignature checks a hex-encoded HMAC-SHA256 of the raw body using a
-// constant-time comparison.
 func verifySignature(secret string, body []byte, provided string) bool {
 	if provided == "" {
 		return false

@@ -32,8 +32,6 @@ func GetUserContext(ctx context.Context) (UserContext, bool) {
 	return uc, ok
 }
 
-// RequireUser writes the 401 itself and returns ok=false, so the caller can
-// simply return.
 func RequireUser(w http.ResponseWriter, r *http.Request) (UserContext, bool) {
 	uc, ok := GetUserContext(r.Context())
 	if !ok {

@@ -10,9 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
 
-// denominateLike restates an optional amount in price's currency, nil passing
-// through. products stores one currency for both, so any other would be lost on
-// the way to the database and re-read as the price's.
 func denominateLike(amount *money.Money, price money.Money) *money.Money {
 	if amount == nil {
 		return nil
@@ -21,8 +18,6 @@ func denominateLike(amount *money.Money, price money.Money) *money.Money {
 	return &restated
 }
 
-// Params reads nil as "leave it alone". Re-pricing requires a currency too;
-// http/handler.go rejects one without the other.
 type Params struct {
 	CategoryID     *uuid.UUID
 	Name           *string
@@ -33,8 +28,6 @@ type Params struct {
 	Status         *string
 }
 
-// Command takes no TxRunner: it loads one row through its own repository,
-// patches it and writes it back, with nothing else to ask.
 type Command struct {
 	repo Repository
 }
@@ -61,8 +54,6 @@ func (c *Command) Execute(ctx context.Context, id uuid.UUID, p Params) (*domain.
 	}
 	if p.Price != nil {
 		prod.Price = *p.Price
-		// The *stored* compare-at price too, or it keeps the old currency. The branch
-		// below overwrites this if the caller supplied one.
 		prod.CompareAtPrice = denominateLike(prod.CompareAtPrice, prod.Price)
 	}
 	if p.CompareAtPrice != nil {

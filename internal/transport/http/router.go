@@ -46,8 +46,6 @@ func NewRouter(
 	authed := middleware.NewRouteGroup(mux, "/api", authMiddleware)
 	admin := middleware.NewRouteGroup(mux, "/api/admin", authMiddleware, adminMiddleware)
 
-	// Auth endpoints run synchronous bcrypt and are unauthenticated, so they get
-	// a dedicated per-IP rate limiter to blunt credential-stuffing / CPU exhaustion.
 	authLimiter := middleware.RateLimit(
 		deps.Logger,
 		deps.Cache,
@@ -56,7 +54,6 @@ func NewRouter(
 	)
 	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
 
-	// Placement and payment retry each run a cart-lock, a reserve and a charge.
 	orderWriteLimiter := middleware.RateLimit(
 		deps.Logger,
 		deps.Cache,

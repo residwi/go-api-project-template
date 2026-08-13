@@ -12,9 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// CartAdder is what Handler needs from add.Command: add.Command satisfies it
-// directly, so nothing sits between them, and the mockery-generated mock is
-// the other implementation, used in handler_test.go.
 type CartAdder interface {
 	Execute(ctx context.Context, userID uuid.UUID, p add.Params) error
 }
@@ -32,8 +29,6 @@ func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
 	authed.HandleFunc("POST /cart/items", h.add)
 }
 
-// Validation lives in the transport: a service reachable from a worker should
-// not inherit HTTP's validation vocabulary.
 type addItemRequest struct {
 	ProductID uuid.UUID `json:"product_id" validate:"required"`
 	Quantity  int       `json:"quantity"   validate:"required,min=1"`

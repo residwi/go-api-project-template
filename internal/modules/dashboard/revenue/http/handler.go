@@ -10,9 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// RevenueReader is what Handler needs from revenue.Reader: revenue.Reader
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type RevenueReader interface {
 	ListRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error)
 }
@@ -55,8 +52,6 @@ func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time,
 	return from, to, true
 }
 
-// Declared here, not shared with dashboard's other slices. Each endpoint holds
-// its own copy so one endpoint's new field cannot appear in another's response.
 type revenueDataResponse struct {
 	Date       time.Time `json:"date"`
 	Revenue    int64     `json:"revenue"`

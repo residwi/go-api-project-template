@@ -17,7 +17,6 @@ import (
 
 var _ restock.Repository = (*Repository)(nil)
 
-// Total on hand is derived from the two stored columns, not stored itself.
 func stockFrom(productID uuid.UUID, available, reserved int) *domain.Stock {
 	return &domain.Stock{
 		ProductID: productID,

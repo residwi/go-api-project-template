@@ -12,9 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// Restocker is what Handler needs from restock.Command: restock.Command
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type Restocker interface {
 	Execute(ctx context.Context, productID uuid.UUID, qty int) (*domain.Stock, error)
 }
@@ -32,8 +29,6 @@ func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
 	admin.HandleFunc("PUT /inventory/{product_id}/restock", h.restock)
 }
 
-// Declared here, not shared with inventory's other slices, so one endpoint's
-// new field cannot appear in another's response.
 type stockResponse struct {
 	ProductID uuid.UUID `json:"product_id"`
 	Quantity  int       `json:"quantity"`
@@ -50,7 +45,6 @@ func toStockResponse(s *domain.Stock) stockResponse {
 	}
 }
 
-// Exists only to carry the validate tag: Command.Execute takes a plain int.
 type restockRequest struct {
 	Quantity int `json:"quantity" validate:"required,min=1"`
 }

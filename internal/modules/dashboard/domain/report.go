@@ -1,8 +1,3 @@
-// Package domain holds dashboard's read-model result shapes. It is
-// module-private: no other module may import it. dashboard queries tables it
-// does not own -- ARCHITECTURE.md's reporting-read-model carve-out -- so these
-// are report shapes with no rules of their own, not an owned aggregate; each
-// slice still returns its own through its Reader.
 package domain
 
 import (

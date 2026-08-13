@@ -1,6 +1,3 @@
-// Package product composes product's slices. It imports no transport
-// package, so a worker or a future grpc server can construct this module
-// without linking HTTP.
 package product
 
 import (
@@ -21,18 +18,10 @@ import (
 type Deps struct {
 	Pool *pgxpool.Pool
 
-	// InventoryReader is inventory's Query slice. It satisfies query's and
-	// images' own InventoryReader port by name-match -- each slice declares its
-	// own narrow copy since a slice may not import a sibling's port.
-	InventoryReader query.InventoryReader
-	// InventoryRegistrar is inventory's Register slice. It satisfies create's
-	// InventoryRegistrar port by name-match.
+	InventoryReader    query.InventoryReader
 	InventoryRegistrar create.InventoryRegistrar
 }
 
-// Module is Query, Create, Update, Delete, Images. Images has no route --
-// AddImage, DeleteImage and AvailableQuantity have no production caller, kept
-// visible rather than dropped.
 type Module struct {
 	Query  *query.Reader
 	Create *create.Command

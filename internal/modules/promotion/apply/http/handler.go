@@ -9,10 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// PromotionApplier is what Handler needs from apply.Command: apply.Command
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in
-// handler_test.go.
 type PromotionApplier interface {
 	Execute(ctx context.Context, code string, orderAmount int64) (int64, error)
 }
@@ -35,8 +31,6 @@ type applyRequest struct {
 	Subtotal int64  `json:"subtotal" validate:"required,min=1"`
 }
 
-// The computed discount only: usage counters and per-user limits are the store's
-// business, not a shopper's.
 type applyResponse struct {
 	Code     string `json:"code"`
 	Discount int64  `json:"discount"`

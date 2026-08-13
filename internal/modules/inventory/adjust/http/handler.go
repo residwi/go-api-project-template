@@ -12,9 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// Adjuster is what Handler needs from adjust.Command: adjust.Command
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type Adjuster interface {
 	Execute(ctx context.Context, productID uuid.UUID, newQuantity int) (*domain.Stock, error)
 }
@@ -32,8 +29,6 @@ func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
 	admin.HandleFunc("PUT /inventory/{product_id}/adjust", h.adjust)
 }
 
-// Declared here, not shared with inventory's other slices, so one endpoint's
-// new field cannot appear in another's response.
 type stockResponse struct {
 	ProductID uuid.UUID `json:"product_id"`
 	Quantity  int       `json:"quantity"`

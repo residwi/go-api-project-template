@@ -8,7 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// DBTX abstracts pgxpool.Pool and pgx.Tx so repositories work with both.
 type DBTX interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
@@ -17,13 +16,6 @@ type DBTX interface {
 
 type txCtxKey struct{}
 
-// WithTx runs fn inside a transaction repositories pick up via DB(ctx, pool). A
-// transaction already in context is reused, so a nested WithTx cannot silently
-// open a second connection and break atomicity.
-//
-// Never pass the tx-carrying context to a goroutine: pgx.Tx is not
-// goroutine-safe and concurrent use corrupts it. Stay on fn's synchronous
-// call chain.
 func WithTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context) error) error {
 	if _, ok := ctx.Value(txCtxKey{}).(DBTX); ok {
 		return fn(ctx)
@@ -52,8 +44,6 @@ func DB(ctx context.Context, pool *pgxpool.Pool) DBTX {
 
 type recentWriteCtxKey struct{}
 
-// ReadDB prefers the reader pool, but a transaction or a recent write in this
-// request routes to the primary -- sticky read-after-write.
 func ReadDB(ctx context.Context, primary *pgxpool.Pool, reader *pgxpool.Pool) DBTX {
 	if tx, ok := ctx.Value(txCtxKey{}).(DBTX); ok {
 		return tx
@@ -71,9 +61,6 @@ func WithRecentWrite(ctx context.Context) context.Context {
 	return context.WithValue(ctx, recentWriteCtxKey{}, true)
 }
 
-// TxRunner is what services depend on instead of *pgxpool.Pool: they need
-// atomicity, not a database handle, and the narrower type makes an accidental
-// s.pool.Query() in the service layer a compile error.
 type TxRunner interface {
 	Run(ctx context.Context, fn func(ctx context.Context) error) error
 }

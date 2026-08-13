@@ -1,6 +1,3 @@
-// Package category composes category's slices. It imports no transport
-// package, so a worker or a future grpc server can construct this module
-// without linking HTTP.
 package category
 
 import (
@@ -19,8 +16,6 @@ import (
 type Deps struct {
 	Pool *pgxpool.Pool
 
-	// Products is product's service. It satisfies remove's ProductCounter port
-	// by name-match, so no adapter stands between them.
 	Products remove.ProductCounter
 }
 

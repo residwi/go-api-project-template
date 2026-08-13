@@ -1,5 +1,3 @@
-// Package retrypayment lets a customer re-request payment on an order still
-// awaiting one, e.g. after a card decline.
 package retrypayment
 
 import (
@@ -16,8 +14,6 @@ type Params struct {
 	PaymentMethodID string
 }
 
-// Result is payment's own charge result: retrying payment is a passthrough to
-// InitiatePayment, not a new outcome shape.
 type Result = paymentcontract.ChargeResult
 
 type Command struct {

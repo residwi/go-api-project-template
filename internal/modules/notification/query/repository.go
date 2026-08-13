@@ -9,8 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-// Repository is query's own storage. Its only implementation is
-// query/postgres, constructed in notification/module.go.
 type Repository interface {
 	ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Notification, error)
 	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)

@@ -17,8 +17,6 @@ type Params struct {
 	Active      *bool
 }
 
-// Command takes no TxRunner: it loads one row through its own repository,
-// patches it and writes it back, with nothing else to ask.
 type Command struct {
 	repo Repository
 }

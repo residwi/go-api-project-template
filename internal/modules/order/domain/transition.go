@@ -2,22 +2,10 @@ package domain
 
 import "slices"
 
-// Transition is a guarded order-status change: a compare-and-set that moves an
-// order to To only if its current status is one of From.
-//
-// The named transitions below are the whole state machine. Every allowed-from
-// set lives here exactly once, so no call site can drift from another. Some
-// From sets are deliberately broad, covering payment's race-recovery edges
-// (e.g. a gateway confirming before the local flip to payment_processing).
 type Transition struct {
-	To   Status
-	From []Status
-	// SetsStockDeducted rides along in the same compare-and-set, so the flag can
-	// never disagree with the status. True only for PaidTransition.
+	To                Status
+	From              []Status
 	SetsStockDeducted bool
-	// SetsStockReversed makes a later reversal a no-op instead of double-releasing
-	// -- refunding an order already cancelled-and-released would otherwise take
-	// another order's reservation.
 	SetsStockReversed bool
 }
 

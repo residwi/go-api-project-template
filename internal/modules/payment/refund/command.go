@@ -1,7 +1,3 @@
-// Package refund is payment's refund path: Execute is the admin-triggered
-// POST /payments/{id}/refund, which only enqueues -- the worker recomputes
-// release-vs-restock from the order when it actually runs, via ProcessRefund,
-// which satisfies jobs' RefundProcessor for a worker-claimed refund job.
 package refund
 
 import (
@@ -22,8 +18,6 @@ import (
 
 const jitterDivisor = 2
 
-// stockStateFor keeps the contract.StockState enum out of the order module's
-// persisted StockDeducted bool; only this seam translates it.
 func stockStateFor(deducted bool) inventorycontract.StockState {
 	if deducted {
 		return inventorycontract.Deducted
@@ -70,9 +64,6 @@ func New(
 	}
 }
 
-// Execute is the admin-triggered refund request. It only enqueues -- the
-// refund worker recomputes release-vs-restock from the order when it runs,
-// so enqueue is just intent.
 func (c *Command) Execute(ctx context.Context, paymentID uuid.UUID) error {
 	p, err := c.repo.GetByID(ctx, paymentID)
 	if err != nil {
@@ -122,10 +113,7 @@ func (c *Command) ProcessRefund(ctx context.Context, job domain.Job) error {
 		slog.String("currency", p.Amount.Currency),
 	)
 
-	// No currency crosses: the gateway refunds whatever TransactionID was.
 	resp, gwErr := c.gateway.Refund(ctx, gateway.RefundRequest{
-		// Keyed on the payment id, so a job re-claimed after a crash between this call
-		// and the commit reuses the key and the gateway dedupes it.
 		IdempotencyKey: p.ID.String(),
 		TransactionID:  p.GatewayTxnID,
 		Amount:         p.Amount.Amount,
@@ -170,9 +158,6 @@ func (c *Command) ProcessRefund(ctx context.Context, job domain.Job) error {
 		slog.String("refund_id", resp.RefundID))
 
 	txErr := c.tx.Run(ctx, func(txCtx context.Context) error {
-		// Read BEFORE the flip to refunded: StockDeducted picks restock vs release,
-		// and StockReversed says the hold is already unwound -- reversing twice would
-		// steal another order's reservation.
 		orderSnap, snapErr := c.orderGet.GetSnapshot(txCtx, job.OrderID)
 		if snapErr != nil {
 			return fmt.Errorf("getting order for refund: %w", snapErr)
@@ -202,12 +187,9 @@ func (c *Command) ProcessRefund(ctx context.Context, job domain.Job) error {
 		}
 		switch {
 		case orderSnap.Dispatched:
-			// The goods already left the warehouse, so refund the money but do NOT
-			// restock -- adding shipped units back to sellable stock would oversell.
 			c.logger.InfoContext(txCtx, "refund: skipping inventory restock for dispatched order",
 				slog.String("order_id", job.OrderID.String()), slog.String("order_status", orderSnap.Status))
 		case len(items) > 0 && !orderSnap.StockReversed:
-			// Inventory owns release-vs-restock; we pass the order's persisted fact.
 			if restoreErr := c.inventoryRestorer.Restore(
 				txCtx,
 				items,

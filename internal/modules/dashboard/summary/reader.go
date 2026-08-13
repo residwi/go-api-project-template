@@ -26,8 +26,6 @@ func (r *Reader) GetSummary(
 		breakdown []domain.StatusBreakdown
 	)
 
-	// Pass gctx, not ctx: errgroup cancels it the moment either query fails, so the
-	// sibling stops instead of running on against a doomed context.
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		var err error

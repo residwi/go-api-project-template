@@ -1,6 +1,3 @@
-// Package review composes review's slices. It imports no transport package,
-// so a worker or a future grpc server can construct this module without
-// linking HTTP.
 package review
 
 import (
@@ -17,8 +14,6 @@ import (
 type Deps struct {
 	Pool *pgxpool.Pool
 
-	// Purchase is order's service. It satisfies create's PurchaseVerifier port
-	// by name-match, so no adapter stands between them.
 	Purchase create.PurchaseVerifier
 }
 

@@ -6,9 +6,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 )
 
-// Command holds no transaction runner: it reads a promotion and computes a
-// discount, writing nothing. That absence is the structural proof that apply
-// is a preview, not a claim -- reserve is the slice that writes a usage row.
 type Command struct {
 	repo Repository
 }

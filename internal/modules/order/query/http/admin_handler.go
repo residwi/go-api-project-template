@@ -13,10 +13,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// AdminReader is what AdminHandler needs from query.Reader: query.Reader
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in
-// admin_handler_test.go.
 type AdminReader interface {
 	ListAdmin(ctx context.Context, params query.AdminListParams) ([]domain.Order, int, error)
 	GetByID(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)

@@ -14,9 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// PromotionUpdater is what Handler needs from update.Command: update.Command
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type PromotionUpdater interface {
 	Execute(ctx context.Context, id uuid.UUID, p update.Params) (*domain.Promotion, error)
 }
@@ -60,9 +57,6 @@ func (r updatePromotionRequest) toParams() update.Params {
 	}
 }
 
-// Carries the usage counters and per-user limits a shopper never sees.
-// Declared here, not shared with promotion's other slices, so one endpoint's
-// new field cannot appear in another's response.
 type adminPromotionResponse struct {
 	ID             uuid.UUID   `json:"id"`
 	Code           string      `json:"code"`

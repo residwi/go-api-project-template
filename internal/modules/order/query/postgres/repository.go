@@ -53,8 +53,6 @@ func scanOrder(row pgx.CollectableRow) (domain.Order, error) {
 	return o, nil
 }
 
-// scanItem expects the parent order's currency as the last column: order_items
-// has none of its own, so every query feeding this joins orders for it.
 func scanItem(row pgx.CollectableRow) (domain.Item, error) {
 	var item domain.Item
 	var price, subtotal int64
@@ -206,9 +204,6 @@ func (r *Repository) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) 
 	return items, nil
 }
 
-// HasDeliveredOrder binds to the specific orderID, not "some delivered order
-// for this product": otherwise a review could be filed against an order that
-// is not the reviewer's or never contained the product.
 func (r *Repository) HasDeliveredOrder(ctx context.Context, p query.DeliveredPurchaseParams) (bool, error) {
 	db := database.DB(ctx, r.pool)
 	var exists bool

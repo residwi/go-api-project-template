@@ -11,13 +11,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
 
-// A business default, not a transport one: a seeder or CLI has no request to
-// read a currency from.
 const defaultCurrency = "USD"
 
-// denominateLike restates an optional amount in price's currency, nil passing
-// through. products stores one currency for both, so any other would be lost on
-// the way to the database and re-read as the price's.
 func denominateLike(amount *money.Money, price money.Money) *money.Money {
 	if amount == nil {
 		return nil
@@ -26,11 +21,6 @@ func denominateLike(amount *money.Money, price money.Money) *money.Money {
 	return &restated
 }
 
-// Slug is not a param: it is always derived server-side from Name via
-// slug.MakeOrFallback.
-
-// Params may leave Price's currency empty: Execute denominates it.
-// CompareAtPrice is denominated from Price, never independently.
 type Params struct {
 	CategoryID     *uuid.UUID
 	Name           string
@@ -41,8 +31,6 @@ type Params struct {
 	Status         string
 }
 
-// Command takes no TxRunner: it writes one row through its own repository,
-// then registers a zero inventory level, with nothing else to ask.
 type Command struct {
 	repo Repository
 	reg  InventoryRegistrar
@@ -81,9 +69,6 @@ func (c *Command) Execute(ctx context.Context, p Params) (*domain.Product, error
 		return nil, err
 	}
 
-	// (0,0) by construction: EnsureLevel just wrote the row and nothing can hold a
-	// reservation yet, so reading inventory back would be a round trip for a
-	// known value.
 	prod.Availability = inventorycontract.Availability{}
 	return prod, nil
 }

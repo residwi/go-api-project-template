@@ -12,9 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// CartReader is what Handler needs from query.Reader: query.Reader satisfies
-// it directly, so nothing sits between them, and the mockery-generated mock
-// is the other implementation, used in handler_test.go.
 type CartReader interface {
 	GetCart(ctx context.Context, userID uuid.UUID) (*domain.Cart, error)
 }
@@ -31,8 +28,6 @@ func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
 	authed.HandleFunc("GET /cart", h.get)
 }
 
-// UserID is dropped: the caller is always the authenticated user. Total carries
-// no currency key, unlike the per-item pair below, and that stays so.
 type cartResponse struct {
 	ID    uuid.UUID          `json:"id"`
 	Items []cartItemResponse `json:"items"`
@@ -47,18 +42,10 @@ type cartItemResponse struct {
 	Currency  string    `json:"currency"`
 	Quantity  int       `json:"quantity"`
 	Available int       `json:"available_stock"`
-	// The line is still returned when unsellable, so the customer can see why
-	// their total changed instead of it silently shrinking.
 	Sellable  bool      `json:"sellable"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// item.Product needs no nil check: Reader.GetCart substitutes a synthetic
-// unavailable placeholder when the record is gone.
-//
-// The total is asked of the cart, not accumulated here, and its error is
-// returned rather than swallowed into a zero -- which would publish a total this
-// adapter could not compute.
 func toCartResponse(c *domain.Cart) (cartResponse, error) {
 	out := cartResponse{ID: c.ID, Items: make([]cartItemResponse, len(c.Items))}
 	for i, it := range c.Items {
@@ -97,8 +84,6 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 
 	out, err := toCartResponse(c)
 	if err != nil {
-		// A mixed-currency cart lands here as a wrapped apperror.ErrBadRequest, so
-		// the client sees the 400 checkout would give it rather than a 500.
 		response.HandleErr(w, err)
 		return
 	}

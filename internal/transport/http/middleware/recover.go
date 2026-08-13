@@ -19,8 +19,6 @@ func Recovery(log *slog.Logger) Middleware {
 						slog.String("panic", fmt.Sprint(err)),
 						slog.String("stack", string(debug.Stack())),
 					)
-					// Writing again after the handler started would mean a superfluous WriteHeader
-					// and a corrupt, double-encoded body.
 					if !rw.wrote {
 						response.InternalError(rw)
 					}

@@ -1,6 +1,3 @@
-// Package token issues and verifies auth's JWTs. It has no route: register
-// and login and refresh call it to mint a session, and middleware.Auth calls
-// it to verify one, but nothing calls it over HTTP directly.
 package token
 
 import (
@@ -37,10 +34,6 @@ func New(secret, issuer string, accessTTL, refreshTTL time.Duration) *Service {
 	return &Service{secret: secret, issuer: issuer, accessTTL: accessTTL, refreshTTL: refreshTTL}
 }
 
-// BuildTokenPair mints an access and a refresh token for user. register,
-// login and refresh all call this rather than each assembling a pair
-// themselves: the pairing (two tokens, one shared expiry, one shared user)
-// is one rule, not three.
 func (s *Service) BuildTokenPair(user usercontract.User) (*domain.TokenPair, error) {
 	claims := domain.Claims{
 		UserID:       user.ID,
@@ -67,15 +60,14 @@ func (s *Service) BuildTokenPair(user usercontract.User) (*domain.TokenPair, err
 	}, nil
 }
 
-// ValidateToken satisfies middleware.TokenValidator and refresh.TokenValidator
-// directly, so both wire straight to it without an adapter in between.
 func (s *Service) ValidateToken(tokenString string) (contract.Claims, error) {
-	parsed, err := jwt.ParseWithClaims(tokenString, &jwtClaims{}, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
-		return []byte(s.secret), nil
-	},
+	parsed, err := jwt.ParseWithClaims(
+		tokenString, &jwtClaims{}, func(t *jwt.Token) (any, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+			}
+			return []byte(s.secret), nil
+		},
 		jwt.WithExpirationRequired(),
 		jwt.WithIssuer(s.issuer),
 	)

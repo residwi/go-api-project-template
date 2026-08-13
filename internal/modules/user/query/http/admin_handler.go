@@ -14,10 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// UserLister is what AdminHandler needs from query.Reader: query.Reader
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in
-// admin_handler_test.go.
 type UserLister interface {
 	ListAdmin(ctx context.Context, params query.Params) ([]domain.User, int, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
@@ -36,9 +32,6 @@ func (h *AdminHandler) RegisterHTTP(admin *middleware.RouteGroup) {
 	admin.HandleFunc("GET /users/{id}", h.get)
 }
 
-// Carries role, active and the timestamps that the public userResponse must not,
-// because an operator managing accounts needs them. PasswordHash, TokenVersion
-// and DeletedAt still never appear: auth internals, not account data.
 type adminUserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`

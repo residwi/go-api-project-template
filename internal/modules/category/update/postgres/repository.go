@@ -61,12 +61,6 @@ func (r *Repository) Update(ctx context.Context, cat *domain.Category) error {
 	return nil
 }
 
-// AncestorDepthAndCycle reports the depth from parentID to the root (0 when
-// parentID does not exist) and whether selfID is in that chain, which would make
-// parentID a cycle.
-// Bounded by the caller's own maxDepth so a corrupt chain cannot recurse forever
-// and the two limits cannot drift; `<= maxDepth` reaches maxDepth+1, which is
-// what the caller's `depth+1 > maxDepth` guard needs to fire.
 func (r *Repository) AncestorDepthAndCycle(
 	ctx context.Context,
 	parentID, selfID uuid.UUID,

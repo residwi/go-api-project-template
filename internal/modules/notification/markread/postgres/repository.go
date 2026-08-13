@@ -24,7 +24,6 @@ func New(pool *pgxpool.Pool) *Repository {
 
 func (r *Repository) MarkRead(ctx context.Context, userID, id uuid.UUID) error {
 	db := database.DB(ctx, r.pool)
-	// Scope by user_id so a user can only mark their own notifications read (IDOR).
 	tag, err := db.Exec(ctx,
 		`UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2`, id, userID,
 	)

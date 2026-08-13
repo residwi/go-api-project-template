@@ -12,9 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// ShipmentReader is what Handler needs from query.Reader: query.Reader
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type ShipmentReader interface {
 	GetByOrderIDForUser(ctx context.Context, userID, orderID uuid.UUID) (*domain.Shipment, error)
 }
@@ -31,9 +28,6 @@ func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
 	authed.HandleFunc("GET /orders/{id}/shipping", h.get)
 }
 
-// Declared here, not shared with the admin slices. Three slices will hold an
-// identical struct at first; that is deliberate, so one endpoint's new field
-// cannot appear in another's response.
 type shipmentResponse struct {
 	ID             uuid.UUID             `json:"id"`
 	OrderID        uuid.UUID             `json:"order_id"`

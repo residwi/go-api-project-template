@@ -25,9 +25,6 @@ func (r *Reader) ListByProduct(
 	return r.repo.ListByProduct(ctx, productID, cursor)
 }
 
-// GetStats has no caller yet -- no route and no other module reaches it -- but
-// it carries a real aggregate query with its own repository test, so it moves
-// here intact rather than being dropped like a bare pass-through would be.
 func (r *Reader) GetStats(ctx context.Context, productID uuid.UUID) (domain.Stats, error) {
 	return r.repo.GetStats(ctx, productID)
 }

@@ -1,6 +1,3 @@
-// Package query serves the two admin-facing reads payment publishes. Every
-// other payment capability -- charging, refunding, the webhook and the
-// worker queue -- lives in its own slice.
 package query
 
 import (

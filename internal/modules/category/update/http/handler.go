@@ -14,9 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// CategoryUpdater is what Handler needs from update.Command: update.Command
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type CategoryUpdater interface {
 	Execute(ctx context.Context, id uuid.UUID, p update.Params) (*domain.Category, error)
 }
@@ -34,11 +31,6 @@ func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
 	admin.HandleFunc("PUT /categories/{id}", h.update)
 }
 
-// Declared here, not shared with category's other slices. Each endpoint holds
-// its own copy so one endpoint's new field cannot appear in another's
-// response. This is the admin shape -- the caller is always an admin route --
-// so it keeps SortOrder, Active and the audit timestamps the public
-// categoryResponse in query/http drops.
 type categoryResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Name        string     `json:"name"`

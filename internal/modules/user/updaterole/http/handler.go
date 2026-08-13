@@ -10,10 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// RoleUpdater is what Handler needs from updaterole.Command:
-// updaterole.Command satisfies it directly, so nothing sits between them,
-// and the mockery-generated mock is the other implementation, used in
-// handler_test.go.
 type RoleUpdater interface {
 	Execute(ctx context.Context, p updaterole.Params) error
 }

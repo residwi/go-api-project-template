@@ -20,8 +20,6 @@ func New(repo Repository, tx database.TxRunner, orders OrderPort) *Command {
 }
 
 func (c *Command) Execute(ctx context.Context, shipmentID uuid.UUID) (*domain.Shipment, error) {
-	// Read outside the transaction: the OrderID is needed to flip the order, and a
-	// missing shipment should not open one.
 	shipment, err := c.repo.GetByID(ctx, shipmentID)
 	if err != nil {
 		return nil, err

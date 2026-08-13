@@ -15,9 +15,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// ProductCreator is what Handler needs from create.Command: create.Command
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type ProductCreator interface {
 	Execute(ctx context.Context, p create.Params) (*domain.Product, error)
 }
@@ -35,10 +32,6 @@ func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
 	admin.HandleFunc("POST /products", h.create)
 }
 
-// Declared here, not shared with product's other slices. Each endpoint holds
-// its own copy so one endpoint's new field cannot appear in another's
-// response. The caller is always an admin route, so this keeps SKU and Status,
-// which the public productResponse in query/http drops.
 type productResponse struct {
 	ID             uuid.UUID       `json:"id"`
 	CategoryID     *uuid.UUID      `json:"category_id,omitempty"`
@@ -65,8 +58,6 @@ type imageResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// *int64, not money.Money: a struct is never empty to encoding/json, so an
-// `omitempty` money key would appear as 0 on every product that should omit it.
 func compareAtPriceAmount(m *money.Money) *int64 {
 	if m == nil {
 		return nil
@@ -119,8 +110,6 @@ type createProductRequest struct {
 	Status         string     `json:"status"           validate:"omitempty,oneof=draft published archived"`
 }
 
-// An empty `currency` is passed through: the default is a business rule
-// create.Execute owns.
 func (r createProductRequest) toParams() create.Params {
 	p := create.Params{
 		CategoryID:  r.CategoryID,

@@ -43,11 +43,6 @@ func (r *Repository) Create(ctx context.Context, order *domain.Order) error {
 		order.Discount.Amount,
 		order.Total.Amount,
 		order.CouponCode,
-		// Total's currency wins, and a disagreeing Subtotal or Discount is silently
-		// re-denominated on the next read. Unguarded because Execute builds all
-		// three from one currency -- a second caller would have to preserve that
-		// itself. This is the only write in the four Money features that can
-		// re-denominate an amount.
 		order.Total.Currency,
 		order.ShippingAddress,
 		order.BillingAddress,
@@ -101,8 +96,6 @@ func (r *Repository) CreateItems(ctx context.Context, items []domain.Item) error
 		return fmt.Errorf("creating order items: %w", err)
 	}
 
-	// RETURNING yields one row per inserted item in insertion order; collect the
-	// generated id/created_at and write them back onto the input items.
 	type generated struct {
 		ID        uuid.UUID
 		CreatedAt time.Time
@@ -197,8 +190,6 @@ func (r *Repository) UpdateTotals(ctx context.Context, id uuid.UUID, discount, t
 	return nil
 }
 
-// scanItem expects the parent order's currency as the last column: order_items
-// has none of its own, so every query feeding this joins orders for it.
 func scanItem(row pgx.CollectableRow) (domain.Item, error) {
 	var item domain.Item
 	var price, subtotal int64

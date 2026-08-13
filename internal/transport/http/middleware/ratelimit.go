@@ -13,12 +13,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// Strips the ephemeral source port, or every TCP connection gets its own bucket
-// and the limit is bypassed. The forwarded headers are only trustworthy behind a
-// proxy that sets them; exposed directly, a client can spoof them.
 func clientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// Leftmost entry is the original client when set by a trusted proxy.
 		first, _, _ := strings.Cut(xff, ",")
 		return strings.TrimSpace(first)
 	}
@@ -35,15 +31,11 @@ func clientIP(r *http.Request) string {
 func RateLimit(log *slog.Logger, rdb *redis.Client, maxRequests int, window time.Duration) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Disabled (no Redis) or misconfigured (non-positive limit/window):
-			// fail open rather than panic on the bucket division below.
 			if rdb == nil || maxRequests <= 0 || window <= 0 {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			// Keyed by user where there is one, so users behind one NAT egress IP do not
-			// share a bucket.
 			identifier := clientIP(r)
 			if uc, ok := GetUserContext(r.Context()); ok {
 				identifier = "user:" + uc.UserID.String()

@@ -9,8 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-// Repository is query's own storage. Its only implementation is
-// query/postgres, constructed in user/module.go.
 type Repository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	GetStatusByID(ctx context.Context, id uuid.UUID) (active bool, tokenVersion int, err error)

@@ -1,7 +1,3 @@
-// Package credentials is what auth needs from user: a place to look up a
-// password hash by email, create a new account, and load a user by id for
-// token refresh. It has no http/ of its own -- auth's login, register and
-// refresh slices call it directly, wiring to Store by name-match.
 package credentials
 
 import (
@@ -21,7 +17,6 @@ func New(repo Repository) *Store {
 	return &Store{repo: repo}
 }
 
-// GetByEmail satisfies login.UserProvider.
 func (s *Store) GetByEmail(ctx context.Context, email string) (contract.Credentials, error) {
 	u, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
@@ -39,7 +34,6 @@ func (s *Store) GetByEmail(ctx context.Context, email string) (contract.Credenti
 	}, nil
 }
 
-// Create satisfies register.UserCreator.
 func (s *Store) Create(ctx context.Context, params contract.NewUser) (contract.User, error) {
 	user := &domain.User{
 		Email:        params.Email,
@@ -65,7 +59,6 @@ func (s *Store) Create(ctx context.Context, params contract.NewUser) (contract.U
 	}, nil
 }
 
-// GetByID satisfies refresh.UserProvider.
 func (s *Store) GetByID(ctx context.Context, id uuid.UUID) (contract.User, error) {
 	u, err := s.repo.GetByID(ctx, id)
 	if err != nil {

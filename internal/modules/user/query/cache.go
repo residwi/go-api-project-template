@@ -12,18 +12,12 @@ type StatusSnapshot struct {
 	TokenVersion int
 }
 
-// StatusCache speaks users and snapshots, not keys and bytes, so Reader never
-// learns where the value is stored. It declares Invalidate too, even though
-// Reader itself never calls it: adminupdate, updaterole and remove each carve
-// a narrower invalidator port out of this same interface, and module.go wires
-// the one cache instance to all of them.
 type StatusCache interface {
 	Get(ctx context.Context, userID uuid.UUID) (StatusSnapshot, bool, error)
 	Put(ctx context.Context, userID uuid.UUID, snap StatusSnapshot, ttl time.Duration) error
 	Invalidate(ctx context.Context, userID uuid.UUID) error
 }
 
-// NoCache always misses, so CheckStatus reads through to the repository.
 type NoCache struct{}
 
 func (NoCache) Get(context.Context, uuid.UUID) (StatusSnapshot, bool, error) {

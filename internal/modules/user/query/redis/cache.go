@@ -1,7 +1,3 @@
-// Package redis requires Redis 8.0 or later, for HSETEX: writing the fields and
-// their expiry
-// in one command means no failure can leave a key with no TTL, pinning a user's
-// auth status indefinitely.
 package redis
 
 import (
@@ -29,15 +25,11 @@ func (c *Cache) Get(ctx context.Context, userID uuid.UUID) (query.StatusSnapshot
 	}
 	activeField, ok := fields["active"]
 	if !ok {
-		// A hash missing `active` is a partial write, not a valid entry: treat
-		// it as a miss rather than defaulting Active to false.
 		return query.StatusSnapshot{}, false, nil
 	}
 
 	tokenVersion, err := strconv.Atoi(fields["token_version"])
 	if err != nil {
-		// A malformed entry is a miss, not an error: reading through to the
-		// repository is always correct, and the next Put overwrites it.
 		return query.StatusSnapshot{}, false, nil //nolint:nilerr // malformed cache entry is a deliberate miss, not a propagated error
 	}
 

@@ -14,9 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// Command is what Handler needs from place.Command: place.Command satisfies
-// it directly, so nothing sits between them, and the mockery-generated mock
-// is the other implementation, used in handler_test.go.
 type Command interface {
 	Execute(ctx context.Context, userID uuid.UUID, p place.Params, idempotencyKey string) (*place.Result, error)
 }
@@ -39,8 +36,6 @@ func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup, limiter middleware
 	authed.Handle("POST /orders", handler)
 }
 
-// Mapped explicitly rather than reusing domain.Address, so a field added there
-// later cannot ride onto the wire unnoticed.
 type addressResponse struct {
 	Street  string `json:"street"`
 	City    string `json:"city"`
@@ -62,8 +57,6 @@ func toAddressResponse(a *domain.Address) *addressResponse {
 	}
 }
 
-// Drops OrderID: an internal join key, and the item is always nested inside
-// the order the client asked for.
 type orderItemResponse struct {
 	ID          uuid.UUID `json:"id"`
 	ProductID   uuid.UUID `json:"product_id"`
@@ -86,8 +79,6 @@ func toOrderItemResponse(i domain.Item) orderItemResponse {
 	}
 }
 
-// RequestHash is an idempotency internal; StockDeducted and StockReversed are
-// saga state a client could read fulfilment internals from.
 type orderResponse struct {
 	ID              uuid.UUID           `json:"id"`
 	UserID          uuid.UUID           `json:"user_id"`
@@ -112,10 +103,9 @@ func toOrderResponse(o *domain.Order) orderResponse {
 	}
 
 	return orderResponse{
-		ID:     o.ID,
-		UserID: o.UserID,
-		Status: o.Status,
-		// Total's currency is the one published: it is the amount the client is billed.
+		ID:              o.ID,
+		UserID:          o.UserID,
+		Status:          o.Status,
 		SubtotalAmount:  o.Subtotal.Amount,
 		DiscountAmount:  o.Discount.Amount,
 		TotalAmount:     o.Total.Amount,
@@ -169,8 +159,6 @@ func (r placeOrderRequest) toParams() place.Params {
 	}
 }
 
-// The "order" envelope is load-bearing: clients decode data.order.{...}, so
-// flattening this to a bare orderResponse breaks them.
 type placeOrderResponse struct {
 	Order orderResponse `json:"order"`
 }

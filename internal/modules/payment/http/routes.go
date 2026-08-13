@@ -15,9 +15,6 @@ type RouteDeps struct {
 	Logger *slog.Logger
 }
 
-// RegisterRoutes mounts every routed slice. charge/ and jobs/ register no
-// route: charge is reached only through order's PaymentInitiator port, and
-// jobs is drained by the worker and reached by order/cancel's port.
 func RegisterRoutes(api, admin *middleware.RouteGroup, deps RouteDeps) {
 	webhookhttp.New(deps.Module.Webhook, deps.Logger).RegisterHTTP(api)
 

@@ -6,8 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Command takes no TxRunner: it deletes one row through its own repository and
-// asks nothing else.
 type Command struct {
 	repo Repository
 }

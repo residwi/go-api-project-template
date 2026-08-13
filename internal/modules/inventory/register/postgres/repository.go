@@ -21,8 +21,6 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-// EnsureLevel is idempotent, so a retry or a re-created product cannot clobber
-// existing counts.
 func (r *Repository) EnsureLevel(ctx context.Context, productID uuid.UUID) error {
 	db := database.DB(ctx, r.pool)
 	_, err := db.Exec(ctx,

@@ -13,9 +13,6 @@ type Params struct {
 	TrackingNumber string
 }
 
-// Command takes no TxRunner: it changes fields on a row it already fetched
-// and writes it back -- there is nothing outside itself to ask
-// (ARCHITECTURE.md decision 14).
 type Command struct{ repo Repository }
 
 func New(repo Repository) *Command { return &Command{repo: repo} }
@@ -26,7 +23,6 @@ func (c *Command) Execute(ctx context.Context, shipmentID uuid.UUID, p Params) (
 		return nil, err
 	}
 
-	// Empty means "leave it", not "blank it": the endpoint is a partial update.
 	if p.Carrier != "" {
 		shipment.Carrier = p.Carrier
 	}

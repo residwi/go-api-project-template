@@ -1,5 +1,3 @@
-// Package payment composes payment's slices. It imports no transport
-// package, so cmd/worker can construct this module without linking HTTP.
 package payment
 
 import (
@@ -34,7 +32,6 @@ type Deps struct {
 	Config Config
 	Logger *slog.Logger
 
-	// Cross-module ports, satisfied by name-match.
 	OrderTransition OrderTransition
 	OrderCanceller  OrderCanceller
 	OrderReader     OrderReader
@@ -42,16 +39,6 @@ type Deps struct {
 	Promotions      CouponPort
 }
 
-// OrderTransition is the union of order.Mark* methods charge and refund drive
-// between them: order.Module's Transition delegators satisfy it directly.
-// Splitting this into two separate per-slice interfaces (charge.OrderUpdater,
-// refund.OrderUpdater) is what keeps each slice's own port exactly as wide as
-// it needs -- this bundle exists only because Deps hands one value to both.
-//
-// CancelUnpaid is deliberately not part of this bundle: it is webhook's alone,
-// and unlike a bare Mark* it runs order/cancel's full reversal (stock, coupon,
-// guarded status CAS), which needs its own inventory and coupon deps -- a
-// bundle of transition-only methods could never satisfy it. See OrderCanceller.
 type OrderTransition interface {
 	MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error
 	MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error
@@ -61,37 +48,24 @@ type OrderTransition interface {
 	MarkRefunded(ctx context.Context, orderID uuid.UUID) error
 }
 
-// OrderCanceller is webhook's alone: order.Cancel owns the entire reversal
-// behind this one call. Bootstrap builds a second, throwaway order/cancel
-// command for this -- same reasoning as OrderTransition/OrderReader above --
-// because CancelUnpaid never reads the paymentCancel dependency the "real"
-// order/cancel that order.Module owns is built with, only the user-triggered
-// Execute path does.
 type OrderCanceller interface {
 	CancelUnpaid(ctx context.Context, orderID uuid.UUID) error
 }
 
-// OrderReader is what charge, refund and webhook need to read from order.
 type OrderReader interface {
 	GetSnapshot(ctx context.Context, orderID uuid.UUID) (ordercontract.Order, error)
 	ListItemQuantities(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error)
 }
 
-// InventoryPort is the union of what charge and refund need from inventory.
 type InventoryPort interface {
 	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
 	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventorycontract.StockState) error
 }
 
-// CouponPort is what refund needs from promotion to release a reservation.
 type CouponPort interface {
 	Release(ctx context.Context, orderID uuid.UUID) error
 }
 
-// Module is Webhook, Query, Refund, Charge and Jobs. Charge satisfies order's
-// PaymentInitiator; Jobs satisfies order/cancel's PaymentJobCanceller and
-// platform/jobs.Queue; JobProcessor satisfies platform/jobs.Processor,
-// separately from Jobs -- see jobs.Dispatcher for why.
 type Module struct {
 	Webhook      *webhook.Command
 	Query        *query.Reader
@@ -104,10 +78,6 @@ type Module struct {
 func New(d Deps) *Module {
 	gw := newGateway(d.Config)
 
-	// jobs needs nothing but the pool: charge and refund each need jobs back
-	// (to enqueue a follow-up job or settle their own), so jobs is built first.
-	// jobs never needs charge or refund back -- only the Dispatcher, built
-	// after both exist, does -- so no setter and no cycle on Command itself.
 	jobsCmd := jobs.New(jobspg.New(d.Pool))
 
 	chargeCmd := charge.New(
@@ -137,13 +107,6 @@ func New(d Deps) *Module {
 	}
 }
 
-// newGateway picks one Gateway implementation from Config.Gateway. gateway/
-// is an adapter family, not a slice: charge and refund both depend on the
-// same two-method Gateway interface, so module.go is the one place that
-// chooses which real implementation backs it. LoadConfig already rejected
-// anything but gatewayMock/gatewayStripe/gatewayMidtrans, so the default case
-// here is reached only by gatewayMock -- never by a typo silently routing
-// real charges at the mock.
 func newGateway(cfg Config) gateway.Gateway {
 	switch cfg.Gateway {
 	case gatewayStripe:

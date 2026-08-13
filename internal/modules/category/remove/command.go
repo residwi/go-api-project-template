@@ -9,8 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 )
 
-// Command takes no TxRunner: it deletes one row through its own repository
-// after one read-only check against product, and asks nothing else.
 type Command struct {
 	repo     Repository
 	products ProductCounter

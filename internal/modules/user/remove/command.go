@@ -11,16 +11,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 )
 
-// Params names its fields deliberately because both ids are uuid.UUID and the
-// RequesterID == TargetID guard below does not catch a transposition:
-// swapped, it acts on the admin.
 type Params struct {
 	RequesterID uuid.UUID
 	TargetID    uuid.UUID
 }
 
-// Command takes no TxRunner: it loads one row through its own repository,
-// deletes it and asks nothing else.
 type Command struct {
 	repo       Repository
 	invalidate StatusInvalidator
@@ -58,8 +53,6 @@ func (c *Command) Execute(ctx context.Context, p Params) error {
 	return nil
 }
 
-// Without this a revoked or deactivated user keeps access until the TTL lapses.
-// Best-effort: a failure is logged and the entry still expires on its own.
 func (c *Command) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
 	if err := c.invalidate.Invalidate(ctx, userID); err != nil {
 		c.logger.WarnContext(

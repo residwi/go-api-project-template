@@ -14,10 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// TrackingUpdater is what Handler needs from updatetracking.Command:
-// updatetracking.Command satisfies it directly, so nothing sits between them,
-// and the mockery-generated mock is the other implementation, used in
-// handler_test.go.
 type TrackingUpdater interface {
 	Execute(ctx context.Context, shipmentID uuid.UUID, p updatetracking.Params) (*domain.Shipment, error)
 }
@@ -47,8 +43,6 @@ func (r updateTrackingRequest) toParams() updatetracking.Params {
 	}
 }
 
-// Declared here, not shared with shipping's other slices. Each endpoint holds
-// its own copy so one endpoint's new field cannot appear in another's response.
 type shipmentResponse struct {
 	ID             uuid.UUID             `json:"id"`
 	OrderID        uuid.UUID             `json:"order_id"`

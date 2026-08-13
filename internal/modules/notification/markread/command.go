@@ -6,8 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Command takes no TxRunner: it updates one row through its own repository
-// and asks nothing else (ARCHITECTURE.md decision 14).
 type Command struct {
 	repo Repository
 }

@@ -1,7 +1,3 @@
-// Package gateway is payment's outbound adapter family: the Gateway port plus
-// the wire DTOs of the external payment gateway's protocol. It is not a
-// slice -- charge and refund both depend on Gateway, and module.go picks one
-// implementation from Config.Gateway to hand to both.
 package gateway
 
 import "context"
@@ -24,8 +20,6 @@ type ChargeResponse struct {
 }
 
 type RefundRequest struct {
-	// Stable per payment, so a refund retried after a crash between the gateway call
-	// and the local commit is deduped rather than paid twice.
 	IdempotencyKey string `json:"idempotency_key"`
 	TransactionID  string `json:"transaction_id"`
 	Amount         int64  `json:"amount"`

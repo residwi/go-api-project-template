@@ -13,9 +13,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// Reader is what Handler needs from query.Reader: query.Reader satisfies it
-// directly, so nothing sits between them, and the mockery-generated mock is
-// the other implementation, used in handler_test.go.
 type Reader interface {
 	ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Order, error)
 	GetByIDForUser(ctx context.Context, userID, orderID uuid.UUID) (*domain.Order, error)
@@ -34,8 +31,6 @@ func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
 	authed.HandleFunc("GET /orders/{id}", h.get)
 }
 
-// Mapped explicitly rather than reusing domain.Address, so a field added there
-// later cannot ride onto the wire unnoticed.
 type addressResponse struct {
 	Street  string `json:"street"`
 	City    string `json:"city"`
@@ -57,8 +52,6 @@ func toAddressResponse(a *domain.Address) *addressResponse {
 	}
 }
 
-// Drops OrderID: an internal join key, and the item is always nested inside
-// the order the client asked for.
 type orderItemResponse struct {
 	ID          uuid.UUID `json:"id"`
 	ProductID   uuid.UUID `json:"product_id"`
@@ -81,9 +74,6 @@ func toOrderItemResponse(i domain.Item) orderItemResponse {
 	}
 }
 
-// Shared by the public and admin endpoints, which expose the identical shape.
-// RequestHash is an idempotency internal; StockDeducted and StockReversed are
-// saga state a client could read fulfilment internals from.
 type orderResponse struct {
 	ID              uuid.UUID           `json:"id"`
 	UserID          uuid.UUID           `json:"user_id"`
@@ -108,10 +98,9 @@ func toOrderResponse(o *domain.Order) orderResponse {
 	}
 
 	return orderResponse{
-		ID:     o.ID,
-		UserID: o.UserID,
-		Status: o.Status,
-		// Total's currency is the one published: it is the amount the client is billed.
+		ID:              o.ID,
+		UserID:          o.UserID,
+		Status:          o.Status,
 		SubtotalAmount:  o.Subtotal.Amount,
 		DiscountAmount:  o.Discount.Amount,
 		TotalAmount:     o.Total.Amount,

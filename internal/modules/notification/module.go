@@ -1,10 +1,3 @@
-// Package notification composes notification's slices. It imports no
-// transport package, so a worker or a future grpc server can construct this
-// module without linking HTTP. jobs/ owns the queue table, so it owns every
-// operation on it: order/place enqueues through Jobs.EnqueueOrderPlaced, and
-// cmd/worker drains it through Jobs itself, which satisfies both
-// platform/jobs' Queue and Processor -- the reason notification still needs
-// no worker/ package.
 package notification
 
 import (
@@ -27,9 +20,6 @@ type Deps struct {
 	Logger *slog.Logger
 }
 
-// Module is Query, MarkRead, MarkAllRead, Jobs. Jobs is exported because
-// order/place's NotificationEnqueuer port and cmd/worker's jobs.Runner both
-// need it -- the only slice consumed outside this module.
 type Module struct {
 	Query       *query.Reader
 	MarkRead    *markread.Command

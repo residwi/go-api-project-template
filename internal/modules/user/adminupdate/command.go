@@ -16,8 +16,6 @@ type Params struct {
 	Active    *bool
 }
 
-// Command takes no TxRunner: it loads one row through its own repository,
-// patches it and writes it back, with nothing else to ask.
 type Command struct {
 	repo       Repository
 	invalidate StatusInvalidator
@@ -56,8 +54,6 @@ func (c *Command) Execute(ctx context.Context, id uuid.UUID, p Params) (*domain.
 	return u, nil
 }
 
-// Without this a revoked or deactivated user keeps access until the TTL lapses.
-// Best-effort: a failure is logged and the entry still expires on its own.
 func (c *Command) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
 	if err := c.invalidate.Invalidate(ctx, userID); err != nil {
 		c.logger.WarnContext(

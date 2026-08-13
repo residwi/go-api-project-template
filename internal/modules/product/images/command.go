@@ -10,17 +10,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
 )
 
-// Params may leave SortOrder nil: Add defaults it to zero.
 type Params struct {
 	URL       string
 	AltText   *string
 	SortOrder *int
 }
 
-// Command has no route: grep across internal, test and cmd found no caller of
-// Add, Delete or AvailableQuantity outside product itself. Kept rather than
-// dropped -- deleting a method inside a refactor would hide it, and a slice
-// holding unused methods is visible on `ls`.
 type Command struct {
 	repo Repository
 	inv  InventoryReader

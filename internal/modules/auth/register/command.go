@@ -33,8 +33,6 @@ func New(users UserCreator, tokens TokenIssuer, bcryptCost int) *Command {
 }
 
 func (c *Command) Execute(ctx context.Context, p Params) (*domain.TokenPair, error) {
-	// validator's max=72 counts runes, bcrypt counts bytes: reject the overlong
-	// multibyte password as a 400 here rather than as bcrypt's 500.
 	if len(p.Password) > maxPasswordBytes {
 		return nil, fmt.Errorf("%w: password must not exceed %d bytes", apperror.ErrBadRequest, maxPasswordBytes)
 	}

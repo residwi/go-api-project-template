@@ -1,6 +1,3 @@
-// Package domain holds payment's aggregate and its rules. It is
-// module-private: what leaves payment leaves through a slice's return type or
-// contract/.
 package domain
 
 import (

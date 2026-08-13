@@ -14,8 +14,6 @@ type Params struct {
 	Quantity int
 }
 
-// Command opens no transaction: it patches one row through its own
-// repository, with nothing else to coordinate.
 type Command struct {
 	repo     Repository
 	products ProductLookup
@@ -25,8 +23,6 @@ func New(repo Repository, products ProductLookup) *Command {
 	return &Command{repo: repo, products: products}
 }
 
-// Execute mirrors add.Command's guards, or its stock check is bypassed by
-// following AddItem with an UpdateQuantity.
 func (c *Command) Execute(ctx context.Context, userID, productID uuid.UUID, p Params) error {
 	info, err := c.products.GetInfo(ctx, productID)
 	if err != nil {

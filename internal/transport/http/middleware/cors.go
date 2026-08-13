@@ -9,8 +9,6 @@ import (
 )
 
 func CORS(cfg config.CORS) Middleware {
-	// Header values are derived from fixed config; compute them once at
-	// construction instead of on every request.
 	allowMethods := strings.Join(cfg.AllowedMethods, ",")
 	allowHeaders := strings.Join(cfg.AllowedHeaders, ",")
 	maxAge := strconv.Itoa(cfg.MaxAge)
@@ -26,8 +24,6 @@ func CORS(cfg config.CORS) Middleware {
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Allow-Origin takes a single origin or "*", never a comma-joined list, so echo
-			// the request's own Origin to make a multi-origin config work.
 			origin := r.Header.Get("Origin")
 			switch {
 			case allowAll:
@@ -36,7 +32,6 @@ func CORS(cfg config.CORS) Middleware {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Add("Vary", "Origin")
 			case origin == "" && len(cfg.AllowedOrigins) == 1:
-				// Non-browser client (no Origin header) with a single allowed origin.
 				w.Header().Set("Access-Control-Allow-Origin", cfg.AllowedOrigins[0])
 			}
 			w.Header().Set("Access-Control-Allow-Methods", allowMethods)

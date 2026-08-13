@@ -57,7 +57,6 @@ func NewReaderPostgres(ctx context.Context, cfg config.Database) (*pgxpool.Pool,
 	return pool, nil
 }
 
-// Shared by the primary and reader pools, so neither runs on pgx defaults.
 func applyPoolTuning(poolCfg *pgxpool.Config, cfg config.Database) {
 	poolCfg.MaxConns = int32(min(cfg.MaxConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32
 	poolCfg.MinConns = int32(min(cfg.MinConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32

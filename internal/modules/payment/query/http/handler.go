@@ -14,18 +14,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// Reader is what Handler needs from query.Reader: query.Reader satisfies it
-// directly, so nothing sits between them, and the mockery-generated mock is
-// the other implementation, used in handler_test.go.
 type Reader interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Payment, error)
 	ListAdmin(ctx context.Context, params query.AdminListParams) ([]domain.Payment, int, error)
 }
 
-// Admin-only: a shopper never sees a payment object, the "pay" flow lives on
-// order's wire. GatewayResponse is the one field dropped for cause -- raw
-// gateway payloads that may carry PII or card metadata. Everything else is
-// operator-facing account data, OrderID included.
 type adminPaymentResponse struct {
 	ID              uuid.UUID     `json:"id"`
 	OrderID         uuid.UUID     `json:"order_id"`

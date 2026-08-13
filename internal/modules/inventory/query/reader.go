@@ -21,8 +21,6 @@ func (r *Reader) GetStock(ctx context.Context, productID uuid.UUID) (*domain.Sto
 	return r.repo.GetStock(ctx, productID)
 }
 
-// GetAvailability answers for a whole page at once. A per-product lookup would
-// turn every list endpoint into N+1 queries.
 func (r *Reader) GetAvailability(
 	ctx context.Context,
 	ids []uuid.UUID,

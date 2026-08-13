@@ -83,7 +83,7 @@ func ParseUUIDParam(w http.ResponseWriter, r *http.Request, name string) (uuid.U
 }
 
 func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1MB cap
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dst); err != nil {
@@ -95,9 +95,6 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	return nil
 }
 
-// Marshals before touching the header, so an unencodable value produces an honest
-// 500 instead of the caller's status and an empty body. The InternalError retry
-// recurses exactly once: it re-enters with a fixed message that always marshals.
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	body, err := json.Marshal(v)
 	if err != nil {
@@ -107,7 +104,5 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	// A failure here means the client is already gone and the status line has
-	// been sent, so there is nothing left to decide.
 	_, _ = w.Write(body)
 }

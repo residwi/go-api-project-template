@@ -1,8 +1,3 @@
-// Package charge is payment's charge path, synchronous and worker-driven
-// alike: InitiatePayment is consumed by order/place and order/retrypayment,
-// and ProcessCharge satisfies jobs' ChargeProcessor for a worker-claimed
-// charge job. Both end in the same finalize-or-compensate dance, which is why
-// one slice owns both instead of splitting them and duplicating it.
 package charge
 
 import (
@@ -59,7 +54,6 @@ func New(
 	}
 }
 
-// InitiatePayment satisfies order's PaymentInitiator.
 func (c *Command) InitiatePayment(ctx context.Context, req contract.ChargeRequest) (contract.ChargeResult, error) {
 	existing, err := c.repo.GetActiveByOrderID(ctx, req.OrderID)
 	if err != nil && !errors.Is(err, apperror.ErrNotFound) {
@@ -81,9 +75,6 @@ func (c *Command) InitiatePayment(ctx context.Context, req contract.ChargeReques
 		}
 	}
 
-	// gateway.ChargeRequest here is the external protocol's wire shape, a
-	// different type from contract.ChargeRequest above: this is the seam, not
-	// a leak.
 	chargeReq := gateway.ChargeRequest{
 		IdempotencyKey:  p.ID.String(),
 		OrderID:         req.OrderID.String(),
@@ -115,8 +106,6 @@ func (c *Command) InitiatePayment(ctx context.Context, req contract.ChargeReques
 	switch resp.Status {
 	case string(domain.StatusSuccess):
 		result.Charged = true
-		// Funds are already captured, so finalize now rather than wait for a webhook
-		// or job that never comes.
 		finalizeJob := domain.Job{PaymentID: p.ID, OrderID: req.OrderID, Action: domain.ActionCharge}
 		if finalizeErr := c.FinalizePaymentSuccess(
 			ctx,
@@ -140,8 +129,6 @@ func (c *Command) InitiatePayment(ctx context.Context, req contract.ChargeReques
 			result.PaymentURL = resp.PaymentURL
 		}
 	default:
-		// Must not fall through to nil: that would make a declined charge look like
-		// a success. The order stays awaiting_payment for retry or expiry.
 		c.logger.WarnContext(
 			ctx,
 			"gateway declined charge synchronously",
@@ -155,10 +142,6 @@ func (c *Command) InitiatePayment(ctx context.Context, req contract.ChargeReques
 	return result, nil
 }
 
-// ProcessCharge satisfies jobs' ChargeProcessor: a worker tick claimed this
-// job, so unlike InitiatePayment it owns its own retry and status
-// bookkeeping. A returned error is only for the runner to log -- the backoff
-// is already persisted here.
 func (c *Command) ProcessCharge(ctx context.Context, job domain.Job) error {
 	err := c.orders.MarkPaymentProcessing(ctx, job.OrderID)
 	if err != nil {
@@ -245,16 +228,6 @@ func (c *Command) ProcessCharge(ctx context.Context, job domain.Job) error {
 	}
 }
 
-// FinalizePaymentSuccess marks the payment and order paid and deducts stock in
-// one transaction. Exported so webhook's success event can reach it without
-// duplicating this logic.
-//
-// The MarkJobCompleted(job.ID) calls below are deliberate no-ops for two of the
-// three callers, not lost writes: InitiatePayment and the webhook have no
-// persisted job row and pass a synthetic Job whose id is uuid.Nil, so the
-// UPDATE matches zero rows. Worth stating because MarkJobCompleted discards its
-// rows-affected count, so nothing tells the two cases apart at runtime.
-//
 //nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches; funlen counts golines' wrapping, not added logic
 func (c *Command) FinalizePaymentSuccess(ctx context.Context, job domain.Job) error {
 	return c.tx.Run(ctx, func(txCtx context.Context) error {
@@ -268,8 +241,6 @@ func (c *Command) FinalizePaymentSuccess(ctx context.Context, job domain.Job) er
 			return fmt.Errorf("getting payment for verification: %w", err)
 		}
 
-		// ErrAmountMismatch even on a currency disagreement: the fact worth reporting
-		// is that the charge does not match the order.
 		if !p.Amount.Equal(orderSnap.Total) {
 			return apperror.ErrAmountMismatch
 		}
@@ -360,9 +331,6 @@ func (c *Command) FinalizePaymentSuccess(ctx context.Context, job domain.Job) er
 	})
 }
 
-// RunCompensatingRefund is exported for the same reason FinalizePaymentSuccess
-// is: webhook's success event needs it too, when finalization fails after the
-// gateway already captured funds.
 func (c *Command) RunCompensatingRefund(ctx context.Context, job domain.Job) {
 	txErr := c.tx.Run(ctx, func(txCtx context.Context) error {
 		if statusErr := c.repo.UpdateStatus(txCtx, job.PaymentID, domain.StatusRequiresReview,

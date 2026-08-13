@@ -87,9 +87,6 @@ func (r *Reader) ListAdmin(ctx context.Context, params AdminListParams) ([]domai
 	return products, total, nil
 }
 
-// GetByIDsIncludingDeleted returns products regardless of status or deleted_at,
-// so a consumer holding a stale id (a cart line, a wishlist entry) can render
-// what it has instead of dropping the row.
 func (r *Reader) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UUID) ([]domain.Product, error) {
 	products, err := r.repo.GetByIDsIncludingDeleted(ctx, ids)
 	if err != nil {
@@ -101,13 +98,10 @@ func (r *Reader) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UUID) 
 	return products, nil
 }
 
-// CountPublished backs category's ProductCounter port: category has no
-// products access of its own.
 func (r *Reader) CountPublished(ctx context.Context, categoryID uuid.UUID) (int, error) {
 	return r.repo.CountPublishedByCategory(ctx, categoryID)
 }
 
-// GetInfo backs cart's ProductLookup port for a single product.
 func (r *Reader) GetInfo(ctx context.Context, id uuid.UUID) (*contract.Product, error) {
 	p, err := r.GetByID(ctx, id)
 	if err != nil {
@@ -123,7 +117,6 @@ func (r *Reader) GetInfo(ctx context.Context, id uuid.UUID) (*contract.Product, 
 	}, nil
 }
 
-// GetInfoByIDs backs cart's ProductLookup port for a whole cart at once.
 func (r *Reader) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]contract.Product, error) {
 	products, err := r.GetByIDsIncludingDeleted(ctx, ids)
 	if err != nil {
@@ -134,9 +127,6 @@ func (r *Reader) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UU
 	for _, p := range products {
 		status := p.Status
 		if p.DeletedAt != nil {
-			// remove only sets deleted_at, so a withdrawn product still reads
-			// status='published'. Forwarding that would make the line look sellable
-			// to cart and to order's availability guard.
 			status = "unavailable"
 		}
 		out[p.ID] = contract.Product{
@@ -150,8 +140,6 @@ func (r *Reader) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UU
 	return out, nil
 }
 
-// One call per page, and a product with no level row reads as zero rather than
-// erroring, so a missing row cannot take down a listing.
 func (r *Reader) enrich(ctx context.Context, products []domain.Product) error {
 	if len(products) == 0 {
 		return nil

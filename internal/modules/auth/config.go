@@ -9,8 +9,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// Config is auth's own configuration: the JWT it signs, its login rate limit,
-// and the bcrypt cost it hashes passwords at.
 type Config struct {
 	Secret          string        `envconfig:"JWT_SECRET"       required:"true"`
 	Issuer          string        `envconfig:"JWT_ISSUER"                       default:"ecommerce-api"`
@@ -21,8 +19,6 @@ type Config struct {
 	BcryptCost      int           `envconfig:"BCRYPT_COST"                      default:"10"`
 }
 
-// LoadConfig validates RateWindow because auth is what breaks when it is
-// sub-second: the per-IP login limiter divides by it to pick a bucket.
 func LoadConfig() (Config, error) {
 	var cfg Config
 	if err := envconfig.Process("", &cfg); err != nil {
@@ -35,9 +31,6 @@ func LoadConfig() (Config, error) {
 		)
 	}
 
-	// register and login both hash at this cost -- a value bcrypt.GenerateFromPassword
-	// would reject (or silently reinterpret) is a boot-time misconfiguration,
-	// not something to guard on every request.
 	if cfg.BcryptCost < bcrypt.MinCost || cfg.BcryptCost > bcrypt.MaxCost {
 		return Config{}, fmt.Errorf(
 			"BCRYPT_COST must be between %d and %d", bcrypt.MinCost, bcrypt.MaxCost,

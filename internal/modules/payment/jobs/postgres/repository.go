@@ -30,8 +30,6 @@ const defaultJobMaxAttempts = 3
 func (r *Repository) CreateJob(ctx context.Context, job *domain.Job) error {
 	db := database.DB(ctx, r.pool)
 
-	// Claim requires attempts < max_attempts, so a zero budget would strand the
-	// job. Written back so the caller sees the budget it actually got.
 	if job.MaxAttempts <= 0 {
 		job.MaxAttempts = defaultJobMaxAttempts
 	}

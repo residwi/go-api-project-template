@@ -11,11 +11,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-// Command writes a usage row inside the caller's transaction and Release
-// deletes it, so -- unlike apply -- it takes a database.TxRunner. Reserve and
-// Release are named for what order.CouponReserver and payment.CouponReleaser
-// declare, not for this package's own convention, so that both are satisfied
-// by name-match with no adapter.
 type Command struct {
 	repo Repository
 	tx   database.TxRunner

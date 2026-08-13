@@ -15,13 +15,10 @@ type Queue[T any] interface {
 	Prune(ctx context.Context, age time.Duration, limit int) (int, error)
 }
 
-// Processor does the per-job work and owns its own retry/backoff bookkeeping.
 type Processor[T any] interface {
 	Process(ctx context.Context, job T) error
 }
 
-// Sweeper is an optional capability a Processor may implement to run
-// feature-specific housekeeping once per tick (e.g. expiring stale records).
 type Sweeper interface {
 	Sweep(ctx context.Context) error
 }
@@ -51,7 +48,6 @@ func NewRunner[T any](name string, queue Queue[T], proc Processor[T], cfg Config
 	return &Runner[T]{name: name, queue: queue, proc: proc, cfg: cfg, logger: log}
 }
 
-// Start runs the loop until ctx is cancelled.
 func (r *Runner[T]) Start(ctx context.Context) {
 	ctx = logger.WithAttrs(ctx, slog.String("runner", r.name))
 
@@ -69,8 +65,6 @@ func (r *Runner[T]) Start(ctx context.Context) {
 }
 
 func (r *Runner[T]) tick(ctx context.Context) {
-	// Sweep and Prune run on the loop goroutine, so a panic here would take the
-	// runner down -- and every other runner in the worker binary with it.
 	defer func() {
 		if rec := recover(); rec != nil {
 			r.logger.ErrorContext(ctx, "tick panicked", slog.String("panic", fmt.Sprint(rec)))
@@ -93,10 +87,6 @@ func (r *Runner[T]) tick(ctx context.Context) {
 		return
 	}
 
-	// The lease starts at claim time for the whole batch, so every deadline is
-	// measured from now, not from when a goroutine happens to start: with
-	// BatchSize > Concurrency a late starter would otherwise outlive the lease and
-	// be reclaimed by another worker while still running.
 	deadline := time.Now().Add(r.cfg.LeaseDuration - r.cfg.LeaseDuration/leaseSafetyDivisor)
 
 	var wg sync.WaitGroup
@@ -114,7 +104,6 @@ func (r *Runner[T]) tick(ctx context.Context) {
 }
 
 func (r *Runner[T]) processOne(ctx context.Context, job T, deadline time.Time) {
-	// A Process panic must not take down the worker; isolate it to this job.
 	defer func() {
 		if rec := recover(); rec != nil {
 			r.logger.ErrorContext(ctx, "job panicked", slog.String("panic", fmt.Sprint(rec)))

@@ -25,9 +25,6 @@ type Command struct {
 	dummyHash []byte
 }
 
-// New hashes dummyHash at bcryptCost, which must match register's hashing
-// cost -- otherwise the dummy comparison in Execute runs at a different
-// speed than a real one and reopens the timing oracle it exists to close.
 func New(users UserProvider, tokens TokenIssuer, bcryptCost int) *Command {
 	c := &Command{users: users, tokens: tokens}
 	c.dummyHash, _ = bcrypt.GenerateFromPassword([]byte(dummyPassword), bcryptCost)
@@ -37,8 +34,6 @@ func New(users UserProvider, tokens TokenIssuer, bcryptCost int) *Command {
 func (c *Command) Execute(ctx context.Context, p Params) (*domain.TokenPair, error) {
 	creds, err := c.users.GetByEmail(ctx, p.Email)
 	if err != nil {
-		// Run a dummy comparison so an unknown email takes about as long as a
-		// wrong password, removing the timing oracle for account enumeration.
 		_ = bcrypt.CompareHashAndPassword(c.dummyHash, []byte(p.Password))
 		return nil, apperror.ErrInvalidCredentials
 	}

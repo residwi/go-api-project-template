@@ -11,8 +11,6 @@ import (
 	"github.com/kelseyhightower/envconfig"
 )
 
-// Settings is the configuration that must exist before anything else can be
-// built, including the log settings themselves.
 type Settings struct {
 	App      App
 	Database Database

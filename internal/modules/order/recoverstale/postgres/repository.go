@@ -24,8 +24,6 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-// scanOrderSummary reads the columns the housekeeping sweeps need: no
-// shipping/billing address or notes, since neither sweep touches them.
 func scanOrderSummary(row pgx.CollectableRow) (domain.Order, error) {
 	var o domain.Order
 	var idempotencyKey *string

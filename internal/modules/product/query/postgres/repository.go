@@ -19,7 +19,6 @@ import (
 
 var _ query.Repository = (*Repository)(nil)
 
-// A NULL compare_at_price stays nil rather than becoming a denominated zero.
 type amountColumns struct {
 	price          int64
 	compareAtPrice *int64
@@ -47,9 +46,6 @@ func scanProduct(row pgx.CollectableRow) (domain.Product, error) {
 	return p, nil
 }
 
-// Every other query filters deleted_at IS NULL, so only
-// GetByIDsIncludingDeleted needs this column -- a withdrawn product's status
-// stays 'published', so DeletedAt is the honest signal.
 func scanProductIncludingDeleted(row pgx.CollectableRow) (domain.Product, error) {
 	var p domain.Product
 	var amt amountColumns
@@ -155,7 +151,6 @@ func (r *Repository) ListPublished(
 		}
 	}
 
-	// Fetch one extra to determine hasMore
 	limit := params.Limit + 1
 	sqlQuery := fmt.Sprintf(
 		`SELECT id, category_id, name, slug, description, price, compare_at_price, currency, sku,

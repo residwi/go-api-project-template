@@ -1,5 +1,3 @@
-// Command mockgateway fakes a payment gateway so the API and worker can run
-// locally without a real Stripe or Midtrans account.
 package main
 
 import (

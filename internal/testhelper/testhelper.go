@@ -33,38 +33,10 @@ const (
 	transientGrace = 20 * time.Second
 )
 
-// Redis DB index per package (must be unique, 0–15):
-//
-//	0 — internal/platform/cache
-//	1 — internal/transport/http/middleware
-//	2 — (free)
-//	3 — internal/transport/http
-//	5 — test/e2e
-//	6 — internal/modules/user/query/redis
-//
-// Postgres databases are per-module from phase 1 on: every slice test package in
-// internal/modules/<feature>/ claims "test_<feature>". The database is created
-// once and never dropped, so packages sharing it do not tear each other down --
-// but they also do not get a clean table. Seed rows your subtest owns, scope
-// every assertion to them, and never TRUNCATE.
-//
-// A subtest that asserts its own row appears in a LIMIT-ed, ordered query
-// result must make that row sort first (e.g. backdate its timestamp by 100
-// years, not 2 hours), because rows never get truncated and accumulate across
-// every run forever -- eventually there are more matching rows than the LIMIT,
-// the seeded row sorts behind all of them, and the assertion fails on code
-// that never changed. order/expire's repository_test.go hit exactly this: 18
-// accumulated rows against a LIMIT of 10.
-
-// DiscardLogger makes a caller say out loud that it wants log output thrown
-// away. Nothing in the suite asserts on it.
 func DiscardLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-// harnessLogger reports the bootstrap failures below. A function, not a var,
-// because sloglint's no-global rule forbids the var and this runs from TestMain
-// before anything can inject a logger.
 func harnessLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 }
@@ -87,11 +59,6 @@ func init() {
 	}
 }
 
-// MustStartPostgres creates and migrates a database named dbName the first time
-// any caller asks for it, and just connects to it afterward. The returned
-// cleanup only closes the pool -- the database outlives the process, since
-// other test binaries may still be using it. The shared container is left
-// running too; remove both with `make test-clean`.
 func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	ctx := context.Background()
 
@@ -111,8 +78,6 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 			"POSTGRES_PASSWORD=test",
 			"POSTGRES_DB=postgres",
 		},
-		// The default 100 is not enough: `go test` runs GOMAXPROCS package
-		// binaries at once and each opens its own pool.
 		Cmd: []string{"postgres", "-c", "max_connections=300"},
 	})
 
@@ -151,8 +116,6 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		os.Exit(1)
 	}
 
-	// Outside any retry: pgxpool.New only parses the DSN, so retrying it leaked a
-	// pool and its goroutines on every attempt.
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		harnessLogger().Error(
@@ -171,32 +134,11 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		os.Exit(1)
 	}
 
-	// No migration call here: ensureDatabase already migrated dbName before
-	// releasing its advisory lock, whether this process or an earlier one did
-	// the creating. By the time it returns, the schema is current.
 	return pool, func() {
 		pool.Close()
 	}
 }
 
-// ensureDatabase creates dbName if it does not already exist, then migrates it
-// either way -- never gated on whether this call did the creating. CREATE
-// DATABASE commits immediately and outlives a crash: if a prior call's
-// runMigrations [os.Exit]'d partway through, the pg_database row survives with a
-// partial schema, and a "just created it" gate would let every later caller
-// skip straight past that. goose tracks applied versions in goose_db_version
-// and Up only applies what is pending, so re-migrating an already-current
-// schema is idempotent and cheap, and a partial one self-heals on the next
-// call.
-//
-// Test binaries are separate processes, so two packages sharing a module's
-// database can reach here at the same moment; a session-level advisory lock on
-// a hash of dbName makes the exists-check, the CREATE, and the migration one
-// atomic unit across them. Migrating before the lock is released is what makes
-// "acquired the lock" mean "schema is current", for the creator and every
-// waiter alike. admin is the caller's maintenance connection -- the lock is
-// session-scoped, so it is released explicitly here rather than relying on the
-// caller to close the connection afterward.
 func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) error {
 	if _, lockErr := admin.Exec(ctx, `SELECT pg_advisory_lock(hashtext($1))`, dbName); lockErr != nil {
 		return fmt.Errorf("locking for database create: %w", lockErr)
@@ -211,19 +153,11 @@ func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) er
 	}
 
 	if !exists {
-		// CREATE DATABASE cannot run in a transaction and takes no parameters, so
-		// the name is interpolated. dbName comes from a literal at each call site,
-		// never from request input.
 		if _, execErr := admin.Exec(ctx, `CREATE DATABASE "`+dbName+`"`); execErr != nil {
 			return fmt.Errorf("creating database %s: %w", dbName, execErr)
 		}
 	}
 
-	// A connection to the target database, not the maintenance one the lock is
-	// held on -- migrating against "postgres" would migrate the wrong database.
-	// No retry needed to reach it: CREATE DATABASE only returns once Postgres has
-	// finished the copy (or, if exists was already true, adminConn already proved
-	// the server -- and therefore this database -- is reachable).
 	migratePool, poolErr := pgxpool.New(ctx, dsn)
 	if poolErr != nil {
 		return fmt.Errorf("connecting to migrate %s: %w", dbName, poolErr)
@@ -234,9 +168,6 @@ func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) er
 	return nil
 }
 
-// MustStartRedis attaches to (or starts) the shared named Redis container and
-// returns a client configured to use dbIndex, plus a cleanup func. The container
-// is left running after cleanup; remove it with `make test-clean`.
 func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 	ctx := context.Background()
 
@@ -268,15 +199,6 @@ func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 	}
 }
 
-// ResetDB truncates every table in the public schema except goose_db_version
-// and restarts sequences. Safe only for a package that is the sole claimant of
-// its database name -- most repository_test.go files still are. A feature
-// sliced into several test packages sharing one test_<feature> (see the
-// registry comment above) must not call this from any of them: one package's
-// TRUNCATE deletes rows a sibling package seeded and is still asserting on.
-// ResetDB takes a *pgxpool.Pool, not a package name, so it has no way to tell
-// how many packages share it -- check before copying a setup helper that
-// calls it.
 func ResetDB(t testing.TB, pool *pgxpool.Pool) {
 	t.Helper()
 	ctx := context.Background()
@@ -303,8 +225,6 @@ func ResetDB(t testing.TB, pool *pgxpool.Pool) {
 	}
 }
 
-// ResetRedis flushes the client's selected database. Call it at the start of
-// each subtest.
 func ResetRedis(t testing.TB, client *redis.Client) {
 	t.Helper()
 	if err := client.FlushDB(context.Background()).Err(); err != nil {
@@ -312,23 +232,6 @@ func ResetRedis(t testing.TB, client *redis.Client) {
 	}
 }
 
-// getOrCreateContainer returns the shared named container only once it is
-// running with portID published.
-//
-// Never call resource.Expire() here. It is not a keep-alive TTL: it issues an
-// immediate `stop`, and the argument is only Docker's grace period before
-// SIGKILL. Neither container exits on stop while test binaries hold
-// connections, so Expire(600) was a guaranteed SIGKILL ten minutes in --
-// killing the shared container mid-run for every other package. A pending stop
-// cannot be cancelled from a later package either. The containers are meant to
-// outlive the run; `make test-clean` removes them.
-//
-// Every package binary runs this concurrently against the same name, so losing
-// any race is survivable: a container in a transient state is waited for rather
-// than purged (purging anything merely "not running" deletes one another binary
-// just started), a "Conflict" from RunWithOptions means someone else won the
-// create, and the published port is checked before returning -- returning on
-// name alone yielded DSNs like "postgres://test:test@localhost:/postgres".
 func getOrCreateContainer(dt *dockertest.Pool, name, portID string, opts *dockertest.RunOptions) *dockertest.Resource {
 	start := time.Now()
 	for {
@@ -337,9 +240,6 @@ func getOrCreateContainer(dt *dockertest.Pool, name, portID string, opts *docker
 			if state.Running && resource.GetPort(portID) != "" {
 				return resource
 			}
-			// Purge only what is genuinely dead: one still coming up was started
-			// by another binary moments ago. transientGrace bounds the patience,
-			// for the binary that died between create and start.
 			if !isComingUp(state) || time.Since(start) >= transientGrace {
 				_ = dt.Purge(resource)
 			}
@@ -378,10 +278,6 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) {
 
 	db := stdlib.OpenDBFromPool(pool)
 
-	// goose logs an "OK <file>" line per migration through the standard log
-	// package, and `make test` runs -v across ~20 packages that migrate, which
-	// buries the failures worth reading. Silencing it hides nothing: UpContext
-	// still returns its error and the call below reports it.
 	goose.SetLogger(goose.NopLogger())
 
 	if err := goose.SetDialect("postgres"); err != nil {

@@ -28,8 +28,6 @@ func New(pool *pgxpool.Pool) *Repository {
 func (r *Repository) Apply(ctx context.Context, id uuid.UUID, t domain.Transition) error {
 	db := database.DB(ctx, r.pool)
 	var returnedID uuid.UUID
-	// The flags ride along in the same CAS so they cannot disagree with the status.
-	// OR keeps them monotonic: a transition that does not set one leaves it alone.
 	err := db.QueryRow(ctx,
 		`UPDATE orders SET status = $1,
 		        stock_deducted = stock_deducted OR $4,

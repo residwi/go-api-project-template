@@ -13,9 +13,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// ItemReader is what Handler needs from query.Reader: query.Reader satisfies
-// it directly, so nothing sits between them, and the mockery-generated mock
-// is the other implementation, used in handler_test.go.
 type ItemReader interface {
 	ListItemsForUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Item, error)
 }
@@ -32,10 +29,6 @@ func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
 	authed.HandleFunc("GET /wishlist", h.list)
 }
 
-// Declared here, not shared with wishlist's other slices. Each endpoint holds
-// its own copy so one endpoint's new field cannot appear in another's
-// response. WishlistID is dropped: an internal join key a client has no use
-// for.
 type itemResponse struct {
 	ID        uuid.UUID `json:"id"`
 	ProductID uuid.UUID `json:"product_id"`

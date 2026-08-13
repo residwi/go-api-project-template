@@ -18,9 +18,6 @@ func New(repo Repository, orders OrderPort) *Reader {
 	return &Reader{repo: repo, orders: orders}
 }
 
-// GetByOrderIDForUser answers only for the caller's own order. A mismatch is
-// ErrNotFound rather than ErrForbidden: a 403 would confirm the order exists to
-// someone who does not own it.
 func (r *Reader) GetByOrderIDForUser(ctx context.Context, userID, orderID uuid.UUID) (*domain.Shipment, error) {
 	order, err := r.orders.GetInfo(ctx, orderID)
 	if err != nil {

@@ -12,15 +12,11 @@ import (
 )
 
 type RouteDeps struct {
-	Validator *validator.Validator
-	Module    *order.Module
-	// nil leaves the write endpoints unthrottled, as the handler tests do.
+	Validator    *validator.Validator
+	Module       *order.Module
 	WriteLimiter middleware.Middleware
 }
 
-// RegisterRoutes mounts every routed slice. transition/ and expire/ and
-// recoverstale/ register no route: transition/ is reached only through the
-// other slices' ports, and expire/recoverstale are worker-tick sweeps.
 func RegisterRoutes(authed, admin *middleware.RouteGroup, deps RouteDeps) {
 	placehttp.New(deps.Module.Place, deps.Validator).RegisterHTTP(authed, deps.WriteLimiter)
 	queryhttp.New(deps.Module.Query).RegisterHTTP(authed)

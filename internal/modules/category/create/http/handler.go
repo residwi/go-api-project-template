@@ -14,9 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// CategoryCreator is what Handler needs from create.Command: create.Command
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type CategoryCreator interface {
 	Execute(ctx context.Context, p create.Params) (*domain.Category, error)
 }
@@ -34,11 +31,6 @@ func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
 	admin.HandleFunc("POST /categories", h.create)
 }
 
-// Declared here, not shared with category's other slices. Each endpoint holds
-// its own copy so one endpoint's new field cannot appear in another's
-// response. This is the admin shape -- the caller is always an admin route --
-// so it keeps SortOrder, Active and the audit timestamps the public
-// categoryResponse in query/http drops.
 type categoryResponse struct {
 	ID          uuid.UUID  `json:"id"`
 	Name        string     `json:"name"`

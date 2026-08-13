@@ -17,7 +17,6 @@ import (
 
 var _ adjust.Repository = (*Repository)(nil)
 
-// Total on hand is derived from the two stored columns, not stored itself.
 func stockFrom(productID uuid.UUID, available, reserved int) *domain.Stock {
 	return &domain.Stock{
 		ProductID: productID,
@@ -35,13 +34,6 @@ func New(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
-// AdjustStock sets available to the requested total minus what is reserved,
-// because available is stored, and refuses a total below the reservations.
-//
-// The upsert is the only recovery for a product whose EnsureLevel never ran:
-// GetStock, Restock and a bare UPDATE all 404 on the missing row. ON CONFLICT's
-// WHERE clause still enforces the reserved-quantity guard -- no match means no
-// RETURNING row, and the same error as before.
 func (r *Repository) AdjustStock(ctx context.Context, productID uuid.UUID, newQuantity int) (*domain.Stock, error) {
 	db := database.DB(ctx, r.pool)
 	var available, reserved int

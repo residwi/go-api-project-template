@@ -13,9 +13,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// NotificationReader is what Handler needs from query.Reader: query.Reader
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type NotificationReader interface {
 	ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Notification, error)
 	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
@@ -34,8 +31,6 @@ func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
 	authed.HandleFunc("GET /notifications/unread-count", h.UnreadCount)
 }
 
-// Omits UserID (always the authenticated caller) and Data, the job's raw
-// payload. A client needing part of that payload gets a typed field, not bytes.
 type notificationResponse struct {
 	ID        uuid.UUID   `json:"id"`
 	Type      domain.Type `json:"type"`

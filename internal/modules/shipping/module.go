@@ -1,6 +1,3 @@
-// Package shipping composes shipping's slices. It imports no transport package,
-// so a worker or a future grpc server can construct this module without linking
-// HTTP.
 package shipping
 
 import (
@@ -25,14 +22,9 @@ type Deps struct {
 	Pool *pgxpool.Pool
 	Tx   database.TxRunner
 
-	// Orders is order's service. It satisfies each slice's own port by name-match,
-	// so no adapter stands between them.
 	Orders OrderPorts
 }
 
-// OrderPorts is the union of what shipping's slices need from order. Each slice
-// still declares its own narrow port; this exists so Deps has one field instead
-// of one per slice.
 type OrderPorts interface {
 	GetInfo(ctx context.Context, orderID uuid.UUID) (ordercontract.Order, error)
 	MarkShipped(ctx context.Context, orderID uuid.UUID) error

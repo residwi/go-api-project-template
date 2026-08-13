@@ -10,15 +10,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order/contract"
 )
 
-// Config is order's own configuration: how its write-heavy HTTP endpoints
-// (placement, payment retry) are rate limited.
 type Config struct {
 	RateLimit  int           `envconfig:"ORDER_RATE_LIMIT"  default:"5"`
 	RateWindow time.Duration `envconfig:"ORDER_RATE_WINDOW" default:"1m"`
 }
 
-// LoadConfig takes jobsLease because order is what breaks when it is too long:
-// the recovery sweep reverts an order whose charge is still leased.
 func LoadConfig(jobsLease time.Duration) (Config, error) {
 	var cfg Config
 	if err := envconfig.Process("", &cfg); err != nil {

@@ -11,17 +11,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 )
 
-// Params names its fields deliberately because both ids are uuid.UUID and the
-// RequesterID == TargetID guard below does not catch a transposition:
-// swapped, it acts on the admin.
 type Params struct {
 	RequesterID uuid.UUID
 	TargetID    uuid.UUID
 	Role        string
 }
 
-// Command takes no TxRunner: it loads one row through its own repository,
-// patches it and writes it back, with nothing else to ask.
 type Command struct {
 	repo       Repository
 	invalidate StatusInvalidator
@@ -57,19 +52,14 @@ func (c *Command) Execute(ctx context.Context, p Params) error {
 		return err
 	}
 
-	// Bumping token_version revokes outstanding tokens, forcing a re-auth that
-	// reflects the new role.
 	if err := c.repo.IncrementTokenVersion(ctx, p.TargetID); err != nil {
 		return fmt.Errorf("revoking tokens after role change: %w", err)
 	}
 
-	// Invalidate after the bump so the cache repopulates with the new token_version.
 	c.invalidateStatusCache(ctx, p.TargetID)
 	return nil
 }
 
-// Without this a revoked or deactivated user keeps access until the TTL lapses.
-// Best-effort: a failure is logged and the entry still expires on its own.
 func (c *Command) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
 	if err := c.invalidate.Invalidate(ctx, userID); err != nil {
 		c.logger.WarnContext(

@@ -1,6 +1,3 @@
-// Package domain holds order's aggregate and its state machine. It is
-// module-private: what leaves order leaves through a slice's return type or
-// contract/.
 package domain
 
 import (
@@ -47,18 +44,13 @@ type Order struct {
 	ShippingAddress *Address
 	BillingAddress  *Address
 	Notes           string
-	// Persisted rather than derived from Status, because fulfillment_failed is
-	// reachable from both reserved-only and deducted states. A reversal reads them
-	// to choose release vs restock vs no-op.
-	StockDeducted bool
-	StockReversed bool
-	Items         []Item
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	StockDeducted   bool
+	StockReversed   bool
+	Items           []Item
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
-// Dispatched reports whether the goods have left. Payment reads this through
-// contract.Order to decide whether a refund restocks.
 func (o *Order) Dispatched() bool {
 	return o.Status == StatusShipped || o.Status == StatusDelivered
 }

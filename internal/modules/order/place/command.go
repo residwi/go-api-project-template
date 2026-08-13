@@ -1,7 +1,3 @@
-// Package place is the checkout saga: idempotency check, cart lock, cart read
-// inside the lock, availability guard, subtotal with currency check, create,
-// reserve, promotion reserve, clear -- all in one transaction. That sequence
-// is what test/e2e's checkout saga covers, so it moved here verbatim.
 package place
 
 import (
@@ -102,9 +98,6 @@ func (c *Command) Execute(
 	var orderItems []domain.Item
 
 	err = c.tx.Run(ctx, func(txCtx context.Context) error {
-		// Read the cart INSIDE the transaction, after the lock: a second concurrent
-		// checkout then blocks, and reads the emptied cart instead of replaying the
-		// same items. Idempotency-Key only dedupes retries of one request.
 		if txErr := c.cart.LockCart(txCtx, userID); txErr != nil {
 			if errors.Is(txErr, apperror.ErrNotFound) {
 				return apperror.ErrCartEmpty
@@ -120,10 +113,8 @@ func (c *Command) Execute(
 			return apperror.ErrCartEmpty
 		}
 
-		// A cart is keyed by product, so this cannot receive a duplicate ProductID.
 		reservations := make(map[uuid.UUID]int, len(snapshot.Items))
 		orderItems = make([]domain.Item, len(snapshot.Items))
-		// Seeded from item 0 so that item runs the loop's availability check too.
 		subtotal := money.New(0, snapshot.Items[0].Price.Currency)
 		for _, item := range snapshot.Items {
 			if item.Status != productStatusPublished {
@@ -131,8 +122,6 @@ func (c *Command) Execute(
 			}
 			sum, addErr := subtotal.Add(item.Price.MulQty(item.Quantity))
 			if addErr != nil {
-				// Both sentinels: ErrBadRequest gives the 400 (mixed currencies are user
-				// input), ErrCurrencyMismatch names the cause.
 				return fmt.Errorf("%w: cart contains mixed currencies: %w", apperror.ErrBadRequest, addErr)
 			}
 			subtotal = sum
@@ -150,7 +139,6 @@ func (c *Command) Execute(
 			return fmt.Errorf("reserving stock: %w", txErr)
 		}
 
-		// A second pass because items need order.ID, which only exists after Create.
 		for i, item := range snapshot.Items {
 			orderItems[i] = domain.Item{
 				OrderID:     order.ID,
@@ -170,11 +158,8 @@ func (c *Command) Execute(
 			if txErr != nil {
 				return txErr
 			}
-			// max(..., 0) is this caller's policy, not money's.
 			order.Discount = money.New(discount, subtotal.Currency)
 			order.Total = money.New(max(subtotal.Amount-discount, 0), subtotal.Currency)
-			// The row was inserted pre-discount; payment finalization verifies against
-			// what is stored here.
 			if txErr := c.repo.UpdateTotals(txCtx, order.ID, order.Discount.Amount, order.Total.Amount); txErr != nil {
 				return txErr
 			}
@@ -189,8 +174,6 @@ func (c *Command) Execute(
 	order.Items = orderItems
 
 	if order.Total.Amount > 0 {
-		// Not fatal: the order stays awaiting_payment for the webhook, a retry, or
-		// the expiry sweep.
 		if _, payErr := c.payment.InitiatePayment(ctx, paymentcontract.ChargeRequest{
 			OrderID:         order.ID,
 			Amount:          order.Total,
@@ -213,16 +196,11 @@ func (c *Command) Execute(
 	return &Result{Order: order}, nil
 }
 
-// finalizeFreeOrder settles a coupon-covered order that has no payment at all.
-// Without it the order would sit in awaiting_payment until the expiry sweep
-// cancelled it, so a legitimately free order could never ship.
 func (c *Command) finalizeFreeOrder(ctx context.Context, order *domain.Order) error {
 	return c.tx.Run(ctx, func(txCtx context.Context) error {
 		if err := c.transition.Apply(txCtx, order.ID, domain.PaidTransition); err != nil {
 			return err
 		}
-		// One order line per product by construction (see Execute), so no
-		// ProductID can collide here.
 		deductions := make(map[uuid.UUID]int, len(order.Items))
 		for _, item := range order.Items {
 			deductions[item.ProductID] = item.Quantity

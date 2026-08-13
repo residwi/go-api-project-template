@@ -8,8 +8,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 )
 
-// Repository is place's own storage. Its only implementation is
-// place/postgres, constructed in order/module.go.
 type Repository interface {
 	Create(ctx context.Context, order *domain.Order) error
 	CreateItems(ctx context.Context, items []domain.Item) error

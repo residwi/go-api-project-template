@@ -8,9 +8,7 @@ import (
 var ErrCurrencyMismatch = errors.New("currency mismatch")
 
 type Money struct {
-	// Amount is in minor units (cents, sen, satang) — never a fraction of one.
-	Amount int64
-	// Currency is an ISO 4217 alphabetic code, three letters, e.g. "USD".
+	Amount   int64
 	Currency string
 }
 
@@ -26,8 +24,6 @@ func (m Money) Add(other Money) (Money, error) {
 	return Money{Amount: m.Amount + other.Amount, Currency: m.Currency}, nil
 }
 
-// MulQty scales m by a count. A quantity is dimensionless, so there is no
-// currency to disagree about and this cannot fail.
 func (m Money) MulQty(qty int) Money {
 	return Money{Amount: m.Amount * int64(qty), Currency: m.Currency}
 }

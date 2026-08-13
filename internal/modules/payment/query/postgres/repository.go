@@ -18,8 +18,6 @@ import (
 
 var _ query.Repository = (*Repository)(nil)
 
-// Every read goes through this, so a scanned row becomes a denominated
-// money.Money in one place instead of at each query.
 type amountColumns struct {
 	amount   int64
 	currency string

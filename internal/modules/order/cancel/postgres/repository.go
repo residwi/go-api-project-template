@@ -80,8 +80,6 @@ func (r *Repository) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) 
 	return items, nil
 }
 
-// scanItem expects the parent order's currency as the last column: order_items
-// has none of its own, so every query feeding this joins orders for it.
 func scanItem(row pgx.CollectableRow) (domain.Item, error) {
 	var item domain.Item
 	var price, subtotal int64

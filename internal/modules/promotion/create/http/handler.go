@@ -14,9 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// PromotionCreator is what Handler needs from create.Command: create.Command
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type PromotionCreator interface {
 	Execute(ctx context.Context, p create.Params) (*domain.Promotion, error)
 }
@@ -60,9 +57,6 @@ func (r createPromotionRequest) toParams() create.Params {
 	}
 }
 
-// Carries the usage counters and per-user limits a shopper never sees.
-// Declared here, not shared with promotion's other slices, so one endpoint's
-// new field cannot appear in another's response.
 type adminPromotionResponse struct {
 	ID             uuid.UUID   `json:"id"`
 	Code           string      `json:"code"`

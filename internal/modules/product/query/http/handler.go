@@ -16,9 +16,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// ProductReader is what Handler needs from query.Reader: query.Reader
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in handler_test.go.
 type ProductReader interface {
 	ListPublished(ctx context.Context, params query.PublishedListParams) ([]domain.Product, string, bool, error)
 	GetBySlug(ctx context.Context, slug string) (*domain.Product, error)
@@ -37,13 +34,6 @@ func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
 	api.HandleFunc("GET /products/{slug}", h.getBySlug)
 }
 
-// The public shape. SKU is a merchandising detail; Status would be the constant
-// 'published' on every path this returns; DeletedAt would make a soft-deleted
-// product distinguishable from one that simply 404s. Admin endpoints get the
-// fuller adminProductResponse instead.
-//
-// StockQuantity is Availability.OnHand, never Available: Available moves on
-// every order and would leak order velocity per SKU.
 type productResponse struct {
 	ID             uuid.UUID       `json:"id"`
 	CategoryID     *uuid.UUID      `json:"category_id,omitempty"`
@@ -68,8 +58,6 @@ type imageResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// *int64, not money.Money: a struct is never empty to encoding/json, so an
-// `omitempty` money key would appear as 0 on every product that should omit it.
 func compareAtPriceAmount(m *money.Money) *int64 {
 	if m == nil {
 		return nil
@@ -77,8 +65,6 @@ func compareAtPriceAmount(m *money.Money) *int64 {
 	return &m.Amount
 }
 
-// Shared by the public and admin responses: an image carries no field that
-// needs hiding from either audience.
 func toImageResponses(images []domain.Image) []imageResponse {
 	out := make([]imageResponse, len(images))
 	for i, img := range images {

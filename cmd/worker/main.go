@@ -30,16 +30,12 @@ func main() {
 func run() error {
 	infra, err := config.Load()
 	if err != nil {
-		// No logger yet by construction: the log settings live in the config that
-		// just failed. Report to stderr and let the caller own the exit code.
 		fmt.Fprintf(os.Stderr, "loading infra config failed: %v\n", err)
 		return err
 	}
 
 	appLog := logger.Setup(infra.Log.Level, infra.Log.Format)
 
-	// Infra must load first: payment and order both validate their own timeouts
-	// against infra.Worker.LeaseDuration.
 	authCfg, err := auth.LoadConfig()
 	if err != nil {
 		appLog.Error("loading auth config failed", slog.String("error", err.Error()))
@@ -52,10 +48,6 @@ func run() error {
 		return err
 	}
 
-	// order.Config itself has no reader here -- RateLimit/RateWindow are for the
-	// API's HTTP limiter -- but the worker is the process that actually leases
-	// jobs, so it is the right place to also catch a WORKER_LEASE_DURATION that
-	// outlives order's stale-processing threshold.
 	if _, err = order.LoadConfig(infra.Worker.LeaseDuration); err != nil {
 		appLog.Error("loading order config failed", slog.String("error", err.Error()))
 		return err
@@ -72,7 +64,6 @@ func run() error {
 
 	pool, err := database.NewPostgres(ctx, infra.Database)
 	if err != nil {
-		// Reported as well as returned: main only sets the exit code.
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
 		return fmt.Errorf("connecting to database: %w", err)
 	}
@@ -99,13 +90,6 @@ func run() error {
 		PruneLimit:    infra.Worker.PruneLimit,
 	}
 
-	// app.Orders satisfies paymentworker.OrderHousekeeper directly, so the
-	// processor needs no adapter. Unlike notification's Jobs, payment splits
-	// its queue (app.Payments.Jobs, platform/jobs.Queue) from its processor
-	// (app.Payments.JobProcessor, platform/jobs.Processor) into two values:
-	// the processor needs charge and refund, built after Jobs, so giving Jobs
-	// itself a Process method would need a setter reachable from everywhere
-	// Jobs is (this call included).
 	paymentProcessor := paymentworker.NewProcessor(app.Payments.JobProcessor, app.Orders, appLog)
 	paymentRunner := jobs.NewRunner("payment", app.Payments.Jobs, paymentProcessor, jobCfg, appLog)
 	notificationRunner := jobs.NewRunner("notification", app.Notifications.Jobs, app.Notifications.Jobs, jobCfg, appLog)

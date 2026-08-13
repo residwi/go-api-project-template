@@ -6,8 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Command opens no transaction: it removes one row through its own
-// repository, with nothing else to coordinate.
 type Command struct {
 	repo Repository
 }

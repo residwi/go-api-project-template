@@ -1,6 +1,3 @@
-// Package wishlist composes wishlist's slices. It imports no transport
-// package, so a worker or a future grpc server can construct this module
-// without linking HTTP.
 package wishlist
 
 import (

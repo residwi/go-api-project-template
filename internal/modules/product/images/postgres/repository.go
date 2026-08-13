@@ -18,7 +18,6 @@ import (
 
 var _ images.Repository = (*Repository)(nil)
 
-// A NULL compare_at_price stays nil rather than becoming a denominated zero.
 type amountColumns struct {
 	price          int64
 	compareAtPrice *int64

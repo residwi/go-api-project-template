@@ -55,8 +55,6 @@ func (c *Command) Execute(ctx context.Context, userID uuid.UUID, p Params) error
 		if err != nil {
 			return err
 		}
-		// Only a new distinct product can push the cart past the cap; bumping the
-		// quantity of a product already in the cart is always allowed.
 		if !hasItem && count >= c.maxCartItems {
 			return fmt.Errorf("%w: cart cannot have more than %d items", apperror.ErrBadRequest, c.maxCartItems)
 		}

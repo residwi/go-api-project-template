@@ -10,15 +10,10 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// CartClearer is what Handler needs from empty.Command: empty.Command
-// satisfies it directly, so nothing sits between them, and the
-// mockery-generated mock is the other implementation, used in
-// handler_test.go.
 type CartClearer interface {
 	Clear(ctx context.Context, userID uuid.UUID) error
 }
 
-// Handler holds no validator: the endpoint takes no body.
 type Handler struct {
 	cmd CartClearer
 }

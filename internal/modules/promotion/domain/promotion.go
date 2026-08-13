@@ -1,5 +1,3 @@
-// Package domain holds promotion's aggregate and its rules. It is
-// module-private: what leaves promotion leaves through a slice's return type.
 package domain
 
 import (
@@ -44,11 +42,6 @@ type CouponUsage struct {
 	CreatedAt time.Time
 }
 
-// ValidatePercentageValue rejects a percentage promotion above 100: above
-// that, ComputeDiscount's clamp would silently make the order free. The cap
-// is type-conditional -- fixed_amount allows any positive value -- so no
-// validate tag can express it. create and update both call this once they
-// hold the final, persisted combination of Type and Value.
 func ValidatePercentageValue(promoType Type, value int64) error {
 	if promoType == TypePercentage && value > 100 {
 		return fmt.Errorf("%w: percentage discount value cannot exceed 100", apperror.ErrBadRequest)
@@ -56,9 +49,6 @@ func ValidatePercentageValue(promoType Type, value int64) error {
 	return nil
 }
 
-// ValidatePromotion checks a promotion against the order amount it is being
-// applied to. apply and reserve both call this immediately after loading the
-// promotion by code, before computing a discount.
 func ValidatePromotion(promo *Promotion, orderAmount int64) error {
 	if !promo.Active {
 		return fmt.Errorf("%w: promotion is not active", apperror.ErrBadRequest)
@@ -85,9 +75,6 @@ func ValidatePromotion(promo *Promotion, orderAmount int64) error {
 
 const percentDivisor = 100.0
 
-// ComputeDiscount turns a validated promotion into the amount to take off
-// orderSubtotal. apply and reserve both call this once ValidatePromotion
-// has passed.
 func ComputeDiscount(promo *Promotion, orderSubtotal int64) int64 {
 	var discount int64
 
@@ -101,8 +88,6 @@ func ComputeDiscount(promo *Promotion, orderSubtotal int64) int64 {
 		discount = promo.Value
 	}
 
-	// Safety net for a fixed_amount promo that legitimately exceeds the subtotal;
-	// percentage overflows are rejected at write time (ValidatePercentageValue).
 	if discount > orderSubtotal {
 		discount = orderSubtotal
 	}

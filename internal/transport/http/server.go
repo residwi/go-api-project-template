@@ -25,7 +25,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
-// Run serves until the process receives SIGINT or SIGTERM.
 func Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -33,13 +32,9 @@ func Run() error {
 	return RunContext(ctx)
 }
 
-// RunContext serves until ctx is cancelled, so the caller owns the shutdown
-// trigger -- which is how tests stop it without signalling the whole process.
 func RunContext(ctx context.Context) error {
 	infra, err := config.Load()
 	if err != nil {
-		// No logger yet by construction: the log settings live in the config that
-		// just failed. Report to stderr and let the caller own the exit code.
 		fmt.Fprintf(os.Stderr, "loading infra config failed: %v\n", err)
 		return err
 	}
@@ -53,7 +48,6 @@ func RunContext(ctx context.Context) error {
 
 	pool, err := database.NewPostgres(ctx, infra.Database)
 	if err != nil {
-		// Reported as well as returned: main only sets the exit code.
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
 		return fmt.Errorf("connecting to database: %w", err)
 	}
@@ -119,24 +113,17 @@ func RunContext(ctx context.Context) error {
 		ReadTimeout:  infra.App.ReadTimeout,
 		WriteTimeout: infra.App.WriteTimeout,
 		IdleTimeout:  infra.App.IdleTimeout,
-		// net/http reports its own problems here -- superfluous WriteHeader calls, TLS
-		// handshake failures -- which would otherwise go to plain-text stderr.
-		ErrorLog: slog.NewLogLogger(appLog.Handler(), slog.LevelError),
+		ErrorLog:     slog.NewLogLogger(appLog.Handler(), slog.LevelError),
 	}
 
-	// Buffered so the send never blocks: on clean shutdown the select below has
-	// already taken ctx.Done and nobody receives.
 	serveErr := make(chan error, 1)
 	go func() {
 		appLog.InfoContext(ctx, "server starting", slog.Int("port", infra.App.Port), slog.String("env", infra.App.Env))
 		serveErr <- srv.ListenAndServe()
 	}()
 
-	// A bind failure must abort: blocking on ctx.Done alone left the binary alive,
-	// serving nothing, exiting 0 -- which reads as a healthy rollout.
 	select {
 	case err := <-serveErr:
-		// ErrServerClosed is the Shutdown below, not a failure.
 		if !errors.Is(err, http.ErrServerClosed) {
 			appLog.ErrorContext(ctx, "server failed to start", slog.String("error", err.Error()))
 			return fmt.Errorf("starting server: %w", err)
@@ -158,11 +145,6 @@ func RunContext(ctx context.Context) error {
 	return nil
 }
 
-// loadModuleConfigs loads every module config RunContext needs, in the one
-// order that is safe: infra first, since payment and order each validate
-// their own timeout against infra.Worker.LeaseDuration. Each LoadConfig
-// already names itself in the errors it returns, so this does not wrap them
-// again -- only the "which one failed" log line is added here.
 func loadModuleConfigs(
 	ctx context.Context,
 	infra *config.Settings,
@@ -199,11 +181,6 @@ func loadModuleConfigs(
 	return authCfg, cartCfg, orderCfg, paymentCfg, nil
 }
 
-// Deps is what NewRouter needs beyond the wired App: infra's CORS/App.Env
-// (genuinely cross-cutting, not any one module's), plus the module configs
-// its middleware reads (auth and order's rate limits, payment's webhook
-// secret). Cart's config has no reader here -- MaxItems only matters to
-// bootstrap.New, not to routing.
 type Deps struct {
 	Infra      *config.Settings
 	Auth       auth.Config

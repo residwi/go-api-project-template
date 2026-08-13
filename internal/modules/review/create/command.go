@@ -17,10 +17,6 @@ type Params struct {
 	Body    string
 }
 
-// Command takes no TxRunner: the old service ran HasDeliveredOrder,
-// HasUserReviewed and Create as three unwrapped calls with nothing atomic
-// binding them, and this move preserves that rather than introducing
-// atomicity that was never there.
 type Command struct {
 	repo     Repository
 	purchase PurchaseVerifier
@@ -31,8 +27,6 @@ func New(repo Repository, purchase PurchaseVerifier) *Command {
 }
 
 func (c *Command) Execute(ctx context.Context, userID, productID uuid.UUID, p Params) (*domain.Review, error) {
-	// The specific client-supplied order, or p.OrderID could name any existing one
-	// and forge the review's provenance.
 	delivered, err := c.purchase.HasDeliveredOrder(ctx, userID, p.OrderID, productID)
 	if err != nil {
 		return nil, err

@@ -10,9 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// Command is what Handler needs from cancel.Command: cancel.Command satisfies
-// it directly, so nothing sits between them, and the mockery-generated mock
-// is the other implementation, used in handler_test.go.
 type Command interface {
 	Execute(ctx context.Context, userID, orderID uuid.UUID) error
 }

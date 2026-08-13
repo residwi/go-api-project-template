@@ -11,9 +11,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-// StockReader is what Handler needs from query.Reader: query.Reader satisfies
-// it directly, so nothing sits between them, and the mockery-generated mock is
-// the other implementation, used in handler_test.go.
 type StockReader interface {
 	GetStock(ctx context.Context, productID uuid.UUID) (*domain.Stock, error)
 }
@@ -30,8 +27,6 @@ func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
 	admin.HandleFunc("GET /inventory/{product_id}", h.getStock)
 }
 
-// Mirrors domain.Stock 1:1. Every inventory route is admin-only, so Reserved
-// is safe here -- the leak that matters is on product's public response.
 type stockResponse struct {
 	ProductID uuid.UUID `json:"product_id"`
 	Quantity  int       `json:"quantity"`

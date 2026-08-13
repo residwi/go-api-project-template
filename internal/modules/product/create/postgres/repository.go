@@ -36,7 +36,6 @@ func (r *Repository) Create(ctx context.Context, p *domain.Product) error {
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, updated_at`,
 		p.CategoryID, p.Name, p.Slug, p.Description, p.Price.Amount, compareAtPriceAmount(p),
-		// Price's currency wins; create.Execute guarantees CompareAtPrice agrees with it.
 		p.Price.Currency, p.SKU, p.Status,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {

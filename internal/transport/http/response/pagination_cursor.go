@@ -13,8 +13,6 @@ import (
 // pagination silently.
 const cursorTimeFormat = "2006-01-02T15:04:05.999999Z07:00"
 
-// CursorPage owns the slice, the cursor format and the writer together, which is
-// what keeps every list endpoint consistent.
 func CursorPage[T any](w http.ResponseWriter, rows []T, limit int, keyOf func(T) (time.Time, uuid.UUID)) {
 	hasMore := len(rows) > limit
 	if hasMore {
