@@ -7,11 +7,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/modules/cart/usecase/empty"
+	"github.com/residwi/go-api-project-template/internal/modules/cart/usecase/clear"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-var _ empty.Repository = (*Repository)(nil)
+var _ clear.Repository = (*Repository)(nil)
 
 type Repository struct {
 	pool *pgxpool.Pool

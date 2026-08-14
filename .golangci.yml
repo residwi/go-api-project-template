@@ -544,3 +544,10 @@ linters:
       # t.Setenv panics when the test also calls t.Parallel.
       - path: ^internal/(platform/(config/config_test|logger/logger_test)|modules/(payment|order|auth)/config_test)\.go
         linters: [paralleltest]
+      # `clear` names the capability, matching the port and the handler --
+      # AGENTS.md's recorded field/package inconsistency, settled here.
+      # Neither file in this package calls the builtin clear() on a map or
+      # slice; only the package identifier collides with the predeclared name.
+      - path: ^internal/modules/cart/usecase/clear/
+        text: "package name clear has same name as predeclared identifier"
+        linters: [predeclared]

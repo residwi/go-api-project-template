@@ -1,4 +1,4 @@
-package empty
+package clear
 
 import (
 	"context"

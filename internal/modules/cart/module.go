@@ -9,8 +9,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/cart/usecase/add"
 	addpg "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/add/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/cart/usecase/empty"
-	emptypg "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/empty/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/cart/usecase/clear"
+	clearpg "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/clear/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/cart/usecase/lock"
 	lockpg "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/lock/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/cart/usecase/query"
@@ -41,7 +41,7 @@ type Module struct {
 	UpdateQuantity *updatequantity.UseCase
 	Remove         *remove.UseCase
 	Lock           *lock.UseCase
-	Empty          *empty.UseCase
+	ClearCart      *clear.UseCase
 }
 
 func New(d Deps) *Module {
@@ -51,7 +51,7 @@ func New(d Deps) *Module {
 		UpdateQuantity: updatequantity.New(updatequantitypg.New(d.Pool), d.Products),
 		Remove:         remove.New(removepg.New(d.Pool)),
 		Lock:           lock.New(lockpg.New(d.Pool)),
-		Empty:          empty.New(emptypg.New(d.Pool)),
+		ClearCart:      clear.New(clearpg.New(d.Pool)),
 	}
 }
 
@@ -64,5 +64,5 @@ func (m *Module) GetSnapshot(ctx context.Context, userID uuid.UUID) (*contract.C
 }
 
 func (m *Module) Clear(ctx context.Context, userID uuid.UUID) error {
-	return m.Empty.Clear(ctx, userID)
+	return m.ClearCart.Clear(ctx, userID)
 }
