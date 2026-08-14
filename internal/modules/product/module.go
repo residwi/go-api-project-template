@@ -5,8 +5,8 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/product/usecase/create"
 	createpg "github.com/residwi/go-api-project-template/internal/modules/product/usecase/create/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/product/usecase/images"
-	imagespg "github.com/residwi/go-api-project-template/internal/modules/product/usecase/images/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/product/usecase/manageimages"
+	manageimagespg "github.com/residwi/go-api-project-template/internal/modules/product/usecase/manageimages/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/product/usecase/query"
 	querypg "github.com/residwi/go-api-project-template/internal/modules/product/usecase/query/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/product/usecase/remove"
@@ -27,7 +27,7 @@ type Module struct {
 	Create *create.UseCase
 	Update *update.UseCase
 	Delete *remove.UseCase
-	Images *images.UseCase
+	Images *manageimages.UseCase
 }
 
 func New(d Deps) *Module {
@@ -36,6 +36,6 @@ func New(d Deps) *Module {
 		Create: create.New(createpg.New(d.Pool), d.InventoryRegistrar),
 		Update: update.New(updatepg.New(d.Pool)),
 		Delete: remove.New(removepg.New(d.Pool)),
-		Images: images.New(imagespg.New(d.Pool), d.InventoryReader),
+		Images: manageimages.New(manageimagespg.New(d.Pool)),
 	}
 }

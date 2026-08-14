@@ -434,3 +434,42 @@ func TestReaderGetInfoByIDs(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestUseCase_AvailableQuantity(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns the available level for a published product", func(t *testing.T) {
+		t.Parallel()
+
+		id := uuid.New()
+		repo := NewMockRepository(t)
+		inv := NewMockInventoryReader(t)
+
+		repo.EXPECT().GetByID(mock.Anything, id).Return(&domain.Product{ID: id, Status: domain.StatusPublished}, nil)
+		repo.EXPECT().GetImagesByProductID(mock.Anything, id).Return(nil, nil)
+		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{id}).
+			Return(map[uuid.UUID]inventorycontract.Availability{id: {Available: 7}}, nil)
+
+		got, err := New(repo, inv).AvailableQuantity(context.Background(), id)
+
+		require.NoError(t, err)
+		assert.Equal(t, 7, got)
+	})
+
+	t.Run("negative availability returns ErrInsufficientStock", func(t *testing.T) {
+		t.Parallel()
+
+		id := uuid.New()
+		repo := NewMockRepository(t)
+		inv := NewMockInventoryReader(t)
+
+		repo.EXPECT().GetByID(mock.Anything, id).Return(&domain.Product{ID: id, Status: domain.StatusPublished}, nil)
+		repo.EXPECT().GetImagesByProductID(mock.Anything, id).Return(nil, nil)
+		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{id}).
+			Return(map[uuid.UUID]inventorycontract.Availability{id: {Available: -1}}, nil)
+
+		_, err := New(repo, inv).AvailableQuantity(context.Background(), id)
+
+		assert.ErrorIs(t, err, apperror.ErrInsufficientStock)
+	})
+}

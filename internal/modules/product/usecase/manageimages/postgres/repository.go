@@ -11,12 +11,12 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
-	"github.com/residwi/go-api-project-template/internal/modules/product/usecase/images"
+	"github.com/residwi/go-api-project-template/internal/modules/product/usecase/manageimages"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-var _ images.Repository = (*Repository)(nil)
+var _ manageimages.Repository = (*Repository)(nil)
 
 type amountColumns struct {
 	price          int64

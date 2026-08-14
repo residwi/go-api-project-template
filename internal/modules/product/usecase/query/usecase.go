@@ -140,6 +140,17 @@ func (r *UseCase) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.U
 	return out, nil
 }
 
+func (r *UseCase) AvailableQuantity(ctx context.Context, id uuid.UUID) (int, error) {
+	p, err := r.GetByID(ctx, id)
+	if err != nil {
+		return 0, err
+	}
+	if p.Availability.Available < 0 {
+		return 0, fmt.Errorf("%w: negative available quantity", apperror.ErrInsufficientStock)
+	}
+	return p.Availability.Available, nil
+}
+
 func (r *UseCase) enrich(ctx context.Context, products []domain.Product) error {
 	if len(products) == 0 {
 		return nil
