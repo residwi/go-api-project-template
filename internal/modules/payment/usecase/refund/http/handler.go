@@ -9,15 +9,15 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type UseCase interface {
+type Refunder interface {
 	Execute(ctx context.Context, paymentID uuid.UUID) error
 }
 
 type Handler struct {
-	cmd UseCase
+	cmd Refunder
 }
 
-func New(cmd UseCase) *Handler {
+func New(cmd Refunder) *Handler {
 	return &Handler{cmd: cmd}
 }
 

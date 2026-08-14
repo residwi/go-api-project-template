@@ -140,8 +140,8 @@ func TestHandler_RetryPayment(t *testing.T) {
 	})
 }
 
-func setupMux(t *testing.T) (*http.ServeMux, *MockUseCase) {
-	cmd := NewMockUseCase(t)
+func setupMux(t *testing.T) (*http.ServeMux, *MockPaymentRetrier) {
+	cmd := NewMockPaymentRetrier(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()

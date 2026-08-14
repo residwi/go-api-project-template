@@ -9,16 +9,16 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type UseCase interface {
+type WebhookProcessor interface {
 	Execute(ctx context.Context, payload []byte, signature string) error
 }
 
 type Handler struct {
-	cmd    UseCase
+	cmd    WebhookProcessor
 	logger *slog.Logger
 }
 
-func New(cmd UseCase, log *slog.Logger) *Handler {
+func New(cmd WebhookProcessor, log *slog.Logger) *Handler {
 	return &Handler{cmd: cmd, logger: log}
 }
 

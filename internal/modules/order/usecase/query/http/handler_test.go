@@ -320,8 +320,8 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 
 // setupMux wires only the query slice's own two handlers, so a leak test or a
 // route test never depends on any other slice's mock.
-func setupMux(t *testing.T) (*http.ServeMux, *MockUseCase, *MockAdminReader) {
-	reader := NewMockUseCase(t)
+func setupMux(t *testing.T) (*http.ServeMux, *MockOrderReader, *MockAdminReader) {
+	reader := NewMockOrderReader(t)
 	admin := NewMockAdminReader(t)
 
 	mux := http.NewServeMux()

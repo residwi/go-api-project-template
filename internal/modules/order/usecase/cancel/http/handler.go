@@ -10,15 +10,15 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type UseCase interface {
+type OrderCanceller interface {
 	Execute(ctx context.Context, userID, orderID uuid.UUID) error
 }
 
 type Handler struct {
-	cmd UseCase
+	cmd OrderCanceller
 }
 
-func New(cmd UseCase) *Handler {
+func New(cmd OrderCanceller) *Handler {
 	return &Handler{cmd: cmd}
 }
 

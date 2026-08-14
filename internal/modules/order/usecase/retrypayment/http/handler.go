@@ -12,16 +12,16 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type UseCase interface {
+type PaymentRetrier interface {
 	Execute(ctx context.Context, userID, orderID uuid.UUID, p retrypayment.Params) (*retrypayment.Result, error)
 }
 
 type Handler struct {
-	cmd       UseCase
+	cmd       PaymentRetrier
 	validator *validator.Validator
 }
 
-func New(cmd UseCase, v *validator.Validator) *Handler {
+func New(cmd PaymentRetrier, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
 }
 

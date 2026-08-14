@@ -13,7 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type UseCase interface {
+type PaymentReader interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Payment, error)
 	ListAdmin(ctx context.Context, params query.AdminListParams) ([]domain.Payment, int, error)
 }
@@ -51,10 +51,10 @@ func toAdminPaymentResponse(p *domain.Payment) adminPaymentResponse {
 }
 
 type Handler struct {
-	reader UseCase
+	reader PaymentReader
 }
 
-func New(reader UseCase) *Handler {
+func New(reader PaymentReader) *Handler {
 	return &Handler{reader: reader}
 }
 

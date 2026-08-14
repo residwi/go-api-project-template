@@ -92,8 +92,8 @@ func TestHandler_CancelOrder(t *testing.T) {
 	})
 }
 
-func setupMux(t *testing.T) (*http.ServeMux, *MockUseCase) {
-	cmd := NewMockUseCase(t)
+func setupMux(t *testing.T) (*http.ServeMux, *MockOrderCanceller) {
+	cmd := NewMockOrderCanceller(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")

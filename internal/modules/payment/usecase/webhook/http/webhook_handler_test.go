@@ -23,8 +23,8 @@ import (
 )
 
 // These route-level tests wire a REAL webhook.UseCase -- not a mock of this
-// package's own UseCase interface -- because the signature check they exist
-// to prove lives inside Execute now. A mocked UseCase would let a forged
+// package's own WebhookProcessor interface -- because the signature check they exist
+// to prove lives inside Execute now. A mocked WebhookProcessor would let a forged
 // signature through without either handler or command ever computing an
 // HMAC, which is exactly the gap this test suite closes.
 

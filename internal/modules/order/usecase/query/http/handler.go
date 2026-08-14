@@ -13,16 +13,16 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type UseCase interface {
+type OrderReader interface {
 	ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Order, error)
 	GetByIDForUser(ctx context.Context, userID, orderID uuid.UUID) (*domain.Order, error)
 }
 
 type Handler struct {
-	reader UseCase
+	reader OrderReader
 }
 
-func New(reader UseCase) *Handler {
+func New(reader OrderReader) *Handler {
 	return &Handler{reader: reader}
 }
 

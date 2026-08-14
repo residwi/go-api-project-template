@@ -234,8 +234,8 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 		"StockReversed is saga state and must not be serialised")
 }
 
-func setupMux(t *testing.T) (*http.ServeMux, *MockUseCase) {
-	cmd := NewMockUseCase(t)
+func setupMux(t *testing.T) (*http.ServeMux, *MockOrderPlacer) {
+	cmd := NewMockOrderPlacer(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
