@@ -303,7 +303,7 @@ Two exemptions, both deliberate and both allowlisted by name in the check:
 Unexplained exemption in lint rule is how rule erodes, so each one
 named in `scripts/check-boundaries.sh` with its reason next to it.
 
-**Why:** thirteen `json:"-"` tags were load-bearing security controls —
+**Why:** fourteen `json:"-"` tags were load-bearing security controls —
 `user.PasswordHash`, `payment.GatewayResponse`, `order.RequestHash`. Two deleted
 characters published password hash. This inverts default: field now
 private unless DTO names it. Also makes `<slice>/http` mean something; with

@@ -520,7 +520,7 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 - Secrets come from env vars or gitignored `.env`. Never commit real secrets. `.env.example` lists every supported variable.
 - JWT auth with configurable expiry; bcrypt password hashes; RBAC via admin middleware.
 - Middleware in `internal/transport/http/middleware/`: panic recovery, request-ID injection, structured request logging, CORS, rate limiting, auth, admin.
-- Field exposure controlled by DTO omission, not by `json:"-"`. Thirteen `json:"-"` tags used to be load-bearing security controls (`user.PasswordHash`, `payment.GatewayResponse`, `order.RequestHash`) where deleting two characters published password hash. Rule 1 exists for that reason: adding field to response now means naming it in DTO deliberate.
+- Field exposure controlled by DTO omission, not by `json:"-"`. Fourteen `json:"-"` tags used to be load-bearing security controls (`user.PasswordHash`, `payment.GatewayResponse`, `order.RequestHash`) where deleting two characters published password hash. Rule 1 exists for that reason: adding field to response now means naming it in DTO deliberate.
 
 ## Guardrails
 

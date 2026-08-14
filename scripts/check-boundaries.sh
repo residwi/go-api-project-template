@@ -237,7 +237,7 @@ check_wire_tags() {
 
 	# 1b. json:"-" anywhere under internal/ outside an http adapter.
 	#
-	# Phase 4 replaced all 13 of these with omission from a DTO. The point is
+	# Phase 4 replaced all 14 of these with omission from a DTO. The point is
 	# that a field is now private *by default* rather than private by someone
 	# remembering to write a tag. This must stay at zero -- no allowlist, and
 	# no exemption for tests, config or platform.
