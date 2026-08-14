@@ -168,6 +168,18 @@ func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) er
 	return nil
 }
 
+// MustStartRedis returns a client on dbIndex, which the caller picks by hand
+// from the registry below. Indices must be unique across packages and nothing
+// enforces that -- a collision compiles, passes review, and fails as a flake in
+// an unrelated package. Claim yours here in the same commit that uses it.
+//
+//	0 - internal/platform/cache
+//	1 - internal/transport/http/middleware
+//	2 - (free)
+//	3 - internal/transport/http
+//	4 - (free)
+//	5 - test/e2e
+//	6 - internal/modules/user/usecase/query/redis
 func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 	ctx := context.Background()
 
