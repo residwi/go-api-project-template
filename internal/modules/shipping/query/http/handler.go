@@ -25,7 +25,7 @@ func New(reader ShipmentReader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("GET /orders/{id}/shipping", h.get)
+	authed.HandleFunc("GET /orders/{id}/shipping", h.Get)
 }
 
 type shipmentResponse struct {
@@ -54,7 +54,7 @@ func toShipmentResponse(s *domain.Shipment) shipmentResponse {
 	}
 }
 
-func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

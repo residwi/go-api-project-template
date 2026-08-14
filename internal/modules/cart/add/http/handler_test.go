@@ -72,7 +72,7 @@ func TestHandler_Add(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPost, "/cart/items", nil)
 		w := httptest.NewRecorder()
 
-		h.add(w, r)
+		h.Add(w, r)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
@@ -84,7 +84,7 @@ func TestHandler_Add(t *testing.T) {
 		r = setAuthContext(r)
 		w := httptest.NewRecorder()
 
-		h.add(w, r)
+		h.Add(w, r)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
@@ -96,7 +96,7 @@ func TestHandler_Add(t *testing.T) {
 		r = setAuthContext(r)
 		w := httptest.NewRecorder()
 
-		h.add(w, r)
+		h.Add(w, r)
 
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 		var resp map[string]any

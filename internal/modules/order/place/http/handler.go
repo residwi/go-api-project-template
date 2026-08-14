@@ -28,7 +28,7 @@ func New(cmd Command, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup, limiter middleware.Middleware) {
-	handler := http.HandlerFunc(h.place)
+	handler := http.HandlerFunc(h.Place)
 	if limiter != nil {
 		authed.Handle("POST /orders", limiter(handler))
 		return
@@ -167,7 +167,7 @@ func toPlaceOrderResponse(r *place.Result) placeOrderResponse {
 	return placeOrderResponse{Order: toOrderResponse(r.Order)}
 }
 
-func (h *Handler) place(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Place(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

@@ -28,7 +28,7 @@ func New(cmd PromotionCreator, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("POST /promotions", h.create)
+	admin.HandleFunc("POST /promotions", h.Create)
 }
 
 type createPromotionRequest struct {
@@ -91,7 +91,7 @@ func toAdminPromotionResponse(p *domain.Promotion) adminPromotionResponse {
 	}
 }
 
-func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	req, ok := response.Bind[createPromotionRequest](w, r, h.validator)
 	if !ok {
 		return

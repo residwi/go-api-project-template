@@ -27,7 +27,7 @@ func New(reader PromotionLister) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /promotions", h.list)
+	admin.HandleFunc("GET /promotions", h.List)
 }
 
 type adminPromotionResponse struct {
@@ -64,7 +64,7 @@ func toAdminPromotionResponse(p *domain.Promotion) adminPromotionResponse {
 	}
 }
 
-func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := query.Params{OffsetPage: page}
 

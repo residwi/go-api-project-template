@@ -30,8 +30,8 @@ func New(reader ProductReader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
-	api.HandleFunc("GET /products", h.list)
-	api.HandleFunc("GET /products/{slug}", h.getBySlug)
+	api.HandleFunc("GET /products", h.List)
+	api.HandleFunc("GET /products/{slug}", h.GetBySlug)
 }
 
 type productResponse struct {
@@ -97,7 +97,7 @@ func toProductResponse(p *domain.Product) productResponse {
 	}
 }
 
-func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	cursor := paging.ParseCursorPage(r)
 
 	params := query.PublishedListParams{
@@ -145,7 +145,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, paging.NewCursorPageResult(out, nextCursor, hasMore))
 }
 
-func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetBySlug(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	if slug == "" {
 		response.BadRequest(w, "slug is required")

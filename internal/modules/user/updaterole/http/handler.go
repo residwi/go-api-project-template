@@ -24,14 +24,14 @@ func New(cmd RoleUpdater, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /users/{id}/role", h.update)
+	admin.HandleFunc("PUT /users/{id}/role", h.Update)
 }
 
 type updateRoleRequest struct {
 	Role string `json:"role" validate:"required,oneof=user admin"`
 }
 
-func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

@@ -78,7 +78,7 @@ func TestHandler_Update(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPut, "/cart/items/"+uuid.NewString(), nil)
 		w := httptest.NewRecorder()
 
-		h.update(w, r)
+		h.Update(w, r)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
@@ -91,7 +91,7 @@ func TestHandler_Update(t *testing.T) {
 		r.SetPathValue("product_id", "bad")
 		w := httptest.NewRecorder()
 
-		h.update(w, r)
+		h.Update(w, r)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
@@ -110,7 +110,7 @@ func TestHandler_Update(t *testing.T) {
 		r.SetPathValue("product_id", productID)
 		w := httptest.NewRecorder()
 
-		h.update(w, r)
+		h.Update(w, r)
 
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 	})
@@ -124,7 +124,7 @@ func TestHandler_Update(t *testing.T) {
 		r.SetPathValue("product_id", productID)
 		w := httptest.NewRecorder()
 
-		h.update(w, r)
+		h.Update(w, r)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})

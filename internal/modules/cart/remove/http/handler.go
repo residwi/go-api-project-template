@@ -23,10 +23,10 @@ func New(cmd CartItemRemover) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("DELETE /cart/items/{product_id}", h.remove)
+	authed.HandleFunc("DELETE /cart/items/{product_id}", h.Remove)
 }
 
-func (h *Handler) remove(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

@@ -26,7 +26,7 @@ func New(cmd Adjuster, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /inventory/{product_id}/adjust", h.adjust)
+	admin.HandleFunc("PUT /inventory/{product_id}/adjust", h.Adjust)
 }
 
 type stockResponse struct {
@@ -49,7 +49,7 @@ type adjustRequest struct {
 	Quantity int `json:"quantity" validate:"required,min=0"`
 }
 
-func (h *Handler) adjust(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Adjust(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "product_id")
 	if !ok {
 		return

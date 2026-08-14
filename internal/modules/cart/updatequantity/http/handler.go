@@ -26,7 +26,7 @@ func New(cmd CartQuantityUpdater, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("PUT /cart/items/{product_id}", h.update)
+	authed.HandleFunc("PUT /cart/items/{product_id}", h.Update)
 }
 
 type updateQuantityRequest struct {
@@ -37,7 +37,7 @@ func (r updateQuantityRequest) toParams() updatequantity.Params {
 	return updatequantity.Params{Quantity: r.Quantity}
 }
 
-func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

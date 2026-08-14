@@ -28,7 +28,7 @@ func New(cmd UserUpdater, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /users/{id}", h.update)
+	admin.HandleFunc("PUT /users/{id}", h.Update)
 }
 
 type adminUpdateUserRequest struct {
@@ -73,7 +73,7 @@ func toAdminUserResponse(u *domain.User) adminUserResponse {
 	}
 }
 
-func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

@@ -26,7 +26,7 @@ func New(reader ItemReader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("GET /wishlist", h.list)
+	authed.HandleFunc("GET /wishlist", h.List)
 }
 
 type itemResponse struct {
@@ -43,7 +43,7 @@ func toItemResponse(it domain.Item) itemResponse {
 	}
 }
 
-func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

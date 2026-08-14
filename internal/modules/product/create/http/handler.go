@@ -29,7 +29,7 @@ func New(cmd ProductCreator, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("POST /products", h.create)
+	admin.HandleFunc("POST /products", h.Create)
 }
 
 type productResponse struct {
@@ -126,7 +126,7 @@ func (r createProductRequest) toParams() create.Params {
 	return p
 }
 
-func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	req, ok := response.Bind[createProductRequest](w, r, h.validator)
 	if !ok {
 		return

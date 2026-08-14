@@ -60,11 +60,11 @@ func New(reader Reader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /payments", h.list)
-	admin.HandleFunc("GET /payments/{id}", h.get)
+	admin.HandleFunc("GET /payments", h.List)
+	admin.HandleFunc("GET /payments/{id}", h.Get)
 }
 
-func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := query.AdminListParams{
 		OffsetPage: page,
@@ -86,7 +86,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, paging.NewOffsetPageResult(out, page, total))
 }
 
-func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

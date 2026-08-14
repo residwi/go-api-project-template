@@ -27,7 +27,7 @@ func New(cmd Registerer, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
-	api.HandleFunc("POST /auth/register", h.register)
+	api.HandleFunc("POST /auth/register", h.Register)
 }
 
 type registerRequest struct {
@@ -76,7 +76,7 @@ func toTokenResponse(tp *domain.TokenPair) tokenResponse {
 	}
 }
 
-func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	req, ok := response.Bind[registerRequest](w, r, h.validator)
 	if !ok {
 		return

@@ -64,7 +64,7 @@ func TestHandler_Clear(t *testing.T) {
 		r := httptest.NewRequest(http.MethodDelete, "/cart", nil)
 		w := httptest.NewRecorder()
 
-		h.clear(w, r)
+		h.Clear(w, r)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})

@@ -28,8 +28,8 @@ func NewAdmin(reader UserLister) *AdminHandler {
 }
 
 func (h *AdminHandler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /users", h.list)
-	admin.HandleFunc("GET /users/{id}", h.get)
+	admin.HandleFunc("GET /users", h.List)
+	admin.HandleFunc("GET /users/{id}", h.Get)
 }
 
 type adminUserResponse struct {
@@ -58,7 +58,7 @@ func toAdminUserResponse(u *domain.User) adminUserResponse {
 	}
 }
 
-func (h *AdminHandler) list(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := query.Params{
 		OffsetPage: page,
@@ -85,7 +85,7 @@ func (h *AdminHandler) list(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, paging.NewOffsetPageResult(out, page, total))
 }
 
-func (h *AdminHandler) get(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

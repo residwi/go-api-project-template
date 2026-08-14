@@ -26,7 +26,7 @@ func New(cmd Command, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup, limiter middleware.Middleware) {
-	handler := http.HandlerFunc(h.retry)
+	handler := http.HandlerFunc(h.Retry)
 	if limiter != nil {
 		authed.Handle("POST /orders/{id}/pay", limiter(handler))
 		return
@@ -52,7 +52,7 @@ func toPayResultResponse(r *retrypayment.Result) payResultResponse {
 	}
 }
 
-func (h *Handler) retry(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

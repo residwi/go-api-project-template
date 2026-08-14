@@ -26,7 +26,7 @@ func New(cmd Restocker, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /inventory/{product_id}/restock", h.restock)
+	admin.HandleFunc("PUT /inventory/{product_id}/restock", h.Restock)
 }
 
 type stockResponse struct {
@@ -49,7 +49,7 @@ type restockRequest struct {
 	Quantity int `json:"quantity" validate:"required,min=1"`
 }
 
-func (h *Handler) restock(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Restock(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "product_id")
 	if !ok {
 		return

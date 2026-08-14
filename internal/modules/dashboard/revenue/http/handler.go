@@ -23,7 +23,7 @@ func New(reader RevenueReader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /dashboard/revenue", h.revenue)
+	admin.HandleFunc("GET /dashboard/revenue", h.Revenue)
 }
 
 func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok bool) {
@@ -66,7 +66,7 @@ func toRevenueDataResponse(d domain.RevenueData) revenueDataResponse {
 	}
 }
 
-func (h *Handler) revenue(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Revenue(w http.ResponseWriter, r *http.Request) {
 	from, to, ok := parseDateRange(w, r)
 	if !ok {
 		return

@@ -28,7 +28,7 @@ func New(cmd ReviewCreator, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("POST /products/{id}/reviews", h.create)
+	authed.HandleFunc("POST /products/{id}/reviews", h.Create)
 }
 
 type reviewResponse struct {
@@ -67,7 +67,7 @@ func (r createReviewRequest) toParams() create.Params {
 	}
 }
 
-func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

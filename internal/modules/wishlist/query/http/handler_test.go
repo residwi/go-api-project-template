@@ -76,7 +76,7 @@ func TestHandler_List(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/wishlist", nil)
 		w := httptest.NewRecorder()
 
-		h.list(w, r)
+		h.List(w, r)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 		var resp map[string]any

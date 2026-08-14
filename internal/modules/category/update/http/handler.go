@@ -28,7 +28,7 @@ func New(cmd CategoryUpdater, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /categories/{id}", h.update)
+	admin.HandleFunc("PUT /categories/{id}", h.Update)
 }
 
 type categoryResponse struct {
@@ -75,7 +75,7 @@ func (r updateCategoryRequest) toParams() update.Params {
 	}
 }
 
-func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

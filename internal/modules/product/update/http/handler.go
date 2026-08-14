@@ -31,7 +31,7 @@ func New(cmd ProductUpdater, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /products/{id}", h.update)
+	admin.HandleFunc("PUT /products/{id}", h.Update)
 }
 
 type productResponse struct {
@@ -139,7 +139,7 @@ func (r updateProductRequest) toParams() (update.Params, error) {
 	return p, nil
 }
 
-func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

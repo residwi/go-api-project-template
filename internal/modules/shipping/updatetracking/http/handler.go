@@ -28,7 +28,7 @@ func New(cmd TrackingUpdater, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /shipments/{id}/tracking", h.updateTracking)
+	admin.HandleFunc("PUT /shipments/{id}/tracking", h.UpdateTracking)
 }
 
 type updateTrackingRequest struct {
@@ -69,7 +69,7 @@ func toShipmentResponse(s *domain.Shipment) shipmentResponse {
 	}
 }
 
-func (h *Handler) updateTracking(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateTracking(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

@@ -26,7 +26,7 @@ func New(cmd TokenRefresher, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
-	api.HandleFunc("POST /auth/refresh", h.refresh)
+	api.HandleFunc("POST /auth/refresh", h.Refresh)
 }
 
 type refreshRequest struct {
@@ -63,7 +63,7 @@ func toTokenResponse(tp *domain.TokenPair) tokenResponse {
 	}
 }
 
-func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	req, ok := response.Bind[refreshRequest](w, r, h.validator)
 	if !ok {
 		return

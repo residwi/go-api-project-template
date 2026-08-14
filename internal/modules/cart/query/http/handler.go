@@ -25,7 +25,7 @@ func New(reader CartReader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("GET /cart", h.get)
+	authed.HandleFunc("GET /cart", h.Get)
 }
 
 type cartResponse struct {
@@ -70,7 +70,7 @@ func toCartResponse(c *domain.Cart) (cartResponse, error) {
 	return out, nil
 }
 
-func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

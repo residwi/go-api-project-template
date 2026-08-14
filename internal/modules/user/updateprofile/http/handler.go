@@ -27,7 +27,7 @@ func New(cmd ProfileUpdater, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("PUT /users/me", h.update)
+	authed.HandleFunc("PUT /users/me", h.Update)
 }
 
 type updateProfileRequest struct {
@@ -62,7 +62,7 @@ func toUserResponse(u *domain.User) userResponse {
 	}
 }
 
-func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

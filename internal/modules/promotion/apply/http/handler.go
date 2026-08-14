@@ -23,7 +23,7 @@ func New(cmd PromotionApplier, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("POST /promotions/apply", h.apply)
+	authed.HandleFunc("POST /promotions/apply", h.Apply)
 }
 
 type applyRequest struct {
@@ -43,7 +43,7 @@ func toApplyResponse(code string, discount int64) applyResponse {
 	}
 }
 
-func (h *Handler) apply(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
 	_, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

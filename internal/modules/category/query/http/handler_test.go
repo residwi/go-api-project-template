@@ -175,7 +175,7 @@ func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/categories/", nil)
 
-	h.getBySlug(w, r)
+	h.GetBySlug(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 

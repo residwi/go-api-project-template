@@ -24,7 +24,7 @@ func New(reader StockReader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /inventory/{product_id}", h.getStock)
+	admin.HandleFunc("GET /inventory/{product_id}", h.GetStock)
 }
 
 type stockResponse struct {
@@ -43,7 +43,7 @@ func toStockResponse(s *domain.Stock) stockResponse {
 	}
 }
 
-func (h *Handler) getStock(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetStock(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "product_id")
 	if !ok {
 		return

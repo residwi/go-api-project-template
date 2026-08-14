@@ -22,10 +22,10 @@ func New(cmd UserDeleter) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("DELETE /users/{id}", h.delete)
+	admin.HandleFunc("DELETE /users/{id}", h.Delete)
 }
 
-func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

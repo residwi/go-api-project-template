@@ -24,7 +24,7 @@ func New(reader UserGetter) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("GET /users/me", h.me)
+	authed.HandleFunc("GET /users/me", h.Me)
 }
 
 type userResponse struct {
@@ -45,7 +45,7 @@ func toUserResponse(u *domain.User) userResponse {
 	}
 }
 
-func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

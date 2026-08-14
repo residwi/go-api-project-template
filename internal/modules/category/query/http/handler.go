@@ -25,8 +25,8 @@ func New(reader CategoryReader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
-	api.HandleFunc("GET /categories", h.list)
-	api.HandleFunc("GET /categories/{slug}", h.getBySlug)
+	api.HandleFunc("GET /categories", h.List)
+	api.HandleFunc("GET /categories/{slug}", h.GetBySlug)
 }
 
 type categoryResponse struct {
@@ -47,7 +47,7 @@ func toCategoryResponse(c *domain.Category) categoryResponse {
 	}
 }
 
-func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	categories, err := h.reader.List(r.Context())
 	if err != nil {
 		response.HandleErr(w, err)
@@ -62,7 +62,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, out)
 }
 
-func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetBySlug(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	if slug == "" {
 		response.BadRequest(w, "slug is required")

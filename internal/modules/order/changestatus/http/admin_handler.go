@@ -26,14 +26,14 @@ func NewAdmin(cmd Command, v *validator.Validator) *AdminHandler {
 }
 
 func (h *AdminHandler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /orders/{id}/status", h.updateStatus)
+	admin.HandleFunc("PUT /orders/{id}/status", h.UpdateStatus)
 }
 
 type updateStatusRequest struct {
 	Status string `json:"status" validate:"required"`
 }
 
-func (h *AdminHandler) updateStatus(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

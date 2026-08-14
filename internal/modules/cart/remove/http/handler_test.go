@@ -66,7 +66,7 @@ func TestHandler_Remove(t *testing.T) {
 		r := httptest.NewRequest(http.MethodDelete, "/cart/items/"+uuid.NewString(), nil)
 		w := httptest.NewRecorder()
 
-		h.remove(w, r)
+		h.Remove(w, r)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
@@ -79,7 +79,7 @@ func TestHandler_Remove(t *testing.T) {
 		r.SetPathValue("product_id", "bad")
 		w := httptest.NewRecorder()
 
-		h.remove(w, r)
+		h.Remove(w, r)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})

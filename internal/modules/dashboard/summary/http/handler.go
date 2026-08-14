@@ -23,7 +23,7 @@ func New(reader SummaryReader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /dashboard/summary", h.summary)
+	admin.HandleFunc("GET /dashboard/summary", h.Summary)
 }
 
 func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok bool) {
@@ -84,7 +84,7 @@ func toSummaryResponse(sales domain.SalesSummary, breakdown []domain.StatusBreak
 	}
 }
 
-func (h *Handler) summary(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	from, to, ok := parseDateRange(w, r)
 	if !ok {
 		return

@@ -26,7 +26,7 @@ func New(reader ReviewReader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
-	api.HandleFunc("GET /products/{id}/reviews", h.list)
+	api.HandleFunc("GET /products/{id}/reviews", h.List)
 }
 
 type reviewResponse struct {
@@ -49,7 +49,7 @@ func toReviewResponse(rv domain.Review) reviewResponse {
 	}
 }
 
-func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	productID, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

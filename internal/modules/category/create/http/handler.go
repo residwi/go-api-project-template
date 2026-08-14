@@ -28,7 +28,7 @@ func New(cmd CategoryCreator, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("POST /categories", h.create)
+	admin.HandleFunc("POST /categories", h.Create)
 }
 
 type categoryResponse struct {
@@ -75,7 +75,7 @@ func (r createCategoryRequest) toParams() create.Params {
 	}
 }
 
-func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	req, ok := response.Bind[createCategoryRequest](w, r, h.validator)
 	if !ok {
 		return

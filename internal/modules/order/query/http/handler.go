@@ -27,8 +27,8 @@ func New(reader Reader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("GET /orders", h.list)
-	authed.HandleFunc("GET /orders/{id}", h.get)
+	authed.HandleFunc("GET /orders", h.List)
+	authed.HandleFunc("GET /orders/{id}", h.Get)
 }
 
 type addressResponse struct {
@@ -115,7 +115,7 @@ func toOrderResponse(o *domain.Order) orderResponse {
 	}
 }
 
-func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
@@ -139,7 +139,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

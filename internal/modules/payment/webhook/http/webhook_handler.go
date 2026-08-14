@@ -24,12 +24,12 @@ func New(cmd Command, log *slog.Logger) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
-	api.HandleFunc("POST /payments/webhook", h.handleWebhook)
+	api.HandleFunc("POST /payments/webhook", h.HandleWebhook)
 }
 
 const webhookSignatureHeader = "X-Webhook-Signature"
 
-func (h *Handler) handleWebhook(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 	if err != nil {
 		h.logger.ErrorContext(r.Context(), "webhook: failed to read body", slog.String("error", err.Error()))

@@ -26,7 +26,7 @@ func New(cmd ItemAdder, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("POST /wishlist/items", h.add)
+	authed.HandleFunc("POST /wishlist/items", h.Add)
 }
 
 type addItemRequest struct {
@@ -37,7 +37,7 @@ func (r addItemRequest) toParams() add.Params {
 	return add.Params{ProductID: r.ProductID}
 }
 
-func (h *Handler) add(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return

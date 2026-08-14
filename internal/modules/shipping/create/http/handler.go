@@ -28,7 +28,7 @@ func New(cmd ShipmentCreator, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("POST /orders/{id}/ship", h.create)
+	admin.HandleFunc("POST /orders/{id}/ship", h.Create)
 }
 
 type createShipmentRequest struct {
@@ -69,7 +69,7 @@ func toShipmentResponse(s *domain.Shipment) shipmentResponse {
 	}
 }
 
-func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	orderID, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

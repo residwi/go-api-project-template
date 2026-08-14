@@ -26,7 +26,7 @@ func New(reader TopProductsReader) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /dashboard/top-products", h.topProducts)
+	admin.HandleFunc("GET /dashboard/top-products", h.TopProducts)
 }
 
 func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok bool) {
@@ -71,7 +71,7 @@ func toTopProductResponse(p domain.TopProduct) topProductResponse {
 	}
 }
 
-func (h *Handler) topProducts(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) TopProducts(w http.ResponseWriter, r *http.Request) {
 	from, to, ok := parseDateRange(w, r)
 	if !ok {
 		return

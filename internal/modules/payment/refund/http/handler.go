@@ -23,14 +23,14 @@ func New(cmd Command) *Handler {
 }
 
 func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("POST /payments/{id}/refund", h.refund)
+	admin.HandleFunc("POST /payments/{id}/refund", h.Refund)
 }
 
 type refundResponse struct {
 	Status string `json:"status"`
 }
 
-func (h *Handler) refund(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Refund(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
