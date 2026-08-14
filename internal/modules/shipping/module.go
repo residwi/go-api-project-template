@@ -7,14 +7,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
-	"github.com/residwi/go-api-project-template/internal/modules/shipping/create"
-	createpg "github.com/residwi/go-api-project-template/internal/modules/shipping/create/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/shipping/deliver"
-	deliverpg "github.com/residwi/go-api-project-template/internal/modules/shipping/deliver/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/shipping/query"
-	querypg "github.com/residwi/go-api-project-template/internal/modules/shipping/query/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/shipping/updatetracking"
-	updatetrackingpg "github.com/residwi/go-api-project-template/internal/modules/shipping/updatetracking/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/create"
+	createpg "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/create/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/deliver"
+	deliverpg "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/deliver/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/query"
+	querypg "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/query/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/updatetracking"
+	updatetrackingpg "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/updatetracking/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 

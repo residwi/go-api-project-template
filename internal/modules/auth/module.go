@@ -5,10 +5,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/modules/auth/login"
-	"github.com/residwi/go-api-project-template/internal/modules/auth/refresh"
-	"github.com/residwi/go-api-project-template/internal/modules/auth/register"
-	"github.com/residwi/go-api-project-template/internal/modules/auth/token"
+	"github.com/residwi/go-api-project-template/internal/modules/auth/usecase/login"
+	"github.com/residwi/go-api-project-template/internal/modules/auth/usecase/refresh"
+	"github.com/residwi/go-api-project-template/internal/modules/auth/usecase/register"
+	"github.com/residwi/go-api-project-template/internal/modules/auth/usecase/token"
 	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
 )
 

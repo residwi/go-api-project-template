@@ -3,12 +3,12 @@ package wishlist
 import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/modules/wishlist/add"
-	addpg "github.com/residwi/go-api-project-template/internal/modules/wishlist/add/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/wishlist/query"
-	querypg "github.com/residwi/go-api-project-template/internal/modules/wishlist/query/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/wishlist/remove"
-	removepg "github.com/residwi/go-api-project-template/internal/modules/wishlist/remove/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/wishlist/usecase/add"
+	addpg "github.com/residwi/go-api-project-template/internal/modules/wishlist/usecase/add/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/wishlist/usecase/query"
+	querypg "github.com/residwi/go-api-project-template/internal/modules/wishlist/usecase/query/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/wishlist/usecase/remove"
+	removepg "github.com/residwi/go-api-project-template/internal/modules/wishlist/usecase/remove/postgres"
 )
 
 type Deps struct {

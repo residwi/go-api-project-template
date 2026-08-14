@@ -4,9 +4,9 @@ import (
 	"log/slog"
 
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/payment/query/http"
-	refundhttp "github.com/residwi/go-api-project-template/internal/modules/payment/refund/http"
-	webhookhttp "github.com/residwi/go-api-project-template/internal/modules/payment/webhook/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/payment/usecase/query/http"
+	refundhttp "github.com/residwi/go-api-project-template/internal/modules/payment/usecase/refund/http"
+	webhookhttp "github.com/residwi/go-api-project-template/internal/modules/payment/usecase/webhook/http"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 

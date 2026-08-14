@@ -3,12 +3,12 @@ package dashboard
 import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/modules/dashboard/revenue"
-	revenuepg "github.com/residwi/go-api-project-template/internal/modules/dashboard/revenue/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/dashboard/summary"
-	summarypg "github.com/residwi/go-api-project-template/internal/modules/dashboard/summary/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/dashboard/topproducts"
-	topproductspg "github.com/residwi/go-api-project-template/internal/modules/dashboard/topproducts/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/revenue"
+	revenuepg "github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/revenue/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/summary"
+	summarypg "github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/summary/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/topproducts"
+	topproductspg "github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/topproducts/postgres"
 )
 
 type Deps struct {

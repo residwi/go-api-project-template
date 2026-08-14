@@ -2,10 +2,10 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
-	createhttp "github.com/residwi/go-api-project-template/internal/modules/shipping/create/http"
-	deliverhttp "github.com/residwi/go-api-project-template/internal/modules/shipping/deliver/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/shipping/query/http"
-	updatetrackinghttp "github.com/residwi/go-api-project-template/internal/modules/shipping/updatetracking/http"
+	createhttp "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/create/http"
+	deliverhttp "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/deliver/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/query/http"
+	updatetrackinghttp "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/updatetracking/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )

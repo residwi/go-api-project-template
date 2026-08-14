@@ -3,12 +3,12 @@ package review
 import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/modules/review/create"
-	createpg "github.com/residwi/go-api-project-template/internal/modules/review/create/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/review/query"
-	querypg "github.com/residwi/go-api-project-template/internal/modules/review/query/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/review/remove"
-	removepg "github.com/residwi/go-api-project-template/internal/modules/review/remove/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/review/usecase/create"
+	createpg "github.com/residwi/go-api-project-template/internal/modules/review/usecase/create/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/review/usecase/query"
+	querypg "github.com/residwi/go-api-project-template/internal/modules/review/usecase/query/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/review/usecase/remove"
+	removepg "github.com/residwi/go-api-project-template/internal/modules/review/usecase/remove/postgres"
 )
 
 type Deps struct {

@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/residwi/go-api-project-template/internal/modules/order"
-	cancelhttp "github.com/residwi/go-api-project-template/internal/modules/order/cancel/http"
-	changestatushttp "github.com/residwi/go-api-project-template/internal/modules/order/changestatus/http"
-	placehttp "github.com/residwi/go-api-project-template/internal/modules/order/place/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/order/query/http"
-	retrypaymenthttp "github.com/residwi/go-api-project-template/internal/modules/order/retrypayment/http"
+	cancelhttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel/http"
+	changestatushttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/changestatus/http"
+	placehttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/place/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/query/http"
+	retrypaymenthttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/retrypayment/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )

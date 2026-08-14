@@ -2,11 +2,11 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
-	addhttp "github.com/residwi/go-api-project-template/internal/modules/cart/add/http"
-	emptyhttp "github.com/residwi/go-api-project-template/internal/modules/cart/empty/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/cart/query/http"
-	removehttp "github.com/residwi/go-api-project-template/internal/modules/cart/remove/http"
-	updatequantityhttp "github.com/residwi/go-api-project-template/internal/modules/cart/updatequantity/http"
+	addhttp "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/add/http"
+	emptyhttp "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/empty/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/query/http"
+	removehttp "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/remove/http"
+	updatequantityhttp "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/updatequantity/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )

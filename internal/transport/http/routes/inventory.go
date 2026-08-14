@@ -2,9 +2,9 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	adjusthttp "github.com/residwi/go-api-project-template/internal/modules/inventory/adjust/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/query/http"
-	restockhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/restock/http"
+	adjusthttp "github.com/residwi/go-api-project-template/internal/modules/inventory/usecase/adjust/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/usecase/query/http"
+	restockhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/usecase/restock/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )

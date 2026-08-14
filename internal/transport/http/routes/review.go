@@ -2,9 +2,9 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/review"
-	createhttp "github.com/residwi/go-api-project-template/internal/modules/review/create/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/review/query/http"
-	removehttp "github.com/residwi/go-api-project-template/internal/modules/review/remove/http"
+	createhttp "github.com/residwi/go-api-project-template/internal/modules/review/usecase/create/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/review/usecase/query/http"
+	removehttp "github.com/residwi/go-api-project-template/internal/modules/review/usecase/remove/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )

@@ -12,7 +12,7 @@ import (
 
 const wireTagProbe = "package add\n\ntype probe struct {\n\tName string `json:\"name\"`\n}\n"
 
-const siblingProbe = "package add\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/wishlist/query\"\n"
+const siblingProbe = "package add\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/wishlist/usecase/query\"\n"
 
 const transportProbe = "package add\n\nimport _ \"github.com/residwi/go-api-project-template/internal/transport/http/middleware\"\n"
 
@@ -24,17 +24,17 @@ func TestCheckBoundaries(t *testing.T) {
 	})
 
 	t.Run("check 1 catches a json tag outside a slice http adapter", func(t *testing.T) {
-		out := runCheckWithProbe(t, "internal/modules/wishlist/add/probe_wiretag.go", wireTagProbe)
+		out := runCheckWithProbe(t, "internal/modules/wishlist/usecase/add/probe_wiretag.go", wireTagProbe)
 		assert.Contains(t, out, "json tag outside an http adapter")
 	})
 
 	t.Run("check 5 catches a sibling slice import", func(t *testing.T) {
-		out := runCheckWithProbe(t, "internal/modules/wishlist/add/probe_sibling.go", siblingProbe)
+		out := runCheckWithProbe(t, "internal/modules/wishlist/usecase/add/probe_sibling.go", siblingProbe)
 		assert.Contains(t, out, "imports sibling slice")
 	})
 
 	t.Run("check 6 catches a module importing internal/transport", func(t *testing.T) {
-		out := runCheckWithProbe(t, "internal/modules/wishlist/add/probe_transport.go", transportProbe)
+		out := runCheckWithProbe(t, "internal/modules/wishlist/usecase/add/probe_transport.go", transportProbe)
 		assert.Contains(t, out, "imports internal/transport")
 	})
 }

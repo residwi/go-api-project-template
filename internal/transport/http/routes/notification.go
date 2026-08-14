@@ -2,9 +2,9 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
-	markallreadhttp "github.com/residwi/go-api-project-template/internal/modules/notification/markallread/http"
-	markreadhttp "github.com/residwi/go-api-project-template/internal/modules/notification/markread/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/notification/query/http"
+	markallreadhttp "github.com/residwi/go-api-project-template/internal/modules/notification/usecase/markallread/http"
+	markreadhttp "github.com/residwi/go-api-project-template/internal/modules/notification/usecase/markread/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/notification/usecase/query/http"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 

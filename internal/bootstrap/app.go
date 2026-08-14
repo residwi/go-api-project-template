@@ -13,10 +13,10 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
-	ordercancel "github.com/residwi/go-api-project-template/internal/modules/order/cancel"
-	ordercancelpg "github.com/residwi/go-api-project-template/internal/modules/order/cancel/postgres"
-	ordertransition "github.com/residwi/go-api-project-template/internal/modules/order/transition"
-	ordertransitionpg "github.com/residwi/go-api-project-template/internal/modules/order/transition/postgres"
+	ordercancel "github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel"
+	ordercancelpg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel/postgres"
+	ordertransition "github.com/residwi/go-api-project-template/internal/modules/order/usecase/transition"
+	ordertransitionpg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/transition/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
@@ -26,8 +26,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 
-	orderquery "github.com/residwi/go-api-project-template/internal/modules/order/query"
-	orderquerypg "github.com/residwi/go-api-project-template/internal/modules/order/query/postgres"
+	orderquery "github.com/residwi/go-api-project-template/internal/modules/order/usecase/query"
+	orderquerypg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/query/postgres"
 )
 
 type Deps struct {

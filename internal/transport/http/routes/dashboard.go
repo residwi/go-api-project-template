@@ -2,9 +2,9 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
-	revenuehttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/revenue/http"
-	summaryhttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/summary/http"
-	topproductshttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/topproducts/http"
+	revenuehttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/revenue/http"
+	summaryhttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/summary/http"
+	topproductshttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/topproducts/http"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 

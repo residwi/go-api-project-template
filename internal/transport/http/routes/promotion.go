@@ -2,11 +2,11 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
-	applyhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/apply/http"
-	createhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/create/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/query/http"
-	removehttp "github.com/residwi/go-api-project-template/internal/modules/promotion/remove/http"
-	updatehttp "github.com/residwi/go-api-project-template/internal/modules/promotion/update/http"
+	applyhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/usecase/apply/http"
+	createhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/usecase/create/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/usecase/query/http"
+	removehttp "github.com/residwi/go-api-project-template/internal/modules/promotion/usecase/remove/http"
+	updatehttp "github.com/residwi/go-api-project-template/internal/modules/promotion/usecase/update/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )

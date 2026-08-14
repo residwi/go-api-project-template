@@ -2,11 +2,11 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/user"
-	adminupdatehttp "github.com/residwi/go-api-project-template/internal/modules/user/adminupdate/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/user/query/http"
-	removehttp "github.com/residwi/go-api-project-template/internal/modules/user/remove/http"
-	updateprofilehttp "github.com/residwi/go-api-project-template/internal/modules/user/updateprofile/http"
-	updaterolehttp "github.com/residwi/go-api-project-template/internal/modules/user/updaterole/http"
+	adminupdatehttp "github.com/residwi/go-api-project-template/internal/modules/user/usecase/adminupdate/http"
+	queryhttp "github.com/residwi/go-api-project-template/internal/modules/user/usecase/query/http"
+	removehttp "github.com/residwi/go-api-project-template/internal/modules/user/usecase/remove/http"
+	updateprofilehttp "github.com/residwi/go-api-project-template/internal/modules/user/usecase/updateprofile/http"
+	updaterolehttp "github.com/residwi/go-api-project-template/internal/modules/user/usecase/updaterole/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )

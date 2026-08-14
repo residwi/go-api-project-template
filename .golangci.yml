@@ -539,7 +539,7 @@ linters:
       # this reason, none of them calls ResetDB -- they seed and delete their
       # own rows by id. Either way, the only concurrency t.Parallel could add
       # within one package is the unsafe kind.
-      - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testhelper/|^internal/platform/(cache|database)/|^internal/modules/user/query/redis/|^internal/transport/http/([^/]+_test\.go|middleware/)|^internal/bootstrap/|^scripts/)
+      - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testhelper/|^internal/platform/(cache|database)/|^internal/modules/user/usecase/query/redis/|^internal/transport/http/([^/]+_test\.go|middleware/)|^internal/bootstrap/|^scripts/)
         linters: [paralleltest]
       # t.Setenv panics when the test also calls t.Parallel.
       - path: ^internal/(platform/(config/config_test|logger/logger_test)|modules/(payment|order|auth)/config_test)\.go

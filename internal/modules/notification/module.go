@@ -7,12 +7,12 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/notification/jobs"
 	jobspg "github.com/residwi/go-api-project-template/internal/modules/notification/jobs/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/notification/markallread"
-	markallreadpg "github.com/residwi/go-api-project-template/internal/modules/notification/markallread/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/notification/markread"
-	markreadpg "github.com/residwi/go-api-project-template/internal/modules/notification/markread/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/notification/query"
-	querypg "github.com/residwi/go-api-project-template/internal/modules/notification/query/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/notification/usecase/markallread"
+	markallreadpg "github.com/residwi/go-api-project-template/internal/modules/notification/usecase/markallread/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/notification/usecase/markread"
+	markreadpg "github.com/residwi/go-api-project-template/internal/modules/notification/usecase/markread/postgres"
+	"github.com/residwi/go-api-project-template/internal/modules/notification/usecase/query"
+	querypg "github.com/residwi/go-api-project-template/internal/modules/notification/usecase/query/postgres"
 )
 
 type Deps struct {

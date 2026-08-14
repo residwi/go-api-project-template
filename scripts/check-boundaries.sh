@@ -140,14 +140,14 @@ importer_roots() {
 # ---------------------------------------------------------------------------
 #
 # Phase 4 moved every feature's wire DTOs into the http adapter beside the
-# handler that serialises them, today internal/modules/<feature>/<slice>/http/.
+# handler that serialises them, today internal/modules/<feature>/usecase/<slice>/http/.
 # A `json:` tag on a domain model means the model has started doubling as a
 # transport type again, which is what the phase existed to undo.
 #
 # Exempt by location:
-#   internal/modules/<feature>/<slice>/http/*.go
-#                       the wire adapters -- this is where tags belong. Anything
-#                       one directory level short of this
+#   internal/modules/<feature>/usecase/<slice>/http/*.go
+#                       the wire adapters -- this is where tags belong. A path
+#                       short of this pattern
 #                       (internal/modules/<feature>/http/) is deliberately NOT
 #                       exempt: that path held the feature route tables until
 #                       they moved to internal/transport/http/routes/, and a
@@ -207,12 +207,12 @@ is_json_tag_allowlisted() {
 }
 
 # is_slice_http is true only for a slice's own http adapter --
-# internal/modules/<feature>/<slice>/http/*.go. A path one segment short of
-# that pattern (internal/modules/<feature>/http/*.go) correctly returns false:
-# no such directory exists any more, and nothing may recreate one to hold a DTO.
+# internal/modules/<feature>/usecase/<slice>/http/*.go. A path short of that
+# pattern (internal/modules/<feature>/http/*.go) correctly returns false: no
+# such directory exists any more, and nothing may recreate one to hold a DTO.
 is_slice_http() {
 	case "$1" in
-	"$MODULES_ROOT"/*/*/http/*.go) return 0 ;;
+	"$MODULES_ROOT"/*/usecase/*/http/*.go) return 0 ;;
 	esac
 	return 1
 }
@@ -226,7 +226,7 @@ check_wire_tags() {
 		is_json_tag_allowlisted "$file" && continue
 		while IFS= read -r line; do
 			report "json tag outside an http adapter: ${file}:${line%%:*}
-    Wire DTOs belong in internal/modules/<feature>/<slice>/http/. Domain models carry no json tags.
+    Wire DTOs belong in internal/modules/<feature>/usecase/<slice>/http/. Domain models carry no json tags.
     If this type really is someone else's wire contract, add it to
     JSON_TAG_ALLOWLIST in scripts/check-boundaries.sh with a reason."
 		done < <(grep -n 'json:"' "$file" || true)
@@ -253,7 +253,7 @@ check_wire_tags() {
 	# 1c. A feature's dto.go must not come back.
 	#
 	# These files were deleted in Phase 4; their contents now live beside the
-	# handler that serialises them, in internal/modules/<feature>/<slice>/http/.
+	# handler that serialises them, in internal/modules/<feature>/usecase/<slice>/http/.
 	#
 	# No -mindepth/-maxdepth. They used to pin this to internal/<feature>/dto.go
 	# at exactly depth 2, and Phase 6 moved the features to depth 3 -- a depth
@@ -263,7 +263,7 @@ check_wire_tags() {
 	while IFS= read -r file; do
 		report "resurrected DTO file: ${file}
     dto.go was deleted in Phase 4. Wire types live in
-    internal/modules/<feature>/<slice>/http/ next to the handler that serialises them."
+    internal/modules/<feature>/usecase/<slice>/http/ next to the handler that serialises them."
 	done < <(find internal -type f -name 'dto.go' | sort)
 }
 
@@ -337,7 +337,7 @@ check_wire_tags() {
 #   - Only non-test files are scanned, and every directory named `postgres`
 #     under a feature is walked, at any depth, not only
 #     internal/modules/<feature>/postgres/ itself. A vertical slice's adapter
-#     lives at internal/modules/<feature>/<slice>/postgres/, and that SQL is
+#     lives at internal/modules/<feature>/usecase/<slice>/postgres/, and that SQL is
 #     this feature's own adapter as much as the top-level one is -- the table
 #     it may name does not change because a slice sits between the feature and
 #     its postgres/ directory. Test files legitimately seed and assert against
@@ -561,7 +561,7 @@ sql_cte_names() {
 # module_go_files prints every non-test .go file under a module, not just the
 # ones inside a directory named postgres. Before slicing, a feature's SQL all
 # lived in one <feature>/postgres/, so scanning that one directory was scanning
-# all of it. Slices put SQL in <feature>/<slice>/postgres/ instead, and there
+# all of it. Slices put SQL in <feature>/usecase/<slice>/postgres/ instead, and there
 # is no longer a single privileged directory to point a narrower scan at --
 # and SQL was never guaranteed to stay inside postgres/ in the first place, so
 # service.go or a slice's command.go naming a table was already invisible to
@@ -587,7 +587,7 @@ check_table_ownership() {
 		esac
 
 		# A postgres/ directory can sit at the feature root or inside a slice
-		# (internal/modules/<feature>/<slice>/postgres/), so presence is a
+		# (internal/modules/<feature>/usecase/<slice>/postgres/), so presence is a
 		# search by name under the whole feature, not a test of one fixed
 		# path. Testing only the fixed path was the bug: it skipped a
 		# feature's SQL entirely once that feature's adapters moved into
@@ -670,7 +670,7 @@ check_table_ownership() {
 			# ones inside a directory named postgres: a query moved into
 			# internal/modules/<feature>/postgres/queries/ was already
 			# scanned before this widening, and so was one that lives in
-			# internal/modules/<feature>/<slice>/postgres/ -- but SQL sitting
+			# internal/modules/<feature>/usecase/<slice>/postgres/ -- but SQL sitting
 			# in service.go or a slice's command.go, outside any postgres/
 			# directory, was not. That was the hole db/OWNERSHIP.md's "what
 			# it does not catch" section named; module_go_files closes it.
@@ -783,7 +783,7 @@ check_cross_module_imports() {
 				[ -n "$hit" ] || continue
 				# hit looks like "12:\"<module>/internal/modules/<target>\"" or,
 				# with anything past the feature name, ".../<target>/domain",
-				# ".../<target>/<slice>", ".../<target>/<slice>/postgres", or
+				# ".../<target>/usecase/<slice>", ".../<target>/usecase/<slice>/postgres", or
 				# ".../<target>/contract" -- the only shape this check accepts
 				# from another module.
 				imp="${hit#*:}"
@@ -826,62 +826,25 @@ check_cross_module_imports() {
 # coupling that pattern exists to prevent. Every one of the 14 sliced modules
 # followed this voluntarily through phase 2; nothing enforced it until now.
 #
-# "Slice" is defined structurally rather than as a list of real slice names,
-# because a name-based allowlist is a place a genuine violation can hide (miss
-# one entry and it silently passes) and a name-based denylist is a place a
-# false positive can hide (miss one entry and a legitimate shared adapter gets
-# reported). A directory directly under a feature IS a slice unless its name
-# is one of these -- everything below is a shared, non-slice thing every
-# slice may reach into on its own terms, or an adapter family module.go (or,
-# for payment/worker, cmd/worker) constructs directly rather than composing as
-# one of Module's slices:
+# A directory under <feature>/usecase/ is a slice; that is the whole rule.
+# It replaces the NOT_A_SLICE denylist this check used to carry, which named
+# domain, contract, http, gateway, worker, postgres and redis and had to be
+# kept in step by hand -- miss an entry and a legitimate shared directory got
+# reported, or a real slice went unscanned. Everything a slice may reach into
+# on its own terms (domain/, contract/) and every adapter family module.go or
+# cmd/worker constructs directly (payment's gateway/, worker/, and the two
+# jobs/ queues) stays at the feature root, outside usecase/, so the walk below
+# never sees it. module.go and module_test.go are outside it too, which is
+# what exempts order/module_test.go's imports of order/usecase/place and
+# order/usecase/retrypayment: the module-level composition test sits beside
+# the module.go it tests, not inside any slice.
 #
-#   domain    shared domain types; every slice may import it.
-#   contract  the feature's published cross-module surface (check 4's
-#             concern); every slice may import it too.
-#   http      a feature-root http package, if one is ever added back. None
-#             exists today: the route tables that used to live here moved to
-#             internal/transport/http/routes/, so a feature root names no URL
-#             at all. Named here so recreating one is not mistaken for a new
-#             slice on day one.
-#   gateway   payment's outbound-port adapter family (stripe/midtrans/mock).
-#             No command.go, no http/, no entry in Module's slice list --
-#             module.go picks one implementation from Config.Gateway, the
-#             same relationship a slice has with its own postgres/ adapter.
-#   worker    payment's jobs.Processor/jobs.Sweeper wrapper. Also absent from
-#             Module's slice list: cmd/worker/main.go constructs it directly,
-#             never payment.New, so it gets the same treatment as gateway --
-#             not composed by module.go, therefore not a slice, whichever way
-#             the import points.
-#   postgres  a feature-root Postgres adapter, if one is ever added outside a
-#             slice. None exists today -- every adapter now sits inside the
-#             slice it backs -- named here so adding one at the root is not
-#             mistaken for a new slice on day one.
-#   redis     likewise, for a feature-root cache adapter. user's is nested at
-#             user/query/redis/, inside the slice that owns it, not here.
-#
-# module.go and module_test.go need no entry in this list at all: both sit at
-# the feature root, one level above where the walk below looks, so the "for
-# dir in .../*/" loop -- a glob with a trailing slash matches directories
-# only, the same trick feature_dirs and importer_roots already rely on --
-# never reaches them. That is what exempts order/module_test.go's imports of
-# order/place and order/retrypayment: it is the module-level composition test
-# proving order.New wires every payment-consuming slice, sitting beside the
-# module.go it tests, not inside any slice directory.
-NOT_A_SLICE='domain contract http gateway worker postgres redis'
-
-is_slice() {
-	case " $NOT_A_SLICE " in
-	*" $1 "*) return 1 ;;
-	esac
-	return 0
-}
-
 # _test.go files are in scope, matching check 4: a test reaching into a
 # sibling slice's internals proves the same coupling a production import
 # would, and mocks are the cheapest place to introduce one (payment/charge's
 # mocks_test.go imports payment/gateway for the interface it fakes -- that
-# passes here because gateway is not a slice, not because tests are exempt).
+# passes here because gateway is not under usecase/, not because tests are
+# exempt).
 check_sibling_slice_imports() {
 	local module module_re modules_re feature slice dir
 	local files file rc hits hit imp rest target
@@ -899,10 +862,9 @@ check_sibling_slice_imports() {
 	while IFS= read -r feature; do
 		[ -n "$feature" ] || continue
 
-		for dir in "$MODULES_ROOT/$feature"/*/; do
+		for dir in "$MODULES_ROOT/$feature"/usecase/*/; do
 			[ -d "$dir" ] || continue
 			slice="$(basename "$dir")"
-			is_slice "$slice" || continue
 
 			files="$(find "$dir" -type f -name '*.go' | sort)"
 			[ -n "$files" ] || continue
@@ -918,8 +880,16 @@ check_sibling_slice_imports() {
 				# grep exits 1 for "no match", which is not a failure here;
 				# anything greater than 1 is, and is reported rather than
 				# silently treated as a clean file.
+				#
+				# The pattern names <feature>/usecase/ rather than <feature>/,
+				# because only a path under usecase/ can be a slice at all. Left
+				# at <feature>/ it also matched this module's own domain/ and
+				# contract/ -- paths with no usecase/ segment for the strip below
+				# to remove, which left `rest` holding the whole import path and
+				# reported every slice's own `<feature>/domain` import as a
+				# sibling slice named `github.com`.
 				rc=0
-				hits="$(grep -noE "\"${module_re}/${modules_re}/${feature}/[^\"]*\"" "$file")" || rc=$?
+				hits="$(grep -noE "\"${module_re}/${modules_re}/${feature}/usecase/[^\"]*\"" "$file")" || rc=$?
 				if [ "$rc" -gt 1 ]; then
 					report "grep exited $rc scanning $file for sibling-slice imports -- the check could not run on this file, which is not the same as it passing"
 					continue
@@ -928,27 +898,23 @@ check_sibling_slice_imports() {
 
 				while IFS= read -r hit; do
 					[ -n "$hit" ] || continue
-					# hit looks like "12:\"<module>/internal/modules/<feature>/<slice>...\"".
+					# hit looks like "12:\"<module>/internal/modules/<feature>/usecase/<slice>...\"".
 					imp="${hit#*:}"
 					imp="${imp#\"}"
 					imp="${imp%\"}"
-					rest="${imp#*"$MODULES_ROOT"/"$feature"/}"
+					rest="${imp#*"$MODULES_ROOT"/"$feature"/usecase/}"
 					target="${rest%%/*}"
 
 					# Own adapter or own handler importing its own slice root --
 					# the compile-time port assertion in <slice>/postgres and the
 					# handler in <slice>/http both do this, and both are fine.
 					[ "$target" = "$slice" ] && continue
-					# domain, contract, http, gateway, worker, and a feature-root
-					# postgres/redis if one is ever added: not a slice, so not the
-					# coupling this check exists to catch.
-					is_slice "$target" || continue
 
 					report "'${slice}' imports sibling slice '${target}': ${file}:${hit%%:*}
     ${imp}
     A slice may not import a sibling slice directly -- check 4 cannot see this,
     since both live in the same module. Declare a port for the capability in
-    ${MODULES_ROOT}/${feature}/${slice}/ports.go and let
+    ${MODULES_ROOT}/${feature}/usecase/${slice}/ports.go and let
     ${MODULES_ROOT}/${feature}/module.go supply ${target} by name-match or a
     contract/ package."
 				done <<<"$hits"
@@ -1011,13 +977,14 @@ check_transport_direction() {
 		while IFS= read -r file; do
 			[ -f "$file" ] || continue
 
-			# A slice's own http adapter (internal/modules/<feature>/<slice>/http/)
-			# is the one legitimate importer -- it speaks HTTP by design. The
-			# feature route tables that used to be the second one are gone: every
-			# URL now lives in internal/transport/http/routes/, so no file under
-			# a module names a route or needs middleware.RouteGroup.
+			# A slice's own http adapter
+			# (internal/modules/<feature>/usecase/<slice>/http/) is the one
+			# legitimate importer -- it speaks HTTP by design. The feature route
+			# tables that used to be the second one are gone: every URL now lives
+			# in internal/transport/http/routes/, so no file under a module names
+			# a route or needs middleware.RouteGroup.
 			case "$file" in
-			"$MODULES_ROOT/$feature"/*/http/*.go) continue ;;
+			"$MODULES_ROOT/$feature"/usecase/*/http/*.go) continue ;;
 			esac
 
 			# A status-checked assignment, not `done < <(grep ...)` -- the shape

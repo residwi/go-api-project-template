@@ -2,9 +2,9 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	loginhttp "github.com/residwi/go-api-project-template/internal/modules/auth/login/http"
-	refreshhttp "github.com/residwi/go-api-project-template/internal/modules/auth/refresh/http"
-	registerhttp "github.com/residwi/go-api-project-template/internal/modules/auth/register/http"
+	loginhttp "github.com/residwi/go-api-project-template/internal/modules/auth/usecase/login/http"
+	refreshhttp "github.com/residwi/go-api-project-template/internal/modules/auth/usecase/refresh/http"
+	registerhttp "github.com/residwi/go-api-project-template/internal/modules/auth/usecase/register/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )

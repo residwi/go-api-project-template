@@ -12,8 +12,8 @@ import (
 
 	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
-	"github.com/residwi/go-api-project-template/internal/modules/order/place"
-	"github.com/residwi/go-api-project-template/internal/modules/order/retrypayment"
+	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/place"
+	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/retrypayment"
 	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
