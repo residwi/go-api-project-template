@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// CanShipOrder is the guard that lived inline in Service.CreateShipment as
+// CanShipOrder is the guard that lived inline in shipping's old CreateShipment as
 // `order.Status != "paid" && order.Status != "processing"`. It moves here so the
 // create slice states the rule by name instead of re-deriving order semantics.
 func TestCanShipOrder(t *testing.T) {

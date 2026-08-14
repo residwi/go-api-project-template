@@ -805,9 +805,9 @@ check_cross_module_imports() {
     A module may import only <feature>/contract from another module -- domain
     types and every slice, root package or adapter alike, are private to the
     module that owns them. Declare a consumer-side port instead (AGENTS.md
-    rule 6; e.g. internal/modules/product/inventory.go or
-    internal/modules/category/product.go), or add a contract/ package if a
-    struct genuinely needs to cross."
+    rule 10; e.g. internal/modules/product/usecase/query/ports.go or
+    internal/modules/category/usecase/remove/ports.go), or add a contract/
+    package if a struct genuinely needs to cross."
 			done <<<"$hits"
 		done <<<"$files"
 	done <<<"$importers"
