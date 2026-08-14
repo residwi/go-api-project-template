@@ -32,10 +32,10 @@ type OrderPorts interface {
 }
 
 type Module struct {
-	Query          *query.Reader
-	Create         *create.Command
-	UpdateTracking *updatetracking.Command
-	Deliver        *deliver.Command
+	Query          *query.UseCase
+	Create         *create.UseCase
+	UpdateTracking *updatetracking.UseCase
+	Deliver        *deliver.UseCase
 }
 
 func New(d Deps) *Module {

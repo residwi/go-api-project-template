@@ -122,7 +122,7 @@ func TestHandler_RefreshToken(t *testing.T) {
 	})
 }
 
-// TokenVersion doubles as revocation state: refresh.Command rejects a
+// TokenVersion doubles as revocation state: refresh.UseCase rejects a
 // refresh token whose version no longer matches the user's, and both it and
 // Active are auth-internal and must stay off the wire.
 func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {

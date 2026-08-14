@@ -18,9 +18,9 @@ type Deps struct {
 }
 
 type Module struct {
-	Query  *query.Reader
-	Create *create.Command
-	Delete *remove.Command
+	Query  *query.UseCase
+	Create *create.UseCase
+	Delete *remove.UseCase
 }
 
 func New(d Deps) *Module {

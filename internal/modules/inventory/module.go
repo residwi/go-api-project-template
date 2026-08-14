@@ -28,14 +28,14 @@ type Deps struct {
 }
 
 type Module struct {
-	Query    *query.Reader
-	Restock  *restock.Command
-	Adjust   *adjust.Command
-	Reserve  *reserve.Command
-	Deduct   *deduct.Command
-	Register *register.Command
+	Query    *query.UseCase
+	Restock  *restock.UseCase
+	Adjust   *adjust.UseCase
+	Reserve  *reserve.UseCase
+	Deduct   *deduct.UseCase
+	Register *register.UseCase
 
-	restore *restore.Command
+	restore *restore.UseCase
 }
 
 func New(d Deps) *Module {

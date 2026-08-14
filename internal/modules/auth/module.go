@@ -24,10 +24,10 @@ type UserPorts interface {
 }
 
 type Module struct {
-	Register *register.Command
-	Login    *login.Command
-	Refresh  *refresh.Command
-	Token    *token.Service
+	Register *register.UseCase
+	Login    *login.UseCase
+	Refresh  *refresh.UseCase
+	Token    *token.UseCase
 }
 
 func New(d Deps) *Module {

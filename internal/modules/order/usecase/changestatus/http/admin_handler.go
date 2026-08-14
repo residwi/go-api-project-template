@@ -11,16 +11,16 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type Command interface {
+type UseCase interface {
 	Execute(ctx context.Context, orderID uuid.UUID, toStatus domain.Status) error
 }
 
 type AdminHandler struct {
-	cmd       Command
+	cmd       UseCase
 	validator *validator.Validator
 }
 
-func NewAdmin(cmd Command, v *validator.Validator) *AdminHandler {
+func NewAdmin(cmd UseCase, v *validator.Validator) *AdminHandler {
 	return &AdminHandler{cmd: cmd, validator: v}
 }
 

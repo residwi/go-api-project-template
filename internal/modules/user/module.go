@@ -28,12 +28,12 @@ type Deps struct {
 }
 
 type Module struct {
-	Query         *query.Reader
-	UpdateProfile *updateprofile.Command
-	AdminUpdate   *adminupdate.Command
-	UpdateRole    *updaterole.Command
-	Delete        *remove.Command
-	Credentials   *credentials.Store
+	Query         *query.UseCase
+	UpdateProfile *updateprofile.UseCase
+	AdminUpdate   *adminupdate.UseCase
+	UpdateRole    *updaterole.UseCase
+	Delete        *remove.UseCase
+	Credentials   *credentials.UseCase
 }
 
 func New(d Deps) *Module {

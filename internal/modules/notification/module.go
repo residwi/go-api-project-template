@@ -21,9 +21,9 @@ type Deps struct {
 }
 
 type Module struct {
-	Query       *query.Reader
-	MarkRead    *markread.Command
-	MarkAllRead *markallread.Command
+	Query       *query.UseCase
+	MarkRead    *markread.UseCase
+	MarkAllRead *markallread.UseCase
 	Jobs        *jobs.Worker
 }
 

@@ -22,9 +22,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-// These route-level tests wire a REAL webhook.Command -- not a mock of this
-// package's own Command interface -- because the signature check they exist
-// to prove lives inside Execute now. A mocked Command would let a forged
+// These route-level tests wire a REAL webhook.UseCase -- not a mock of this
+// package's own UseCase interface -- because the signature check they exist
+// to prove lives inside Execute now. A mocked UseCase would let a forged
 // signature through without either handler or command ever computing an
 // HMAC, which is exactly the gap this test suite closes.
 
@@ -194,7 +194,7 @@ func setupWebhookMux(
 // The four fakes below stand in for webhook's ports. They are hand-written,
 // not mockery-generated: webhook's mocks are private to package webhook (a
 // _test.go mock never leaves its package), so a route-level test in this
-// package that wants a REAL webhook.Command -- to actually exercise
+// package that wants a REAL webhook.UseCase -- to actually exercise
 // signature verification -- cannot reach them.
 
 type fakeRepo struct {

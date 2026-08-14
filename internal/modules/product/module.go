@@ -23,11 +23,11 @@ type Deps struct {
 }
 
 type Module struct {
-	Query  *query.Reader
-	Create *create.Command
-	Update *update.Command
-	Delete *remove.Command
-	Images *images.Command
+	Query  *query.UseCase
+	Create *create.UseCase
+	Update *update.UseCase
+	Delete *remove.UseCase
+	Images *images.UseCase
 }
 
 func New(d Deps) *Module {

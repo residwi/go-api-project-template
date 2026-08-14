@@ -36,12 +36,12 @@ type ProductPorts interface {
 }
 
 type Module struct {
-	Query          *query.Reader
-	Add            *add.Command
-	UpdateQuantity *updatequantity.Command
-	Remove         *remove.Command
-	Lock           *lock.Command
-	Empty          *empty.Command
+	Query          *query.UseCase
+	Add            *add.UseCase
+	UpdateQuantity *updatequantity.UseCase
+	Remove         *remove.UseCase
+	Lock           *lock.UseCase
+	Empty          *empty.UseCase
 }
 
 func New(d Deps) *Module {

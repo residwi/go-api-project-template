@@ -135,7 +135,7 @@ func TestHandler_Get(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 
-	// query.Reader.GetByOrderIDForUser turns an ownership mismatch into
+	// query.UseCase.GetByOrderIDForUser turns an ownership mismatch into
 	// apperror.ErrNotFound itself (see query/reader_test.go) -- from this
 	// handler's side of the port, that looks identical to any other not-found.
 	t.Run("not owned by user", func(t *testing.T) {

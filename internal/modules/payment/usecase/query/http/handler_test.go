@@ -230,8 +230,8 @@ func TestToAdminPaymentResponse_OmitsGatewayResponse(t *testing.T) {
 		"the GatewayResponse field must not appear under any key")
 }
 
-func setupPaymentQueryMux(t *testing.T) (*http.ServeMux, *MockReader) {
-	reader := NewMockReader(t)
+func setupPaymentQueryMux(t *testing.T) (*http.ServeMux, *MockUseCase) {
+	reader := NewMockUseCase(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")

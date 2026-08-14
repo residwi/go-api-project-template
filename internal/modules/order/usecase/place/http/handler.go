@@ -14,16 +14,16 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type Command interface {
+type UseCase interface {
 	Execute(ctx context.Context, userID uuid.UUID, p place.Params, idempotencyKey string) (*place.Result, error)
 }
 
 type Handler struct {
-	cmd       Command
+	cmd       UseCase
 	validator *validator.Validator
 }
 
-func New(cmd Command, v *validator.Validator) *Handler {
+func New(cmd UseCase, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
 }
 

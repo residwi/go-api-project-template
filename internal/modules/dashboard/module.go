@@ -16,9 +16,9 @@ type Deps struct {
 }
 
 type Module struct {
-	Summary     *summary.Reader
-	TopProducts *topproducts.Reader
-	Revenue     *revenue.Reader
+	Summary     *summary.UseCase
+	TopProducts *topproducts.UseCase
+	Revenue     *revenue.UseCase
 }
 
 func New(d Deps) *Module {

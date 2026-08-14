@@ -67,11 +67,11 @@ type CouponPort interface {
 }
 
 type Module struct {
-	Webhook      *webhook.Command
-	Query        *query.Reader
-	Refund       *refund.Command
-	Charge       *charge.Command
-	Jobs         *jobs.Command
+	Webhook      *webhook.UseCase
+	Query        *query.UseCase
+	Refund       *refund.UseCase
+	Charge       *charge.UseCase
+	Jobs         *jobs.Queue
 	JobProcessor *jobs.Dispatcher
 }
 

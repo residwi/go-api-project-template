@@ -9,16 +9,16 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type Command interface {
+type UseCase interface {
 	Execute(ctx context.Context, payload []byte, signature string) error
 }
 
 type Handler struct {
-	cmd    Command
+	cmd    UseCase
 	logger *slog.Logger
 }
 
-func New(cmd Command, log *slog.Logger) *Handler {
+func New(cmd UseCase, log *slog.Logger) *Handler {
 	return &Handler{cmd: cmd, logger: log}
 }
 

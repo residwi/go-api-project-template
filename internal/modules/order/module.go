@@ -74,14 +74,14 @@ type PaymentJobCanceller interface {
 }
 
 type Module struct {
-	Place        *place.Command
-	Query        *query.Reader
-	RetryPayment *retrypayment.Command
-	Cancel       *cancel.Command
-	ChangeStatus *changestatus.Command
-	Expire       *expire.Command
-	RecoverStale *recoverstale.Command
-	Transition   *transition.Applier
+	Place        *place.UseCase
+	Query        *query.UseCase
+	RetryPayment *retrypayment.UseCase
+	Cancel       *cancel.UseCase
+	ChangeStatus *changestatus.UseCase
+	Expire       *expire.UseCase
+	RecoverStale *recoverstale.UseCase
+	Transition   *transition.UseCase
 }
 
 func New(d Deps) *Module {

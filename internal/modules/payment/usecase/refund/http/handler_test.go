@@ -91,8 +91,8 @@ func TestHandler_Refund(t *testing.T) {
 	})
 }
 
-func setupRefundMux(t *testing.T) (*http.ServeMux, *MockCommand) {
-	cmd := NewMockCommand(t)
+func setupRefundMux(t *testing.T) (*http.ServeMux, *MockUseCase) {
+	cmd := NewMockUseCase(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")

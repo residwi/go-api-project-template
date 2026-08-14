@@ -119,8 +119,8 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 	})
 }
 
-func setupMux(t *testing.T) (*http.ServeMux, *MockCommand) {
-	cmd := NewMockCommand(t)
+func setupMux(t *testing.T) (*http.ServeMux, *MockUseCase) {
+	cmd := NewMockUseCase(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
