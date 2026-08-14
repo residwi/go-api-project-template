@@ -5,7 +5,7 @@ A production-ready Go API template with Feature-Based Clean Architecture (Vertic
 ## Features
 
 - **Go 1.26+** with the new `ServeMux` routing
-- **Feature-Based Clean Architecture** (Vertical Slicing) — 14 feature modules
+- **Feature-Based Clean Architecture** (Vertical Slicing) — 14 feature modules, 66 slices
 - **Two binaries**: API server (`cmd/api`) and Payment Job Worker (`cmd/worker`)
 - **PostgreSQL 16+** with `pgx/v5` driver (requires `gen_random_uuid()`)
 - **Redis 8.0+** caching with `go-redis/v9` (requires `HSETEX`)
@@ -24,14 +24,20 @@ A production-ready Go API template with Feature-Based Clean Architecture (Vertic
 ## Project Structure
 
 Feature modules sit under `/internal/modules` — one subdirectory per feature.
-All fourteen are sliced into vertical use-case packages now (68 of them in
-total); there is no more layered shape to compare against. Each module owns
-a `domain/`, a `module.go` that composes its slices, and one directory per
-use case, each with its own storage port and adapters. Adapters are
-subpackages named for their technology, and a slice only has the ones it
-needs, so the tree is deliberately **non-uniform**. Seven modules also have a
-`contract/` subpackage — not an adapter, but the published struct types
-other modules are allowed to import directly.
+All fourteen are sliced into vertical use-case packages, 66 of them, every
+one under that feature's `usecase/` directory; there is no more layered shape
+to compare against. Each module owns a `domain/`, a `module.go` that composes
+its slices, and a `usecase/` holding one directory per use case, each with its
+own storage port and adapters. Adapters are subpackages named for their
+technology, and a slice only has the ones it needs, so the tree is
+deliberately **non-uniform**. Seven modules also have a `contract/`
+subpackage — not an adapter, but the published struct types other modules are
+allowed to import directly.
+
+**A module names no URL.** Every route in the system is declared in
+`/internal/transport/http/routes`, one file per feature, 14 files, 64 routes.
+A slice supplies a handler with exported route methods; the transport decides
+the verb, the path and the middleware group.
 
 ```text
 /go-api-project-template
@@ -51,26 +57,27 @@ other modules are allowed to import directly.
 │   │       │                        # module's own env vars
 │   │       ├── /contract            # published struct types another module
 │   │       │                        # may import directly (7 of 14 have one)
-│   │       ├── /http                # routes.go ONLY -- RouteDeps +
-│   │       │                        # RegisterRoutes, mounts every slice's
-│   │       │                        # own http/, no DTO, no handler
-│   │       └── <usecase>/           # one dir per slice, e.g. query/ create/
-│   │           ├── command.go         # a Command with one Execute (write) --
-│   │           ├── reader.go          # -- or a Reader (read-only), never both
-│   │           ├── repository.go      # the storage port; postgres/ satisfies it
-│   │           ├── ports.go           # cross-module ports only this slice
-│   │           │                      # needs -- absent where it needs none
-│   │           ├── /postgres          # SQL adapter, only if this slice has any
-│   │           └── /http              # routes.go's own file split by handler
-│   │                                  # role -- handler.go, admin_handler.go,
-│   │                                  # webhook_handler.go (payment/webhook
-│   │                                  # only) -- only if this slice has a route
+│   │       └── /usecase             # holds slices and nothing else
+│   │           └── <slice>/         # one dir per use case, e.g. query/ create/
+│   │               ├── usecase.go     # exactly one exported UseCase, whatever
+│   │               │                  # the slice does -- read, write or both
+│   │               ├── repository.go  # the storage port; postgres/ satisfies it
+│   │               ├── ports.go       # cross-module ports only this slice
+│   │               │                  # needs -- absent where it needs none
+│   │               ├── /postgres      # SQL adapter, only if this slice has any
+│   │               └── /http          # handler + its wire DTOs, split by
+│   │                                  # handler role -- handler.go,
+│   │                                  # admin_handler.go, webhook_handler.go
+│   │                                  # (payment/usecase/webhook only) -- only
+│   │                                  # if this slice has a route. No routes.go.
 │   ├── /money                  # Money value object (amount + currency, paired)
 │   ├── /apperror               # Error vocabulary (ErrNotFound, ErrBadRequest, ...)
 │   ├── /bootstrap              # The composition root: builds every module,
 │   │                           # wires cross-module ports by name-match
 │   ├── /transport
 │   │   └── /http               # Router, server, middleware, response envelope
+│   │       └── /routes         # EVERY URL in the system: one file per
+│   │                           # feature, 14 files, 64 routes
 │   ├── /platform               # Infrastructure, no domain knowledge
 │   │   ├── /config             # Infra config (godotenv + envconfig) -- module-owned
 │   │   │                       # config (JWT, cart limits, payment gateway, ...)
@@ -83,16 +90,18 @@ other modules are allowed to import directly.
 │   ├── /migrations             # goose migrations
 │   ├── /seeds                  # Seed data
 │   └── OWNERSHIP.md            # Which module owns which table (machine-checked)
-├── /scripts                    # check-boundaries.sh
+├── /scripts                    # check-boundaries.sh + its probe test
 ├── ARCHITECTURE.md             # Why the codebase is shaped this way
 └── ARCHITECTURE-LIMITATIONS.md # What that shape costs you
 ```
 
-`payment` has two directories outside this shape: `gateway/` (the outbound
-`Gateway` port plus its three real implementations — `stripe/ midtrans/
-mock/`, picked once in `module.go`) and `worker/` (wraps payment's own job
-queue plus order's housekeeping sweep for `cmd/worker`) — adapter families,
-not slices.
+Four directories sit at a feature root, outside `usecase/`, and none is a
+slice. Three are `payment`'s: `gateway/` (the outbound `Gateway` port plus its
+three real implementations — `stripe/ midtrans/ mock/`, picked once in
+`module.go`), `jobs/` (payment's own queue plus the dispatcher that routes a
+claimed job to charge or refund) and `worker/` (wraps that dispatcher plus
+order's housekeeping sweep for `cmd/worker`). The fourth is
+`notification/jobs/`, whose `Worker` is queue and processor at once.
 
 Mocks are generated by mockery v3 as a private `mocks_test.go` beside the
 interface they mock, in-package -- there is no top-level `/mocks` directory.
@@ -102,12 +111,16 @@ failure: no `json` tag outside a slice's own `http/`; `db/OWNERSHIP.md` itself
 has no duplicate or orphaned row; no SQL anywhere in a module naming a table
 that module does not own; from another module, only `<feature>/contract` is
 importable — not its domain, not a sibling slice's adapter, not its bare root
-package; a slice may not import a sibling slice within its own module; a
-module may not import `internal/transport` except through its own slice's
-`http/`; and a `contract/` package imports only stdlib, `github.com/google/uuid`
-and `internal/money`. See `AGENTS.md` for the full list, each check's exact
-name in `scripts/check-boundaries.sh`, and which rules are conventions rather
-than checks.
+package; a slice may not import a sibling slice within its own module (a
+directory under `usecase/` is a slice — that is the whole rule); a module may
+not import `internal/transport` except through its own slice's `http/`; and a
+`contract/` package imports only stdlib, `github.com/google/uuid` and
+`internal/money`. `scripts/boundaries_test.go` plants a probe file in a real
+slice and asserts the script reports it, so a path-keyed check that has
+quietly stopped matching anything fails a test instead of printing
+`Boundaries OK`. See `AGENTS.md` for the full list, each check's exact name in
+`scripts/check-boundaries.sh`, and which rules are conventions rather than
+checks.
 
 ## Getting Started
 
@@ -558,11 +571,11 @@ Key variables:
 
 This template follows **Feature-Based Clean Architecture** (Vertical Slicing), one module per feature and one slice per use case inside it:
 
-- Each feature (auth, user, product, order, etc.) is a module containing several self-contained slices, each with its own command or reader, repository, and DTOs
-- Dependencies flow inward (handlers → commands/readers → repositories)
+- Each feature (auth, user, product, order, etc.) is a module containing several self-contained slices under its `usecase/`, each with exactly one exported `UseCase`, its own repository port, and its own DTOs
+- Dependencies flow inward (handlers → `UseCase` → repositories), and URLs flow the other way: `internal/transport/http/routes` imports the modules, never the reverse
 - PostgreSQL adapters live in each slice's own `postgres/` subpackage, so a slice *cannot* import its own SQL adapter without a compile-time import cycle
-- Cross-module dependencies use interfaces declared by the **consumer** — a slice's own `ports.go` when only that slice needs it (e.g. `internal/modules/product/query/ports.go` declares what `product/query` needs from inventory; `inventory` publishes nothing), or `module.go` when several sibling slices share the dependency (`order/module.go` declares six such ports at once, since `place`, `cancel` and `expire` all need inventory). Either way the dependency graph stays acyclic by construction. Two mechanisms satisfy a port, and `internal/bootstrap` (the composition root, shared by the API server and worker) wires them once: **name-match**, when the producer's own value already has a method named what the port asks for (`promotion/reserve.Command` already satisfies both `order.CouponPort` and `payment.CouponPort`), or a **`<feature>/contract/` package**, when what crosses is a struct rather than something a value already satisfies
-- Order status changes from other modules go through named `domain.Transition` values applied via `order/transition.Applier.Apply` — payment and shipping express intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) against their own port, and the value they wire to — `order/transition.Applier` itself, or `order.Module`'s delegators — implements each intent method by calling `Apply` with the right transition internally, keeping the order state machine's allowed transitions defined in one place (`internal/modules/order/domain/transition.go`)
+- Cross-module dependencies use interfaces declared by the **consumer** — a slice's own `ports.go` when only that slice needs it (e.g. `internal/modules/product/usecase/query/ports.go` declares what `product/usecase/query` needs from inventory; `inventory` publishes nothing), or `module.go` when several sibling slices share the dependency (`order/module.go` declares six such ports at once, since `place`, `cancel` and `expire` all need inventory). Either way the dependency graph stays acyclic by construction. Two mechanisms satisfy a port, and `internal/bootstrap` (the composition root, shared by the API server and worker) wires them once: **name-match**, when the producer's own value already has a method named what the port asks for (`promotion/usecase/reserve.UseCase` already satisfies both `order.CouponPort` and `payment.CouponPort`), or a **`<feature>/contract/` package**, when what crosses is a struct rather than something a value already satisfies
+- Order status changes from other modules go through named `domain.Transition` values applied via `order/usecase/transition.UseCase.Apply` — payment and shipping express intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) against their own port, and the value they wire to — `order/usecase/transition.UseCase` itself, or `order.Module`'s delegators — implements each intent method by calling `Apply` with the right transition internally, keeping the order state machine's allowed transitions defined in one place (`internal/modules/order/domain/transition.go`)
 - Monetary amounts are `money.Money` (amount paired with currency) in `order`, `payment`, `product` and `cart`, so an amount cannot drift from the currency beside it. `promotion` and `dashboard` stay on `int64` for reasons recorded in `ARCHITECTURE.md` §10
 - Configuration is validated at startup and boot aborts on failure: infra-level settings in `Infra.validate()` (`internal/platform/config`), module-owned settings (e.g. a sub-second `AUTH_RATE_WINDOW` or a `WORKER_CONCURRENCY < 1`) inline in that module's own `LoadConfig` (`auth.LoadConfig`, `cart.LoadConfig`, `order.LoadConfig`, `payment.LoadConfig`)
 - The error vocabulary lives in `internal/apperror`; generic utilities (`response`, `paging`, `slug`) live in `internal/platform`

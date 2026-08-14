@@ -19,11 +19,13 @@ enforce, because reader will copy whatever they find here into real system.
 
 Two consequences worth naming, since they look like mistakes otherwise:
 
-- `postgres`/`http` subpackage split costs ~15 aliased imports in the
-  composition root (`internal/bootstrap/app.go`) and another ~15 in the
-  router (`internal/transport/http/router.go`). In product, hard to justify.
-  Here it the point: physical boundary teaches port/adapter distinction in way
-  file naming convention cannot.
+- `postgres`/`http` subpackage split costs an import alias per adapter,
+  wherever that adapter is wired: 6 in the composition root
+  (`internal/bootstrap/app.go`), 1 to 11 per module in each `module.go`, and
+  3 to 5 per feature across the 14 files of
+  `internal/transport/http/routes/`. In product, hard to justify. Here it the
+  point: physical boundary teaches port/adapter distinction in way file
+  naming convention cannot.
 - Where rule exists, machine-checked (`make check-boundaries`). Rule
   living only in README rots, and template shipping rotted rule
   teaches rot.
@@ -39,19 +41,19 @@ freely where better design demanded.
 `internal/domain/order` plus `internal/application/order` plus
 `internal/infrastructure/order`. This decision is about that outer
 boundary only; decision 14 covers what now sits inside it — a `domain/`,
-one `module.go`, and one package per use case, in place of the single
-`service.go`/`repository.go` this decision originally described. Both are
-true at once: `order` is still one feature package, not three layer
-packages: it is now also a boundary containing several slice packages,
-not one flat package.
+one `module.go`, and a `usecase/` directory holding one package per use
+case, in place of the single `service.go`/`repository.go` this decision
+originally described. Both are true at once: `order` is still one feature
+package, not three layer packages: it is now also a boundary containing
+several slice packages, not one flat package.
 
-**Why:** `payment.charge.New()` and `payment/charge.Repository` read
+**Why:** `charge.New()` and `payment/usecase/charge.Repository` read
 naturally in Go; `application.NewService()` and `domain.Repository` put the
 layer name in every import and tell nothing about what the code is for.
 Layered trees also scatter one change across three directories.
 
 **Cost accepted:** a feature is a directory tree, not a file — bigger than
-any single layer file was, and now one level deeper than the flat feature
+any single layer file was, and now two levels deeper than the flat feature
 package this decision first proposed.
 
 **Why the `modules/` wrapper:** 14 feature packages sit under
@@ -66,11 +68,11 @@ construction cannot drift way list of exceptions can.
 ## 2. Ports live with the consumer
 
 The consumer is now a slice, or the module composing several of them.
-`internal/modules/product/query/ports.go` declares `InventoryReader` —
-the interface `query` alone needs from inventory. `inventory` does not
+`internal/modules/product/usecase/query/ports.go` declares `InventoryReader`
+— the interface `query` alone needs from inventory. `inventory` does not
 publish it; `query` names exactly what it needs and something else
-satisfies it. `internal/modules/category/remove/ports.go` does the same
-for `ProductCounter`, one dependency, one slice. `order/module.go` is the
+satisfies it. `internal/modules/category/usecase/remove/ports.go` does the
+same for `ProductCounter`, one dependency, one slice. `order/module.go` is the
 other shape: `place`, `cancel` and `expire` all need inventory, so
 `order`'s port lives in `module.go` instead, as one interface plus one
 `Deps` field every slice that needs it shares — grouping at the module
@@ -83,7 +85,7 @@ in the tree: every port file, at either level, is `ports.go`.
 graph has no cycles by construction and each slice's — or module's — port
 list is exactly the API it would need if extracted. Pays off immediately:
 because interfaces are declared narrow at the consumer,
-`promotion/reserve.Command` satisfies both `order.CouponPort` and
+`promotion/usecase/reserve.UseCase` satisfies both `order.CouponPort` and
 `payment.CouponPort` directly, and notification's `jobs.Worker` satisfies
 `platform/jobs.Processor` directly — adapters never needed writing.
 
@@ -99,8 +101,10 @@ not a local one.
 
 ## 3. Adapters are subpackages named for their technology
 
-Now one level deeper, per slice: `internal/modules/payment/charge/postgres`,
-`internal/modules/payment/webhook/postgres`, `internal/modules/payment/webhook/http`.
+Now two levels deeper, per slice:
+`internal/modules/payment/usecase/charge/postgres`,
+`internal/modules/payment/usecase/webhook/postgres`,
+`internal/modules/payment/usecase/webhook/http`.
 `payment/gateway/stripe`, `payment/gateway/midtrans` and `payment/gateway/mock`
 are the exception that proves the rule at a different scope — an adapter
 family for one outbound port shared by two slices, still named for its
@@ -110,41 +114,48 @@ technology, just not nested inside either slice that uses it.
 slice cannot import its own `postgres/` without a cycle, so SQL physically
 cannot leak into its command or reader.
 
-**Cost accepted:** 64 packages named `postgres` and 67 named `http` under
-`internal/modules` today (one more `http`, `internal/transport/http`, outside
-it), one named `redis` — re-run `find internal/modules -type d -name
-postgres | wc -l` (and `http`, `redis`) rather than trust these; they move
-with every slice added. Every module's own `module.go` needs one import
-alias per slice adapter it wires (`addpg`, `queryhttp`, …) — from 1
-(`auth`) to 11 (`order`) aliases per file today, counted with
-`grep -cE '^\s+[a-z]+ "github.com/residwi' internal/modules/<feature>/module.go` —
-and `internal/transport/http/router.go` needs one per feature's route
-table (`authhttp`, `carthttp`, …, 14 in total, plus the dev-only mock
-gateway's registrar). The composition root, `internal/bootstrap/app.go`,
-mostly escapes this now: it imports each module by its unaliased root
+**Cost accepted:** 64 packages named `postgres` and 53 named `http` under
+`internal/modules` today, one named `redis` — re-run `find internal/modules
+-type d -name postgres | wc -l` (and `http`, `redis`) rather than trust
+these; they move with every slice added. The `http` count fell from 67 when
+decision 15 moved the 14 feature route tables into
+`internal/transport/http/routes/`: what is left under a module is exactly one
+`http/` per slice that has a route, and no route table anywhere. Every
+module's own `module.go` needs one import alias per slice adapter it wires
+(`addpg`, `querypg`, …) — from 1 (`auth`) to 11 (`order`) aliases per file
+today, counted with
+`grep -cE '^\s+[a-z]+ "github.com/residwi' internal/modules/<feature>/module.go`.
+The slice `http/` adapters are aliased somewhere else entirely now:
+`internal/transport/http/routes/<feature>.go` imports each of its feature's
+slice handlers (`addhttp`, `queryhttp`, …), 3 to 5 per file, and
+`router.go` itself is down to a single aliased import — the dev-only mock
+gateway's registrar — because it imports `routes` unaliased and calls one
+function per feature. The composition root, `internal/bootstrap/app.go`,
+mostly escapes this too: it imports each module by its unaliased root
 package and lets `module.go` wire that module's own adapters, so aliasing
 survives there only where the order/payment cycle forces bootstrap to
-reach one level past a module boundary before that module exists yet — 6
+reach two levels past a module boundary before that module exists yet — 6
 aliased imports today (`ordercancel`, `ordercancelpg`, `ordertransition`,
 `ordertransitionpg`, `orderquery`, `orderquerypg`), down from the double
 digits a flat, unsliced `app.go` used to carry. Cost still concentrates in
-one file per module, deliberately — just no longer in one file for the
-whole binary.
+one file per module and one per feature's routes, deliberately — just no
+longer in one file for the whole binary.
 
 ## 4. Adapter subpackages exist only where adaptation is needed
 
 True at the slice level now, and the evidence is sharper for it: `auth`
 has **no** `postgres/` anywhere in the module — none of its four slices
 stores anything, because the one thing `auth` needs from storage
-(`UserProvider.GetByID`) is `user`'s to hold. `user/query` is the one
-slice in the whole repo with two backing stores, `postgres/` and `redis/`
-— every other slice in every other module has at most one. `wishlist` has
-no `ports.go` at all, in any of its three slices: nothing it does reaches
-outside the module, so there is no cross-module dependency for a port to
-name. `notification` has **no** `worker/` package because its `jobs/`
-slice's `Worker` satisfies `platform/jobs.Processor` directly — one value
-does both roles `payment` needs two packages for (`jobs/` the queue,
-`worker/` the processor that also drives order's housekeeping sweep).
+(`UserProvider.GetByID`) is `user`'s to hold. `user/usecase/query` is the
+one slice in the whole repo with two backing stores, `postgres/` and
+`redis/` — every other slice in every other module has at most one.
+`wishlist` has no `ports.go` at all, in any of its three slices: nothing it
+does reaches outside the module, so there is no cross-module dependency for
+a port to name. `notification` has **no** `worker/` package because its
+`jobs/` package's `Worker` satisfies `platform/jobs.Processor` directly —
+one value does both roles `payment` needs three packages for (`jobs.Queue`
+the queue, `jobs.Dispatcher` the processor, and `worker/` the wrapper that
+also drives order's housekeeping sweep).
 `contract/` is not counted as an adapter — it adapts no technology,
 decision 13 covers it on its own terms, and a module gets one
 independently of how many adapters it needs.
@@ -179,9 +190,9 @@ identical mocks.
 
 **One port per backing store:** `TxRunner` narrows what service holds for
 _atomicity_; says nothing about how many stores feature talks to, and
-nothing stops that number being more than one. `user` first
-feature where it is: `user.Repository` its Postgres port, adapted by
-`postgres/`, and `user.StatusCache` second, independent port over Redis,
+nothing stops that number being more than one. `user/usecase/query` the one
+slice where it is: `query.Repository` its Postgres port, adapted by
+`postgres/`, and `query.StatusCache` second, independent port over Redis,
 adapted by `redis/`. Rule generalises same way decision 3's
 subpackage-per-technology split does — one port per backing store
 (`repository.go`, `cache.go`), one adapter subpackage per port —
@@ -242,24 +253,26 @@ cleanup that never happened. Lie in schema worse than absence.
 ## 9. `<slice>/http` owns the wire format
 
 No `json` tag exists on a type **this system owns** outside
-`internal/modules/<feature>/<slice>/http/` — one directory deeper than
-this decision first drew it, now that every feature is slices rather than
-one flat package. Every endpoint owns its request DTO, response DTO and
+`internal/modules/<feature>/usecase/<slice>/http/` — two directories deeper
+than this decision first drew it, now that every feature is slices under a
+`usecase/` and every slice's handler is the only thing left in a module that
+knows about HTTP. Every endpoint owns its request DTO, response DTO and
 explicit mapping; those live beside the handler that serialises them.
 Files inside a slice's `http/` split by **handler role**, not one per use
 case: `handler.go` for the default handler, `admin_handler.go` where that
 slice's routes split by caller role, and `webhook_handler.go` in
-`payment/webhook`, whose only route is the gateway callback and which
-therefore has no `handler.go` at all. Each has a `_test.go` beside it,
+`payment/usecase/webhook`, whose only route is the gateway callback and
+which therefore has no `handler.go` at all. Each has a `_test.go` beside it,
 `package http`, holding both route-level tests and tests that must reach
-unexported mappers directly. A feature's own root `http/` holds only
-`routes.go` — `RouteDeps` and `RegisterRoutes`, nothing else — and mounts
-every slice's own `http/` package.
+unexported mappers directly. **No feature has a root `http/` any more**: the
+`routes.go` that used to sit there is gone, and the URL it declared lives in
+`internal/transport/http/routes/<feature>.go` instead — decision 15.
 
-**Response DTOs are duplicated across slices on purpose.** `order/place`,
-`order/query`, `order/retrypayment` and every other slice that returns an
-order all declare their own unexported response type rather than share
-one, even where two slices' shapes happen to match today. This is the
+**Response DTOs are duplicated across slices on purpose.**
+`order/usecase/place`, `order/usecase/query`, `order/usecase/retrypayment`
+and every other slice that returns an order all declare their own
+unexported response type rather than share one, even where two slices'
+shapes happen to match today. This is the
 same trade decision 14 makes explicit for shipping's four slices — one
 endpoint's new field cannot leak into another's response by sharing its
 struct — generalised to all fourteen modules now that all fourteen are
@@ -321,7 +334,8 @@ only ones whose data model carries currency at all. Two deliberately
 excluded, and reasons load-bearing rather than bookkeeping:
 
 - **`promotion` stays on `int64`.** `Promotion.Value` _polymorphic_: with
-  `TypePercentage` it percentage (`service.go:167` guards `value > 100`),
+  `TypePercentage` it percentage
+  (`internal/modules/promotion/domain/promotion.go:46` guards `value > 100`),
   with `TypeFixedAmount` it minor units. `money.New(10, "USD")` to mean "10%"
   would be value object asserting something false. And promotion has no
   currency field anywhere, so even its genuinely-monetary `MinOrderAmount`,
@@ -351,10 +365,10 @@ that states its policy in its name.
 **Two seams where `Money` deliberately stops.** Both places reader will
 otherwise read as oversight:
 
-1. **`place.CouponReserver`** (`internal/modules/order/place/ports.go`) still passes `orderSubtotal int64`
+1. **`place.CouponReserver`** (`internal/modules/order/usecase/place/ports.go`) still passes `orderSubtotal int64`
    and returns `discountAmount int64`. Its implementer is `promotion`, which has no
    currency to honour `Money` with. Pairing happens on order's side of
-   seam — `internal/modules/order/place/command.go` passes `subtotal.Amount` and rebuilds
+   seam — `internal/modules/order/usecase/place/usecase.go` passes `subtotal.Amount` and rebuilds
    `money.New(discount, subtotal.Currency)` — which also where clamp policy
    lives: `max(subtotal-discount, 0)`, so over-large coupon cannot produce
    negative charge. `Money.Sub` deliberately does not decide that, so clamp
@@ -384,7 +398,8 @@ refund sagas — flows spanning five modules no single feature package can
 own.
 
 Now that every module is sliced, "next to their code" means next to the
-*slice*: `internal/modules/<feature>/<slice>/postgres/repository_test.go`
+*slice*:
+`internal/modules/<feature>/usecase/<slice>/postgres/repository_test.go`
 is its own package and its own test binary, and every slice's test package
 under one module claims that module's database by the same name
 (`test_order`, `test_payment`, …) rather than one name per package. They
@@ -426,7 +441,7 @@ derived from one parent would otherwise share a backing array and
 overwrite each other.
 
 **The cost:** you can no longer read a single log call and know everything
-it emits. `order/expire.Command.Sweep`'s
+it emits. `order/usecase/expire.UseCase.Sweep`'s
 `c.logger.ErrorContext(ctx, "failed to expire order", slog.String("order_id", o.ID.String()), slog.String("error", err.Error()))`
 also emits `runner`, because it runs inside the payment runner's per-tick
 sweep, and nothing at that line names it. In exchange, 32 repeated
@@ -447,7 +462,7 @@ contract package supplies only the shape, never the interface — that stays
 declared by the consumer, per decision 2.
 
 **Why:** decision 2's trick — a producer's own value already had a method
-named what the consumer's port asked for, so `promotion/reserve.Command`
+named what the consumer's port asked for, so `promotion/usecase/reserve.UseCase`
 satisfies `payment.CouponPort` with no adapter at all — works for scalars and for
 interfaces a producer already implements. It does not work when what crosses
 is a struct: two modules cannot each declare their own `User` and have the
@@ -474,18 +489,34 @@ It holds `domain/` (its aggregate
 and rules — `Shipment`, `ShipmentStatus`, `CanShipOrder` — module-private by
 convention, not by any check: nothing outside `shipping` needs it, so nothing
 imports it), `module.go` (constructs the slices, imports no transport
-package), `http/routes.go` (holds only `RouteDeps` and `RegisterRoutes`,
-assembling each slice's own `http` package), a `contract/` **only if another
-module consumes a struct from it** (`shipping` has none: only
-`internal/bootstrap` and `internal/transport` import it at all, and both are
-the wiring layer, not a consumer), and one package per use case — `query`,
-`create`, `updatetracking`, `deliver`.
+package), a `contract/` **only if another module consumes a struct from it**
+(`shipping` has none: only `internal/bootstrap` and `internal/transport`
+import it at all, and both are the wiring layer, not a consumer), and a
+`usecase/` directory holding one package per use case — `query`, `create`,
+`updatetracking`, `deliver`.
 
-A slice owns its use case (a `Command` with one `Execute`, for the three that
-write; a `Reader` named for what it answers, for the one that only reads —
-`query.Reader.GetByOrderIDForUser`), its own storage port, its `postgres/`
-adapter and its `http/` adapter. "Own" is literal: `updatetracking.Repository`
-and `deliver.Repository` both need `GetByID`; each declares it rather than
+**The `usecase/` level is load-bearing, not decoration.** It makes "is this a
+slice?" a fact about the path rather than a judgement about the name: check 5
+(`check_sibling_slice_imports`) used to carry a seven-name denylist —
+`domain`, `contract`, `http`, `gateway`, `worker`, `postgres`, `redis` — that
+had to be kept in step by hand, and a missing entry either reported a
+legitimate shared directory or left a real slice unscanned. A directory under
+`usecase/` is a slice, and that is the whole rule. The price is honest: the
+denylist never listed `jobs`, so `payment/jobs` and `notification/jobs` were
+scanned as slice-importers before and are not now. No such import exists
+today, and the narrowing is recorded rather than described as a superset.
+
+A slice owns its use case — one exported `UseCase` in one `usecase.go`,
+whatever the slice does: `create.UseCase.Execute` writes,
+`query.UseCase.GetByOrderIDForUser` reads. The per-role names this decision
+first used (`Command` for a writer, `Reader` for a reader) are retired
+everywhere, along with `Service`, `Store` and `Applier`. One name means a
+reader can open any of the 66 slices and know what to look for, and it stops
+the question "is a slice with two methods still a `Command`?" from having to
+be answered at every boundary — `order/usecase/transition.UseCase` has ten.
+A slice also owns its storage port, its `postgres/` adapter and its `http/`
+adapter. "Own" is literal: `updatetracking.Repository` and
+`deliver.Repository` both need `GetByID`; each declares it rather than
 sharing one. A slice declares a port for anything it does not implement
 itself — another module's capability or a sibling slice's — and `module.go`
 wires it. Three of shipping's four slices declare one (`query.OrderPort`,
@@ -499,26 +530,87 @@ fetched and writes it back — there is nothing outside itself to ask.
 
 **Why:** a use case's whole implementation is one directory, and what it
 depends on is its own `ports.go`, or its absence. `ls
-internal/modules/shipping/` is the module's use-case list, and a slice with no
-`ports.go` reaches nothing beyond itself — `updatetracking` is that case, not
-an oversight.
+internal/modules/shipping/usecase/` is the module's use-case list — nothing
+else is in there to read past — and a slice with no `ports.go` reaches
+nothing beyond itself; `updatetracking` is that case, not an oversight.
 
 **Cost accepted:** three packages per slice (root, `postgres/`, `http/`), so
-shipping alone went from 3 packages, layered, to 15, sliced. `module.go`
-imports each slice's own package plus that slice's `postgres/` adapter;
-`http/routes.go` imports each slice's `http/` adapter and reaches its command
-or reader through `shipping.Module`'s fields instead of importing the slice
-package directly. Every slice's adapter is named `postgres` or `http`, same as
-every other slice's, so importing it needs an alias, not merely permits one —
-four aliased imports in each file today, one per slice. Response DTOs are
-duplicated across slices that return the same shape: `query`, `create`,
-`updatetracking` and `deliver` each declare their own unexported
-`shipmentResponse` rather than share one — deliberately, so one endpoint's new
-field cannot appear in another's output. The other thirteen modules paid the
-same multiplier as each was sliced in turn, scaled to however many use cases
-each module turned out to need — decision 3's package counts, and decision
-9's response-DTO-duplication note, are the tally now that all fourteen have
-paid it.
+shipping alone went from 3 packages, layered, to 14 today, sliced —
+`usecase/` is a directory, not a package, so it adds a path segment to every
+import in the module without adding a package to compile. `module.go`
+imports each slice's own package plus that slice's `postgres/` adapter, and
+those import paths are one segment longer than they were. Every slice's
+adapter is named `postgres` or `http`, same as every other slice's, so
+importing it needs an alias, not merely permits one — five aliased imports in
+shipping's `module.go` today. Response DTOs are duplicated across slices that
+return the same shape: `query`, `create`, `updatetracking` and `deliver` each
+declare their own unexported `shipmentResponse` rather than share one —
+deliberately, so one endpoint's new field cannot appear in another's output.
+The other thirteen modules paid the same multiplier as each was sliced in
+turn, scaled to however many use cases each module turned out to need —
+decision 3's package counts, and decision 9's response-DTO-duplication note,
+are the tally now that all fourteen have paid it.
+
+## 15. The transport owns every URL; a module owns none
+
+Every route in the system is declared in `internal/transport/http/routes/`,
+one file per feature, 14 files, 64 routes. Each file exports one function —
+`routes.Cart(authed, m *cart.Module, v *validator.Validator)`,
+`routes.Order(authed, admin, m *order.Module, v, writeLimiter)` — and
+`router.go` calls all fourteen in one readable list. A module supplies a
+handler with exported route methods and nothing else: no `routes.go`, no
+`RegisterRoutes`, no `middleware.RouteGroup` in its signature, no string
+beginning with `/`.
+
+**This reverses what decision 9 first said.** That decision put a
+`http/routes.go` at each feature root, holding `RouteDeps` and
+`RegisterRoutes`, on the argument that a feature should arrive with its
+routes attached. Four things went wrong with that, and none is stylistic:
+
+- **The module became the router's peer instead of its supplier.** A feature
+  root `http/` imported `internal/transport/http/middleware` to name a
+  `RouteGroup`, so check 6 (`check_transport_direction`) needed a second
+  exempt location on top of a slice's own `http/`. The arrow between the two
+  trees pointed both ways, and a rule with two exemptions is a rule that
+  argues with itself.
+- **No one could read the API.** The 64 routes were spread over 14 files in
+  14 different modules, each mounting handlers by a `RouteDeps` struct.
+  Answering "what does `/api/admin/orders/{id}` do" meant knowing which
+  module to open first.
+- **Prefix drift went unnoticed.** A feature's `routes.go` named a path
+  fragment and the router named a prefix, and nothing put the two halves in
+  one place where a reader could see the whole URL.
+- **A DTO could drift out of its slice.** With a json-tag-exempt `http/` at
+  the feature root, a response type could migrate one level up out of the
+  slice that serialises it and still pass check 1. Check 1's exempt location
+  is now `usecase/<slice>/http/` alone, so that move fails.
+
+**Why the transport, specifically:** a URL is a transport fact. Which verb,
+which path, which middleware group, which rate limiter — none of it is a
+decision `cart` is qualified to make, and all of it is a decision the person
+adding a second transport would have to make again. Keeping it in one tree
+means the day a `grpc/` arrives, the slices do not move: a slice grows a
+`grpc/` sibling next to its `http/` and a second route tree names its
+methods.
+
+**Cost accepted, and it is real.** Adding a slice with a route now touches
+**two trees**: the module for the handler, `internal/transport/http/routes/`
+for the URL. That is one more file per feature than decision 9's shape
+needed, and the two can be edited apart: a slice's `http/` package that no
+route file mounts compiles clean, passes every check, and serves nothing,
+with no `go build` failure to say so. **A feature is also no longer copy-pasteable with its routes
+attached**: lifting `internal/modules/wishlist/` into another repository now
+lifts a module that answers no URL until someone writes its route file by
+hand. Under decision 9 that directory was self-contained. It is not any more,
+and for a template — where copying a feature is a thing readers actually do —
+that is the sharpest edge of this decision, not a footnote to it.
+
+**What it does not cost:** no test moved. A slice's `handler_test.go` builds
+its own `middleware.NewRouteGroup` and always did, so it never depended on
+the feature route table it now cannot see. The flip side is that a handler
+test still proves nothing about the URL — `internal/transport/http/router_test.go`
+and `test/e2e/` are the only things that can, and neither snapshots the whole
+table (see `ARCHITECTURE-LIMITATIONS.md`).
 
 ---
 
@@ -602,22 +694,26 @@ breakdown.
 
 **Rejected.** No gRPC dependency, no service definition, no caller.
 Empty `grpc/` directory in template is dead scaffolding readers copy and
-never fill. Add when there is proto.
+never fill. Add when there is proto. Decision 15 is what makes that cheap
+when it happens: a slice grows a `grpc/` sibling next to its `http/`, and a
+second route tree beside `internal/transport/http/routes/` names its
+methods — no slice moves.
 
 ## `x/webhook/` as a package
 
-**Rejected** in favour of `internal/modules/payment/webhook/http/webhook_handler.go`
-— the callback is `payment`'s own slice now, not a bolt-on file at the feature
-root. Webhook _is_ HTTP; splitting it out fragments route registration across
-two packages for one use case. Things that actually need protecting — no JWT
-middleware, raw body access, signature verification — already handled by
-route group.
+**Rejected** in favour of
+`internal/modules/payment/usecase/webhook/http/webhook_handler.go` — the
+callback is `payment`'s own slice now, not a bolt-on file at the feature
+root. Webhook _is_ HTTP; splitting it out fragments the handler across two
+packages for one use case. Things that actually need protecting — no JWT
+middleware, raw body access, signature verification — already handled by the
+route group `internal/transport/http/routes/payment.go` mounts it on.
 
 ## `notification/worker/`
 
-**Rejected.** Notification's `jobs/` slice's `Worker` satisfies `jobs.Processor`
-directly. Writing `worker.NewProcessor(w)` that returns `w` to fill slot would
-be ceremony teaching opposite of decision 4.
+**Rejected.** Notification's `jobs/` package's `Worker` satisfies
+`jobs.Processor` directly. Writing `worker.NewProcessor(w)` that returns `w`
+to fill slot would be ceremony teaching opposite of decision 4.
 
 ## `platform/uuid`
 
