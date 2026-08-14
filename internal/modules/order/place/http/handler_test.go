@@ -241,9 +241,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCommand) {
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	// nil limiter leaves the endpoint unthrottled, as production does when
-	// order's rate limit config disables it.
-	New(cmd, v).RegisterHTTP(authed, nil)
+	authed.HandleFunc("POST /orders", New(cmd, v).Place)
 
 	return mux, cmd
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -22,11 +21,6 @@ type Handler struct {
 
 func New(reader CategoryReader) *Handler {
 	return &Handler{reader: reader}
-}
-
-func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
-	api.HandleFunc("GET /categories", h.List)
-	api.HandleFunc("GET /categories/{slug}", h.GetBySlug)
 }
 
 type categoryResponse struct {

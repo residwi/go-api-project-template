@@ -9,7 +9,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/review/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -23,10 +22,6 @@ type Handler struct {
 
 func New(reader ReviewReader) *Handler {
 	return &Handler{reader: reader}
-}
-
-func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
-	api.HandleFunc("GET /products/{id}/reviews", h.List)
 }
 
 type reviewResponse struct {

@@ -130,7 +130,7 @@ func setupQueryMux(t *testing.T, reader StockReader) *http.ServeMux {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	New(reader).RegisterHTTP(admin)
+	admin.HandleFunc("GET /inventory/{product_id}", New(reader).GetStock)
 
 	return mux
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/product/update"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -28,10 +27,6 @@ type Handler struct {
 
 func New(cmd ProductUpdater, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
-}
-
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /products/{id}", h.Update)
 }
 
 type productResponse struct {

@@ -25,10 +25,6 @@ func New(reader ItemReader) *Handler {
 	return &Handler{reader: reader}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("GET /wishlist", h.List)
-}
-
 type itemResponse struct {
 	ID        uuid.UUID `json:"id"`
 	ProductID uuid.UUID `json:"product_id"`

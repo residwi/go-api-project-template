@@ -27,10 +27,6 @@ func New(cmd ReviewCreator, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("POST /products/{id}/reviews", h.Create)
-}
-
 type reviewResponse struct {
 	ID        uuid.UUID `json:"id"`
 	ProductID uuid.UUID `json:"product_id"`

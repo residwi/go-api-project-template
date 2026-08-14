@@ -126,7 +126,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCommand) {
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	NewAdmin(cmd, v).RegisterHTTP(admin)
+	admin.HandleFunc("PUT /orders/{id}/status", NewAdmin(cmd, v).UpdateStatus)
 
 	return mux, cmd
 }

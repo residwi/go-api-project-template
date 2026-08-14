@@ -23,10 +23,6 @@ func New(reader UserGetter) *Handler {
 	return &Handler{reader: reader}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("GET /users/me", h.Me)
-}
-
 type userResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`

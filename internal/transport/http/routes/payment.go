@@ -1,4 +1,4 @@
-package http
+package routes
 
 import (
 	"log/slog"
@@ -10,14 +10,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-type RouteDeps struct {
-	Module *payment.Module
-	Logger *slog.Logger
-}
+func Payment(api, admin *middleware.RouteGroup, m *payment.Module, log *slog.Logger) {
+	api.HandleFunc("POST /payments/webhook", webhookhttp.New(m.Webhook, log).HandleWebhook)
 
-func RegisterRoutes(api, admin *middleware.RouteGroup, deps RouteDeps) {
-	webhookhttp.New(deps.Module.Webhook, deps.Logger).RegisterHTTP(api)
+	query := queryhttp.New(m.Query)
+	admin.HandleFunc("GET /payments", query.List)
+	admin.HandleFunc("GET /payments/{id}", query.Get)
 
-	queryhttp.New(deps.Module.Query).RegisterHTTP(admin)
-	refundhttp.New(deps.Module.Refund).RegisterHTTP(admin)
+	admin.HandleFunc("POST /payments/{id}/refund", refundhttp.New(m.Refund).Refund)
 }

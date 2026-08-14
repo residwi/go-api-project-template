@@ -202,7 +202,7 @@ func setupQueryMux(t *testing.T) (*http.ServeMux, *MockReviewReader) {
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api/v1")
-	New(reader).RegisterHTTP(api)
+	api.HandleFunc("GET /products/{id}/reviews", New(reader).List)
 
 	return mux, reader
 }

@@ -1,4 +1,4 @@
-package http
+package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
@@ -11,15 +11,10 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-type RouteDeps struct {
-	Validator *validator.Validator
-	Module    *cart.Module
-}
-
-func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {
-	queryhttp.New(deps.Module.Query).RegisterHTTP(authed)
-	addhttp.New(deps.Module.Add, deps.Validator).RegisterHTTP(authed)
-	updatequantityhttp.New(deps.Module.UpdateQuantity, deps.Validator).RegisterHTTP(authed)
-	removehttp.New(deps.Module.Remove).RegisterHTTP(authed)
-	emptyhttp.New(deps.Module.Empty).RegisterHTTP(authed)
+func Cart(authed *middleware.RouteGroup, m *cart.Module, v *validator.Validator) {
+	authed.HandleFunc("GET /cart", queryhttp.New(m.Query).Get)
+	authed.HandleFunc("POST /cart/items", addhttp.New(m.Add, v).Add)
+	authed.HandleFunc("PUT /cart/items/{product_id}", updatequantityhttp.New(m.UpdateQuantity, v).Update)
+	authed.HandleFunc("DELETE /cart/items/{product_id}", removehttp.New(m.Remove).Remove)
+	authed.HandleFunc("DELETE /cart", emptyhttp.New(m.Empty).Clear)
 }

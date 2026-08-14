@@ -157,7 +157,7 @@ func setupQueryMux(t *testing.T) (*http.ServeMux, *MockItemReader, middleware.Us
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(reader).RegisterHTTP(authed)
+	authed.HandleFunc("GET /wishlist", New(reader).List)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),

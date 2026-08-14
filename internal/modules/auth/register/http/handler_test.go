@@ -209,6 +209,6 @@ func newTestMux(t *testing.T) (http.Handler, *MockRegisterer) {
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
-	New(cmd, v).RegisterHTTP(api)
+	api.HandleFunc("POST /auth/register", New(cmd, v).Register)
 	return mux, cmd
 }

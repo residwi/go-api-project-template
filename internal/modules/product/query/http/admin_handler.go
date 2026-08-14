@@ -10,7 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/product/query"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -25,11 +24,6 @@ type AdminHandler struct {
 
 func NewAdmin(reader AdminProductReader) *AdminHandler {
 	return &AdminHandler{reader: reader}
-}
-
-func (h *AdminHandler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /products", h.List)
-	admin.HandleFunc("GET /products/{id}", h.Get)
 }
 
 type adminProductResponse struct {

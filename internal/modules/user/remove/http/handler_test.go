@@ -114,7 +114,7 @@ func setupDeleteMux(t *testing.T) (*http.ServeMux, *MockUserDeleter) {
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	New(cmd).RegisterHTTP(admin)
+	admin.HandleFunc("DELETE /users/{id}", New(cmd).Delete)
 
 	return mux, cmd
 }

@@ -24,10 +24,6 @@ func New(reader ShipmentReader) *Handler {
 	return &Handler{reader: reader}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("GET /orders/{id}/shipping", h.Get)
-}
-
 type shipmentResponse struct {
 	ID             uuid.UUID             `json:"id"`
 	OrderID        uuid.UUID             `json:"order_id"`

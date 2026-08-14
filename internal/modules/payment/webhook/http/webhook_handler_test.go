@@ -186,7 +186,7 @@ func setupWebhookMux(
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
-	New(cmd, testhelper.DiscardLogger()).RegisterHTTP(api)
+	api.HandleFunc("POST /payments/webhook", New(cmd, testhelper.DiscardLogger()).HandleWebhook)
 
 	return mux
 }

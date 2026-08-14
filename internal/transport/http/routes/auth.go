@@ -1,4 +1,4 @@
-package http
+package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
@@ -9,13 +9,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-type RouteDeps struct {
-	Validator *validator.Validator
-	Module    *auth.Module
-}
-
-func RegisterRoutes(api *middleware.RouteGroup, deps RouteDeps) {
-	registerhttp.New(deps.Module.Register, deps.Validator).RegisterHTTP(api)
-	loginhttp.New(deps.Module.Login, deps.Validator).RegisterHTTP(api)
-	refreshhttp.New(deps.Module.Refresh, deps.Validator).RegisterHTTP(api)
+func Auth(api *middleware.RouteGroup, m *auth.Module, v *validator.Validator) {
+	api.HandleFunc("POST /auth/register", registerhttp.New(m.Register, v).Register)
+	api.HandleFunc("POST /auth/login", loginhttp.New(m.Login, v).Login)
+	api.HandleFunc("POST /auth/refresh", refreshhttp.New(m.Refresh, v).Refresh)
 }

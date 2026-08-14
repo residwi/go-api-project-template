@@ -10,7 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/query"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -57,11 +56,6 @@ type Handler struct {
 
 func New(reader Reader) *Handler {
 	return &Handler{reader: reader}
-}
-
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /payments", h.List)
-	admin.HandleFunc("GET /payments/{id}", h.Get)
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {

@@ -84,7 +84,7 @@ func setupRemoveMux(t *testing.T) (*http.ServeMux, *MockPromotionDeleter) {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	New(cmd).RegisterHTTP(admin)
+	admin.HandleFunc("DELETE /promotions/{id}", New(cmd).Delete)
 
 	return mux, cmd
 }

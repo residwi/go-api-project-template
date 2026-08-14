@@ -1,4 +1,4 @@
-package http
+package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
@@ -9,13 +9,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-type RouteDeps struct {
-	Validator *validator.Validator
-	Module    *inventory.Module
-}
-
-func RegisterRoutes(admin *middleware.RouteGroup, deps RouteDeps) {
-	queryhttp.New(deps.Module.Query).RegisterHTTP(admin)
-	restockhttp.New(deps.Module.Restock, deps.Validator).RegisterHTTP(admin)
-	adjusthttp.New(deps.Module.Adjust, deps.Validator).RegisterHTTP(admin)
+func Inventory(admin *middleware.RouteGroup, m *inventory.Module, v *validator.Validator) {
+	admin.HandleFunc("GET /inventory/{product_id}", queryhttp.New(m.Query).GetStock)
+	admin.HandleFunc("PUT /inventory/{product_id}/restock", restockhttp.New(m.Restock, v).Restock)
+	admin.HandleFunc("PUT /inventory/{product_id}/adjust", adjusthttp.New(m.Adjust, v).Adjust)
 }

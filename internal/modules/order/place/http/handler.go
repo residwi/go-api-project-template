@@ -27,15 +27,6 @@ func New(cmd Command, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup, limiter middleware.Middleware) {
-	handler := http.HandlerFunc(h.Place)
-	if limiter != nil {
-		authed.Handle("POST /orders", limiter(handler))
-		return
-	}
-	authed.Handle("POST /orders", handler)
-}
-
 type addressResponse struct {
 	Street  string `json:"street"`
 	City    string `json:"city"`

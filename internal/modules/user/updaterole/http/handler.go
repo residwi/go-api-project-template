@@ -23,10 +23,6 @@ func New(cmd RoleUpdater, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
 }
 
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /users/{id}/role", h.Update)
-}
-
 type updateRoleRequest struct {
 	Role string `json:"role" validate:"required,oneof=user admin"`
 }

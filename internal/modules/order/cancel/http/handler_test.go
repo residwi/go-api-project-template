@@ -98,7 +98,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCommand) {
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(cmd).RegisterHTTP(authed)
+	authed.HandleFunc("POST /orders/{id}/cancel", New(cmd).Cancel)
 
 	return mux, cmd
 }

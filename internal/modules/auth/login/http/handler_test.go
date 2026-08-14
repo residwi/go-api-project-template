@@ -186,6 +186,6 @@ func newTestMux(t *testing.T) (http.Handler, *MockAuthenticator) {
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
-	New(cmd, v).RegisterHTTP(api)
+	api.HandleFunc("POST /auth/login", New(cmd, v).Login)
 	return mux, cmd
 }

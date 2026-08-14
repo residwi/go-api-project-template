@@ -25,10 +25,6 @@ func New(cmd CartAdder, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("POST /cart/items", h.Add)
-}
-
 type addItemRequest struct {
 	ProductID uuid.UUID `json:"product_id" validate:"required"`
 	Quantity  int       `json:"quantity"   validate:"required,min=1"`

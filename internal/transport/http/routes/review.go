@@ -1,4 +1,4 @@
-package http
+package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/review"
@@ -9,13 +9,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-type RouteDeps struct {
-	Validator *validator.Validator
-	Module    *review.Module
-}
-
-func RegisterRoutes(api, authed, admin *middleware.RouteGroup, deps RouteDeps) {
-	queryhttp.New(deps.Module.Query).RegisterHTTP(api)
-	createhttp.New(deps.Module.Create, deps.Validator).RegisterHTTP(authed)
-	removehttp.New(deps.Module.Delete).RegisterHTTP(admin)
+func Review(api, authed, admin *middleware.RouteGroup, m *review.Module, v *validator.Validator) {
+	api.HandleFunc("GET /products/{id}/reviews", queryhttp.New(m.Query).List)
+	authed.HandleFunc("POST /products/{id}/reviews", createhttp.New(m.Create, v).Create)
+	admin.HandleFunc("DELETE /reviews/{id}", removehttp.New(m.Delete).Delete)
 }

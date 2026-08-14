@@ -209,6 +209,6 @@ func setupSummaryMux(t *testing.T) (*http.ServeMux, *MockSummaryReader) {
 	reader := NewMockSummaryReader(t)
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	New(reader).RegisterHTTP(admin)
+	admin.HandleFunc("GET /dashboard/summary", New(reader).Summary)
 	return mux, reader
 }

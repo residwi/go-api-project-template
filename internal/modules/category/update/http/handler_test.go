@@ -201,7 +201,7 @@ func setupUpdateMux(t *testing.T) (*http.ServeMux, *MockCategoryUpdater) {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	New(cmd, v).RegisterHTTP(admin)
+	admin.HandleFunc("PUT /categories/{id}", New(cmd, v).Update)
 
 	return mux, cmd
 }

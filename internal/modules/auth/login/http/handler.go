@@ -9,7 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/auth/login"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -24,10 +23,6 @@ type Handler struct {
 
 func New(cmd Authenticator, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
-}
-
-func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
-	api.HandleFunc("POST /auth/login", h.Login)
 }
 
 type loginRequest struct {

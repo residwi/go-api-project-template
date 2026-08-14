@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -21,10 +20,6 @@ type Handler struct {
 
 func New(reader StockReader) *Handler {
 	return &Handler{reader: reader}
-}
-
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /inventory/{product_id}", h.GetStock)
 }
 
 type stockResponse struct {

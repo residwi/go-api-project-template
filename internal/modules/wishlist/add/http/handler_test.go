@@ -119,7 +119,7 @@ func setupAddMux(t *testing.T) (*http.ServeMux, *MockItemAdder, middleware.UserC
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(cmd, v).RegisterHTTP(authed)
+	authed.HandleFunc("POST /wishlist/items", New(cmd, v).Add)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),

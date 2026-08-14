@@ -8,7 +8,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -23,10 +22,6 @@ type Handler struct {
 
 func New(cmd Adjuster, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
-}
-
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /inventory/{product_id}/adjust", h.Adjust)
 }
 
 type stockResponse struct {

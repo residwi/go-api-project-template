@@ -200,7 +200,7 @@ func setupUpdateRoleMux(t *testing.T) (*http.ServeMux, *MockRoleUpdater) {
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	New(cmd, v).RegisterHTTP(admin)
+	admin.HandleFunc("PUT /users/{id}/role", New(cmd, v).Update)
 
 	return mux, cmd
 }

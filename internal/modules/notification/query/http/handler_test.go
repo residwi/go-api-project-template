@@ -246,7 +246,9 @@ func setupQueryMux(t *testing.T) (*http.ServeMux, *MockNotificationReader, middl
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(reader).RegisterHTTP(authed)
+	h := New(reader)
+	authed.HandleFunc("GET /notifications", h.List)
+	authed.HandleFunc("GET /notifications/unread-count", h.UnreadCount)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),

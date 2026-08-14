@@ -173,7 +173,7 @@ func setupApplyMux(t *testing.T) (*http.ServeMux, *MockPromotionApplier) {
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	New(cmd, v).RegisterHTTP(authed)
+	authed.HandleFunc("POST /promotions/apply", New(cmd, v).Apply)
 
 	return mux, cmd
 }

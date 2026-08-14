@@ -139,19 +139,20 @@ importer_roots() {
 # Check 1 -- wire tags belong to the http adapter, nowhere else
 # ---------------------------------------------------------------------------
 #
-# Phase 4 moved every feature's wire DTOs into internal/modules/<feature>/http/.
+# Phase 4 moved every feature's wire DTOs into the http adapter beside the
+# handler that serialises them, today internal/modules/<feature>/<slice>/http/.
 # A `json:` tag on a domain model means the model has started doubling as a
 # transport type again, which is what the phase existed to undo.
 #
 # Exempt by location:
 #   internal/modules/<feature>/<slice>/http/*.go
-#                       the wire adapters -- this is where tags belong. A
-#                       feature's own root http/ (internal/modules/<feature>/http/)
-#                       is one directory level short of this and is deliberately
-#                       NOT exempt: that directory holds routes.go -- RouteDeps
-#                       and RegisterRoutes only, per AGENTS.md -- so a json tag
-#                       appearing there means a DTO has drifted into the route
-#                       table instead of the slice that owns it. Likewise
+#                       the wire adapters -- this is where tags belong. Anything
+#                       one directory level short of this
+#                       (internal/modules/<feature>/http/) is deliberately NOT
+#                       exempt: that path held the feature route tables until
+#                       they moved to internal/transport/http/routes/, and a
+#                       json tag reappearing there would mean a DTO had drifted
+#                       out of the slice that owns it. Likewise
 #                       internal/transport/http/ (the top-level router) is not
 #                       exempt: it wires slices together and defines no wire
 #                       types of its own. `is_slice_http` below is the one
@@ -206,10 +207,9 @@ is_json_tag_allowlisted() {
 }
 
 # is_slice_http is true only for a slice's own http adapter --
-# internal/modules/<feature>/<slice>/http/*.go. A feature's root http/
-# (internal/modules/<feature>/http/*.go) is exactly one path segment short of
-# this pattern and correctly returns false: that directory holds routes.go,
-# never a DTO.
+# internal/modules/<feature>/<slice>/http/*.go. A path one segment short of
+# that pattern (internal/modules/<feature>/http/*.go) correctly returns false:
+# no such directory exists any more, and nothing may recreate one to hold a DTO.
 is_slice_http() {
 	case "$1" in
 	"$MODULES_ROOT"/*/*/http/*.go) return 0 ;;
@@ -253,7 +253,7 @@ check_wire_tags() {
 	# 1c. A feature's dto.go must not come back.
 	#
 	# These files were deleted in Phase 4; their contents now live beside the
-	# handler that serialises them in internal/modules/<feature>/http/.
+	# handler that serialises them, in internal/modules/<feature>/<slice>/http/.
 	#
 	# No -mindepth/-maxdepth. They used to pin this to internal/<feature>/dto.go
 	# at exactly depth 2, and Phase 6 moved the features to depth 3 -- a depth
@@ -263,7 +263,7 @@ check_wire_tags() {
 	while IFS= read -r file; do
 		report "resurrected DTO file: ${file}
     dto.go was deleted in Phase 4. Wire types live in
-    internal/modules/<feature>/http/ next to the handler that serialises them."
+    internal/modules/<feature>/<slice>/http/ next to the handler that serialises them."
 	done < <(find internal -type f -name 'dto.go' | sort)
 }
 
@@ -839,11 +839,11 @@ check_cross_module_imports() {
 #   domain    shared domain types; every slice may import it.
 #   contract  the feature's published cross-module surface (check 4's
 #             concern); every slice may import it too.
-#   http      the route table (routes.go) plus, where a feature's routes
-#             split by caller role, its own handlers -- assembles slices,
-#             never the reverse. AGENTS.md rule 3's own commentary already
-#             allows a handler to reach a sibling's adapter without any check
-#             objecting, this one included.
+#   http      a feature-root http package, if one is ever added back. None
+#             exists today: the route tables that used to live here moved to
+#             internal/transport/http/routes/, so a feature root names no URL
+#             at all. Named here so recreating one is not mistaken for a new
+#             slice on day one.
 #   gateway   payment's outbound-port adapter family (stripe/midtrans/mock).
 #             No command.go, no http/, no entry in Module's slice list --
 #             module.go picks one implementation from Config.Gateway, the
@@ -1012,13 +1012,12 @@ check_transport_direction() {
 			[ -f "$file" ] || continue
 
 			# A slice's own http adapter (internal/modules/<feature>/<slice>/http/)
-			# and the feature's own route table (internal/modules/<feature>/http/)
-			# are the two legitimate importers -- both speak HTTP by design, and
-			# routes.go needs middleware.RouteGroup for RegisterRoutes' own
-			# parameters.
+			# is the one legitimate importer -- it speaks HTTP by design. The
+			# feature route tables that used to be the second one are gone: every
+			# URL now lives in internal/transport/http/routes/, so no file under
+			# a module names a route or needs middleware.RouteGroup.
 			case "$file" in
 			"$MODULES_ROOT/$feature"/*/http/*.go) continue ;;
-			"$MODULES_ROOT/$feature"/http/*.go) continue ;;
 			esac
 
 			# A status-checked assignment, not `done < <(grep ...)` -- the shape

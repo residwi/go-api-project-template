@@ -213,7 +213,7 @@ func setupQueryMux(t *testing.T, reader ShipmentReader) *http.ServeMux {
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	New(reader).RegisterHTTP(authed)
+	authed.HandleFunc("GET /orders/{id}/shipping", New(reader).Get)
 
 	return mux
 }

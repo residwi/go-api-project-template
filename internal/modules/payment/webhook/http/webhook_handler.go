@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -21,10 +20,6 @@ type Handler struct {
 
 func New(cmd Command, log *slog.Logger) *Handler {
 	return &Handler{cmd: cmd, logger: log}
-}
-
-func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
-	api.HandleFunc("POST /payments/webhook", h.HandleWebhook)
 }
 
 const webhookSignatureHeader = "X-Webhook-Signature"

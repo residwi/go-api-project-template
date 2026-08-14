@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -20,10 +19,6 @@ type Handler struct {
 
 func New(cmd PromotionDeleter) *Handler {
 	return &Handler{cmd: cmd}
-}
-
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("DELETE /promotions/{id}", h.Delete)
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {

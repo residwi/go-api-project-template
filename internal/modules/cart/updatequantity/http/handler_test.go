@@ -137,7 +137,7 @@ func setupUpdateMux(t *testing.T) (*http.ServeMux, *MockCartQuantityUpdater, mid
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(cmd, v).RegisterHTTP(authed)
+	authed.HandleFunc("PUT /cart/items/{product_id}", New(cmd, v).Update)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),

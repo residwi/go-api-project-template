@@ -12,7 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/product/query"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -27,11 +26,6 @@ type Handler struct {
 
 func New(reader ProductReader) *Handler {
 	return &Handler{reader: reader}
-}
-
-func (h *Handler) RegisterHTTP(api *middleware.RouteGroup) {
-	api.HandleFunc("GET /products", h.List)
-	api.HandleFunc("GET /products/{slug}", h.GetBySlug)
 }
 
 type productResponse struct {

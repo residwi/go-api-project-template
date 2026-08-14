@@ -205,7 +205,7 @@ func setupCreateMux(t *testing.T, cmd ShipmentCreator) *http.ServeMux {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	New(cmd, validator.New()).RegisterHTTP(admin)
+	admin.HandleFunc("POST /orders/{id}/ship", New(cmd, validator.New()).Create)
 
 	return mux
 }

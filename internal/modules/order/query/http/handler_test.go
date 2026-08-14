@@ -328,8 +328,12 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockReader, *MockAdminReader) {
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 	adminGroup := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	New(reader).RegisterHTTP(authed)
-	NewAdmin(admin).RegisterHTTP(adminGroup)
+	h := New(reader)
+	authed.HandleFunc("GET /orders", h.List)
+	authed.HandleFunc("GET /orders/{id}", h.Get)
+	ah := NewAdmin(admin)
+	adminGroup.HandleFunc("GET /orders", ah.List)
+	adminGroup.HandleFunc("GET /orders/{id}", ah.Get)
 
 	return mux, reader, admin
 }

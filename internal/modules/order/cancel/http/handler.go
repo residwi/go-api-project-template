@@ -22,10 +22,6 @@ func New(cmd Command) *Handler {
 	return &Handler{cmd: cmd}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("POST /orders/{id}/cancel", h.Cancel)
-}
-
 func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {

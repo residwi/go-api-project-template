@@ -75,7 +75,7 @@ func setupMarkAllReadMux(t *testing.T) (*http.ServeMux, *MockAllNotificationsMar
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(cmd).RegisterHTTP(authed)
+	authed.HandleFunc("PUT /notifications/read-all", New(cmd).MarkAllRead)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),

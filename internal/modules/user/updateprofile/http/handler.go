@@ -26,10 +26,6 @@ func New(cmd ProfileUpdater, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("PUT /users/me", h.Update)
-}
-
 type updateProfileRequest struct {
 	FirstName string  `json:"first_name" validate:"omitempty,min=1,max=100"`
 	LastName  string  `json:"last_name"  validate:"omitempty,min=1,max=100"`

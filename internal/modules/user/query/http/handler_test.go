@@ -157,7 +157,7 @@ func setupMeMux(t *testing.T) (*http.ServeMux, *MockUserGetter) {
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(reader).RegisterHTTP(authed)
+	authed.HandleFunc("GET /users/me", New(reader).Me)
 
 	return mux, reader
 }

@@ -24,10 +24,6 @@ func New(reader CartReader) *Handler {
 	return &Handler{reader: reader}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("GET /cart", h.Get)
-}
-
 type cartResponse struct {
 	ID    uuid.UUID          `json:"id"`
 	Items []cartItemResponse `json:"items"`

@@ -269,7 +269,9 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockAdminProductReader) {
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	NewAdmin(reader).RegisterHTTP(admin)
+	ah := NewAdmin(reader)
+	admin.HandleFunc("GET /products", ah.List)
+	admin.HandleFunc("GET /products/{id}", ah.Get)
 
 	return mux, reader
 }

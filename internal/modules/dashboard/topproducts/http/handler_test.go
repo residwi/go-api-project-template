@@ -232,6 +232,6 @@ func setupTopProductsMux(t *testing.T) (*http.ServeMux, *MockTopProductsReader) 
 	reader := NewMockTopProductsReader(t)
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	New(reader).RegisterHTTP(admin)
+	admin.HandleFunc("GET /dashboard/top-products", New(reader).TopProducts)
 	return mux, reader
 }

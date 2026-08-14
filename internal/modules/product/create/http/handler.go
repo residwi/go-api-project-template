@@ -11,7 +11,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -26,10 +25,6 @@ type Handler struct {
 
 func New(cmd ProductCreator, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
-}
-
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("POST /products", h.Create)
 }
 
 type productResponse struct {

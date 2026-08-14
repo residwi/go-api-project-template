@@ -25,15 +25,6 @@ func New(cmd Command, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup, limiter middleware.Middleware) {
-	handler := http.HandlerFunc(h.Retry)
-	if limiter != nil {
-		authed.Handle("POST /orders/{id}/pay", limiter(handler))
-		return
-	}
-	authed.Handle("POST /orders/{id}/pay", handler)
-}
-
 type payRequest struct {
 	PaymentMethodID string `json:"payment_method_id" validate:"required"`
 }

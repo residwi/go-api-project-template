@@ -280,7 +280,7 @@ func setupCreateMux(t *testing.T) (*http.ServeMux, *MockReviewCreator) {
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	New(cmd, v).RegisterHTTP(authed)
+	authed.HandleFunc("POST /products/{id}/reviews", New(cmd, v).Create)
 
 	return mux, cmd
 }

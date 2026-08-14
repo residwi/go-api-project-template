@@ -313,7 +313,9 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockProductReader) {
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(reader).RegisterHTTP(api)
+	h := New(reader)
+	api.HandleFunc("GET /products", h.List)
+	api.HandleFunc("GET /products/{slug}", h.GetBySlug)
 
 	return mux, reader
 }

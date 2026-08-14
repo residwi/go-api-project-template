@@ -1,4 +1,4 @@
-package http
+package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/category"
@@ -10,14 +10,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-type RouteDeps struct {
-	Validator *validator.Validator
-	Module    *category.Module
-}
+func Category(api, admin *middleware.RouteGroup, m *category.Module, v *validator.Validator) {
+	query := queryhttp.New(m.Query)
+	api.HandleFunc("GET /categories", query.List)
+	api.HandleFunc("GET /categories/{slug}", query.GetBySlug)
 
-func RegisterRoutes(api, admin *middleware.RouteGroup, deps RouteDeps) {
-	queryhttp.New(deps.Module.Query).RegisterHTTP(api)
-	createhttp.New(deps.Module.Create, deps.Validator).RegisterHTTP(admin)
-	updatehttp.New(deps.Module.Update, deps.Validator).RegisterHTTP(admin)
-	removehttp.New(deps.Module.Delete).RegisterHTTP(admin)
+	admin.HandleFunc("POST /categories", createhttp.New(m.Create, v).Create)
+	admin.HandleFunc("PUT /categories/{id}", updatehttp.New(m.Update, v).Update)
+	admin.HandleFunc("DELETE /categories/{id}", removehttp.New(m.Delete).Delete)
 }

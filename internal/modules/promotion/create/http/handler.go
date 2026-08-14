@@ -10,7 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/create"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -25,10 +24,6 @@ type Handler struct {
 
 func New(cmd PromotionCreator, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
-}
-
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("POST /promotions", h.Create)
 }
 
 type createPromotionRequest struct {

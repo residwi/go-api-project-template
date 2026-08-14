@@ -76,7 +76,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockProductDeleter) {
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	New(cmd).RegisterHTTP(admin)
+	admin.HandleFunc("DELETE /products/{id}", New(cmd).Delete)
 
 	return mux, cmd
 }

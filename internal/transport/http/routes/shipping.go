@@ -1,4 +1,4 @@
-package http
+package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
@@ -10,14 +10,10 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-type RouteDeps struct {
-	Validator *validator.Validator
-	Module    *shipping.Module
-}
+func Shipping(authed, admin *middleware.RouteGroup, m *shipping.Module, v *validator.Validator) {
+	authed.HandleFunc("GET /orders/{id}/shipping", queryhttp.New(m.Query).Get)
 
-func RegisterRoutes(authed *middleware.RouteGroup, admin *middleware.RouteGroup, deps RouteDeps) {
-	queryhttp.New(deps.Module.Query).RegisterHTTP(authed)
-	createhttp.New(deps.Module.Create, deps.Validator).RegisterHTTP(admin)
-	updatetrackinghttp.New(deps.Module.UpdateTracking, deps.Validator).RegisterHTTP(admin)
-	deliverhttp.New(deps.Module.Deliver).RegisterHTTP(admin)
+	admin.HandleFunc("POST /orders/{id}/ship", createhttp.New(m.Create, v).Create)
+	admin.HandleFunc("PUT /shipments/{id}/tracking", updatetrackinghttp.New(m.UpdateTracking, v).UpdateTracking)
+	admin.HandleFunc("POST /shipments/{id}/deliver", deliverhttp.New(m.Deliver).Deliver)
 }

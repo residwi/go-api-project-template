@@ -1,4 +1,4 @@
-package http
+package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
@@ -8,12 +8,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-type RouteDeps struct {
-	Module *dashboard.Module
-}
-
-func RegisterRoutes(admin *middleware.RouteGroup, deps RouteDeps) {
-	summaryhttp.New(deps.Module.Summary).RegisterHTTP(admin)
-	topproductshttp.New(deps.Module.TopProducts).RegisterHTTP(admin)
-	revenuehttp.New(deps.Module.Revenue).RegisterHTTP(admin)
+func Dashboard(admin *middleware.RouteGroup, m *dashboard.Module) {
+	admin.HandleFunc("GET /dashboard/summary", summaryhttp.New(m.Summary).Summary)
+	admin.HandleFunc("GET /dashboard/top-products", topproductshttp.New(m.TopProducts).TopProducts)
+	admin.HandleFunc("GET /dashboard/revenue", revenuehttp.New(m.Revenue).Revenue)
 }

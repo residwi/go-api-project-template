@@ -25,10 +25,6 @@ func New(cmd CartQuantityUpdater, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("PUT /cart/items/{product_id}", h.Update)
-}
-
 type updateQuantityRequest struct {
 	Quantity int `json:"quantity" validate:"required,min=1"`
 }

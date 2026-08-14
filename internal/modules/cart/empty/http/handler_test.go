@@ -76,7 +76,7 @@ func setupClearMux(t *testing.T) (*http.ServeMux, *MockCartClearer, middleware.U
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(cmd).RegisterHTTP(authed)
+	authed.HandleFunc("DELETE /cart", New(cmd).Clear)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),

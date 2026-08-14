@@ -10,7 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/query"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -24,10 +23,6 @@ type Handler struct {
 
 func New(reader PromotionLister) *Handler {
 	return &Handler{reader: reader}
-}
-
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /promotions", h.List)
 }
 
 type adminPromotionResponse struct {

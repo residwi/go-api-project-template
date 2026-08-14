@@ -319,7 +319,7 @@ func setupGetMux(t *testing.T) (*http.ServeMux, *MockCartReader) {
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(reader).RegisterHTTP(authed)
+	authed.HandleFunc("GET /cart", New(reader).Get)
 
 	return mux, reader
 }

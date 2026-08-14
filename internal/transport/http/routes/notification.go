@@ -1,4 +1,4 @@
-package http
+package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
@@ -8,12 +8,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-type RouteDeps struct {
-	Module *notification.Module
-}
+func Notification(authed *middleware.RouteGroup, m *notification.Module) {
+	query := queryhttp.New(m.Query)
+	authed.HandleFunc("GET /notifications", query.List)
+	authed.HandleFunc("GET /notifications/unread-count", query.UnreadCount)
 
-func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {
-	queryhttp.New(deps.Module.Query).RegisterHTTP(authed)
-	markreadhttp.New(deps.Module.MarkRead).RegisterHTTP(authed)
-	markallreadhttp.New(deps.Module.MarkAllRead).RegisterHTTP(authed)
+	authed.HandleFunc("PUT /notifications/{id}/read", markreadhttp.New(m.MarkRead).MarkRead)
+	authed.HandleFunc("PUT /notifications/read-all", markallreadhttp.New(m.MarkAllRead).MarkAllRead)
 }

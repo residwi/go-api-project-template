@@ -77,7 +77,7 @@ func setupRemoveMux(t *testing.T) (*http.ServeMux, *MockCategoryDeleter) {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	New(cmd).RegisterHTTP(admin)
+	admin.HandleFunc("DELETE /categories/{id}", New(cmd).Delete)
 
 	return mux, cmd
 }

@@ -22,10 +22,6 @@ func New(cmd PromotionApplier, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("POST /promotions/apply", h.Apply)
-}
-
 type applyRequest struct {
 	Code     string `json:"code"     validate:"required"`
 	Subtotal int64  `json:"subtotal" validate:"required,min=1"`

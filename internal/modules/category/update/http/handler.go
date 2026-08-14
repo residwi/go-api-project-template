@@ -10,7 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/category/update"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -25,10 +24,6 @@ type Handler struct {
 
 func New(cmd CategoryUpdater, v *validator.Validator) *Handler {
 	return &Handler{cmd: cmd, validator: v}
-}
-
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /categories/{id}", h.Update)
 }
 
 type categoryResponse struct {

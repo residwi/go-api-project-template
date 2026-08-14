@@ -8,7 +8,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -23,10 +22,6 @@ type AdminHandler struct {
 
 func NewAdmin(cmd Command, v *validator.Validator) *AdminHandler {
 	return &AdminHandler{cmd: cmd, validator: v}
-}
-
-func (h *AdminHandler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("PUT /orders/{id}/status", h.UpdateStatus)
 }
 
 type updateStatusRequest struct {

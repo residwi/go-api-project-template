@@ -70,7 +70,7 @@ func setupQueryMux(t *testing.T) (*http.ServeMux, *MockPromotionLister) {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	New(reader).RegisterHTTP(admin)
+	admin.HandleFunc("GET /promotions", New(reader).List)
 
 	return mux, reader
 }

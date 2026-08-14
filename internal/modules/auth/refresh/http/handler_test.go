@@ -179,6 +179,6 @@ func newTestMux(t *testing.T) (http.Handler, *MockTokenRefresher) {
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
-	New(cmd, v).RegisterHTTP(api)
+	api.HandleFunc("POST /auth/refresh", New(cmd, v).Refresh)
 	return mux, cmd
 }

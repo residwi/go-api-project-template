@@ -1,4 +1,4 @@
-package http
+package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
@@ -9,13 +9,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-type RouteDeps struct {
-	Validator *validator.Validator
-	Module    *wishlist.Module
-}
-
-func RegisterRoutes(authed *middleware.RouteGroup, deps RouteDeps) {
-	queryhttp.New(deps.Module.Query).RegisterHTTP(authed)
-	addhttp.New(deps.Module.AddItem, deps.Validator).RegisterHTTP(authed)
-	removehttp.New(deps.Module.RemoveItem).RegisterHTTP(authed)
+func Wishlist(authed *middleware.RouteGroup, m *wishlist.Module, v *validator.Validator) {
+	authed.HandleFunc("GET /wishlist", queryhttp.New(m.Query).List)
+	authed.HandleFunc("POST /wishlist/items", addhttp.New(m.AddItem, v).Add)
+	authed.HandleFunc("DELETE /wishlist/items/{product_id}", removehttp.New(m.RemoveItem).Remove)
 }

@@ -26,11 +26,6 @@ func New(reader Reader) *Handler {
 	return &Handler{reader: reader}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("GET /orders", h.List)
-	authed.HandleFunc("GET /orders/{id}", h.Get)
-}
-
 type addressResponse struct {
 	Street  string `json:"street"`
 	City    string `json:"city"`

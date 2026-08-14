@@ -11,22 +11,9 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	authhttp "github.com/residwi/go-api-project-template/internal/modules/auth/http"
-	carthttp "github.com/residwi/go-api-project-template/internal/modules/cart/http"
-	categoryhttp "github.com/residwi/go-api-project-template/internal/modules/category/http"
-	dashboardhttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/http"
-	inventoryhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/http"
-	notificationhttp "github.com/residwi/go-api-project-template/internal/modules/notification/http"
-	orderhttp "github.com/residwi/go-api-project-template/internal/modules/order/http"
-	paymenthttp "github.com/residwi/go-api-project-template/internal/modules/payment/http"
-	producthttp "github.com/residwi/go-api-project-template/internal/modules/product/http"
-	promotionhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/http"
-	reviewhttp "github.com/residwi/go-api-project-template/internal/modules/review/http"
-	shippinghttp "github.com/residwi/go-api-project-template/internal/modules/shipping/http"
-	userhttp "github.com/residwi/go-api-project-template/internal/modules/user/http"
-	wishlisthttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
+	"github.com/residwi/go-api-project-template/internal/transport/http/routes"
 )
 
 func NewRouter(
@@ -61,32 +48,20 @@ func NewRouter(
 		deps.Order.RateWindow,
 	)
 
-	authhttp.RegisterRoutes(authPublic, authhttp.RouteDeps{Validator: v, Module: app.Auth})
-	userhttp.RegisterRoutes(authed, admin, userhttp.RouteDeps{Validator: v, Module: app.Users})
-	categoryhttp.RegisterRoutes(api, admin, categoryhttp.RouteDeps{Validator: v, Module: app.Categories})
-	producthttp.RegisterRoutes(api, admin, producthttp.RouteDeps{Validator: v, Module: app.Products})
-	inventoryhttp.RegisterRoutes(admin, inventoryhttp.RouteDeps{Validator: v, Module: app.Inventory})
-	carthttp.RegisterRoutes(authed, carthttp.RouteDeps{Validator: v, Module: app.Carts})
-	orderhttp.RegisterRoutes(
-		authed,
-		admin,
-		orderhttp.RouteDeps{Validator: v, Module: app.Orders, WriteLimiter: orderWriteLimiter},
-	)
-	paymenthttp.RegisterRoutes(
-		api,
-		admin,
-		paymenthttp.RouteDeps{Module: app.Payments, Logger: deps.Logger},
-	)
-	shippinghttp.RegisterRoutes(
-		authed,
-		admin,
-		shippinghttp.RouteDeps{Validator: v, Module: app.Shipping},
-	)
-	reviewhttp.RegisterRoutes(api, authed, admin, reviewhttp.RouteDeps{Validator: v, Module: app.Reviews})
-	promotionhttp.RegisterRoutes(authed, admin, promotionhttp.RouteDeps{Validator: v, Module: app.Promotions})
-	wishlisthttp.RegisterRoutes(authed, wishlisthttp.RouteDeps{Validator: v, Module: app.Wishlists})
-	notificationhttp.RegisterRoutes(authed, notificationhttp.RouteDeps{Module: app.Notifications})
-	dashboardhttp.RegisterRoutes(admin, dashboardhttp.RouteDeps{Module: app.Dashboard})
+	routes.Auth(authPublic, app.Auth, v)
+	routes.User(authed, admin, app.Users, v)
+	routes.Category(api, admin, app.Categories, v)
+	routes.Product(api, admin, app.Products, v)
+	routes.Inventory(admin, app.Inventory, v)
+	routes.Cart(authed, app.Carts, v)
+	routes.Order(authed, admin, app.Orders, v, orderWriteLimiter)
+	routes.Payment(api, admin, app.Payments, deps.Logger)
+	routes.Shipping(authed, admin, app.Shipping, v)
+	routes.Review(api, authed, admin, app.Reviews, v)
+	routes.Promotion(authed, admin, app.Promotions, v)
+	routes.Wishlist(authed, app.Wishlists, v)
+	routes.Notification(authed, app.Notifications)
+	routes.Dashboard(admin, app.Dashboard)
 
 	if deps.Infra.App.Env == "development" {
 		mockgatewayserver.RegisterRoutes(

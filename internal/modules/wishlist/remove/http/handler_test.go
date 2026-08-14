@@ -98,7 +98,7 @@ func setupRemoveMux(t *testing.T) (*http.ServeMux, *MockItemRemover, middleware.
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(cmd).RegisterHTTP(authed)
+	authed.HandleFunc("DELETE /wishlist/items/{product_id}", New(cmd).Remove)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),

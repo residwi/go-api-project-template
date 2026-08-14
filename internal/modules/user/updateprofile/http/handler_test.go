@@ -207,7 +207,7 @@ func setupProfileMux(t *testing.T) (*http.ServeMux, *MockProfileUpdater) {
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	New(cmd, v).RegisterHTTP(authed)
+	authed.HandleFunc("PUT /users/me", New(cmd, v).Update)
 
 	return mux, cmd
 }

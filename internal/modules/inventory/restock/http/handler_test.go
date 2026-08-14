@@ -203,7 +203,7 @@ func setupRestockMux(t *testing.T, cmd Restocker) *http.ServeMux {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	New(cmd, validator.New()).RegisterHTTP(admin)
+	admin.HandleFunc("PUT /inventory/{product_id}/restock", New(cmd, validator.New()).Restock)
 
 	return mux
 }

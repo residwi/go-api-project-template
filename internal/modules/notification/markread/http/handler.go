@@ -22,10 +22,6 @@ func New(cmd NotificationMarker) *Handler {
 	return &Handler{cmd: cmd}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("PUT /notifications/{id}/read", h.MarkRead)
-}
-
 func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {

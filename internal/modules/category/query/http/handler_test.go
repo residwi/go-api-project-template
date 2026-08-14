@@ -226,7 +226,9 @@ func setupQueryMux(t *testing.T) (*http.ServeMux, *MockCategoryReader) {
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api/v1")
-	New(reader).RegisterHTTP(api)
+	h := New(reader)
+	api.HandleFunc("GET /categories", h.List)
+	api.HandleFunc("GET /categories/{slug}", h.GetBySlug)
 
 	return mux, reader
 }

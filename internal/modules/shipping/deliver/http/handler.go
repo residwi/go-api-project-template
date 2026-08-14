@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -22,10 +21,6 @@ type Handler struct {
 
 func New(cmd ShipmentDeliverer) *Handler {
 	return &Handler{cmd: cmd}
-}
-
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("POST /shipments/{id}/deliver", h.Deliver)
 }
 
 type shipmentResponse struct {

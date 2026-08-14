@@ -26,11 +26,6 @@ func New(reader NotificationReader) *Handler {
 	return &Handler{reader: reader}
 }
 
-func (h *Handler) RegisterHTTP(authed *middleware.RouteGroup) {
-	authed.HandleFunc("GET /notifications", h.List)
-	authed.HandleFunc("GET /notifications/unread-count", h.UnreadCount)
-}
-
 type notificationResponse struct {
 	ID        uuid.UUID   `json:"id"`
 	Type      domain.Type `json:"type"`

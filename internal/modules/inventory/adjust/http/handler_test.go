@@ -203,7 +203,7 @@ func setupAdjustMux(t *testing.T, cmd Adjuster) *http.ServeMux {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	New(cmd, validator.New()).RegisterHTTP(admin)
+	admin.HandleFunc("PUT /inventory/{product_id}/adjust", New(cmd, validator.New()).Adjust)
 
 	return mux
 }

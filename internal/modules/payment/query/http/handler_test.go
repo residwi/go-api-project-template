@@ -235,7 +235,9 @@ func setupPaymentQueryMux(t *testing.T) (*http.ServeMux, *MockReader) {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	New(reader).RegisterHTTP(admin)
+	h := New(reader)
+	admin.HandleFunc("GET /payments", h.List)
+	admin.HandleFunc("GET /payments/{id}", h.Get)
 
 	return mux, reader
 }

@@ -207,7 +207,7 @@ func setupUpdateTrackingMux(t *testing.T, cmd TrackingUpdater) *http.ServeMux {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	New(cmd, validator.New()).RegisterHTTP(admin)
+	admin.HandleFunc("PUT /shipments/{id}/tracking", New(cmd, validator.New()).UpdateTracking)
 
 	return mux
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard/domain"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
@@ -23,10 +22,6 @@ type Handler struct {
 
 func New(reader TopProductsReader) *Handler {
 	return &Handler{reader: reader}
-}
-
-func (h *Handler) RegisterHTTP(admin *middleware.RouteGroup) {
-	admin.HandleFunc("GET /dashboard/top-products", h.TopProducts)
 }
 
 func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok bool) {

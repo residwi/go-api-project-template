@@ -127,6 +127,6 @@ func setupRevenueMux(t *testing.T) (*http.ServeMux, *MockRevenueReader) {
 	reader := NewMockRevenueReader(t)
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	New(reader).RegisterHTTP(admin)
+	admin.HandleFunc("GET /dashboard/revenue", New(reader).Revenue)
 	return mux, reader
 }

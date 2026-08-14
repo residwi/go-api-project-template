@@ -96,7 +96,7 @@ func setupRefundMux(t *testing.T) (*http.ServeMux, *MockCommand) {
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	New(cmd).RegisterHTTP(admin)
+	admin.HandleFunc("POST /payments/{id}/refund", New(cmd).Refund)
 
 	return mux, cmd
 }
