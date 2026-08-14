@@ -862,6 +862,21 @@ check_sibling_slice_imports() {
 	while IFS= read -r feature; do
 		[ -n "$feature" ] || continue
 
+		# Same fail-open shape lines 88-97 refuse for feature_dirs, one level
+		# down: a usecase/*/ glob that matches nothing yields no iterations, no
+		# report, and this feature passes the same as one with no sibling-slice
+		# violation. Renaming or removing $feature/usecase is not a legitimate
+		# state -- every feature has one -- so it is reported rather than
+		# silently skipped.
+		[ -d "$MODULES_ROOT/$feature/usecase" ] || {
+			report "feature '$feature' has no usecase/ directory: $MODULES_ROOT/$feature/usecase
+    Every feature keeps its slices there; check_sibling_slice_imports globs
+    ${MODULES_ROOT}/${feature}/usecase/*/ to find them; a moved or renamed
+    usecase/ makes that glob match nothing, which this check cannot tell
+    apart from a feature with no sibling-slice violation."
+			continue
+		}
+
 		for dir in "$MODULES_ROOT/$feature"/usecase/*/; do
 			[ -d "$dir" ] || continue
 			slice="$(basename "$dir")"
@@ -947,14 +962,14 @@ check_sibling_slice_imports() {
 # is what user/contract.AccountStatus and auth/contract.Claims are for.
 #
 # Matching is on a quoted import path, not on any occurrence of the text --
-# internal/modules/payment/jobs/dispatcher.go's doc comment explains, in
-# prose, why a setter was removed by saying it "would compile from cmd/, from
-# internal/transport/, from any test". That sentence contains the string
-# "internal/transport" with no surrounding quotes and no module prefix; a
-# check that grepped for the bare text would flag a comment that imports
-# nothing. Requiring the full module path inside quotes -- the same shape
-# check_cross_module_imports and check_sibling_slice_imports already require
-# for their own cross-module greps -- only matches a real import.
+# a doc comment explaining why a setter was removed could say it "would
+# compile from cmd/, from internal/transport/, from any test", and that
+# sentence contains the string "internal/transport" with no surrounding
+# quotes and no module prefix. A check that grepped for the bare text would
+# flag a comment that imports nothing. Requiring the full module path inside
+# quotes -- the same shape check_cross_module_imports and
+# check_sibling_slice_imports already require for their own cross-module
+# greps -- only matches a real import.
 check_transport_direction() {
 	local module module_re
 	local feature files file rc hits hit

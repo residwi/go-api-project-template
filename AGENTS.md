@@ -159,10 +159,13 @@ cost.
 **Subpackage tree stays non-uniform, now two levels deeper than it used to
 be — do not tidy it into uniformity.** A slice gets a `postgres/` only if it
 has SQL, an `http/` only if it has a route, a `ports.go` only if it reaches
-outside itself. 66 slices carry 64 `postgres/` packages, 53 `http/` and one
-`redis/` between them. `auth` has no `postgres/` anywhere in the module: it
-asks `user` for one thing (`auth.UserProvider`) and stores nothing of its
-own. `user/usecase/query` is the one slice in the repo with two backing
+outside itself. 66 slices carry 62 `postgres/` packages, 53 `http/` and one
+`redis/` between them — the tree's other two `postgres/` packages,
+`notification/jobs/postgres` and `payment/jobs/postgres`, sit at feature
+roots outside `usecase/` and are not a slice's, per decision 16 below.
+`auth` has no `postgres/` anywhere in the module: it asks `user` for one
+thing (`auth.UserProvider`) and stores nothing of its own.
+`user/usecase/query` is the one slice in the repo with two backing
 stores, and the only one with a `redis/`: `query.Repository` pairs with
 `postgres/`, `query.StatusCache` with `redis/`, one adapter subpackage per
 store, same rule decision 5 states for a feature root. That adapter needs
