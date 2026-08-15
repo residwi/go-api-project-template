@@ -16,12 +16,12 @@ type Restocker interface {
 }
 
 type Handler struct {
-	cmd       Restocker
+	usecase   Restocker
 	validator *validator.Validator
 }
 
-func New(cmd Restocker, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase Restocker, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type stockResponse struct {
@@ -55,7 +55,7 @@ func (h *Handler) Restock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stock, err := h.cmd.Execute(r.Context(), id, req.Quantity)
+	stock, err := h.usecase.Execute(r.Context(), id, req.Quantity)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

@@ -27,11 +27,11 @@ func TestHandler_UpdateProduct(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		prodID := uuid.New()
 		sku := "SKU-999"
-		cmd.EXPECT().Execute(mock.Anything, prodID, mock.Anything).Return(&domain.Product{
+		usecase.EXPECT().Execute(mock.Anything, prodID, mock.Anything).Return(&domain.Product{
 			ID:     prodID,
 			Name:   "New Name",
 			Slug:   "new-name",
@@ -147,7 +147,7 @@ func TestHandler_UpdateProduct(t *testing.T) {
 		t.Run("rejects "+tc.name+" with 400", func(t *testing.T) {
 			t.Parallel()
 
-			// No cmd expectation, so mockery fails the test if the request reaches the
+			// No usecase expectation, so mockery fails the test if the request reaches the
 			// command instead of being rejected first.
 			mux, _ := setupMux(t)
 
@@ -174,10 +174,10 @@ func TestHandler_UpdateProduct(t *testing.T) {
 	t.Run("accepts price and currency together", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		prodID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, prodID, mock.MatchedBy(func(p update.Params) bool {
+		usecase.EXPECT().Execute(mock.Anything, prodID, mock.MatchedBy(func(p update.Params) bool {
 			return p.Price != nil && *p.Price == money.New(2000, "EUR")
 		})).Return(&domain.Product{
 			ID:     prodID,
@@ -208,10 +208,10 @@ func TestHandler_UpdateProduct(t *testing.T) {
 	t.Run("service error not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		prodID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, prodID, mock.Anything).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, prodID, mock.Anything).Return(nil, apperror.ErrNotFound)
 
 		newName := "Updated"
 		body, _ := json.Marshal(map[string]any{
@@ -229,13 +229,13 @@ func TestHandler_UpdateProduct(t *testing.T) {
 }
 
 func setupMux(t *testing.T) (*http.ServeMux, *MockProductUpdater) {
-	cmd := NewMockProductUpdater(t)
+	usecase := NewMockProductUpdater(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	admin.HandleFunc("PUT /products/{id}", New(cmd, v).Update)
+	admin.HandleFunc("PUT /products/{id}", New(usecase, v).Update)
 
-	return mux, cmd
+	return mux, usecase
 }

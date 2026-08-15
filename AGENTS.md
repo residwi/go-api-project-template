@@ -469,6 +469,11 @@ map[uuid.UUID]int, prior contract.StockState)`.** Inventory decides whether that
     `AdminProductReader`, `order/usecase/query/http` `OrderReader` +
     `AdminReader`); role naming is what lets them coexist. The concrete type in
     the slice root is the opposite rule — always `UseCase`, never a role name.
+    The `Handler` **field** holding that port is always `usecase`, and so is the
+    `New` parameter that sets it: `h.usecase.Execute(...)` in every one of the 56.
+    A field is private and there is only ever one, so it is named for the layer,
+    not the role. Never `cmd` or `reader` — that vocabulary retired with the
+    `Command`/`Reader` types.
 19. **New config invariants go in the owning type's own loader.** Infra-level
     invariants go in `Infra.validate()` (`internal/platform/config/config.go`);
     module-owned invariants are checked inline inside that module's own

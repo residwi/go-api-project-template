@@ -19,11 +19,11 @@ type NotificationReader interface {
 }
 
 type Handler struct {
-	reader NotificationReader
+	usecase NotificationReader
 }
 
-func New(reader NotificationReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase NotificationReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type notificationResponse struct {
@@ -54,7 +54,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	cursor := paging.ParseCursorPage(r)
 
-	notifications, err := h.reader.ListByUser(r.Context(), uc.UserID, cursor)
+	notifications, err := h.usecase.ListByUser(r.Context(), uc.UserID, cursor)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -80,7 +80,7 @@ func (h *Handler) UnreadCount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, err := h.reader.CountUnread(r.Context(), uc.UserID)
+	count, err := h.usecase.CountUnread(r.Context(), uc.UserID)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

@@ -17,12 +17,12 @@ type PaymentRetrier interface {
 }
 
 type Handler struct {
-	cmd       PaymentRetrier
+	usecase   PaymentRetrier
 	validator *validator.Validator
 }
 
-func New(cmd PaymentRetrier, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase PaymentRetrier, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type payRequest struct {
@@ -59,7 +59,12 @@ func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.cmd.Execute(r.Context(), uc.UserID, id, retrypayment.Params{PaymentMethodID: req.PaymentMethodID})
+	result, err := h.usecase.Execute(
+		r.Context(),
+		uc.UserID,
+		id,
+		retrypayment.Params{PaymentMethodID: req.PaymentMethodID},
+	)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

@@ -24,13 +24,13 @@ func TestHandler_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupQueryMux(t)
+		mux, usecase := setupQueryMux(t)
 
 		promos := []domain.Promotion{
 			{ID: uuid.New(), Code: "A"},
 			{ID: uuid.New(), Code: "B"},
 		}
-		reader.EXPECT().
+		usecase.EXPECT().
 			ListAdmin(mock.Anything, query.Params{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 20}}).
 			Return(promos, 2, nil)
 
@@ -45,12 +45,12 @@ func TestHandler_List(t *testing.T) {
 		assert.True(t, resp.Success)
 	})
 
-	t.Run("reader error", func(t *testing.T) {
+	t.Run("usecase error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupQueryMux(t)
+		mux, usecase := setupQueryMux(t)
 
-		reader.EXPECT().
+		usecase.EXPECT().
 			ListAdmin(mock.Anything, query.Params{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 20}}).
 			Return(nil, 0, assert.AnError)
 
@@ -66,11 +66,11 @@ func TestHandler_List(t *testing.T) {
 func setupQueryMux(t *testing.T) (*http.ServeMux, *MockPromotionLister) {
 	t.Helper()
 
-	reader := NewMockPromotionLister(t)
+	usecase := NewMockPromotionLister(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("GET /promotions", New(reader).List)
+	admin.HandleFunc("GET /promotions", New(usecase).List)
 
-	return mux, reader
+	return mux, usecase
 }

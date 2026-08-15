@@ -15,11 +15,11 @@ type ItemRemover interface {
 }
 
 type Handler struct {
-	cmd ItemRemover
+	usecase ItemRemover
 }
 
-func New(cmd ItemRemover) *Handler {
-	return &Handler{cmd: cmd}
+func New(usecase ItemRemover) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +33,7 @@ func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), uc.UserID, productID); err != nil {
+	if err := h.usecase.Execute(r.Context(), uc.UserID, productID); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

@@ -33,8 +33,8 @@ func TestHandler_UpdateTracking(t *testing.T) {
 		orderID := uuid.New()
 		now := time.Now()
 
-		cmd := NewMockTrackingUpdater(t)
-		cmd.EXPECT().
+		usecase := NewMockTrackingUpdater(t)
+		usecase.EXPECT().
 			Execute(mock.Anything, shipmentID, updatetracking.Params{Carrier: "UPS", TrackingNumber: "NEW456"}).
 			Return(&domain.Shipment{
 				ID:             shipmentID,
@@ -46,7 +46,7 @@ func TestHandler_UpdateTracking(t *testing.T) {
 				UpdatedAt:      now,
 			}, nil)
 
-		mux := setupUpdateTrackingMux(t, cmd)
+		mux := setupUpdateTrackingMux(t, usecase)
 
 		body, _ := json.Marshal(map[string]any{
 			"carrier":         "UPS",
@@ -151,12 +151,12 @@ func TestHandler_UpdateTracking(t *testing.T) {
 
 		shipmentID := uuid.New()
 
-		cmd := NewMockTrackingUpdater(t)
-		cmd.EXPECT().
+		usecase := NewMockTrackingUpdater(t)
+		usecase.EXPECT().
 			Execute(mock.Anything, shipmentID, updatetracking.Params{Carrier: "UPS", TrackingNumber: "TRACK789"}).
 			Return(nil, apperror.ErrNotFound)
 
-		mux := setupUpdateTrackingMux(t, cmd)
+		mux := setupUpdateTrackingMux(t, usecase)
 
 		body, _ := json.Marshal(map[string]any{
 			"carrier":         "UPS",
@@ -202,12 +202,12 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 		"shipped_at and delivered_at are omitempty and absent when nil")
 }
 
-func setupUpdateTrackingMux(t *testing.T, cmd TrackingUpdater) *http.ServeMux {
+func setupUpdateTrackingMux(t *testing.T, usecase TrackingUpdater) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("PUT /shipments/{id}/tracking", New(cmd, validator.New()).UpdateTracking)
+	admin.HandleFunc("PUT /shipments/{id}/tracking", New(usecase, validator.New()).UpdateTracking)
 
 	return mux
 }

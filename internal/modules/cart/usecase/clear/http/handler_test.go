@@ -19,9 +19,9 @@ func TestHandler_Clear_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupClearMux(t)
+		mux, usecase, uc := setupClearMux(t)
 
-		cmd.EXPECT().Clear(mock.Anything, uc.UserID).Return(nil)
+		usecase.EXPECT().Clear(mock.Anything, uc.UserID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/cart", nil)
@@ -39,9 +39,9 @@ func TestHandler_Clear_CommandError(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupClearMux(t)
+		mux, usecase, uc := setupClearMux(t)
 
-		cmd.EXPECT().Clear(mock.Anything, uc.UserID).Return(errors.New("db down"))
+		usecase.EXPECT().Clear(mock.Anything, uc.UserID).Return(errors.New("db down"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/cart", nil)
@@ -71,12 +71,12 @@ func TestHandler_Clear(t *testing.T) {
 }
 
 func setupClearMux(t *testing.T) (*http.ServeMux, *MockCartClearer, middleware.UserContext) {
-	cmd := NewMockCartClearer(t)
+	usecase := NewMockCartClearer(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("DELETE /cart", New(cmd).Clear)
+	authed.HandleFunc("DELETE /cart", New(usecase).Clear)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),
@@ -84,7 +84,7 @@ func setupClearMux(t *testing.T) (*http.ServeMux, *MockCartClearer, middleware.U
 		Role:   "user",
 	}
 
-	return mux, cmd, uc
+	return mux, usecase, uc
 }
 
 func withAuth(r *http.Request, uc middleware.UserContext) *http.Request {

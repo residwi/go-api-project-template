@@ -15,11 +15,11 @@ type NotificationMarker interface {
 }
 
 type Handler struct {
-	cmd NotificationMarker
+	usecase NotificationMarker
 }
 
-func New(cmd NotificationMarker) *Handler {
-	return &Handler{cmd: cmd}
+func New(usecase NotificationMarker) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +33,7 @@ func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), uc.UserID, id); err != nil {
+	if err := h.usecase.Execute(r.Context(), uc.UserID, id); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

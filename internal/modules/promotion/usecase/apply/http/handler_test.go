@@ -27,9 +27,9 @@ func TestHandler_Apply_ServiceError(t *testing.T) {
 	t.Run("service returns not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupApplyMux(t)
+		mux, usecase := setupApplyMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, "NOTEXIST", int64(5000)).Return(int64(0), apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, "NOTEXIST", int64(5000)).Return(int64(0), apperror.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{
 			"code":     "NOTEXIST",
@@ -51,9 +51,9 @@ func TestHandler_Apply_ServiceError(t *testing.T) {
 	t.Run("service returns bad request for inactive promo", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupApplyMux(t)
+		mux, usecase := setupApplyMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, "INACTIVE", int64(5000)).
+		usecase.EXPECT().Execute(mock.Anything, "INACTIVE", int64(5000)).
 			Return(int64(0), apperror.ErrBadRequest)
 
 		body, _ := json.Marshal(map[string]any{
@@ -77,9 +77,9 @@ func TestHandler_Apply_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupApplyMux(t)
+		mux, usecase := setupApplyMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, "SAVE10", int64(5000)).Return(int64(1000), nil)
+		usecase.EXPECT().Execute(mock.Anything, "SAVE10", int64(5000)).Return(int64(1000), nil)
 
 		body, _ := json.Marshal(map[string]any{
 			"code":     "SAVE10",
@@ -168,14 +168,14 @@ func TestApplyResponse_OmitsUsageCountersAndLimits(t *testing.T) {
 func setupApplyMux(t *testing.T) (*http.ServeMux, *MockPromotionApplier) {
 	t.Helper()
 
-	cmd := NewMockPromotionApplier(t)
+	usecase := NewMockPromotionApplier(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	authed.HandleFunc("POST /promotions/apply", New(cmd, v).Apply)
+	authed.HandleFunc("POST /promotions/apply", New(usecase, v).Apply)
 
-	return mux, cmd
+	return mux, usecase
 }
 
 func setPromoAuthContext(r *http.Request) *http.Request {

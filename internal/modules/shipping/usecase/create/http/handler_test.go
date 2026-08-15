@@ -33,8 +33,8 @@ func TestHandler_Create(t *testing.T) {
 		shipmentID := uuid.New()
 		now := time.Now()
 
-		cmd := NewMockShipmentCreator(t)
-		cmd.EXPECT().
+		usecase := NewMockShipmentCreator(t)
+		usecase.EXPECT().
 			Execute(mock.Anything, orderID, create.Params{Carrier: "FedEx", TrackingNumber: "TRACK123"}).
 			Return(&domain.Shipment{
 				ID:             shipmentID,
@@ -46,7 +46,7 @@ func TestHandler_Create(t *testing.T) {
 				UpdatedAt:      now,
 			}, nil)
 
-		mux := setupCreateMux(t, cmd)
+		mux := setupCreateMux(t, usecase)
 
 		body, _ := json.Marshal(map[string]any{
 			"carrier":         "FedEx",
@@ -149,12 +149,12 @@ func TestHandler_Create(t *testing.T) {
 
 		orderID := uuid.New()
 
-		cmd := NewMockShipmentCreator(t)
-		cmd.EXPECT().
+		usecase := NewMockShipmentCreator(t)
+		usecase.EXPECT().
 			Execute(mock.Anything, orderID, create.Params{Carrier: "FedEx", TrackingNumber: "TRACK123"}).
 			Return(nil, apperror.ErrNotFound)
 
-		mux := setupCreateMux(t, cmd)
+		mux := setupCreateMux(t, usecase)
 
 		body, _ := json.Marshal(map[string]any{
 			"carrier":         "FedEx",
@@ -200,12 +200,12 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 		"shipped_at and delivered_at are omitempty and absent when nil")
 }
 
-func setupCreateMux(t *testing.T, cmd ShipmentCreator) *http.ServeMux {
+func setupCreateMux(t *testing.T, usecase ShipmentCreator) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("POST /orders/{id}/ship", New(cmd, validator.New()).Create)
+	admin.HandleFunc("POST /orders/{id}/ship", New(usecase, validator.New()).Create)
 
 	return mux
 }

@@ -28,13 +28,13 @@ func TestHandler_Restock(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		cmd := NewMockRestocker(t)
+		usecase := NewMockRestocker(t)
 
 		productID := uuid.New()
 		expected := &domain.Stock{ProductID: productID, Quantity: 150, Reserved: 5, Available: 145}
-		cmd.EXPECT().Execute(mock.Anything, productID, 50).Return(expected, nil)
+		usecase.EXPECT().Execute(mock.Anything, productID, 50).Return(expected, nil)
 
-		mux := setupRestockMux(t, cmd)
+		mux := setupRestockMux(t, usecase)
 
 		body, _ := json.Marshal(map[string]any{"quantity": 50})
 
@@ -146,14 +146,14 @@ func TestHandler_Restock(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		cmd := NewMockRestocker(t)
+		usecase := NewMockRestocker(t)
 
 		productID := uuid.New()
-		cmd.EXPECT().
+		usecase.EXPECT().
 			Execute(mock.Anything, productID, 50).
 			Return(nil, fmt.Errorf("%w: product not found", apperror.ErrNotFound))
 
-		mux := setupRestockMux(t, cmd)
+		mux := setupRestockMux(t, usecase)
 
 		body, _ := json.Marshal(map[string]any{"quantity": 50})
 
@@ -198,12 +198,12 @@ func TestToStockResponse_ExposesExactFieldSet(t *testing.T) {
 	)
 }
 
-func setupRestockMux(t *testing.T, cmd Restocker) *http.ServeMux {
+func setupRestockMux(t *testing.T, usecase Restocker) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	admin.HandleFunc("PUT /inventory/{product_id}/restock", New(cmd, validator.New()).Restock)
+	admin.HandleFunc("PUT /inventory/{product_id}/restock", New(usecase, validator.New()).Restock)
 
 	return mux
 }

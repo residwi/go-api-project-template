@@ -28,10 +28,10 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupAdminMux(t)
+		mux, usecase := setupAdminMux(t)
 
 		now := time.Now()
-		reader.EXPECT().ListAdmin(mock.Anything, mock.Anything).Return([]domain.User{
+		usecase.EXPECT().ListAdmin(mock.Anything, mock.Anything).Return([]domain.User{
 			{
 				ID:        uuid.New(),
 				Email:     "alice@example.com",
@@ -88,8 +88,8 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupAdminMux(t)
-		reader.EXPECT().ListAdmin(mock.Anything, mock.Anything).Return(nil, 0, errors.New("db error"))
+		mux, usecase := setupAdminMux(t)
+		usecase.EXPECT().ListAdmin(mock.Anything, mock.Anything).Return(nil, 0, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users", nil)
@@ -100,10 +100,10 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 	t.Run("success with active filter", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupAdminMux(t)
+		mux, usecase := setupAdminMux(t)
 
 		now := time.Now()
-		reader.EXPECT().ListAdmin(mock.Anything, mock.MatchedBy(func(p query.Params) bool {
+		usecase.EXPECT().ListAdmin(mock.Anything, mock.MatchedBy(func(p query.Params) bool {
 			return p.Active != nil && *p.Active == true
 		})).Return([]domain.User{
 			{
@@ -139,10 +139,10 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 	t.Run("success with role filter", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupAdminMux(t)
+		mux, usecase := setupAdminMux(t)
 
 		now := time.Now()
-		reader.EXPECT().ListAdmin(mock.Anything, mock.MatchedBy(func(p query.Params) bool {
+		usecase.EXPECT().ListAdmin(mock.Anything, mock.MatchedBy(func(p query.Params) bool {
 			return p.Role == "admin"
 		})).Return([]domain.User{
 			{
@@ -185,11 +185,11 @@ func TestAdminHandler_GetUser(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupAdminMux(t)
+		mux, usecase := setupAdminMux(t)
 
 		userID := uuid.New()
 		now := time.Now()
-		reader.EXPECT().GetByID(mock.Anything, userID).Return(&domain.User{
+		usecase.EXPECT().GetByID(mock.Anything, userID).Return(&domain.User{
 			ID:        userID,
 			Email:     "alice@example.com",
 			FirstName: "Alice",
@@ -243,9 +243,9 @@ func TestAdminHandler_GetUser(t *testing.T) {
 	t.Run("service error not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupAdminMux(t)
+		mux, usecase := setupAdminMux(t)
 		userID := uuid.New()
-		reader.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/"+userID.String(), nil)
@@ -293,16 +293,16 @@ func TestToAdminUserResponse_ExposesOperatorFieldsButNotCredentials(t *testing.T
 }
 
 func setupAdminMux(t *testing.T) (*http.ServeMux, *MockUserLister) {
-	reader := NewMockUserLister(t)
+	usecase := NewMockUserLister(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	ah := NewAdmin(reader)
+	ah := NewAdmin(usecase)
 	admin.HandleFunc("GET /users", ah.List)
 	admin.HandleFunc("GET /users/{id}", ah.Get)
 
-	return mux, reader
+	return mux, usecase
 }
 
 type listedUserItem struct {

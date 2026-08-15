@@ -22,10 +22,10 @@ func TestHandler_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupRemoveMux(t)
+		mux, usecase := setupRemoveMux(t)
 
 		reviewID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, reviewID).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, reviewID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/reviews/"+reviewID.String(), nil)
@@ -56,10 +56,10 @@ func TestHandler_Delete(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupRemoveMux(t)
+		mux, usecase := setupRemoveMux(t)
 
 		reviewID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, reviewID).Return(apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, reviewID).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/reviews/"+reviewID.String(), nil)
@@ -73,11 +73,11 @@ func TestHandler_Delete(t *testing.T) {
 func setupRemoveMux(t *testing.T) (*http.ServeMux, *MockReviewDeleter) {
 	t.Helper()
 
-	cmd := NewMockReviewDeleter(t)
+	usecase := NewMockReviewDeleter(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("DELETE /reviews/{id}", New(cmd).Delete)
+	admin.HandleFunc("DELETE /reviews/{id}", New(usecase).Delete)
 
-	return mux, cmd
+	return mux, usecase
 }

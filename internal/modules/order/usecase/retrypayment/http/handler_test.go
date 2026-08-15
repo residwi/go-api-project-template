@@ -26,11 +26,11 @@ func TestHandler_RetryPayment(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
-		cmd.EXPECT().
+		usecase.EXPECT().
 			Execute(mock.Anything, userID, orderID, retrypayment.Params{PaymentMethodID: "pm_test_123"}).
 			Return(&paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
 
@@ -123,11 +123,11 @@ func TestHandler_RetryPayment(t *testing.T) {
 	t.Run("service error not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, userID, orderID, mock.Anything).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, userID, orderID, mock.Anything).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`
@@ -141,15 +141,15 @@ func TestHandler_RetryPayment(t *testing.T) {
 }
 
 func setupMux(t *testing.T) (*http.ServeMux, *MockPaymentRetrier) {
-	cmd := NewMockPaymentRetrier(t)
+	usecase := NewMockPaymentRetrier(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("POST /orders/{id}/pay", New(cmd, v).Retry)
+	authed.HandleFunc("POST /orders/{id}/pay", New(usecase, v).Retry)
 
-	return mux, cmd
+	return mux, usecase
 }
 
 func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {

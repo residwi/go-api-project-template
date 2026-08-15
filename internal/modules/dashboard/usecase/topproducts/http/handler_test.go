@@ -23,7 +23,7 @@ func TestHandler_TopProducts(t *testing.T) {
 	t.Run("success with from to and limit params", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupTopProductsMux(t)
+		mux, usecase := setupTopProductsMux(t)
 
 		from, _ := time.Parse("2006-01-02", "2025-01-01")
 		to, _ := time.Parse("2006-01-02", "2025-01-31")
@@ -34,7 +34,7 @@ func TestHandler_TopProducts(t *testing.T) {
 			{ProductID: uuid.New(), Name: "Gadget", TotalSold: 80, Revenue: 40000},
 		}
 
-		reader.EXPECT().ListTopProducts(mock.Anything, 5, from, toEnd).Return(products, nil)
+		usecase.EXPECT().ListTopProducts(mock.Anything, 5, from, toEnd).Return(products, nil)
 
 		r := httptest.NewRequest(
 			http.MethodGet,
@@ -71,13 +71,13 @@ func TestHandler_TopProducts(t *testing.T) {
 	t.Run("success with default limit when not provided", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupTopProductsMux(t)
+		mux, usecase := setupTopProductsMux(t)
 
 		products := []domain.TopProduct{
 			{ProductID: uuid.New(), Name: "Widget", TotalSold: 100, Revenue: 50000},
 		}
 
-		reader.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).Return(products, nil)
+		usecase.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).Return(products, nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31", nil)
 		w := httptest.NewRecorder()
@@ -90,9 +90,9 @@ func TestHandler_TopProducts(t *testing.T) {
 	t.Run("invalid limit uses default", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupTopProductsMux(t)
+		mux, usecase := setupTopProductsMux(t)
 
-		reader.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
+		usecase.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]domain.TopProduct{}, nil)
 
 		r := httptest.NewRequest(
@@ -110,9 +110,9 @@ func TestHandler_TopProducts(t *testing.T) {
 	t.Run("limit exceeding max uses default", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupTopProductsMux(t)
+		mux, usecase := setupTopProductsMux(t)
 
-		reader.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
+		usecase.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]domain.TopProduct{}, nil)
 
 		r := httptest.NewRequest(
@@ -130,9 +130,9 @@ func TestHandler_TopProducts(t *testing.T) {
 	t.Run("limit zero uses default", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupTopProductsMux(t)
+		mux, usecase := setupTopProductsMux(t)
 
-		reader.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
+		usecase.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]domain.TopProduct{}, nil)
 
 		r := httptest.NewRequest(
@@ -150,9 +150,9 @@ func TestHandler_TopProducts(t *testing.T) {
 	t.Run("negative limit uses default", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupTopProductsMux(t)
+		mux, usecase := setupTopProductsMux(t)
 
-		reader.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
+		usecase.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).
 			Return([]domain.TopProduct{}, nil)
 
 		r := httptest.NewRequest(
@@ -214,9 +214,9 @@ func TestHandler_TopProducts(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupTopProductsMux(t)
+		mux, usecase := setupTopProductsMux(t)
 
-		reader.EXPECT().ListTopProducts(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		usecase.EXPECT().ListTopProducts(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(nil, errors.New("db error"))
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/top-products?from=2025-01-01&to=2025-01-31", nil)
@@ -229,9 +229,9 @@ func TestHandler_TopProducts(t *testing.T) {
 }
 
 func setupTopProductsMux(t *testing.T) (*http.ServeMux, *MockTopProductsReader) {
-	reader := NewMockTopProductsReader(t)
+	usecase := NewMockTopProductsReader(t)
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	admin.HandleFunc("GET /dashboard/top-products", New(reader).TopProducts)
-	return mux, reader
+	admin.HandleFunc("GET /dashboard/top-products", New(usecase).TopProducts)
+	return mux, usecase
 }

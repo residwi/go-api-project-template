@@ -28,9 +28,9 @@ func TestHandler_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupCreateMux(t)
+		mux, usecase := setupCreateMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(&domain.Category{
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(&domain.Category{
 			Name: "New Category",
 		}, nil)
 
@@ -72,9 +72,9 @@ func TestHandler_Create(t *testing.T) {
 	t.Run("command error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupCreateMux(t)
+		mux, usecase := setupCreateMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil, apperror.ErrConflict)
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil, apperror.ErrConflict)
 
 		body, _ := json.Marshal(map[string]any{
 			"name": "Duplicate",
@@ -168,12 +168,12 @@ func TestToCategoryResponse_KeepsModerationAndAuditFields(t *testing.T) {
 func setupCreateMux(t *testing.T) (*http.ServeMux, *MockCategoryCreator) {
 	t.Helper()
 
-	cmd := NewMockCategoryCreator(t)
+	usecase := NewMockCategoryCreator(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("POST /categories", New(cmd, v).Create)
+	admin.HandleFunc("POST /categories", New(usecase, v).Create)
 
-	return mux, cmd
+	return mux, usecase
 }

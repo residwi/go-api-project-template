@@ -39,11 +39,11 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupGetMux(t)
+		mux, usecase := setupGetMux(t)
 
 		userID := uuid.New()
 		cartID := uuid.New()
-		reader.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
+		usecase.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
 			ID:     cartID,
 			UserID: userID,
 			Items:  []domain.Item{},
@@ -65,10 +65,10 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("empty cart returns total 0 with 200", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupGetMux(t)
+		mux, usecase := setupGetMux(t)
 
 		userID := uuid.New()
-		reader.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
+		usecase.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
 			ID:     uuid.New(),
 			UserID: userID,
 			Items:  []domain.Item{},
@@ -96,11 +96,11 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("mixed-currency cart returns 400", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupGetMux(t)
+		mux, usecase := setupGetMux(t)
 
 		userID := uuid.New()
 		usdID, eurID := uuid.New(), uuid.New()
-		reader.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
+		usecase.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
 			ID:     uuid.New(),
 			UserID: userID,
 			Items: []domain.Item{
@@ -131,11 +131,11 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("unsellable line in another currency does not break the total", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupGetMux(t)
+		mux, usecase := setupGetMux(t)
 
 		userID := uuid.New()
 		liveID, goneID := uuid.New(), uuid.New()
-		reader.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
+		usecase.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
 			ID:     uuid.New(),
 			UserID: userID,
 			Items: []domain.Item{
@@ -165,10 +165,10 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupGetMux(t)
+		mux, usecase := setupGetMux(t)
 
 		userID := uuid.New()
-		reader.EXPECT().GetCart(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().GetCart(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
 
 		r := authGet(userID)
 		w := httptest.NewRecorder()
@@ -314,14 +314,14 @@ func TestToCartResponse_OmitsUserID(t *testing.T) {
 }
 
 func setupGetMux(t *testing.T) (*http.ServeMux, *MockCartReader) {
-	reader := NewMockCartReader(t)
+	usecase := NewMockCartReader(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("GET /cart", New(reader).Get)
+	authed.HandleFunc("GET /cart", New(usecase).Get)
 
-	return mux, reader
+	return mux, usecase
 }
 
 func authGet(userID uuid.UUID) *http.Request {

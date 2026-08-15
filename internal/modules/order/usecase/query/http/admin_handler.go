@@ -18,11 +18,11 @@ type AdminReader interface {
 }
 
 type AdminHandler struct {
-	reader AdminReader
+	usecase AdminReader
 }
 
-func NewAdmin(reader AdminReader) *AdminHandler {
-	return &AdminHandler{reader: reader}
+func NewAdmin(usecase AdminReader) *AdminHandler {
+	return &AdminHandler{usecase: usecase}
 }
 
 func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +32,7 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 		Status:     r.URL.Query().Get("status"),
 	}
 
-	orders, total, err := h.reader.ListAdmin(r.Context(), params)
+	orders, total, err := h.usecase.ListAdmin(r.Context(), params)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -52,7 +52,7 @@ func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	o, err := h.reader.GetByID(r.Context(), id)
+	o, err := h.usecase.GetByID(r.Context(), id)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

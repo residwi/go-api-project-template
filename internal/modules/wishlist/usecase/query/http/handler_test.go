@@ -25,12 +25,12 @@ func TestHandler_List_Success(t *testing.T) {
 	t.Run("success with items", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, uc := setupQueryMux(t)
+		mux, usecase, uc := setupQueryMux(t)
 
 		items := []domain.Item{
 			{ID: uuid.New(), ProductID: uuid.New()},
 		}
-		reader.EXPECT().ListItemsForUser(mock.Anything, uc.UserID, mock.Anything).Return(items, nil)
+		usecase.EXPECT().ListItemsForUser(mock.Anything, uc.UserID, mock.Anything).Return(items, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/wishlist", nil)
@@ -51,9 +51,9 @@ func TestHandler_List_ReaderError(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, uc := setupQueryMux(t)
+		mux, usecase, uc := setupQueryMux(t)
 
-		reader.EXPECT().ListItemsForUser(mock.Anything, uc.UserID, mock.Anything).Return(nil, assert.AnError)
+		usecase.EXPECT().ListItemsForUser(mock.Anything, uc.UserID, mock.Anything).Return(nil, assert.AnError)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/wishlist", nil)
@@ -93,7 +93,7 @@ func TestHandler_List_Pagination(t *testing.T) {
 	t.Run("has more results triggers cursor", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, uc := setupQueryMux(t)
+		mux, usecase, uc := setupQueryMux(t)
 
 		now := time.Now()
 		items := make([]domain.Item, 21)
@@ -104,7 +104,7 @@ func TestHandler_List_Pagination(t *testing.T) {
 				CreatedAt: now.Add(-time.Duration(i) * time.Minute),
 			}
 		}
-		reader.EXPECT().ListItemsForUser(mock.Anything, uc.UserID, mock.Anything).Return(items, nil)
+		usecase.EXPECT().ListItemsForUser(mock.Anything, uc.UserID, mock.Anything).Return(items, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/wishlist", nil)
@@ -152,12 +152,12 @@ func TestToItemResponse_OmitsInternalFields(t *testing.T) {
 }
 
 func setupQueryMux(t *testing.T) (*http.ServeMux, *MockItemReader, middleware.UserContext) {
-	reader := NewMockItemReader(t)
+	usecase := NewMockItemReader(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("GET /wishlist", New(reader).List)
+	authed.HandleFunc("GET /wishlist", New(usecase).List)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),
@@ -165,7 +165,7 @@ func setupQueryMux(t *testing.T) (*http.ServeMux, *MockItemReader, middleware.Us
 		Role:   "user",
 	}
 
-	return mux, reader, uc
+	return mux, usecase, uc
 }
 
 func withAuth(r *http.Request, uc middleware.UserContext) *http.Request {

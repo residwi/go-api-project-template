@@ -29,11 +29,11 @@ func TestHandler_Update(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupUpdateMux(t)
+		mux, usecase := setupUpdateMux(t)
 
 		catID := uuid.New()
 		now := time.Now()
-		cmd.EXPECT().Execute(mock.Anything, catID, mock.Anything).Return(&domain.Category{
+		usecase.EXPECT().Execute(mock.Anything, catID, mock.Anything).Return(&domain.Category{
 			ID:        catID,
 			Name:      "Updated Name",
 			Slug:      "updated-name",
@@ -137,10 +137,10 @@ func TestHandler_Update(t *testing.T) {
 	t.Run("command error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupUpdateMux(t)
+		mux, usecase := setupUpdateMux(t)
 
 		catID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, catID, mock.Anything).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, catID, mock.Anything).Return(nil, apperror.ErrNotFound)
 
 		newName := "Updated"
 		body, _ := json.Marshal(map[string]any{
@@ -196,12 +196,12 @@ func TestToCategoryResponse_KeepsModerationAndAuditFields(t *testing.T) {
 func setupUpdateMux(t *testing.T) (*http.ServeMux, *MockCategoryUpdater) {
 	t.Helper()
 
-	cmd := NewMockCategoryUpdater(t)
+	usecase := NewMockCategoryUpdater(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("PUT /categories/{id}", New(cmd, v).Update)
+	admin.HandleFunc("PUT /categories/{id}", New(usecase, v).Update)
 
-	return mux, cmd
+	return mux, usecase
 }

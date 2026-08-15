@@ -28,11 +28,11 @@ func TestHandler_Update(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupProfileMux(t)
+		mux, usecase := setupProfileMux(t)
 
 		userID := uuid.New()
 		now := time.Now()
-		cmd.EXPECT().Execute(mock.Anything, userID, mock.Anything).Return(&domain.User{
+		usecase.EXPECT().Execute(mock.Anything, userID, mock.Anything).Return(&domain.User{
 			ID:        userID,
 			Email:     "test@example.com",
 			FirstName: "Jane",
@@ -138,9 +138,9 @@ func TestHandler_Update(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupProfileMux(t)
+		mux, usecase := setupProfileMux(t)
 		userID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, userID, mock.Anything).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, userID, mock.Anything).Return(nil, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{"first_name": "Jane"})
 		w := httptest.NewRecorder()
@@ -201,13 +201,13 @@ func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 }
 
 func setupProfileMux(t *testing.T) (*http.ServeMux, *MockProfileUpdater) {
-	cmd := NewMockProfileUpdater(t)
+	usecase := NewMockProfileUpdater(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("PUT /users/me", New(cmd, v).Update)
+	authed.HandleFunc("PUT /users/me", New(usecase, v).Update)
 
-	return mux, cmd
+	return mux, usecase
 }

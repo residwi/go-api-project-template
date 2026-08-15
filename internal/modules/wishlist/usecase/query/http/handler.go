@@ -18,11 +18,11 @@ type ItemReader interface {
 }
 
 type Handler struct {
-	reader ItemReader
+	usecase ItemReader
 }
 
-func New(reader ItemReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase ItemReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type itemResponse struct {
@@ -47,7 +47,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	cursor := paging.ParseCursorPage(r)
 
-	items, err := h.reader.ListItemsForUser(r.Context(), uc.UserID, cursor)
+	items, err := h.usecase.ListItemsForUser(r.Context(), uc.UserID, cursor)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

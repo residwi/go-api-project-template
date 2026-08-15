@@ -16,12 +16,12 @@ type TokenRefresher interface {
 }
 
 type Handler struct {
-	cmd       TokenRefresher
+	usecase   TokenRefresher
 	validator *validator.Validator
 }
 
-func New(cmd TokenRefresher, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase TokenRefresher, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type refreshRequest struct {
@@ -64,7 +64,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.cmd.Execute(r.Context(), req.RefreshToken)
+	result, err := h.usecase.Execute(r.Context(), req.RefreshToken)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

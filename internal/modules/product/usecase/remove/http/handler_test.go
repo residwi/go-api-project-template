@@ -22,10 +22,10 @@ func TestHandler_DeleteProduct(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		prodID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, prodID).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, prodID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/products/"+prodID.String(), nil)
@@ -56,10 +56,10 @@ func TestHandler_DeleteProduct(t *testing.T) {
 	t.Run("service error not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		prodID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, prodID).Return(apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, prodID).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/products/"+prodID.String(), nil)
@@ -71,12 +71,12 @@ func TestHandler_DeleteProduct(t *testing.T) {
 }
 
 func setupMux(t *testing.T) (*http.ServeMux, *MockProductDeleter) {
-	cmd := NewMockProductDeleter(t)
+	usecase := NewMockProductDeleter(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	admin.HandleFunc("DELETE /products/{id}", New(cmd).Delete)
+	admin.HandleFunc("DELETE /products/{id}", New(usecase).Delete)
 
-	return mux, cmd
+	return mux, usecase
 }

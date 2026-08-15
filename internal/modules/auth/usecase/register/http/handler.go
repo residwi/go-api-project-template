@@ -17,12 +17,12 @@ type Registerer interface {
 }
 
 type Handler struct {
-	cmd       Registerer
+	usecase   Registerer
 	validator *validator.Validator
 }
 
-func New(cmd Registerer, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase Registerer, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type registerRequest struct {
@@ -77,7 +77,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.cmd.Execute(r.Context(), req.toParams())
+	result, err := h.usecase.Execute(r.Context(), req.toParams())
 	if err != nil {
 		response.HandleErr(w, err)
 		return

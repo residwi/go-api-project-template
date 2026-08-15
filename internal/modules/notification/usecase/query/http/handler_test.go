@@ -26,7 +26,7 @@ func TestHandler_List_Success(t *testing.T) {
 	t.Run("success with notifications", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, uc := setupQueryMux(t)
+		mux, usecase, uc := setupQueryMux(t)
 
 		now := time.Now()
 		notifications := []domain.Notification{
@@ -38,7 +38,7 @@ func TestHandler_List_Success(t *testing.T) {
 				CreatedAt: now,
 			},
 		}
-		reader.EXPECT().ListByUser(mock.Anything, uc.UserID, mock.Anything).Return(notifications, nil)
+		usecase.EXPECT().ListByUser(mock.Anything, uc.UserID, mock.Anything).Return(notifications, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/notifications", nil)
@@ -59,9 +59,9 @@ func TestHandler_List_ReaderError(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, uc := setupQueryMux(t)
+		mux, usecase, uc := setupQueryMux(t)
 
-		reader.EXPECT().ListByUser(mock.Anything, uc.UserID, mock.Anything).Return(nil, assert.AnError)
+		usecase.EXPECT().ListByUser(mock.Anything, uc.UserID, mock.Anything).Return(nil, assert.AnError)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/notifications", nil)
@@ -79,9 +79,9 @@ func TestHandler_UnreadCount_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, uc := setupQueryMux(t)
+		mux, usecase, uc := setupQueryMux(t)
 
-		reader.EXPECT().CountUnread(mock.Anything, uc.UserID).Return(3, nil)
+		usecase.EXPECT().CountUnread(mock.Anything, uc.UserID).Return(3, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/notifications/unread-count", nil)
@@ -106,9 +106,9 @@ func TestHandler_UnreadCount_ReaderError(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, uc := setupQueryMux(t)
+		mux, usecase, uc := setupQueryMux(t)
 
-		reader.EXPECT().CountUnread(mock.Anything, uc.UserID).Return(0, assert.AnError)
+		usecase.EXPECT().CountUnread(mock.Anything, uc.UserID).Return(0, assert.AnError)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/notifications/unread-count", nil)
@@ -126,7 +126,7 @@ func TestHandler_List_Pagination(t *testing.T) {
 	t.Run("has more results triggers cursor", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, uc := setupQueryMux(t)
+		mux, usecase, uc := setupQueryMux(t)
 
 		now := time.Now()
 		notifications := make([]domain.Notification, 21)
@@ -139,7 +139,7 @@ func TestHandler_List_Pagination(t *testing.T) {
 				CreatedAt: now.Add(-time.Duration(i) * time.Minute),
 			}
 		}
-		reader.EXPECT().ListByUser(mock.Anything, uc.UserID, mock.Anything).Return(notifications, nil)
+		usecase.EXPECT().ListByUser(mock.Anything, uc.UserID, mock.Anything).Return(notifications, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/notifications", nil)
@@ -241,12 +241,12 @@ func TestToNotificationResponse_OmitsUserIDAndRawPayload(t *testing.T) {
 }
 
 func setupQueryMux(t *testing.T) (*http.ServeMux, *MockNotificationReader, middleware.UserContext) {
-	reader := NewMockNotificationReader(t)
+	usecase := NewMockNotificationReader(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	h := New(reader)
+	h := New(usecase)
 	authed.HandleFunc("GET /notifications", h.List)
 	authed.HandleFunc("GET /notifications/unread-count", h.UnreadCount)
 
@@ -256,7 +256,7 @@ func setupQueryMux(t *testing.T) (*http.ServeMux, *MockNotificationReader, middl
 		Role:   "user",
 	}
 
-	return mux, reader, uc
+	return mux, usecase, uc
 }
 
 func notifAuth(r *http.Request, uc middleware.UserContext) *http.Request {

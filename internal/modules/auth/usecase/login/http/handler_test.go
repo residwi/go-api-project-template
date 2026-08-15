@@ -28,9 +28,9 @@ func TestHandler_Login(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := newTestMux(t)
+		mux, usecase := newTestMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(&domain.TokenPair{
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(&domain.TokenPair{
 			AccessToken:  "access-token",
 			RefreshToken: "refresh-token",
 			ExpiresIn:    900,
@@ -106,9 +106,9 @@ func TestHandler_Login(t *testing.T) {
 	t.Run("service error user not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := newTestMux(t)
+		mux, usecase := newTestMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil, apperror.ErrInvalidCredentials)
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil, apperror.ErrInvalidCredentials)
 
 		body, _ := json.Marshal(map[string]any{
 			"email":    "notfound@example.com",
@@ -181,11 +181,11 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 }
 
 func newTestMux(t *testing.T) (http.Handler, *MockAuthenticator) {
-	cmd := NewMockAuthenticator(t)
+	usecase := NewMockAuthenticator(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
-	api.HandleFunc("POST /auth/login", New(cmd, v).Login)
-	return mux, cmd
+	api.HandleFunc("POST /auth/login", New(usecase, v).Login)
+	return mux, usecase
 }

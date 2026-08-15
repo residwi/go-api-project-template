@@ -30,8 +30,8 @@ func TestHandler_Deliver(t *testing.T) {
 		orderID := uuid.New()
 		now := time.Now()
 
-		cmd := NewMockShipmentDeliverer(t)
-		cmd.EXPECT().Execute(mock.Anything, shipmentID).Return(&domain.Shipment{
+		usecase := NewMockShipmentDeliverer(t)
+		usecase.EXPECT().Execute(mock.Anything, shipmentID).Return(&domain.Shipment{
 			ID:             shipmentID,
 			OrderID:        orderID,
 			Carrier:        "FedEx",
@@ -42,7 +42,7 @@ func TestHandler_Deliver(t *testing.T) {
 			UpdatedAt:      now,
 		}, nil)
 
-		mux := setupDeliverMux(t, cmd)
+		mux := setupDeliverMux(t, usecase)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/shipments/"+shipmentID.String()+"/deliver", nil)
@@ -89,10 +89,10 @@ func TestHandler_Deliver(t *testing.T) {
 
 		shipmentID := uuid.New()
 
-		cmd := NewMockShipmentDeliverer(t)
-		cmd.EXPECT().Execute(mock.Anything, shipmentID).Return(nil, errors.New("db error"))
+		usecase := NewMockShipmentDeliverer(t)
+		usecase.EXPECT().Execute(mock.Anything, shipmentID).Return(nil, errors.New("db error"))
 
-		mux := setupDeliverMux(t, cmd)
+		mux := setupDeliverMux(t, usecase)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/shipments/"+shipmentID.String()+"/deliver", nil)
@@ -129,12 +129,12 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 		"shipped_at is omitempty and absent when nil")
 }
 
-func setupDeliverMux(t *testing.T, cmd ShipmentDeliverer) *http.ServeMux {
+func setupDeliverMux(t *testing.T, usecase ShipmentDeliverer) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("POST /shipments/{id}/deliver", New(cmd).Deliver)
+	admin.HandleFunc("POST /shipments/{id}/deliver", New(usecase).Deliver)
 
 	return mux
 }

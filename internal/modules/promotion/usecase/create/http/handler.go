@@ -18,12 +18,12 @@ type PromotionCreator interface {
 }
 
 type Handler struct {
-	cmd       PromotionCreator
+	usecase   PromotionCreator
 	validator *validator.Validator
 }
 
-func New(cmd PromotionCreator, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase PromotionCreator, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type createPromotionRequest struct {
@@ -92,7 +92,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	promo, err := h.cmd.Execute(r.Context(), req.toParams())
+	promo, err := h.usecase.Execute(r.Context(), req.toParams())
 	if err != nil {
 		response.HandleErr(w, err)
 		return

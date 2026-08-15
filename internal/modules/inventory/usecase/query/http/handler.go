@@ -15,11 +15,11 @@ type StockReader interface {
 }
 
 type Handler struct {
-	reader StockReader
+	usecase StockReader
 }
 
-func New(reader StockReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase StockReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type stockResponse struct {
@@ -44,7 +44,7 @@ func (h *Handler) GetStock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stock, err := h.reader.GetStock(r.Context(), id)
+	stock, err := h.usecase.GetStock(r.Context(), id)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

@@ -22,10 +22,10 @@ func TestHandler_MarkRead_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupMarkReadMux(t)
+		mux, usecase, uc := setupMarkReadMux(t)
 
 		id := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID, id).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID, id).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/"+id.String()+"/read", nil)
@@ -43,10 +43,10 @@ func TestHandler_MarkRead_CommandError(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupMarkReadMux(t)
+		mux, usecase, uc := setupMarkReadMux(t)
 
 		id := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID, id).Return(apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID, id).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/"+id.String()+"/read", nil)
@@ -116,12 +116,12 @@ func TestHandler_MarkRead(t *testing.T) {
 }
 
 func setupMarkReadMux(t *testing.T) (*http.ServeMux, *MockNotificationMarker, middleware.UserContext) {
-	cmd := NewMockNotificationMarker(t)
+	usecase := NewMockNotificationMarker(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("PUT /notifications/{id}/read", New(cmd).MarkRead)
+	authed.HandleFunc("PUT /notifications/{id}/read", New(usecase).MarkRead)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),
@@ -129,7 +129,7 @@ func setupMarkReadMux(t *testing.T) (*http.ServeMux, *MockNotificationMarker, mi
 		Role:   "user",
 	}
 
-	return mux, cmd, uc
+	return mux, usecase, uc
 }
 
 func notifAuth(r *http.Request, uc middleware.UserContext) *http.Request {

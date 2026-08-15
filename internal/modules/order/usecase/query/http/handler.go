@@ -19,11 +19,11 @@ type OrderReader interface {
 }
 
 type Handler struct {
-	reader OrderReader
+	usecase OrderReader
 }
 
-func New(reader OrderReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase OrderReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type addressResponse struct {
@@ -118,7 +118,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	cursor := paging.ParseCursorPage(r)
 
-	orders, err := h.reader.ListByUser(r.Context(), uc.UserID, cursor)
+	orders, err := h.usecase.ListByUser(r.Context(), uc.UserID, cursor)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -145,7 +145,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	o, err := h.reader.GetByIDForUser(r.Context(), uc.UserID, id)
+	o, err := h.usecase.GetByIDForUser(r.Context(), uc.UserID, id)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

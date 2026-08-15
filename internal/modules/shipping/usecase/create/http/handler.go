@@ -18,12 +18,12 @@ type ShipmentCreator interface {
 }
 
 type Handler struct {
-	cmd       ShipmentCreator
+	usecase   ShipmentCreator
 	validator *validator.Validator
 }
 
-func New(cmd ShipmentCreator, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase ShipmentCreator, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type createShipmentRequest struct {
@@ -75,7 +75,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shipment, err := h.cmd.Execute(r.Context(), orderID, req.toParams())
+	shipment, err := h.usecase.Execute(r.Context(), orderID, req.toParams())
 	if err != nil {
 		response.HandleErr(w, err)
 		return

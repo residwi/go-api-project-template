@@ -104,10 +104,10 @@ func TestHandler_PlaceOrder(t *testing.T) {
 	t.Run("service error is handled gracefully", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		userID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, userID, mock.Anything, mock.AnythingOfType("string")).
+		usecase.EXPECT().Execute(mock.Anything, userID, mock.Anything, mock.AnythingOfType("string")).
 			Return(nil, errors.New("database connection error"))
 
 		w := httptest.NewRecorder()
@@ -127,10 +127,10 @@ func TestHandler_PlaceOrder(t *testing.T) {
 	t.Run("mixed-currency cart is a 400, not a 500", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		userID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, userID, mock.Anything, mock.AnythingOfType("string")).
+		usecase.EXPECT().Execute(mock.Anything, userID, mock.Anything, mock.AnythingOfType("string")).
 			Return(nil, errors.Join(apperror.ErrBadRequest, errors.New("cart contains mixed currencies")))
 
 		w := httptest.NewRecorder()
@@ -235,15 +235,15 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 }
 
 func setupMux(t *testing.T) (*http.ServeMux, *MockOrderPlacer) {
-	cmd := NewMockOrderPlacer(t)
+	usecase := NewMockOrderPlacer(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("POST /orders", New(cmd, v).Place)
+	authed.HandleFunc("POST /orders", New(usecase, v).Place)
 
-	return mux, cmd
+	return mux, usecase
 }
 
 func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {

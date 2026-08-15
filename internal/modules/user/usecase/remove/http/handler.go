@@ -14,11 +14,11 @@ type UserDeleter interface {
 }
 
 type Handler struct {
-	cmd UserDeleter
+	usecase UserDeleter
 }
 
-func New(cmd UserDeleter) *Handler {
-	return &Handler{cmd: cmd}
+func New(usecase UserDeleter) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +32,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), remove.Params{
+	if err := h.usecase.Execute(r.Context(), remove.Params{
 		RequesterID: uc.UserID,
 		TargetID:    id,
 	}); err != nil {

@@ -18,9 +18,9 @@ func TestHandler_MarkAllRead_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupMarkAllReadMux(t)
+		mux, usecase, uc := setupMarkAllReadMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/read-all", nil)
@@ -38,9 +38,9 @@ func TestHandler_MarkAllRead_CommandError(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupMarkAllReadMux(t)
+		mux, usecase, uc := setupMarkAllReadMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID).Return(assert.AnError)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID).Return(assert.AnError)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/read-all", nil)
@@ -70,12 +70,12 @@ func TestHandler_MarkAllRead(t *testing.T) {
 }
 
 func setupMarkAllReadMux(t *testing.T) (*http.ServeMux, *MockAllNotificationsMarker, middleware.UserContext) {
-	cmd := NewMockAllNotificationsMarker(t)
+	usecase := NewMockAllNotificationsMarker(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("PUT /notifications/read-all", New(cmd).MarkAllRead)
+	authed.HandleFunc("PUT /notifications/read-all", New(usecase).MarkAllRead)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),
@@ -83,7 +83,7 @@ func setupMarkAllReadMux(t *testing.T) (*http.ServeMux, *MockAllNotificationsMar
 		Role:   "user",
 	}
 
-	return mux, cmd, uc
+	return mux, usecase, uc
 }
 
 func notifAuth(r *http.Request, uc middleware.UserContext) *http.Request {

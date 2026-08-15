@@ -28,13 +28,13 @@ func TestHandler_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupCreateMux(t)
+		mux, usecase := setupCreateMux(t)
 
 		userID := uuid.New()
 		productID := uuid.New()
 		orderID := uuid.New()
 
-		cmd.EXPECT().Execute(mock.Anything, userID, productID, mock.Anything).Return(&domain.Review{
+		usecase.EXPECT().Execute(mock.Anything, userID, productID, mock.Anything).Return(&domain.Review{
 			ID:        uuid.New(),
 			UserID:    userID,
 			ProductID: productID,
@@ -198,13 +198,13 @@ func TestHandler_Create(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupCreateMux(t)
+		mux, usecase := setupCreateMux(t)
 
 		userID := uuid.New()
 		productID := uuid.New()
 		orderID := uuid.New()
 
-		cmd.EXPECT().Execute(mock.Anything, userID, productID, mock.Anything).
+		usecase.EXPECT().Execute(mock.Anything, userID, productID, mock.Anything).
 			Return(nil, apperror.ErrBadRequest)
 
 		body, _ := json.Marshal(map[string]any{
@@ -275,12 +275,12 @@ func TestToReviewResponse_OmitsReviewerAndInternalFields(t *testing.T) {
 func setupCreateMux(t *testing.T) (*http.ServeMux, *MockReviewCreator) {
 	t.Helper()
 
-	cmd := NewMockReviewCreator(t)
+	usecase := NewMockReviewCreator(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	authed.HandleFunc("POST /products/{id}/reviews", New(cmd, v).Create)
+	authed.HandleFunc("POST /products/{id}/reviews", New(usecase, v).Create)
 
-	return mux, cmd
+	return mux, usecase
 }

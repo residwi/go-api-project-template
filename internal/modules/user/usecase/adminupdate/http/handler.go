@@ -18,12 +18,12 @@ type UserUpdater interface {
 }
 
 type Handler struct {
-	cmd       UserUpdater
+	usecase   UserUpdater
 	validator *validator.Validator
 }
 
-func New(cmd UserUpdater, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase UserUpdater, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type adminUpdateUserRequest struct {
@@ -79,7 +79,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.cmd.Execute(r.Context(), id, req.toParams())
+	u, err := h.usecase.Execute(r.Context(), id, req.toParams())
 	if err != nil {
 		response.HandleErr(w, err)
 		return

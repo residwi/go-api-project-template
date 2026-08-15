@@ -15,11 +15,11 @@ type OrderCanceller interface {
 }
 
 type Handler struct {
-	cmd OrderCanceller
+	usecase OrderCanceller
 }
 
-func New(cmd OrderCanceller) *Handler {
-	return &Handler{cmd: cmd}
+func New(usecase OrderCanceller) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +33,7 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), uc.UserID, id); err != nil {
+	if err := h.usecase.Execute(r.Context(), uc.UserID, id); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

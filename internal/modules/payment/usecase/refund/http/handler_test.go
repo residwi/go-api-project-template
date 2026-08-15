@@ -22,11 +22,11 @@ func TestHandler_Refund(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupRefundMux(t)
+		mux, usecase := setupRefundMux(t)
 
 		paymentID := uuid.New()
 
-		cmd.EXPECT().Execute(mock.Anything, paymentID).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, paymentID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/admin/payments/"+paymentID.String()+"/refund", nil)
@@ -71,11 +71,11 @@ func TestHandler_Refund(t *testing.T) {
 	t.Run("payment not refundable", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupRefundMux(t)
+		mux, usecase := setupRefundMux(t)
 
 		paymentID := uuid.New()
 
-		cmd.EXPECT().Execute(mock.Anything, paymentID).
+		usecase.EXPECT().Execute(mock.Anything, paymentID).
 			Return(apperror.ErrBadRequest)
 
 		w := httptest.NewRecorder()
@@ -92,11 +92,11 @@ func TestHandler_Refund(t *testing.T) {
 }
 
 func setupRefundMux(t *testing.T) (*http.ServeMux, *MockRefunder) {
-	cmd := NewMockRefunder(t)
+	usecase := NewMockRefunder(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	admin.HandleFunc("POST /payments/{id}/refund", New(cmd).Refund)
+	admin.HandleFunc("POST /payments/{id}/refund", New(usecase).Refund)
 
-	return mux, cmd
+	return mux, usecase
 }

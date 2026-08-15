@@ -24,10 +24,10 @@ func TestHandler_CreateProduct(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		sku := "SKU-999"
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).
 			Return(&domain.Product{Name: "New Product", SKU: &sku, Status: domain.StatusDraft}, nil)
 
 		body, _ := json.Marshal(map[string]any{
@@ -68,9 +68,9 @@ func TestHandler_CreateProduct(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil, apperror.ErrConflict)
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil, apperror.ErrConflict)
 
 		body, _ := json.Marshal(map[string]any{
 			"name":  "Duplicate",
@@ -129,13 +129,13 @@ func TestHandler_CreateProduct(t *testing.T) {
 }
 
 func setupMux(t *testing.T) (*http.ServeMux, *MockProductCreator) {
-	cmd := NewMockProductCreator(t)
+	usecase := NewMockProductCreator(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	admin.HandleFunc("POST /products", New(cmd, v).Create)
+	admin.HandleFunc("POST /products", New(usecase, v).Create)
 
-	return mux, cmd
+	return mux, usecase
 }

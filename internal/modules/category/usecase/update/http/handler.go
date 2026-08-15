@@ -18,12 +18,12 @@ type CategoryUpdater interface {
 }
 
 type Handler struct {
-	cmd       CategoryUpdater
+	usecase   CategoryUpdater
 	validator *validator.Validator
 }
 
-func New(cmd CategoryUpdater, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase CategoryUpdater, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type categoryResponse struct {
@@ -81,7 +81,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cat, err := h.cmd.Execute(r.Context(), id, req.toParams())
+	cat, err := h.usecase.Execute(r.Context(), id, req.toParams())
 	if err != nil {
 		response.HandleErr(w, err)
 		return

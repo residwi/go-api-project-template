@@ -22,12 +22,12 @@ func TestHandler_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupDeleteMux(t)
+		mux, usecase := setupDeleteMux(t)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
 
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/users/"+targetID.String(), nil)
@@ -84,10 +84,10 @@ func TestHandler_Delete(t *testing.T) {
 	t.Run("self-deletion blocked", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupDeleteMux(t)
+		mux, usecase := setupDeleteMux(t)
 
 		sameID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(apperror.ErrForbidden)
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(apperror.ErrForbidden)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/users/"+sameID.String(), nil)
@@ -109,12 +109,12 @@ func TestHandler_Delete(t *testing.T) {
 }
 
 func setupDeleteMux(t *testing.T) (*http.ServeMux, *MockUserDeleter) {
-	cmd := NewMockUserDeleter(t)
+	usecase := NewMockUserDeleter(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	admin.HandleFunc("DELETE /users/{id}", New(cmd).Delete)
+	admin.HandleFunc("DELETE /users/{id}", New(usecase).Delete)
 
-	return mux, cmd
+	return mux, usecase
 }

@@ -28,7 +28,7 @@ func TestHandler_ListOrders(t *testing.T) {
 	t.Run("success with cursor pagination", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, _ := setupMux(t)
+		mux, usecase, _ := setupMux(t)
 
 		userID := uuid.New()
 		now := time.Now()
@@ -43,7 +43,7 @@ func TestHandler_ListOrders(t *testing.T) {
 				UpdatedAt: now,
 			},
 		}
-		reader.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).Return(orders, nil)
+		usecase.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).Return(orders, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders?limit=10", nil)
@@ -78,9 +78,9 @@ func TestHandler_ListOrders(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, _ := setupMux(t)
+		mux, usecase, _ := setupMux(t)
 		userID := uuid.New()
-		reader.EXPECT().
+		usecase.EXPECT().
 			ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).
 			Return(nil, errors.New("db error"))
 
@@ -94,7 +94,7 @@ func TestHandler_ListOrders(t *testing.T) {
 	t.Run("has more results triggers cursor", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, _ := setupMux(t)
+		mux, usecase, _ := setupMux(t)
 
 		userID := uuid.New()
 		now := time.Now()
@@ -110,7 +110,7 @@ func TestHandler_ListOrders(t *testing.T) {
 				UpdatedAt: now,
 			}
 		}
-		reader.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).Return(orders, nil)
+		usecase.EXPECT().ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).Return(orders, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders", nil)
@@ -139,12 +139,12 @@ func TestHandler_GetOrder(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, _ := setupMux(t)
+		mux, usecase, _ := setupMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
 		now := time.Now()
-		reader.EXPECT().GetByIDForUser(mock.Anything, userID, orderID).Return(&domain.Order{
+		usecase.EXPECT().GetByIDForUser(mock.Anything, userID, orderID).Return(&domain.Order{
 			ID:        orderID,
 			UserID:    userID,
 			Status:    domain.StatusPaid,
@@ -207,11 +207,11 @@ func TestHandler_GetOrder(t *testing.T) {
 	t.Run("service error not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader, _ := setupMux(t)
+		mux, usecase, _ := setupMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
-		reader.EXPECT().GetByIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().GetByIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String(), nil)
@@ -321,21 +321,21 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 // setupMux wires only the query slice's own two handlers, so a leak test or a
 // route test never depends on any other slice's mock.
 func setupMux(t *testing.T) (*http.ServeMux, *MockOrderReader, *MockAdminReader) {
-	reader := NewMockOrderReader(t)
+	usecase := NewMockOrderReader(t)
 	admin := NewMockAdminReader(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 	adminGroup := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	h := New(reader)
+	h := New(usecase)
 	authed.HandleFunc("GET /orders", h.List)
 	authed.HandleFunc("GET /orders/{id}", h.Get)
 	ah := NewAdmin(admin)
 	adminGroup.HandleFunc("GET /orders", ah.List)
 	adminGroup.HandleFunc("GET /orders/{id}", ah.Get)
 
-	return mux, reader, admin
+	return mux, usecase, admin
 }
 
 func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {

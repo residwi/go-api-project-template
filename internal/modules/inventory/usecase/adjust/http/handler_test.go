@@ -28,13 +28,13 @@ func TestHandler_Adjust(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		cmd := NewMockAdjuster(t)
+		usecase := NewMockAdjuster(t)
 
 		productID := uuid.New()
 		expected := &domain.Stock{ProductID: productID, Quantity: 200, Reserved: 10, Available: 190}
-		cmd.EXPECT().Execute(mock.Anything, productID, 200).Return(expected, nil)
+		usecase.EXPECT().Execute(mock.Anything, productID, 200).Return(expected, nil)
 
-		mux := setupAdjustMux(t, cmd)
+		mux := setupAdjustMux(t, usecase)
 
 		body, _ := json.Marshal(map[string]any{"quantity": 200})
 
@@ -146,14 +146,14 @@ func TestHandler_Adjust(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		cmd := NewMockAdjuster(t)
+		usecase := NewMockAdjuster(t)
 
 		productID := uuid.New()
-		cmd.EXPECT().
+		usecase.EXPECT().
 			Execute(mock.Anything, productID, 200).
 			Return(nil, fmt.Errorf("%w: cannot set stock below reserved quantity", apperror.ErrBadRequest))
 
-		mux := setupAdjustMux(t, cmd)
+		mux := setupAdjustMux(t, usecase)
 
 		body, _ := json.Marshal(map[string]any{"quantity": 200})
 
@@ -198,12 +198,12 @@ func TestToStockResponse_ExposesExactFieldSet(t *testing.T) {
 	)
 }
 
-func setupAdjustMux(t *testing.T, cmd Adjuster) *http.ServeMux {
+func setupAdjustMux(t *testing.T, usecase Adjuster) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	admin.HandleFunc("PUT /inventory/{product_id}/adjust", New(cmd, validator.New()).Adjust)
+	admin.HandleFunc("PUT /inventory/{product_id}/adjust", New(usecase, validator.New()).Adjust)
 
 	return mux
 }

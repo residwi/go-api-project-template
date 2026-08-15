@@ -14,11 +14,11 @@ type RevenueReader interface {
 }
 
 type Handler struct {
-	reader RevenueReader
+	usecase RevenueReader
 }
 
-func New(reader RevenueReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase RevenueReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok bool) {
@@ -67,7 +67,7 @@ func (h *Handler) Revenue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := h.reader.ListRevenueByDay(r.Context(), from, to)
+	data, err := h.usecase.ListRevenueByDay(r.Context(), from, to)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

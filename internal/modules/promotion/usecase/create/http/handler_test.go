@@ -25,9 +25,9 @@ func TestAdminHandler_Create_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupCreateMux(t)
+		mux, usecase := setupCreateMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(&domain.Promotion{
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(&domain.Promotion{
 			Code: "NEW10",
 		}, nil)
 
@@ -61,9 +61,9 @@ func TestAdminHandler_Create_ServiceError(t *testing.T) {
 	t.Run("repo conflict", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupCreateMux(t)
+		mux, usecase := setupCreateMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil, apperror.ErrConflict)
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil, apperror.ErrConflict)
 
 		startsAt := time.Now().Truncate(time.Second)
 		expiresAt := time.Now().Add(24 * time.Hour).Truncate(time.Second)
@@ -131,12 +131,12 @@ func TestAdminHandler_Create_ValidationError(t *testing.T) {
 func setupCreateMux(t *testing.T) (*http.ServeMux, *MockPromotionCreator) {
 	t.Helper()
 
-	cmd := NewMockPromotionCreator(t)
+	usecase := NewMockPromotionCreator(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("POST /promotions", New(cmd, v).Create)
+	admin.HandleFunc("POST /promotions", New(usecase, v).Create)
 
-	return mux, cmd
+	return mux, usecase
 }

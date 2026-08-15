@@ -15,11 +15,11 @@ type CartClearer interface {
 }
 
 type Handler struct {
-	cmd CartClearer
+	usecase CartClearer
 }
 
-func New(cmd CartClearer) *Handler {
-	return &Handler{cmd: cmd}
+func New(usecase CartClearer) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func (h *Handler) Clear(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +28,7 @@ func (h *Handler) Clear(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Clear(r.Context(), uc.UserID); err != nil {
+	if err := h.usecase.Clear(r.Context(), uc.UserID); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

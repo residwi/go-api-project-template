@@ -17,12 +17,12 @@ type CartAdder interface {
 }
 
 type Handler struct {
-	cmd       CartAdder
+	usecase   CartAdder
 	validator *validator.Validator
 }
 
-func New(cmd CartAdder, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase CartAdder, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type addItemRequest struct {
@@ -45,7 +45,7 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), uc.UserID, req.toParams()); err != nil {
+	if err := h.usecase.Execute(r.Context(), uc.UserID, req.toParams()); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

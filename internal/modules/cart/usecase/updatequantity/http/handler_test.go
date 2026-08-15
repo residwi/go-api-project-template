@@ -23,10 +23,10 @@ func TestHandler_Update_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupUpdateMux(t)
+		mux, usecase, uc := setupUpdateMux(t)
 
 		productID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID, productID, mock.Anything).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID, productID, mock.Anything).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
@@ -48,10 +48,10 @@ func TestHandler_Update_CommandError(t *testing.T) {
 	t.Run("cart not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupUpdateMux(t)
+		mux, usecase, uc := setupUpdateMux(t)
 
 		productID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID, productID, mock.Anything).Return(apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID, productID, mock.Anything).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
@@ -131,13 +131,13 @@ func TestHandler_Update(t *testing.T) {
 }
 
 func setupUpdateMux(t *testing.T) (*http.ServeMux, *MockCartQuantityUpdater, middleware.UserContext) {
-	cmd := NewMockCartQuantityUpdater(t)
+	usecase := NewMockCartQuantityUpdater(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("PUT /cart/items/{product_id}", New(cmd, v).Update)
+	authed.HandleFunc("PUT /cart/items/{product_id}", New(usecase, v).Update)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),
@@ -145,7 +145,7 @@ func setupUpdateMux(t *testing.T) (*http.ServeMux, *MockCartQuantityUpdater, mid
 		Role:   "user",
 	}
 
-	return mux, cmd, uc
+	return mux, usecase, uc
 }
 
 func withAuth(r *http.Request, uc middleware.UserContext) *http.Request {

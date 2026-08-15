@@ -28,9 +28,9 @@ func TestHandler_RefreshToken(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := newTestMux(t)
+		mux, usecase := newTestMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, "a-refresh-token").Return(&domain.TokenPair{
+		usecase.EXPECT().Execute(mock.Anything, "a-refresh-token").Return(&domain.TokenPair{
 			AccessToken:  "new-access-token",
 			RefreshToken: "new-refresh-token",
 			ExpiresIn:    900,
@@ -101,9 +101,9 @@ func TestHandler_RefreshToken(t *testing.T) {
 	t.Run("service error invalid token", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := newTestMux(t)
+		mux, usecase := newTestMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, "invalid-token").Return(nil, apperror.ErrInvalidToken)
+		usecase.EXPECT().Execute(mock.Anything, "invalid-token").Return(nil, apperror.ErrInvalidToken)
 
 		body, _ := json.Marshal(map[string]any{"refresh_token": "invalid-token"})
 
@@ -174,11 +174,11 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 }
 
 func newTestMux(t *testing.T) (http.Handler, *MockTokenRefresher) {
-	cmd := NewMockTokenRefresher(t)
+	usecase := NewMockTokenRefresher(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
-	api.HandleFunc("POST /auth/refresh", New(cmd, v).Refresh)
-	return mux, cmd
+	api.HandleFunc("POST /auth/refresh", New(usecase, v).Refresh)
+	return mux, usecase
 }

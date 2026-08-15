@@ -51,11 +51,11 @@ func toAdminPaymentResponse(p *domain.Payment) adminPaymentResponse {
 }
 
 type Handler struct {
-	reader PaymentReader
+	usecase PaymentReader
 }
 
-func New(reader PaymentReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase PaymentReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +66,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		OrderID:    r.URL.Query().Get("order_id"),
 	}
 
-	payments, total, err := h.reader.ListAdmin(r.Context(), params)
+	payments, total, err := h.usecase.ListAdmin(r.Context(), params)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -86,7 +86,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := h.reader.GetByID(r.Context(), id)
+	p, err := h.usecase.GetByID(r.Context(), id)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

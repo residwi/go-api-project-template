@@ -28,11 +28,11 @@ func TestHandler_Update(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupAdminUpdateMux(t)
+		mux, usecase := setupAdminUpdateMux(t)
 
 		userID := uuid.New()
 		now := time.Now()
-		cmd.EXPECT().Execute(mock.Anything, userID, mock.Anything).Return(&domain.User{
+		usecase.EXPECT().Execute(mock.Anything, userID, mock.Anything).Return(&domain.User{
 			ID:        userID,
 			Email:     "alice@example.com",
 			FirstName: "Updated",
@@ -121,10 +121,10 @@ func TestHandler_Update(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupAdminUpdateMux(t)
+		mux, usecase := setupAdminUpdateMux(t)
 
 		userID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, userID, mock.Anything).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, userID, mock.Anything).Return(nil, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{"first_name": "Test"})
 
@@ -210,13 +210,13 @@ func TestToAdminUserResponse_ExposesOperatorFieldsButNotCredentials(t *testing.T
 }
 
 func setupAdminUpdateMux(t *testing.T) (*http.ServeMux, *MockUserUpdater) {
-	cmd := NewMockUserUpdater(t)
+	usecase := NewMockUserUpdater(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	admin.HandleFunc("PUT /users/{id}", New(cmd, v).Update)
+	admin.HandleFunc("PUT /users/{id}", New(usecase, v).Update)
 
-	return mux, cmd
+	return mux, usecase
 }

@@ -18,12 +18,12 @@ type PromotionUpdater interface {
 }
 
 type Handler struct {
-	cmd       PromotionUpdater
+	usecase   PromotionUpdater
 	validator *validator.Validator
 }
 
-func New(cmd PromotionUpdater, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase PromotionUpdater, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type updatePromotionRequest struct {
@@ -97,7 +97,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	promo, err := h.cmd.Execute(r.Context(), id, req.toParams())
+	promo, err := h.usecase.Execute(r.Context(), id, req.toParams())
 	if err != nil {
 		response.HandleErr(w, err)
 		return

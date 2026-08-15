@@ -26,12 +26,12 @@ func TestHandler_ListByProduct(t *testing.T) {
 	t.Run("success with pagination", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupQueryMux(t)
+		mux, usecase := setupQueryMux(t)
 
 		productID := uuid.New()
 		now := time.Now()
 
-		reader.EXPECT().ListByProduct(mock.Anything, productID, mock.Anything).Return([]domain.Review{
+		usecase.EXPECT().ListByProduct(mock.Anything, productID, mock.Anything).Return([]domain.Review{
 			{
 				ID:        uuid.New(),
 				UserID:    uuid.New(),
@@ -101,10 +101,10 @@ func TestHandler_ListByProduct(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupQueryMux(t)
+		mux, usecase := setupQueryMux(t)
 
 		productID := uuid.New()
-		reader.EXPECT().ListByProduct(mock.Anything, productID, mock.Anything).Return(nil, errors.New("db error"))
+		usecase.EXPECT().ListByProduct(mock.Anything, productID, mock.Anything).Return(nil, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products/"+productID.String()+"/reviews", nil)
@@ -117,7 +117,7 @@ func TestHandler_ListByProduct(t *testing.T) {
 	t.Run("has more results triggers cursor", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupQueryMux(t)
+		mux, usecase := setupQueryMux(t)
 
 		productID := uuid.New()
 		now := time.Now()
@@ -135,7 +135,7 @@ func TestHandler_ListByProduct(t *testing.T) {
 				UpdatedAt: now,
 			}
 		}
-		reader.EXPECT().ListByProduct(mock.Anything, productID, mock.Anything).Return(reviews, nil)
+		usecase.EXPECT().ListByProduct(mock.Anything, productID, mock.Anything).Return(reviews, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products/"+productID.String()+"/reviews", nil)
@@ -198,11 +198,11 @@ func TestToReviewResponse_OmitsReviewerAndInternalFields(t *testing.T) {
 func setupQueryMux(t *testing.T) (*http.ServeMux, *MockReviewReader) {
 	t.Helper()
 
-	reader := NewMockReviewReader(t)
+	usecase := NewMockReviewReader(t)
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api/v1")
-	api.HandleFunc("GET /products/{id}/reviews", New(reader).List)
+	api.HandleFunc("GET /products/{id}/reviews", New(usecase).List)
 
-	return mux, reader
+	return mux, usecase
 }

@@ -17,11 +17,11 @@ type TopProductsReader interface {
 }
 
 type Handler struct {
-	reader TopProductsReader
+	usecase TopProductsReader
 }
 
-func New(reader TopProductsReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase TopProductsReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok bool) {
@@ -77,7 +77,7 @@ func (h *Handler) TopProducts(w http.ResponseWriter, r *http.Request) {
 		limit = 10
 	}
 
-	products, err := h.reader.ListTopProducts(r.Context(), limit, from, to)
+	products, err := h.usecase.ListTopProducts(r.Context(), limit, from, to)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

@@ -30,11 +30,11 @@ func TestAdminHandler_GetProduct(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupAdminMux(t)
+		mux, usecase := setupAdminMux(t)
 
 		prodID := uuid.New()
 		now := time.Now()
-		reader.EXPECT().GetByID(mock.Anything, prodID).Return(&domain.Product{
+		usecase.EXPECT().GetByID(mock.Anything, prodID).Return(&domain.Product{
 			ID:        prodID,
 			Name:      "Widget",
 			Slug:      "widget",
@@ -69,10 +69,10 @@ func TestAdminHandler_GetProduct(t *testing.T) {
 	t.Run("service error not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupAdminMux(t)
+		mux, usecase := setupAdminMux(t)
 
 		prodID := uuid.New()
-		reader.EXPECT().GetByID(mock.Anything, prodID).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().GetByID(mock.Anything, prodID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/products/"+prodID.String(), nil)
@@ -107,10 +107,10 @@ func TestAdminHandler_ListProducts(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupAdminMux(t)
+		mux, usecase := setupAdminMux(t)
 
 		now := time.Now()
-		reader.EXPECT().ListAdmin(mock.Anything, mock.Anything).Return([]domain.Product{
+		usecase.EXPECT().ListAdmin(mock.Anything, mock.Anything).Return([]domain.Product{
 			{
 				ID:        uuid.New(),
 				Name:      "Widget",
@@ -177,9 +177,9 @@ func TestAdminHandler_ListProducts(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupAdminMux(t)
+		mux, usecase := setupAdminMux(t)
 
-		reader.EXPECT().ListAdmin(mock.Anything, mock.Anything).Return(nil, 0, errors.New("db error"))
+		usecase.EXPECT().ListAdmin(mock.Anything, mock.Anything).Return(nil, 0, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/products", nil)
@@ -192,10 +192,10 @@ func TestAdminHandler_ListProducts(t *testing.T) {
 	t.Run("with valid category_id", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupAdminMux(t)
+		mux, usecase := setupAdminMux(t)
 
 		catID := uuid.New()
-		reader.EXPECT().ListAdmin(mock.Anything, mock.MatchedBy(func(p query.AdminListParams) bool {
+		usecase.EXPECT().ListAdmin(mock.Anything, mock.MatchedBy(func(p query.AdminListParams) bool {
 			return p.CategoryID != nil && *p.CategoryID == catID
 		})).Return([]domain.Product{}, 0, nil)
 
@@ -264,14 +264,14 @@ func TestToAdminProductResponse_KeepsSKUAndStatus(t *testing.T) {
 }
 
 func setupAdminMux(t *testing.T) (*http.ServeMux, *MockAdminProductReader) {
-	reader := NewMockAdminProductReader(t)
+	usecase := NewMockAdminProductReader(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	ah := NewAdmin(reader)
+	ah := NewAdmin(usecase)
 	admin.HandleFunc("GET /products", ah.List)
 	admin.HandleFunc("GET /products/{id}", ah.Get)
 
-	return mux, reader
+	return mux, usecase
 }

@@ -19,11 +19,11 @@ type UserLister interface {
 }
 
 type AdminHandler struct {
-	reader UserLister
+	usecase UserLister
 }
 
-func NewAdmin(reader UserLister) *AdminHandler {
-	return &AdminHandler{reader: reader}
+func NewAdmin(usecase UserLister) *AdminHandler {
+	return &AdminHandler{usecase: usecase}
 }
 
 type adminUserResponse struct {
@@ -65,7 +65,7 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 		params.Active = &active
 	}
 
-	users, total, err := h.reader.ListAdmin(r.Context(), params)
+	users, total, err := h.usecase.ListAdmin(r.Context(), params)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -85,7 +85,7 @@ func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.reader.GetByID(r.Context(), id)
+	u, err := h.usecase.GetByID(r.Context(), id)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

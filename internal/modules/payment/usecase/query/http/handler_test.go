@@ -30,7 +30,7 @@ func TestHandler_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupPaymentQueryMux(t)
+		mux, usecase := setupPaymentQueryMux(t)
 
 		now := time.Now()
 		payments := []domain.Payment{
@@ -44,7 +44,7 @@ func TestHandler_List(t *testing.T) {
 			},
 		}
 
-		reader.EXPECT().ListAdmin(mock.Anything, mock.MatchedBy(func(p query.AdminListParams) bool {
+		usecase.EXPECT().ListAdmin(mock.Anything, mock.MatchedBy(func(p query.AdminListParams) bool {
 			return p.Page == 1 && p.PageSize == 20
 		})).Return(payments, 1, nil)
 
@@ -87,9 +87,9 @@ func TestHandler_List(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupPaymentQueryMux(t)
+		mux, usecase := setupPaymentQueryMux(t)
 
-		reader.EXPECT().ListAdmin(mock.Anything, mock.Anything).
+		usecase.EXPECT().ListAdmin(mock.Anything, mock.Anything).
 			Return(nil, 0, errors.New("db connection failed"))
 
 		w := httptest.NewRecorder()
@@ -111,7 +111,7 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupPaymentQueryMux(t)
+		mux, usecase := setupPaymentQueryMux(t)
 
 		paymentID := uuid.New()
 		now := time.Now()
@@ -124,7 +124,7 @@ func TestHandler_Get(t *testing.T) {
 			UpdatedAt: now,
 		}
 
-		reader.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil)
+		usecase.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/payments/"+paymentID.String(), nil)
@@ -170,10 +170,10 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupPaymentQueryMux(t)
+		mux, usecase := setupPaymentQueryMux(t)
 
 		paymentID := uuid.New()
-		reader.EXPECT().GetByID(mock.Anything, paymentID).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().GetByID(mock.Anything, paymentID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/payments/"+paymentID.String(), nil)
@@ -231,13 +231,13 @@ func TestToAdminPaymentResponse_OmitsGatewayResponse(t *testing.T) {
 }
 
 func setupPaymentQueryMux(t *testing.T) (*http.ServeMux, *MockPaymentReader) {
-	reader := NewMockPaymentReader(t)
+	usecase := NewMockPaymentReader(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	h := New(reader)
+	h := New(usecase)
 	admin.HandleFunc("GET /payments", h.List)
 	admin.HandleFunc("GET /payments/{id}", h.Get)
 
-	return mux, reader
+	return mux, usecase
 }

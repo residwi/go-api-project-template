@@ -21,12 +21,12 @@ type ProductUpdater interface {
 }
 
 type Handler struct {
-	cmd       ProductUpdater
+	usecase   ProductUpdater
 	validator *validator.Validator
 }
 
-func New(cmd ProductUpdater, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase ProductUpdater, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type productResponse struct {
@@ -151,7 +151,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := h.cmd.Execute(r.Context(), id, params)
+	p, err := h.usecase.Execute(r.Context(), id, params)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

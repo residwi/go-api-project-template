@@ -22,10 +22,10 @@ func TestAdminHandler_Delete_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupRemoveMux(t)
+		mux, usecase := setupRemoveMux(t)
 
 		id := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, id).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, id).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/promotions/"+id.String(), nil)
@@ -42,10 +42,10 @@ func TestAdminHandler_Delete_ServiceError(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupRemoveMux(t)
+		mux, usecase := setupRemoveMux(t)
 
 		id := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, id).Return(apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, id).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/promotions/"+id.String(), nil)
@@ -80,11 +80,11 @@ func TestAdminHandler_Delete_InvalidUUID(t *testing.T) {
 func setupRemoveMux(t *testing.T) (*http.ServeMux, *MockPromotionDeleter) {
 	t.Helper()
 
-	cmd := NewMockPromotionDeleter(t)
+	usecase := NewMockPromotionDeleter(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("DELETE /promotions/{id}", New(cmd).Delete)
+	admin.HandleFunc("DELETE /promotions/{id}", New(usecase).Delete)
 
-	return mux, cmd
+	return mux, usecase
 }

@@ -31,8 +31,8 @@ func TestHandler_Get(t *testing.T) {
 		shipmentID := uuid.New()
 		now := time.Now()
 
-		reader := NewMockShipmentReader(t)
-		reader.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(&domain.Shipment{
+		usecase := NewMockShipmentReader(t)
+		usecase.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(&domain.Shipment{
 			ID:             shipmentID,
 			OrderID:        orderID,
 			Carrier:        "FedEx",
@@ -42,7 +42,7 @@ func TestHandler_Get(t *testing.T) {
 			UpdatedAt:      now,
 		}, nil)
 
-		mux := setupQueryMux(t, reader)
+		mux := setupQueryMux(t, usecase)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -119,10 +119,10 @@ func TestHandler_Get(t *testing.T) {
 		userID := uuid.New()
 		orderID := uuid.New()
 
-		reader := NewMockShipmentReader(t)
-		reader.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+		usecase := NewMockShipmentReader(t)
+		usecase.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
 
-		mux := setupQueryMux(t, reader)
+		mux := setupQueryMux(t, usecase)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -144,10 +144,10 @@ func TestHandler_Get(t *testing.T) {
 		userID := uuid.New()
 		orderID := uuid.New()
 
-		reader := NewMockShipmentReader(t)
-		reader.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+		usecase := NewMockShipmentReader(t)
+		usecase.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
 
-		mux := setupQueryMux(t, reader)
+		mux := setupQueryMux(t, usecase)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -166,10 +166,10 @@ func TestHandler_Get(t *testing.T) {
 		userID := uuid.New()
 		orderID := uuid.New()
 
-		reader := NewMockShipmentReader(t)
-		reader.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+		usecase := NewMockShipmentReader(t)
+		usecase.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
 
-		mux := setupQueryMux(t, reader)
+		mux := setupQueryMux(t, usecase)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -208,12 +208,12 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 		"shipped_at and delivered_at are omitempty and absent when nil")
 }
 
-func setupQueryMux(t *testing.T, reader ShipmentReader) *http.ServeMux {
+func setupQueryMux(t *testing.T, usecase ShipmentReader) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	authed.HandleFunc("GET /orders/{id}/shipping", New(reader).Get)
+	authed.HandleFunc("GET /orders/{id}/shipping", New(usecase).Get)
 
 	return mux
 }

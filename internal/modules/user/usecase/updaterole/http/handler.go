@@ -15,12 +15,12 @@ type RoleUpdater interface {
 }
 
 type Handler struct {
-	cmd       RoleUpdater
+	usecase   RoleUpdater
 	validator *validator.Validator
 }
 
-func New(cmd RoleUpdater, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase RoleUpdater, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type updateRoleRequest struct {
@@ -43,7 +43,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), updaterole.Params{
+	if err := h.usecase.Execute(r.Context(), updaterole.Params{
 		RequesterID: uc.UserID,
 		TargetID:    id,
 		Role:        req.Role,

@@ -27,10 +27,10 @@ func TestAdminHandler_Update_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupUpdateMux(t)
+		mux, usecase := setupUpdateMux(t)
 
 		id := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, id, mock.Anything).Return(&domain.Promotion{
+		usecase.EXPECT().Execute(mock.Anything, id, mock.Anything).Return(&domain.Promotion{
 			ID:        id,
 			Code:      "UPDATED",
 			Type:      domain.TypeFixedAmount,
@@ -61,10 +61,10 @@ func TestAdminHandler_Update_ServiceError(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupUpdateMux(t)
+		mux, usecase := setupUpdateMux(t)
 
 		id := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, id, mock.Anything).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, id, mock.Anything).Return(nil, apperror.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]string{"code": "UPDATED"})
 
@@ -150,12 +150,12 @@ func TestAdminHandler_Update_InvalidUUID(t *testing.T) {
 func setupUpdateMux(t *testing.T) (*http.ServeMux, *MockPromotionUpdater) {
 	t.Helper()
 
-	cmd := NewMockPromotionUpdater(t)
+	usecase := NewMockPromotionUpdater(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("PUT /promotions/{id}", New(cmd, v).Update)
+	admin.HandleFunc("PUT /promotions/{id}", New(usecase, v).Update)
 
-	return mux, cmd
+	return mux, usecase
 }

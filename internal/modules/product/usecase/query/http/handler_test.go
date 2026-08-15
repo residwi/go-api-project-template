@@ -30,11 +30,11 @@ func TestHandler_ListProducts(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		now := time.Now()
 		sku := "SKU-123"
-		reader.EXPECT().ListPublished(mock.Anything, mock.Anything).Return([]domain.Product{
+		usecase.EXPECT().ListPublished(mock.Anything, mock.Anything).Return([]domain.Product{
 			{
 				ID:        uuid.New(),
 				Name:      "Widget",
@@ -84,9 +84,9 @@ func TestHandler_ListProducts(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupMux(t)
+		mux, usecase := setupMux(t)
 
-		reader.EXPECT().ListPublished(mock.Anything, mock.Anything).Return(nil, "", false, errors.New("db error"))
+		usecase.EXPECT().ListPublished(mock.Anything, mock.Anything).Return(nil, "", false, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products", nil)
@@ -150,10 +150,10 @@ func TestHandler_ListProducts(t *testing.T) {
 	t.Run("with valid filters", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		catID := uuid.New()
-		reader.EXPECT().ListPublished(mock.Anything, mock.MatchedBy(func(p query.PublishedListParams) bool {
+		usecase.EXPECT().ListPublished(mock.Anything, mock.MatchedBy(func(p query.PublishedListParams) bool {
 			return p.CategoryID != nil && *p.CategoryID == catID &&
 				p.MinPrice != nil && *p.MinPrice == 100 &&
 				p.MaxPrice != nil && *p.MaxPrice == 5000
@@ -178,11 +178,11 @@ func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		now := time.Now()
 		sku := "SKU-123"
-		reader.EXPECT().GetBySlug(mock.Anything, "widget").Return(&domain.Product{
+		usecase.EXPECT().GetBySlug(mock.Anything, "widget").Return(&domain.Product{
 			ID:        uuid.New(),
 			Name:      "Widget",
 			Slug:      "widget",
@@ -227,9 +227,9 @@ func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupMux(t)
+		mux, usecase := setupMux(t)
 
-		reader.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products/nonexistent", nil)
@@ -308,14 +308,14 @@ func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
 }
 
 func setupMux(t *testing.T) (*http.ServeMux, *MockProductReader) {
-	reader := NewMockProductReader(t)
+	usecase := NewMockProductReader(t)
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api/v1")
 
-	h := New(reader)
+	h := New(usecase)
 	api.HandleFunc("GET /products", h.List)
 	api.HandleFunc("GET /products/{slug}", h.GetBySlug)
 
-	return mux, reader
+	return mux, usecase
 }

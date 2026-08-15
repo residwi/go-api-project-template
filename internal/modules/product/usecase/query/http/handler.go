@@ -21,11 +21,11 @@ type ProductReader interface {
 }
 
 type Handler struct {
-	reader ProductReader
+	usecase ProductReader
 }
 
-func New(reader ProductReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase ProductReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type productResponse struct {
@@ -125,7 +125,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		params.MaxPrice = &v
 	}
 
-	products, nextCursor, hasMore, err := h.reader.ListPublished(r.Context(), params)
+	products, nextCursor, hasMore, err := h.usecase.ListPublished(r.Context(), params)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -146,7 +146,7 @@ func (h *Handler) GetBySlug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := h.reader.GetBySlug(r.Context(), slug)
+	p, err := h.usecase.GetBySlug(r.Context(), slug)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

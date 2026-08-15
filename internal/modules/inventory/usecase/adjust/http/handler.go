@@ -16,12 +16,12 @@ type Adjuster interface {
 }
 
 type Handler struct {
-	cmd       Adjuster
+	usecase   Adjuster
 	validator *validator.Validator
 }
 
-func New(cmd Adjuster, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase Adjuster, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type stockResponse struct {
@@ -55,7 +55,7 @@ func (h *Handler) Adjust(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stock, err := h.cmd.Execute(r.Context(), id, req.Quantity)
+	stock, err := h.usecase.Execute(r.Context(), id, req.Quantity)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

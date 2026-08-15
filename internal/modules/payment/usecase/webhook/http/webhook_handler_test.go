@@ -182,11 +182,11 @@ func setupWebhookMux(
 ) *http.ServeMux {
 	t.Helper()
 
-	cmd := webhook.New(repo, orders, finalizer, jobs, secret, testhelper.DiscardLogger())
+	usecase := webhook.New(repo, orders, finalizer, jobs, secret, testhelper.DiscardLogger())
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
-	api.HandleFunc("POST /payments/webhook", New(cmd, testhelper.DiscardLogger()).HandleWebhook)
+	api.HandleFunc("POST /payments/webhook", New(usecase, testhelper.DiscardLogger()).HandleWebhook)
 
 	return mux
 }

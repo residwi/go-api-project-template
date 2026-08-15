@@ -27,10 +27,10 @@ func TestHandler_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupQueryMux(t)
+		mux, usecase := setupQueryMux(t)
 
 		now := time.Now()
-		reader.EXPECT().List(mock.Anything).Return([]domain.Category{
+		usecase.EXPECT().List(mock.Anything).Return([]domain.Category{
 			{
 				ID:        uuid.New(),
 				Name:      "Electronics",
@@ -66,12 +66,12 @@ func TestHandler_List(t *testing.T) {
 		assert.NotContains(t, item, "description")
 	})
 
-	t.Run("reader error", func(t *testing.T) {
+	t.Run("usecase error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupQueryMux(t)
+		mux, usecase := setupQueryMux(t)
 
-		reader.EXPECT().List(mock.Anything).Return(nil, errors.New("db error"))
+		usecase.EXPECT().List(mock.Anything).Return(nil, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/categories", nil)
@@ -88,11 +88,11 @@ func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupQueryMux(t)
+		mux, usecase := setupQueryMux(t)
 
 		catID := uuid.New()
 		now := time.Now()
-		reader.EXPECT().GetBySlug(mock.Anything, "electronics").Return(&domain.Category{
+		usecase.EXPECT().GetBySlug(mock.Anything, "electronics").Return(&domain.Category{
 			ID:        catID,
 			Name:      "Electronics",
 			Slug:      "electronics",
@@ -135,9 +135,9 @@ func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupQueryMux(t)
+		mux, usecase := setupQueryMux(t)
 
-		reader.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/categories/nonexistent", nil)
@@ -151,12 +151,12 @@ func TestHandler_GetBySlug(t *testing.T) {
 		assert.False(t, resp.Success)
 	})
 
-	t.Run("reader error", func(t *testing.T) {
+	t.Run("usecase error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupQueryMux(t)
+		mux, usecase := setupQueryMux(t)
 
-		reader.EXPECT().GetBySlug(mock.Anything, "fail").Return(nil, errors.New("db error"))
+		usecase.EXPECT().GetBySlug(mock.Anything, "fail").Return(nil, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/categories/fail", nil)
@@ -222,13 +222,13 @@ func TestToCategoryResponse_OmitsModerationAndAuditFields(t *testing.T) {
 func setupQueryMux(t *testing.T) (*http.ServeMux, *MockCategoryReader) {
 	t.Helper()
 
-	reader := NewMockCategoryReader(t)
+	usecase := NewMockCategoryReader(t)
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api/v1")
-	h := New(reader)
+	h := New(usecase)
 	api.HandleFunc("GET /categories", h.List)
 	api.HandleFunc("GET /categories/{slug}", h.GetBySlug)
 
-	return mux, reader
+	return mux, usecase
 }

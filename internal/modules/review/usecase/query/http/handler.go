@@ -17,11 +17,11 @@ type ReviewReader interface {
 }
 
 type Handler struct {
-	reader ReviewReader
+	usecase ReviewReader
 }
 
-func New(reader ReviewReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase ReviewReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type reviewResponse struct {
@@ -52,7 +52,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	cursor := paging.ParseCursorPage(r)
 
-	reviews, err := h.reader.ListByProduct(r.Context(), productID, cursor)
+	reviews, err := h.usecase.ListByProduct(r.Context(), productID, cursor)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

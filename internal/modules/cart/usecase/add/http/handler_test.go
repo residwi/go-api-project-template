@@ -23,10 +23,10 @@ func TestHandler_Add_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupAddMux(t)
+		mux, usecase, uc := setupAddMux(t)
 
 		productID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID, mock.Anything).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID, mock.Anything).Return(nil)
 
 		body := `{"product_id":"` + productID.String() + `","quantity":2}`
 		w := httptest.NewRecorder()
@@ -45,10 +45,10 @@ func TestHandler_Add_CommandError(t *testing.T) {
 	t.Run("product not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupAddMux(t)
+		mux, usecase, uc := setupAddMux(t)
 
 		productID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID, mock.Anything).Return(apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID, mock.Anything).Return(apperror.ErrNotFound)
 
 		body := `{"product_id":"` + productID.String() + `","quantity":1}`
 		w := httptest.NewRecorder()
@@ -111,13 +111,13 @@ func TestHandler_Add(t *testing.T) {
 }
 
 func setupAddMux(t *testing.T) (*http.ServeMux, *MockCartAdder, middleware.UserContext) {
-	cmd := NewMockCartAdder(t)
+	usecase := NewMockCartAdder(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("POST /cart/items", New(cmd, v).Add)
+	authed.HandleFunc("POST /cart/items", New(usecase, v).Add)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),
@@ -125,7 +125,7 @@ func setupAddMux(t *testing.T) (*http.ServeMux, *MockCartAdder, middleware.UserC
 		Role:   "user",
 	}
 
-	return mux, cmd, uc
+	return mux, usecase, uc
 }
 
 func withAuth(r *http.Request, uc middleware.UserContext) *http.Request {

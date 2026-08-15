@@ -16,11 +16,11 @@ type ShipmentDeliverer interface {
 }
 
 type Handler struct {
-	cmd ShipmentDeliverer
+	usecase ShipmentDeliverer
 }
 
-func New(cmd ShipmentDeliverer) *Handler {
-	return &Handler{cmd: cmd}
+func New(usecase ShipmentDeliverer) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type shipmentResponse struct {
@@ -55,7 +55,7 @@ func (h *Handler) Deliver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shipment, err := h.cmd.Execute(r.Context(), id)
+	shipment, err := h.usecase.Execute(r.Context(), id)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

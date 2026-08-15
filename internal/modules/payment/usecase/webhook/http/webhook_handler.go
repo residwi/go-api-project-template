@@ -14,12 +14,12 @@ type WebhookProcessor interface {
 }
 
 type Handler struct {
-	cmd    WebhookProcessor
-	logger *slog.Logger
+	usecase WebhookProcessor
+	logger  *slog.Logger
 }
 
-func New(cmd WebhookProcessor, log *slog.Logger) *Handler {
-	return &Handler{cmd: cmd, logger: log}
+func New(usecase WebhookProcessor, log *slog.Logger) *Handler {
+	return &Handler{usecase: usecase, logger: log}
 }
 
 const webhookSignatureHeader = "X-Webhook-Signature"
@@ -32,7 +32,7 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), body, r.Header.Get(webhookSignatureHeader)); err != nil {
+	if err := h.usecase.Execute(r.Context(), body, r.Header.Get(webhookSignatureHeader)); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

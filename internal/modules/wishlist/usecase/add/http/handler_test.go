@@ -23,10 +23,10 @@ func TestHandler_Add_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupAddMux(t)
+		mux, usecase, uc := setupAddMux(t)
 
 		productID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID, mock.Anything).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID, mock.Anything).Return(nil)
 
 		body, _ := json.Marshal(map[string]any{"product_id": productID})
 
@@ -46,10 +46,10 @@ func TestHandler_Add_CommandError(t *testing.T) {
 	t.Run("get or create fails", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupAddMux(t)
+		mux, usecase, uc := setupAddMux(t)
 
 		productID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID, mock.Anything).Return(assert.AnError)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID, mock.Anything).Return(assert.AnError)
 
 		body, _ := json.Marshal(map[string]any{"product_id": productID})
 
@@ -113,13 +113,13 @@ func TestHandler_Add(t *testing.T) {
 }
 
 func setupAddMux(t *testing.T) (*http.ServeMux, *MockItemAdder, middleware.UserContext) {
-	cmd := NewMockItemAdder(t)
+	usecase := NewMockItemAdder(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("POST /wishlist/items", New(cmd, v).Add)
+	authed.HandleFunc("POST /wishlist/items", New(usecase, v).Add)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),
@@ -127,7 +127,7 @@ func setupAddMux(t *testing.T) (*http.ServeMux, *MockItemAdder, middleware.UserC
 		Role:   "user",
 	}
 
-	return mux, cmd, uc
+	return mux, usecase, uc
 }
 
 func withAuth(r *http.Request, uc middleware.UserContext) *http.Request {

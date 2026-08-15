@@ -17,12 +17,12 @@ type Authenticator interface {
 }
 
 type Handler struct {
-	cmd       Authenticator
+	usecase   Authenticator
 	validator *validator.Validator
 }
 
-func New(cmd Authenticator, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase Authenticator, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type loginRequest struct {
@@ -70,7 +70,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.cmd.Execute(r.Context(), req.toParams())
+	result, err := h.usecase.Execute(r.Context(), req.toParams())
 	if err != nil {
 		response.HandleErr(w, err)
 		return

@@ -24,7 +24,7 @@ func TestHandler_Summary(t *testing.T) {
 	t.Run("success with from and to params", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupSummaryMux(t)
+		mux, usecase := setupSummaryMux(t)
 
 		from, _ := time.Parse("2006-01-02", "2025-01-01")
 		to, _ := time.Parse("2006-01-02", "2025-01-31")
@@ -33,7 +33,7 @@ func TestHandler_Summary(t *testing.T) {
 		summary := domain.SalesSummary{TotalOrders: 10, TotalRevenue: 50000, AverageOrderValue: 5000}
 		breakdown := []domain.StatusBreakdown{{Status: "paid", Count: 7}, {Status: "shipped", Count: 3}}
 
-		reader.EXPECT().GetSummary(mock.Anything, from, toEnd).Return(summary, breakdown, nil)
+		usecase.EXPECT().GetSummary(mock.Anything, from, toEnd).Return(summary, breakdown, nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/summary?from=2025-01-01&to=2025-01-31", nil)
 		w := httptest.NewRecorder()
@@ -162,9 +162,9 @@ func TestHandler_Summary(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupSummaryMux(t)
+		mux, usecase := setupSummaryMux(t)
 
-		reader.EXPECT().GetSummary(mock.Anything, mock.Anything, mock.Anything).
+		usecase.EXPECT().GetSummary(mock.Anything, mock.Anything, mock.Anything).
 			Return(domain.SalesSummary{}, nil, errors.New("db connection failed"))
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/summary?from=2025-01-01&to=2025-01-31", nil)
@@ -206,9 +206,9 @@ func TestToSummaryResponse_ExposesExactFieldSet(t *testing.T) {
 }
 
 func setupSummaryMux(t *testing.T) (*http.ServeMux, *MockSummaryReader) {
-	reader := NewMockSummaryReader(t)
+	usecase := NewMockSummaryReader(t)
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	admin.HandleFunc("GET /dashboard/summary", New(reader).Summary)
-	return mux, reader
+	admin.HandleFunc("GET /dashboard/summary", New(usecase).Summary)
+	return mux, usecase
 }

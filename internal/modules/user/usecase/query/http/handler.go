@@ -16,11 +16,11 @@ type UserGetter interface {
 }
 
 type Handler struct {
-	reader UserGetter
+	usecase UserGetter
 }
 
-func New(reader UserGetter) *Handler {
-	return &Handler{reader: reader}
+func New(usecase UserGetter) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type userResponse struct {
@@ -47,7 +47,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.reader.GetByID(r.Context(), uc.UserID)
+	u, err := h.usecase.GetByID(r.Context(), uc.UserID)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

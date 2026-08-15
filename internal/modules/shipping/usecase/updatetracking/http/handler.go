@@ -18,12 +18,12 @@ type TrackingUpdater interface {
 }
 
 type Handler struct {
-	cmd       TrackingUpdater
+	usecase   TrackingUpdater
 	validator *validator.Validator
 }
 
-func New(cmd TrackingUpdater, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase TrackingUpdater, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type updateTrackingRequest struct {
@@ -75,7 +75,7 @@ func (h *Handler) UpdateTracking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shipment, err := h.cmd.Execute(r.Context(), id, req.toParams())
+	shipment, err := h.usecase.Execute(r.Context(), id, req.toParams())
 	if err != nil {
 		response.HandleErr(w, err)
 		return

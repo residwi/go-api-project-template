@@ -24,12 +24,12 @@ func TestHandler_Update(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupUpdateRoleMux(t)
+		mux, usecase := setupUpdateRoleMux(t)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
 
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil)
 
 		body, _ := json.Marshal(map[string]any{"role": "admin"})
 
@@ -133,10 +133,10 @@ func TestHandler_Update(t *testing.T) {
 	t.Run("self-demotion blocked", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupUpdateRoleMux(t)
+		mux, usecase := setupUpdateRoleMux(t)
 
 		sameID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).
 			Return(apperror.ErrForbidden)
 		body, _ := json.Marshal(map[string]any{"role": "user"})
 
@@ -194,13 +194,13 @@ func TestHandler_Update(t *testing.T) {
 }
 
 func setupUpdateRoleMux(t *testing.T) (*http.ServeMux, *MockRoleUpdater) {
-	cmd := NewMockRoleUpdater(t)
+	usecase := NewMockRoleUpdater(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	admin.HandleFunc("PUT /users/{id}/role", New(cmd, v).Update)
+	admin.HandleFunc("PUT /users/{id}/role", New(usecase, v).Update)
 
-	return mux, cmd
+	return mux, usecase
 }

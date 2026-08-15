@@ -19,12 +19,12 @@ type ReviewCreator interface {
 }
 
 type Handler struct {
-	cmd       ReviewCreator
+	usecase   ReviewCreator
 	validator *validator.Validator
 }
 
-func New(cmd ReviewCreator, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase ReviewCreator, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type reviewResponse struct {
@@ -79,7 +79,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rv, err := h.cmd.Execute(r.Context(), uc.UserID, productID, req.toParams())
+	rv, err := h.usecase.Execute(r.Context(), uc.UserID, productID, req.toParams())
 	if err != nil {
 		response.HandleErr(w, err)
 		return

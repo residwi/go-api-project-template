@@ -15,11 +15,11 @@ type AllNotificationsMarker interface {
 }
 
 type Handler struct {
-	cmd AllNotificationsMarker
+	usecase AllNotificationsMarker
 }
 
-func New(cmd AllNotificationsMarker) *Handler {
-	return &Handler{cmd: cmd}
+func New(usecase AllNotificationsMarker) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func (h *Handler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +28,7 @@ func (h *Handler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), uc.UserID); err != nil {
+	if err := h.usecase.Execute(r.Context(), uc.UserID); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

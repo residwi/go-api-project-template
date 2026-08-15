@@ -17,12 +17,12 @@ type CartQuantityUpdater interface {
 }
 
 type Handler struct {
-	cmd       CartQuantityUpdater
+	usecase   CartQuantityUpdater
 	validator *validator.Validator
 }
 
-func New(cmd CartQuantityUpdater, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase CartQuantityUpdater, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type updateQuantityRequest struct {
@@ -49,7 +49,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), uc.UserID, productID, req.toParams()); err != nil {
+	if err := h.usecase.Execute(r.Context(), uc.UserID, productID, req.toParams()); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

@@ -22,11 +22,11 @@ func TestHandler_CancelOrder(t *testing.T) {
 	t.Run("service error handled gracefully", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, userID, orderID).Return(apperror.ErrOrderCharging)
+		usecase.EXPECT().Execute(mock.Anything, userID, orderID).Return(apperror.ErrOrderCharging)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+orderID.String()+"/cancel", nil)
@@ -76,11 +76,11 @@ func TestHandler_CancelOrder(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, userID, orderID).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, userID, orderID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+orderID.String()+"/cancel", nil)
@@ -93,14 +93,14 @@ func TestHandler_CancelOrder(t *testing.T) {
 }
 
 func setupMux(t *testing.T) (*http.ServeMux, *MockOrderCanceller) {
-	cmd := NewMockOrderCanceller(t)
+	usecase := NewMockOrderCanceller(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("POST /orders/{id}/cancel", New(cmd).Cancel)
+	authed.HandleFunc("POST /orders/{id}/cancel", New(usecase).Cancel)
 
-	return mux, cmd
+	return mux, usecase
 }
 
 func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {

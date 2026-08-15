@@ -22,7 +22,7 @@ func TestHandler_Revenue(t *testing.T) {
 	t.Run("success with from and to params", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupRevenueMux(t)
+		mux, usecase := setupRevenueMux(t)
 
 		from, _ := time.Parse("2006-01-02", "2025-01-01")
 		to, _ := time.Parse("2006-01-02", "2025-01-31")
@@ -33,7 +33,7 @@ func TestHandler_Revenue(t *testing.T) {
 			{Date: from.AddDate(0, 0, 1), Revenue: 15000, OrderCount: 8},
 		}
 
-		reader.EXPECT().ListRevenueByDay(mock.Anything, from, toEnd).Return(data, nil)
+		usecase.EXPECT().ListRevenueByDay(mock.Anything, from, toEnd).Return(data, nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/revenue?from=2025-01-01&to=2025-01-31", nil)
 		w := httptest.NewRecorder()
@@ -109,9 +109,9 @@ func TestHandler_Revenue(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupRevenueMux(t)
+		mux, usecase := setupRevenueMux(t)
 
-		reader.EXPECT().ListRevenueByDay(mock.Anything, mock.Anything, mock.Anything).
+		usecase.EXPECT().ListRevenueByDay(mock.Anything, mock.Anything, mock.Anything).
 			Return(nil, errors.New("db error"))
 
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/dashboard/revenue?from=2025-01-01&to=2025-01-31", nil)
@@ -124,9 +124,9 @@ func TestHandler_Revenue(t *testing.T) {
 }
 
 func setupRevenueMux(t *testing.T) (*http.ServeMux, *MockRevenueReader) {
-	reader := NewMockRevenueReader(t)
+	usecase := NewMockRevenueReader(t)
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	admin.HandleFunc("GET /dashboard/revenue", New(reader).Revenue)
-	return mux, reader
+	admin.HandleFunc("GET /dashboard/revenue", New(usecase).Revenue)
+	return mux, usecase
 }

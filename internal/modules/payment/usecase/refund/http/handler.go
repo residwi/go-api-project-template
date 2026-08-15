@@ -14,11 +14,11 @@ type Refunder interface {
 }
 
 type Handler struct {
-	cmd Refunder
+	usecase Refunder
 }
 
-func New(cmd Refunder) *Handler {
-	return &Handler{cmd: cmd}
+func New(usecase Refunder) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type refundResponse struct {
@@ -31,7 +31,7 @@ func (h *Handler) Refund(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), id); err != nil {
+	if err := h.usecase.Execute(r.Context(), id); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

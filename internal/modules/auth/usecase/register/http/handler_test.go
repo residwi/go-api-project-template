@@ -28,10 +28,10 @@ func TestHandler_Register(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := newTestMux(t)
+		mux, usecase := newTestMux(t)
 
 		userID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(&domain.TokenPair{
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(&domain.TokenPair{
 			AccessToken:  "access-token",
 			RefreshToken: "refresh-token",
 			ExpiresIn:    900,
@@ -127,9 +127,9 @@ func TestHandler_Register(t *testing.T) {
 	t.Run("service error duplicate email", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := newTestMux(t)
+		mux, usecase := newTestMux(t)
 
-		cmd.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil, apperror.ErrConflict)
+		usecase.EXPECT().Execute(mock.Anything, mock.Anything).Return(nil, apperror.ErrConflict)
 
 		body, _ := json.Marshal(map[string]any{
 			"email":      "test@example.com",
@@ -204,11 +204,11 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 }
 
 func newTestMux(t *testing.T) (http.Handler, *MockRegisterer) {
-	cmd := NewMockRegisterer(t)
+	usecase := NewMockRegisterer(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
-	api.HandleFunc("POST /auth/register", New(cmd, v).Register)
-	return mux, cmd
+	api.HandleFunc("POST /auth/register", New(usecase, v).Register)
+	return mux, usecase
 }

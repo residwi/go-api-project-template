@@ -26,10 +26,10 @@ func TestHandler_Me(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupMeMux(t)
+		mux, usecase := setupMeMux(t)
 
 		userID := uuid.New()
-		reader.EXPECT().GetByID(mock.Anything, userID).Return(&domain.User{
+		usecase.EXPECT().GetByID(mock.Anything, userID).Return(&domain.User{
 			ID:        userID,
 			Email:     "test@example.com",
 			FirstName: "John",
@@ -91,9 +91,9 @@ func TestHandler_Me(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, reader := setupMeMux(t)
+		mux, usecase := setupMeMux(t)
 		userID := uuid.New()
-		reader.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().GetByID(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/users/me", nil)
@@ -152,12 +152,12 @@ func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 }
 
 func setupMeMux(t *testing.T) (*http.ServeMux, *MockUserGetter) {
-	reader := NewMockUserGetter(t)
+	usecase := NewMockUserGetter(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("GET /users/me", New(reader).Me)
+	authed.HandleFunc("GET /users/me", New(usecase).Me)
 
-	return mux, reader
+	return mux, usecase
 }

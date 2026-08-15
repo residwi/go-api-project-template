@@ -25,10 +25,10 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		orderID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, orderID, domain.Status("processing")).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, orderID, domain.Status("processing")).Return(nil)
 
 		w := httptest.NewRecorder()
 		body := `{"status":"processing"}`
@@ -100,10 +100,10 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 	t.Run("service error not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupMux(t)
+		mux, usecase := setupMux(t)
 
 		orderID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, orderID, mock.Anything).Return(apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, orderID, mock.Anything).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		body := `{"status":"processing"}`
@@ -120,13 +120,13 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 }
 
 func setupMux(t *testing.T) (*http.ServeMux, *MockStatusChanger) {
-	cmd := NewMockStatusChanger(t)
+	usecase := NewMockStatusChanger(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
 
-	admin.HandleFunc("PUT /orders/{id}/status", NewAdmin(cmd, v).UpdateStatus)
+	admin.HandleFunc("PUT /orders/{id}/status", NewAdmin(usecase, v).UpdateStatus)
 
-	return mux, cmd
+	return mux, usecase
 }

@@ -14,12 +14,12 @@ type PromotionApplier interface {
 }
 
 type Handler struct {
-	cmd       PromotionApplier
+	usecase   PromotionApplier
 	validator *validator.Validator
 }
 
-func New(cmd PromotionApplier, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase PromotionApplier, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type applyRequest struct {
@@ -50,7 +50,7 @@ func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	discount, err := h.cmd.Execute(r.Context(), req.Code, req.Subtotal)
+	discount, err := h.usecase.Execute(r.Context(), req.Code, req.Subtotal)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

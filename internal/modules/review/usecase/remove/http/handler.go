@@ -14,11 +14,11 @@ type ReviewDeleter interface {
 }
 
 type Handler struct {
-	cmd ReviewDeleter
+	usecase ReviewDeleter
 }
 
-func New(cmd ReviewDeleter) *Handler {
-	return &Handler{cmd: cmd}
+func New(usecase ReviewDeleter) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +27,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), id); err != nil {
+	if err := h.usecase.Execute(r.Context(), id); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

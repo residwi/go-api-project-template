@@ -19,12 +19,12 @@ type OrderPlacer interface {
 }
 
 type Handler struct {
-	cmd       OrderPlacer
+	usecase   OrderPlacer
 	validator *validator.Validator
 }
 
-func New(cmd OrderPlacer, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase OrderPlacer, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type addressResponse struct {
@@ -175,7 +175,7 @@ func (h *Handler) Place(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.cmd.Execute(r.Context(), uc.UserID, req.toParams(), idempotencyKey)
+	result, err := h.usecase.Execute(r.Context(), uc.UserID, req.toParams(), idempotencyKey)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

@@ -25,13 +25,13 @@ func TestHandler_GetStock(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		reader := NewMockStockReader(t)
+		usecase := NewMockStockReader(t)
 
 		productID := uuid.New()
 		expected := &domain.Stock{ProductID: productID, Quantity: 100, Reserved: 10, Available: 90}
-		reader.EXPECT().GetStock(mock.Anything, productID).Return(expected, nil)
+		usecase.EXPECT().GetStock(mock.Anything, productID).Return(expected, nil)
 
-		mux := setupQueryMux(t, reader)
+		mux := setupQueryMux(t, usecase)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/inventory/"+productID.String(), nil)
@@ -82,12 +82,12 @@ func TestHandler_GetStock(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		reader := NewMockStockReader(t)
+		usecase := NewMockStockReader(t)
 
 		productID := uuid.New()
-		reader.EXPECT().GetStock(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().GetStock(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
 
-		mux := setupQueryMux(t, reader)
+		mux := setupQueryMux(t, usecase)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/inventory/"+productID.String(), nil)
@@ -125,12 +125,12 @@ func TestToStockResponse_ExposesExactFieldSet(t *testing.T) {
 	)
 }
 
-func setupQueryMux(t *testing.T, reader StockReader) *http.ServeMux {
+func setupQueryMux(t *testing.T, usecase StockReader) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/admin")
-	admin.HandleFunc("GET /inventory/{product_id}", New(reader).GetStock)
+	admin.HandleFunc("GET /inventory/{product_id}", New(usecase).GetStock)
 
 	return mux
 }

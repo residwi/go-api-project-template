@@ -18,11 +18,11 @@ type PromotionLister interface {
 }
 
 type Handler struct {
-	reader PromotionLister
+	usecase PromotionLister
 }
 
-func New(reader PromotionLister) *Handler {
-	return &Handler{reader: reader}
+func New(usecase PromotionLister) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type adminPromotionResponse struct {
@@ -63,7 +63,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := query.Params{OffsetPage: page}
 
-	promotions, total, err := h.reader.ListAdmin(r.Context(), params)
+	promotions, total, err := h.usecase.ListAdmin(r.Context(), params)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

@@ -16,12 +16,12 @@ type StatusChanger interface {
 }
 
 type AdminHandler struct {
-	cmd       StatusChanger
+	usecase   StatusChanger
 	validator *validator.Validator
 }
 
-func NewAdmin(cmd StatusChanger, v *validator.Validator) *AdminHandler {
-	return &AdminHandler{cmd: cmd, validator: v}
+func NewAdmin(usecase StatusChanger, v *validator.Validator) *AdminHandler {
+	return &AdminHandler{usecase: usecase, validator: v}
 }
 
 type updateStatusRequest struct {
@@ -39,7 +39,7 @@ func (h *AdminHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cmd.Execute(r.Context(), id, domain.Status(req.Status)); err != nil {
+	if err := h.usecase.Execute(r.Context(), id, domain.Status(req.Status)); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

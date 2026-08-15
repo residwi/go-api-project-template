@@ -19,12 +19,12 @@ type ProductCreator interface {
 }
 
 type Handler struct {
-	cmd       ProductCreator
+	usecase   ProductCreator
 	validator *validator.Validator
 }
 
-func New(cmd ProductCreator, v *validator.Validator) *Handler {
-	return &Handler{cmd: cmd, validator: v}
+func New(usecase ProductCreator, v *validator.Validator) *Handler {
+	return &Handler{usecase: usecase, validator: v}
 }
 
 type productResponse struct {
@@ -127,7 +127,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := h.cmd.Execute(r.Context(), req.toParams())
+	p, err := h.usecase.Execute(r.Context(), req.toParams())
 	if err != nil {
 		response.HandleErr(w, err)
 		return

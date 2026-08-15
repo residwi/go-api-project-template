@@ -17,11 +17,11 @@ type CartReader interface {
 }
 
 type Handler struct {
-	reader CartReader
+	usecase CartReader
 }
 
-func New(reader CartReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase CartReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type cartResponse struct {
@@ -72,7 +72,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c, err := h.reader.GetCart(r.Context(), uc.UserID)
+	c, err := h.usecase.GetCart(r.Context(), uc.UserID)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

@@ -14,11 +14,11 @@ type SummaryReader interface {
 }
 
 type Handler struct {
-	reader SummaryReader
+	usecase SummaryReader
 }
 
-func New(reader SummaryReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase SummaryReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok bool) {
@@ -85,7 +85,7 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sales, breakdown, err := h.reader.GetSummary(r.Context(), from, to)
+	sales, breakdown, err := h.usecase.GetSummary(r.Context(), from, to)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

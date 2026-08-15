@@ -21,10 +21,10 @@ func TestHandler_Remove_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupRemoveMux(t)
+		mux, usecase, uc := setupRemoveMux(t)
 
 		productID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID, productID).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID, productID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlist/items/"+productID.String(), nil)
@@ -42,10 +42,10 @@ func TestHandler_Remove_CommandError(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd, uc := setupRemoveMux(t)
+		mux, usecase, uc := setupRemoveMux(t)
 
 		productID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, uc.UserID, productID).Return(apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, uc.UserID, productID).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlist/items/"+productID.String(), nil)
@@ -93,12 +93,12 @@ func TestHandler_Remove(t *testing.T) {
 }
 
 func setupRemoveMux(t *testing.T) (*http.ServeMux, *MockItemRemover, middleware.UserContext) {
-	cmd := NewMockItemRemover(t)
+	usecase := NewMockItemRemover(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("DELETE /wishlist/items/{product_id}", New(cmd).Remove)
+	authed.HandleFunc("DELETE /wishlist/items/{product_id}", New(usecase).Remove)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),
@@ -106,7 +106,7 @@ func setupRemoveMux(t *testing.T) (*http.ServeMux, *MockItemRemover, middleware.
 		Role:   "user",
 	}
 
-	return mux, cmd, uc
+	return mux, usecase, uc
 }
 
 func withAuth(r *http.Request, uc middleware.UserContext) *http.Request {

@@ -22,10 +22,10 @@ func TestHandler_Delete(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupRemoveMux(t)
+		mux, usecase := setupRemoveMux(t)
 
 		catID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, catID).Return(nil)
+		usecase.EXPECT().Execute(mock.Anything, catID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/categories/"+catID.String(), nil)
@@ -56,10 +56,10 @@ func TestHandler_Delete(t *testing.T) {
 	t.Run("command error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, cmd := setupRemoveMux(t)
+		mux, usecase := setupRemoveMux(t)
 
 		catID := uuid.New()
-		cmd.EXPECT().Execute(mock.Anything, catID).Return(apperror.ErrNotFound)
+		usecase.EXPECT().Execute(mock.Anything, catID).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/categories/"+catID.String(), nil)
@@ -73,11 +73,11 @@ func TestHandler_Delete(t *testing.T) {
 func setupRemoveMux(t *testing.T) (*http.ServeMux, *MockCategoryDeleter) {
 	t.Helper()
 
-	cmd := NewMockCategoryDeleter(t)
+	usecase := NewMockCategoryDeleter(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("DELETE /categories/{id}", New(cmd).Delete)
+	admin.HandleFunc("DELETE /categories/{id}", New(usecase).Delete)
 
-	return mux, cmd
+	return mux, usecase
 }

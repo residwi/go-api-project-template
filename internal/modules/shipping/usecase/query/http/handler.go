@@ -17,11 +17,11 @@ type ShipmentReader interface {
 }
 
 type Handler struct {
-	reader ShipmentReader
+	usecase ShipmentReader
 }
 
-func New(reader ShipmentReader) *Handler {
-	return &Handler{reader: reader}
+func New(usecase ShipmentReader) *Handler {
+	return &Handler{usecase: usecase}
 }
 
 type shipmentResponse struct {
@@ -61,7 +61,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shipment, err := h.reader.GetByOrderIDForUser(r.Context(), uc.UserID, orderID)
+	shipment, err := h.usecase.GetByOrderIDForUser(r.Context(), uc.UserID, orderID)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

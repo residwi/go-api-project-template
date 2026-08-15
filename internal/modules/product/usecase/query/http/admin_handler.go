@@ -19,11 +19,11 @@ type AdminProductReader interface {
 }
 
 type AdminHandler struct {
-	reader AdminProductReader
+	usecase AdminProductReader
 }
 
-func NewAdmin(reader AdminProductReader) *AdminHandler {
-	return &AdminHandler{reader: reader}
+func NewAdmin(usecase AdminProductReader) *AdminHandler {
+	return &AdminHandler{usecase: usecase}
 }
 
 type adminProductResponse struct {
@@ -80,7 +80,7 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 		params.CategoryID = &id
 	}
 
-	products, total, err := h.reader.ListAdmin(r.Context(), params)
+	products, total, err := h.usecase.ListAdmin(r.Context(), params)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -100,7 +100,7 @@ func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := h.reader.GetByID(r.Context(), id)
+	p, err := h.usecase.GetByID(r.Context(), id)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
