@@ -93,7 +93,9 @@ func New(d Deps) (*App, error) {
 
 	ordMod := order.New(order.Deps{
 		Pool: d.Pool, Tx: txRunner, Logger: d.Logger,
-		Cart:             cartMod,
+		CartLock:         cartMod.Lock,
+		CartRead:         cartMod.Query,
+		CartClear:        cartMod.ClearCart,
 		InventoryReserve: inv.Reserve,
 		InventoryDeduct:  inv.Deduct,
 		InventoryRestore: inv.Restore,

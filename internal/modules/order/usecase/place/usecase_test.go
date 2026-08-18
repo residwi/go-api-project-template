@@ -87,8 +87,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID:    uuid.New(),
 			Items: []cartcontract.CartItem{},
 		}, nil)
@@ -109,8 +109,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -140,8 +140,8 @@ func TestCommand_Execute(t *testing.T) {
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cartErr := errors.New("cart service error")
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(nil, cartErr)
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(nil, cartErr)
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -162,8 +162,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -189,7 +189,7 @@ func TestCommand_Execute(t *testing.T) {
 			productB: 1,
 		}).Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
+		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
 		deps.payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
@@ -220,8 +220,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -243,7 +243,7 @@ func TestCommand_Execute(t *testing.T) {
 			Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).
 			Return(int64(1000), nil)
 		deps.repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(1000), int64(4000)).Return(nil)
-		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
+		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
 		deps.payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
@@ -270,8 +270,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -337,8 +337,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -378,8 +378,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -397,7 +397,7 @@ func TestCommand_Execute(t *testing.T) {
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
+		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
 		deps.payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
@@ -425,8 +425,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -459,8 +459,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -496,8 +496,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -534,8 +534,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -553,7 +553,7 @@ func TestCommand_Execute(t *testing.T) {
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(errors.New("cache error"))
+		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(errors.New("cache error"))
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -574,8 +574,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -597,7 +597,7 @@ func TestCommand_Execute(t *testing.T) {
 			Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).
 			Return(int64(5000), nil)
 		deps.repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(5000), int64(0)).Return(nil)
-		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
+		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
 		// Finalized directly instead of left to expire, and no payment is initiated:
 		// there is nothing to charge.
@@ -626,8 +626,8 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -645,7 +645,7 @@ func TestCommand_Execute(t *testing.T) {
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
+		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
 		deps.payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
@@ -674,8 +674,8 @@ func TestCommand_Execute_RejectsWithdrawnProduct(t *testing.T) {
 	deps.repo.EXPECT().
 		GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 		Return(nil, apperror.ErrNotFound)
-	deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-	deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+	deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+	deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 		ID: uuid.New(),
 		Items: []cartcontract.CartItem{
 			{
@@ -706,8 +706,8 @@ func TestCommand_Execute_RejectsUnavailableProduct(t *testing.T) {
 	deps.repo.EXPECT().
 		GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 		Return(nil, apperror.ErrNotFound)
-	deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-	deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+	deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+	deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 		ID: uuid.New(),
 		Items: []cartcontract.CartItem{
 			{
@@ -726,7 +726,7 @@ func TestCommand_Execute_RejectsUnavailableProduct(t *testing.T) {
 // Both sentinels: money.ErrCurrencyMismatch names the cause but is not a case in
 // response.HandleErr, so alone it would be a 500 for what is user input.
 //
-// Only LockCart and GetSnapshot are expected. The mocks are strict, so that bare set
+// Only Lock and Snapshot are expected. The mocks are strict, so that bare set
 // forbids ReserveBatch, Create, InitiatePayment and the coupon path -- which is
 // what proves the rejection happens in the fold, not merely eventually.
 func TestCommand_Execute_RejectsMixedCurrencyCart(t *testing.T) {
@@ -738,8 +738,8 @@ func TestCommand_Execute_RejectsMixedCurrencyCart(t *testing.T) {
 
 	deps.repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, "idem-mixed-1").
 		Return(nil, apperror.ErrNotFound)
-	deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-	deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+	deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
+	deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 		ID: uuid.New(),
 		Items: []cartcontract.CartItem{
 			{ProductID: uuid.New(), Quantity: 1, Name: "A", Price: money.New(1000, "USD"), Status: "published"},
@@ -755,7 +755,9 @@ func TestCommand_Execute_RejectsMixedCurrencyCart(t *testing.T) {
 
 type testDeps struct {
 	repo          *MockRepository
-	cart          *MockCartProvider
+	locker        *MockCartLocker
+	carts         *MockCartReader
+	clearer       *MockCartClearer
 	reserver      *MockInventoryReserver
 	deductor      *MockInventoryDeductor
 	payment       *MockPaymentInitiator
@@ -767,7 +769,9 @@ type testDeps struct {
 func newTestCommand(t *testing.T) (*UseCase, testDeps) {
 	d := testDeps{
 		repo:          NewMockRepository(t),
-		cart:          NewMockCartProvider(t),
+		locker:        NewMockCartLocker(t),
+		carts:         NewMockCartReader(t),
+		clearer:       NewMockCartClearer(t),
 		reserver:      NewMockInventoryReserver(t),
 		deductor:      NewMockInventoryDeductor(t),
 		payment:       NewMockPaymentInitiator(t),
@@ -779,7 +783,9 @@ func newTestCommand(t *testing.T) (*UseCase, testDeps) {
 	cmd := New(Deps{
 		Repo:          d.repo,
 		Tx:            testhelper.FakeTxRunner{},
-		Cart:          d.cart,
+		Locker:        d.locker,
+		Carts:         d.carts,
+		Clearer:       d.clearer,
 		Reserver:      d.reserver,
 		Deductor:      d.deductor,
 		Payment:       d.payment,

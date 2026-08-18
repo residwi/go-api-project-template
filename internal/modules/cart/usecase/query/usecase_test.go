@@ -144,7 +144,7 @@ func TestReader_GetSnapshot(t *testing.T) {
 
 		r := New(repo, products)
 
-		got, err := r.GetSnapshot(context.Background(), userID)
+		got, err := r.Snapshot(context.Background(), userID)
 
 		require.NoError(t, err)
 		assert.Equal(t, &cartcontract.Cart{
@@ -161,7 +161,7 @@ func TestReader_GetSnapshot(t *testing.T) {
 
 	// GetCart's own fallback for a product it can't resolve is a non-nil
 	// Product carrying "unavailable" -- never a nil Product -- so that is the
-	// value GetSnapshot's flattening loop actually sees.
+	// value Snapshot's flattening loop actually sees.
 	t.Run("a product GetCart could not resolve flattens to its unavailable status", func(t *testing.T) {
 		t.Parallel()
 
@@ -179,7 +179,7 @@ func TestReader_GetSnapshot(t *testing.T) {
 
 		r := New(repo, products)
 
-		got, err := r.GetSnapshot(context.Background(), userID)
+		got, err := r.Snapshot(context.Background(), userID)
 
 		require.NoError(t, err)
 		assert.Equal(t, cartcontract.CartItem{ProductID: productID, Quantity: 1, Status: "unavailable"}, got.Items[0])

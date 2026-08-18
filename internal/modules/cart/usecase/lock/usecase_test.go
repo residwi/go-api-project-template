@@ -15,7 +15,7 @@ import (
 // The old cart.UseCase had no dedicated test for LockCart -- GetCartForLock's
 // own repository tests were the only coverage. This is new: a bare delegator
 // still deserves proof it forwards the id-discarding call and the error
-// order.CartProvider's contract promises.
+// order.CartLocker's contract promises.
 func TestCommand_LockCart(t *testing.T) {
 	t.Parallel()
 
@@ -28,7 +28,7 @@ func TestCommand_LockCart(t *testing.T) {
 		userID := uuid.New()
 		repo.EXPECT().GetCartForLock(mock.Anything, userID).Return(uuid.New(), nil)
 
-		err := cmd.LockCart(context.Background(), userID)
+		err := cmd.Lock(context.Background(), userID)
 		require.NoError(t, err)
 	})
 
@@ -41,7 +41,7 @@ func TestCommand_LockCart(t *testing.T) {
 		userID := uuid.New()
 		repo.EXPECT().GetCartForLock(mock.Anything, userID).Return(uuid.Nil, apperror.ErrNotFound)
 
-		err := cmd.LockCart(context.Background(), userID)
+		err := cmd.Lock(context.Background(), userID)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }

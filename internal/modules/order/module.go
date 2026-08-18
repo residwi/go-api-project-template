@@ -35,7 +35,9 @@ type Deps struct {
 	Tx     database.TxRunner
 	Logger *slog.Logger
 
-	Cart             CartProvider
+	CartLock         CartLocker
+	CartRead         CartReader
+	CartClear        CartClearer
 	InventoryReserve InventoryReserver
 	InventoryDeduct  InventoryDeductor
 	InventoryRestore InventoryRestorer
@@ -46,9 +48,15 @@ type Deps struct {
 	PaymentJobs PaymentJobCanceller
 }
 
-type CartProvider interface {
-	LockCart(ctx context.Context, userID uuid.UUID) error
-	GetSnapshot(ctx context.Context, userID uuid.UUID) (*cartcontract.Cart, error)
+type CartLocker interface {
+	Lock(ctx context.Context, userID uuid.UUID) error
+}
+
+type CartReader interface {
+	Snapshot(ctx context.Context, userID uuid.UUID) (*cartcontract.Cart, error)
+}
+
+type CartClearer interface {
 	Clear(ctx context.Context, userID uuid.UUID) error
 }
 
@@ -99,7 +107,9 @@ func New(d Deps) *Module {
 		Place: place.New(place.Deps{
 			Repo:          placepg.New(d.Pool),
 			Tx:            d.Tx,
-			Cart:          d.Cart,
+			Locker:        d.CartLock,
+			Carts:         d.CartRead,
+			Clearer:       d.CartClear,
 			Reserver:      d.InventoryReserve,
 			Deductor:      d.InventoryDeduct,
 			Payment:       d.Payment,

@@ -53,7 +53,7 @@ func (r *UseCase) GetCart(ctx context.Context, userID uuid.UUID) (*domain.Cart, 
 	return c, nil
 }
 
-func (r *UseCase) GetSnapshot(ctx context.Context, userID uuid.UUID) (*contract.Cart, error) {
+func (r *UseCase) Snapshot(ctx context.Context, userID uuid.UUID) (*contract.Cart, error) {
 	c, err := r.GetCart(ctx, userID)
 	if err != nil {
 		return nil, err

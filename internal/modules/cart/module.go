@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/cart/usecase/add"
 	addpg "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/add/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/cart/usecase/clear"
@@ -53,16 +52,4 @@ func New(d Deps) *Module {
 		Lock:           lock.New(lockpg.New(d.Pool)),
 		ClearCart:      clear.New(clearpg.New(d.Pool)),
 	}
-}
-
-func (m *Module) LockCart(ctx context.Context, userID uuid.UUID) error {
-	return m.Lock.LockCart(ctx, userID)
-}
-
-func (m *Module) GetSnapshot(ctx context.Context, userID uuid.UUID) (*contract.Cart, error) {
-	return m.Query.GetSnapshot(ctx, userID)
-}
-
-func (m *Module) Clear(ctx context.Context, userID uuid.UUID) error {
-	return m.ClearCart.Clear(ctx, userID)
 }

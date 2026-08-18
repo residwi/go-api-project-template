@@ -10,9 +10,15 @@ import (
 	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 )
 
-type CartProvider interface {
-	LockCart(ctx context.Context, userID uuid.UUID) error
-	GetSnapshot(ctx context.Context, userID uuid.UUID) (*cartcontract.Cart, error)
+type CartLocker interface {
+	Lock(ctx context.Context, userID uuid.UUID) error
+}
+
+type CartReader interface {
+	Snapshot(ctx context.Context, userID uuid.UUID) (*cartcontract.Cart, error)
+}
+
+type CartClearer interface {
 	Clear(ctx context.Context, userID uuid.UUID) error
 }
 

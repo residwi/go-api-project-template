@@ -32,7 +32,9 @@ type Result struct {
 type UseCase struct {
 	repo          Repository
 	tx            database.TxRunner
-	cart          CartProvider
+	locker        CartLocker
+	carts         CartReader
+	clearer       CartClearer
 	reserver      InventoryReserver
 	deductor      InventoryDeductor
 	payment       PaymentInitiator
@@ -45,7 +47,9 @@ type UseCase struct {
 type Deps struct {
 	Repo          Repository
 	Tx            database.TxRunner
-	Cart          CartProvider
+	Locker        CartLocker
+	Carts         CartReader
+	Clearer       CartClearer
 	Reserver      InventoryReserver
 	Deductor      InventoryDeductor
 	Payment       PaymentInitiator
@@ -59,7 +63,9 @@ func New(d Deps) *UseCase {
 	return &UseCase{
 		repo:          d.Repo,
 		tx:            d.Tx,
-		cart:          d.Cart,
+		locker:        d.Locker,
+		carts:         d.Carts,
+		clearer:       d.Clearer,
 		reserver:      d.Reserver,
 		deductor:      d.Deductor,
 		payment:       d.Payment,
@@ -103,14 +109,14 @@ func (c *UseCase) Execute(
 	var orderItems []domain.Item
 
 	err = c.tx.Run(ctx, func(txCtx context.Context) error {
-		if txErr := c.cart.LockCart(txCtx, userID); txErr != nil {
+		if txErr := c.locker.Lock(txCtx, userID); txErr != nil {
 			if errors.Is(txErr, apperror.ErrNotFound) {
 				return apperror.ErrCartEmpty
 			}
 			return txErr
 		}
 
-		snapshot, txErr := c.cart.GetSnapshot(txCtx, userID)
+		snapshot, txErr := c.carts.Snapshot(txCtx, userID)
 		if txErr != nil {
 			return txErr
 		}
@@ -170,7 +176,7 @@ func (c *UseCase) Execute(
 			}
 		}
 
-		return c.cart.Clear(txCtx, userID)
+		return c.clearer.Clear(txCtx, userID)
 	})
 	if err != nil {
 		return nil, err

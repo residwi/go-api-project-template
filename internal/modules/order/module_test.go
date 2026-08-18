@@ -52,12 +52,15 @@ func TestNew_WiresPaymentDeps(t *testing.T) {
 
 	payment := NewMockPaymentInitiator(t)
 	paymentJobs := NewMockPaymentJobCanceller(t)
+	cartStub := &fanOutCartProvider{productID: productID}
 
 	m := New(Deps{
 		Pool:             testPool,
 		Tx:               database.NewTxRunner(testPool),
 		Logger:           testhelper.DiscardLogger(),
-		Cart:             &fanOutCartProvider{productID: productID},
+		CartLock:         cartStub,
+		CartRead:         cartStub,
+		CartClear:        cartStub,
 		InventoryReserve: fanOutInventory{},
 		InventoryDeduct:  fanOutInventory{},
 		InventoryRestore: fanOutInventory{},
@@ -95,8 +98,8 @@ func TestNew_WiresPaymentDeps(t *testing.T) {
 
 type fanOutCartProvider struct{ productID uuid.UUID }
 
-func (f *fanOutCartProvider) LockCart(context.Context, uuid.UUID) error { return nil }
-func (f *fanOutCartProvider) GetSnapshot(context.Context, uuid.UUID) (*cartcontract.Cart, error) {
+func (f *fanOutCartProvider) Lock(context.Context, uuid.UUID) error { return nil }
+func (f *fanOutCartProvider) Snapshot(context.Context, uuid.UUID) (*cartcontract.Cart, error) {
 	return &cartcontract.Cart{
 		ID: uuid.New(),
 		Items: []cartcontract.CartItem{
