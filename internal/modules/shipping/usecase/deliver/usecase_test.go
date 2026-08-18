@@ -34,10 +34,10 @@ func TestCommandExecute(t *testing.T) {
 				Status: domain.StatusDelivered, DeliveredAt: &deliveredAt,
 			}, nil)
 
-		orders := NewMockOrderPort(t)
-		orders.EXPECT().MarkDelivered(mock.Anything, orderID).Return(nil)
+		deliverer := NewMockOrderDeliverer(t)
+		deliverer.EXPECT().MarkDelivered(mock.Anything, orderID).Return(nil)
 
-		got, err := New(repo, testhelper.FakeTxRunner{}, orders).Execute(context.Background(), shipmentID)
+		got, err := New(repo, testhelper.FakeTxRunner{}, deliverer).Execute(context.Background(), shipmentID)
 
 		require.NoError(t, err)
 		assert.Equal(t, domain.StatusDelivered, got.Status)
@@ -52,7 +52,9 @@ func TestCommandExecute(t *testing.T) {
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
 
-		_, err := New(repo, testhelper.FakeTxRunner{}, NewMockOrderPort(t)).Execute(context.Background(), shipmentID)
+		cmd := New(repo, testhelper.FakeTxRunner{}, NewMockOrderDeliverer(t))
+
+		_, err := cmd.Execute(context.Background(), shipmentID)
 
 		require.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -68,10 +70,12 @@ func TestCommandExecute(t *testing.T) {
 			Return(&domain.Shipment{ID: shipmentID, OrderID: orderID}, nil)
 		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(nil, markErr)
 
-		// No EXPECT() on orders at all: the mock's own strictness is what proves
-		// orders.MarkDelivered is never called on this path, not just that the
+		// No EXPECT() on deliverer at all: the mock's own strictness is what proves
+		// deliverer.MarkDelivered is never called on this path, not just that the
 		// error we assert on happens to match.
-		_, err := New(repo, testhelper.FakeTxRunner{}, NewMockOrderPort(t)).Execute(context.Background(), shipmentID)
+		cmd := New(repo, testhelper.FakeTxRunner{}, NewMockOrderDeliverer(t))
+
+		_, err := cmd.Execute(context.Background(), shipmentID)
 
 		require.ErrorIs(t, err, markErr)
 	})
@@ -88,10 +92,10 @@ func TestCommandExecute(t *testing.T) {
 		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).
 			Return(&domain.Shipment{ID: shipmentID, OrderID: orderID}, nil)
 
-		orders := NewMockOrderPort(t)
-		orders.EXPECT().MarkDelivered(mock.Anything, orderID).Return(flipErr)
+		deliverer := NewMockOrderDeliverer(t)
+		deliverer.EXPECT().MarkDelivered(mock.Anything, orderID).Return(flipErr)
 
-		_, err := New(repo, testhelper.FakeTxRunner{}, orders).Execute(context.Background(), shipmentID)
+		_, err := New(repo, testhelper.FakeTxRunner{}, deliverer).Execute(context.Background(), shipmentID)
 
 		require.ErrorIs(t, err, flipErr)
 	})

@@ -11,10 +11,10 @@ import (
 
 type UseCase struct {
 	repo   Repository
-	orders OrderPort
+	orders OrderGetter
 }
 
-func New(repo Repository, orders OrderPort) *UseCase {
+func New(repo Repository, orders OrderGetter) *UseCase {
 	return &UseCase{repo: repo, orders: orders}
 }
 

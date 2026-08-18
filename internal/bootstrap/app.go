@@ -107,8 +107,8 @@ func New(d Deps) (*App, error) {
 
 	shippingMod := shipping.New(shipping.Deps{
 		Pool: d.Pool, Tx: txRunner,
-		OrderRead:   ordMod.Query,
-		OrderStatus: ordMod.Transition,
+		OrderRead:        ordMod.Query,
+		OrderStatusWrite: ordMod.Transition,
 	})
 	reviewMod := review.New(review.Deps{Pool: d.Pool, Purchase: ordMod.Query})
 

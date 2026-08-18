@@ -10,13 +10,13 @@ import (
 )
 
 type UseCase struct {
-	repo   Repository
-	tx     database.TxRunner
-	orders OrderPort
+	repo      Repository
+	tx        database.TxRunner
+	deliverer OrderDeliverer
 }
 
-func New(repo Repository, tx database.TxRunner, orders OrderPort) *UseCase {
-	return &UseCase{repo: repo, tx: tx, orders: orders}
+func New(repo Repository, tx database.TxRunner, deliverer OrderDeliverer) *UseCase {
+	return &UseCase{repo: repo, tx: tx, deliverer: deliverer}
 }
 
 func (c *UseCase) Execute(ctx context.Context, shipmentID uuid.UUID) (*domain.Shipment, error) {
@@ -32,7 +32,7 @@ func (c *UseCase) Execute(ctx context.Context, shipmentID uuid.UUID) (*domain.Sh
 		if markErr != nil {
 			return markErr
 		}
-		return c.orders.MarkDelivered(txCtx, shipment.OrderID)
+		return c.deliverer.MarkDelivered(txCtx, shipment.OrderID)
 	}); err != nil {
 		return nil, err
 	}

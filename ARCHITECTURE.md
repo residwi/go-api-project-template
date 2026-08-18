@@ -519,11 +519,14 @@ adapter. "Own" is literal: `updatetracking.Repository` and
 `deliver.Repository` both need `GetByID`; each declares it rather than
 sharing one. A slice declares a port for anything it does not implement
 itself — another module's capability or a sibling slice's — and `module.go`
-wires it. Three of shipping's four slices declare a port on order state: `query`
-declares one (`OrderPort`, `GetInfo`), `deliver` declares one (`OrderPort`,
-`MarkDelivered`), and `create` declares two (`OrderGetter` for `GetInfo`,
-`OrderShipper` for `MarkShipped`) because it both checks and transitions the
-order it ships. `module.go`'s `Deps` folds these into two ports, not one:
+wires it. Three of shipping's four slices declare a port on order state, each
+named for the role it needs: `query` declares `OrderGetter` (`GetInfo`),
+`deliver` declares `OrderDeliverer` (`MarkDelivered`), and `create` declares
+two — `OrderGetter` for `GetInfo` and `OrderShipper` for `MarkShipped` —
+because it both checks and transitions the order it ships. `query` and
+`create` naming the same shape the same way is the point: one name per shape,
+one shape per name, so a reader comparing two slices is comparing roles rather
+than decoding whether two `OrderPort`s mean the same thing. `module.go`'s `Deps` folds these into two ports, not one:
 `OrderReader` (`GetInfo`, shared by `query` and `create`) and
 `OrderStatusWriter` (`MarkShipped` and `MarkDelivered`, shared by `create`
 and `deliver`) — each wired to exactly one order slice value,

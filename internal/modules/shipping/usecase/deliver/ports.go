@@ -6,6 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type OrderPort interface {
+type OrderDeliverer interface {
 	MarkDelivered(ctx context.Context, orderID uuid.UUID) error
 }

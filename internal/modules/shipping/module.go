@@ -22,8 +22,8 @@ type Deps struct {
 	Pool *pgxpool.Pool
 	Tx   database.TxRunner
 
-	OrderRead   OrderReader
-	OrderStatus OrderStatusWriter
+	OrderRead        OrderReader
+	OrderStatusWrite OrderStatusWriter
 }
 
 type OrderReader interface {
@@ -45,8 +45,8 @@ type Module struct {
 func New(d Deps) *Module {
 	return &Module{
 		Query:          query.New(querypg.New(d.Pool), d.OrderRead),
-		Create:         create.New(createpg.New(d.Pool), d.Tx, d.OrderRead, d.OrderStatus),
+		Create:         create.New(createpg.New(d.Pool), d.Tx, d.OrderRead, d.OrderStatusWrite),
 		UpdateTracking: updatetracking.New(updatetrackingpg.New(d.Pool)),
-		Deliver:        deliver.New(deliverpg.New(d.Pool), d.Tx, d.OrderStatus),
+		Deliver:        deliver.New(deliverpg.New(d.Pool), d.Tx, d.OrderStatusWrite),
 	}
 }
