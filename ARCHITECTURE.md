@@ -558,7 +558,7 @@ decision 3's package counts, and decision 9's response-DTO-duplication note,
 are the tally now that all fourteen have paid it. Slicing's first bill was
 paid with forwarding methods on `Module` — 20 of them, 8 already dead by the
 time anyone counted. They are gone. The cost moved to the consumers' `Deps`:
-`order.Deps` carries six port fields where it carried two, and `place.New`
+`order.Deps` carries ten port fields where it carried six, and `place.New`
 takes a `Deps` struct because twelve positional arguments is not readable.
 In exchange every port names methods from exactly one slice, so a dead port
 cannot hide behind a live one.

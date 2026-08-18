@@ -111,39 +111,46 @@ none declares a `UseCase`, and `cmd/worker/main.go` constructs
 slice, whichever way an import into it points.
 
 A cross-module port is declared where it is consumed: in a slice's own
-`ports.go` when only that slice needs it
-(`category/usecase/remove/ports.go` declares `ProductCounter`;
-`product/usecase/query`, `product/usecase/create`, `review/usecase/create`
-and 22 more each declare their own the same way — 26 `ports.go` files in the
-tree, 25 of them a slice's and one `payment/jobs`', per `find
-internal/modules -name ports.go`), or in `module.go` — as an interface plus a
-`Deps` field — when
-several sibling slices share the dependency. `order`, `payment`, `cart`,
-`auth` and `shipping` all do the latter: `order/module.go` alone declares
-ten (`CartLocker`, `CartReader`, `CartClearer`, `InventoryReserver`,
-`InventoryDeductor`, `InventoryRestorer`, `CouponPort`,
-`NotificationEnqueuer`, `PaymentInitiator`, `PaymentJobCanceller`) — up from
-six before `CartProvider` split into the three `Cart*` ports and
-`InventoryPort` split into the three `Inventory*` ports — one method
-per port there — because `place`, `cancel` and `expire` between them need cart and
-inventory and no one slice owns that need alone. Either way the rule is the
-same one decision 2 states —
-the consumer names the interface, never the producer — the two just differ
-in which consumer that is: one slice, or the module composing several.
+`ports.go` when only that slice needs it (`category/usecase/remove/ports.go`
+declares `ProductCounter`; `product/usecase/query`, `product/usecase/create`,
+`review/usecase/create` and 22 more each declare their own the same way — 26
+`ports.go` files in the tree, 25 of them a slice's and one `payment/jobs`', per
+`find internal/modules -name ports.go`), or in `module.go` — as an interface
+plus a `Deps` field. The reason is mechanical first: a `Deps` field must name a
+type declared in the module's own package, so `internal/bootstrap` can wire it
+without importing a slice — check 4 of `make check-boundaries` forbids the
+alternative anyway, since naming a slice's type in `Deps` would make every
+consumer of that `Deps` reach into the slice that declares it. Sharing between
+sibling slices is a second reason, and for `cart`, `auth` and `shipping` it is
+the whole story: every field on their `Deps` feeds two or more slices. `order`
+and `payment` are where the mechanical reason shows up on its own:
+`order/module.go` declares ten fields — up from six before `CartProvider` split
+into the three `Cart*` ports and `InventoryPort` split into the three
+`Inventory*` ports, one method per port — but only three of the ten are
+actually shared (`InventoryRestorer` between `cancel` and `expire`,
+`CouponPort` across `place`, `cancel` and `expire`, `PaymentInitiator` between
+`place` and `retrypayment`); the other seven each feed exactly one slice —
+`CartLocker`, `CartReader`, `CartClearer`, `InventoryReserver`,
+`InventoryDeductor` and `NotificationEnqueuer` all feed only `place`,
+`PaymentJobCanceller` feeds only `cancel` — and sit in `module.go` for the
+mechanical reason alone. `payment` has the same shape: `InventoryDeductor`
+reaches only `charge`, `InventoryRestorer` only `refund`. Either way the rule
+is the same one decision 2 states: the consumer names the interface, never the
+producer — the two just differ in which consumer that is: one slice, or the
+module composing several.
 
-A `Module` struct field is named for the capability it backs, not the
-package — `category.Module` has field `Delete` backing package `remove`. The
-one exception AGENTS.md used to record, `cart.Module.Empty` backing package
-`empty`, is gone: the slice is `cart/usecase/clear`, the field is
-`ClearCart`, and no delegator sits between it and its consumer any more —
-`order.Deps.CartClear` wires directly to `cart.Module.ClearCart`, whose
-`Clear` method satisfies `order`'s own `CartClearer` port by name-match.
-That rename cost
-one suppression: `clear` is a Go builtin, and `predeclared` fires on the
+A `Module` struct field is named for the capability it backs, not the package —
+`category.Module` has field `Delete` backing package `remove`. The one
+exception AGENTS.md used to record, `cart.Module.Empty` backing package
+`empty`, is gone: the slice is `cart/usecase/clear`, the field is `ClearCart`,
+and no delegator sits between it and its consumer any more —
+`order.Deps.CartClear` wires directly to `cart.Module.ClearCart`, whose `Clear`
+method satisfies `order`'s own `CartClearer` port by name-match. That rename
+cost one suppression: `clear` is a Go builtin, and `predeclared` fires on the
 package clause itself, so `.golangci.yml` carries a `predeclared` exclusion
 scoped to `^internal/modules/cart/usecase/clear/` with the exact linter text.
-It is the narrowest form available — no file in that package calls the
-builtin `clear()` on a map or slice, only the package identifier collides.
+It is the narrowest form available — no file in that package calls the builtin
+`clear()` on a map or slice, only the package identifier collides.
 
 A `dto.go` belongs nowhere at all: check 1c refuses that filename
 **anywhere** under `internal/`, not just at a feature or slice root. Wire
