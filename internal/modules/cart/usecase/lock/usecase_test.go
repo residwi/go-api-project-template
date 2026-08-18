@@ -12,11 +12,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 )
 
-// The old cart.UseCase had no dedicated test for LockCart -- GetCartForLock's
-// own repository tests were the only coverage. This is new: a bare delegator
-// still deserves proof it forwards the id-discarding call and the error
-// order.CartLocker's contract promises.
-func TestCommand_LockCart(t *testing.T) {
+// Lock discards the cart id GetCartForLock returns and passes through only
+// the error, so this is the only place that proves both halves of that:
+// a found cart returns nil, and ErrNotFound reaches order.CartLocker's
+// caller unchanged.
+func TestUseCase_Lock(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {

@@ -8,18 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
-
-// ExpireStale touches only the repo and inventory deps -- testApp.Orders is
-// fully wired, but releaseOrderHolds guards its coupon release on a non-empty
-// CouponCode, which the orders seeded below never set, so cart, promotion and
-// notification never fire.
-func newExpiryService(t *testing.T) *order.Module {
-	t.Helper()
-	return testApp.Orders
-}
 
 func seedExpiryUser(t *testing.T) uuid.UUID {
 	t.Helper()
@@ -53,6 +43,10 @@ func orderStatusOf(t *testing.T, orderID uuid.UUID) string {
 	return status
 }
 
+// ExpireStale touches only the repo and inventory deps -- testApp.Orders is
+// fully wired, but releaseOrderHolds guards its coupon release on a non-empty
+// CouponCode, which the orders seeded below never set, so cart, promotion and
+// notification never fire.
 func TestE2EOrderExpiry(t *testing.T) {
 	t.Run("expires a stale order and releases its reservation", func(t *testing.T) {
 		setup(t)
@@ -85,7 +79,7 @@ func TestE2EOrderExpiry(t *testing.T) {
 			`UPDATE orders SET created_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, orderID)
 		require.NoError(t, err)
 
-		require.NoError(t, newExpiryService(t).Expire.ExpireStale(ctx))
+		require.NoError(t, testApp.Orders.Expire.ExpireStale(ctx))
 
 		assert.Equal(t, "expired", orderStatusOf(t, orderID))
 
@@ -100,7 +94,7 @@ func TestE2EOrderExpiry(t *testing.T) {
 		userID := seedExpiryUser(t)
 		orderID := seedAwaitingPaymentOrder(t, userID)
 
-		require.NoError(t, newExpiryService(t).Expire.ExpireStale(ctx))
+		require.NoError(t, testApp.Orders.Expire.ExpireStale(ctx))
 
 		assert.Equal(t, "awaiting_payment", orderStatusOf(t, orderID))
 	})

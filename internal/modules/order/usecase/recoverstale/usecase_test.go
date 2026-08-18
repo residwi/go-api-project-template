@@ -18,7 +18,7 @@ import (
 // RecoverStaleProcessing had no unit test before this move -- ExpireStale's
 // sibling sweep did, but this one did not. Covered here since it now has its
 // own slice.
-func TestCommand_Sweep(t *testing.T) {
+func TestUseCase_RecoverStaleProcessing(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()

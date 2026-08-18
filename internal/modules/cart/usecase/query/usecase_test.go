@@ -119,7 +119,7 @@ func TestReader_GetCart_MissingProductBecomesUnavailable(t *testing.T) {
 	assert.Equal(t, "unavailable", c.Items[0].Product.Status)
 }
 
-func TestReader_GetSnapshot(t *testing.T) {
+func TestReader_Snapshot(t *testing.T) {
 	t.Parallel()
 
 	t.Run("flattens each line's product into the snapshot item", func(t *testing.T) {

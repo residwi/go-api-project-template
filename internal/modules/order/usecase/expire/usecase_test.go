@@ -14,7 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-func TestCommand_Sweep(t *testing.T) {
+func TestUseCase_ExpireStale(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
