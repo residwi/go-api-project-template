@@ -116,14 +116,22 @@ declares `ProductCounter`; `product/usecase/query`, `product/usecase/create`,
 `review/usecase/create` and 22 more each declare their own the same way — 26
 `ports.go` files in the tree, 25 of them a slice's and one `payment/jobs`', per
 `find internal/modules -name ports.go`), or in `module.go` — as an interface
-plus a `Deps` field. The reason is mechanical first: a `Deps` field must name a
-type declared in the module's own package, so `internal/bootstrap` can wire it
-without importing a slice — check 4 of `make check-boundaries` forbids the
-alternative anyway, since naming a slice's type in `Deps` would make every
-consumer of that `Deps` reach into the slice that declares it. Sharing between
-sibling slices is a second reason, and for `cart`, `auth` and `shipping` it is
-the whole story: every field on their `Deps` feeds two or more slices. `order`
-and `payment` are where the mechanical reason shows up on its own:
+plus a `Deps` field. The first reason is convention, not enforcement: every
+type a `Deps` field names is declared in the module's own package, so the
+module's wiring surface reads without opening a slice, and a slice can rename
+its own port without touching every consumer's `Deps`. No boundary check
+forbids the alternative: `order/module.go` already imports
+`order/usecase/place` for its own composition, and check 4
+(`check_cross_module_imports`) explicitly skips same-feature imports before it
+ever reports one, so a `Deps` field naming `place.CartLocker` directly would
+pass every one of the seven checks just as cleanly; check 5
+(`check_sibling_slice_imports`) never even looks at `module.go`, since it walks
+only files under `<feature>/usecase/<slice>/`. Nothing here is machine-checked
+— it is the shape the file already had, and `ARCHITECTURE.md` records the
+duplication it costs, not a check it satisfies. Sharing between sibling slices
+is a second reason, and for `cart`, `auth` and `shipping` it is the whole
+story: every field on their `Deps` feeds two or more slices. `order` and
+`payment` are where the convention reason shows up on its own:
 `order/module.go` declares ten fields — up from six before `CartProvider` split
 into the three `Cart*` ports and `InventoryPort` split into the three
 `Inventory*` ports, one method per port — but only three of the ten are
@@ -133,7 +141,7 @@ actually shared (`InventoryRestorer` between `cancel` and `expire`,
 `CartLocker`, `CartReader`, `CartClearer`, `InventoryReserver`,
 `InventoryDeductor` and `NotificationEnqueuer` all feed only `place`,
 `PaymentJobCanceller` feeds only `cancel` — and sit in `module.go` for the
-mechanical reason alone. `payment` has the same shape: `InventoryDeductor`
+convention reason alone. `payment` has the same shape: `InventoryDeductor`
 reaches only `charge`, `InventoryRestorer` only `refund`. Either way the rule
 is the same one decision 2 states: the consumer names the interface, never the
 producer — the two just differ in which consumer that is: one slice, or the
