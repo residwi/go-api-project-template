@@ -124,8 +124,8 @@ ten (`CartLocker`, `CartReader`, `CartClearer`, `InventoryReserver`,
 `InventoryDeductor`, `InventoryRestorer`, `CouponPort`,
 `NotificationEnqueuer`, `PaymentInitiator`, `PaymentJobCanceller`) — up from
 six before `CartProvider` split into the three `Cart*` ports and
-`InventoryPort` split into the three `Inventory*` ports, one method per
-port, because `place`, `cancel` and `expire` between them need cart and
+`InventoryPort` split into the three `Inventory*` ports — one method
+per port there — because `place`, `cancel` and `expire` between them need cart and
 inventory and no one slice owns that need alone. Either way the rule is the
 same one decision 2 states —
 the consumer names the interface, never the producer — the two just differ
