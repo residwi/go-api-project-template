@@ -181,9 +181,9 @@ func (m *Module) HasDeliveredOrder(ctx context.Context, userID, orderID, product
 }
 
 func (m *Module) ExpireStale(ctx context.Context) error {
-	return m.Expire.Sweep(ctx)
+	return m.Expire.ExpireStale(ctx)
 }
 
 func (m *Module) RecoverStaleProcessing(ctx context.Context) error {
-	return m.RecoverStale.Sweep(ctx)
+	return m.RecoverStale.RecoverStaleProcessing(ctx)
 }

@@ -23,7 +23,7 @@ func New(repo Repository, transition TransitionApplier, log *slog.Logger) *UseCa
 	return &UseCase{repo: repo, transition: transition, logger: log}
 }
 
-func (c *UseCase) Sweep(ctx context.Context) error {
+func (c *UseCase) RecoverStaleProcessing(ctx context.Context) error {
 	orders, err := c.repo.GetStaleProcessingOrders(ctx, contract.StaleProcessingThreshold, housekeepingBatchLimit)
 	if err != nil {
 		return fmt.Errorf("getting stale processing orders: %w", err)

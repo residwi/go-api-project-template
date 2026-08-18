@@ -41,7 +41,7 @@ func TestCommand_Sweep(t *testing.T) {
 			Return(nil)
 		coupons.EXPECT().Release(mock.Anything, expired.ID).Return(nil)
 
-		err := cmd.Sweep(ctx)
+		err := cmd.ExpireStale(ctx)
 		require.NoError(t, err)
 	})
 
@@ -57,7 +57,7 @@ func TestCommand_Sweep(t *testing.T) {
 		repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return([]domain.Order{expired}, nil)
 		transition.EXPECT().Apply(mock.Anything, expired.ID, domain.ExpiredTransition).Return(apperror.ErrConflict)
 
-		err := cmd.Sweep(ctx)
+		err := cmd.ExpireStale(ctx)
 		require.NoError(t, err)
 	})
 }

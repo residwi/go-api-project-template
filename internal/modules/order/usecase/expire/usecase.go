@@ -36,7 +36,7 @@ func New(
 	return &UseCase{repo: repo, tx: tx, transition: transition, inventory: inventory, coupons: coupons, logger: log}
 }
 
-func (c *UseCase) Sweep(ctx context.Context) error {
+func (c *UseCase) ExpireStale(ctx context.Context) error {
 	orders, err := c.repo.GetExpiredOrders(ctx, housekeepingBatchLimit)
 	if err != nil {
 		return fmt.Errorf("getting expired orders: %w", err)

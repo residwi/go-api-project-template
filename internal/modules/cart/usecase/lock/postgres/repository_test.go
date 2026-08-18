@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 
 // This is order/place's only proof that the row lock backing checkout
 // serialization exists: it is what SELECT ... FOR UPDATE returns for an
-// absent vs. an existing cart, the two states order.CartProvider's LockCart
+// absent vs. an existing cart, the two states order/place's CartLocker.Lock
 // distinguishes.
 func TestPostgresRepository_GetCartForLock(t *testing.T) {
 	t.Run("returns not found when cart does not exist", func(t *testing.T) {

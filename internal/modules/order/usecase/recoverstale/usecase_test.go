@@ -36,7 +36,7 @@ func TestCommand_Sweep(t *testing.T) {
 			Return([]domain.Order{stale}, nil)
 		transition.EXPECT().Apply(mock.Anything, stale.ID, domain.AwaitingPaymentTransition).Return(nil)
 
-		require.NoError(t, cmd.Sweep(ctx))
+		require.NoError(t, cmd.RecoverStaleProcessing(ctx))
 	})
 
 	t.Run("skips an order another worker already moved on", func(t *testing.T) {
@@ -54,7 +54,7 @@ func TestCommand_Sweep(t *testing.T) {
 			Apply(mock.Anything, stale.ID, domain.AwaitingPaymentTransition).
 			Return(apperror.ErrConflict)
 
-		require.NoError(t, cmd.Sweep(ctx))
+		require.NoError(t, cmd.RecoverStaleProcessing(ctx))
 	})
 
 	t.Run("getting stale orders error propagates", func(t *testing.T) {
@@ -69,7 +69,7 @@ func TestCommand_Sweep(t *testing.T) {
 			GetStaleProcessingOrders(mock.Anything, contract.StaleProcessingThreshold, mock.Anything).
 			Return(nil, dbErr)
 
-		err := cmd.Sweep(ctx)
+		err := cmd.RecoverStaleProcessing(ctx)
 		require.ErrorIs(t, err, dbErr)
 	})
 }
