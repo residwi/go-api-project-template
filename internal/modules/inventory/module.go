@@ -1,12 +1,8 @@
 package inventory
 
 import (
-	"context"
-
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/usecase/adjust"
 	adjustpg "github.com/residwi/go-api-project-template/internal/modules/inventory/usecase/adjust/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/usecase/deduct"
@@ -34,8 +30,7 @@ type Module struct {
 	Reserve  *reserve.UseCase
 	Deduct   *deduct.UseCase
 	Register *register.UseCase
-
-	restore *restore.UseCase
+	Restore  *restore.UseCase
 }
 
 func New(d Deps) *Module {
@@ -46,18 +41,6 @@ func New(d Deps) *Module {
 		Reserve:  reserve.New(reservepg.New(d.Pool)),
 		Deduct:   deduct.New(deductpg.New(d.Pool)),
 		Register: register.New(registerpg.New(d.Pool)),
-		restore:  restore.New(restorepg.New(d.Pool)),
+		Restore:  restore.New(restorepg.New(d.Pool)),
 	}
-}
-
-func (m *Module) ReserveBatch(ctx context.Context, items map[uuid.UUID]int) error {
-	return m.Reserve.ReserveBatch(ctx, items)
-}
-
-func (m *Module) DeductBatch(ctx context.Context, items map[uuid.UUID]int) error {
-	return m.Deduct.DeductBatch(ctx, items)
-}
-
-func (m *Module) Restore(ctx context.Context, items map[uuid.UUID]int, prior contract.StockState) error {
-	return m.restore.Restore(ctx, items, prior)
 }

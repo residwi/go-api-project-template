@@ -35,10 +35,12 @@ type Deps struct {
 	Tx     database.TxRunner
 	Logger *slog.Logger
 
-	Cart          CartProvider
-	Inventory     InventoryPort
-	Promotions    CouponPort
-	Notifications NotificationEnqueuer
+	Cart             CartProvider
+	InventoryReserve InventoryReserver
+	InventoryDeduct  InventoryDeductor
+	InventoryRestore InventoryRestorer
+	Promotions       CouponPort
+	Notifications    NotificationEnqueuer
 
 	Payment     PaymentInitiator
 	PaymentJobs PaymentJobCanceller
@@ -50,9 +52,15 @@ type CartProvider interface {
 	Clear(ctx context.Context, userID uuid.UUID) error
 }
 
-type InventoryPort interface {
+type InventoryReserver interface {
 	ReserveBatch(ctx context.Context, items map[uuid.UUID]int) error
+}
+
+type InventoryDeductor interface {
 	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
+}
+
+type InventoryRestorer interface {
 	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventorycontract.StockState) error
 }
 
@@ -92,7 +100,8 @@ func New(d Deps) *Module {
 			Repo:          placepg.New(d.Pool),
 			Tx:            d.Tx,
 			Cart:          d.Cart,
-			Inventory:     d.Inventory,
+			Reserver:      d.InventoryReserve,
+			Deductor:      d.InventoryDeduct,
 			Payment:       d.Payment,
 			Coupons:       d.Promotions,
 			Notifications: d.Notifications,
@@ -102,11 +111,11 @@ func New(d Deps) *Module {
 		Query:        query.New(querypg.New(d.Pool)),
 		RetryPayment: retrypayment.New(retrypaymentpg.New(d.Pool), d.Payment),
 		Cancel: cancel.New(
-			cancelpg.New(d.Pool), d.Tx, transitionApplier, d.Inventory, d.Promotions, d.PaymentJobs, d.Logger,
+			cancelpg.New(d.Pool), d.Tx, transitionApplier, d.InventoryRestore, d.Promotions, d.PaymentJobs, d.Logger,
 		),
 		ChangeStatus: changestatus.New(changestatuspg.New(d.Pool), transitionApplier),
 		Expire: expire.New(
-			expirepg.New(d.Pool), d.Tx, transitionApplier, d.Inventory, d.Promotions, d.Logger,
+			expirepg.New(d.Pool), d.Tx, transitionApplier, d.InventoryRestore, d.Promotions, d.Logger,
 		),
 		RecoverStale: recoverstale.New(recoverstalepg.New(d.Pool), transitionApplier, d.Logger),
 		Transition:   transitionApplier,

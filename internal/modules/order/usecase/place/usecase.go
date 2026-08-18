@@ -33,7 +33,8 @@ type UseCase struct {
 	repo          Repository
 	tx            database.TxRunner
 	cart          CartProvider
-	inventory     InventoryReserver
+	reserver      InventoryReserver
+	deductor      InventoryDeductor
 	payment       PaymentInitiator
 	coupons       CouponReserver
 	notifications NotificationEnqueuer
@@ -45,7 +46,8 @@ type Deps struct {
 	Repo          Repository
 	Tx            database.TxRunner
 	Cart          CartProvider
-	Inventory     InventoryReserver
+	Reserver      InventoryReserver
+	Deductor      InventoryDeductor
 	Payment       PaymentInitiator
 	Coupons       CouponReserver
 	Notifications NotificationEnqueuer
@@ -58,7 +60,8 @@ func New(d Deps) *UseCase {
 		repo:          d.Repo,
 		tx:            d.Tx,
 		cart:          d.Cart,
-		inventory:     d.Inventory,
+		reserver:      d.Reserver,
+		deductor:      d.Deductor,
 		payment:       d.Payment,
 		coupons:       d.Coupons,
 		notifications: d.Notifications,
@@ -137,7 +140,7 @@ func (c *UseCase) Execute(
 			return txErr
 		}
 
-		if txErr := c.inventory.ReserveBatch(txCtx, reservations); txErr != nil {
+		if txErr := c.reserver.ReserveBatch(txCtx, reservations); txErr != nil {
 			return fmt.Errorf("reserving stock: %w", txErr)
 		}
 
@@ -207,6 +210,6 @@ func (c *UseCase) finalizeFreeOrder(ctx context.Context, order *domain.Order) er
 		for _, item := range order.Items {
 			deductions[item.ProductID] = item.Quantity
 		}
-		return c.inventory.DeductBatch(txCtx, deductions)
+		return c.deductor.DeductBatch(txCtx, deductions)
 	})
 }

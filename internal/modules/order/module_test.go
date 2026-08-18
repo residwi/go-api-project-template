@@ -54,15 +54,17 @@ func TestNew_WiresPaymentDeps(t *testing.T) {
 	paymentJobs := NewMockPaymentJobCanceller(t)
 
 	m := New(Deps{
-		Pool:          testPool,
-		Tx:            database.NewTxRunner(testPool),
-		Logger:        testhelper.DiscardLogger(),
-		Cart:          &fanOutCartProvider{productID: productID},
-		Inventory:     fanOutInventory{},
-		Promotions:    fanOutCoupons{},
-		Notifications: fanOutNotifications{},
-		Payment:       payment,
-		PaymentJobs:   paymentJobs,
+		Pool:             testPool,
+		Tx:               database.NewTxRunner(testPool),
+		Logger:           testhelper.DiscardLogger(),
+		Cart:             &fanOutCartProvider{productID: productID},
+		InventoryReserve: fanOutInventory{},
+		InventoryDeduct:  fanOutInventory{},
+		InventoryRestore: fanOutInventory{},
+		Promotions:       fanOutCoupons{},
+		Notifications:    fanOutNotifications{},
+		Payment:          payment,
+		PaymentJobs:      paymentJobs,
 	})
 
 	ctx := context.Background()

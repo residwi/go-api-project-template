@@ -184,7 +184,7 @@ func TestCommand_Execute(t *testing.T) {
 		}, nil)
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		deps.inventory.EXPECT().ReserveBatch(mock.Anything, map[uuid.UUID]int{
+		deps.reserver.EXPECT().ReserveBatch(mock.Anything, map[uuid.UUID]int{
 			productA: 2,
 			productB: 1,
 		}).Return(nil)
@@ -235,7 +235,7 @@ func TestCommand_Execute(t *testing.T) {
 		}, nil)
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		deps.inventory.EXPECT().
+		deps.reserver.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
@@ -352,7 +352,7 @@ func TestCommand_Execute(t *testing.T) {
 		}, nil)
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		deps.inventory.EXPECT().
+		deps.reserver.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
@@ -393,7 +393,7 @@ func TestCommand_Execute(t *testing.T) {
 		}, nil)
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		deps.inventory.EXPECT().
+		deps.reserver.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
@@ -474,7 +474,7 @@ func TestCommand_Execute(t *testing.T) {
 		}, nil)
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		deps.inventory.EXPECT().
+		deps.reserver.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(errors.New("insufficient stock"))
 
@@ -511,7 +511,7 @@ func TestCommand_Execute(t *testing.T) {
 		}, nil)
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		deps.inventory.EXPECT().
+		deps.reserver.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(errors.New("db error"))
@@ -549,7 +549,7 @@ func TestCommand_Execute(t *testing.T) {
 		}, nil)
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		deps.inventory.EXPECT().
+		deps.reserver.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
@@ -589,7 +589,7 @@ func TestCommand_Execute(t *testing.T) {
 		}, nil)
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		deps.inventory.EXPECT().
+		deps.reserver.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
@@ -602,7 +602,7 @@ func TestCommand_Execute(t *testing.T) {
 		// Finalized directly instead of left to expire, and no payment is initiated:
 		// there is nothing to charge.
 		deps.transition.EXPECT().Apply(mock.Anything, mock.Anything, domain.PaidTransition).Return(nil)
-		deps.inventory.EXPECT().
+		deps.deductor.EXPECT().
 			DeductBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
@@ -641,7 +641,7 @@ func TestCommand_Execute(t *testing.T) {
 		}, nil)
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		deps.inventory.EXPECT().
+		deps.reserver.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
@@ -692,7 +692,7 @@ func TestCommand_Execute_RejectsWithdrawnProduct(t *testing.T) {
 		"the error must name the product so the customer can fix their cart")
 	// Direct and intentional, rather than incidental: the guard must reject
 	// before any stock is reserved, not merely happen to fail elsewhere first.
-	deps.inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
+	deps.reserver.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
 }
 
 func TestCommand_Execute_RejectsUnavailableProduct(t *testing.T) {
@@ -720,7 +720,7 @@ func TestCommand_Execute_RejectsUnavailableProduct(t *testing.T) {
 	require.ErrorIs(t, err, apperror.ErrBadRequest)
 	// Direct and intentional, rather than incidental: the guard must reject
 	// before any stock is reserved, not merely happen to fail elsewhere first.
-	deps.inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
+	deps.reserver.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
 }
 
 // Both sentinels: money.ErrCurrencyMismatch names the cause but is not a case in
@@ -756,7 +756,8 @@ func TestCommand_Execute_RejectsMixedCurrencyCart(t *testing.T) {
 type testDeps struct {
 	repo          *MockRepository
 	cart          *MockCartProvider
-	inventory     *MockInventoryReserver
+	reserver      *MockInventoryReserver
+	deductor      *MockInventoryDeductor
 	payment       *MockPaymentInitiator
 	coupons       *MockCouponReserver
 	notifications *MockNotificationEnqueuer
@@ -767,7 +768,8 @@ func newTestCommand(t *testing.T) (*UseCase, testDeps) {
 	d := testDeps{
 		repo:          NewMockRepository(t),
 		cart:          NewMockCartProvider(t),
-		inventory:     NewMockInventoryReserver(t),
+		reserver:      NewMockInventoryReserver(t),
+		deductor:      NewMockInventoryDeductor(t),
 		payment:       NewMockPaymentInitiator(t),
 		coupons:       NewMockCouponReserver(t),
 		notifications: NewMockNotificationEnqueuer(t),
@@ -778,7 +780,8 @@ func newTestCommand(t *testing.T) (*UseCase, testDeps) {
 		Repo:          d.repo,
 		Tx:            testhelper.FakeTxRunner{},
 		Cart:          d.cart,
-		Inventory:     d.inventory,
+		Reserver:      d.reserver,
+		Deductor:      d.deductor,
 		Payment:       d.payment,
 		Coupons:       d.coupons,
 		Notifications: d.notifications,

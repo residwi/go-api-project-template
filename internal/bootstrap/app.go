@@ -75,29 +75,32 @@ func New(d Deps) (*App, error) {
 	orderTransition := ordertransition.New(ordertransitionpg.New(d.Pool))
 	orderQuery := orderquery.New(orderquerypg.New(d.Pool))
 	orderCanceller := ordercancel.New(
-		ordercancelpg.New(d.Pool), txRunner, orderTransition, inv, promotionMod.Reserve, nil, d.Logger,
+		ordercancelpg.New(d.Pool), txRunner, orderTransition, inv.Restore, promotionMod.Reserve, nil, d.Logger,
 	)
 
 	paymentMod := payment.New(payment.Deps{
-		Pool:            d.Pool,
-		Tx:              txRunner,
-		Config:          d.Payment,
-		Logger:          d.Logger,
-		OrderTransition: orderTransition,
-		OrderCanceller:  orderCanceller,
-		OrderReader:     orderQuery,
-		Inventory:       inv,
-		Promotions:      promotionMod.Reserve,
+		Pool:             d.Pool,
+		Tx:               txRunner,
+		Config:           d.Payment,
+		Logger:           d.Logger,
+		OrderTransition:  orderTransition,
+		OrderCanceller:   orderCanceller,
+		OrderReader:      orderQuery,
+		InventoryDeduct:  inv.Deduct,
+		InventoryRestore: inv.Restore,
+		Promotions:       promotionMod.Reserve,
 	})
 
 	ordMod := order.New(order.Deps{
 		Pool: d.Pool, Tx: txRunner, Logger: d.Logger,
-		Cart:          cartMod,
-		Inventory:     inv,
-		Promotions:    promotionMod.Reserve,
-		Notifications: notificationMod.Jobs,
-		Payment:       paymentMod.Charge,
-		PaymentJobs:   paymentMod.Jobs,
+		Cart:             cartMod,
+		InventoryReserve: inv.Reserve,
+		InventoryDeduct:  inv.Deduct,
+		InventoryRestore: inv.Restore,
+		Promotions:       promotionMod.Reserve,
+		Notifications:    notificationMod.Jobs,
+		Payment:          paymentMod.Charge,
+		PaymentJobs:      paymentMod.Jobs,
 	})
 
 	shippingMod := shipping.New(shipping.Deps{Pool: d.Pool, Tx: txRunner, Orders: ordMod})

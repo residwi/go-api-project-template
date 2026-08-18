@@ -32,11 +32,12 @@ type Deps struct {
 	Config Config
 	Logger *slog.Logger
 
-	OrderTransition OrderTransition
-	OrderCanceller  OrderCanceller
-	OrderReader     OrderReader
-	Inventory       InventoryPort
-	Promotions      CouponPort
+	OrderTransition  OrderTransition
+	OrderCanceller   OrderCanceller
+	OrderReader      OrderReader
+	InventoryDeduct  InventoryDeductor
+	InventoryRestore InventoryRestorer
+	Promotions       CouponPort
 }
 
 type OrderTransition interface {
@@ -57,8 +58,11 @@ type OrderReader interface {
 	ListItemQuantities(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error)
 }
 
-type InventoryPort interface {
+type InventoryDeductor interface {
 	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
+}
+
+type InventoryRestorer interface {
 	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventorycontract.StockState) error
 }
 
@@ -82,12 +86,12 @@ func New(d Deps) *Module {
 
 	chargeCmd := charge.New(
 		chargepg.New(d.Pool), d.Tx, gw,
-		d.OrderTransition, d.OrderReader, d.OrderReader, d.Inventory, jobsCmd,
+		d.OrderTransition, d.OrderReader, d.OrderReader, d.InventoryDeduct, jobsCmd,
 		d.Logger,
 	)
 	refundCmd := refund.New(
 		refundpg.New(d.Pool), d.Tx, gw,
-		d.OrderTransition, d.OrderReader, d.OrderReader, d.Inventory, d.Promotions, jobsCmd,
+		d.OrderTransition, d.OrderReader, d.OrderReader, d.InventoryRestore, d.Promotions, jobsCmd,
 		d.Logger,
 	)
 	dispatcher := jobs.NewDispatcher(chargeCmd, refundCmd, d.Logger)

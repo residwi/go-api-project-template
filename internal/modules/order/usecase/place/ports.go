@@ -18,6 +18,9 @@ type CartProvider interface {
 
 type InventoryReserver interface {
 	ReserveBatch(ctx context.Context, items map[uuid.UUID]int) error
+}
+
+type InventoryDeductor interface {
 	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
 }
 
