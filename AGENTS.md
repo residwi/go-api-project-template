@@ -120,10 +120,14 @@ internal/modules -name ports.go`), or in `module.go` — as an interface plus a
 `Deps` field — when
 several sibling slices share the dependency. `order`, `payment`, `cart`,
 `auth` and `shipping` all do the latter: `order/module.go` alone declares
-six (`CartProvider`, `InventoryPort`, `CouponPort`,
-`NotificationEnqueuer`, `PaymentInitiator`, `PaymentJobCanceller`), because
-`place`, `cancel` and `expire` all need inventory and no one slice owns
-that need alone. Either way the rule is the same one decision 2 states —
+ten (`CartLocker`, `CartReader`, `CartClearer`, `InventoryReserver`,
+`InventoryDeductor`, `InventoryRestorer`, `CouponPort`,
+`NotificationEnqueuer`, `PaymentInitiator`, `PaymentJobCanceller`) — up from
+six before `CartProvider` split into the three `Cart*` ports and
+`InventoryPort` split into the three `Inventory*` ports, one method per
+port, because `place`, `cancel` and `expire` between them need cart and
+inventory and no one slice owns that need alone. Either way the rule is the
+same one decision 2 states —
 the consumer names the interface, never the producer — the two just differ
 in which consumer that is: one slice, or the module composing several.
 
@@ -131,8 +135,10 @@ A `Module` struct field is named for the capability it backs, not the
 package — `category.Module` has field `Delete` backing package `remove`. The
 one exception AGENTS.md used to record, `cart.Module.Empty` backing package
 `empty`, is gone: the slice is `cart/usecase/clear`, the field is
-`ClearCart`, and `cart.Module`'s `Clear(ctx, userID)` delegator — the thing
-`order.CartProvider.Clear` actually reaches — is unchanged. That rename cost
+`ClearCart`, and no delegator sits between it and its consumer any more —
+`order.Deps.CartClear` wires directly to `cart.Module.ClearCart`, whose
+`Clear` method satisfies `order`'s own `CartClearer` port by name-match.
+That rename cost
 one suppression: `clear` is a Go builtin, and `predeclared` fires on the
 package clause itself, so `.golangci.yml` carries a `predeclared` exclusion
 scoped to `^internal/modules/cart/usecase/clear/` with the exact linter text.
@@ -439,9 +445,12 @@ spot the way it was before this phase.
       `order/usecase/transition.UseCase` — the standalone value
       `internal/bootstrap/app.go` builds before `order.New` can run —
       satisfies `payment.OrderTransition` directly, which is what breaks the
-      order/payment cycle at slice granularity. `order.Module` itself
-      satisfies `shipping.OrderPorts` through its `GetInfo`/`MarkShipped`/
-      `MarkDelivered` delegators, the same trick one level up.
+      order/payment cycle at slice granularity. A consumer's port names
+      methods that live on **one** slice value, so name-match wires the
+      slice directly (`shipping.Deps.OrderRead ← order.Module.Query`). Where
+      a consumer needs capabilities from two slices, it declares two ports,
+      not one wide one — no `Module` carries a forwarding method, and
+      `grep -rn "func (m \*Module)" internal/modules` returns nothing.
     - **A `<feature>/contract/` package**, when what crosses is a struct
       rather than a scalar or an interface a producer already satisfies.
       The consumer's port still names the type it needs
@@ -452,9 +461,11 @@ spot the way it was before this phase.
 11. **Services take `database.TxRunner`, never `*pgxpool.Pool`.** Service needs atomicity, not DB handle. `TxRunner` declared once in `internal/platform/database` not per consumer — one deliberate exception to rule 10's consumer-declaration pattern, because features already import `platform/database`. A slice that opens no transaction takes no runner at all.
 12. **Money is `money.Money`, never an `int64` beside a `Currency string`.** Scope is four features: `order`, `payment`, `product`, `cart`. `promotion` and `dashboard` stay on `int64` for stated reasons — `ARCHITECTURE.md` §10 and `ARCHITECTURE-LIMITATIONS.md`. `Money` carries no `json` tag and implements no `sql.Scanner`: each adapter maps it explicit, because wire shapes genuinely differ per endpoint. No float constructor and no `Div`.
 13. **A slice runs no SQL and holds no pool.** Every read and write goes through the slice's own repository interface; its `postgres/` adapter owns the pool and reaches it with `database.DB(ctx, pool)`, which returns the context's transaction if there is one. A `UseCase` composes several repository calls into one unit of work via its `TxRunner`, and the transaction propagates to every repository it touches — own and other modules' — through `ctx`.
-14. **Order status changes only through `order/usecase/transition.UseCase.Apply`.** Every guarded transition is a named `domain.Transition` value in `internal/modules/order/domain/transition.go` (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other modules depend on _intent_ methods on their own port interface (`payment.OrderTransition.MarkPaid`, `shipping.OrderPorts.MarkShipped`/`MarkDelivered`), and each caller wires to a value that implements them — `order/usecase/transition.UseCase` directly, or `order.Module`'s delegators, which just call `Apply` with the right transition. Never write an ad-hoc from/to status list at a call site.
-15. **Inventory reversal goes through `inventory.Module.Restore(ctx, items
-map[uuid.UUID]int, prior contract.StockState)`.** Inventory decides whether that means releasing a reservation or restocking deducted goods; callers supply order's prior state, never the mechanics. `StockState` lives in `inventory/contract` — `order` is the caller and names the type without importing inventory's implementation.
+14. **Order status changes only through `order/usecase/transition.UseCase.Apply`.** Every guarded transition is a named `domain.Transition` value in `internal/modules/order/domain/transition.go` (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other modules depend on _intent_ methods on their own port interface (`payment.OrderTransition.MarkPaid`; `shipping.OrderStatusWriter.MarkShipped`/`MarkDelivered` at module level, plus `create.OrderShipper` and `deliver.OrderPort` at slice level), and every caller wires directly to `order/usecase/transition.UseCase` — the only value any of them name, since `Apply` and every `Mark*` method live there and nowhere else. Never write an ad-hoc from/to status list at a call site.
+15. **Inventory reversal goes through `inventory.Module.Restore`, a
+`*restore.UseCase` field.** Its own `Restore(ctx, items map[uuid.UUID]int,
+prior contract.StockState) error` decides whether that means releasing a
+reservation or restocking deducted goods; callers supply order's prior state, never the mechanics. `StockState` lives in `inventory/contract` — `order` is the caller and names the type without importing inventory's implementation.
 16. **Background job workers use `platform/jobs`.** The package draining a queue implements `jobs.Queue[T]` (`Claim` + `Prune`) and `jobs.Processor[T]` (`Process`) on whichever value the binary hands to `jobs.Runner[T]`, plus an optional `jobs.Sweeper` for per-tick housekeeping. `payment/jobs.Queue` and `notification/jobs.Worker` are the two queues today; `payment/jobs.Dispatcher` is the processor that routes a claimed payment job to charge or refund, and `payment/worker.Processor` wraps the dispatcher to add order's stale-order sweep. All four live at a feature root, outside `usecase/`, and none is a slice. Never hand-roll a ticker/lease/poll loop — the runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
 17. **Repository reads use `pgx.CollectRows`**, never a hand-rolled `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and build keyset predicates with `database.KeysetCursor()`.
 18. **Handlers use the shared helpers.** Decode and validate with `response.Bind[T](w, r, h.validator)`; read caller with `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks.

@@ -441,7 +441,7 @@ derived from one parent would otherwise share a backing array and
 overwrite each other.
 
 **The cost:** you can no longer read a single log call and know everything
-it emits. `order/usecase/expire.UseCase.Sweep`'s
+it emits. `order/usecase/expire.UseCase.ExpireStale`'s
 `c.logger.ErrorContext(ctx, "failed to expire order", slog.String("order_id", o.ID.String()), slog.String("error", err.Error()))`
 also emits `runner`, because it runs inside the payment runner's per-tick
 sweep, and nothing at that line names it. In exchange, 32 repeated
@@ -519,12 +519,18 @@ adapter. "Own" is literal: `updatetracking.Repository` and
 `deliver.Repository` both need `GetByID`; each declares it rather than
 sharing one. A slice declares a port for anything it does not implement
 itself — another module's capability or a sibling slice's — and `module.go`
-wires it. Three of shipping's four slices declare one (`query.OrderPort`,
-`create.OrderPort`, `deliver.OrderPort`), all three folded into one
-`shipping.OrderPorts` union at `module.go`'s `Deps` — order's own `Module`
-value satisfies it by name-match, same trick as decision 2, and Go's
-interface-assignability rule lets that one wider value stand in for each
-slice's narrower port without a cast. `updatetracking` declares none and
+wires it. Three of shipping's four slices declare a port on order state: `query`
+declares one (`OrderPort`, `GetInfo`), `deliver` declares one (`OrderPort`,
+`MarkDelivered`), and `create` declares two (`OrderGetter` for `GetInfo`,
+`OrderShipper` for `MarkShipped`) because it both checks and transitions the
+order it ships. `module.go`'s `Deps` folds these into two ports, not one:
+`OrderReader` (`GetInfo`, shared by `query` and `create`) and
+`OrderStatusWriter` (`MarkShipped` and `MarkDelivered`, shared by `create`
+and `deliver`) — each wired to exactly one order slice value,
+`order.Module.Query` for the first and `order.Module.Transition` for the
+second, by name-match, same trick as decision 2. No single wide value
+stands in for both any more; each port draws from the one slice that
+implements it. `updatetracking` declares none and
 takes no `TxRunner` either, because it changes two fields on a row it already
 fetched and writes it back — there is nothing outside itself to ask.
 
@@ -549,7 +555,13 @@ deliberately, so one endpoint's new field cannot appear in another's output.
 The other thirteen modules paid the same multiplier as each was sliced in
 turn, scaled to however many use cases each module turned out to need —
 decision 3's package counts, and decision 9's response-DTO-duplication note,
-are the tally now that all fourteen have paid it.
+are the tally now that all fourteen have paid it. Slicing's first bill was
+paid with forwarding methods on `Module` — 20 of them, 8 already dead by the
+time anyone counted. They are gone. The cost moved to the consumers' `Deps`:
+`order.Deps` carries six port fields where it carried two, and `place.New`
+takes a `Deps` struct because twelve positional arguments is not readable.
+In exchange every port names methods from exactly one slice, so a dead port
+cannot hide behind a live one.
 
 ## 15. The transport owns every URL; a module owns none
 
