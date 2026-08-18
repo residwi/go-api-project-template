@@ -41,27 +41,29 @@ type UseCase struct {
 	logger        *slog.Logger
 }
 
-func New(
-	repo Repository,
-	tx database.TxRunner,
-	cart CartProvider,
-	inventory InventoryReserver,
-	payment PaymentInitiator,
-	coupons CouponReserver,
-	notifications NotificationEnqueuer,
-	transition TransitionApplier,
-	log *slog.Logger,
-) *UseCase {
+type Deps struct {
+	Repo          Repository
+	Tx            database.TxRunner
+	Cart          CartProvider
+	Inventory     InventoryReserver
+	Payment       PaymentInitiator
+	Coupons       CouponReserver
+	Notifications NotificationEnqueuer
+	Transition    TransitionApplier
+	Logger        *slog.Logger
+}
+
+func New(d Deps) *UseCase {
 	return &UseCase{
-		repo:          repo,
-		tx:            tx,
-		cart:          cart,
-		inventory:     inventory,
-		payment:       payment,
-		coupons:       coupons,
-		notifications: notifications,
-		transition:    transition,
-		logger:        log,
+		repo:          d.Repo,
+		tx:            d.Tx,
+		cart:          d.Cart,
+		inventory:     d.Inventory,
+		payment:       d.Payment,
+		coupons:       d.Coupons,
+		notifications: d.Notifications,
+		transition:    d.Transition,
+		logger:        d.Logger,
 	}
 }
 

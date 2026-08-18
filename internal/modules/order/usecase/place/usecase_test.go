@@ -28,7 +28,7 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("returns existing order when idempotency key matches", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, _, _, _, _, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 
 		idempotencyKey := "idem-key-123"
 		existingOrder := &domain.Order{
@@ -49,8 +49,10 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}
 
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(existingOrder, nil)
-		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(items, nil)
+		deps.repo.EXPECT().
+			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
+			Return(existingOrder, nil)
+		deps.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(items, nil)
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -63,11 +65,11 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("idempotency check error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, _, _, _, _, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 
 		idempotencyKey := "idem-key-123"
 		dbErr := errors.New("database connection error")
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, dbErr)
+		deps.repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, dbErr)
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -79,14 +81,14 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("empty cart returns ErrCartEmpty", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, _, _, _, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-empty-cart"
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID:    uuid.New(),
 			Items: []cartcontract.CartItem{},
 		}, nil)
@@ -101,14 +103,14 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("unavailable product returns ErrBadRequest", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, _, _, _, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-unavailable"
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -131,15 +133,15 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("GetCart error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, _, _, _, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-cart-error"
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
 		cartErr := errors.New("cart service error")
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(nil, cartErr)
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(nil, cartErr)
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -151,17 +153,17 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("success full happy path", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, inventory, payment, _, notifications, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-happy"
 
 		productA := uuid.New()
 		productB := uuid.New()
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -181,18 +183,18 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		inventory.EXPECT().ReserveBatch(mock.Anything, map[uuid.UUID]int{
+		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		deps.inventory.EXPECT().ReserveBatch(mock.Anything, map[uuid.UUID]int{
 			productA: 2,
 			productB: 1,
 		}).Return(nil)
-		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
+		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
+		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
-		payment.EXPECT().
+		deps.payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
 			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
-		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
+		deps.notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -209,17 +211,17 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("success with coupon applied", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, inventory, payment, coupons, notifications, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-coupon"
 
 		productA := uuid.New()
 		couponCode := "SAVE20"
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -232,19 +234,21 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		inventory.EXPECT().
+		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		deps.inventory.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
-		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		coupons.EXPECT().Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).Return(int64(1000), nil)
-		repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(1000), int64(4000)).Return(nil)
-		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
+		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
+		deps.coupons.EXPECT().
+			Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).
+			Return(int64(1000), nil)
+		deps.repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(1000), int64(4000)).Return(nil)
+		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
-		payment.EXPECT().
+		deps.payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
 			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
-		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
+		deps.notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
 		req := Params{PaymentMethodID: "pm_test", CouponCode: &couponCode}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -260,14 +264,14 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("mixed-currency cart is rejected", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, _, _, _, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-mixed-ccy"
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -297,7 +301,7 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("idempotent replay propagates ListItemsByOrderID error", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, _, _, _, _, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 
 		idempotencyKey := "idem-key-123"
 		existingOrder := &domain.Order{
@@ -309,8 +313,10 @@ func TestCommand_Execute(t *testing.T) {
 		}
 
 		dbErr := errors.New("db error")
-		repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(existingOrder, nil)
-		repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(nil, dbErr)
+		deps.repo.EXPECT().
+			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
+			Return(existingOrder, nil)
+		deps.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(nil, dbErr)
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -322,17 +328,17 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("coupon reserve error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, inventory, _, coupons, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-coupon-err"
 		couponCode := "BADCOUPON"
 
 		productA := uuid.New()
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -345,12 +351,12 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		inventory.EXPECT().
+		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		deps.inventory.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
-		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		coupons.EXPECT().
+		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
+		deps.coupons.EXPECT().
 			Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).
 			Return(int64(0), errors.New("invalid coupon"))
 
@@ -364,16 +370,16 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("notification enqueue error is swallowed", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, inventory, payment, _, notifications, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-notif-err"
 
 		productA := uuid.New()
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -386,17 +392,19 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		inventory.EXPECT().
+		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		deps.inventory.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
-		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
+		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
+		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
-		payment.EXPECT().
+		deps.payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
 			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
-		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(errors.New("queue full"))
+		deps.notifications.EXPECT().
+			EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).
+			Return(errors.New("queue full"))
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -409,16 +417,16 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("repo Create error propagates from transaction", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, _, _, _, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-create-err"
 
 		productA := uuid.New()
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -431,7 +439,7 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("db error"))
+		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -443,16 +451,16 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("inventory Reserve error propagates from transaction", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, inventory, _, _, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-reserve-err"
 
 		productA := uuid.New()
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -465,8 +473,8 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		inventory.EXPECT().
+		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		deps.inventory.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(errors.New("insufficient stock"))
 
@@ -480,16 +488,16 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("CreateItems error propagates from transaction", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, inventory, _, _, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-items-err"
 
 		productA := uuid.New()
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -502,11 +510,11 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		inventory.EXPECT().
+		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		deps.inventory.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
-		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(errors.New("db error"))
+		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -518,16 +526,16 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("cart Clear error propagates from transaction", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, inventory, _, _, _, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-clear-err"
 
 		productA := uuid.New()
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -540,12 +548,12 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		inventory.EXPECT().
+		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		deps.inventory.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
-		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		cart.EXPECT().Clear(mock.Anything, userID).Return(errors.New("cache error"))
+		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
+		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(errors.New("cache error"))
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -557,17 +565,17 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("zero total finalizes order without payment", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, inventory, payment, coupons, notifications, transition := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-zero-total"
 		couponCode := "FREE100"
 
 		productA := uuid.New()
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -580,23 +588,24 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		inventory.EXPECT().
+		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		deps.inventory.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
-		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		coupons.EXPECT().Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).Return(int64(5000), nil)
-		repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(5000), int64(0)).Return(nil)
-		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
+		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
+		deps.coupons.EXPECT().
+			Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).
+			Return(int64(5000), nil)
+		deps.repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(5000), int64(0)).Return(nil)
+		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
 		// Finalized directly instead of left to expire, and no payment is initiated:
 		// there is nothing to charge.
-		transition.EXPECT().Apply(mock.Anything, mock.Anything, domain.PaidTransition).Return(nil)
-		inventory.EXPECT().
+		deps.transition.EXPECT().Apply(mock.Anything, mock.Anything, domain.PaidTransition).Return(nil)
+		deps.inventory.EXPECT().
 			DeductBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
-		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
-		_ = payment
+		deps.notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
 		req := Params{PaymentMethodID: "pm_test", CouponCode: &couponCode}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -609,16 +618,16 @@ func TestCommand_Execute(t *testing.T) {
 	t.Run("success with payment initiation failure logs but returns order", func(t *testing.T) {
 		t.Parallel()
 
-		cmd, repo, cart, inventory, payment, _, notifications, _ := newTestCommand(t)
+		cmd, deps := newTestCommand(t)
 		idempotencyKey := "idem-pay-fail"
 
 		productA := uuid.New()
 
-		repo.EXPECT().
+		deps.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, apperror.ErrNotFound)
-		cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-		cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+		deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+		deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 			ID: uuid.New(),
 			Items: []cartcontract.CartItem{
 				{
@@ -631,17 +640,17 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		inventory.EXPECT().
+		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		deps.inventory.EXPECT().
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
-		repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
+		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
+		deps.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
-		payment.EXPECT().
+		deps.payment.EXPECT().
 			InitiatePayment(mock.Anything, mock.Anything).
 			Return(paymentcontract.ChargeResult{}, errors.New("gateway down"))
-		notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
+		deps.notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
 		req := Params{PaymentMethodID: "pm_test"}
 		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
@@ -656,15 +665,17 @@ func TestCommand_Execute(t *testing.T) {
 func TestCommand_Execute_RejectsWithdrawnProduct(t *testing.T) {
 	t.Parallel()
 
-	cmd, repo, cartProvider, inventory, _, _, _, _ := newTestCommand(t)
+	cmd, deps := newTestCommand(t)
 
 	userID := uuid.New()
 	productID := uuid.New()
 	idempotencyKey := "idem-withdrawn-1"
 
-	repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
-	cartProvider.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-	cartProvider.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+	deps.repo.EXPECT().
+		GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
+		Return(nil, apperror.ErrNotFound)
+	deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+	deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 		ID: uuid.New(),
 		Items: []cartcontract.CartItem{
 			{
@@ -681,20 +692,22 @@ func TestCommand_Execute_RejectsWithdrawnProduct(t *testing.T) {
 		"the error must name the product so the customer can fix their cart")
 	// Direct and intentional, rather than incidental: the guard must reject
 	// before any stock is reserved, not merely happen to fail elsewhere first.
-	inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
+	deps.inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
 }
 
 func TestCommand_Execute_RejectsUnavailableProduct(t *testing.T) {
 	t.Parallel()
 
-	cmd, repo, cartProvider, inventory, _, _, _, _ := newTestCommand(t)
+	cmd, deps := newTestCommand(t)
 
 	userID := uuid.New()
 	idempotencyKey := "idem-unavailable-1"
 
-	repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, apperror.ErrNotFound)
-	cartProvider.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-	cartProvider.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+	deps.repo.EXPECT().
+		GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
+		Return(nil, apperror.ErrNotFound)
+	deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+	deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 		ID: uuid.New(),
 		Items: []cartcontract.CartItem{
 			{
@@ -707,7 +720,7 @@ func TestCommand_Execute_RejectsUnavailableProduct(t *testing.T) {
 	require.ErrorIs(t, err, apperror.ErrBadRequest)
 	// Direct and intentional, rather than incidental: the guard must reject
 	// before any stock is reserved, not merely happen to fail elsewhere first.
-	inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
+	deps.inventory.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
 }
 
 // Both sentinels: money.ErrCurrencyMismatch names the cause but is not a case in
@@ -719,14 +732,14 @@ func TestCommand_Execute_RejectsUnavailableProduct(t *testing.T) {
 func TestCommand_Execute_RejectsMixedCurrencyCart(t *testing.T) {
 	t.Parallel()
 
-	cmd, repo, cartProvider, _, _, _, _, _ := newTestCommand(t)
+	cmd, deps := newTestCommand(t)
 
 	userID := uuid.New()
 
-	repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, "idem-mixed-1").
+	deps.repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, "idem-mixed-1").
 		Return(nil, apperror.ErrNotFound)
-	cartProvider.EXPECT().LockCart(mock.Anything, userID).Return(nil)
-	cartProvider.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
+	deps.cart.EXPECT().LockCart(mock.Anything, userID).Return(nil)
+	deps.cart.EXPECT().GetSnapshot(mock.Anything, userID).Return(&cartcontract.Cart{
 		ID: uuid.New(),
 		Items: []cartcontract.CartItem{
 			{ProductID: uuid.New(), Quantity: 1, Name: "A", Price: money.New(1000, "USD"), Status: "published"},
@@ -740,34 +753,37 @@ func TestCommand_Execute_RejectsMixedCurrencyCart(t *testing.T) {
 	require.ErrorIs(t, err, apperror.ErrBadRequest, "a mixed-currency cart is user input -- 400, not 500")
 }
 
-func newTestCommand(t *testing.T) (
-	*UseCase,
-	*MockRepository,
-	*MockCartProvider,
-	*MockInventoryReserver,
-	*MockPaymentInitiator,
-	*MockCouponReserver,
-	*MockNotificationEnqueuer,
-	*MockTransitionApplier,
-) {
-	repo := NewMockRepository(t)
-	cart := NewMockCartProvider(t)
-	inventory := NewMockInventoryReserver(t)
-	payment := NewMockPaymentInitiator(t)
-	coupons := NewMockCouponReserver(t)
-	notifications := NewMockNotificationEnqueuer(t)
-	transition := NewMockTransitionApplier(t)
+type testDeps struct {
+	repo          *MockRepository
+	cart          *MockCartProvider
+	inventory     *MockInventoryReserver
+	payment       *MockPaymentInitiator
+	coupons       *MockCouponReserver
+	notifications *MockNotificationEnqueuer
+	transition    *MockTransitionApplier
+}
 
-	cmd := New(
-		repo,
-		testhelper.FakeTxRunner{},
-		cart,
-		inventory,
-		payment,
-		coupons,
-		notifications,
-		transition,
-		testhelper.DiscardLogger(),
-	)
-	return cmd, repo, cart, inventory, payment, coupons, notifications, transition
+func newTestCommand(t *testing.T) (*UseCase, testDeps) {
+	d := testDeps{
+		repo:          NewMockRepository(t),
+		cart:          NewMockCartProvider(t),
+		inventory:     NewMockInventoryReserver(t),
+		payment:       NewMockPaymentInitiator(t),
+		coupons:       NewMockCouponReserver(t),
+		notifications: NewMockNotificationEnqueuer(t),
+		transition:    NewMockTransitionApplier(t),
+	}
+
+	cmd := New(Deps{
+		Repo:          d.repo,
+		Tx:            testhelper.FakeTxRunner{},
+		Cart:          d.cart,
+		Inventory:     d.inventory,
+		Payment:       d.payment,
+		Coupons:       d.coupons,
+		Notifications: d.notifications,
+		Transition:    d.transition,
+		Logger:        testhelper.DiscardLogger(),
+	})
+	return cmd, d
 }

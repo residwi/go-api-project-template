@@ -88,10 +88,17 @@ func New(d Deps) *Module {
 	transitionApplier := transition.New(transitionpg.New(d.Pool))
 
 	return &Module{
-		Place: place.New(
-			placepg.New(d.Pool), d.Tx, d.Cart, d.Inventory, d.Payment, d.Promotions, d.Notifications,
-			transitionApplier, d.Logger,
-		),
+		Place: place.New(place.Deps{
+			Repo:          placepg.New(d.Pool),
+			Tx:            d.Tx,
+			Cart:          d.Cart,
+			Inventory:     d.Inventory,
+			Payment:       d.Payment,
+			Coupons:       d.Promotions,
+			Notifications: d.Notifications,
+			Transition:    transitionApplier,
+			Logger:        d.Logger,
+		}),
 		Query:        query.New(querypg.New(d.Pool)),
 		RetryPayment: retrypayment.New(retrypaymentpg.New(d.Pool), d.Payment),
 		Cancel: cancel.New(
