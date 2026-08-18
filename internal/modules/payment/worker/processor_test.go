@@ -16,20 +16,21 @@ func TestProcessorSweep(t *testing.T) {
 	t.Run("runs recovery before expiry", func(t *testing.T) {
 		t.Parallel()
 
-		orders := NewMockOrderHousekeeper(t)
+		expirer := NewMockStaleExpirer(t)
+		recoverer := NewMockStaleRecoverer(t)
 		var calls []string
-		orders.EXPECT().RecoverStaleProcessing(context.Background()).
+		recoverer.EXPECT().RecoverStaleProcessing(context.Background()).
 			RunAndReturn(func(context.Context) error {
 				calls = append(calls, "recover")
 				return nil
 			})
-		orders.EXPECT().ExpireStale(context.Background()).
+		expirer.EXPECT().ExpireStale(context.Background()).
 			RunAndReturn(func(context.Context) error {
 				calls = append(calls, "expire")
 				return nil
 			})
 
-		p := NewProcessor(nil, orders, testhelper.DiscardLogger())
+		p := NewProcessor(Deps{Expirer: expirer, Recoverer: recoverer, Logger: testhelper.DiscardLogger()})
 
 		require.NoError(t, p.Sweep(context.Background()))
 		require.Equal(t, []string{"recover", "expire"}, calls)
@@ -38,12 +39,13 @@ func TestProcessorSweep(t *testing.T) {
 	t.Run("recovery failure is logged, not returned, and expiry still runs", func(t *testing.T) {
 		t.Parallel()
 
-		orders := NewMockOrderHousekeeper(t)
-		orders.EXPECT().RecoverStaleProcessing(context.Background()).
+		expirer := NewMockStaleExpirer(t)
+		recoverer := NewMockStaleRecoverer(t)
+		recoverer.EXPECT().RecoverStaleProcessing(context.Background()).
 			Return(errors.New("recover boom"))
-		orders.EXPECT().ExpireStale(context.Background()).Return(nil)
+		expirer.EXPECT().ExpireStale(context.Background()).Return(nil)
 
-		p := NewProcessor(nil, orders, testhelper.DiscardLogger())
+		p := NewProcessor(Deps{Expirer: expirer, Recoverer: recoverer, Logger: testhelper.DiscardLogger()})
 
 		require.NoError(t, p.Sweep(context.Background()), "a recovery failure must not stop the tick")
 	})
@@ -51,11 +53,12 @@ func TestProcessorSweep(t *testing.T) {
 	t.Run("expiry failure is returned", func(t *testing.T) {
 		t.Parallel()
 
-		orders := NewMockOrderHousekeeper(t)
-		orders.EXPECT().RecoverStaleProcessing(context.Background()).Return(nil)
-		orders.EXPECT().ExpireStale(context.Background()).Return(errors.New("expire boom"))
+		expirer := NewMockStaleExpirer(t)
+		recoverer := NewMockStaleRecoverer(t)
+		recoverer.EXPECT().RecoverStaleProcessing(context.Background()).Return(nil)
+		expirer.EXPECT().ExpireStale(context.Background()).Return(errors.New("expire boom"))
 
-		p := NewProcessor(nil, orders, testhelper.DiscardLogger())
+		p := NewProcessor(Deps{Expirer: expirer, Recoverer: recoverer, Logger: testhelper.DiscardLogger()})
 
 		require.EqualError(t, p.Sweep(context.Background()), "expire boom")
 	})

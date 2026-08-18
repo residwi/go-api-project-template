@@ -9,7 +9,6 @@ import (
 
 	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
-	"github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel"
 	cancelpg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/changestatus"
@@ -130,60 +129,4 @@ func New(d Deps) *Module {
 		RecoverStale: recoverstale.New(recoverstalepg.New(d.Pool), transitionApplier, d.Logger),
 		Transition:   transitionApplier,
 	}
-}
-
-func (m *Module) MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error {
-	return m.Transition.MarkPaymentProcessing(ctx, orderID)
-}
-
-func (m *Module) MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error {
-	return m.Transition.MarkAwaitingPayment(ctx, orderID)
-}
-
-func (m *Module) MarkPaid(ctx context.Context, orderID uuid.UUID) error {
-	return m.Transition.MarkPaid(ctx, orderID)
-}
-
-func (m *Module) MarkFulfillmentFailedAfterCharge(ctx context.Context, orderID uuid.UUID) error {
-	return m.Transition.MarkFulfillmentFailedAfterCharge(ctx, orderID)
-}
-
-func (m *Module) MarkFulfillmentFailedCompensating(ctx context.Context, orderID uuid.UUID) error {
-	return m.Transition.MarkFulfillmentFailedCompensating(ctx, orderID)
-}
-
-func (m *Module) MarkRefunded(ctx context.Context, orderID uuid.UUID) error {
-	return m.Transition.MarkRefunded(ctx, orderID)
-}
-
-func (m *Module) MarkShipped(ctx context.Context, orderID uuid.UUID) error {
-	return m.Transition.MarkShipped(ctx, orderID)
-}
-
-func (m *Module) MarkDelivered(ctx context.Context, orderID uuid.UUID) error {
-	return m.Transition.MarkDelivered(ctx, orderID)
-}
-
-func (m *Module) GetSnapshot(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
-	return m.Query.GetSnapshot(ctx, orderID)
-}
-
-func (m *Module) GetInfo(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
-	return m.Query.GetInfo(ctx, orderID)
-}
-
-func (m *Module) ListItemQuantities(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error) {
-	return m.Query.ListItemQuantities(ctx, orderID)
-}
-
-func (m *Module) HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error) {
-	return m.Query.HasDeliveredOrder(ctx, userID, orderID, productID)
-}
-
-func (m *Module) ExpireStale(ctx context.Context) error {
-	return m.Expire.ExpireStale(ctx)
-}
-
-func (m *Module) RecoverStaleProcessing(ctx context.Context) error {
-	return m.RecoverStale.RecoverStaleProcessing(ctx)
 }

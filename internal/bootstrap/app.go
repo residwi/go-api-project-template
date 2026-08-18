@@ -105,8 +105,12 @@ func New(d Deps) (*App, error) {
 		PaymentJobs:      paymentMod.Jobs,
 	})
 
-	shippingMod := shipping.New(shipping.Deps{Pool: d.Pool, Tx: txRunner, Orders: ordMod})
-	reviewMod := review.New(review.Deps{Pool: d.Pool, Purchase: ordMod})
+	shippingMod := shipping.New(shipping.Deps{
+		Pool: d.Pool, Tx: txRunner,
+		OrderRead:   ordMod.Query,
+		OrderStatus: ordMod.Transition,
+	})
+	reviewMod := review.New(review.Deps{Pool: d.Pool, Purchase: ordMod.Query})
 
 	return &App{
 		Users:         userMod,

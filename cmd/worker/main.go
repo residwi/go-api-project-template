@@ -90,7 +90,12 @@ func run() error {
 		PruneLimit:    infra.Worker.PruneLimit,
 	}
 
-	paymentProcessor := paymentworker.NewProcessor(app.Payments.JobProcessor, app.Orders, appLog)
+	paymentProcessor := paymentworker.NewProcessor(paymentworker.Deps{
+		Dispatcher: app.Payments.JobProcessor,
+		Expirer:    app.Orders.Expire,
+		Recoverer:  app.Orders.RecoverStale,
+		Logger:     appLog,
+	})
 	paymentRunner := jobs.NewRunner("payment", app.Payments.Jobs, paymentProcessor, jobCfg, appLog)
 	notificationRunner := jobs.NewRunner("notification", app.Notifications.Jobs, app.Notifications.Jobs, jobCfg, appLog)
 

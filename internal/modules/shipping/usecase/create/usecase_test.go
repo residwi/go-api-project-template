@@ -23,10 +23,11 @@ func TestCommandExecute(t *testing.T) {
 		t.Parallel()
 		orderID := uuid.New()
 
-		orders := NewMockOrderPort(t)
+		orders := NewMockOrderGetter(t)
 		orders.EXPECT().GetInfo(mock.Anything, orderID).
 			Return(ordercontract.Order{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
-		orders.EXPECT().MarkShipped(mock.Anything, orderID).Return(nil)
+		shipper := NewMockOrderShipper(t)
+		shipper.EXPECT().MarkShipped(mock.Anything, orderID).Return(nil)
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(s *domain.Shipment) bool {
@@ -36,7 +37,7 @@ func TestCommandExecute(t *testing.T) {
 				s.Status == domain.StatusShipped
 		})).Return(nil)
 
-		got, err := New(repo, testhelper.FakeTxRunner{}, orders).
+		got, err := New(repo, testhelper.FakeTxRunner{}, orders, shipper).
 			Execute(context.Background(), orderID, Params{Carrier: "JNE", TrackingNumber: "JP123"})
 
 		require.NoError(t, err)
@@ -47,12 +48,13 @@ func TestCommandExecute(t *testing.T) {
 		t.Parallel()
 		orderID := uuid.New()
 
-		orders := NewMockOrderPort(t)
+		orders := NewMockOrderGetter(t)
 		orders.EXPECT().GetInfo(mock.Anything, orderID).
 			Return(ordercontract.Order{ID: orderID, Status: "awaiting_payment"}, nil)
+		shipper := NewMockOrderShipper(t)
 
 		// Repository is never called: the guard runs before the transaction opens.
-		_, err := New(NewMockRepository(t), testhelper.FakeTxRunner{}, orders).
+		_, err := New(NewMockRepository(t), testhelper.FakeTxRunner{}, orders, shipper).
 			Execute(context.Background(), orderID, Params{Carrier: "JNE", TrackingNumber: "JP123"})
 
 		require.ErrorIs(t, err, apperror.ErrBadRequest)
@@ -62,11 +64,12 @@ func TestCommandExecute(t *testing.T) {
 		t.Parallel()
 		orderID := uuid.New()
 
-		orders := NewMockOrderPort(t)
+		orders := NewMockOrderGetter(t)
 		orders.EXPECT().GetInfo(mock.Anything, orderID).
 			Return(ordercontract.Order{}, apperror.ErrNotFound)
+		shipper := NewMockOrderShipper(t)
 
-		_, err := New(NewMockRepository(t), testhelper.FakeTxRunner{}, orders).
+		_, err := New(NewMockRepository(t), testhelper.FakeTxRunner{}, orders, shipper).
 			Execute(context.Background(), orderID, Params{Carrier: "DHL", TrackingNumber: "DHL456"})
 
 		require.ErrorIs(t, err, apperror.ErrNotFound)
@@ -76,15 +79,16 @@ func TestCommandExecute(t *testing.T) {
 		t.Parallel()
 		orderID := uuid.New()
 
-		orders := NewMockOrderPort(t)
+		orders := NewMockOrderGetter(t)
 		orders.EXPECT().GetInfo(mock.Anything, orderID).
 			Return(ordercontract.Order{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
+		shipper := NewMockOrderShipper(t)
 
 		dbErr := errors.New("insert failed")
 		repo := NewMockRepository(t)
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Shipment")).Return(dbErr)
 
-		got, err := New(repo, testhelper.FakeTxRunner{}, orders).
+		got, err := New(repo, testhelper.FakeTxRunner{}, orders, shipper).
 			Execute(context.Background(), orderID, Params{Carrier: "FedEx", TrackingNumber: "TRACK123"})
 
 		assert.Nil(t, got)
@@ -96,10 +100,11 @@ func TestCommandExecute(t *testing.T) {
 		orderID := uuid.New()
 		flipErr := errors.New("order is no longer shippable")
 
-		orders := NewMockOrderPort(t)
+		orders := NewMockOrderGetter(t)
 		orders.EXPECT().GetInfo(mock.Anything, orderID).
 			Return(ordercontract.Order{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
-		orders.EXPECT().MarkShipped(mock.Anything, orderID).Return(flipErr)
+		shipper := NewMockOrderShipper(t)
+		shipper.EXPECT().MarkShipped(mock.Anything, orderID).Return(flipErr)
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Shipment")).Return(nil)
@@ -108,7 +113,7 @@ func TestCommandExecute(t *testing.T) {
 		// a non-nil return here is what rollback looks like from this level. The
 		// real rollback is covered in create/postgres/repository_test.go against a
 		// live transaction.
-		got, err := New(repo, testhelper.FakeTxRunner{}, orders).
+		got, err := New(repo, testhelper.FakeTxRunner{}, orders, shipper).
 			Execute(context.Background(), orderID, Params{Carrier: "FedEx", TrackingNumber: "TRACK123"})
 
 		assert.Nil(t, got)

@@ -17,13 +17,14 @@ type Params struct {
 }
 
 type UseCase struct {
-	repo   Repository
-	tx     database.TxRunner
-	orders OrderPort
+	repo    Repository
+	tx      database.TxRunner
+	orders  OrderGetter
+	shipper OrderShipper
 }
 
-func New(repo Repository, tx database.TxRunner, orders OrderPort) *UseCase {
-	return &UseCase{repo: repo, tx: tx, orders: orders}
+func New(repo Repository, tx database.TxRunner, orders OrderGetter, shipper OrderShipper) *UseCase {
+	return &UseCase{repo: repo, tx: tx, orders: orders, shipper: shipper}
 }
 
 func (c *UseCase) Execute(ctx context.Context, orderID uuid.UUID, p Params) (*domain.Shipment, error) {
@@ -47,7 +48,7 @@ func (c *UseCase) Execute(ctx context.Context, orderID uuid.UUID, p Params) (*do
 		if err := c.repo.Create(txCtx, shipment); err != nil {
 			return err
 		}
-		return c.orders.MarkShipped(txCtx, orderID)
+		return c.shipper.MarkShipped(txCtx, orderID)
 	}); err != nil {
 		return nil, err
 	}

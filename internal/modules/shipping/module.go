@@ -22,11 +22,15 @@ type Deps struct {
 	Pool *pgxpool.Pool
 	Tx   database.TxRunner
 
-	Orders OrderPorts
+	OrderRead   OrderReader
+	OrderStatus OrderStatusWriter
 }
 
-type OrderPorts interface {
+type OrderReader interface {
 	GetInfo(ctx context.Context, orderID uuid.UUID) (ordercontract.Order, error)
+}
+
+type OrderStatusWriter interface {
 	MarkShipped(ctx context.Context, orderID uuid.UUID) error
 	MarkDelivered(ctx context.Context, orderID uuid.UUID) error
 }
@@ -40,9 +44,9 @@ type Module struct {
 
 func New(d Deps) *Module {
 	return &Module{
-		Query:          query.New(querypg.New(d.Pool), d.Orders),
-		Create:         create.New(createpg.New(d.Pool), d.Tx, d.Orders),
+		Query:          query.New(querypg.New(d.Pool), d.OrderRead),
+		Create:         create.New(createpg.New(d.Pool), d.Tx, d.OrderRead, d.OrderStatus),
 		UpdateTracking: updatetracking.New(updatetrackingpg.New(d.Pool)),
-		Deliver:        deliver.New(deliverpg.New(d.Pool), d.Tx, d.Orders),
+		Deliver:        deliver.New(deliverpg.New(d.Pool), d.Tx, d.OrderStatus),
 	}
 }
