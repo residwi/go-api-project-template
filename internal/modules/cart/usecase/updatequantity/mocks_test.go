@@ -40,23 +40,23 @@ func (_m *MockProductLookup) EXPECT() *MockProductLookup_Expecter {
 }
 
 // GetInfo provides a mock function for the type MockProductLookup
-func (_mock *MockProductLookup) GetInfo(ctx context.Context, id uuid.UUID) (*product.ProductInfo, error) {
+func (_mock *MockProductLookup) GetInfo(ctx context.Context, id uuid.UUID) (*product.Info, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetInfo")
 	}
 
-	var r0 *product.ProductInfo
+	var r0 *product.Info
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*product.ProductInfo, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*product.Info, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *product.ProductInfo); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *product.Info); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*product.ProductInfo)
+			r0 = ret.Get(0).(*product.Info)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -97,12 +97,12 @@ func (_c *MockProductLookup_GetInfo_Call) Run(run func(ctx context.Context, id u
 	return _c
 }
 
-func (_c *MockProductLookup_GetInfo_Call) Return(productInfo *product.ProductInfo, err error) *MockProductLookup_GetInfo_Call {
-	_c.Call.Return(productInfo, err)
+func (_c *MockProductLookup_GetInfo_Call) Return(info *product.Info, err error) *MockProductLookup_GetInfo_Call {
+	_c.Call.Return(info, err)
 	return _c
 }
 
-func (_c *MockProductLookup_GetInfo_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*product.ProductInfo, error)) *MockProductLookup_GetInfo_Call {
+func (_c *MockProductLookup_GetInfo_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*product.Info, error)) *MockProductLookup_GetInfo_Call {
 	_c.Call.Return(run)
 	return _c
 }

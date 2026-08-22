@@ -40,23 +40,23 @@ func (_m *MockProductPorts) EXPECT() *MockProductPorts_Expecter {
 }
 
 // GetInfo provides a mock function for the type MockProductPorts
-func (_mock *MockProductPorts) GetInfo(ctx context.Context, id uuid.UUID) (*product.ProductInfo, error) {
+func (_mock *MockProductPorts) GetInfo(ctx context.Context, id uuid.UUID) (*product.Info, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetInfo")
 	}
 
-	var r0 *product.ProductInfo
+	var r0 *product.Info
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*product.ProductInfo, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*product.Info, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *product.ProductInfo); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *product.Info); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*product.ProductInfo)
+			r0 = ret.Get(0).(*product.Info)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -97,34 +97,34 @@ func (_c *MockProductPorts_GetInfo_Call) Run(run func(ctx context.Context, id uu
 	return _c
 }
 
-func (_c *MockProductPorts_GetInfo_Call) Return(productInfo *product.ProductInfo, err error) *MockProductPorts_GetInfo_Call {
-	_c.Call.Return(productInfo, err)
+func (_c *MockProductPorts_GetInfo_Call) Return(info *product.Info, err error) *MockProductPorts_GetInfo_Call {
+	_c.Call.Return(info, err)
 	return _c
 }
 
-func (_c *MockProductPorts_GetInfo_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*product.ProductInfo, error)) *MockProductPorts_GetInfo_Call {
+func (_c *MockProductPorts_GetInfo_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*product.Info, error)) *MockProductPorts_GetInfo_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetInfoByIDs provides a mock function for the type MockProductPorts
-func (_mock *MockProductPorts) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.ProductInfo, error) {
+func (_mock *MockProductPorts) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.Info, error) {
 	ret := _mock.Called(ctx, ids)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetInfoByIDs")
 	}
 
-	var r0 map[uuid.UUID]product.ProductInfo
+	var r0 map[uuid.UUID]product.Info
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]product.ProductInfo, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]product.Info, error)); ok {
 		return returnFunc(ctx, ids)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]product.ProductInfo); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]product.Info); ok {
 		r0 = returnFunc(ctx, ids)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[uuid.UUID]product.ProductInfo)
+			r0 = ret.Get(0).(map[uuid.UUID]product.Info)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
@@ -165,12 +165,12 @@ func (_c *MockProductPorts_GetInfoByIDs_Call) Run(run func(ctx context.Context, 
 	return _c
 }
 
-func (_c *MockProductPorts_GetInfoByIDs_Call) Return(uUIDToProductInfo map[uuid.UUID]product.ProductInfo, err error) *MockProductPorts_GetInfoByIDs_Call {
-	_c.Call.Return(uUIDToProductInfo, err)
+func (_c *MockProductPorts_GetInfoByIDs_Call) Return(uUIDToInfo map[uuid.UUID]product.Info, err error) *MockProductPorts_GetInfoByIDs_Call {
+	_c.Call.Return(uUIDToInfo, err)
 	return _c
 }
 
-func (_c *MockProductPorts_GetInfoByIDs_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.ProductInfo, error)) *MockProductPorts_GetInfoByIDs_Call {
+func (_c *MockProductPorts_GetInfoByIDs_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.Info, error)) *MockProductPorts_GetInfoByIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }

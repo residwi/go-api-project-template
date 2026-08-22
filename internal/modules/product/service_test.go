@@ -757,7 +757,7 @@ func TestService_GetInfoByIDs(t *testing.T) {
 		got, err := s.GetInfoByIDs(context.Background(), []uuid.UUID{productID})
 
 		require.NoError(t, err)
-		assert.Equal(t, map[uuid.UUID]ProductInfo{
+		assert.Equal(t, map[uuid.UUID]Info{
 			productID: {
 				ID:        productID,
 				Name:      "Withdrawn Widget",

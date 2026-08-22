@@ -78,7 +78,7 @@ func TestReader_GetCart_FlagsUnavailableLines(t *testing.T) {
 	// A soft-deleted product still comes back carrying its status: cart decides how
 	// to show it, not product.
 	products.EXPECT().GetInfoByIDs(mock.Anything, []uuid.UUID{liveID, goneID}).
-		Return(map[uuid.UUID]product.ProductInfo{
+		Return(map[uuid.UUID]product.Info{
 			liveID: {ID: liveID, Name: "Widget", Price: money.New(1500, "USD"), Status: "published", Available: 5},
 			goneID: {ID: goneID, Name: "Gone", Price: money.New(900, "USD"), Status: "archived", Available: 0},
 		}, nil)
@@ -110,7 +110,7 @@ func TestReader_GetCart_MissingProductBecomesUnavailable(t *testing.T) {
 	// Absent from the map, not merely carrying a terminal status: the line must
 	// still render non-nil so no consumer of Item.Product has to nil-check it.
 	products.EXPECT().GetInfoByIDs(mock.Anything, []uuid.UUID{missingID}).
-		Return(map[uuid.UUID]product.ProductInfo{}, nil)
+		Return(map[uuid.UUID]product.Info{}, nil)
 
 	c, err := r.GetCart(context.Background(), userID)
 	require.NoError(t, err)
@@ -138,7 +138,7 @@ func TestReader_Snapshot(t *testing.T) {
 
 		products := NewMockProductLookup(t)
 		products.EXPECT().GetInfoByIDs(mock.Anything, []uuid.UUID{productID}).
-			Return(map[uuid.UUID]product.ProductInfo{
+			Return(map[uuid.UUID]product.Info{
 				productID: {Name: "Widget", Price: money.New(1500, "IDR"), Status: "published"},
 			}, nil)
 
@@ -175,7 +175,7 @@ func TestReader_Snapshot(t *testing.T) {
 
 		products := NewMockProductLookup(t)
 		products.EXPECT().GetInfoByIDs(mock.Anything, []uuid.UUID{productID}).
-			Return(map[uuid.UUID]product.ProductInfo{}, nil)
+			Return(map[uuid.UUID]product.Info{}, nil)
 
 		r := New(repo, products)
 

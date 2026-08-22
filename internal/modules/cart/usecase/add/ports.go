@@ -9,5 +9,5 @@ import (
 )
 
 type ProductLookup interface {
-	GetInfo(ctx context.Context, id uuid.UUID) (*product.ProductInfo, error)
+	GetInfo(ctx context.Context, id uuid.UUID) (*product.Info, error)
 }

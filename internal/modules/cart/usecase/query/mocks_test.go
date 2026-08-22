@@ -41,23 +41,23 @@ func (_m *MockProductLookup) EXPECT() *MockProductLookup_Expecter {
 }
 
 // GetInfoByIDs provides a mock function for the type MockProductLookup
-func (_mock *MockProductLookup) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.ProductInfo, error) {
+func (_mock *MockProductLookup) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.Info, error) {
 	ret := _mock.Called(ctx, ids)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetInfoByIDs")
 	}
 
-	var r0 map[uuid.UUID]product.ProductInfo
+	var r0 map[uuid.UUID]product.Info
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]product.ProductInfo, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]product.Info, error)); ok {
 		return returnFunc(ctx, ids)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]product.ProductInfo); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]product.Info); ok {
 		r0 = returnFunc(ctx, ids)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[uuid.UUID]product.ProductInfo)
+			r0 = ret.Get(0).(map[uuid.UUID]product.Info)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
@@ -98,12 +98,12 @@ func (_c *MockProductLookup_GetInfoByIDs_Call) Run(run func(ctx context.Context,
 	return _c
 }
 
-func (_c *MockProductLookup_GetInfoByIDs_Call) Return(uUIDToProductInfo map[uuid.UUID]product.ProductInfo, err error) *MockProductLookup_GetInfoByIDs_Call {
-	_c.Call.Return(uUIDToProductInfo, err)
+func (_c *MockProductLookup_GetInfoByIDs_Call) Return(uUIDToInfo map[uuid.UUID]product.Info, err error) *MockProductLookup_GetInfoByIDs_Call {
+	_c.Call.Return(uUIDToInfo, err)
 	return _c
 }
 
-func (_c *MockProductLookup_GetInfoByIDs_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.ProductInfo, error)) *MockProductLookup_GetInfoByIDs_Call {
+func (_c *MockProductLookup_GetInfoByIDs_Call) RunAndReturn(run func(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.Info, error)) *MockProductLookup_GetInfoByIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }

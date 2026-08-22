@@ -30,8 +30,8 @@ type Deps struct {
 }
 
 type ProductPorts interface {
-	GetInfo(ctx context.Context, id uuid.UUID) (*product.ProductInfo, error)
-	GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.ProductInfo, error)
+	GetInfo(ctx context.Context, id uuid.UUID) (*product.Info, error)
+	GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.Info, error)
 }
 
 type Module struct {

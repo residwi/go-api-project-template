@@ -239,13 +239,13 @@ func (s *Service) CountPublished(ctx context.Context, categoryID uuid.UUID) (int
 	return s.repo.CountPublishedByCategory(ctx, categoryID)
 }
 
-func (s *Service) GetInfo(ctx context.Context, id uuid.UUID) (*ProductInfo, error) {
+func (s *Service) GetInfo(ctx context.Context, id uuid.UUID) (*Info, error) {
 	p, err := s.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ProductInfo{
+	return &Info{
 		ID:        p.ID,
 		Name:      p.Name,
 		Price:     p.Price,
@@ -254,19 +254,19 @@ func (s *Service) GetInfo(ctx context.Context, id uuid.UUID) (*ProductInfo, erro
 	}, nil
 }
 
-func (s *Service) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]ProductInfo, error) {
+func (s *Service) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Info, error) {
 	products, err := s.getByIDsIncludingDeleted(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
 
-	out := make(map[uuid.UUID]ProductInfo, len(products))
+	out := make(map[uuid.UUID]Info, len(products))
 	for _, p := range products {
 		status := p.Status
 		if p.DeletedAt != nil {
 			status = "unavailable"
 		}
-		out[p.ID] = ProductInfo{
+		out[p.ID] = Info{
 			ID:        p.ID,
 			Name:      p.Name,
 			Price:     p.Price,

@@ -27,7 +27,7 @@ func TestCommand_Execute_RunsInsideTxRunner(t *testing.T) {
 	productID := uuid.New()
 	cartID := uuid.New()
 
-	products.EXPECT().GetInfo(mock.Anything, productID).Return(&product.ProductInfo{
+	products.EXPECT().GetInfo(mock.Anything, productID).Return(&product.Info{
 		ID:        productID,
 		Name:      "Widget",
 		Price:     money.New(1500, "USD"),
@@ -61,7 +61,7 @@ func TestCommand_Execute(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
-			Return(&product.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -85,7 +85,7 @@ func TestCommand_Execute(t *testing.T) {
 		productID := uuid.New()
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
-			Return(&product.ProductInfo{ID: productID, Name: "Draft Item", Price: money.New(500, "USD"), Status: "draft", Available: 10}, nil)
+			Return(&product.Info{ID: productID, Name: "Draft Item", Price: money.New(500, "USD"), Status: "draft", Available: 10}, nil)
 
 		err := cmd.Execute(ctx, userID, Params{ProductID: productID, Quantity: 1})
 		require.Error(t, err)
@@ -104,7 +104,7 @@ func TestCommand_Execute(t *testing.T) {
 		productID := uuid.New()
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
-			Return(&product.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 1}, nil)
+			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 1}, nil)
 
 		err := cmd.Execute(ctx, userID, Params{ProductID: productID, Quantity: 5})
 		require.Error(t, err)
@@ -125,7 +125,7 @@ func TestCommand_Execute(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
-			Return(&product.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -150,7 +150,7 @@ func TestCommand_Execute(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
-			Return(&product.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
@@ -192,7 +192,7 @@ func TestCommand_Execute(t *testing.T) {
 		productID := uuid.New()
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
-			Return(&product.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(uuid.Nil, errors.New("db error"))
 
@@ -213,7 +213,7 @@ func TestCommand_Execute(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
-			Return(&product.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).
 			Return(cartID, nil)
 		repo.EXPECT().CountAndHasItem(mock.Anything, cartID, productID).
