@@ -77,9 +77,9 @@ construction cannot drift way list of exceptions can.
 ## 2. Ports live with the consumer
 
 The consumer is now a slice, or the module composing several of them.
-`internal/modules/cart/usecase/add/ports.go` declares `ProductLookup`
-— the interface `add` alone needs from product. `product` does not
-publish it; `add` names exactly what it needs and something else
+`internal/modules/payment/usecase/webhook/ports.go` declares `OrderUpdater`
+— the interface `webhook` alone needs from order. `order` does not
+publish it; `webhook` names exactly what it needs and something else
 satisfies it. `internal/modules/user/usecase/remove/ports.go` does the
 same for `StatusInvalidator`, one dependency, one slice. `order/module.go` is the
 other shape: `place`, `cancel` and `expire` all need inventory, so

@@ -126,7 +126,7 @@ func newPaymentService(t *testing.T, gatewayURL string) *payment.Module {
 }
 
 // ReserveBatch and DeductBatch need a row to update, and these flows insert
-// products with raw SQL, bypassing the EnsureLevel in product/usecase/create.UseCase.Execute.
+// products with raw SQL, bypassing the EnsureLevel in product.Service.Create.
 //
 // internal/transport/http/router_test.go carries its own copy. Keep them in step.
 func seedInventoryLevel(t *testing.T, productID uuid.UUID, available, reserved int) {

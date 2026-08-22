@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// ProductCounter is satisfied by product's query use case. It lives here,
+// ProductCounter is satisfied by product's Service. It lives here,
 // not on Delete alone, because module.go -- now service.go -- is where a
 // port fed by only one method still gets declared once the slice that used
 // to own it is gone.
