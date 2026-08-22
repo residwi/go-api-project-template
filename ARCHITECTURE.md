@@ -131,15 +131,19 @@ slice handlers (`addhttp`, `queryhttp`, …), 3 to 5 per file, and
 `router.go` itself is down to a single aliased import — the dev-only mock
 gateway's registrar — because it imports `routes` unaliased and calls one
 function per feature. The composition root, `internal/bootstrap/app.go`,
-mostly escapes this too: it imports each module by its unaliased root
-package and lets `module.go` wire that module's own adapters, so aliasing
-survives there only where the order/payment cycle forces bootstrap to
-reach two levels past a module boundary before that module exists yet — 6
-aliased imports today (`ordercancel`, `ordercancelpg`, `ordertransition`,
-`ordertransitionpg`, `orderquery`, `orderquerypg`), down from the double
-digits a flat, unsliced `app.go` used to carry. Cost still concentrates in
-one file per module and one per feature's routes, deliberately — just no
-longer in one file for the whole binary.
+escapes this entirely now: it imports each module by its unaliased root
+package and lets `module.go` wire that module's own adapters. Six aliased
+imports (`ordercancel`, `ordercancelpg`, `ordertransition`,
+`ordertransitionpg`, `orderquery`, `orderquerypg`) used to survive there
+regardless, kept only because the order/payment cycle forced bootstrap to
+build two pieces of `order` two levels past its own module boundary before
+`order.New` could run. With `order` needing nothing from `payment` any
+more, `order.New` runs first and hands `payment.New` its own
+`Module.Transition`, `Module.Cancel` and `Module.Query` by name-match, so
+none of the six is needed — down from the double digits a flat, unsliced
+`app.go` used to carry, to zero. Cost still concentrates in one file per
+module and one per feature's routes, deliberately — just no longer in one
+file for the whole binary, and no longer in `app.go` at all.
 
 ## 4. Adapter subpackages exist only where adaptation is needed
 

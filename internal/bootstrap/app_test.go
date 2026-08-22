@@ -38,8 +38,12 @@ func TestMain(m *testing.M) {
 // the coupon, and checkout.Deps.PaymentJobs feeds checkout.Service.CancelOrder
 // instead. At slice granularity the remaining order/payment cycle still runs
 // through order/transition, order/query and order/cancel feeding
-// payment.Deps: New builds order's shared reads and canceller first, then
-// payment, then order's own module, then checkout on top of both.
+// payment.Deps, but order has no payment-shaped dependency left, so New now
+// builds order.Module first and hands payment.New the very same
+// ordMod.Transition/Cancel/Query values order's own place/cancel/changestatus/
+// expire/recoverstale slices already use -- one canonical instance of each,
+// not the pair of standalone builds this test used to have to trust were
+// equivalent. Checkout is built last, on top of both.
 //
 // checkout.Service.CancelOrder's payment-job leg is best-effort and swallows
 // its own error, so proof has to come from the database a real job row

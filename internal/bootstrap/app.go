@@ -14,10 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
-	ordercancel "github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel"
-	ordercancelpg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel/postgres"
-	ordertransition "github.com/residwi/go-api-project-template/internal/modules/order/usecase/transition"
-	ordertransitionpg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/transition/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
@@ -26,9 +22,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-
-	orderquery "github.com/residwi/go-api-project-template/internal/modules/order/usecase/query"
-	orderquerypg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/query/postgres"
 )
 
 type Deps struct {
@@ -74,25 +67,6 @@ func New(d Deps) (*App, error) {
 
 	cartMod := cart.New(cart.Deps{Pool: d.Pool, Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod.Query})
 
-	orderTransition := ordertransition.New(ordertransitionpg.New(d.Pool))
-	orderQuery := orderquery.New(orderquerypg.New(d.Pool))
-	orderCanceller := ordercancel.New(
-		ordercancelpg.New(d.Pool), txRunner, orderTransition, inv.Restore, promotionMod.Reserve, d.Logger,
-	)
-
-	paymentMod := payment.New(payment.Deps{
-		Pool:             d.Pool,
-		Tx:               txRunner,
-		Config:           d.Payment,
-		Logger:           d.Logger,
-		OrderTransition:  orderTransition,
-		OrderCanceller:   orderCanceller,
-		OrderReader:      orderQuery,
-		InventoryDeduct:  inv.Deduct,
-		InventoryRestore: inv.Restore,
-		Promotions:       promotionMod.Reserve,
-	})
-
 	ordMod := order.New(order.Deps{
 		Pool: d.Pool, Tx: txRunner, Logger: d.Logger,
 		CartLock:         cartMod.Lock,
@@ -105,11 +79,24 @@ func New(d Deps) (*App, error) {
 		Notifications:    notificationMod.Jobs,
 	})
 
+	paymentMod := payment.New(payment.Deps{
+		Pool:             d.Pool,
+		Tx:               txRunner,
+		Config:           d.Payment,
+		Logger:           d.Logger,
+		OrderTransition:  ordMod.Transition,
+		OrderCanceller:   ordMod.Cancel,
+		OrderReader:      ordMod.Query,
+		InventoryDeduct:  inv.Deduct,
+		InventoryRestore: inv.Restore,
+		Promotions:       promotionMod.Reserve,
+	})
+
 	checkoutSvc := checkout.New(checkout.Deps{
 		Orders:      ordMod.Place,
-		Payments:    paymentMod.Charge,
 		Snapshots:   ordMod.Query,
 		Cancels:     ordMod.Cancel,
+		Payments:    paymentMod.Charge,
 		PaymentJobs: paymentMod.Jobs,
 		Logger:      d.Logger,
 	})

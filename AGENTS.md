@@ -468,10 +468,13 @@ spot the way it was before this phase.
       `payment.CouponPort` (`Release` alone) directly — two differently-shaped
       interfaces, same producer value, no adapter for either. Notification's
       `jobs.Worker` satisfies `platform/jobs.Processor` directly.
-      `order/usecase/transition.UseCase` — the standalone value
-      `internal/bootstrap/app.go` builds before `order.New` can run —
-      satisfies `payment.OrderTransition` directly, which is what breaks the
-      order/payment cycle at slice granularity. A consumer's port names
+      `order/usecase/transition.UseCase` — the value `order.New` builds for
+      its own place/cancel/changestatus/expire/recoverstale slices and hands
+      back as `order.Module.Transition` — satisfies `payment.OrderTransition`
+      directly, which is what breaks the order/payment cycle at slice
+      granularity: `internal/bootstrap/app.go` builds `order.New` first and
+      wires that same value into `payment.New`, so payment gets no separate
+      copy. A consumer's port names
       methods that live on **one** slice value, so name-match wires the
       slice directly (`shipping.Deps.OrderRead ← order.Module.Query`). Where
       a consumer needs capabilities from two slices, it declares two ports,
