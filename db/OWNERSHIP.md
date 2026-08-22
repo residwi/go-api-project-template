@@ -64,7 +64,7 @@ is the list, and `scripts/check-boundaries.sh` reads the list from here.
 ## Two modules own no table, for different reasons
 
 `auth` has no `postgres` adapter at all. It needs one thing from storage — look
-up a user by email — and it asks for it through `auth.UserProvider`, implemented
+up a user by email — and it asks for it through `auth.UserDirectory`, implemented
 by `user`. Nothing about `auth` is checked here because there is nothing to
 check.
 
@@ -180,7 +180,7 @@ child table, which is why they carry no ports: nothing outside asks them
 anything.
 
 ("Inbound ports" counts interfaces other modules declare that this module's
-service satisfies — `auth.UserProvider`, `payment.OrderGetter`,
+service satisfies — `auth.UserDirectory`, `payment.OrderGetter`,
 `product.InventoryReader` and so on.)
 
 It is tempting to read the first column as a module dependency ranking. It is

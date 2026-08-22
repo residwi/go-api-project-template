@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	authcontract "github.com/residwi/go-api-project-template/internal/modules/auth/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
@@ -83,7 +83,7 @@ func TestAuth(t *testing.T) {
 		userStatus := NewMockUserStatusChecker(t)
 		mid := Auth(tokenValidator, userStatus)
 
-		tokenValidator.EXPECT().ValidateToken("bad-token").Return(authcontract.Claims{}, errors.New("invalid"))
+		tokenValidator.EXPECT().ValidateToken("bad-token").Return(auth.ClaimsView{}, errors.New("invalid"))
 
 		handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
@@ -102,7 +102,7 @@ func TestAuth(t *testing.T) {
 		userStatus := NewMockUserStatusChecker(t)
 		mid := Auth(tokenValidator, userStatus)
 
-		tokenValidator.EXPECT().ValidateToken("refresh-token").Return(authcontract.Claims{
+		tokenValidator.EXPECT().ValidateToken("refresh-token").Return(auth.ClaimsView{
 			UserID: uuid.New(),
 			Email:  "user@example.com",
 			Role:   "user",
@@ -127,7 +127,7 @@ func TestAuth(t *testing.T) {
 		mid := Auth(tokenValidator, userStatus)
 
 		userID := uuid.New()
-		tokenValidator.EXPECT().ValidateToken("valid-token").Return(authcontract.Claims{
+		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
 			UserID:       userID,
 			Email:        "user@example.com",
 			Role:         "user",
@@ -155,7 +155,7 @@ func TestAuth(t *testing.T) {
 		mid := Auth(tokenValidator, userStatus)
 
 		userID := uuid.New()
-		tokenValidator.EXPECT().ValidateToken("valid-token").Return(authcontract.Claims{
+		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
 			UserID:       userID,
 			Email:        "user@example.com",
 			Role:         "user",
@@ -185,7 +185,7 @@ func TestAuth(t *testing.T) {
 		mid := Auth(tokenValidator, userStatus)
 
 		userID := uuid.New()
-		tokenValidator.EXPECT().ValidateToken("valid-token").Return(authcontract.Claims{
+		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
 			UserID:       userID,
 			Email:        "user@example.com",
 			Role:         "user",
@@ -215,7 +215,7 @@ func TestAuth(t *testing.T) {
 		mid := Auth(tokenValidator, userStatus)
 
 		userID := uuid.New()
-		tokenValidator.EXPECT().ValidateToken("valid-token").Return(authcontract.Claims{
+		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
 			UserID:       userID,
 			Email:        "user@example.com",
 			Role:         "admin",
@@ -261,7 +261,7 @@ func TestAuth(t *testing.T) {
 		userStatus := NewMockUserStatusChecker(t)
 		mid := Auth(tokenValidator, userStatus)
 
-		tokenValidator.EXPECT().ValidateToken("good-token").Return(authcontract.Claims{
+		tokenValidator.EXPECT().ValidateToken("good-token").Return(auth.ClaimsView{
 			UserID:       userID,
 			Email:        "a@example.com",
 			Role:         "user",

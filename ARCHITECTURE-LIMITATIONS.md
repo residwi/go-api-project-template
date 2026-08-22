@@ -150,7 +150,7 @@ One of the 18 load-bearing in Go not merely defensive. `products.category_id` is
 | `inventory` | **0**       | **5**         |
 | `category`  | 2           | 0             |
 
-Inbound FKs count constraints referencing table the module owns. Inbound ports count interfaces _other_ modules declare that this module's service satisfies — `auth.UserProvider`, `payment.OrderGetter`, `product.InventoryReader` and so on.
+Inbound FKs count constraints referencing table the module owns. Inbound ports count interfaces _other_ modules declare that this module's service satisfies — `auth.UserDirectory`, `payment.OrderGetter`, `product.InventoryReader` and so on.
 
 `users` most-referenced table in schema and almost nothing call into `user`: seven tables carry `user_id`, and caller writing one already **has** the id, so nothing to ask. `inventory_levels` have no inbound foreign keys whatsoever and five interfaces across three modules declare ports against `inventory`, because stock is answer that _changes_ and must be asked every time.
 

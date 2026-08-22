@@ -41,7 +41,7 @@ type Deps struct {
 
 type App struct {
 	Users         *user.Module
-	Auth          *auth.Module
+	Auth          *auth.Service
 	Categories    *category.Service
 	Products      *product.Module
 	Inventory     *inventory.Module

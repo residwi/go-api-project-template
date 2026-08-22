@@ -26,7 +26,7 @@ func NewRouter(
 
 	v := validator.New()
 
-	authMiddleware := middleware.Auth(app.Auth.Token, app.Users.Query)
+	authMiddleware := middleware.Auth(app.Auth, app.Users.Query)
 	adminMiddleware := middleware.RequireAdmin
 
 	api := middleware.NewRouteGroup(mux, "/api")

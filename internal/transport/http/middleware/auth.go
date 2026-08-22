@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	authcontract "github.com/residwi/go-api-project-template/internal/modules/auth/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -46,7 +46,7 @@ type UserStatusChecker interface {
 }
 
 type TokenValidator interface {
-	ValidateToken(tokenString string) (authcontract.Claims, error)
+	ValidateToken(tokenString string) (auth.ClaimsView, error)
 }
 
 //nolint:gocognit // token parse + claims validation + fail-open status-check branches are inherently branchy

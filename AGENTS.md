@@ -199,7 +199,7 @@ outside itself. 66 slices carry 62 `postgres/` packages, 53 `http/` and one
 `notification/jobs/postgres` and `payment/jobs/postgres`, sit at feature
 roots outside `usecase/` and are not a slice's, per decision 16 below.
 `auth` has no `postgres/` anywhere in the module: it asks `user` for one
-thing (`auth.UserProvider`) and stores nothing of its own.
+thing (`auth.UserDirectory`) and stores nothing of its own.
 `user/usecase/query` is the one slice in the repo with two backing
 stores, and the only one with a `redis/`: `query.Repository` pairs with
 `postgres/`, `query.StatusCache` with `redis/`, one adapter subpackage per
@@ -416,7 +416,7 @@ by name alone:
    worker, which serves nothing. A module that needs to describe something
    the transport also describes puts the type in its own `contract/` and lets
    middleware import that instead (`user/contract.AccountStatus`,
-   `auth/contract.Claims`).
+   `auth.ClaimsView`).
 7. **`check_contract_leaf`: `contract/` imports only stdlib,
    `github.com/google/uuid` and `internal/money`.** If a module's
    `contract/` imported its own `domain/`, importing the contract would drag

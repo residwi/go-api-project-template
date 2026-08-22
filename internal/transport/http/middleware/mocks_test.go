@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	contract0 "github.com/residwi/go-api-project-template/internal/modules/auth/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/user/contract"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -134,22 +134,22 @@ func (_m *MockTokenValidator) EXPECT() *MockTokenValidator_Expecter {
 }
 
 // ValidateToken provides a mock function for the type MockTokenValidator
-func (_mock *MockTokenValidator) ValidateToken(tokenString string) (contract0.Claims, error) {
+func (_mock *MockTokenValidator) ValidateToken(tokenString string) (auth.ClaimsView, error) {
 	ret := _mock.Called(tokenString)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ValidateToken")
 	}
 
-	var r0 contract0.Claims
+	var r0 auth.ClaimsView
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (contract0.Claims, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) (auth.ClaimsView, error)); ok {
 		return returnFunc(tokenString)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) contract0.Claims); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) auth.ClaimsView); ok {
 		r0 = returnFunc(tokenString)
 	} else {
-		r0 = ret.Get(0).(contract0.Claims)
+		r0 = ret.Get(0).(auth.ClaimsView)
 	}
 	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
 		r1 = returnFunc(tokenString)
@@ -183,12 +183,12 @@ func (_c *MockTokenValidator_ValidateToken_Call) Run(run func(tokenString string
 	return _c
 }
 
-func (_c *MockTokenValidator_ValidateToken_Call) Return(claims contract0.Claims, err error) *MockTokenValidator_ValidateToken_Call {
-	_c.Call.Return(claims, err)
+func (_c *MockTokenValidator_ValidateToken_Call) Return(claimsView auth.ClaimsView, err error) *MockTokenValidator_ValidateToken_Call {
+	_c.Call.Return(claimsView, err)
 	return _c
 }
 
-func (_c *MockTokenValidator_ValidateToken_Call) RunAndReturn(run func(tokenString string) (contract0.Claims, error)) *MockTokenValidator_ValidateToken_Call {
+func (_c *MockTokenValidator_ValidateToken_Call) RunAndReturn(run func(tokenString string) (auth.ClaimsView, error)) *MockTokenValidator_ValidateToken_Call {
 	_c.Call.Return(run)
 	return _c
 }

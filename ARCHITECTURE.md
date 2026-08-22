@@ -479,7 +479,7 @@ HTTP.
 Seven of fourteen modules — `auth cart inventory order payment product user` —
 have a `contract/` package: `user/contract.User`, `product/contract.Product`,
 `inventory/contract.StockState`, `order/contract.Order`, `payment/contract.ChargeRequest`,
-`cart/contract.Cart`, `auth/contract.Claims`, and their siblings. Each package
+`cart/contract.Cart`, `auth.ClaimsView`, and their siblings. Each package
 imports no module and no platform package, so importing one can never pull the
 producer's implementation along with it — a consumer takes the type by value
 and never learns how it is built. A port still names the type it needs
