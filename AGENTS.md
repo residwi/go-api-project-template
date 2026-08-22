@@ -54,7 +54,7 @@ inventory notification order payment product promotion review shipping user
 wishlist`. Everything else under `internal/` is infrastructure —
 `apperror bootstrap money platform testhelper transport`.
 `scripts/check-boundaries.sh` derives feature list structurally, reading directory names under `internal/modules/`, so adding feature enough to enrol it in boundary checks; no denylist to remember.
-`scripts/check-boundaries.sh` now runs **seven** checks (see Machine-checked, below). Being infrastructure exempts a directory from checks 2 and 3's _ownership_ questions — they loop over `feature_dirs`, i.e. `internal/modules/*` only, so `internal/platform` is never in their scan — but not from check 4: only the wiring layer, `bootstrap` and `transport` (script's `WIRING_DIRS`), may import anything from a module beyond its `contract/`, so `internal/platform` importing `internal/modules/order/domain` fails exactly as another feature importing it would, and so does `internal/platform` reaching a slice two levels deeper, `internal/modules/shipping/usecase/query`. Check 6 (the transport-direction rule) runs the other way and is narrower in scope: it loops over `feature_dirs` only, so it polices whether a *feature* imports `internal/transport`, not whether `internal/platform` does.
+`scripts/check-boundaries.sh` now runs **seven** checks (see Machine-checked, below). Being infrastructure exempts a directory from checks 2 and 3's _ownership_ questions — they loop over `feature_dirs`, i.e. `internal/modules/*` only, so `internal/platform` is never in their scan — but not from check 4: only the wiring layer, `bootstrap` and `transport` (script's `WIRING_DIRS`), may import anything from a module beyond its `contract/`, so `internal/platform` importing `internal/modules/order/domain` fails exactly as another feature importing it would, and so does `internal/platform` reaching a slice two levels deeper, `internal/modules/user/usecase/query`. Check 6 (the transport-direction rule) runs the other way and is narrower in scope: it loops over `feature_dirs` only, so it polices whether a *feature* imports `internal/transport`, not whether `internal/platform` does.
 
 ### Inside a feature
 
@@ -89,7 +89,7 @@ internal/modules/<feature>/
 A slice's own directory holds `usecase.go`, and that file declares exactly one
 exported `UseCase` — 66 slices, 66 `usecase.go` files, 66 `type UseCase`
 declarations, whatever the slice does. `place.UseCase.Place` writes;
-`shipping/usecase/query.UseCase.GetByOrderIDForUser` only reads;
+`inventory/usecase/query.UseCase.GetAvailability` only reads;
 `order/usecase/transition.UseCase` carries ten methods because a state machine
 is one thing with ten guarded entrances. The older per-role names are retired
 and none survives anywhere in a slice: no `Command`, `Reader`, `Service`,

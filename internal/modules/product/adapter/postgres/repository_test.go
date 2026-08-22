@@ -339,7 +339,7 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, archivedID) })
 
-		// status is left 'published': remove.Execute only sets deleted_at, so this
+		// status is left 'published': Service.Delete only sets deleted_at, so this
 		// mirrors a real withdrawn-but-still-published row.
 		deletedID := uuid.New()
 		_, err = testPool.Exec(context.Background(),
@@ -366,7 +366,7 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		assert.Equal(t, "archived", byID[archivedID].Status)
 		assert.Nil(t, byID[archivedID].DeletedAt)
 		assert.Contains(t, byID, deletedID, "a soft-deleted product must still be returned")
-		// remove.Execute changes only deleted_at, so a caller must read DeletedAt, not
+		// Service.Delete changes only deleted_at, so a caller must read DeletedAt, not
 		// Status, to know this product is unsellable.
 		assert.Equal(t, "published", byID[deletedID].Status)
 		require.NotNil(

@@ -565,9 +565,9 @@ fetched and writes it back — there is nothing outside itself to ask.
 
 **Why:** a use case's whole implementation is one directory, and what it
 depends on is its own `ports.go`, or its absence. `ls
-internal/modules/shipping/usecase/` is the module's use-case list — nothing
+internal/modules/order/usecase/` is the module's use-case list — nothing
 else is in there to read past — and a slice with no `ports.go` reaches
-nothing beyond itself; `updatetracking` is that case, not an oversight.
+nothing beyond itself; `transition` is that case, not an oversight.
 
 **Cost accepted:** three packages per slice (root, `postgres/`, `http/`), so
 shipping alone went from 3 packages, layered, to 14 today, sliced —
