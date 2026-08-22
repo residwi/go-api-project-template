@@ -8,6 +8,15 @@ Read `./ARCHITECTURE-LIMITATIONS.md` for bills these decisions
 carry, and `./db/OWNERSHIP.md` for table ownership map — which
 `make check-boundaries` parses, so enforced not merely asserted.
 
+**A refactor is in progress, collapsing slices into per-module services.**
+See `REFACTOR-PLAN.md`. The decisions below were written while all fourteen
+modules were sliced; that stopped being true at Task 6, which flattened
+`wishlist` first, and each further flatten task removes one more. Read every
+"all fourteen", "every module is sliced" and per-slice count below as the
+pre-refactor state the decision was made against, not the present tree —
+individual symbol names and file paths are kept current as they change, but
+these module-count claims are stale until the refactor completes.
+
 ---
 
 ## 0. This repository is a template, so the structure is the product
@@ -131,19 +140,24 @@ slice handlers (`addhttp`, `queryhttp`, …), 3 to 5 per file, and
 `router.go` itself is down to a single aliased import — the dev-only mock
 gateway's registrar — because it imports `routes` unaliased and calls one
 function per feature. The composition root, `internal/bootstrap/app.go`,
-escapes this entirely now: it imports each module by its unaliased root
-package and lets `module.go` wire that module's own adapters. Six aliased
-imports (`ordercancel`, `ordercancelpg`, `ordertransition`,
-`ordertransitionpg`, `orderquery`, `orderquerypg`) used to survive there
-regardless, kept only because the order/payment cycle forced bootstrap to
-build three pieces of `order` two levels past its own module boundary before
-`order.New` could run. With `order` needing nothing from `payment` any
-more, `order.New` runs first and hands `payment.New` its own
-`Module.Transition`, `Module.Cancel` and `Module.Query` by name-match, so
-none of the six is needed — down from the double digits a flat, unsliced
-`app.go` used to carry, to zero. Cost still concentrates in one file per
-module and one per feature's routes, deliberately — just no longer in one
-file for the whole binary, and no longer in `app.go` at all.
+escapes most of this: for a still-sliced module it imports the module by
+its unaliased root package and lets `module.go` wire that module's own
+adapters. Six aliased imports (`ordercancel`, `ordercancelpg`,
+`ordertransition`, `ordertransitionpg`, `orderquery`, `orderquerypg`) used
+to survive there regardless, kept only because the order/payment cycle
+forced bootstrap to build three pieces of `order` two levels past its own
+module boundary before `order.New` could run. With `order` needing nothing
+from `payment` any more, `order.New` runs first and hands `payment.New` its
+own `Module.Transition`, `Module.Cancel` and `Module.Query` by name-match,
+so none of the six is needed — down from the double digits a flat, unsliced
+`app.go` used to carry. A flattened module reopens exactly one alias here
+instead of avoiding the six: `wishlistpg` (Task 6), the only one today,
+because a module with no `module.go` left has nowhere else to wire its own
+adapter — see `ARCHITECTURE-LIMITATIONS.md`'s "composition site" entry, and
+read this count the same way as the others, stale until every module has
+flattened. Cost still concentrates in one file per module and one per
+feature's routes, deliberately — just no longer in one file for the whole
+binary.
 
 ## 4. Adapter subpackages exist only where adaptation is needed
 
@@ -153,7 +167,7 @@ stores anything, because the one thing `auth` needs from storage
 (`UserProvider.GetByID`) is `user`'s to hold. `user/usecase/query` is the
 one slice in the whole repo with two backing stores, `postgres/` and
 `redis/` — every other slice in every other module has at most one.
-`wishlist` has no `ports.go` at all, in any of its three slices: nothing it
+`dashboard` has no `ports.go` at all, in any of its three slices: nothing it
 does reaches outside the module, so there is no cross-module dependency for
 a port to name. `notification` has **no** `worker/` package because its
 `jobs/` package's `Worker` satisfies `platform/jobs.Processor` directly —

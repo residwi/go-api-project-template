@@ -24,9 +24,12 @@ A production-ready Go API template with Feature-Based Clean Architecture (Vertic
 ## Project Structure
 
 Feature modules sit under `/internal/modules` — one subdirectory per feature.
-All fourteen are sliced into vertical use-case packages, 66 of them, every
-one under that feature's `usecase/` directory; there is no more layered shape
-to compare against. Each module owns a `domain/`, a `module.go` that composes
+**A refactor is in progress** (see `REFACTOR-PLAN.md`), collapsing each
+module's slices into one `service.go`/`repository.go` pair; `wishlist` is
+the first module flattened this way (Task 6). What follows describes the
+other thirteen, still sliced: each is a vertical use-case package, one under
+that feature's `usecase/` directory; there is no more layered shape to
+compare against. Each owns a `domain/`, a `module.go` that composes
 its slices, and a `usecase/` holding one directory per use case, each with its
 own storage port and adapters. Adapters are subpackages named for their
 technology, and a slice only has the ones it needs, so the tree is
@@ -49,7 +52,8 @@ the verb, the path and the middleware group.
 │   ├── /modules
 │   │   └── /auth /user /category /product /inventory /cart /order /payment
 │   │       /review /promotion /wishlist /notification /dashboard /shipping
-│   │       │                   # ^ all 14, same shape
+│   │       │                   # ^ 13 of 14 still this shape; wishlist
+│   │       │                   #   flattened (Task 6), see REFACTOR-PLAN.md
 │   │       ├── domain/              # aggregate types + rules; module-private
 │   │       ├── module.go            # composes every slice into Module; also
 │   │       │                        # declares any port several slices share

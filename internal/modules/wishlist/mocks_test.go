@@ -2,12 +2,14 @@
 // github.com/vektra/mockery
 // template: testify
 
-package add
+package wishlist
 
 import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/modules/wishlist/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -165,6 +167,143 @@ func (_c *MockRepository_GetOrCreate_Call) Return(uUID uuid.UUID, err error) *Mo
 }
 
 func (_c *MockRepository_GetOrCreate_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)) *MockRepository_GetOrCreate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListItemsForUser provides a mock function for the type MockRepository
+func (_mock *MockRepository) ListItemsForUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Item, error) {
+	ret := _mock.Called(ctx, userID, cursor)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListItemsForUser")
+	}
+
+	var r0 []domain.Item
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, paging.CursorPage) ([]domain.Item, error)); ok {
+		return returnFunc(ctx, userID, cursor)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, paging.CursorPage) []domain.Item); ok {
+		r0 = returnFunc(ctx, userID, cursor)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.Item)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, paging.CursorPage) error); ok {
+		r1 = returnFunc(ctx, userID, cursor)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_ListItemsForUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListItemsForUser'
+type MockRepository_ListItemsForUser_Call struct {
+	*mock.Call
+}
+
+// ListItemsForUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - cursor paging.CursorPage
+func (_e *MockRepository_Expecter) ListItemsForUser(ctx any, userID any, cursor any) *MockRepository_ListItemsForUser_Call {
+	return &MockRepository_ListItemsForUser_Call{Call: _e.mock.On("ListItemsForUser", ctx, userID, cursor)}
+}
+
+func (_c *MockRepository_ListItemsForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage)) *MockRepository_ListItemsForUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 paging.CursorPage
+		if args[2] != nil {
+			arg2 = args[2].(paging.CursorPage)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_ListItemsForUser_Call) Return(items []domain.Item, err error) *MockRepository_ListItemsForUser_Call {
+	_c.Call.Return(items, err)
+	return _c
+}
+
+func (_c *MockRepository_ListItemsForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Item, error)) *MockRepository_ListItemsForUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RemoveItem provides a mock function for the type MockRepository
+func (_mock *MockRepository) RemoveItem(ctx context.Context, userID uuid.UUID, productID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID, productID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveItem")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID, productID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockRepository_RemoveItem_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveItem'
+type MockRepository_RemoveItem_Call struct {
+	*mock.Call
+}
+
+// RemoveItem is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - productID uuid.UUID
+func (_e *MockRepository_Expecter) RemoveItem(ctx any, userID any, productID any) *MockRepository_RemoveItem_Call {
+	return &MockRepository_RemoveItem_Call{Call: _e.mock.On("RemoveItem", ctx, userID, productID)}
+}
+
+func (_c *MockRepository_RemoveItem_Call) Run(run func(ctx context.Context, userID uuid.UUID, productID uuid.UUID)) *MockRepository_RemoveItem_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_RemoveItem_Call) Return(err error) *MockRepository_RemoveItem_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockRepository_RemoveItem_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, productID uuid.UUID) error) *MockRepository_RemoveItem_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -21,6 +22,77 @@ func TestMain(m *testing.M) {
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
+}
+
+func TestPostgresRepository_GetOrCreate(t *testing.T) {
+	t.Run("creates wishlist on first call", func(t *testing.T) {
+		userID := seedUser(t)
+		repo := New(testPool)
+
+		wishlistID, err := repo.GetOrCreate(context.Background(), userID)
+		require.NoError(t, err)
+		assert.NotEqual(t, uuid.Nil, wishlistID)
+	})
+
+	t.Run("returns same id on second call", func(t *testing.T) {
+		userID := seedUser(t)
+		repo := New(testPool)
+
+		first, err := repo.GetOrCreate(context.Background(), userID)
+		require.NoError(t, err)
+
+		second, err := repo.GetOrCreate(context.Background(), userID)
+		require.NoError(t, err)
+		assert.Equal(t, first, second)
+	})
+}
+
+func TestPostgresRepository_AddItem(t *testing.T) {
+	t.Run("adds product to wishlist", func(t *testing.T) {
+		userID := seedUser(t)
+		productID := seedProduct(t)
+		repo := New(testPool)
+		ctx := context.Background()
+
+		wishlistID, err := repo.GetOrCreate(ctx, userID)
+		require.NoError(t, err)
+		require.NoError(t, repo.AddItem(ctx, wishlistID, productID))
+
+		assert.True(t, itemExists(t, wishlistID, productID))
+	})
+
+	t.Run("silently ignores duplicate (ON CONFLICT DO NOTHING)", func(t *testing.T) {
+		userID := seedUser(t)
+		productID := seedProduct(t)
+		repo := New(testPool)
+		ctx := context.Background()
+
+		wishlistID, err := repo.GetOrCreate(ctx, userID)
+		require.NoError(t, err)
+		require.NoError(t, repo.AddItem(ctx, wishlistID, productID))
+		require.NoError(t, repo.AddItem(ctx, wishlistID, productID))
+	})
+}
+
+func TestPostgresRepository_RemoveItem(t *testing.T) {
+	t.Run("removes existing item", func(t *testing.T) {
+		userID := seedUser(t)
+		productID := seedProduct(t)
+		wishlistID := seedWishlist(t, userID)
+		seedItem(t, wishlistID, productID)
+		repo := New(testPool)
+		ctx := context.Background()
+
+		require.NoError(t, repo.RemoveItem(ctx, userID, productID))
+
+		assert.False(t, itemExists(t, wishlistID, productID))
+	})
+
+	t.Run("returns not found when item does not exist", func(t *testing.T) {
+		repo := New(testPool)
+		err := repo.RemoveItem(context.Background(), uuid.New(), uuid.New())
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
+	})
 }
 
 func TestPostgresRepository_ListItemsForUser(t *testing.T) {
@@ -86,12 +158,28 @@ func TestPostgresRepository_ListItemsForUser_InvalidCursor(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_ListItemsForUser_CancelledContext(t *testing.T) {
-	t.Run("returns error on cancelled context", func(t *testing.T) {
-		cancelledCtx, cancel := context.WithCancel(context.Background())
-		cancel()
+func TestPostgresRepository_CancelledContext(t *testing.T) {
+	cancelledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
 
-		repo := New(testPool)
+	repo := New(testPool)
+
+	t.Run("GetOrCreate", func(t *testing.T) {
+		_, err := repo.GetOrCreate(cancelledCtx, uuid.New())
+		assert.Error(t, err)
+	})
+
+	t.Run("AddItem", func(t *testing.T) {
+		err := repo.AddItem(cancelledCtx, uuid.New(), uuid.New())
+		assert.Error(t, err)
+	})
+
+	t.Run("RemoveItem", func(t *testing.T) {
+		err := repo.RemoveItem(cancelledCtx, uuid.New(), uuid.New())
+		assert.Error(t, err)
+	})
+
+	t.Run("ListItemsForUser", func(t *testing.T) {
 		_, err := repo.ListItemsForUser(cancelledCtx, uuid.New(), paging.CursorPage{Limit: 10})
 		assert.Error(t, err)
 	})
@@ -129,4 +217,15 @@ func seedProduct(t *testing.T) uuid.UUID {
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 	return id
+}
+
+func itemExists(t *testing.T, wishlistID, productID uuid.UUID) bool {
+	t.Helper()
+	var exists bool
+	err := testPool.QueryRow(context.Background(),
+		`SELECT EXISTS(SELECT 1 FROM wishlist_items WHERE wishlist_id = $1 AND product_id = $2)`,
+		wishlistID, productID,
+	).Scan(&exists)
+	require.NoError(t, err)
+	return exists
 }

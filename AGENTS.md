@@ -59,12 +59,15 @@ wishlist`. Everything else under `internal/` is infrastructure —
 ### Inside a feature
 
 **Every module is sliced, and every slice lives under `usecase/`. There is no
-more layered shape to compare against.**
-`ls internal/modules/<feature>/` tells the truth for any of the fourteen now:
+more layered shape to compare against — except `wishlist`, the first to go the
+other way: flattened in Task 6 of the in-progress refactor (see
+`REFACTOR-PLAN.md`) into one `service.go` + `repository.go` pair, no
+`usecase/` at all. The rest of this section describes the other thirteen.**
+`ls internal/modules/<feature>/` tells the truth for any of them:
 a `domain/` directory, one `module.go`, and one `usecase/` directory holding
 one package per use case — never a root `model.go`, `service.go` or
 `repository.go`, and no root `http/` either: **a module names no URL.**
-`shipping` went first (`ARCHITECTURE.md` §14); `payment` went last.
+`shipping` went first into slices (`ARCHITECTURE.md` §14); `payment` went last.
 
 ```text
 internal/modules/<feature>/
@@ -93,7 +96,7 @@ and none survives anywhere in a slice: no `Command`, `Reader`, `Service`,
 `Store` or `Applier`. Beside `usecase.go` sit `repository.go` (the storage
 port its own `postgres/` satisfies), `ports.go` (cross-module ports only
 this slice needs — absent where a slice reaches nothing outside itself:
-`wishlist` has no `ports.go` anywhere in the module), a `postgres/` adapter
+`notification` has no `ports.go` anywhere in the module), a `postgres/` adapter
 where it has SQL, and an `http/` adapter where it has a route of its own.
 "Own" is literal — two slices needing the same repository method each
 declare it rather than share one.

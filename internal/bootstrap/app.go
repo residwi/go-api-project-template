@@ -21,6 +21,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
+	wishlistpg "github.com/residwi/go-api-project-template/internal/modules/wishlist/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -47,7 +48,7 @@ type App struct {
 	Shipping      *shipping.Module
 	Reviews       *review.Module
 	Promotions    *promotion.Module
-	Wishlists     *wishlist.Module
+	Wishlists     *wishlist.Service
 	Notifications *notification.Module
 	Dashboard     *dashboard.Module
 	TxRunner      database.TxRunner
@@ -121,7 +122,7 @@ func New(d Deps) (*App, error) {
 		Shipping:      shippingMod,
 		Reviews:       reviewMod,
 		Promotions:    promotionMod,
-		Wishlists:     wishlist.New(wishlist.Deps{Pool: d.Pool}),
+		Wishlists:     wishlist.New(wishlist.Deps{Repo: wishlistpg.New(d.Pool)}),
 		Notifications: notificationMod,
 		Dashboard:     dashboard.New(dashboard.Deps{Pool: d.Pool}),
 		TxRunner:      txRunner,

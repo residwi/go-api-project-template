@@ -2,15 +2,14 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
-	addhttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/usecase/add/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/usecase/query/http"
-	removehttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/usecase/remove/http"
+	wishlisthttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/adapter/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-func Wishlist(authed *middleware.RouteGroup, m *wishlist.Module, v *validator.Validator) {
-	authed.HandleFunc("GET /wishlist", queryhttp.New(m.Query).List)
-	authed.HandleFunc("POST /wishlist/items", addhttp.New(m.AddItem, v).Add)
-	authed.HandleFunc("DELETE /wishlist/items/{product_id}", removehttp.New(m.RemoveItem).Remove)
+func Wishlist(authed *middleware.RouteGroup, s *wishlist.Service, v *validator.Validator) {
+	h := wishlisthttp.NewHandler(s, v)
+	authed.HandleFunc("GET /wishlist", h.List)
+	authed.HandleFunc("POST /wishlist/items", h.Add)
+	authed.HandleFunc("DELETE /wishlist/items/{product_id}", h.Remove)
 }
