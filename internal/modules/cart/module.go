@@ -18,7 +18,7 @@ import (
 	removepg "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/remove/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/cart/usecase/updatequantity"
 	updatequantitypg "github.com/residwi/go-api-project-template/internal/modules/cart/usecase/updatequantity/postgres"
-	productcontract "github.com/residwi/go-api-project-template/internal/modules/product/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -30,8 +30,8 @@ type Deps struct {
 }
 
 type ProductPorts interface {
-	GetInfo(ctx context.Context, id uuid.UUID) (*productcontract.Product, error)
-	GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]productcontract.Product, error)
+	GetInfo(ctx context.Context, id uuid.UUID) (*product.ProductInfo, error)
+	GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]product.ProductInfo, error)
 }
 
 type Module struct {

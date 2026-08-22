@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	productcontract "github.com/residwi/go-api-project-template/internal/modules/product/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/money"
 )
 
@@ -31,7 +31,7 @@ func TestCommand_Execute(t *testing.T) {
 		cartID := uuid.New()
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
-			Return(&productcontract.Product{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
+			Return(&product.ProductInfo{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
 		repo.EXPECT().UpdateItemQuantity(mock.Anything, cartID, productID, 3).Return(nil)
 
@@ -51,7 +51,7 @@ func TestCommand_Execute(t *testing.T) {
 		productID := uuid.New()
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
-			Return(&productcontract.Product{ID: productID, Status: "published", Available: 2}, nil)
+			Return(&product.ProductInfo{ID: productID, Status: "published", Available: 2}, nil)
 
 		err := cmd.Execute(ctx, userID, productID, Params{Quantity: 5})
 		assert.ErrorIs(t, err, apperror.ErrInsufficientStock)
@@ -69,7 +69,7 @@ func TestCommand_Execute(t *testing.T) {
 		productID := uuid.New()
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
-			Return(&productcontract.Product{ID: productID, Status: "draft", Available: 100}, nil)
+			Return(&product.ProductInfo{ID: productID, Status: "draft", Available: 100}, nil)
 
 		err := cmd.Execute(ctx, userID, productID, Params{Quantity: 1})
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
@@ -104,7 +104,7 @@ func TestCommand_Execute(t *testing.T) {
 		productID := uuid.New()
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
-			Return(&productcontract.Product{ID: productID, Status: "published", Available: 10}, nil)
+			Return(&product.ProductInfo{ID: productID, Status: "published", Available: 10}, nil)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, errors.New("db error"))
 
 		err := cmd.Execute(ctx, userID, productID, Params{Quantity: 3})

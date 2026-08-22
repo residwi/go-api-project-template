@@ -21,7 +21,7 @@ refactor completes.
 
 **Where you hit it:** you try add `?in_stock=true` to `GET /api/products`.
 
-`products` owned by `product`, `inventory_levels` owned by `inventory` (decision 6, decision 7), so listing query cannot join them. Port is `query.InventoryReader.GetAvailability(ctx, ids)` (`internal/modules/product/usecase/query/ports.go`) — batch-shaped, asked _after_ page already selected. `product/usecase/query.UseCase.ListPublished` calls `repo.ListPublished` then `enrich`, that order, cannot be other order: enrich need ids page chose.
+`products` owned by `product`, `inventory_levels` owned by `inventory` (decision 6, decision 7), so listing query cannot join them. Port is `product.InventoryReader.GetAvailability(ctx, ids)` (`internal/modules/product/ports.go`) — batch-shaped, asked _after_ page already selected. `product.Service.ListPublished` calls `repo.ListPublished` then `enrich`, that order, cannot be other order: enrich need ids page chose.
 
 So filter apply only to rows already fetched, and that break pagination, not merely slow it. `ListPublished` keyset-paginated on `(created_at, id)`, fetch `Limit + 1` rows to decide `hasMore`. Ask 20, drop 8 out of stock, get page of 12 whose cursor claim client stopped at row 20. Repeat: page sizes wobble unpredictably while `hasMore` lies. Sort by stock worse: sort key not in table `ORDER BY` run against, so nothing to sort on until window chosen.
 
@@ -57,7 +57,7 @@ Outside `inventory` also need allocation policy (fill-first? nearest? split line
 
 ## Two queries where one join would do
 
-**Where you hit it:** you read `product/usecase/query.UseCase.ListPublished` and count round trips.
+**Where you hit it:** you read `product.Service.ListPublished` and count round trips.
 
 Every product listing and every single-product read cost second query to `inventory` for same ids. Deliberate price of decision 6.
 

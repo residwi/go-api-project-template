@@ -5,9 +5,9 @@ import (
 
 	"github.com/google/uuid"
 
-	productcontract "github.com/residwi/go-api-project-template/internal/modules/product/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/product"
 )
 
 type ProductLookup interface {
-	GetInfo(ctx context.Context, id uuid.UUID) (*productcontract.Product, error)
+	GetInfo(ctx context.Context, id uuid.UUID) (*product.ProductInfo, error)
 }

@@ -122,7 +122,7 @@ slice, whichever way an import into it points.
 
 A cross-module port is declared where it is consumed: in a slice's own
 `ports.go` when only that slice needs it (`user/usecase/remove/ports.go`
-declares `StatusInvalidator`; `product/usecase/query`, `product/usecase/create`,
+declares `StatusInvalidator`; `cart/usecase/add`, `payment/usecase/charge`,
 `order/usecase/place` and 22 more each declare their own the same way — 26
 `ports.go` files in the tree, 25 of them a slice's and one `payment/jobs`', per
 `find internal/modules -name ports.go`), or in `module.go` — as an interface
@@ -162,7 +162,7 @@ producer — the two just differ in which consumer that is: one slice, or the
 module composing several.
 
 A `Module` struct field is named for the capability it backs, not the package —
-`product.Module` has field `Delete` backing package `remove`. The one
+`user.Module` has field `Delete` backing package `remove`. The one
 exception AGENTS.md used to record, `cart.Module.Empty` backing package
 `empty`, is gone: the slice is `cart/usecase/clear`, the field is `ClearCart`,
 and no delegator sits between it and its consumer any more —
@@ -183,7 +183,7 @@ Seven of the fourteen features — `auth cart inventory order payment product
 user` — have a `contract/` package: the one place another module may import
 a *type* from, as opposed to merely satisfying an interface. Holds only the
 structs a consumer's port names in its return type (`user/contract.User`,
-`product/contract.Product`, `inventory/contract.StockState`, …), imports no
+`inventory/contract.StockState`, …), imports no
 module and no platform package, so importing it can never pull the
 producer's implementation along. A module gets one only when a struct — not
 a scalar, not something a producer's service already satisfies by name —
@@ -242,7 +242,7 @@ for the role the handler needs — `CartAdder`, `ProductCreator`, `UserGetter`,
 (`grep -hoE '^type [A-Za-z]+ interface' internal/modules/*/usecase/*/http/*.go`).
 Uniformity is not available here even in principle: three packages hold two
 ports each — `order/usecase/query/http` (`UseCase` + `AdminReader`),
-`product/usecase/query/http` (`ProductReader` + `AdminProductReader`),
+`product/adapter/http` (`ProductReader` + `ProductManager`),
 `user/usecase/query/http` (`UserGetter` + `UserLister`) — and naming both
 `UseCase` would redeclare an identifier. Name the port for what the handler
 asks of it; do not rename an existing one for symmetry.
@@ -507,8 +507,8 @@ reservation or restocking deducted goods; callers supply order's prior state, ne
     name would add nothing, and `refundhttp.UseCase` would sit one import from
     `refund.UseCase`, two different things sharing a name. Three packages hold
     two ports because they split routes by caller role (`user/usecase/query/http`
-    `UserGetter` + `UserLister`, `product/usecase/query/http` `ProductReader` +
-    `AdminProductReader`, `order/usecase/query/http` `OrderReader` +
+    `UserGetter` + `UserLister`, `product/adapter/http` `ProductReader` +
+    `ProductManager`, `order/usecase/query/http` `OrderReader` +
     `AdminReader`); role naming is what lets them coexist. The concrete type in
     the slice root is the opposite rule — always `UseCase`, never a role name.
     The `Handler` **field** holding that port is `usecase`, and so is the `New`

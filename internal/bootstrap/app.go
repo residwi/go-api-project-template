@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
+	productpg "github.com/residwi/go-api-project-template/internal/modules/product/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/modules/review"
 	reviewpg "github.com/residwi/go-api-project-template/internal/modules/review/adapter/postgres"
@@ -44,7 +45,7 @@ type App struct {
 	Users         *user.Module
 	Auth          *auth.Service
 	Categories    *category.Service
-	Products      *product.Module
+	Products      *product.Service
 	Inventory     *inventory.Module
 	Carts         *cart.Module
 	Orders        *order.Module
@@ -63,8 +64,10 @@ func New(d Deps) (*App, error) {
 	txRunner := database.NewTxRunner(d.Pool)
 
 	inv := inventory.New(inventory.Deps{Pool: d.Pool})
-	prod := product.New(product.Deps{Pool: d.Pool, InventoryReader: inv.Query, InventoryRegistrar: inv.Register})
-	categoryMod := category.New(category.Deps{Repo: categorypg.New(d.Pool), Products: prod.Query})
+	prod := product.New(
+		product.Deps{Repo: productpg.New(d.Pool), InventoryReader: inv.Query, InventoryRegistrar: inv.Register},
+	)
+	categoryMod := category.New(category.Deps{Repo: categorypg.New(d.Pool), Products: prod})
 	promotionMod := promotion.New(promotion.Deps{Pool: d.Pool, Tx: txRunner})
 	notificationMod := notification.New(notification.Deps{
 		Repo:   notificationpg.New(d.Pool),
@@ -75,7 +78,7 @@ func New(d Deps) (*App, error) {
 	userMod := user.New(user.Deps{Pool: d.Pool, Cache: d.Cache, Logger: d.Logger})
 	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userMod.Credentials})
 
-	cartMod := cart.New(cart.Deps{Pool: d.Pool, Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod.Query})
+	cartMod := cart.New(cart.Deps{Pool: d.Pool, Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod})
 
 	ordMod := order.New(order.Deps{
 		Pool: d.Pool, Tx: txRunner, Logger: d.Logger,

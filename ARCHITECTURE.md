@@ -77,9 +77,9 @@ construction cannot drift way list of exceptions can.
 ## 2. Ports live with the consumer
 
 The consumer is now a slice, or the module composing several of them.
-`internal/modules/product/usecase/query/ports.go` declares `InventoryReader`
-— the interface `query` alone needs from inventory. `inventory` does not
-publish it; `query` names exactly what it needs and something else
+`internal/modules/cart/usecase/add/ports.go` declares `ProductLookup`
+— the interface `add` alone needs from product. `product` does not
+publish it; `add` names exactly what it needs and something else
 satisfies it. `internal/modules/user/usecase/remove/ports.go` does the
 same for `StatusInvalidator`, one dependency, one slice. `order/module.go` is the
 other shape: `place`, `cancel` and `expire` all need inventory, so
@@ -477,7 +477,7 @@ HTTP.
 ## 13. A `<feature>/contract/` package publishes the structs that cross a boundary
 
 Seven of fourteen modules — `auth cart inventory order payment product user` —
-have a `contract/` package: `user/contract.User`, `product/contract.Product`,
+have a `contract/` package: `user/contract.User`,
 `inventory/contract.StockState`, `order/contract.Order`, `payment/contract.ChargeRequest`,
 `cart/contract.Cart`, and their siblings. Each package
 imports no module and no platform package, so importing one can never pull the
