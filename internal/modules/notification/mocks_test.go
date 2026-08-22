@@ -2,7 +2,7 @@
 // github.com/vektra/mockery
 // template: testify
 
-package query
+package notification
 
 import (
 	"context"
@@ -176,6 +176,126 @@ func (_c *MockRepository_ListByUser_Call) Return(notifications []domain.Notifica
 }
 
 func (_c *MockRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Notification, error)) *MockRepository_ListByUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkAllRead provides a mock function for the type MockRepository
+func (_mock *MockRepository) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkAllRead")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockRepository_MarkAllRead_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkAllRead'
+type MockRepository_MarkAllRead_Call struct {
+	*mock.Call
+}
+
+// MarkAllRead is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockRepository_Expecter) MarkAllRead(ctx any, userID any) *MockRepository_MarkAllRead_Call {
+	return &MockRepository_MarkAllRead_Call{Call: _e.mock.On("MarkAllRead", ctx, userID)}
+}
+
+func (_c *MockRepository_MarkAllRead_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockRepository_MarkAllRead_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_MarkAllRead_Call) Return(err error) *MockRepository_MarkAllRead_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockRepository_MarkAllRead_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockRepository_MarkAllRead_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkRead provides a mock function for the type MockRepository
+func (_mock *MockRepository) MarkRead(ctx context.Context, userID uuid.UUID, id uuid.UUID) error {
+	ret := _mock.Called(ctx, userID, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkRead")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockRepository_MarkRead_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkRead'
+type MockRepository_MarkRead_Call struct {
+	*mock.Call
+}
+
+// MarkRead is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - id uuid.UUID
+func (_e *MockRepository_Expecter) MarkRead(ctx any, userID any, id any) *MockRepository_MarkRead_Call {
+	return &MockRepository_MarkRead_Call{Call: _e.mock.On("MarkRead", ctx, userID, id)}
+}
+
+func (_c *MockRepository_MarkRead_Call) Run(run func(ctx context.Context, userID uuid.UUID, id uuid.UUID)) *MockRepository_MarkRead_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_MarkRead_Call) Return(err error) *MockRepository_MarkRead_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockRepository_MarkRead_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, id uuid.UUID) error) *MockRepository_MarkRead_Call {
 	_c.Call.Return(run)
 	return _c
 }

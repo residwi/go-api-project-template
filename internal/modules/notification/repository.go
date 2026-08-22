@@ -1,4 +1,4 @@
-package query
+package notification
 
 import (
 	"context"
@@ -12,4 +12,6 @@ import (
 type Repository interface {
 	ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Notification, error)
 	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
+	MarkRead(ctx context.Context, userID, id uuid.UUID) error
+	MarkAllRead(ctx context.Context, userID uuid.UUID) error
 }

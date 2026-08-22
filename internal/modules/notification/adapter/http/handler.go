@@ -13,17 +13,19 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type NotificationReader interface {
-	ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Notification, error)
+type NotificationManager interface {
+	List(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Notification, error)
 	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
+	MarkRead(ctx context.Context, userID, id uuid.UUID) error
+	MarkAllRead(ctx context.Context, userID uuid.UUID) error
 }
 
 type Handler struct {
-	usecase NotificationReader
+	service NotificationManager
 }
 
-func New(usecase NotificationReader) *Handler {
-	return &Handler{usecase: usecase}
+func NewHandler(service NotificationManager) *Handler {
+	return &Handler{service: service}
 }
 
 type notificationResponse struct {
@@ -54,7 +56,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	cursor := paging.ParseCursorPage(r)
 
-	notifications, err := h.usecase.ListByUser(r.Context(), uc.UserID, cursor)
+	notifications, err := h.service.List(r.Context(), uc.UserID, cursor)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -80,11 +82,44 @@ func (h *Handler) UnreadCount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, err := h.usecase.CountUnread(r.Context(), uc.UserID)
+	count, err := h.service.CountUnread(r.Context(), uc.UserID)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
 	}
 
 	response.OK(w, unreadCountResponse{Count: count})
+}
+
+func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
+	uc, ok := middleware.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	id, ok := response.ParseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	if err := h.service.MarkRead(r.Context(), uc.UserID, id); err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.NoContent(w)
+}
+
+func (h *Handler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
+	uc, ok := middleware.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	if err := h.service.MarkAllRead(r.Context(), uc.UserID); err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.NoContent(w)
 }

@@ -8,13 +8,14 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
-	"github.com/residwi/go-api-project-template/internal/modules/notification/usecase/query"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-var _ query.Repository = (*Repository)(nil)
+var _ notification.Repository = (*Repository)(nil)
 
 type Repository struct {
 	pool *pgxpool.Pool
@@ -78,4 +79,29 @@ func (r *Repository) CountUnread(ctx context.Context, userID uuid.UUID) (int, er
 		return 0, fmt.Errorf("counting unread notifications: %w", err)
 	}
 	return count, nil
+}
+
+func (r *Repository) MarkRead(ctx context.Context, userID, id uuid.UUID) error {
+	db := database.DB(ctx, r.pool)
+	tag, err := db.Exec(ctx,
+		`UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2`, id, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("marking notification read: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return apperror.ErrNotFound
+	}
+	return nil
+}
+
+func (r *Repository) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
+	db := database.DB(ctx, r.pool)
+	_, err := db.Exec(ctx,
+		`UPDATE notifications SET is_read = true WHERE user_id = $1 AND is_read = false`, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("marking all notifications read: %w", err)
+	}
+	return nil
 }

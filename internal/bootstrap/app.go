@@ -14,6 +14,7 @@ import (
 	dashboardpg "github.com/residwi/go-api-project-template/internal/modules/dashboard/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
+	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
@@ -50,7 +51,7 @@ type App struct {
 	Reviews       *review.Module
 	Promotions    *promotion.Module
 	Wishlists     *wishlist.Service
-	Notifications *notification.Module
+	Notifications *notification.Service
 	Dashboard     *dashboard.Service
 	TxRunner      database.TxRunner
 }
@@ -62,7 +63,11 @@ func New(d Deps) (*App, error) {
 	prod := product.New(product.Deps{Pool: d.Pool, InventoryReader: inv.Query, InventoryRegistrar: inv.Register})
 	categoryMod := category.New(category.Deps{Pool: d.Pool, Products: prod.Query})
 	promotionMod := promotion.New(promotion.Deps{Pool: d.Pool, Tx: txRunner})
-	notificationMod := notification.New(notification.Deps{Pool: d.Pool, Logger: d.Logger})
+	notificationMod := notification.New(notification.Deps{
+		Repo:   notificationpg.New(d.Pool),
+		Pool:   d.Pool,
+		Logger: d.Logger,
+	})
 
 	userMod := user.New(user.Deps{Pool: d.Pool, Cache: d.Cache, Logger: d.Logger})
 	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userMod.Credentials})

@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -26,7 +27,7 @@ func TestHandler_List_Success(t *testing.T) {
 	t.Run("success with notifications", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase, uc := setupQueryMux(t)
+		mux, service, uc := setupMux(t)
 
 		now := time.Now()
 		notifications := []domain.Notification{
@@ -38,7 +39,7 @@ func TestHandler_List_Success(t *testing.T) {
 				CreatedAt: now,
 			},
 		}
-		usecase.EXPECT().ListByUser(mock.Anything, uc.UserID, mock.Anything).Return(notifications, nil)
+		service.EXPECT().List(mock.Anything, uc.UserID, mock.Anything).Return(notifications, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/notifications", nil)
@@ -59,9 +60,9 @@ func TestHandler_List_ReaderError(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase, uc := setupQueryMux(t)
+		mux, service, uc := setupMux(t)
 
-		usecase.EXPECT().ListByUser(mock.Anything, uc.UserID, mock.Anything).Return(nil, assert.AnError)
+		service.EXPECT().List(mock.Anything, uc.UserID, mock.Anything).Return(nil, assert.AnError)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/notifications", nil)
@@ -79,9 +80,9 @@ func TestHandler_UnreadCount_Success(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase, uc := setupQueryMux(t)
+		mux, service, uc := setupMux(t)
 
-		usecase.EXPECT().CountUnread(mock.Anything, uc.UserID).Return(3, nil)
+		service.EXPECT().CountUnread(mock.Anything, uc.UserID).Return(3, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/notifications/unread-count", nil)
@@ -106,9 +107,9 @@ func TestHandler_UnreadCount_ReaderError(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase, uc := setupQueryMux(t)
+		mux, service, uc := setupMux(t)
 
-		usecase.EXPECT().CountUnread(mock.Anything, uc.UserID).Return(0, assert.AnError)
+		service.EXPECT().CountUnread(mock.Anything, uc.UserID).Return(0, assert.AnError)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/notifications/unread-count", nil)
@@ -126,7 +127,7 @@ func TestHandler_List_Pagination(t *testing.T) {
 	t.Run("has more results triggers cursor", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase, uc := setupQueryMux(t)
+		mux, service, uc := setupMux(t)
 
 		now := time.Now()
 		notifications := make([]domain.Notification, 21)
@@ -139,7 +140,7 @@ func TestHandler_List_Pagination(t *testing.T) {
 				CreatedAt: now.Add(-time.Duration(i) * time.Minute),
 			}
 		}
-		usecase.EXPECT().ListByUser(mock.Anything, uc.UserID, mock.Anything).Return(notifications, nil)
+		service.EXPECT().List(mock.Anything, uc.UserID, mock.Anything).Return(notifications, nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/notifications", nil)
@@ -240,15 +241,173 @@ func TestToNotificationResponse_OmitsUserIDAndRawPayload(t *testing.T) {
 		"Data is a raw job payload and must never pass through as raw bytes")
 }
 
-func setupQueryMux(t *testing.T) (*http.ServeMux, *MockNotificationReader, middleware.UserContext) {
-	usecase := NewMockNotificationReader(t)
+func TestHandler_MarkRead_Success(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		mux, service, uc := setupMux(t)
+
+		id := uuid.New()
+		service.EXPECT().MarkRead(mock.Anything, uc.UserID, id).Return(nil)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/"+id.String()+"/read", nil)
+		r = notifAuth(r, uc)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+}
+
+func TestHandler_MarkRead_CommandError(t *testing.T) {
+	t.Parallel()
+
+	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
+		mux, service, uc := setupMux(t)
+
+		id := uuid.New()
+		service.EXPECT().MarkRead(mock.Anything, uc.UserID, id).Return(apperror.ErrNotFound)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/"+id.String()+"/read", nil)
+		r = notifAuth(r, uc)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+}
+
+func TestHandler_MarkRead_InvalidUUID(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid UUID via mux", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _, uc := setupMux(t)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/not-a-uuid/read", nil)
+		r = notifAuth(r, uc)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.Equal(t, "invalid id", resp.Error.Message)
+	})
+}
+
+func TestHandler_MarkRead(t *testing.T) {
+	t.Parallel()
+
+	h := &Handler{}
+
+	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
+		r := httptest.NewRequest(http.MethodPut, "/notifications/"+uuid.NewString()+"/read", nil)
+		w := httptest.NewRecorder()
+
+		h.MarkRead(w, r)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
+		r := httptest.NewRequest(http.MethodPut, "/notifications/bad/read", nil)
+		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{UserID: uuid.New(), Role: "user"})
+		r = r.WithContext(ctx)
+		r.SetPathValue("id", "bad")
+		w := httptest.NewRecorder()
+
+		h.MarkRead(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		var resp map[string]any
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		errBody, ok := resp["error"].(map[string]any)
+		require.True(t, ok)
+		assert.Contains(t, errBody["message"], "invalid id")
+	})
+}
+
+func TestHandler_MarkAllRead_Success(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		mux, service, uc := setupMux(t)
+
+		service.EXPECT().MarkAllRead(mock.Anything, uc.UserID).Return(nil)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/read-all", nil)
+		r = notifAuth(r, uc)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+}
+
+func TestHandler_MarkAllRead_CommandError(t *testing.T) {
+	t.Parallel()
+
+	t.Run("repo error", func(t *testing.T) {
+		t.Parallel()
+
+		mux, service, uc := setupMux(t)
+
+		service.EXPECT().MarkAllRead(mock.Anything, uc.UserID).Return(assert.AnError)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/read-all", nil)
+		r = notifAuth(r, uc)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
+
+func TestHandler_MarkAllRead(t *testing.T) {
+	t.Parallel()
+
+	h := &Handler{}
+
+	t.Run("missing auth", func(t *testing.T) {
+		t.Parallel()
+
+		r := httptest.NewRequest(http.MethodPut, "/notifications/read-all", nil)
+		w := httptest.NewRecorder()
+
+		h.MarkAllRead(w, r)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+func setupMux(t *testing.T) (*http.ServeMux, *MockNotificationManager, middleware.UserContext) {
+	service := NewMockNotificationManager(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	h := New(usecase)
+	h := NewHandler(service)
 	authed.HandleFunc("GET /notifications", h.List)
 	authed.HandleFunc("GET /notifications/unread-count", h.UnreadCount)
+	authed.HandleFunc("PUT /notifications/{id}/read", h.MarkRead)
+	authed.HandleFunc("PUT /notifications/read-all", h.MarkAllRead)
 
 	uc := middleware.UserContext{
 		UserID: uuid.New(),
@@ -256,7 +415,7 @@ func setupQueryMux(t *testing.T) (*http.ServeMux, *MockNotificationReader, middl
 		Role:   "user",
 	}
 
-	return mux, usecase, uc
+	return mux, service, uc
 }
 
 func notifAuth(r *http.Request, uc middleware.UserContext) *http.Request {
