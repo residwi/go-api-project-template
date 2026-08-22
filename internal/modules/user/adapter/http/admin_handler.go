@@ -30,12 +30,12 @@ type UserManager interface {
 }
 
 type AdminHandler struct {
-	usecase   UserManager
+	service   UserManager
 	validator *validator.Validator
 }
 
-func NewAdminHandler(usecase UserManager, v *validator.Validator) *AdminHandler {
-	return &AdminHandler{usecase: usecase, validator: v}
+func NewAdminHandler(service UserManager, v *validator.Validator) *AdminHandler {
+	return &AdminHandler{service: service, validator: v}
 }
 
 type adminUserResponse struct {
@@ -77,7 +77,7 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 		params.Active = &active
 	}
 
-	users, total, err := h.usecase.ListAdmin(r.Context(), params)
+	users, total, err := h.service.ListAdmin(r.Context(), params)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -97,7 +97,7 @@ func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.usecase.GetUser(r.Context(), id)
+	u, err := h.service.GetUser(r.Context(), id)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -124,7 +124,7 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.usecase.AdminUpdate(r.Context(), id, req.FirstName, req.LastName, req.Phone, req.Active)
+	u, err := h.service.AdminUpdate(r.Context(), id, req.FirstName, req.LastName, req.Phone, req.Active)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -153,7 +153,7 @@ func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.usecase.UpdateRole(r.Context(), uc.UserID, id, req.Role); err != nil {
+	if err := h.service.UpdateRole(r.Context(), uc.UserID, id, req.Role); err != nil {
 		response.HandleErr(w, err)
 		return
 	}
@@ -172,7 +172,7 @@ func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.usecase.Delete(r.Context(), uc.UserID, id); err != nil {
+	if err := h.service.Delete(r.Context(), uc.UserID, id); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

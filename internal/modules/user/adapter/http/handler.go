@@ -22,12 +22,12 @@ type ProfileManager interface {
 }
 
 type Handler struct {
-	usecase   ProfileManager
+	service   ProfileManager
 	validator *validator.Validator
 }
 
-func NewHandler(usecase ProfileManager, v *validator.Validator) *Handler {
-	return &Handler{usecase: usecase, validator: v}
+func NewHandler(service ProfileManager, v *validator.Validator) *Handler {
+	return &Handler{service: service, validator: v}
 }
 
 type userResponse struct {
@@ -54,7 +54,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.usecase.GetUser(r.Context(), uc.UserID)
+	u, err := h.service.GetUser(r.Context(), uc.UserID)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -80,7 +80,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.usecase.UpdateProfile(r.Context(), uc.UserID, req.FirstName, req.LastName, req.Phone)
+	u, err := h.service.UpdateProfile(r.Context(), uc.UserID, req.FirstName, req.LastName, req.Phone)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
