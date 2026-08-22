@@ -123,7 +123,7 @@ slice, whichever way an import into it points.
 A cross-module port is declared where it is consumed: in a slice's own
 `ports.go` when only that slice needs it (`category/usecase/remove/ports.go`
 declares `ProductCounter`; `product/usecase/query`, `product/usecase/create`,
-`review/usecase/create` and 22 more each declare their own the same way — 26
+`shipping/usecase/create` and 22 more each declare their own the same way — 26
 `ports.go` files in the tree, 25 of them a slice's and one `payment/jobs`', per
 `find internal/modules -name ports.go`), or in `module.go` — as an interface
 plus a `Deps` field. The first reason is convention, not enforcement: every
