@@ -13,26 +13,25 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/retrypayment"
 	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-func TestHandler_RetryPayment(t *testing.T) {
+func TestRetryHandler_RetryPayment(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase := setupMux(t)
+		mux, service := setupRetryMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
-		usecase.EXPECT().
-			Execute(mock.Anything, userID, orderID, retrypayment.Params{PaymentMethodID: "pm_test_123"}).
-			Return(&paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
+		service.EXPECT().
+			RetryPayment(mock.Anything, userID, orderID, "pm_test_123").
+			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`
@@ -51,7 +50,7 @@ func TestHandler_RetryPayment(t *testing.T) {
 	t.Run("missing auth context", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _ := setupMux(t)
+		mux, _ := setupRetryMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+uuid.NewString()+"/pay", nil)
@@ -68,7 +67,7 @@ func TestHandler_RetryPayment(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _ := setupMux(t)
+		mux, _ := setupRetryMux(t)
 
 		userID := uuid.New()
 		w := httptest.NewRecorder()
@@ -87,7 +86,7 @@ func TestHandler_RetryPayment(t *testing.T) {
 	t.Run("invalid JSON body", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _ := setupMux(t)
+		mux, _ := setupRetryMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
@@ -107,7 +106,7 @@ func TestHandler_RetryPayment(t *testing.T) {
 	t.Run("validation error missing payment method", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _ := setupMux(t)
+		mux, _ := setupRetryMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
@@ -123,11 +122,12 @@ func TestHandler_RetryPayment(t *testing.T) {
 	t.Run("service error not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase := setupMux(t)
+		mux, service := setupRetryMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
-		usecase.EXPECT().Execute(mock.Anything, userID, orderID, mock.Anything).Return(nil, apperror.ErrNotFound)
+		service.EXPECT().RetryPayment(mock.Anything, userID, orderID, mock.Anything).
+			Return(paymentcontract.ChargeResult{}, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`
@@ -140,23 +140,14 @@ func TestHandler_RetryPayment(t *testing.T) {
 	})
 }
 
-func setupMux(t *testing.T) (*http.ServeMux, *MockPaymentRetrier) {
-	usecase := NewMockPaymentRetrier(t)
+func setupRetryMux(t *testing.T) (*http.ServeMux, *MockPaymentRetrier) {
+	service := NewMockPaymentRetrier(t)
 	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("POST /orders/{id}/pay", New(usecase, v).Retry)
+	authed.HandleFunc("POST /orders/{id}/pay", NewRetryHandler(service, v).Retry)
 
-	return mux, usecase
-}
-
-func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {
-	ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-		UserID: userID,
-		Email:  "test@example.com",
-		Role:   "user",
-	})
-	return r.WithContext(ctx)
+	return mux, service
 }

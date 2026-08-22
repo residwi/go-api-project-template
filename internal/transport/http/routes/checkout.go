@@ -17,4 +17,7 @@ func Checkout(
 ) {
 	place := checkouthttp.NewHandler(s, v)
 	authed.Handle("POST /orders", writeLimiter(http.HandlerFunc(place.Place)))
+
+	retry := checkouthttp.NewRetryHandler(s, v)
+	authed.Handle("POST /orders/{id}/pay", writeLimiter(http.HandlerFunc(retry.Retry)))
 }

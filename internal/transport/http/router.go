@@ -54,7 +54,7 @@ func NewRouter(
 	routes.Product(api, admin, app.Products, v)
 	routes.Inventory(admin, app.Inventory, v)
 	routes.Cart(authed, app.Carts, v)
-	routes.Order(authed, admin, app.Orders, v, orderWriteLimiter)
+	routes.Order(authed, admin, app.Orders, v)
 	routes.Checkout(authed, app.Checkout, v, orderWriteLimiter)
 	routes.Payment(api, admin, app.Payments, deps.Logger)
 	routes.Shipping(authed, admin, app.Shipping, v)

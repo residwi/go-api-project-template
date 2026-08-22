@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
-	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/retrypayment"
-	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -26,34 +24,27 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// TestNew_WiresPaymentDeps proves the fan-out that a since-deleted setter
-// method used to perform now happens at construction: RetryPayment and
-// Cancel each panic or mock-fail if order.New did not forward Deps.Payment
-// and Deps.PaymentJobs to them. Place dropped out of this test when the
-// payment call moved to checkout -- Deps.Payment now feeds only RetryPayment,
-// with Cancel's own leg going through Deps.PaymentJobs instead. Cancel's
-// paymentCancel is nil-guarded, so a dropped leg there fails silently instead
-// of panicking -- this drives each slice's own Execute far enough to reach
-// the payment call that Deps is supposed to have wired, which is what makes a
-// dropped leg fail this test: by panic for RetryPayment, by an unmet mock
-// expectation for Cancel.
+// TestNew_WiresPaymentJobsToCancel proves order.New forwards Deps.PaymentJobs
+// into Cancel's own construction. Deps.Payment and the RetryPayment slice it
+// fed are gone -- checkout reconstructs retry-payment from order's query
+// snapshot and payment's own Charge port instead -- so PaymentJobCanceller is
+// the only payment-shaped port left on order.Deps, and Cancel is its only
+// consumer. Cancel's paymentCancel leg is nil-guarded, so a dropped Deps field
+// would fail silently instead of panicking -- this drives Cancel's own
+// Execute far enough to reach the call that Deps is supposed to have wired,
+// which is what makes a dropped field fail this test via an unmet mock
+// expectation rather than passing by accident.
 //
 // order.New always builds real postgres adapters from Deps.Pool -- module.go
 // composes its own storage, so there is no seam to hand it a fake repository
-// -- which is why this test needs a real database instead of the hand-rolled
-// fakes the old setter-based version used.
-func TestNew_WiresPaymentDeps(t *testing.T) {
+// -- which is why this test needs a real database instead of a hand-rolled
+// fake.
+func TestNew_WiresPaymentJobsToCancel(t *testing.T) {
 	t.Parallel()
 
 	userID := seedUser(t)
-	// RetryPayment and Cancel, the only slices this test now exercises, need
-	// no cart -- CartLock, CartRead, CartClear and Notifications are nil.
-	// Those all feed only Place, whose payment leg moved to checkout, so
-	// nothing in this test drives Place far enough to reach a nil one.
-	retryOrderID := seedOrder(t, userID)
 	cancelOrderID := seedOrder(t, userID)
 
-	payment := NewMockPaymentInitiator(t)
 	paymentJobs := NewMockPaymentJobCanceller(t)
 
 	m := New(Deps{
@@ -64,19 +55,10 @@ func TestNew_WiresPaymentDeps(t *testing.T) {
 		InventoryDeduct:  fanOutInventory{},
 		InventoryRestore: fanOutInventory{},
 		Promotions:       fanOutCoupons{},
-		Payment:          payment,
 		PaymentJobs:      paymentJobs,
 	})
 
 	ctx := context.Background()
-
-	payment.EXPECT().
-		Charge(mock.Anything, mock.MatchedBy(func(r paymentcontract.ChargeRequest) bool {
-			return r.OrderID == retryOrderID
-		})).
-		Return(paymentcontract.ChargeResult{}, nil)
-	_, err := m.RetryPayment.Execute(ctx, userID, retryOrderID, retrypayment.Params{PaymentMethodID: "pm_fanout_retry"})
-	require.NoError(t, err, "RetryPayment's payment leg must be wired by order.New")
 
 	paymentJobs.EXPECT().CancelPendingByOrderID(mock.Anything, cancelOrderID).Return(nil)
 	require.NoError(
@@ -106,8 +88,8 @@ func seedUser(t *testing.T) uuid.UUID {
 	return testhelper.SeedUser(t, testPool)
 }
 
-// seedOrder seeds an order in awaiting_payment: fresh for RetryPayment and
-// Cancel to each own, since neither may collide with the other's write.
+// seedOrder seeds an order in awaiting_payment, the state Cancel's own
+// transition guard requires.
 func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
 	t.Helper()
 	id := uuid.New()

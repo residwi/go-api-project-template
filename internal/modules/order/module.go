@@ -21,11 +21,8 @@ import (
 	querypg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/query/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/recoverstale"
 	recoverstalepg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/recoverstale/postgres"
-	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/retrypayment"
-	retrypaymentpg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/retrypayment/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/transition"
 	transitionpg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/transition/postgres"
-	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -43,7 +40,6 @@ type Deps struct {
 	Promotions       CouponPort
 	Notifications    NotificationEnqueuer
 
-	Payment     PaymentInitiator
 	PaymentJobs PaymentJobCanceller
 }
 
@@ -80,10 +76,6 @@ type NotificationEnqueuer interface {
 	EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) error
 }
 
-type PaymentInitiator interface {
-	Charge(ctx context.Context, p paymentcontract.ChargeRequest) (paymentcontract.ChargeResult, error)
-}
-
 type PaymentJobCanceller interface {
 	CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) error
 }
@@ -91,7 +83,6 @@ type PaymentJobCanceller interface {
 type Module struct {
 	Place        *place.UseCase
 	Query        *query.UseCase
-	RetryPayment *retrypayment.UseCase
 	Cancel       *cancel.UseCase
 	ChangeStatus *changestatus.UseCase
 	Expire       *expire.UseCase
@@ -116,8 +107,7 @@ func New(d Deps) *Module {
 			Transition:    transitionApplier,
 			Logger:        d.Logger,
 		}),
-		Query:        query.New(querypg.New(d.Pool)),
-		RetryPayment: retrypayment.New(retrypaymentpg.New(d.Pool), d.Payment),
+		Query: query.New(querypg.New(d.Pool)),
 		Cancel: cancel.New(
 			cancelpg.New(d.Pool), d.Tx, transitionApplier, d.InventoryRestore, d.Promotions, d.PaymentJobs, d.Logger,
 		),

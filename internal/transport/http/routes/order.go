@@ -1,13 +1,10 @@
 package routes
 
 import (
-	"net/http"
-
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	cancelhttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel/http"
 	changestatushttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/changestatus/http"
 	queryhttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/query/http"
-	retrypaymenthttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/retrypayment/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
@@ -16,11 +13,7 @@ func Order(
 	authed, admin *middleware.RouteGroup,
 	m *order.Module,
 	v *validator.Validator,
-	writeLimiter middleware.Middleware,
 ) {
-	retry := retrypaymenthttp.New(m.RetryPayment, v)
-	authed.Handle("POST /orders/{id}/pay", writeLimiter(http.HandlerFunc(retry.Retry)))
-
 	query := queryhttp.New(m.Query)
 	authed.HandleFunc("GET /orders", query.List)
 	authed.HandleFunc("GET /orders/{id}", query.Get)

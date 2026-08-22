@@ -6,23 +6,25 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/retrypayment"
+	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type PaymentRetrier interface {
-	Execute(ctx context.Context, userID, orderID uuid.UUID, p retrypayment.Params) (*retrypayment.Result, error)
+	RetryPayment(
+		ctx context.Context, userID, orderID uuid.UUID, paymentMethodID string,
+	) (paymentcontract.ChargeResult, error)
 }
 
-type Handler struct {
-	usecase   PaymentRetrier
+type RetryHandler struct {
+	service   PaymentRetrier
 	validator *validator.Validator
 }
 
-func New(usecase PaymentRetrier, v *validator.Validator) *Handler {
-	return &Handler{usecase: usecase, validator: v}
+func NewRetryHandler(service PaymentRetrier, v *validator.Validator) *RetryHandler {
+	return &RetryHandler{service: service, validator: v}
 }
 
 type payRequest struct {
@@ -35,7 +37,7 @@ type payResultResponse struct {
 	Charged    bool      `json:"charged"`
 }
 
-func toPayResultResponse(r *retrypayment.Result) payResultResponse {
+func toPayResultResponse(r paymentcontract.ChargeResult) payResultResponse {
 	return payResultResponse{
 		PaymentID:  r.PaymentID,
 		PaymentURL: r.PaymentURL,
@@ -43,7 +45,7 @@ func toPayResultResponse(r *retrypayment.Result) payResultResponse {
 	}
 }
 
-func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
+func (h *RetryHandler) Retry(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
@@ -59,12 +61,7 @@ func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.usecase.Execute(
-		r.Context(),
-		uc.UserID,
-		id,
-		retrypayment.Params{PaymentMethodID: req.PaymentMethodID},
-	)
+	result, err := h.service.RetryPayment(r.Context(), uc.UserID, id, req.PaymentMethodID)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

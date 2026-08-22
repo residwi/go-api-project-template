@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/residwi/go-api-project-template/internal/apperror"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 )
@@ -17,19 +18,21 @@ type PlaceOrderInput struct {
 }
 
 type Deps struct {
-	Orders   OrderWriter
-	Payments PaymentCharger
-	Logger   *slog.Logger
+	Orders    OrderWriter
+	Payments  PaymentCharger
+	Snapshots OrderSnapshotReader
+	Logger    *slog.Logger
 }
 
 type Service struct {
-	orders   OrderWriter
-	payments PaymentCharger
-	logger   *slog.Logger
+	orders    OrderWriter
+	payments  PaymentCharger
+	snapshots OrderSnapshotReader
+	logger    *slog.Logger
 }
 
 func New(d Deps) *Service {
-	return &Service{orders: d.Orders, payments: d.Payments, logger: d.Logger}
+	return &Service{orders: d.Orders, payments: d.Payments, snapshots: d.Snapshots, logger: d.Logger}
 }
 
 func (s *Service) PlaceOrder(
@@ -54,4 +57,27 @@ func (s *Service) PlaceOrder(
 	}
 
 	return order, nil
+}
+
+func (s *Service) RetryPayment(
+	ctx context.Context,
+	userID, orderID uuid.UUID,
+	paymentMethodID string,
+) (paymentcontract.ChargeResult, error) {
+	order, err := s.snapshots.GetSnapshot(ctx, orderID)
+	if err != nil {
+		return paymentcontract.ChargeResult{}, err
+	}
+	if order.UserID != userID {
+		return paymentcontract.ChargeResult{}, apperror.ErrNotFound
+	}
+	if order.Status != string(orderdomain.StatusAwaitingPayment) {
+		return paymentcontract.ChargeResult{}, apperror.ErrOrderNotPayable
+	}
+
+	return s.payments.Charge(ctx, paymentcontract.ChargeRequest{
+		OrderID:         order.ID,
+		Amount:          order.Total,
+		PaymentMethodID: paymentMethodID,
+	})
 }

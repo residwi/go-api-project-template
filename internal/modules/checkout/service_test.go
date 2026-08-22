@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
@@ -133,5 +134,75 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		require.ErrorIs(t, err, apperror.ErrCartEmpty)
 		assert.Nil(t, got)
+	})
+}
+
+func TestService_RetryPayment(t *testing.T) {
+	t.Parallel()
+
+	t.Run("charges an order that is awaiting payment", func(t *testing.T) {
+		t.Parallel()
+
+		userID, orderID := uuid.New(), uuid.New()
+
+		orders := NewMockOrderSnapshotReader(t)
+		orders.EXPECT().GetSnapshot(t.Context(), orderID).Return(ordercontract.Order{
+			ID:     orderID,
+			UserID: userID,
+			Total:  money.New(4000, "USD"),
+			Status: string(orderdomain.StatusAwaitingPayment),
+		}, nil)
+
+		payments := NewMockPaymentCharger(t)
+		payments.EXPECT().Charge(t.Context(), paymentcontract.ChargeRequest{
+			OrderID:         orderID,
+			Amount:          money.New(4000, "USD"),
+			PaymentMethodID: "pm_retry",
+		}).Return(paymentcontract.ChargeResult{PaymentURL: "https://pay.test/1"}, nil)
+
+		svc := New(Deps{Snapshots: orders, Payments: payments, Logger: testhelper.DiscardLogger()})
+
+		got, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
+
+		require.NoError(t, err)
+		assert.Equal(t, paymentcontract.ChargeResult{PaymentURL: "https://pay.test/1"}, got)
+	})
+
+	t.Run("hides another user's order behind not found", func(t *testing.T) {
+		t.Parallel()
+
+		orderID := uuid.New()
+
+		orders := NewMockOrderSnapshotReader(t)
+		orders.EXPECT().GetSnapshot(t.Context(), orderID).Return(ordercontract.Order{
+			ID:     orderID,
+			UserID: uuid.New(),
+			Status: string(orderdomain.StatusAwaitingPayment),
+		}, nil)
+
+		svc := New(Deps{Snapshots: orders, Payments: NewMockPaymentCharger(t), Logger: testhelper.DiscardLogger()})
+
+		_, err := svc.RetryPayment(t.Context(), uuid.New(), orderID, "pm_retry")
+
+		require.ErrorIs(t, err, apperror.ErrNotFound)
+	})
+
+	t.Run("refuses an order that is not awaiting payment", func(t *testing.T) {
+		t.Parallel()
+
+		userID, orderID := uuid.New(), uuid.New()
+
+		orders := NewMockOrderSnapshotReader(t)
+		orders.EXPECT().GetSnapshot(t.Context(), orderID).Return(ordercontract.Order{
+			ID:     orderID,
+			UserID: userID,
+			Status: string(orderdomain.StatusPaid),
+		}, nil)
+
+		svc := New(Deps{Snapshots: orders, Payments: NewMockPaymentCharger(t), Logger: testhelper.DiscardLogger()})
+
+		_, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
+
+		require.ErrorIs(t, err, apperror.ErrOrderNotPayable)
 	})
 }

@@ -103,14 +103,14 @@ func New(d Deps) (*App, error) {
 		InventoryRestore: inv.Restore,
 		Promotions:       promotionMod.Reserve,
 		Notifications:    notificationMod.Jobs,
-		Payment:          paymentMod.Charge,
 		PaymentJobs:      paymentMod.Jobs,
 	})
 
 	checkoutSvc := checkout.New(checkout.Deps{
-		Orders:   ordMod.Place,
-		Payments: paymentMod.Charge,
-		Logger:   d.Logger,
+		Orders:    ordMod.Place,
+		Payments:  paymentMod.Charge,
+		Snapshots: ordMod.Query,
+		Logger:    d.Logger,
 	})
 
 	shippingMod := shipping.New(shipping.Deps{
