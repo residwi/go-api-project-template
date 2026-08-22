@@ -476,13 +476,11 @@ HTTP.
 ## 13. A `<feature>/contract/` package publishes the structs that cross a boundary
 
 Seven of fourteen modules — `auth cart inventory order payment product user` —
-have a `contract/` package: `user/contract.User`,
-`inventory/contract.StockState`, `order/contract.Order`, `payment/contract.ChargeRequest`,
-and their siblings. Each package
+have a `contract/` package: `inventory/contract.StockState`, `order/contract.Order`,
+`payment/contract.ChargeRequest`, and their siblings. Each package
 imports no module and no platform package, so importing one can never pull the
 producer's implementation along with it — a consumer takes the type by value
-and never learns how it is built. A port still names the type it needs
-(`auth.UserDirectory.GetByID(ctx, id) (usercontract.User, error)`); the
+and never learns how it is built. A port still names the type it needs; the
 contract package supplies only the shape, never the interface — that stays
 declared by the consumer, per decision 2.
 
@@ -497,9 +495,9 @@ struct; the other seven modules never pass one across a port and have no
 `contract/` to show for it.
 
 **Cost accepted:** a module now has a published surface. Before, changing an
-internal struct's shape was a one-module diff; changing `user/contract.User`
-is now a change every consumer of `user` must absorb, whether or not the field
-they care about moved. The alternative this replaced — structurally-identical
+internal struct's shape was a one-module diff; changing a published contract
+type is now a change every consumer of that module must absorb, whether or
+not the field they care about moved. The alternative this replaced — structurally-identical
 types declared in both modules plus a mapping function between them — paid the
 same cost at every call site instead of at the one file that changed;
 `contract/` moves it from many places to one, but does not remove it. See
@@ -681,8 +679,8 @@ touched nearly every file for nothing.
 The rejection has a sharper answer now than "introduce it when a third
 type needs it": `<feature>/contract/` is what a cross-module vocabulary
 type belongs in instead, and it is scoped per producer rather than pooled
-where anyone can reach it — `usercontract.User` lives with `user`, not in
-a shared namespace every module imports. Check 7 (`check_contract_leaf`)
+where anyone can reach it, not in a shared namespace every module imports.
+Check 7 (`check_contract_leaf`)
 is what keeps that answer from decaying into `internal/shared/` by another
 name: a `contract/` package that started importing another module's
 `contract/`, or its own `domain/`, would be `shared/` again with extra

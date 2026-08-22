@@ -172,8 +172,8 @@ types live in the slice's own `http/handler.go` (or `admin_handler.go`,
 Seven of the fourteen features — `auth cart inventory order payment product
 user` — have a `contract/` package: the one place another module may import
 a *type* from, as opposed to merely satisfying an interface. Holds only the
-structs a consumer's port names in its return type (`user/contract.User`,
-`inventory/contract.StockState`, …), imports no
+structs a consumer's port names in its return type
+(`inventory/contract.StockState`, …), imports no
 module and no platform package, so importing it can never pull the
 producer's implementation along. A module gets one only when a struct — not
 a scalar, not something a producer's service already satisfies by name —
@@ -405,7 +405,7 @@ by name alone:
    would make every binary constructing the module link HTTP, including the
    worker, which serves nothing. A module that needs to describe something
    the transport also describes puts the type in its own `contract/` and lets
-   middleware import that instead (`user/contract.AccountStatus`).
+   middleware import that instead.
 7. **`check_contract_leaf`: `contract/` imports only stdlib,
    `github.com/google/uuid` and `internal/money`.** If a module's
    `contract/` imported its own `domain/`, importing the contract would drag
@@ -474,9 +474,8 @@ spot the way it was before this phase.
       `grep -rn "func (m \*Module)" internal/modules` returns nothing.
     - **A `<feature>/contract/` package**, when what crosses is a struct
       rather than a scalar or an interface a producer already satisfies.
-      The consumer's port still names the type it needs
-      (`auth.UserDirectory.GetByID(ctx, id) (usercontract.User, error)`);
-      the contract package only supplies the shape, never the interface.
+      The consumer's port still names the type it needs; the contract
+      package only supplies the shape, never the interface.
 
     No shared ports package, and adding one would defeat the point.
 11. **Services take `database.TxRunner`, never `*pgxpool.Pool`.** Service needs atomicity, not DB handle. `TxRunner` declared once in `internal/platform/database` not per consumer — one deliberate exception to rule 10's consumer-declaration pattern, because features already import `platform/database`. A slice that opens no transaction takes no runner at all.
