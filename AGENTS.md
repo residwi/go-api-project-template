@@ -134,15 +134,16 @@ story: every field on their `Deps` feeds two or more slices. `order` and
 `payment` are where the convention reason shows up on its own:
 `order/module.go` declares ten fields — up from six before `CartProvider` split
 into the three `Cart*` ports and `InventoryPort` split into the three
-`Inventory*` ports, one method per port — but only three of the ten are
+`Inventory*` ports, one method per port — but only two of the ten are
 actually shared (`InventoryRestorer` between `cancel` and `expire`,
-`CouponPort` across `place`, `cancel` and `expire`, `PaymentInitiator` between
-`place` and `retrypayment`); the other seven each feed exactly one slice —
-`CartLocker`, `CartReader`, `CartClearer`, `InventoryReserver`,
-`InventoryDeductor` and `NotificationEnqueuer` all feed only `place`,
-`PaymentJobCanceller` feeds only `cancel` — and sit in `module.go` for the
-convention reason alone. `payment` has the same shape: `InventoryDeductor`
-reaches only `charge`, `InventoryRestorer` only `refund`. Either way the rule
+`CouponPort` across `place`, `cancel` and `expire`); the other eight each feed
+exactly one slice — `CartLocker`, `CartReader`, `CartClearer`,
+`InventoryReserver`, `InventoryDeductor` and `NotificationEnqueuer` all feed
+only `place`, `PaymentJobCanceller` feeds only `cancel`, `PaymentInitiator`
+feeds only `retrypayment` now that `place`'s own payment call moved to
+`checkout` — and sit in `module.go` for the convention reason alone. `payment`
+has the same shape: `InventoryDeductor` reaches only `charge`,
+`InventoryRestorer` only `refund`. Either way the rule
 is the same one decision 2 states: the consumer names the interface, never the
 producer — the two just differ in which consumer that is: one slice, or the
 module composing several.
@@ -573,7 +574,7 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 - Never commit `.env`, secrets or API keys.
 - Run `make check-boundaries`, `make vet` and `make test` before calling change complete. `make all` does all three plus lint and build.
 - Do not add third-party router.
-- Do not suppress lint or vet findings with `//nolint` without justification comment on same line — see `order/usecase/place/usecase.go:68` (`//nolint:gocognit,funlen // checkout orchestrates idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`) for expected form. Four more slices carry the same pattern for the same reason: `order/usecase/cancel/usecase.go`, `payment/usecase/webhook/usecase.go`, `payment/usecase/charge/usecase.go`, `payment/usecase/refund/usecase.go`.
+- Do not suppress lint or vet findings with `//nolint` without justification comment on same line — see `order/usecase/place/usecase.go:63` (`//nolint:gocognit // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`) for expected form. Four more slices carry the same pattern for the same reason: `order/usecase/cancel/usecase.go`, `payment/usecase/webhook/usecase.go`, `payment/usecase/charge/usecase.go`, `payment/usecase/refund/usecase.go`.
 - Do not make subpackage tree uniform, and do not add pass-through adapter package to fill slot.
 - Backward compatibility explicitly **not** a goal here. API shapes may change where better design demands — but say so when they do.
 - When adding a feature: create `internal/modules/<feature>/` with `domain/` for its aggregate, one `module.go` per the shape under "Inside a feature" above, and `usecase/<slice>/` per use case, each with `usecase.go` declaring one `UseCase`, `repository.go`, `postgres/`, and `http/` where it has a route. Add a row per owned table to `db/OWNERSHIP.md`, add `internal/transport/http/routes/<feature>.go` and call it from `internal/transport/http/router.go`, and wire the module into `internal/bootstrap/app.go` — by name-match if an existing port already fits, or by adding a `contract/` package if a struct needs to cross. **Adding one slice with one route touches two trees**: the module for the handler, `routes/<feature>.go` for the URL. Then run `make check-boundaries` — a new feature with a `postgres/` adapter and no ownership row fails it by design.

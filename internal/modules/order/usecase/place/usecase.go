@@ -10,24 +10,11 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
-	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
 const productStatusPublished = "published"
-
-type Params struct {
-	PaymentMethodID string
-	CouponCode      *string
-	ShippingAddress *domain.Address
-	BillingAddress  *domain.Address
-	Notes           string
-}
-
-type Result struct {
-	Order *domain.Order
-}
 
 type UseCase struct {
 	repo          Repository
@@ -37,7 +24,6 @@ type UseCase struct {
 	clearer       CartClearer
 	reserver      InventoryReserver
 	deductor      InventoryDeductor
-	payment       PaymentInitiator
 	coupons       CouponReserver
 	notifications NotificationEnqueuer
 	transition    TransitionApplier
@@ -52,7 +38,6 @@ type Deps struct {
 	Clearer       CartClearer
 	Reserver      InventoryReserver
 	Deductor      InventoryDeductor
-	Payment       PaymentInitiator
 	Coupons       CouponReserver
 	Notifications NotificationEnqueuer
 	Transition    TransitionApplier
@@ -68,7 +53,6 @@ func New(d Deps) *UseCase {
 		clearer:       d.Clearer,
 		reserver:      d.Reserver,
 		deductor:      d.Deductor,
-		payment:       d.Payment,
 		coupons:       d.Coupons,
 		notifications: d.Notifications,
 		transition:    d.Transition,
@@ -76,13 +60,13 @@ func New(d Deps) *UseCase {
 	}
 }
 
-//nolint:gocognit,funlen // checkout orchestrates idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction
-func (c *UseCase) Execute(
+//nolint:gocognit // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction
+func (c *UseCase) Place(
 	ctx context.Context,
 	userID uuid.UUID,
-	p Params,
+	in domain.NewOrder,
 	idempotencyKey string,
-) (*Result, error) {
+) (*domain.Order, error) {
 	existing, err := c.repo.GetByUserIDAndIdempotencyKey(ctx, userID, idempotencyKey)
 	if err != nil && !errors.Is(err, apperror.ErrNotFound) {
 		return nil, err
@@ -93,17 +77,17 @@ func (c *UseCase) Execute(
 			return nil, itemErr
 		}
 		existing.Items = items
-		return &Result{Order: existing}, nil
+		return existing, nil
 	}
 
 	order := &domain.Order{
 		UserID:          userID,
 		IdempotencyKey:  idempotencyKey,
 		Status:          domain.StatusAwaitingPayment,
-		CouponCode:      p.CouponCode,
-		ShippingAddress: p.ShippingAddress,
-		BillingAddress:  p.BillingAddress,
-		Notes:           p.Notes,
+		CouponCode:      in.CouponCode,
+		ShippingAddress: in.ShippingAddress,
+		BillingAddress:  in.BillingAddress,
+		Notes:           in.Notes,
 	}
 
 	var orderItems []domain.Item
@@ -164,8 +148,8 @@ func (c *UseCase) Execute(
 			return txErr
 		}
 
-		if c.coupons != nil && p.CouponCode != nil && *p.CouponCode != "" {
-			discount, txErr := c.coupons.Reserve(txCtx, *p.CouponCode, userID, order.ID, subtotal.Amount)
+		if c.coupons != nil && in.CouponCode != nil && *in.CouponCode != "" {
+			discount, txErr := c.coupons.Reserve(txCtx, *in.CouponCode, userID, order.ID, subtotal.Amount)
 			if txErr != nil {
 				return txErr
 			}
@@ -184,18 +168,11 @@ func (c *UseCase) Execute(
 
 	order.Items = orderItems
 
-	if order.Total.Amount > 0 {
-		if _, payErr := c.payment.InitiatePayment(ctx, paymentcontract.ChargeRequest{
-			OrderID:         order.ID,
-			Amount:          order.Total,
-			PaymentMethodID: p.PaymentMethodID,
-		}); payErr != nil {
-			c.logger.ErrorContext(ctx, "failed to initiate payment, order stays in awaiting_payment",
-				slog.String("order_id", order.ID.String()), slog.String("error", payErr.Error()))
+	if order.Total.Amount == 0 {
+		if freeErr := c.finalizeFreeOrder(ctx, order); freeErr != nil {
+			c.logger.ErrorContext(ctx, "failed to finalize zero-total order, it stays in awaiting_payment",
+				slog.String("order_id", order.ID.String()), slog.String("error", freeErr.Error()))
 		}
-	} else if freeErr := c.finalizeFreeOrder(ctx, order); freeErr != nil {
-		c.logger.ErrorContext(ctx, "failed to finalize zero-total order, it stays in awaiting_payment",
-			slog.String("order_id", order.ID.String()), slog.String("error", freeErr.Error()))
 	}
 
 	if c.notifications != nil {
@@ -204,7 +181,7 @@ func (c *UseCase) Execute(
 		}
 	}
 
-	return &Result{Order: order}, nil
+	return order, nil
 }
 
 func (c *UseCase) finalizeFreeOrder(ctx context.Context, order *domain.Order) error {

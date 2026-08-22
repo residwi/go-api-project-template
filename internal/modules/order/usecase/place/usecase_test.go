@@ -13,12 +13,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
-	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-func TestCommand_Execute(t *testing.T) {
+func TestUseCase_Place(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -54,12 +53,11 @@ func TestCommand_Execute(t *testing.T) {
 			Return(existingOrder, nil)
 		deps.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(items, nil)
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		require.NoError(t, err)
-		assert.Equal(t, orderID, resp.Order.ID)
-		assert.Len(t, resp.Order.Items, 1)
+		assert.Equal(t, orderID, resp.ID)
+		assert.Len(t, resp.Items, 1)
 	})
 
 	t.Run("idempotency check error propagates", func(t *testing.T) {
@@ -71,8 +69,7 @@ func TestCommand_Execute(t *testing.T) {
 		dbErr := errors.New("database connection error")
 		deps.repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, dbErr)
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, dbErr)
@@ -93,8 +90,7 @@ func TestCommand_Execute(t *testing.T) {
 			Items: []cartcontract.CartItem{},
 		}, nil)
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, apperror.ErrCartEmpty)
@@ -123,8 +119,7 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
@@ -143,8 +138,7 @@ func TestCommand_Execute(t *testing.T) {
 		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(nil, cartErr)
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, cartErr)
@@ -190,22 +184,17 @@ func TestCommand_Execute(t *testing.T) {
 		}).Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(nil)
-
-		deps.payment.EXPECT().
-			InitiatePayment(mock.Anything, mock.Anything).
-			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
 		deps.notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Equal(t, domain.StatusAwaitingPayment, resp.Order.Status)
-		assert.Equal(t, money.New(10000, "USD"), resp.Order.Total)
-		assert.Equal(t, money.New(10000, "USD"), resp.Order.Subtotal)
-		assert.Equal(t, money.New(0, "USD"), resp.Order.Discount)
-		assert.Len(t, resp.Order.Items, 2)
+		assert.Equal(t, domain.StatusAwaitingPayment, resp.Status)
+		assert.Equal(t, money.New(10000, "USD"), resp.Total)
+		assert.Equal(t, money.New(10000, "USD"), resp.Subtotal)
+		assert.Equal(t, money.New(0, "USD"), resp.Discount)
+		assert.Len(t, resp.Items, 2)
 	})
 
 	t.Run("success with coupon applied", func(t *testing.T) {
@@ -244,21 +233,16 @@ func TestCommand_Execute(t *testing.T) {
 			Return(int64(1000), nil)
 		deps.repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(1000), int64(4000)).Return(nil)
 		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(nil)
-
-		deps.payment.EXPECT().
-			InitiatePayment(mock.Anything, mock.Anything).
-			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
 		deps.notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
-		req := Params{PaymentMethodID: "pm_test", CouponCode: &couponCode}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{CouponCode: &couponCode}, idempotencyKey)
 
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Equal(t, money.New(5000, "USD"), resp.Order.Subtotal)
-		assert.Equal(t, money.New(1000, "USD"), resp.Order.Discount)
-		assert.Equal(t, money.New(4000, "USD"), resp.Order.Total)
-		assert.Equal(t, &couponCode, resp.Order.CouponCode)
+		assert.Equal(t, money.New(5000, "USD"), resp.Subtotal)
+		assert.Equal(t, money.New(1000, "USD"), resp.Discount)
+		assert.Equal(t, money.New(4000, "USD"), resp.Total)
+		assert.Equal(t, &couponCode, resp.CouponCode)
 	})
 
 	t.Run("mixed-currency cart is rejected", func(t *testing.T) {
@@ -291,8 +275,7 @@ func TestCommand_Execute(t *testing.T) {
 			},
 		}, nil)
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
@@ -318,8 +301,7 @@ func TestCommand_Execute(t *testing.T) {
 			Return(existingOrder, nil)
 		deps.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(nil, dbErr)
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, dbErr)
@@ -360,8 +342,7 @@ func TestCommand_Execute(t *testing.T) {
 			Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).
 			Return(int64(0), errors.New("invalid coupon"))
 
-		req := Params{PaymentMethodID: "pm_test", CouponCode: &couponCode}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{CouponCode: &couponCode}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
@@ -398,20 +379,15 @@ func TestCommand_Execute(t *testing.T) {
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(nil)
-
-		deps.payment.EXPECT().
-			InitiatePayment(mock.Anything, mock.Anything).
-			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
 		deps.notifications.EXPECT().
 			EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).
 			Return(errors.New("queue full"))
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Equal(t, domain.StatusAwaitingPayment, resp.Order.Status)
+		assert.Equal(t, domain.StatusAwaitingPayment, resp.Status)
 	})
 
 	t.Run("repo Create error propagates from transaction", func(t *testing.T) {
@@ -441,8 +417,7 @@ func TestCommand_Execute(t *testing.T) {
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
@@ -478,8 +453,7 @@ func TestCommand_Execute(t *testing.T) {
 			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(errors.New("insufficient stock"))
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
@@ -516,8 +490,7 @@ func TestCommand_Execute(t *testing.T) {
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
@@ -555,8 +528,7 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(errors.New("cache error"))
 
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
@@ -599,70 +571,24 @@ func TestCommand_Execute(t *testing.T) {
 		deps.repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(5000), int64(0)).Return(nil)
 		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
-		// Finalized directly instead of left to expire, and no payment is initiated:
-		// there is nothing to charge.
+		// Finalized directly instead of left to expire, and no payment is
+		// initiated: checkout's payment leg only ever sees an order with a
+		// nonzero total, since this branch and that one are mutually exclusive.
 		deps.transition.EXPECT().Apply(mock.Anything, mock.Anything, domain.PaidTransition).Return(nil)
 		deps.deductor.EXPECT().
 			DeductBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
-		req := Params{PaymentMethodID: "pm_test", CouponCode: &couponCode}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
+		resp, err := cmd.Place(ctx, userID, domain.NewOrder{CouponCode: &couponCode}, idempotencyKey)
 
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Equal(t, money.New(0, "USD"), resp.Order.Total)
-	})
-
-	t.Run("success with payment initiation failure logs but returns order", func(t *testing.T) {
-		t.Parallel()
-
-		cmd, deps := newTestCommand(t)
-		idempotencyKey := "idem-pay-fail"
-
-		productA := uuid.New()
-
-		deps.repo.EXPECT().
-			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
-		deps.locker.EXPECT().Lock(mock.Anything, userID).Return(nil)
-		deps.carts.EXPECT().Snapshot(mock.Anything, userID).Return(&cartcontract.Cart{
-			ID: uuid.New(),
-			Items: []cartcontract.CartItem{
-				{
-					ProductID: productA,
-					Quantity:  1,
-					Name:      "Widget A",
-					Price:     money.New(5000, "USD"),
-					Status:    "published",
-				},
-			},
-		}, nil)
-
-		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		deps.reserver.EXPECT().
-			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
-			Return(nil)
-		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
-		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(nil)
-
-		deps.payment.EXPECT().
-			InitiatePayment(mock.Anything, mock.Anything).
-			Return(paymentcontract.ChargeResult{}, errors.New("gateway down"))
-		deps.notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
-
-		req := Params{PaymentMethodID: "pm_test"}
-		resp, err := cmd.Execute(ctx, userID, req, idempotencyKey)
-
-		require.NoError(t, err)
-		require.NotNil(t, resp)
-		assert.Equal(t, domain.StatusAwaitingPayment, resp.Order.Status)
-		assert.Equal(t, money.New(5000, "USD"), resp.Order.Total)
+		assert.Equal(t, money.New(0, "USD"), resp.Total)
 	})
 }
 
-func TestCommand_Execute_RejectsWithdrawnProduct(t *testing.T) {
+func TestUseCase_Place_RejectsWithdrawnProduct(t *testing.T) {
 	t.Parallel()
 
 	cmd, deps := newTestCommand(t)
@@ -685,7 +611,7 @@ func TestCommand_Execute_RejectsWithdrawnProduct(t *testing.T) {
 		},
 	}, nil)
 
-	_, err := cmd.Execute(context.Background(), userID, Params{}, idempotencyKey)
+	_, err := cmd.Place(context.Background(), userID, domain.NewOrder{}, idempotencyKey)
 
 	require.ErrorIs(t, err, apperror.ErrBadRequest)
 	assert.Contains(t, err.Error(), "Withdrawn Widget",
@@ -695,7 +621,7 @@ func TestCommand_Execute_RejectsWithdrawnProduct(t *testing.T) {
 	deps.reserver.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
 }
 
-func TestCommand_Execute_RejectsUnavailableProduct(t *testing.T) {
+func TestUseCase_Place_RejectsUnavailableProduct(t *testing.T) {
 	t.Parallel()
 
 	cmd, deps := newTestCommand(t)
@@ -716,7 +642,7 @@ func TestCommand_Execute_RejectsUnavailableProduct(t *testing.T) {
 		},
 	}, nil)
 
-	_, err := cmd.Execute(context.Background(), userID, Params{}, idempotencyKey)
+	_, err := cmd.Place(context.Background(), userID, domain.NewOrder{}, idempotencyKey)
 	require.ErrorIs(t, err, apperror.ErrBadRequest)
 	// Direct and intentional, rather than incidental: the guard must reject
 	// before any stock is reserved, not merely happen to fail elsewhere first.
@@ -727,9 +653,9 @@ func TestCommand_Execute_RejectsUnavailableProduct(t *testing.T) {
 // response.HandleErr, so alone it would be a 500 for what is user input.
 //
 // Only Lock and Snapshot are expected. The mocks are strict, so that bare set
-// forbids ReserveBatch, Create, InitiatePayment and the coupon path -- which is
-// what proves the rejection happens in the fold, not merely eventually.
-func TestCommand_Execute_RejectsMixedCurrencyCart(t *testing.T) {
+// forbids ReserveBatch, Create and the coupon path -- which is what proves
+// the rejection happens in the fold, not merely eventually.
+func TestUseCase_Place_RejectsMixedCurrencyCart(t *testing.T) {
 	t.Parallel()
 
 	cmd, deps := newTestCommand(t)
@@ -747,7 +673,7 @@ func TestCommand_Execute_RejectsMixedCurrencyCart(t *testing.T) {
 		},
 	}, nil)
 
-	_, err := cmd.Execute(context.Background(), userID, Params{}, "idem-mixed-1")
+	_, err := cmd.Place(context.Background(), userID, domain.NewOrder{}, "idem-mixed-1")
 	require.Error(t, err)
 	require.ErrorIs(t, err, money.ErrCurrencyMismatch, "the cause must be identifiable")
 	require.ErrorIs(t, err, apperror.ErrBadRequest, "a mixed-currency cart is user input -- 400, not 500")
@@ -760,7 +686,6 @@ type testDeps struct {
 	clearer       *MockCartClearer
 	reserver      *MockInventoryReserver
 	deductor      *MockInventoryDeductor
-	payment       *MockPaymentInitiator
 	coupons       *MockCouponReserver
 	notifications *MockNotificationEnqueuer
 	transition    *MockTransitionApplier
@@ -774,7 +699,6 @@ func newTestCommand(t *testing.T) (*UseCase, testDeps) {
 		clearer:       NewMockCartClearer(t),
 		reserver:      NewMockInventoryReserver(t),
 		deductor:      NewMockInventoryDeductor(t),
-		payment:       NewMockPaymentInitiator(t),
 		coupons:       NewMockCouponReserver(t),
 		notifications: NewMockNotificationEnqueuer(t),
 		transition:    NewMockTransitionApplier(t),
@@ -788,7 +712,6 @@ func newTestCommand(t *testing.T) (*UseCase, testDeps) {
 		Clearer:       d.clearer,
 		Reserver:      d.reserver,
 		Deductor:      d.deductor,
-		Payment:       d.payment,
 		Coupons:       d.coupons,
 		Notifications: d.notifications,
 		Transition:    d.transition,

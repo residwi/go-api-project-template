@@ -12,7 +12,6 @@ import (
 
 	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
-	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/place"
 	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/retrypayment"
 	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 	"github.com/residwi/go-api-project-template/internal/money"
@@ -30,13 +29,16 @@ func TestMain(m *testing.M) {
 }
 
 // TestNew_WiresPaymentDeps proves the fan-out that a since-deleted setter
-// method used to perform now happens at construction: Place, RetryPayment and
+// method used to perform now happens at construction: RetryPayment and
 // Cancel each panic or mock-fail if order.New did not forward Deps.Payment
-// and Deps.PaymentJobs to them. Cancel's paymentCancel is nil-guarded, so a
-// dropped leg there fails silently instead of panicking -- this drives each
-// slice's own Execute far enough to reach the payment call that Deps is
-// supposed to have wired, which is what makes a dropped leg fail this test:
-// by panic for Place/RetryPayment, by an unmet mock expectation for Cancel.
+// and Deps.PaymentJobs to them. Place dropped out of this test when the
+// payment call moved to checkout -- Deps.Payment now feeds only RetryPayment,
+// with Cancel's own leg going through Deps.PaymentJobs instead. Cancel's
+// paymentCancel is nil-guarded, so a dropped leg there fails silently instead
+// of panicking -- this drives each slice's own Execute far enough to reach
+// the payment call that Deps is supposed to have wired, which is what makes a
+// dropped leg fail this test: by panic for RetryPayment, by an unmet mock
+// expectation for Cancel.
 //
 // order.New always builds real postgres adapters from Deps.Pool -- module.go
 // composes its own storage, so there is no seam to hand it a fake repository
@@ -46,7 +48,10 @@ func TestNew_WiresPaymentDeps(t *testing.T) {
 	t.Parallel()
 
 	userID := seedUser(t)
-	productID := seedProduct(t)
+	// Never read: RetryPayment and Cancel, the only slices this test now
+	// exercises, need no cart. A real product row would only feed Place's
+	// cart snapshot, which moved out of this test with the payment leg.
+	productID := uuid.New()
 	retryOrderID := seedOrder(t, userID)
 	cancelOrderID := seedOrder(t, userID)
 
@@ -73,19 +78,11 @@ func TestNew_WiresPaymentDeps(t *testing.T) {
 	ctx := context.Background()
 
 	payment.EXPECT().
-		InitiatePayment(mock.Anything, mock.MatchedBy(func(r paymentcontract.ChargeRequest) bool {
-			return r.PaymentMethodID == "pm_fanout_place"
-		})).
-		Return(paymentcontract.ChargeResult{}, nil)
-	_, err := m.Place.Execute(ctx, userID, place.Params{PaymentMethodID: "pm_fanout_place"}, "idem-fanout-place")
-	require.NoError(t, err, "Place's payment leg must be wired by order.New")
-
-	payment.EXPECT().
-		InitiatePayment(mock.Anything, mock.MatchedBy(func(r paymentcontract.ChargeRequest) bool {
+		Charge(mock.Anything, mock.MatchedBy(func(r paymentcontract.ChargeRequest) bool {
 			return r.OrderID == retryOrderID
 		})).
 		Return(paymentcontract.ChargeResult{}, nil)
-	_, err = m.RetryPayment.Execute(ctx, userID, retryOrderID, retrypayment.Params{PaymentMethodID: "pm_fanout_retry"})
+	_, err := m.RetryPayment.Execute(ctx, userID, retryOrderID, retrypayment.Params{PaymentMethodID: "pm_fanout_retry"})
 	require.NoError(t, err, "RetryPayment's payment leg must be wired by order.New")
 
 	paymentJobs.EXPECT().CancelPendingByOrderID(mock.Anything, cancelOrderID).Return(nil)
@@ -133,19 +130,6 @@ func (fanOutNotifications) EnqueueOrderPlaced(context.Context, uuid.UUID, uuid.U
 func seedUser(t *testing.T) uuid.UUID {
 	t.Helper()
 	return testhelper.SeedUser(t, testPool)
-}
-
-func seedProduct(t *testing.T) uuid.UUID {
-	t.Helper()
-	id := uuid.New()
-	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO products (id, name, slug, description, price, currency)
-		 VALUES ($1, 'Product', $2, 'desc', 1000, 'USD')`,
-		id, "slug-"+id.String(),
-	)
-	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
-	return id
 }
 
 // seedOrder seeds an order in awaiting_payment: fresh for RetryPayment and

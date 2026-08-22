@@ -54,7 +54,7 @@ func New(
 	}
 }
 
-func (c *UseCase) InitiatePayment(ctx context.Context, req contract.ChargeRequest) (contract.ChargeResult, error) {
+func (c *UseCase) Charge(ctx context.Context, req contract.ChargeRequest) (contract.ChargeResult, error) {
 	existing, err := c.repo.GetActiveByOrderID(ctx, req.OrderID)
 	if err != nil && !errors.Is(err, apperror.ErrNotFound) {
 		return contract.ChargeResult{}, err

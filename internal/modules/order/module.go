@@ -81,7 +81,7 @@ type NotificationEnqueuer interface {
 }
 
 type PaymentInitiator interface {
-	InitiatePayment(ctx context.Context, p paymentcontract.ChargeRequest) (paymentcontract.ChargeResult, error)
+	Charge(ctx context.Context, p paymentcontract.ChargeRequest) (paymentcontract.ChargeResult, error)
 }
 
 type PaymentJobCanceller interface {
@@ -111,7 +111,6 @@ func New(d Deps) *Module {
 			Clearer:       d.CartClear,
 			Reserver:      d.InventoryReserve,
 			Deductor:      d.InventoryDeduct,
-			Payment:       d.Payment,
 			Coupons:       d.Promotions,
 			Notifications: d.Notifications,
 			Transition:    transitionApplier,

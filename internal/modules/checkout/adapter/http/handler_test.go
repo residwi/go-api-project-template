@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
+	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
@@ -107,7 +107,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		mux, usecase := setupMux(t)
 
 		userID := uuid.New()
-		usecase.EXPECT().Execute(mock.Anything, userID, mock.Anything, mock.AnythingOfType("string")).
+		usecase.EXPECT().PlaceOrder(mock.Anything, userID, mock.Anything).
 			Return(nil, errors.New("database connection error"))
 
 		w := httptest.NewRecorder()
@@ -130,7 +130,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		mux, usecase := setupMux(t)
 
 		userID := uuid.New()
-		usecase.EXPECT().Execute(mock.Anything, userID, mock.Anything, mock.AnythingOfType("string")).
+		usecase.EXPECT().PlaceOrder(mock.Anything, userID, mock.Anything).
 			Return(nil, errors.Join(apperror.ErrBadRequest, errors.New("cart contains mixed currencies")))
 
 		w := httptest.NewRecorder()
@@ -153,7 +153,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 func TestAddressResponse_JSONRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	got := toAddressResponse(&domain.Address{
+	got := toAddressResponse(&orderdomain.Address{
 		Street:  "123 Main St",
 		City:    "Springfield",
 		State:   "IL",
@@ -184,18 +184,18 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 	orderID := uuid.New()
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	got := toOrderResponse(&domain.Order{
+	got := toOrderResponse(&orderdomain.Order{
 		ID:             orderID,
 		UserID:         uuid.New(),
 		IdempotencyKey: "idem-key-1",
 		RequestHash:    "distinguishable-request-hash",
-		Status:         domain.StatusPaid,
+		Status:         orderdomain.StatusPaid,
 		Subtotal:       money.New(1000, "USD"),
 		Discount:       money.New(0, "USD"),
 		Total:          money.New(1000, "USD"),
 		StockDeducted:  true,
 		StockReversed:  true,
-		Items: []domain.Item{
+		Items: []orderdomain.Item{
 			{
 				ID:          uuid.New(),
 				OrderID:     orderID,
@@ -241,7 +241,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockOrderPlacer) {
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("POST /orders", New(usecase, v).Place)
+	authed.HandleFunc("POST /orders", NewHandler(usecase, v).Place)
 
 	return mux, usecase
 }

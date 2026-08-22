@@ -7,5 +7,5 @@ import (
 )
 
 type PaymentInitiator interface {
-	InitiatePayment(ctx context.Context, p paymentcontract.ChargeRequest) (paymentcontract.ChargeResult, error)
+	Charge(ctx context.Context, p paymentcontract.ChargeRequest) (paymentcontract.ChargeResult, error)
 }

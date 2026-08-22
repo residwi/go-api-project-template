@@ -43,7 +43,7 @@ func TestCommand_Execute(t *testing.T) {
 			PaymentURL: "https://pay.example.com/checkout",
 			Charged:    false,
 		}
-		payment.EXPECT().InitiatePayment(mock.Anything, paymentcontract.ChargeRequest{
+		payment.EXPECT().Charge(mock.Anything, paymentcontract.ChargeRequest{
 			OrderID:         orderID,
 			Amount:          money.New(5000, "USD"),
 			PaymentMethodID: paymentMethodID,
@@ -141,7 +141,7 @@ func TestCommand_Execute(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
 
 		paymentErr := errors.New("payment gateway error")
-		payment.EXPECT().InitiatePayment(mock.Anything, mock.Anything).
+		payment.EXPECT().Charge(mock.Anything, mock.Anything).
 			Return(paymentcontract.ChargeResult{}, paymentErr)
 
 		result, err := cmd.Execute(ctx, userID, orderID, Params{PaymentMethodID: paymentMethodID})
@@ -168,7 +168,7 @@ func TestCommandExecuteUsesPaymentContract(t *testing.T) {
 		Total:  money.New(7500, "IDR"),
 	}, nil)
 
-	payment.EXPECT().InitiatePayment(mock.Anything, paymentcontract.ChargeRequest{
+	payment.EXPECT().Charge(mock.Anything, paymentcontract.ChargeRequest{
 		OrderID:         orderID,
 		Amount:          money.New(7500, "IDR"),
 		PaymentMethodID: "card",

@@ -37,7 +37,7 @@ func (c *UseCase) Execute(ctx context.Context, userID, orderID uuid.UUID, p Para
 		return nil, apperror.ErrOrderNotPayable
 	}
 
-	result, err := c.payment.InitiatePayment(ctx, paymentcontract.ChargeRequest{
+	result, err := c.payment.Charge(ctx, paymentcontract.ChargeRequest{
 		OrderID:         order.ID,
 		Amount:          order.Total,
 		PaymentMethodID: p.PaymentMethodID,

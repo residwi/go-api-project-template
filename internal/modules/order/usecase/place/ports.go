@@ -7,7 +7,6 @@ import (
 
 	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
-	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
 )
 
 type CartLocker interface {
@@ -28,10 +27,6 @@ type InventoryReserver interface {
 
 type InventoryDeductor interface {
 	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
-}
-
-type PaymentInitiator interface {
-	InitiatePayment(ctx context.Context, p paymentcontract.ChargeRequest) (paymentcontract.ChargeResult, error)
 }
 
 type CouponReserver interface {

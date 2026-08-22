@@ -19,7 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-func TestCommand_InitiatePayment(t *testing.T) {
+func TestCommand_Charge(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -88,7 +88,7 @@ func TestCommand_InitiatePayment(t *testing.T) {
 		jobs.EXPECT().MarkJobCompleted(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil)
 
-		result, err := cmd.InitiatePayment(ctx, params)
+		result, err := cmd.Charge(ctx, params)
 
 		require.NoError(t, err)
 		require.NotNil(t, capturedPayment)
@@ -153,7 +153,7 @@ func TestCommand_InitiatePayment(t *testing.T) {
 		jobs.EXPECT().MarkJobCompleted(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil)
 
-		result, err := cmd.InitiatePayment(ctx, params)
+		result, err := cmd.Charge(ctx, params)
 
 		require.NoError(t, err)
 		assert.Equal(t, existingID, result.PaymentID)
@@ -190,7 +190,7 @@ func TestCommand_InitiatePayment(t *testing.T) {
 			UpdatePaymentURL(mock.Anything, mock.AnythingOfType("uuid.UUID"), "https://pay.example.com/redirect").
 			Return(nil)
 
-		result, err := cmd.InitiatePayment(ctx, params)
+		result, err := cmd.Charge(ctx, params)
 
 		require.NoError(t, err)
 		assert.Equal(t, createdID, result.PaymentID)
@@ -221,7 +221,7 @@ func TestCommand_InitiatePayment(t *testing.T) {
 		repo.EXPECT().UpdateGateway(mock.Anything, mock.AnythingOfType("uuid.UUID"), "txn_no_url", mock.Anything).
 			Return(nil)
 
-		result, err := cmd.InitiatePayment(ctx, params)
+		result, err := cmd.Charge(ctx, params)
 
 		require.NoError(t, err)
 		assert.False(t, result.Charged)
@@ -247,7 +247,7 @@ func TestCommand_InitiatePayment(t *testing.T) {
 		gw.EXPECT().Charge(mock.Anything, mock.Anything).
 			Return(gateway.ChargeResponse{}, errors.New("gateway timeout"))
 
-		result, err := cmd.InitiatePayment(ctx, params)
+		result, err := cmd.Charge(ctx, params)
 
 		require.Error(t, err)
 		require.ErrorContains(t, err, "gateway charge")
@@ -263,7 +263,7 @@ func TestCommand_InitiatePayment(t *testing.T) {
 		repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
 			Return(nil, errors.New("db error"))
 
-		_, err := cmd.InitiatePayment(ctx, params)
+		_, err := cmd.Charge(ctx, params)
 
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "db error")
@@ -280,14 +280,14 @@ func TestCommand_InitiatePayment(t *testing.T) {
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
 			Return(errors.New("insert failed"))
 
-		_, err := cmd.InitiatePayment(ctx, params)
+		_, err := cmd.Charge(ctx, params)
 
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "insert failed")
 	})
 }
 
-func TestCommand_InitiatePayment_UpdateGatewayError(t *testing.T) {
+func TestCommand_Charge_UpdateGatewayError(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -350,7 +350,7 @@ func TestCommand_InitiatePayment_UpdateGatewayError(t *testing.T) {
 		jobs.EXPECT().MarkJobCompleted(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil)
 
-		result, err := cmd.InitiatePayment(ctx, params)
+		result, err := cmd.Charge(ctx, params)
 
 		require.NoError(t, err)
 		assert.True(t, result.Charged)
@@ -384,7 +384,7 @@ func TestCommand_InitiatePayment_UpdateGatewayError(t *testing.T) {
 			UpdatePaymentURL(mock.Anything, mock.AnythingOfType("uuid.UUID"), "https://pay.example.com/url-err").
 			Return(errors.New("url update failed"))
 
-		result, err := cmd.InitiatePayment(ctx, params)
+		result, err := cmd.Charge(ctx, params)
 
 		require.NoError(t, err)
 		assert.False(t, result.Charged)

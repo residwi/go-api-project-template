@@ -9,6 +9,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/category"
+	"github.com/residwi/go-api-project-template/internal/modules/checkout"
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
@@ -49,6 +50,7 @@ type App struct {
 	Carts         *cart.Module
 	Orders        *order.Module
 	Payments      *payment.Module
+	Checkout      *checkout.Service
 	Shipping      *shipping.Module
 	Reviews       *review.Module
 	Promotions    *promotion.Module
@@ -105,6 +107,12 @@ func New(d Deps) (*App, error) {
 		PaymentJobs:      paymentMod.Jobs,
 	})
 
+	checkoutSvc := checkout.New(checkout.Deps{
+		Orders:   ordMod.Place,
+		Payments: paymentMod.Charge,
+		Logger:   d.Logger,
+	})
+
 	shippingMod := shipping.New(shipping.Deps{
 		Pool: d.Pool, Tx: txRunner,
 		OrderRead:        ordMod.Query,
@@ -121,6 +129,7 @@ func New(d Deps) (*App, error) {
 		Carts:         cartMod,
 		Orders:        ordMod,
 		Payments:      paymentMod,
+		Checkout:      checkoutSvc,
 		Shipping:      shippingMod,
 		Reviews:       reviewMod,
 		Promotions:    promotionMod,

@@ -820,12 +820,12 @@ func (_m *MockPaymentInitiator) EXPECT() *MockPaymentInitiator_Expecter {
 	return &MockPaymentInitiator_Expecter{mock: &_m.Mock}
 }
 
-// InitiatePayment provides a mock function for the type MockPaymentInitiator
-func (_mock *MockPaymentInitiator) InitiatePayment(ctx context.Context, p contract1.ChargeRequest) (contract1.ChargeResult, error) {
+// Charge provides a mock function for the type MockPaymentInitiator
+func (_mock *MockPaymentInitiator) Charge(ctx context.Context, p contract1.ChargeRequest) (contract1.ChargeResult, error) {
 	ret := _mock.Called(ctx, p)
 
 	if len(ret) == 0 {
-		panic("no return value specified for InitiatePayment")
+		panic("no return value specified for Charge")
 	}
 
 	var r0 contract1.ChargeResult
@@ -846,19 +846,19 @@ func (_mock *MockPaymentInitiator) InitiatePayment(ctx context.Context, p contra
 	return r0, r1
 }
 
-// MockPaymentInitiator_InitiatePayment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InitiatePayment'
-type MockPaymentInitiator_InitiatePayment_Call struct {
+// MockPaymentInitiator_Charge_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Charge'
+type MockPaymentInitiator_Charge_Call struct {
 	*mock.Call
 }
 
-// InitiatePayment is a helper method to define mock.On call
+// Charge is a helper method to define mock.On call
 //   - ctx context.Context
 //   - p contract1.ChargeRequest
-func (_e *MockPaymentInitiator_Expecter) InitiatePayment(ctx any, p any) *MockPaymentInitiator_InitiatePayment_Call {
-	return &MockPaymentInitiator_InitiatePayment_Call{Call: _e.mock.On("InitiatePayment", ctx, p)}
+func (_e *MockPaymentInitiator_Expecter) Charge(ctx any, p any) *MockPaymentInitiator_Charge_Call {
+	return &MockPaymentInitiator_Charge_Call{Call: _e.mock.On("Charge", ctx, p)}
 }
 
-func (_c *MockPaymentInitiator_InitiatePayment_Call) Run(run func(ctx context.Context, p contract1.ChargeRequest)) *MockPaymentInitiator_InitiatePayment_Call {
+func (_c *MockPaymentInitiator_Charge_Call) Run(run func(ctx context.Context, p contract1.ChargeRequest)) *MockPaymentInitiator_Charge_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -876,12 +876,12 @@ func (_c *MockPaymentInitiator_InitiatePayment_Call) Run(run func(ctx context.Co
 	return _c
 }
 
-func (_c *MockPaymentInitiator_InitiatePayment_Call) Return(chargeResult contract1.ChargeResult, err error) *MockPaymentInitiator_InitiatePayment_Call {
+func (_c *MockPaymentInitiator_Charge_Call) Return(chargeResult contract1.ChargeResult, err error) *MockPaymentInitiator_Charge_Call {
 	_c.Call.Return(chargeResult, err)
 	return _c
 }
 
-func (_c *MockPaymentInitiator_InitiatePayment_Call) RunAndReturn(run func(ctx context.Context, p contract1.ChargeRequest) (contract1.ChargeResult, error)) *MockPaymentInitiator_InitiatePayment_Call {
+func (_c *MockPaymentInitiator_Charge_Call) RunAndReturn(run func(ctx context.Context, p contract1.ChargeRequest) (contract1.ChargeResult, error)) *MockPaymentInitiator_Charge_Call {
 	_c.Call.Return(run)
 	return _c
 }

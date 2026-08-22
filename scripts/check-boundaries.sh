@@ -51,7 +51,16 @@ MODULES_ROOT='internal/modules'
 # Only these are exempt from check 4 as importers. This one stays a list because
 # it is a genuine permission grant, not a classification: it should be short, and
 # adding to it should be a visible, argued diff.
-WIRING_DIRS='bootstrap transport'
+#
+# checkout is the one feature module on this list: it orchestrates order and
+# payment and is built to the post-refactor rules, where a module root is
+# importable, so it is the only feature module allowed to import another
+# module's domain. Held as a full path rather than a bare name because it
+# lives one level deeper than bootstrap and transport
+# (internal/modules/checkout, not internal/checkout) -- both loops in
+# importer_roots below pass is_wiring the same full path they would otherwise
+# print, so a name at either depth works the same way.
+WIRING_DIRS='internal/bootstrap internal/transport internal/modules/checkout'
 
 is_wiring() {
 	case " $WIRING_DIRS " in
@@ -122,11 +131,12 @@ importer_roots() {
 	for dir in internal/*/; do
 		name="$(basename "$dir")"
 		[ "internal/$name" = "$MODULES_ROOT" ] && continue
-		is_wiring "$name" && continue
+		is_wiring "internal/$name" && continue
 		printf '%s\n' "internal/$name"
 	done
 	for dir in "$MODULES_ROOT"/*/; do
 		[ -d "$dir" ] || continue
+		is_wiring "${dir%/}" && continue
 		printf '%s\n' "${dir%/}"
 	done
 	for file in "$MODULES_ROOT"/*.go; do
@@ -159,6 +169,12 @@ importer_roots() {
 #                       predicate for "is this path the exempt location", used
 #                       by both the walk and its filter, so the two cannot drift
 #                       apart the way a glob and a prose description can.
+#   internal/modules/<feature>/adapter/http/*.go
+#                       the same role, one level up, for a module built in the
+#                       post-refactor target shape instead of sliced --
+#                       checkout is the first. It has no usecase/<slice>/ tree
+#                       for the pattern above to match, so `is_slice_http`
+#                       checks this shape too.
 #   *_test.go           tests may build wire payloads inline
 #   internal/platform/  transport infrastructure; internal/platform/config/ is
 #                       envconfig, not a domain model (no json tags today, but
@@ -206,13 +222,17 @@ is_json_tag_allowlisted() {
 	printf '%s\n' "$JSON_TAG_ALLOWLIST" | grep -qxF -- "$1"
 }
 
-# is_slice_http is true only for a slice's own http adapter --
-# internal/modules/<feature>/usecase/<slice>/http/*.go. A path short of that
-# pattern (internal/modules/<feature>/http/*.go) correctly returns false: no
-# such directory exists any more, and nothing may recreate one to hold a DTO.
+# is_slice_http is true for a slice's own http adapter --
+# internal/modules/<feature>/usecase/<slice>/http/*.go -- or, for a module
+# built in the post-refactor target shape instead of sliced (checkout is the
+# first), its module-root equivalent: internal/modules/<feature>/adapter/http/*.go.
+# A path short of either pattern (internal/modules/<feature>/http/*.go)
+# correctly returns false: no such directory exists any more, and nothing may
+# recreate one to hold a DTO.
 is_slice_http() {
 	case "$1" in
 	"$MODULES_ROOT"/*/usecase/*/http/*.go) return 0 ;;
+	"$MODULES_ROOT"/*/adapter/http/*.go) return 0 ;;
 	esac
 	return 1
 }
@@ -866,16 +886,22 @@ check_sibling_slice_imports() {
 		# down: a usecase/*/ glob that matches nothing yields no iterations, no
 		# report, and this feature passes the same as one with no sibling-slice
 		# violation. Renaming or removing $feature/usecase is not a legitimate
-		# state -- every feature has one -- so it is reported rather than
-		# silently skipped.
-		[ -d "$MODULES_ROOT/$feature/usecase" ] || {
+		# state for a sliced feature -- every one of them has one -- so it is
+		# reported rather than silently skipped, UNLESS the feature has an
+		# adapter/ directory instead: that is the post-refactor target shape
+		# (checkout is the first), which has no usecase/ tree at all by design
+		# and so no sibling slices for this check to compare in the first place.
+		if [ ! -d "$MODULES_ROOT/$feature/usecase" ]; then
+			[ -d "$MODULES_ROOT/$feature/adapter" ] && continue
 			report "feature '$feature' has no usecase/ directory: $MODULES_ROOT/$feature/usecase
-    Every feature keeps its slices there; check_sibling_slice_imports globs
+    Every sliced feature keeps its slices there; check_sibling_slice_imports globs
     ${MODULES_ROOT}/${feature}/usecase/*/ to find them; a moved or renamed
     usecase/ makes that glob match nothing, which this check cannot tell
-    apart from a feature with no sibling-slice violation."
+    apart from a feature with no sibling-slice violation. A feature built in
+    the target shape instead (adapter/ present) is not this case -- it is
+    exempted above."
 			continue
-		}
+		fi
 
 		for dir in "$MODULES_ROOT/$feature"/usecase/*/; do
 			[ -d "$dir" ] || continue
@@ -993,13 +1019,17 @@ check_transport_direction() {
 			[ -f "$file" ] || continue
 
 			# A slice's own http adapter
-			# (internal/modules/<feature>/usecase/<slice>/http/) is the one
-			# legitimate importer -- it speaks HTTP by design. The feature route
-			# tables that used to be the second one are gone: every URL now lives
-			# in internal/transport/http/routes/, so no file under a module names
-			# a route or needs middleware.RouteGroup.
+			# (internal/modules/<feature>/usecase/<slice>/http/) is one
+			# legitimate importer -- it speaks HTTP by design. A module built in
+			# the post-refactor target shape instead of sliced (checkout is the
+			# first) plays the same adapter role at its module root instead:
+			# internal/modules/<feature>/adapter/http/. The feature route tables
+			# that used to be a third exemption are gone: every URL now lives in
+			# internal/transport/http/routes/, so no file under a module names a
+			# route or needs middleware.RouteGroup.
 			case "$file" in
 			"$MODULES_ROOT/$feature"/usecase/*/http/*.go) continue ;;
+			"$MODULES_ROOT/$feature"/adapter/http/*.go) continue ;;
 			esac
 
 			# A status-checked assignment, not `done < <(grep ...)` -- the shape

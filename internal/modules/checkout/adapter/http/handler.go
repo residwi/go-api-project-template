@@ -7,24 +7,28 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
-	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/place"
+	"github.com/residwi/go-api-project-template/internal/modules/checkout"
+	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
 type OrderPlacer interface {
-	Execute(ctx context.Context, userID uuid.UUID, p place.Params, idempotencyKey string) (*place.Result, error)
+	PlaceOrder(
+		ctx context.Context,
+		userID uuid.UUID,
+		in checkout.PlaceOrderInput,
+	) (*orderdomain.Order, error)
 }
 
 type Handler struct {
-	usecase   OrderPlacer
+	service   OrderPlacer
 	validator *validator.Validator
 }
 
-func New(usecase OrderPlacer, v *validator.Validator) *Handler {
-	return &Handler{usecase: usecase, validator: v}
+func NewHandler(service OrderPlacer, v *validator.Validator) *Handler {
+	return &Handler{service: service, validator: v}
 }
 
 type addressResponse struct {
@@ -35,7 +39,7 @@ type addressResponse struct {
 	Country string `json:"country"`
 }
 
-func toAddressResponse(a *domain.Address) *addressResponse {
+func toAddressResponse(a *orderdomain.Address) *addressResponse {
 	if a == nil {
 		return nil
 	}
@@ -58,7 +62,7 @@ type orderItemResponse struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
-func toOrderItemResponse(i domain.Item) orderItemResponse {
+func toOrderItemResponse(i orderdomain.Item) orderItemResponse {
 	return orderItemResponse{
 		ID:          i.ID,
 		ProductID:   i.ProductID,
@@ -73,7 +77,7 @@ func toOrderItemResponse(i domain.Item) orderItemResponse {
 type orderResponse struct {
 	ID              uuid.UUID           `json:"id"`
 	UserID          uuid.UUID           `json:"user_id"`
-	Status          domain.Status       `json:"status"`
+	Status          orderdomain.Status  `json:"status"`
 	SubtotalAmount  int64               `json:"subtotal_amount"`
 	DiscountAmount  int64               `json:"discount_amount"`
 	TotalAmount     int64               `json:"total_amount"`
@@ -87,7 +91,7 @@ type orderResponse struct {
 	UpdatedAt       time.Time           `json:"updated_at"`
 }
 
-func toOrderResponse(o *domain.Order) orderResponse {
+func toOrderResponse(o *orderdomain.Order) orderResponse {
 	items := make([]orderItemResponse, len(o.Items))
 	for i, it := range o.Items {
 		items[i] = toOrderItemResponse(it)
@@ -119,11 +123,11 @@ type addressRequest struct {
 	Country string `json:"country"`
 }
 
-func (r *addressRequest) toAddress() *domain.Address {
+func (r *addressRequest) toAddress() *orderdomain.Address {
 	if r == nil {
 		return nil
 	}
-	return &domain.Address{
+	return &orderdomain.Address{
 		Street:  r.Street,
 		City:    r.City,
 		State:   r.State,
@@ -140,9 +144,8 @@ type placeOrderRequest struct {
 	Notes           string          `json:"notes,omitempty"`
 }
 
-func (r placeOrderRequest) toParams() place.Params {
-	return place.Params{
-		PaymentMethodID: r.PaymentMethodID,
+func (r placeOrderRequest) toOrder() orderdomain.NewOrder {
+	return orderdomain.NewOrder{
 		CouponCode:      r.CouponCode,
 		ShippingAddress: r.ShippingAddress.toAddress(),
 		BillingAddress:  r.BillingAddress.toAddress(),
@@ -154,8 +157,8 @@ type placeOrderResponse struct {
 	Order orderResponse `json:"order"`
 }
 
-func toPlaceOrderResponse(r *place.Result) placeOrderResponse {
-	return placeOrderResponse{Order: toOrderResponse(r.Order)}
+func toPlaceOrderResponse(o *orderdomain.Order) placeOrderResponse {
+	return placeOrderResponse{Order: toOrderResponse(o)}
 }
 
 func (h *Handler) Place(w http.ResponseWriter, r *http.Request) {
@@ -175,11 +178,17 @@ func (h *Handler) Place(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.usecase.Execute(r.Context(), uc.UserID, req.toParams(), idempotencyKey)
+	in := checkout.PlaceOrderInput{
+		Order:           req.toOrder(),
+		PaymentMethodID: req.PaymentMethodID,
+		IdempotencyKey:  idempotencyKey,
+	}
+
+	order, err := h.service.PlaceOrder(r.Context(), uc.UserID, in)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
 	}
 
-	response.Created(w, toPlaceOrderResponse(result))
+	response.Created(w, toPlaceOrderResponse(order))
 }

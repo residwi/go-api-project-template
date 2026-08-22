@@ -6,7 +6,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	cancelhttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel/http"
 	changestatushttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/changestatus/http"
-	placehttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/place/http"
 	queryhttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/query/http"
 	retrypaymenthttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/retrypayment/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
@@ -19,9 +18,6 @@ func Order(
 	v *validator.Validator,
 	writeLimiter middleware.Middleware,
 ) {
-	place := placehttp.New(m.Place, v)
-	authed.Handle("POST /orders", writeLimiter(http.HandlerFunc(place.Place)))
-
 	retry := retrypaymenthttp.New(m.RetryPayment, v)
 	authed.Handle("POST /orders/{id}/pay", writeLimiter(http.HandlerFunc(retry.Retry)))
 
