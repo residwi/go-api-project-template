@@ -5,14 +5,14 @@ import (
 
 	"github.com/google/uuid"
 
-	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/user"
 )
 
 // UserDirectory is everything auth asks user for: it owns no store of its
 // own, so login, registration and refresh all read and write through this
-// one port instead. Satisfied by user's credentials use case by name-match.
+// one port instead. Satisfied by user's Service by name-match.
 type UserDirectory interface {
-	GetByEmail(ctx context.Context, email string) (usercontract.Credentials, error)
-	Create(ctx context.Context, p usercontract.NewUser) (usercontract.User, error)
-	GetByID(ctx context.Context, id uuid.UUID) (usercontract.User, error)
+	GetByEmail(ctx context.Context, email string) (user.Credentials, error)
+	Create(ctx context.Context, p user.NewUser) (user.Profile, error)
+	GetByID(ctx context.Context, id uuid.UUID) (user.Profile, error)
 }

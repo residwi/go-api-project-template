@@ -12,7 +12,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
-	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/user"
 )
 
 // dummyPassword is hashed once per cost to give the unknown-email login path
@@ -76,7 +76,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*domain.To
 		return nil, apperror.ErrInvalidCredentials
 	}
 
-	return s.BuildTokenPair(usercontract.User{
+	return s.BuildTokenPair(user.Profile{
 		ID:           creds.ID,
 		Email:        creds.Email,
 		FirstName:    creds.FirstName,
@@ -100,7 +100,7 @@ func (s *Service) Register(
 		return nil, fmt.Errorf("hashing password: %w", err)
 	}
 
-	user, err := s.users.Create(ctx, usercontract.NewUser{
+	user, err := s.users.Create(ctx, user.NewUser{
 		Email:        email,
 		PasswordHash: string(hash),
 		FirstName:    firstName,
@@ -143,7 +143,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (*domain.Tok
 // slice: other code binds to them by name-match (middleware.Auth's
 // TokenValidator port, satisfied by *Service directly now that token no
 // longer lives behind a separate cross-slice port).
-func (s *Service) BuildTokenPair(user usercontract.User) (*domain.TokenPair, error) {
+func (s *Service) BuildTokenPair(user user.Profile) (*domain.TokenPair, error) {
 	claims := domain.Claims{
 		UserID:       user.ID,
 		Email:        user.Email,

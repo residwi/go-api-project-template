@@ -16,7 +16,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
-	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -34,7 +34,7 @@ func TestHandler_Login(t *testing.T) {
 			AccessToken:  "access-token",
 			RefreshToken: "refresh-token",
 			ExpiresIn:    900,
-			User:         usercontract.User{Email: "test@example.com"},
+			User:         user.Profile{Email: "test@example.com"},
 		}, nil)
 
 		body, _ := json.Marshal(map[string]any{
@@ -144,7 +144,7 @@ func TestHandler_Register(t *testing.T) {
 				AccessToken:  "access-token",
 				RefreshToken: "refresh-token",
 				ExpiresIn:    900,
-				User: usercontract.User{
+				User: user.Profile{
 					ID:        userID,
 					Email:     "test@example.com",
 					FirstName: "John",
@@ -275,7 +275,7 @@ func TestHandler_Refresh(t *testing.T) {
 			AccessToken:  "new-access-token",
 			RefreshToken: "new-refresh-token",
 			ExpiresIn:    900,
-			User:         usercontract.User{Email: "test@example.com"},
+			User:         user.Profile{Email: "test@example.com"},
 		}, nil)
 
 		body, _ := json.Marshal(map[string]any{"refresh_token": "a-refresh-token"})
@@ -374,7 +374,7 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 		AccessToken:  "access-token-value",
 		RefreshToken: "refresh-token-value",
 		ExpiresIn:    900,
-		User: usercontract.User{
+		User: user.Profile{
 			ID:           userID,
 			Email:        "user@example.com",
 			FirstName:    "John",

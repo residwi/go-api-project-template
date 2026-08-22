@@ -3,7 +3,7 @@ package domain
 import (
 	"github.com/google/uuid"
 
-	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/user"
 )
 
 type Claims struct {
@@ -18,5 +18,5 @@ type TokenPair struct {
 	AccessToken  string
 	RefreshToken string
 	ExpiresIn    int
-	User         usercontract.User
+	User         user.Profile
 }

@@ -80,8 +80,7 @@ The consumer is now a slice, or the module composing several of them.
 `internal/modules/payment/usecase/webhook/ports.go` declares `OrderUpdater`
 — the interface `webhook` alone needs from order. `order` does not
 publish it; `webhook` names exactly what it needs and something else
-satisfies it. `internal/modules/user/usecase/remove/ports.go` does the
-same for `StatusInvalidator`, one dependency, one slice. `order/module.go` is the
+satisfies it. `order/module.go` is the
 other shape: `place`, `cancel` and `expire` all need inventory, so
 `order`'s port lives in `module.go` instead, as one interface plus one
 `Deps` field every slice that needs it shares — grouping at the module
@@ -212,10 +211,10 @@ identical mocks.
 
 **One port per backing store:** `TxRunner` narrows what service holds for
 _atomicity_; says nothing about how many stores feature talks to, and
-nothing stops that number being more than one. `user/usecase/query` the one
-slice where it is: `query.Repository` its Postgres port, adapted by
-`postgres/`, and `query.StatusCache` second, independent port over Redis,
-adapted by `redis/`. Rule generalises same way decision 3's
+nothing stops that number being more than one. `user` is the one module
+where it is: `user.Repository` its Postgres port, adapted by
+`adapter/postgres/`, and `user.StatusCache` second, independent port over
+Redis, adapted by `adapter/redis/`. Rule generalises same way decision 3's
 subpackage-per-technology split does — one port per backing store
 (`repository.go`, `cache.go`), one adapter subpackage per port —
 rather than widening `Repository` to also cover caching, which would have coupled two

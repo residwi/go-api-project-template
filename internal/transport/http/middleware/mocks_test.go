@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	"github.com/residwi/go-api-project-template/internal/modules/user/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/user"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -41,22 +41,22 @@ func (_m *MockUserStatusChecker) EXPECT() *MockUserStatusChecker_Expecter {
 }
 
 // CheckStatus provides a mock function for the type MockUserStatusChecker
-func (_mock *MockUserStatusChecker) CheckStatus(ctx context.Context, userID uuid.UUID) (contract.AccountStatus, error) {
+func (_mock *MockUserStatusChecker) CheckStatus(ctx context.Context, userID uuid.UUID) (user.AccountStatus, error) {
 	ret := _mock.Called(ctx, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CheckStatus")
 	}
 
-	var r0 contract.AccountStatus
+	var r0 user.AccountStatus
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (contract.AccountStatus, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (user.AccountStatus, error)); ok {
 		return returnFunc(ctx, userID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) contract.AccountStatus); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) user.AccountStatus); ok {
 		r0 = returnFunc(ctx, userID)
 	} else {
-		r0 = ret.Get(0).(contract.AccountStatus)
+		r0 = ret.Get(0).(user.AccountStatus)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, userID)
@@ -96,12 +96,12 @@ func (_c *MockUserStatusChecker_CheckStatus_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockUserStatusChecker_CheckStatus_Call) Return(accountStatus contract.AccountStatus, err error) *MockUserStatusChecker_CheckStatus_Call {
+func (_c *MockUserStatusChecker_CheckStatus_Call) Return(accountStatus user.AccountStatus, err error) *MockUserStatusChecker_CheckStatus_Call {
 	_c.Call.Return(accountStatus, err)
 	return _c
 }
 
-func (_c *MockUserStatusChecker_CheckStatus_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (contract.AccountStatus, error)) *MockUserStatusChecker_CheckStatus_Call {
+func (_c *MockUserStatusChecker_CheckStatus_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (user.AccountStatus, error)) *MockUserStatusChecker_CheckStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/modules/user/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/user"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -40,24 +40,24 @@ func (_m *MockUserDirectory) EXPECT() *MockUserDirectory_Expecter {
 }
 
 // Create provides a mock function for the type MockUserDirectory
-func (_mock *MockUserDirectory) Create(ctx context.Context, p contract.NewUser) (contract.User, error) {
+func (_mock *MockUserDirectory) Create(ctx context.Context, p user.NewUser) (user.Profile, error) {
 	ret := _mock.Called(ctx, p)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
-	var r0 contract.User
+	var r0 user.Profile
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, contract.NewUser) (contract.User, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, user.NewUser) (user.Profile, error)); ok {
 		return returnFunc(ctx, p)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, contract.NewUser) contract.User); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, user.NewUser) user.Profile); ok {
 		r0 = returnFunc(ctx, p)
 	} else {
-		r0 = ret.Get(0).(contract.User)
+		r0 = ret.Get(0).(user.Profile)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, contract.NewUser) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, user.NewUser) error); ok {
 		r1 = returnFunc(ctx, p)
 	} else {
 		r1 = ret.Error(1)
@@ -72,20 +72,20 @@ type MockUserDirectory_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - p contract.NewUser
+//   - p user.NewUser
 func (_e *MockUserDirectory_Expecter) Create(ctx any, p any) *MockUserDirectory_Create_Call {
 	return &MockUserDirectory_Create_Call{Call: _e.mock.On("Create", ctx, p)}
 }
 
-func (_c *MockUserDirectory_Create_Call) Run(run func(ctx context.Context, p contract.NewUser)) *MockUserDirectory_Create_Call {
+func (_c *MockUserDirectory_Create_Call) Run(run func(ctx context.Context, p user.NewUser)) *MockUserDirectory_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 contract.NewUser
+		var arg1 user.NewUser
 		if args[1] != nil {
-			arg1 = args[1].(contract.NewUser)
+			arg1 = args[1].(user.NewUser)
 		}
 		run(
 			arg0,
@@ -95,33 +95,33 @@ func (_c *MockUserDirectory_Create_Call) Run(run func(ctx context.Context, p con
 	return _c
 }
 
-func (_c *MockUserDirectory_Create_Call) Return(user contract.User, err error) *MockUserDirectory_Create_Call {
-	_c.Call.Return(user, err)
+func (_c *MockUserDirectory_Create_Call) Return(profile user.Profile, err error) *MockUserDirectory_Create_Call {
+	_c.Call.Return(profile, err)
 	return _c
 }
 
-func (_c *MockUserDirectory_Create_Call) RunAndReturn(run func(ctx context.Context, p contract.NewUser) (contract.User, error)) *MockUserDirectory_Create_Call {
+func (_c *MockUserDirectory_Create_Call) RunAndReturn(run func(ctx context.Context, p user.NewUser) (user.Profile, error)) *MockUserDirectory_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByEmail provides a mock function for the type MockUserDirectory
-func (_mock *MockUserDirectory) GetByEmail(ctx context.Context, email string) (contract.Credentials, error) {
+func (_mock *MockUserDirectory) GetByEmail(ctx context.Context, email string) (user.Credentials, error) {
 	ret := _mock.Called(ctx, email)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByEmail")
 	}
 
-	var r0 contract.Credentials
+	var r0 user.Credentials
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (contract.Credentials, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (user.Credentials, error)); ok {
 		return returnFunc(ctx, email)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) contract.Credentials); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) user.Credentials); ok {
 		r0 = returnFunc(ctx, email)
 	} else {
-		r0 = ret.Get(0).(contract.Credentials)
+		r0 = ret.Get(0).(user.Credentials)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = returnFunc(ctx, email)
@@ -161,33 +161,33 @@ func (_c *MockUserDirectory_GetByEmail_Call) Run(run func(ctx context.Context, e
 	return _c
 }
 
-func (_c *MockUserDirectory_GetByEmail_Call) Return(credentials contract.Credentials, err error) *MockUserDirectory_GetByEmail_Call {
+func (_c *MockUserDirectory_GetByEmail_Call) Return(credentials user.Credentials, err error) *MockUserDirectory_GetByEmail_Call {
 	_c.Call.Return(credentials, err)
 	return _c
 }
 
-func (_c *MockUserDirectory_GetByEmail_Call) RunAndReturn(run func(ctx context.Context, email string) (contract.Credentials, error)) *MockUserDirectory_GetByEmail_Call {
+func (_c *MockUserDirectory_GetByEmail_Call) RunAndReturn(run func(ctx context.Context, email string) (user.Credentials, error)) *MockUserDirectory_GetByEmail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockUserDirectory
-func (_mock *MockUserDirectory) GetByID(ctx context.Context, id uuid.UUID) (contract.User, error) {
+func (_mock *MockUserDirectory) GetByID(ctx context.Context, id uuid.UUID) (user.Profile, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByID")
 	}
 
-	var r0 contract.User
+	var r0 user.Profile
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (contract.User, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (user.Profile, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) contract.User); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) user.Profile); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
-		r0 = ret.Get(0).(contract.User)
+		r0 = ret.Get(0).(user.Profile)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, id)
@@ -227,12 +227,12 @@ func (_c *MockUserDirectory_GetByID_Call) Run(run func(ctx context.Context, id u
 	return _c
 }
 
-func (_c *MockUserDirectory_GetByID_Call) Return(user contract.User, err error) *MockUserDirectory_GetByID_Call {
-	_c.Call.Return(user, err)
+func (_c *MockUserDirectory_GetByID_Call) Return(profile user.Profile, err error) *MockUserDirectory_GetByID_Call {
+	_c.Call.Return(profile, err)
 	return _c
 }
 
-func (_c *MockUserDirectory_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (contract.User, error)) *MockUserDirectory_GetByID_Call {
+func (_c *MockUserDirectory_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (user.Profile, error)) *MockUserDirectory_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }

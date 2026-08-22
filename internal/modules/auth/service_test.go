@@ -15,7 +15,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/user"
 )
 
 func TestService_Login(t *testing.T) {
@@ -28,7 +28,7 @@ func TestService_Login(t *testing.T) {
 
 		userID := uuid.New()
 		hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
-		creds := usercontract.Credentials{
+		creds := user.Credentials{
 			ID:           userID,
 			Email:        "test@example.com",
 			PasswordHash: string(hash),
@@ -47,7 +47,7 @@ func TestService_Login(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp.AccessToken)
 		assert.NotEmpty(t, resp.RefreshToken)
-		assert.Equal(t, usercontract.User{
+		assert.Equal(t, user.Profile{
 			ID:           userID,
 			Email:        "test@example.com",
 			FirstName:    "John",
@@ -64,7 +64,7 @@ func TestService_Login(t *testing.T) {
 		users := NewMockUserDirectory(t)
 
 		hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
-		users.EXPECT().GetByEmail(mock.Anything, "inactive@example.com").Return(usercontract.Credentials{
+		users.EXPECT().GetByEmail(mock.Anything, "inactive@example.com").Return(user.Credentials{
 			ID:           uuid.New(),
 			Email:        "inactive@example.com",
 			PasswordHash: string(hash),
@@ -84,7 +84,7 @@ func TestService_Login(t *testing.T) {
 		users := NewMockUserDirectory(t)
 
 		hash, _ := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
-		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(usercontract.Credentials{
+		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user.Credentials{
 			ID:           uuid.New(),
 			Email:        "test@example.com",
 			PasswordHash: string(hash),
@@ -104,7 +104,7 @@ func TestService_Login(t *testing.T) {
 		users := NewMockUserDirectory(t)
 
 		users.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").
-			Return(usercontract.Credentials{}, errors.New("not found"))
+			Return(user.Credentials{}, errors.New("not found"))
 
 		resp, err := New(Deps{Config: newTestConfig(), Users: users}).
 			Login(context.Background(), "notfound@example.com", "password123")
@@ -123,7 +123,7 @@ func TestService_Register(t *testing.T) {
 		users := NewMockUserDirectory(t)
 
 		userID := uuid.New()
-		createdUser := usercontract.User{
+		createdUser := user.Profile{
 			ID:        userID,
 			Email:     "test@example.com",
 			FirstName: "John",
@@ -132,7 +132,7 @@ func TestService_Register(t *testing.T) {
 			Active:    true,
 		}
 
-		users.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p usercontract.NewUser) bool {
+		users.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p user.NewUser) bool {
 			return p.Email == "test@example.com" &&
 				p.FirstName == "John" &&
 				p.LastName == "Doe" &&
@@ -155,7 +155,7 @@ func TestService_Register(t *testing.T) {
 		users := NewMockUserDirectory(t)
 
 		users.EXPECT().Create(mock.Anything, mock.Anything).
-			Return(usercontract.User{}, apperror.ErrConflict)
+			Return(user.Profile{}, apperror.ErrConflict)
 
 		resp, err := New(Deps{Config: newTestConfig(), Users: users}).
 			Register(context.Background(), "dup@example.com", "password123", "John", "Doe")
@@ -188,7 +188,7 @@ func TestService_Refresh(t *testing.T) {
 		svc := New(Deps{Config: newTestConfig(), Users: users})
 
 		userID := uuid.New()
-		user := usercontract.User{
+		user := user.Profile{
 			ID:           userID,
 			Email:        "test@example.com",
 			FirstName:    "John",
@@ -230,7 +230,7 @@ func TestService_Refresh(t *testing.T) {
 
 		svc := New(Deps{Config: newTestConfig()})
 
-		pair, err := svc.BuildTokenPair(usercontract.User{
+		pair, err := svc.BuildTokenPair(user.Profile{
 			ID: uuid.New(), Email: "test@example.com", Role: "customer", TokenVersion: 1,
 		})
 		require.NoError(t, err)
@@ -248,12 +248,12 @@ func TestService_Refresh(t *testing.T) {
 		svc := New(Deps{Config: newTestConfig(), Users: users})
 
 		userID := uuid.New()
-		pair, err := svc.BuildTokenPair(usercontract.User{
+		pair, err := svc.BuildTokenPair(user.Profile{
 			ID: userID, Email: "test@example.com", Role: "customer", TokenVersion: 1,
 		})
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(usercontract.User{
+		users.EXPECT().GetByID(mock.Anything, userID).Return(user.Profile{
 			ID:           userID,
 			Email:        "test@example.com",
 			Active:       false,
@@ -273,12 +273,12 @@ func TestService_Refresh(t *testing.T) {
 		svc := New(Deps{Config: newTestConfig(), Users: users})
 
 		userID := uuid.New()
-		pair, err := svc.BuildTokenPair(usercontract.User{
+		pair, err := svc.BuildTokenPair(user.Profile{
 			ID: userID, Email: "test@example.com", Role: "customer", TokenVersion: 1,
 		})
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(usercontract.User{
+		users.EXPECT().GetByID(mock.Anything, userID).Return(user.Profile{
 			ID:           userID,
 			Email:        "test@example.com",
 			Active:       true,
@@ -298,13 +298,13 @@ func TestService_Refresh(t *testing.T) {
 		svc := New(Deps{Config: newTestConfig(), Users: users})
 
 		userID := uuid.New()
-		pair, err := svc.BuildTokenPair(usercontract.User{
+		pair, err := svc.BuildTokenPair(user.Profile{
 			ID: userID, Email: "test@example.com", Role: "customer", TokenVersion: 1,
 		})
 		require.NoError(t, err)
 
 		dbErr := errors.New("database connection lost")
-		users.EXPECT().GetByID(mock.Anything, userID).Return(usercontract.User{}, dbErr)
+		users.EXPECT().GetByID(mock.Anything, userID).Return(user.Profile{}, dbErr)
 
 		resp, err := svc.Refresh(context.Background(), pair.RefreshToken)
 
@@ -317,7 +317,7 @@ func TestService_BuildTokenPair(t *testing.T) {
 	t.Parallel()
 
 	userID := uuid.New()
-	user := usercontract.User{
+	user := user.Profile{
 		ID:           userID,
 		Email:        "user@example.com",
 		Role:         "customer",
@@ -362,7 +362,7 @@ func TestService_BuildTokenPair(t *testing.T) {
 func TestService_ValidateToken(t *testing.T) {
 	t.Parallel()
 
-	user := usercontract.User{
+	user := user.Profile{
 		ID:    uuid.New(),
 		Email: "user@example.com",
 		Role:  "customer",

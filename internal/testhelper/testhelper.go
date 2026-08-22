@@ -179,7 +179,7 @@ func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) er
 //	3 - internal/transport/http
 //	4 - (free)
 //	5 - test/e2e
-//	6 - internal/modules/user/usecase/query/redis
+//	6 - internal/modules/user/adapter/redis
 func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 	ctx := context.Background()
 

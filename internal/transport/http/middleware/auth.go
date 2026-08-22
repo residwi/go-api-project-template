@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
@@ -42,7 +42,7 @@ func RequireUser(w http.ResponseWriter, r *http.Request) (UserContext, bool) {
 }
 
 type UserStatusChecker interface {
-	CheckStatus(ctx context.Context, userID uuid.UUID) (usercontract.AccountStatus, error)
+	CheckStatus(ctx context.Context, userID uuid.UUID) (user.AccountStatus, error)
 }
 
 type TokenValidator interface {

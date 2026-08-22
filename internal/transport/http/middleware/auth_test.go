@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	usercontract "github.com/residwi/go-api-project-template/internal/modules/user/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
@@ -135,7 +135,7 @@ func TestAuth(t *testing.T) {
 			TokenVersion: 1,
 		}, nil)
 		userStatus.EXPECT().CheckStatus(mock.Anything, userID).
-			Return(usercontract.AccountStatus{}, errors.New("db error"))
+			Return(user.AccountStatus{}, errors.New("db error"))
 
 		handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
@@ -162,7 +162,7 @@ func TestAuth(t *testing.T) {
 			Type:         "access",
 			TokenVersion: 1,
 		}, nil)
-		userStatus.EXPECT().CheckStatus(mock.Anything, userID).Return(usercontract.AccountStatus{
+		userStatus.EXPECT().CheckStatus(mock.Anything, userID).Return(user.AccountStatus{
 			Active:       false,
 			TokenVersion: 1,
 		}, nil)
@@ -192,7 +192,7 @@ func TestAuth(t *testing.T) {
 			Type:         "access",
 			TokenVersion: 1,
 		}, nil)
-		userStatus.EXPECT().CheckStatus(mock.Anything, userID).Return(usercontract.AccountStatus{
+		userStatus.EXPECT().CheckStatus(mock.Anything, userID).Return(user.AccountStatus{
 			Active:       true,
 			TokenVersion: 2,
 		}, nil)
@@ -222,7 +222,7 @@ func TestAuth(t *testing.T) {
 			Type:         "access",
 			TokenVersion: 3,
 		}, nil)
-		userStatus.EXPECT().CheckStatus(mock.Anything, userID).Return(usercontract.AccountStatus{
+		userStatus.EXPECT().CheckStatus(mock.Anything, userID).Return(user.AccountStatus{
 			Active:       true,
 			TokenVersion: 3,
 		}, nil)
@@ -269,7 +269,7 @@ func TestAuth(t *testing.T) {
 			TokenVersion: 1,
 		}, nil)
 		userStatus.EXPECT().CheckStatus(mock.Anything, userID).
-			Return(usercontract.AccountStatus{Active: true, TokenVersion: 1}, nil)
+			Return(user.AccountStatus{Active: true, TokenVersion: 1}, nil)
 
 		handler := mid(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			log.InfoContext(r.Context(), "downstream work")

@@ -27,6 +27,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	shippingpg "github.com/residwi/go-api-project-template/internal/modules/shipping/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
+	userpg "github.com/residwi/go-api-project-template/internal/modules/user/adapter/postgres"
+	userredis "github.com/residwi/go-api-project-template/internal/modules/user/adapter/redis"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	wishlistpg "github.com/residwi/go-api-project-template/internal/modules/wishlist/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -43,7 +45,7 @@ type Deps struct {
 }
 
 type App struct {
-	Users         *user.Module
+	Users         *user.Service
 	Auth          *auth.Service
 	Categories    *category.Service
 	Products      *product.Service
@@ -76,8 +78,12 @@ func New(d Deps) (*App, error) {
 		Logger: d.Logger,
 	})
 
-	userMod := user.New(user.Deps{Pool: d.Pool, Cache: d.Cache, Logger: d.Logger})
-	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userMod.Credentials})
+	var statusCache user.StatusCache = user.NoCache{}
+	if d.Cache != nil {
+		statusCache = userredis.New(d.Cache)
+	}
+	userMod := user.New(user.Deps{Repo: userpg.New(d.Pool), Cache: statusCache, Logger: d.Logger})
+	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userMod})
 
 	cartMod := cart.New(cart.Deps{
 		Repo: cartpg.New(d.Pool), Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod,
