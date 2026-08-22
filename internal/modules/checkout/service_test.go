@@ -6,9 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
@@ -17,7 +16,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
-func TestServicePlaceOrder(t *testing.T) {
+func TestService_PlaceOrder(t *testing.T) {
 	t.Parallel()
 
 	t.Run("charges the payment gateway for a payable order", func(t *testing.T) {

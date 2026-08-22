@@ -10,11 +10,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/retrypayment"
 	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
-	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -48,29 +46,24 @@ func TestNew_WiresPaymentDeps(t *testing.T) {
 	t.Parallel()
 
 	userID := seedUser(t)
-	// Never read: RetryPayment and Cancel, the only slices this test now
-	// exercises, need no cart. A real product row would only feed Place's
-	// cart snapshot, which moved out of this test with the payment leg.
-	productID := uuid.New()
+	// RetryPayment and Cancel, the only slices this test now exercises, need
+	// no cart -- CartLock, CartRead, CartClear and Notifications are nil.
+	// Those all feed only Place, whose payment leg moved to checkout, so
+	// nothing in this test drives Place far enough to reach a nil one.
 	retryOrderID := seedOrder(t, userID)
 	cancelOrderID := seedOrder(t, userID)
 
 	payment := NewMockPaymentInitiator(t)
 	paymentJobs := NewMockPaymentJobCanceller(t)
-	cartStub := &fanOutCartProvider{productID: productID}
 
 	m := New(Deps{
 		Pool:             testPool,
 		Tx:               database.NewTxRunner(testPool),
 		Logger:           testhelper.DiscardLogger(),
-		CartLock:         cartStub,
-		CartRead:         cartStub,
-		CartClear:        cartStub,
 		InventoryReserve: fanOutInventory{},
 		InventoryDeduct:  fanOutInventory{},
 		InventoryRestore: fanOutInventory{},
 		Promotions:       fanOutCoupons{},
-		Notifications:    fanOutNotifications{},
 		Payment:          payment,
 		PaymentJobs:      paymentJobs,
 	})
@@ -93,19 +86,6 @@ func TestNew_WiresPaymentDeps(t *testing.T) {
 	)
 }
 
-type fanOutCartProvider struct{ productID uuid.UUID }
-
-func (f *fanOutCartProvider) Lock(context.Context, uuid.UUID) error { return nil }
-func (f *fanOutCartProvider) Snapshot(context.Context, uuid.UUID) (*cartcontract.Cart, error) {
-	return &cartcontract.Cart{
-		ID: uuid.New(),
-		Items: []cartcontract.CartItem{
-			{ProductID: f.productID, Quantity: 1, Name: "Widget", Price: money.New(1000, "USD"), Status: "published"},
-		},
-	}, nil
-}
-func (f *fanOutCartProvider) Clear(context.Context, uuid.UUID) error { return nil }
-
 type fanOutInventory struct{}
 
 func (fanOutInventory) ReserveBatch(context.Context, map[uuid.UUID]int) error { return nil }
@@ -120,12 +100,6 @@ func (fanOutCoupons) Reserve(context.Context, string, uuid.UUID, uuid.UUID, int6
 	return 0, nil
 }
 func (fanOutCoupons) Release(context.Context, uuid.UUID) error { return nil }
-
-type fanOutNotifications struct{}
-
-func (fanOutNotifications) EnqueueOrderPlaced(context.Context, uuid.UUID, uuid.UUID) error {
-	return nil
-}
 
 func seedUser(t *testing.T) uuid.UUID {
 	t.Helper()

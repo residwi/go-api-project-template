@@ -14,7 +14,7 @@ import (
 )
 
 // TestRouteSnapshot asserts every route in testdata/routes.golden is still
-// mounted, and still on the same middleware group. http.ServeMux exposes no
+// mounted, and still on the same middleware group. [http.ServeMux] exposes no
 // route table, so each route is probed instead: an unmounted path falls through
 // to Go's default 404, which writes text/plain; a mounted route may answer any
 // status code or body, but never text/plain.

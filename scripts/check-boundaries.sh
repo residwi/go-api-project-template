@@ -52,15 +52,22 @@ MODULES_ROOT='internal/modules'
 # it is a genuine permission grant, not a classification: it should be short, and
 # adding to it should be a visible, argued diff.
 #
-# checkout is the one feature module on this list: it orchestrates order and
-# payment and is built to the post-refactor rules, where a module root is
-# importable, so it is the only feature module allowed to import another
-# module's domain. Held as a full path rather than a bare name because it
-# lives one level deeper than bootstrap and transport
-# (internal/modules/checkout, not internal/checkout) -- both loops in
-# importer_roots below pass is_wiring the same full path they would otherwise
-# print, so a name at either depth works the same way.
-WIRING_DIRS='internal/bootstrap internal/transport internal/modules/checkout'
+# checkout is deliberately NOT on this list, even though it is built to the
+# post-refactor rules and needs to import order/domain: a blanket importer
+# exemption would also let it import any module's slice root or postgres
+# adapter with nothing left to catch it. Its one real need -- order/domain --
+# is granted narrowly inside check_cross_module_imports below instead, so
+# everything else checkout might reach for is still scanned like any other
+# feature.
+#
+# Held as a full path rather than the bare name (bootstrap, transport) this
+# held before: importer_roots' two loops walk directories at different
+# depths, and is_wiring now takes whichever full path each loop already
+# prints, so a future entry naming a module (internal/modules/<feature>)
+# works the same way an entry naming a top-level directory does, without a
+# depth-specific comparison. Nothing in $MODULES_ROOT sits on this list
+# today -- see the checkout paragraph above.
+WIRING_DIRS='internal/bootstrap internal/transport'
 
 is_wiring() {
 	case " $WIRING_DIRS " in
@@ -716,14 +723,22 @@ check_table_ownership() {
 # under the same feature -- and is a separate rule, for a later check to add,
 # not this one's job.
 #
-# Exempt: the wiring layer, and only the wiring layer. internal/bootstrap/ and
-# internal/transport/ exist precisely to import adapters and wire them
-# together, so they are skipped as importers via WIRING_DIRS (importer_roots
-# applies that exemption once, for every check that walks it). Everything else
-# under internal/ is scanned, features and shared infrastructure alike -- "not
-# a feature" is not the same permission as "may wire adapters", and
-# internal/platform must not import product/domain any more than it may
-# import product/postgres.
+# Exempt as an importer: the wiring layer, and only the wiring layer.
+# internal/bootstrap/ and internal/transport/ exist precisely to import
+# adapters and wire them together, so they are skipped as importers via
+# WIRING_DIRS (importer_roots applies that exemption once, for every check
+# that walks it). Everything else under internal/ is scanned, features and
+# shared infrastructure alike -- "not a feature" is not the same permission
+# as "may wire adapters", and internal/platform must not import
+# product/domain any more than it may import product/postgres.
+#
+# checkout is scanned as an importer like every other feature -- it is not on
+# WIRING_DIRS -- but is granted one narrow target exemption below: importing
+# order/domain (and only domain/, not a slice root or adapter) passes, the
+# same way a contract/ import always does, because checkout is built to the
+# post-refactor rules where a module root is importable and it genuinely
+# needs order/domain.NewOrder and order/domain.Order. Everything else it
+# might reach for in another module is still reported.
 #
 # _test.go files are in scope, unlike check_table_ownership's scan. A test
 # reaching into a sibling module's slice proves the same coupling a production
@@ -819,6 +834,19 @@ check_cross_module_imports() {
 				case "$target_rest" in
 				contract | contract/*) continue ;;
 				esac
+
+				# checkout alone may reach past contract/ into another
+				# module's domain/ -- and only domain/, never a slice root or
+				# its postgres/http adapter. It is built to the post-refactor
+				# rules, where a module root is importable, and it names
+				# order/domain.NewOrder and order/domain.Order directly. See
+				# the header comment above this function for why this is a
+				# per-target exemption rather than a WIRING_DIRS entry.
+				if [ "$file_feature" = "checkout" ]; then
+					case "$target_rest" in
+					domain | domain/*) continue ;;
+					esac
+				fi
 
 				report "'${importer_name}' imports another module's internals: ${file}:${hit%%:*}
     ${imp}
