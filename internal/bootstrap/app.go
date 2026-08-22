@@ -77,7 +77,7 @@ func New(d Deps) (*App, error) {
 	orderTransition := ordertransition.New(ordertransitionpg.New(d.Pool))
 	orderQuery := orderquery.New(orderquerypg.New(d.Pool))
 	orderCanceller := ordercancel.New(
-		ordercancelpg.New(d.Pool), txRunner, orderTransition, inv.Restore, promotionMod.Reserve, nil, d.Logger,
+		ordercancelpg.New(d.Pool), txRunner, orderTransition, inv.Restore, promotionMod.Reserve, d.Logger,
 	)
 
 	paymentMod := payment.New(payment.Deps{
@@ -103,14 +103,15 @@ func New(d Deps) (*App, error) {
 		InventoryRestore: inv.Restore,
 		Promotions:       promotionMod.Reserve,
 		Notifications:    notificationMod.Jobs,
-		PaymentJobs:      paymentMod.Jobs,
 	})
 
 	checkoutSvc := checkout.New(checkout.Deps{
-		Orders:    ordMod.Place,
-		Payments:  paymentMod.Charge,
-		Snapshots: ordMod.Query,
-		Logger:    d.Logger,
+		Orders:      ordMod.Place,
+		Payments:    paymentMod.Charge,
+		Snapshots:   ordMod.Query,
+		Cancels:     ordMod.Cancel,
+		PaymentJobs: paymentMod.Jobs,
+		Logger:      d.Logger,
 	})
 
 	shippingMod := shipping.New(shipping.Deps{

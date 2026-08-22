@@ -2,7 +2,6 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/order"
-	cancelhttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel/http"
 	changestatushttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/changestatus/http"
 	queryhttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/query/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
@@ -17,8 +16,6 @@ func Order(
 	query := queryhttp.New(m.Query)
 	authed.HandleFunc("GET /orders", query.List)
 	authed.HandleFunc("GET /orders/{id}", query.Get)
-
-	authed.HandleFunc("POST /orders/{id}/cancel", cancelhttp.New(m.Cancel).Cancel)
 
 	adminQuery := queryhttp.NewAdmin(m.Query)
 	admin.HandleFunc("GET /orders", adminQuery.List)

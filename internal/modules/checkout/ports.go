@@ -30,3 +30,11 @@ type PaymentCharger interface {
 type OrderSnapshotReader interface {
 	GetSnapshot(ctx context.Context, orderID uuid.UUID) (ordercontract.Order, error)
 }
+
+type OrderCanceller interface {
+	CancelByUser(ctx context.Context, userID, orderID uuid.UUID) error
+}
+
+type PaymentJobCanceller interface {
+	CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) error
+}

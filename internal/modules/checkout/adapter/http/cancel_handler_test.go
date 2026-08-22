@@ -16,17 +16,17 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-func TestHandler_CancelOrder(t *testing.T) {
+func TestCancelHandler_CancelOrder(t *testing.T) {
 	t.Parallel()
 
 	t.Run("service error handled gracefully", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase := setupMux(t)
+		mux, service := setupCancelMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
-		usecase.EXPECT().Execute(mock.Anything, userID, orderID).Return(apperror.ErrOrderCharging)
+		service.EXPECT().CancelOrder(mock.Anything, userID, orderID).Return(apperror.ErrOrderCharging)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+orderID.String()+"/cancel", nil)
@@ -40,7 +40,7 @@ func TestHandler_CancelOrder(t *testing.T) {
 	t.Run("missing auth context", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _ := setupMux(t)
+		mux, _ := setupCancelMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+uuid.NewString()+"/cancel", nil)
@@ -57,7 +57,7 @@ func TestHandler_CancelOrder(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _ := setupMux(t)
+		mux, _ := setupCancelMux(t)
 
 		userID := uuid.New()
 		w := httptest.NewRecorder()
@@ -76,11 +76,11 @@ func TestHandler_CancelOrder(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase := setupMux(t)
+		mux, service := setupCancelMux(t)
 
 		userID := uuid.New()
 		orderID := uuid.New()
-		usecase.EXPECT().Execute(mock.Anything, userID, orderID).Return(nil)
+		service.EXPECT().CancelOrder(mock.Anything, userID, orderID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+orderID.String()+"/cancel", nil)
@@ -92,22 +92,13 @@ func TestHandler_CancelOrder(t *testing.T) {
 	})
 }
 
-func setupMux(t *testing.T) (*http.ServeMux, *MockOrderCanceller) {
-	usecase := NewMockOrderCanceller(t)
+func setupCancelMux(t *testing.T) (*http.ServeMux, *MockOrderCanceller) {
+	service := NewMockOrderCanceller(t)
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("POST /orders/{id}/cancel", New(usecase).Cancel)
+	authed.HandleFunc("POST /orders/{id}/cancel", NewCancelHandler(service).Cancel)
 
-	return mux, usecase
-}
-
-func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {
-	ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-		UserID: userID,
-		Email:  "test@example.com",
-		Role:   "user",
-	})
-	return r.WithContext(ctx)
+	return mux, service
 }

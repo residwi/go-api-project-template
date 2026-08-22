@@ -15,13 +15,12 @@ import (
 )
 
 type UseCase struct {
-	repo          Repository
-	tx            database.TxRunner
-	transition    TransitionApplier
-	inventory     InventoryRestorer
-	coupons       CouponReleaser
-	paymentCancel PaymentJobCanceller
-	logger        *slog.Logger
+	repo       Repository
+	tx         database.TxRunner
+	transition TransitionApplier
+	inventory  InventoryRestorer
+	coupons    CouponReleaser
+	logger     *slog.Logger
 }
 
 func New(
@@ -30,21 +29,19 @@ func New(
 	transition TransitionApplier,
 	inventory InventoryRestorer,
 	coupons CouponReleaser,
-	paymentCancel PaymentJobCanceller,
 	log *slog.Logger,
 ) *UseCase {
 	return &UseCase{
-		repo:          repo,
-		tx:            tx,
-		transition:    transition,
-		inventory:     inventory,
-		coupons:       coupons,
-		paymentCancel: paymentCancel,
-		logger:        log,
+		repo:       repo,
+		tx:         tx,
+		transition: transition,
+		inventory:  inventory,
+		coupons:    coupons,
+		logger:     log,
 	}
 }
 
-func (c *UseCase) Execute(ctx context.Context, userID, orderID uuid.UUID) error {
+func (c *UseCase) CancelByUser(ctx context.Context, userID, orderID uuid.UUID) error {
 	order, err := c.repo.GetByID(ctx, orderID)
 	if err != nil {
 		return err
@@ -57,22 +54,7 @@ func (c *UseCase) Execute(ctx context.Context, userID, orderID uuid.UUID) error 
 		return apperror.ErrOrderCharging
 	}
 
-	if err := c.cancelWithReversal(ctx, order); err != nil {
-		return err
-	}
-
-	if c.paymentCancel != nil {
-		if err := c.paymentCancel.CancelPendingByOrderID(ctx, orderID); err != nil {
-			c.logger.WarnContext(
-				ctx,
-				"failed to cancel payment jobs",
-				slog.String("order_id", orderID.String()),
-				slog.String("error", err.Error()),
-			)
-		}
-	}
-
-	return nil
+	return c.cancelWithReversal(ctx, order)
 }
 
 func (c *UseCase) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {

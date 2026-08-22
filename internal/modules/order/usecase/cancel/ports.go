@@ -20,7 +20,3 @@ type InventoryRestorer interface {
 type CouponReleaser interface {
 	Release(ctx context.Context, orderID uuid.UUID) error
 }
-
-type PaymentJobCanceller interface {
-	CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) error
-}

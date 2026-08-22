@@ -206,3 +206,56 @@ func TestService_RetryPayment(t *testing.T) {
 		require.ErrorIs(t, err, apperror.ErrOrderNotPayable)
 	})
 }
+
+func TestService_CancelOrder(t *testing.T) {
+	t.Parallel()
+
+	t.Run("cancels the order then its pending payment jobs", func(t *testing.T) {
+		t.Parallel()
+
+		userID, orderID := uuid.New(), uuid.New()
+
+		orders := NewMockOrderCanceller(t)
+		orders.EXPECT().CancelByUser(t.Context(), userID, orderID).Return(nil)
+
+		jobs := NewMockPaymentJobCanceller(t)
+		jobs.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(nil)
+
+		svc := New(Deps{Cancels: orders, PaymentJobs: jobs, Logger: testhelper.DiscardLogger()})
+
+		require.NoError(t, svc.CancelOrder(t.Context(), userID, orderID))
+	})
+
+	t.Run("still succeeds when the job cancel fails", func(t *testing.T) {
+		t.Parallel()
+
+		userID, orderID := uuid.New(), uuid.New()
+
+		orders := NewMockOrderCanceller(t)
+		orders.EXPECT().CancelByUser(t.Context(), userID, orderID).Return(nil)
+
+		jobs := NewMockPaymentJobCanceller(t)
+		jobs.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(errors.New("db down"))
+
+		svc := New(Deps{Cancels: orders, PaymentJobs: jobs, Logger: testhelper.DiscardLogger()})
+
+		require.NoError(t, svc.CancelOrder(t.Context(), userID, orderID))
+	})
+
+	t.Run("does not touch payment jobs when the cancel is refused", func(t *testing.T) {
+		t.Parallel()
+
+		userID, orderID := uuid.New(), uuid.New()
+
+		orders := NewMockOrderCanceller(t)
+		orders.EXPECT().CancelByUser(t.Context(), userID, orderID).Return(apperror.ErrOrderCharging)
+
+		svc := New(Deps{
+			Cancels:     orders,
+			PaymentJobs: NewMockPaymentJobCanceller(t),
+			Logger:      testhelper.DiscardLogger(),
+		})
+
+		require.ErrorIs(t, svc.CancelOrder(t.Context(), userID, orderID), apperror.ErrOrderCharging)
+	})
+}

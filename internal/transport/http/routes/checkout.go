@@ -20,4 +20,7 @@ func Checkout(
 
 	retry := checkouthttp.NewRetryHandler(s, v)
 	authed.Handle("POST /orders/{id}/pay", writeLimiter(http.HandlerFunc(retry.Retry)))
+
+	cancel := checkouthttp.NewCancelHandler(s)
+	authed.HandleFunc("POST /orders/{id}/cancel", cancel.Cancel)
 }

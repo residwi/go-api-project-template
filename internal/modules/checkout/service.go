@@ -18,21 +18,32 @@ type PlaceOrderInput struct {
 }
 
 type Deps struct {
-	Orders    OrderWriter
-	Payments  PaymentCharger
-	Snapshots OrderSnapshotReader
-	Logger    *slog.Logger
+	Orders      OrderWriter
+	Payments    PaymentCharger
+	Snapshots   OrderSnapshotReader
+	Cancels     OrderCanceller
+	PaymentJobs PaymentJobCanceller
+	Logger      *slog.Logger
 }
 
 type Service struct {
-	orders    OrderWriter
-	payments  PaymentCharger
-	snapshots OrderSnapshotReader
-	logger    *slog.Logger
+	orders      OrderWriter
+	payments    PaymentCharger
+	snapshots   OrderSnapshotReader
+	cancels     OrderCanceller
+	paymentJobs PaymentJobCanceller
+	logger      *slog.Logger
 }
 
 func New(d Deps) *Service {
-	return &Service{orders: d.Orders, payments: d.Payments, snapshots: d.Snapshots, logger: d.Logger}
+	return &Service{
+		orders:      d.Orders,
+		payments:    d.Payments,
+		snapshots:   d.Snapshots,
+		cancels:     d.Cancels,
+		paymentJobs: d.PaymentJobs,
+		logger:      d.Logger,
+	}
 }
 
 func (s *Service) PlaceOrder(
@@ -80,4 +91,19 @@ func (s *Service) RetryPayment(
 		Amount:          order.Total,
 		PaymentMethodID: paymentMethodID,
 	})
+}
+
+func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) error {
+	if err := s.cancels.CancelByUser(ctx, userID, orderID); err != nil {
+		return err
+	}
+
+	// Best effort: the order is already cancelled, and a job that fires against
+	// a cancelled order is rejected by its own status guard.
+	if err := s.paymentJobs.CancelPendingByOrderID(ctx, orderID); err != nil {
+		s.logger.WarnContext(ctx, "failed to cancel payment jobs",
+			slog.String("order_id", orderID.String()), slog.String("error", err.Error()))
+	}
+
+	return nil
 }

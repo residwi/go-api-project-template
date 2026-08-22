@@ -11,18 +11,18 @@ import (
 )
 
 type OrderCanceller interface {
-	Execute(ctx context.Context, userID, orderID uuid.UUID) error
+	CancelOrder(ctx context.Context, userID, orderID uuid.UUID) error
 }
 
-type Handler struct {
-	usecase OrderCanceller
+type CancelHandler struct {
+	service OrderCanceller
 }
 
-func New(usecase OrderCanceller) *Handler {
-	return &Handler{usecase: usecase}
+func NewCancelHandler(service OrderCanceller) *CancelHandler {
+	return &CancelHandler{service: service}
 }
 
-func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
+func (h *CancelHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
 		return
@@ -33,7 +33,7 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.usecase.Execute(r.Context(), uc.UserID, id); err != nil {
+	if err := h.service.CancelOrder(r.Context(), uc.UserID, id); err != nil {
 		response.HandleErr(w, err)
 		return
 	}

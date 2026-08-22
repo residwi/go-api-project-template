@@ -39,8 +39,6 @@ type Deps struct {
 	InventoryRestore InventoryRestorer
 	Promotions       CouponPort
 	Notifications    NotificationEnqueuer
-
-	PaymentJobs PaymentJobCanceller
 }
 
 type CartLocker interface {
@@ -76,10 +74,6 @@ type NotificationEnqueuer interface {
 	EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) error
 }
 
-type PaymentJobCanceller interface {
-	CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) error
-}
-
 type Module struct {
 	Place        *place.UseCase
 	Query        *query.UseCase
@@ -109,7 +103,7 @@ func New(d Deps) *Module {
 		}),
 		Query: query.New(querypg.New(d.Pool)),
 		Cancel: cancel.New(
-			cancelpg.New(d.Pool), d.Tx, transitionApplier, d.InventoryRestore, d.Promotions, d.PaymentJobs, d.Logger,
+			cancelpg.New(d.Pool), d.Tx, transitionApplier, d.InventoryRestore, d.Promotions, d.Logger,
 		),
 		ChangeStatus: changestatus.New(changestatuspg.New(d.Pool), transitionApplier),
 		Expire: expire.New(

@@ -32,15 +32,18 @@ func TestMain(m *testing.M) {
 // TestNewWiresOrderAndPaymentToEachOther pins the order/payment wiring across
 // the module boundary. RetryPayment and Deps.Payment are gone -- checkout now
 // owns the retry flow, rebuilding what it needs from order's query snapshot
-// and payment's own Charge port -- so PaymentJobs is the only payment-shaped
-// port left on order.Deps, feeding Cancel alone. At slice granularity the
-// remaining cycle still runs through order/transition, order/query,
-// order/cancel and payment/jobs: New builds order's shared reads and canceller
-// first, then payment, then hands payment.Jobs to order's own constructor.
+// and payment's own Charge port -- and the payment-job-cancel edge that used
+// to live on order.Deps.PaymentJobs (feeding cancel.UseCase) has moved the
+// same way: cancel.UseCase.CancelByUser now only reverses stock and releases
+// the coupon, and checkout.Deps.PaymentJobs feeds checkout.Service.CancelOrder
+// instead. At slice granularity the remaining order/payment cycle still runs
+// through order/transition, order/query and order/cancel feeding
+// payment.Deps: New builds order's shared reads and canceller first, then
+// payment, then order's own module, then checkout on top of both.
 //
-// Cancel's own PaymentJobs leg is nil-guarded (a dropped Deps field fails
-// silently, not with a panic), so proof has to come from the database a real
-// job row landed in, not from Execute's return value.
+// checkout.Service.CancelOrder's payment-job leg is best-effort and swallows
+// its own error, so proof has to come from the database a real job row
+// landed in, not from CancelOrder's return value.
 //
 // The order and its payment job are seeded with raw SQL, not order's or
 // payment's own adapters: domain.Order is module-private, so nothing outside
@@ -91,14 +94,14 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	require.NoError(t, app.Orders.Cancel.Execute(ctx, userID, cancelOrderID))
+	require.NoError(t, app.Checkout.CancelOrder(ctx, userID, cancelOrderID))
 
 	var jobStatus string
 	require.NoError(t, testPool.QueryRow(ctx,
 		`SELECT status FROM payment_jobs WHERE payment_id = $1`, paymentID,
 	).Scan(&jobStatus))
 	assert.Equal(t, "cancelled", jobStatus,
-		"Cancel's PaymentJobs leg must be wired to the real payment.Module.Jobs by New")
+		"checkout.Service.CancelOrder must be wired to both order.Module.Cancel and payment.Module.Jobs by New")
 
 	// checkout.Service.Snapshots is new in this refactor: order/usecase/query's
 	// GetSnapshot now carries ID and UserID (it didn't when this test was first
