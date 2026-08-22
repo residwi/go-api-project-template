@@ -415,8 +415,7 @@ by name alone:
    would make every binary constructing the module link HTTP, including the
    worker, which serves nothing. A module that needs to describe something
    the transport also describes puts the type in its own `contract/` and lets
-   middleware import that instead (`user/contract.AccountStatus`,
-   `auth.ClaimsView`).
+   middleware import that instead (`user/contract.AccountStatus`).
 7. **`check_contract_leaf`: `contract/` imports only stdlib,
    `github.com/google/uuid` and `internal/money`.** If a module's
    `contract/` imported its own `domain/`, importing the contract would drag
@@ -486,7 +485,7 @@ spot the way it was before this phase.
     - **A `<feature>/contract/` package**, when what crosses is a struct
       rather than a scalar or an interface a producer already satisfies.
       The consumer's port still names the type it needs
-      (`refresh.UserProvider.GetByID(ctx, id) (usercontract.User, error)`);
+      (`auth.UserDirectory.GetByID(ctx, id) (usercontract.User, error)`);
       the contract package only supplies the shape, never the interface.
 
     No shared ports package, and adding one would defeat the point.

@@ -479,11 +479,11 @@ HTTP.
 Seven of fourteen modules — `auth cart inventory order payment product user` —
 have a `contract/` package: `user/contract.User`, `product/contract.Product`,
 `inventory/contract.StockState`, `order/contract.Order`, `payment/contract.ChargeRequest`,
-`cart/contract.Cart`, `auth.ClaimsView`, and their siblings. Each package
+`cart/contract.Cart`, and their siblings. Each package
 imports no module and no platform package, so importing one can never pull the
 producer's implementation along with it — a consumer takes the type by value
 and never learns how it is built. A port still names the type it needs
-(`refresh.UserProvider.GetByID(ctx, id) (usercontract.User, error)`); the
+(`auth.UserDirectory.GetByID(ctx, id) (usercontract.User, error)`); the
 contract package supplies only the shape, never the interface — that stays
 declared by the consumer, per decision 2.
 
