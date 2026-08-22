@@ -10,6 +10,13 @@ Three docs carry the reasoning; this one no duplicate:
 
 If this file ever disagree with code, code wins — say so and fix file.
 
+**A refactor is in progress, collapsing slices into per-module services.**
+See `REFACTOR-PLAN.md`. Every count in this file — feature count, slice
+count, `ports.go` count, `http/`/`postgres/` package counts, handler-pair
+count — is stale until it completes: each still describes the pre-refactor
+shape, task by task, while individual symbol names and file paths are kept
+current as they change.
+
 ## What this is
 
 Go 1.26 ecommerce API template. REST endpoints under `/api` for auth, users, categories, products, inventory, cart, orders, payments, shipping, reviews, promotions, wishlists, notifications, admin dashboard, plus separate worker process draining payment and notification job queues. PostgreSQL via `pgx/v5`, Redis via `go-redis/v9`, routing on stdlib `net/http` `ServeMux` — no third-party router.
@@ -78,7 +85,7 @@ internal/modules/<feature>/
 
 A slice's own directory holds `usecase.go`, and that file declares exactly one
 exported `UseCase` — 66 slices, 66 `usecase.go` files, 66 `type UseCase`
-declarations, whatever the slice does. `place.UseCase.Execute` writes;
+declarations, whatever the slice does. `place.UseCase.Place` writes;
 `shipping/usecase/query.UseCase.GetByOrderIDForUser` only reads;
 `order/usecase/transition.UseCase` carries ten methods because a state machine
 is one thing with ten guarded entrances. The older per-role names are retired
@@ -489,18 +496,23 @@ reservation or restocking deducted goods; callers supply order's prior state, ne
     pattern.** `CartAdder`, `ProductCreator`, `Authenticator`, `OrderPlacer`,
     `WebhookProcessor` — all 53 slice `http/` packages, 56 ports, no exceptions.
     Never `UseCase`: the directory already says the value is a use case, so the
-    name would add nothing, and `placehttp.UseCase` would sit one import from
-    `place.UseCase`, two different things sharing a name. Three packages hold
+    name would add nothing, and `retrypaymenthttp.UseCase` would sit one import from
+    `retrypayment.UseCase`, two different things sharing a name. Three packages hold
     two ports because they split routes by caller role (`user/usecase/query/http`
     `UserGetter` + `UserLister`, `product/usecase/query/http` `ProductReader` +
     `AdminProductReader`, `order/usecase/query/http` `OrderReader` +
     `AdminReader`); role naming is what lets them coexist. The concrete type in
     the slice root is the opposite rule — always `UseCase`, never a role name.
-    The `Handler` **field** holding that port is always `usecase`, and so is the
-    `New` parameter that sets it: `h.usecase.Execute(...)` in every one of the 56.
-    A field is private and there is only ever one, so it is named for the layer,
-    not the role. Never `cmd` or `reader` — that vocabulary retired with the
-    `Command`/`Reader` types.
+    The `Handler` **field** holding that port is `usecase`, and so is the `New`
+    parameter that sets it, across every slice `http/` still on this shape:
+    `h.usecase.Execute(...)` in every one of the 56. A module flattened to the
+    post-refactor target shape names both differently -- `checkout` is the
+    first: its `adapter/http/handler.go` field is `service`, set by a
+    `NewHandler` constructor, and it calls `h.service.PlaceOrder(...)`. A slice
+    not yet migrated keeps `usecase`/`New`; a flattened module's `adapter/http`
+    uses `service`/`NewHandler` instead. A field is private and there is only
+    ever one, so it is named for the layer, not the role. Never `cmd` or
+    `reader` — that vocabulary retired with the `Command`/`Reader` types.
 19. **New config invariants go in the owning type's own loader.** Infra-level
     invariants go in `Infra.validate()` (`internal/platform/config/config.go`);
     module-owned invariants are checked inline inside that module's own
