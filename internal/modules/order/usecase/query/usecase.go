@@ -72,6 +72,8 @@ func (r *UseCase) GetSnapshot(ctx context.Context, orderID uuid.UUID) (contract.
 	}
 
 	return contract.Order{
+		ID:            o.ID,
+		UserID:        o.UserID,
 		Total:         o.Total,
 		Status:        string(o.Status),
 		CouponCode:    couponCode,

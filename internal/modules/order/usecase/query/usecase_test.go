@@ -281,11 +281,13 @@ func TestReader_GetSnapshot(t *testing.T) {
 		t.Parallel()
 
 		orderID := uuid.New()
+		userID := uuid.New()
 		repo := NewMockRepository(t)
 		r := New(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, orderID).Return(&domain.Order{
 			ID:            orderID,
+			UserID:        userID,
 			Total:         money.New(9000, "IDR"),
 			Status:        domain.StatusShipped,
 			CouponCode:    nil,
@@ -296,6 +298,8 @@ func TestReader_GetSnapshot(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, ordercontract.Order{
+			ID:            orderID,
+			UserID:        userID,
 			Total:         money.New(9000, "IDR"),
 			Status:        "shipped",
 			CouponCode:    "",

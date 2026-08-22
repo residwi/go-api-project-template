@@ -374,6 +374,23 @@ func TestPostgresRepository_HasDeliveredOrder(t *testing.T) {
 	})
 }
 
+// TestUseCase_GetSnapshot runs against the real repository rather than a
+// mock: checkout's retry-payment ownership check and its ChargeRequest.OrderID
+// both come from GetSnapshot's ID and UserID, and a mock that hands back a
+// fully-populated contract.Order can't catch GetSnapshot forgetting to copy
+// them from the row it just read -- which is exactly what shipped.
+func TestUseCase_GetSnapshot(t *testing.T) {
+	userID := seedUser(t)
+	orderID := seedOrder(t, userID, money.New(4200, "USD"))
+
+	r := query.New(New(testPool))
+	got, err := r.GetSnapshot(context.Background(), orderID)
+
+	require.NoError(t, err)
+	assert.Equal(t, orderID, got.ID)
+	assert.Equal(t, userID, got.UserID)
+}
+
 func seedUser(t *testing.T) uuid.UUID {
 	t.Helper()
 	return testhelper.SeedUser(t, testPool)

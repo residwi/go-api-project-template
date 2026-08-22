@@ -381,3 +381,91 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 		assert.Equal(t, 0, usedCount)
 	})
 }
+
+// TestE2ERetryPayment is the endpoint's first e2e coverage. Nothing else in
+// this suite ever drove POST /api/orders/{id}/pay through the real router,
+// which is exactly how a refactor moved it from order to checkout, wired it
+// to order/usecase/query.GetSnapshot, and left it 404-ing for every real
+// caller while every mock-backed unit test stayed green.
+func TestE2ERetryPayment(t *testing.T) {
+	setup(t)
+	mockMux := http.NewServeMux()
+	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
+	mockServer := httptest.NewServer(mockMux)
+	defer mockServer.Close()
+
+	customPaymentCfg := payment.Config{
+		Gateway:        "mock",
+		GatewayURL:     mockServer.URL + "/mock/payment",
+		GatewayTimeout: 5 * time.Second,
+	}
+	deps := &apihttp.Deps{
+		Infra:   testDeps.Infra,
+		Auth:    testDeps.Auth,
+		Order:   testDeps.Order,
+		Payment: customPaymentCfg,
+		Pool:    testPool,
+		Cache:   testRedis,
+		Logger:  testhelper.DiscardLogger(),
+	}
+	handler := apihttp.NewRouter(deps, newTestApp(customPaymentCfg))
+	ctx := context.Background()
+
+	ownerID, ownerToken := registerE2EUser(t, handler, "retry-owner@example.com")
+	_, otherToken := registerE2EUser(t, handler, "retry-other@example.com")
+
+	// Seeded directly rather than through POST /api/orders: against this
+	// working gateway, place's own payment leg would succeed synchronously and
+	// the order would never sit in awaiting_payment for retry to act on.
+	orderID := seedAwaitingPaymentOrder(t, ownerID)
+	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM payments WHERE order_id = $1`, orderID) })
+
+	body := `{"payment_method_id":"pm_test_retry"}`
+
+	t.Run("a different user retrying someone else's order gets 404", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/orders/"+orderID.String()+"/pay", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+otherToken)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("the owner retries payment and it succeeds", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/orders/"+orderID.String()+"/pay", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+ownerToken)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		assert.Equal(t, "paid", orderStatusOf(t, orderID))
+	})
+}
+
+// registerE2EUser drives POST /api/auth/register through the real handler and
+// returns the new user's id alongside its access token. Every other e2e test
+// only ever reads its own token back; this test needs a second user's id to
+// seed an order it does not own.
+func registerE2EUser(t *testing.T, handler http.Handler, email string) (uuid.UUID, string) {
+	t.Helper()
+
+	body := `{"email":"` + email + `","password":"Password123!","first_name":"E2E","last_name":"User"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	data := resp["data"].(map[string]any)
+	user := data["user"].(map[string]any)
+
+	id, err := uuid.Parse(user["id"].(string))
+	require.NoError(t, err)
+
+	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM users WHERE email = $1`, email) })
+
+	return id, data["access_token"].(string)
+}

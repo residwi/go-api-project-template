@@ -66,28 +66,32 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 	require.NoError(t, err)
 
 	userID := testhelper.SeedUser(t, testPool)
-	var orderID uuid.UUID
-	require.NoError(t, testPool.QueryRow(
-		ctx,
-		`INSERT INTO orders (user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency)
-		 VALUES ($1, $2, $3, 'awaiting_payment', 1000, 0, 1000, 'USD') RETURNING id`,
-		userID,
-		userID.String(),
-		"hash-"+userID.String(),
-	).Scan(&orderID))
+	seedOrder := func() uuid.UUID {
+		var orderID uuid.UUID
+		require.NoError(t, testPool.QueryRow(
+			ctx,
+			`INSERT INTO orders (user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency)
+			 VALUES ($1, $2, $3, 'awaiting_payment', 1000, 0, 1000, 'USD') RETURNING id`,
+			userID,
+			uuid.New().String(),
+			"hash-"+uuid.New().String(),
+		).Scan(&orderID))
+		return orderID
+	}
 
+	cancelOrderID := seedOrder()
 	var paymentID uuid.UUID
 	require.NoError(t, testPool.QueryRow(ctx,
 		`INSERT INTO payments (order_id, amount, currency, status) VALUES ($1, 1000, 'USD', 'pending') RETURNING id`,
-		orderID,
+		cancelOrderID,
 	).Scan(&paymentID))
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO payment_jobs (payment_id, order_id, action, status) VALUES ($1, $2, 'charge', 'pending')`,
-		paymentID, orderID,
+		paymentID, cancelOrderID,
 	)
 	require.NoError(t, err)
 
-	require.NoError(t, app.Orders.Cancel.Execute(ctx, userID, orderID))
+	require.NoError(t, app.Orders.Cancel.Execute(ctx, userID, cancelOrderID))
 
 	var jobStatus string
 	require.NoError(t, testPool.QueryRow(ctx,
@@ -96,15 +100,19 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 	assert.Equal(t, "cancelled", jobStatus,
 		"Cancel's PaymentJobs leg must be wired to the real payment.Module.Jobs by New")
 
-	// checkout.Service.Snapshots is new in this refactor and must also be a
-	// real, callable order.Query: a dropped port would panic on RetryPayment's
-	// first line instead of reaching the ownership check below. This cannot
-	// prove the Payments (Charge) leg the same way, because
-	// order/usecase/query.UseCase.GetSnapshot does not populate
-	// contract.Order.UserID (only GetInfo does) -- so the ownership check
-	// below always loses against a real caller before RetryPayment reaches
-	// payment.Charge at all. That gap is real and unresolved; see
-	// task-3-report.md.
-	_, err = app.Checkout.RetryPayment(ctx, userID, orderID, "card")
-	require.ErrorIs(t, err, apperror.ErrNotFound)
+	// checkout.Service.Snapshots is new in this refactor: order/usecase/query's
+	// GetSnapshot now carries ID and UserID (it didn't when this test was first
+	// written -- see task-3-report.md for that incident), so a real caller's
+	// ownership check correctly passes here and RetryPayment reaches
+	// payment.Charge. A separate, untouched order is used rather than
+	// cancelOrderID above, so this assertion is not tangled up with Cancel's
+	// own status transition.
+	retryOrderID := seedOrder()
+	_, err = app.Checkout.RetryPayment(ctx, userID, retryOrderID, "card")
+
+	// A nil Snapshots or Payments port would panic; an ownership check that
+	// still lost against the real caller would return apperror.ErrNotFound
+	// instead. Reaching the closed-port dial failure proves both legs wired.
+	require.Error(t, err)
+	require.NotErrorIs(t, err, apperror.ErrNotFound)
 }
