@@ -150,11 +150,15 @@ module boundary before `order.New` could run. With `order` needing nothing
 from `payment` any more, `order.New` runs first and hands `payment.New` its
 own `Module.Transition`, `Module.Cancel` and `Module.Query` by name-match,
 so none of the six is needed — down from the double digits a flat, unsliced
-`app.go` used to carry. A flattened module reopens exactly one alias here
-instead of avoiding the six: `wishlistpg` (Task 6), the only one today,
-because a module with no `module.go` left has nowhere else to wire its own
-adapter — see `ARCHITECTURE-LIMITATIONS.md`'s "composition site" entry, and
-read this count the same way as the others, stale until every module has
+`app.go` used to carry. A flattened module reopens one alias here *per
+adapter package it owns*, not one per module: `wishlist` (Task 6) owns one
+store, so it costs exactly one, `wishlistpg`; `checkout`, a flattened module
+that owns no store of its own, costs zero — `app.go` imports it unaliased;
+`user`, when it flattens, will cost two (`userpg` plus a cache alias), since
+`user/usecase/query` is the one slice in the repo backed by both Postgres and
+Redis today. A module with no `module.go` left has nowhere else to wire its
+own adapter — see `ARCHITECTURE-LIMITATIONS.md`'s "composition site" entry,
+and read this count the same way as the others, stale until every module has
 flattened. Cost still concentrates in one file per module and one per
 feature's routes, deliberately — just no longer in one file for the whole
 binary.

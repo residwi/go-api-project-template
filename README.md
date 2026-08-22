@@ -24,10 +24,10 @@ A production-ready Go API template with Feature-Based Clean Architecture (Vertic
 ## Project Structure
 
 Feature modules sit under `/internal/modules` — one subdirectory per feature.
-**A refactor is in progress** (see `REFACTOR-PLAN.md`), collapsing each
-module's slices into one `service.go`/`repository.go` pair; `wishlist` is
-the first module flattened this way (Task 6). What follows describes the
-other thirteen, still sliced: each is a vertical use-case package, one under
+**A refactor is in progress** (see `REFACTOR-PLAN.md`), collapsing module
+slices into one `service.go`/`repository.go` pair; the sliced shape below,
+and every count on this page, describes the pre-refactor tree until it
+completes. Each sliced module is a vertical use-case package, one under
 that feature's `usecase/` directory; there is no more layered shape to
 compare against. Each owns a `domain/`, a `module.go` that composes
 its slices, and a `usecase/` holding one directory per use case, each with its
@@ -52,8 +52,7 @@ the verb, the path and the middleware group.
 │   ├── /modules
 │   │   └── /auth /user /category /product /inventory /cart /order /payment
 │   │       /review /promotion /wishlist /notification /dashboard /shipping
-│   │       │                   # ^ 13 of 14 still this shape; wishlist
-│   │       │                   #   flattened (Task 6), see REFACTOR-PLAN.md
+│   │       │                   # ^ pre-refactor shape, see REFACTOR-PLAN.md
 │   │       ├── domain/              # aggregate types + rules; module-private
 │   │       ├── module.go            # composes every slice into Module; also
 │   │       │                        # declares any port several slices share
@@ -578,7 +577,7 @@ This template follows **Feature-Based Clean Architecture** (Vertical Slicing), o
 - Each feature (auth, user, product, order, etc.) is a module containing several self-contained slices under its `usecase/`, each with exactly one exported `UseCase`, its own repository port, and its own DTOs
 - Dependencies flow inward (handlers → `UseCase` → repositories), and URLs flow the other way: `internal/transport/http/routes` imports the modules, never the reverse
 - PostgreSQL adapters live in each slice's own `postgres/` subpackage, so a slice *cannot* import its own SQL adapter without a compile-time import cycle
-- Cross-module dependencies use interfaces declared by the **consumer** — a slice's own `ports.go` when only that slice needs it (e.g. `internal/modules/product/usecase/query/ports.go` declares what `product/usecase/query` needs from inventory; `inventory` publishes nothing), or `module.go` — as an interface plus a `Deps` field, by convention rather than enforcement: every type a `Deps` field names is declared in the module's own package so the wiring surface reads without opening a slice, though no boundary check forbids naming a slice's type directly (`order/module.go` already imports `order/usecase/place` for its own composition, and the cross-module-import check explicitly skips same-feature imports). Sharing across sibling slices is a second reason, but not the only one: `order/module.go` declares ten such ports, yet only three of them (shared between `place`, `cancel`, `expire` and `retrypayment`) are actually shared — the other seven each feed exactly one slice and sit in `Deps` for the convention reason alone. Either way the dependency graph stays acyclic by construction. Two mechanisms satisfy a port, and `internal/bootstrap` (the composition root, shared by the API server and worker) wires them once: **name-match**, when the producer's own value already has a method named what the port asks for (`promotion/usecase/reserve.UseCase` already satisfies both `order.CouponPort` and `payment.CouponPort`), or a **`<feature>/contract/` package**, when what crosses is a struct rather than something a value already satisfies
+- Cross-module dependencies use interfaces declared by the **consumer** — a slice's own `ports.go` when only that slice needs it (e.g. `internal/modules/product/usecase/query/ports.go` declares what `product/usecase/query` needs from inventory; `inventory` publishes nothing), or `module.go` — as an interface plus a `Deps` field, by convention rather than enforcement: every type a `Deps` field names is declared in the module's own package so the wiring surface reads without opening a slice, though no boundary check forbids naming a slice's type directly (`order/module.go` already imports `order/usecase/place` for its own composition, and the cross-module-import check explicitly skips same-feature imports). Sharing across sibling slices is a second reason, but not the only one: `order/module.go` declares eight such ports, yet only two of them (shared between `place`, `cancel` and `expire`) are actually shared — the other six each feed exactly one slice and sit in `Deps` for the convention reason alone. Either way the dependency graph stays acyclic by construction. Two mechanisms satisfy a port, and `internal/bootstrap` (the composition root, shared by the API server and worker) wires them once: **name-match**, when the producer's own value already has a method named what the port asks for (`promotion/usecase/reserve.UseCase` already satisfies both `order.CouponPort` and `payment.CouponPort`), or a **`<feature>/contract/` package**, when what crosses is a struct rather than something a value already satisfies
 - Order status changes from other modules go through named `domain.Transition` values applied via `order/usecase/transition.UseCase.Apply` — payment and shipping express intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) against their own port, and the value they wire to — `order/usecase/transition.UseCase` itself, the only value any of those ports name — implements each intent method by calling `Apply` with the right transition internally, keeping the order state machine's allowed transitions defined in one place (`internal/modules/order/domain/transition.go`)
 - Monetary amounts are `money.Money` (amount paired with currency) in `order`, `payment`, `product` and `cart`, so an amount cannot drift from the currency beside it. `promotion` and `dashboard` stay on `int64` for reasons recorded in `ARCHITECTURE.md` §10
 - Configuration is validated at startup and boot aborts on failure: infra-level settings in `Infra.validate()` (`internal/platform/config`), module-owned settings (e.g. a sub-second `AUTH_RATE_WINDOW` or a `WORKER_CONCURRENCY < 1`) inline in that module's own `LoadConfig` (`auth.LoadConfig`, `cart.LoadConfig`, `order.LoadConfig`, `payment.LoadConfig`)
