@@ -136,7 +136,7 @@ package and lets `module.go` wire that module's own adapters. Six aliased
 imports (`ordercancel`, `ordercancelpg`, `ordertransition`,
 `ordertransitionpg`, `orderquery`, `orderquerypg`) used to survive there
 regardless, kept only because the order/payment cycle forced bootstrap to
-build two pieces of `order` two levels past its own module boundary before
+build three pieces of `order` two levels past its own module boundary before
 `order.New` could run. With `order` needing nothing from `payment` any
 more, `order.New` runs first and hands `payment.New` its own
 `Module.Transition`, `Module.Cancel` and `Module.Query` by name-match, so
