@@ -16,9 +16,8 @@ import (
 // TestRouteSnapshot asserts every route in testdata/routes.golden is still
 // mounted, and still on the same middleware group. http.ServeMux exposes no
 // route table, so each route is probed instead: an unmounted path falls through
-// to Go's default 404, which writes text/plain, while every mounted route
-// answers application/json -- including the 401 and 403 the auth middleware
-// writes.
+// to Go's default 404, which writes text/plain; a mounted route may answer any
+// status code or body, but never text/plain.
 func TestRouteSnapshot(t *testing.T) {
 	setup(t)
 	handler := NewRouter(testDeps, testApp)
@@ -27,8 +26,13 @@ func TestRouteSnapshot(t *testing.T) {
 	for _, r := range loadGoldenRoutes(t) {
 		t.Run(r.method+" "+r.path+" is on the "+r.group+" group", func(t *testing.T) {
 			anon := probe(handler, r.method, r.path, "")
-			require.Contains(t, anon.Header().Get("Content-Type"), "application/json",
-				"route is not mounted: mux fell through to the default 404")
+			// An unmounted path falls through to Go's default 404, which writes
+			// text/plain. A mounted route may legitimately answer 404 (a real
+			// lookup miss) or 200 with an empty body (the webhook ack) -- only the
+			// combination of 404 AND a non-JSON body means the mux never matched.
+			unmounted := anon.Code == http.StatusNotFound &&
+				!strings.Contains(anon.Header().Get("Content-Type"), "application/json")
+			require.False(t, unmounted, "route is not mounted: mux fell through to the default 404")
 
 			switch r.group {
 			case "api":
