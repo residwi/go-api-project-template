@@ -2,7 +2,7 @@
 // github.com/vektra/mockery
 // template: testify
 
-package summary
+package dashboard
 
 import (
 	"context"
@@ -181,6 +181,160 @@ func (_c *MockRepository_ListOrderStatusBreakdown_Call) Return(statusBreakdowns 
 }
 
 func (_c *MockRepository_ListOrderStatusBreakdown_Call) RunAndReturn(run func(ctx context.Context, from time.Time, to time.Time) ([]domain.StatusBreakdown, error)) *MockRepository_ListOrderStatusBreakdown_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListRevenueByDay provides a mock function for the type MockRepository
+func (_mock *MockRepository) ListRevenueByDay(ctx context.Context, from time.Time, to time.Time) ([]domain.RevenueData, error) {
+	ret := _mock.Called(ctx, from, to)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListRevenueByDay")
+	}
+
+	var r0 []domain.RevenueData
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) ([]domain.RevenueData, error)); ok {
+		return returnFunc(ctx, from, to)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, time.Time) []domain.RevenueData); ok {
+		r0 = returnFunc(ctx, from, to)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.RevenueData)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time, time.Time) error); ok {
+		r1 = returnFunc(ctx, from, to)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_ListRevenueByDay_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListRevenueByDay'
+type MockRepository_ListRevenueByDay_Call struct {
+	*mock.Call
+}
+
+// ListRevenueByDay is a helper method to define mock.On call
+//   - ctx context.Context
+//   - from time.Time
+//   - to time.Time
+func (_e *MockRepository_Expecter) ListRevenueByDay(ctx any, from any, to any) *MockRepository_ListRevenueByDay_Call {
+	return &MockRepository_ListRevenueByDay_Call{Call: _e.mock.On("ListRevenueByDay", ctx, from, to)}
+}
+
+func (_c *MockRepository_ListRevenueByDay_Call) Run(run func(ctx context.Context, from time.Time, to time.Time)) *MockRepository_ListRevenueByDay_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_ListRevenueByDay_Call) Return(revenueDatas []domain.RevenueData, err error) *MockRepository_ListRevenueByDay_Call {
+	_c.Call.Return(revenueDatas, err)
+	return _c
+}
+
+func (_c *MockRepository_ListRevenueByDay_Call) RunAndReturn(run func(ctx context.Context, from time.Time, to time.Time) ([]domain.RevenueData, error)) *MockRepository_ListRevenueByDay_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListTopProducts provides a mock function for the type MockRepository
+func (_mock *MockRepository) ListTopProducts(ctx context.Context, limit int, from time.Time, to time.Time) ([]domain.TopProduct, error) {
+	ret := _mock.Called(ctx, limit, from, to)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListTopProducts")
+	}
+
+	var r0 []domain.TopProduct
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, time.Time, time.Time) ([]domain.TopProduct, error)); ok {
+		return returnFunc(ctx, limit, from, to)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, time.Time, time.Time) []domain.TopProduct); ok {
+		r0 = returnFunc(ctx, limit, from, to)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.TopProduct)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, time.Time, time.Time) error); ok {
+		r1 = returnFunc(ctx, limit, from, to)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_ListTopProducts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTopProducts'
+type MockRepository_ListTopProducts_Call struct {
+	*mock.Call
+}
+
+// ListTopProducts is a helper method to define mock.On call
+//   - ctx context.Context
+//   - limit int
+//   - from time.Time
+//   - to time.Time
+func (_e *MockRepository_Expecter) ListTopProducts(ctx any, limit any, from any, to any) *MockRepository_ListTopProducts_Call {
+	return &MockRepository_ListTopProducts_Call{Call: _e.mock.On("ListTopProducts", ctx, limit, from, to)}
+}
+
+func (_c *MockRepository_ListTopProducts_Call) Run(run func(ctx context.Context, limit int, from time.Time, to time.Time)) *MockRepository_ListTopProducts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_ListTopProducts_Call) Return(topProducts []domain.TopProduct, err error) *MockRepository_ListTopProducts_Call {
+	_c.Call.Return(topProducts, err)
+	return _c
+}
+
+func (_c *MockRepository_ListTopProducts_Call) RunAndReturn(run func(ctx context.Context, limit int, from time.Time, to time.Time) ([]domain.TopProduct, error)) *MockRepository_ListTopProducts_Call {
 	_c.Call.Return(run)
 	return _c
 }

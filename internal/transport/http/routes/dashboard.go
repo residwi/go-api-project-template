@@ -2,14 +2,13 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
-	revenuehttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/revenue/http"
-	summaryhttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/summary/http"
-	topproductshttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/usecase/topproducts/http"
+	dashboardhttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/adapter/http"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-func Dashboard(admin *middleware.RouteGroup, m *dashboard.Module) {
-	admin.HandleFunc("GET /dashboard/summary", summaryhttp.New(m.Summary).Summary)
-	admin.HandleFunc("GET /dashboard/top-products", topproductshttp.New(m.TopProducts).TopProducts)
-	admin.HandleFunc("GET /dashboard/revenue", revenuehttp.New(m.Revenue).Revenue)
+func Dashboard(admin *middleware.RouteGroup, s *dashboard.Service) {
+	h := dashboardhttp.NewHandler(s)
+	admin.HandleFunc("GET /dashboard/summary", h.Summary)
+	admin.HandleFunc("GET /dashboard/top-products", h.TopProducts)
+	admin.HandleFunc("GET /dashboard/revenue", h.Revenue)
 }

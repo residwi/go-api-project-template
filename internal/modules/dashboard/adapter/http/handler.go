@@ -3,22 +3,27 @@ package http
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard/domain"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-type SummaryReader interface {
+type Reporter interface {
+	ListRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error)
 	GetSummary(ctx context.Context, from, to time.Time) (domain.SalesSummary, []domain.StatusBreakdown, error)
+	ListTopProducts(ctx context.Context, limit int, from, to time.Time) ([]domain.TopProduct, error)
 }
 
 type Handler struct {
-	usecase SummaryReader
+	service Reporter
 }
 
-func New(usecase SummaryReader) *Handler {
-	return &Handler{usecase: usecase}
+func NewHandler(service Reporter) *Handler {
+	return &Handler{service: service}
 }
 
 func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time, ok bool) {
@@ -85,11 +90,86 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sales, breakdown, err := h.usecase.GetSummary(r.Context(), from, to)
+	sales, breakdown, err := h.service.GetSummary(r.Context(), from, to)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
 	}
 
 	response.OK(w, toSummaryResponse(sales, breakdown))
+}
+
+type revenueDataResponse struct {
+	Date       time.Time `json:"date"`
+	Revenue    int64     `json:"revenue"`
+	OrderCount int       `json:"order_count"`
+}
+
+func toRevenueDataResponse(d domain.RevenueData) revenueDataResponse {
+	return revenueDataResponse{
+		Date:       d.Date,
+		Revenue:    d.Revenue,
+		OrderCount: d.OrderCount,
+	}
+}
+
+func (h *Handler) Revenue(w http.ResponseWriter, r *http.Request) {
+	from, to, ok := parseDateRange(w, r)
+	if !ok {
+		return
+	}
+
+	data, err := h.service.ListRevenueByDay(r.Context(), from, to)
+	if err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	out := make([]revenueDataResponse, len(data))
+	for i, d := range data {
+		out[i] = toRevenueDataResponse(d)
+	}
+
+	response.OK(w, out)
+}
+
+type topProductResponse struct {
+	ProductID uuid.UUID `json:"product_id"`
+	Name      string    `json:"name"`
+	TotalSold int       `json:"total_sold"`
+	Revenue   int64     `json:"revenue"`
+}
+
+func toTopProductResponse(p domain.TopProduct) topProductResponse {
+	return topProductResponse{
+		ProductID: p.ProductID,
+		Name:      p.Name,
+		TotalSold: p.TotalSold,
+		Revenue:   p.Revenue,
+	}
+}
+
+func (h *Handler) TopProducts(w http.ResponseWriter, r *http.Request) {
+	from, to, ok := parseDateRange(w, r)
+	if !ok {
+		return
+	}
+
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	products, err := h.service.ListTopProducts(r.Context(), limit, from, to)
+	if err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	out := make([]topProductResponse, len(products))
+	for i, p := range products {
+		out[i] = toTopProductResponse(p)
+	}
+
+	response.OK(w, out)
 }

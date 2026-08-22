@@ -95,7 +95,7 @@ protect, because `dashboard` never writes.
    answer is a real read model — a projection `dashboard` owns and other modules
    write to — not a wider exemption.
 3. Read-only is a convention here, not a constraint. No grant, no separate role,
-   and no check enforces it. An `UPDATE` in any of `internal/modules/dashboard/usecase/{summary,topproducts,revenue}/postgres` would
+   and no check enforces it. An `UPDATE` in `internal/modules/dashboard/adapter/postgres` would
    pass CI today.
 
 ## Cross-module foreign keys are kept
