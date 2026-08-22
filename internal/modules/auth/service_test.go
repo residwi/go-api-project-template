@@ -47,7 +47,15 @@ func TestService_Login(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp.AccessToken)
 		assert.NotEmpty(t, resp.RefreshToken)
-		assert.Equal(t, userID, resp.User.ID)
+		assert.Equal(t, usercontract.User{
+			ID:           userID,
+			Email:        "test@example.com",
+			FirstName:    "John",
+			LastName:     "Doe",
+			Role:         "customer",
+			Active:       true,
+			TokenVersion: 1,
+		}, resp.User)
 	})
 
 	t.Run("inactive user returns ErrUnauthorized", func(t *testing.T) {
