@@ -534,8 +534,8 @@ linters:
       # itself. Excluding per-file instead of per-package is what made this
       # list wrong the first time.
       # Nothing is lost: `go test` already runs these packages concurrently
-      # with each other. Most own their database outright; shipping's four
-      # slice postgres/ packages share test_shipping instead and, for exactly
+      # with each other. Most own their database outright; order's seven
+      # slice postgres/ packages share test_order instead and, for exactly
       # this reason, none of them calls ResetDB -- they seed and delete their
       # own rows by id. Either way, the only concurrency t.Parallel could add
       # within one package is the unsafe kind.

@@ -31,8 +31,8 @@ func TestHandler_Get(t *testing.T) {
 		shipmentID := uuid.New()
 		now := time.Now()
 
-		usecase := NewMockShipmentReader(t)
-		usecase.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(&domain.Shipment{
+		service := NewMockShipmentReader(t)
+		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(&domain.Shipment{
 			ID:             shipmentID,
 			OrderID:        orderID,
 			Carrier:        "FedEx",
@@ -42,7 +42,7 @@ func TestHandler_Get(t *testing.T) {
 			UpdatedAt:      now,
 		}, nil)
 
-		mux := setupQueryMux(t, usecase)
+		mux := setupMux(t, service)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -76,7 +76,7 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("missing auth", func(t *testing.T) {
 		t.Parallel()
 
-		mux := setupQueryMux(t, NewMockShipmentReader(t))
+		mux := setupMux(t, NewMockShipmentReader(t))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+uuid.NewString()+"/shipping", nil)
@@ -93,7 +93,7 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		t.Parallel()
 
-		mux := setupQueryMux(t, NewMockShipmentReader(t))
+		mux := setupMux(t, NewMockShipmentReader(t))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/bad/shipping", nil)
@@ -119,10 +119,10 @@ func TestHandler_Get(t *testing.T) {
 		userID := uuid.New()
 		orderID := uuid.New()
 
-		usecase := NewMockShipmentReader(t)
-		usecase.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+		service := NewMockShipmentReader(t)
+		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
 
-		mux := setupQueryMux(t, usecase)
+		mux := setupMux(t, service)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -135,19 +135,19 @@ func TestHandler_Get(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 
-	// query.UseCase.GetByOrderIDForUser turns an ownership mismatch into
-	// apperror.ErrNotFound itself (see query/usecase_test.go) -- from this
-	// handler's side of the port, that looks identical to any other not-found.
+	// Service.GetForUser turns an ownership mismatch into apperror.ErrNotFound
+	// itself (see service_test.go) -- from this handler's side of the port,
+	// that looks identical to any other not-found.
 	t.Run("not owned by user", func(t *testing.T) {
 		t.Parallel()
 
 		userID := uuid.New()
 		orderID := uuid.New()
 
-		usecase := NewMockShipmentReader(t)
-		usecase.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+		service := NewMockShipmentReader(t)
+		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
 
-		mux := setupQueryMux(t, usecase)
+		mux := setupMux(t, service)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -166,10 +166,10 @@ func TestHandler_Get(t *testing.T) {
 		userID := uuid.New()
 		orderID := uuid.New()
 
-		usecase := NewMockShipmentReader(t)
-		usecase.EXPECT().GetByOrderIDForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+		service := NewMockShipmentReader(t)
+		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
 
-		mux := setupQueryMux(t, usecase)
+		mux := setupMux(t, service)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
@@ -183,37 +183,75 @@ func TestHandler_Get(t *testing.T) {
 	})
 }
 
+// toShipmentResponse is shared by handler.go and admin_handler.go. The old
+// create, deliver, query and updatetracking handlers each carried their own
+// copy of this exact test; three of the four (create, query, updatetracking)
+// were byte-for-byte identical, and deliver's differed only in exercising
+// delivered_at instead of leaving both pointer fields nil. Both scenarios
+// survive here as subtests so neither's coverage is lost in the merge.
 func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	got := toShipmentResponse(&domain.Shipment{
-		ID:             uuid.New(),
-		OrderID:        uuid.New(),
-		Carrier:        "FedEx",
-		TrackingNumber: "TRACK123",
-		Status:         domain.StatusShipped,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+	t.Run("omits shipped_at and delivered_at when nil", func(t *testing.T) {
+		t.Parallel()
+
+		now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+		got := toShipmentResponse(&domain.Shipment{
+			ID:             uuid.New(),
+			OrderID:        uuid.New(),
+			Carrier:        "FedEx",
+			TrackingNumber: "TRACK123",
+			Status:         domain.StatusShipped,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		})
+
+		raw, err := json.Marshal(got)
+		require.NoError(t, err)
+
+		var fields map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(raw, &fields))
+		assert.ElementsMatch(t,
+			[]string{"id", "order_id", "carrier", "tracking_number", "status", "created_at", "updated_at"},
+			slices.Collect(maps.Keys(fields)),
+			"shipped_at and delivered_at are omitempty and absent when nil")
 	})
 
-	raw, err := json.Marshal(got)
-	require.NoError(t, err)
+	t.Run("includes delivered_at when set", func(t *testing.T) {
+		t.Parallel()
 
-	var fields map[string]json.RawMessage
-	require.NoError(t, json.Unmarshal(raw, &fields))
-	assert.ElementsMatch(t,
-		[]string{"id", "order_id", "carrier", "tracking_number", "status", "created_at", "updated_at"},
-		slices.Collect(maps.Keys(fields)),
-		"shipped_at and delivered_at are omitempty and absent when nil")
+		now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+		got := toShipmentResponse(&domain.Shipment{
+			ID:             uuid.New(),
+			OrderID:        uuid.New(),
+			Carrier:        "FedEx",
+			TrackingNumber: "TRACK123",
+			Status:         domain.StatusDelivered,
+			DeliveredAt:    &now,
+			CreatedAt:      now,
+			UpdatedAt:      now,
+		})
+
+		raw, err := json.Marshal(got)
+		require.NoError(t, err)
+
+		var fields map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(raw, &fields))
+		assert.ElementsMatch(t,
+			[]string{
+				"id", "order_id", "carrier", "tracking_number", "status", "delivered_at", "created_at", "updated_at",
+			},
+			slices.Collect(maps.Keys(fields)),
+			"shipped_at is omitempty and absent when nil")
+	})
 }
 
-func setupQueryMux(t *testing.T, usecase ShipmentReader) *http.ServeMux {
+func setupMux(t *testing.T, service ShipmentReader) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
-	authed.HandleFunc("GET /orders/{id}/shipping", New(usecase).Get)
+	authed.HandleFunc("GET /orders/{id}/shipping", NewHandler(service).Get)
 
 	return mux
 }

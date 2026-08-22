@@ -1,4 +1,4 @@
-package updatetracking
+package shipping
 
 import (
 	"context"
@@ -9,6 +9,9 @@ import (
 )
 
 type Repository interface {
+	Create(ctx context.Context, shipment *domain.Shipment) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Shipment, error)
+	GetByOrderID(ctx context.Context, orderID uuid.UUID) (*domain.Shipment, error)
+	MarkDelivered(ctx context.Context, id uuid.UUID) (*domain.Shipment, error)
 	Update(ctx context.Context, shipment *domain.Shipment) error
 }

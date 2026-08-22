@@ -13,17 +13,22 @@ import (
 )
 
 type ShipmentReader interface {
-	GetByOrderIDForUser(ctx context.Context, userID, orderID uuid.UUID) (*domain.Shipment, error)
+	GetForUser(ctx context.Context, userID, orderID uuid.UUID) (*domain.Shipment, error)
 }
 
 type Handler struct {
-	usecase ShipmentReader
+	service ShipmentReader
 }
 
-func New(usecase ShipmentReader) *Handler {
-	return &Handler{usecase: usecase}
+func NewHandler(service ShipmentReader) *Handler {
+	return &Handler{service: service}
 }
 
+// shipmentResponse and toShipmentResponse are shared with admin_handler.go:
+// the wire shape a caller sees is the same shipment record whether they read
+// it as the order's owner or wrote it as an admin, so one declaration is the
+// true-duplicate collision, not the same-name-different-meaning one -- unlike
+// category's public/admin split, no field here needs hiding from either role.
 type shipmentResponse struct {
 	ID             uuid.UUID             `json:"id"`
 	OrderID        uuid.UUID             `json:"order_id"`
@@ -61,7 +66,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shipment, err := h.usecase.GetByOrderIDForUser(r.Context(), uc.UserID, orderID)
+	shipment, err := h.service.GetForUser(r.Context(), uc.UserID, orderID)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

@@ -23,6 +23,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/review"
 	reviewpg "github.com/residwi/go-api-project-template/internal/modules/review/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
+	shippingpg "github.com/residwi/go-api-project-template/internal/modules/shipping/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	wishlistpg "github.com/residwi/go-api-project-template/internal/modules/wishlist/adapter/postgres"
@@ -49,7 +50,7 @@ type App struct {
 	Orders        *order.Module
 	Payments      *payment.Module
 	Checkout      *checkout.Service
-	Shipping      *shipping.Module
+	Shipping      *shipping.Service
 	Reviews       *review.Service
 	Promotions    *promotion.Module
 	Wishlists     *wishlist.Service
@@ -111,9 +112,10 @@ func New(d Deps) (*App, error) {
 	})
 
 	shippingMod := shipping.New(shipping.Deps{
-		Pool: d.Pool, Tx: txRunner,
-		OrderRead:        ordMod.Query,
-		OrderStatusWrite: ordMod.Transition,
+		Repo: shippingpg.New(d.Pool), Tx: txRunner,
+		OrderRead:    ordMod.Query,
+		OrderShip:    ordMod.Transition,
+		OrderDeliver: ordMod.Transition,
 	})
 	reviewMod := review.New(review.Deps{Repo: reviewpg.New(d.Pool), Purchase: ordMod.Query})
 

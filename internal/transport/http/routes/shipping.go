@@ -2,18 +2,16 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
-	createhttp "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/create/http"
-	deliverhttp "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/deliver/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/query/http"
-	updatetrackinghttp "github.com/residwi/go-api-project-template/internal/modules/shipping/usecase/updatetracking/http"
+	shippinghttp "github.com/residwi/go-api-project-template/internal/modules/shipping/adapter/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-func Shipping(authed, admin *middleware.RouteGroup, m *shipping.Module, v *validator.Validator) {
-	authed.HandleFunc("GET /orders/{id}/shipping", queryhttp.New(m.Query).Get)
+func Shipping(authed, admin *middleware.RouteGroup, s *shipping.Service, v *validator.Validator) {
+	authed.HandleFunc("GET /orders/{id}/shipping", shippinghttp.NewHandler(s).Get)
 
-	admin.HandleFunc("POST /orders/{id}/ship", createhttp.New(m.Create, v).Create)
-	admin.HandleFunc("PUT /shipments/{id}/tracking", updatetrackinghttp.New(m.UpdateTracking, v).UpdateTracking)
-	admin.HandleFunc("POST /shipments/{id}/deliver", deliverhttp.New(m.Deliver).Deliver)
+	adminH := shippinghttp.NewAdminHandler(s, v)
+	admin.HandleFunc("POST /orders/{id}/ship", adminH.Create)
+	admin.HandleFunc("PUT /shipments/{id}/tracking", adminH.UpdateTracking)
+	admin.HandleFunc("POST /shipments/{id}/deliver", adminH.Deliver)
 }
