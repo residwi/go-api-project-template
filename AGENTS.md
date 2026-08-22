@@ -146,9 +146,12 @@ actually shared (`InventoryRestorer` between `cancel` and `expire`,
 `CouponPort` across `place`, `cancel` and `expire`); the other eight each feed
 exactly one slice — `CartLocker`, `CartReader`, `CartClearer`,
 `InventoryReserver`, `InventoryDeductor` and `NotificationEnqueuer` all feed
-only `place`, `PaymentJobCanceller` feeds only `cancel`, `PaymentInitiator`
-feeds only `retrypayment` now that `place`'s own payment call moved to
-`checkout` — and sit in `module.go` for the convention reason alone. `payment`
+only `place`, `PaymentInitiator` feeds only `retrypayment` now that `place`'s
+own payment call moved to `checkout` — and sit in `module.go` for the
+convention reason alone. `PaymentJobCanceller` is gone from this list: the
+payment-job-cancel edge `cancel` used to carry moved to
+`checkout.Service.CancelOrder`, so `order/module.go` now declares no
+payment-shaped port at all. `payment`
 has the same shape: `InventoryDeductor` reaches only `charge`,
 `InventoryRestorer` only `refund`. Either way the rule
 is the same one decision 2 states: the consumer names the interface, never the
