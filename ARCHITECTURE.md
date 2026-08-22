@@ -545,29 +545,36 @@ adapter. "Own" is literal: `updatetracking.Repository` and
 `deliver.Repository` both need `GetByID`; each declares it rather than
 sharing one. A slice declares a port for anything it does not implement
 itself — another module's capability or a sibling slice's — and `module.go`
-wires it. Three of shipping's four slices declare a port on order state, each
-named for the role it needs: `query` declares `OrderGetter` (`GetInfo`),
-`deliver` declares `OrderDeliverer` (`MarkDelivered`), and `create` declares
-two — `OrderGetter` for `GetInfo` and `OrderShipper` for `MarkShipped` —
-because it both checks and transitions the order it ships. `query` and
-`create` naming the same shape the same way is the point: one name per shape,
-one shape per name, so a reader comparing two slices is comparing roles rather
-than decoding whether two `OrderPort`s mean the same thing. `module.go`'s `Deps` folds these into two ports, not one:
-`OrderReader` (`GetInfo`, shared by `query` and `create`) and
-`OrderStatusWriter` (`MarkShipped` and `MarkDelivered`, shared by `create`
-and `deliver`) — each wired to exactly one order slice value,
-`order.Module.Query` for the first and `order.Module.Transition` for the
-second, by name-match, same trick as decision 2. No single wide value
-stands in for both any more; each port draws from the one slice that
-implements it. `updatetracking` declares none and
-takes no `TxRunner` either, because it changes two fields on a row it already
-fetched and writes it back — there is nothing outside itself to ask.
+wires it. Three of payment's four slices declare a port on order state, each
+named for the role it needs: `charge` and `refund` each declare `OrderGetter`
+(`GetSnapshot`) and `OrderItemsGetter` (`ListItemQuantities`) — identically
+shaped, because both read the same order fields before acting — and each
+also declares its own `OrderUpdater`, sized for what it alone writes:
+`charge`'s carries five `Mark*` methods, `refund`'s one (`MarkRefunded`);
+`webhook` declares a third, one-method `OrderUpdater` of its own
+(`CancelUnpaid`), for a write neither sibling makes. `charge` and `refund`
+naming their read ports the same shape the same way is the point: one name
+per shape, one shape per name, so a reader comparing the two is comparing
+roles rather than decoding whether two `OrderGetter`s mean the same thing —
+`OrderUpdater` does not get that benefit here, since the same name covers
+three unrelated shapes across three packages. `module.go`'s `Deps` folds
+the read side into one port, not two: `OrderReader` (`GetSnapshot` and
+`ListItemQuantities`, shared by `charge` and `refund`), wired to
+`order.Module.Query` by name-match. The write side stays two ports, not
+one, because `charge` and `refund`'s writes overlap enough for one
+interface to cover both by superset while `webhook`'s does not:
+`OrderTransition` (the union of all six `Mark*` methods `charge` and
+`refund` need between them) wires to `order.Module.Transition`, and
+`OrderCanceller` (`CancelUnpaid` alone) wires to `order.Module.Cancel` for
+`webhook` only, same trick as decision 2. `query` declares none and
+takes no `TxRunner` either, because both its methods only read its own
+repository — there is nothing outside itself to ask.
 
 **Why:** a use case's whole implementation is one directory, and what it
 depends on is its own `ports.go`, or its absence. `ls
-internal/modules/order/usecase/` is the module's use-case list — nothing
+internal/modules/payment/usecase/` is the module's use-case list — nothing
 else is in there to read past — and a slice with no `ports.go` reaches
-nothing beyond itself; `transition` is that case, not an oversight.
+nothing beyond itself; `query` is that case, not an oversight.
 
 **Cost accepted:** three packages per slice (root, `postgres/`, `http/`), so
 shipping alone went from 3 packages, layered, to 14 today, sliced —
