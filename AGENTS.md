@@ -121,8 +121,8 @@ none declares a `UseCase`, and `cmd/worker/main.go` constructs
 slice, whichever way an import into it points.
 
 A cross-module port is declared where it is consumed: in a slice's own
-`ports.go` when only that slice needs it (`category/usecase/remove/ports.go`
-declares `ProductCounter`; `product/usecase/query`, `product/usecase/create`,
+`ports.go` when only that slice needs it (`user/usecase/remove/ports.go`
+declares `StatusInvalidator`; `product/usecase/query`, `product/usecase/create`,
 `shipping/usecase/create` and 22 more each declare their own the same way — 26
 `ports.go` files in the tree, 25 of them a slice's and one `payment/jobs`', per
 `find internal/modules -name ports.go`), or in `module.go` — as an interface
@@ -162,7 +162,7 @@ producer — the two just differ in which consumer that is: one slice, or the
 module composing several.
 
 A `Module` struct field is named for the capability it backs, not the package —
-`category.Module` has field `Delete` backing package `remove`. The one
+`product.Module` has field `Delete` backing package `remove`. The one
 exception AGENTS.md used to record, `cart.Module.Empty` backing package
 `empty`, is gone: the slice is `cart/usecase/clear`, the field is `ClearCart`,
 and no delegator sits between it and its consumer any more —

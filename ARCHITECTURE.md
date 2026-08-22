@@ -80,8 +80,8 @@ The consumer is now a slice, or the module composing several of them.
 `internal/modules/product/usecase/query/ports.go` declares `InventoryReader`
 — the interface `query` alone needs from inventory. `inventory` does not
 publish it; `query` names exactly what it needs and something else
-satisfies it. `internal/modules/category/usecase/remove/ports.go` does the
-same for `ProductCounter`, one dependency, one slice. `order/module.go` is the
+satisfies it. `internal/modules/user/usecase/remove/ports.go` does the
+same for `StatusInvalidator`, one dependency, one slice. `order/module.go` is the
 other shape: `place`, `cancel` and `expire` all need inventory, so
 `order`'s port lives in `module.go` instead, as one interface plus one
 `Deps` field every slice that needs it shares — grouping at the module

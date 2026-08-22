@@ -16,11 +16,11 @@ type CategoryReader interface {
 }
 
 type Handler struct {
-	usecase CategoryReader
+	service CategoryReader
 }
 
-func New(usecase CategoryReader) *Handler {
-	return &Handler{usecase: usecase}
+func NewHandler(service CategoryReader) *Handler {
+	return &Handler{service: service}
 }
 
 type categoryResponse struct {
@@ -42,7 +42,7 @@ func toCategoryResponse(c *domain.Category) categoryResponse {
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	categories, err := h.usecase.List(r.Context())
+	categories, err := h.service.List(r.Context())
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -63,7 +63,7 @@ func (h *Handler) GetBySlug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cat, err := h.usecase.GetBySlug(r.Context(), slug)
+	cat, err := h.service.GetBySlug(r.Context(), slug)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

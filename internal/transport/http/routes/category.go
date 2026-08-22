@@ -2,20 +2,18 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/category"
-	createhttp "github.com/residwi/go-api-project-template/internal/modules/category/usecase/create/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/category/usecase/query/http"
-	removehttp "github.com/residwi/go-api-project-template/internal/modules/category/usecase/remove/http"
-	updatehttp "github.com/residwi/go-api-project-template/internal/modules/category/usecase/update/http"
+	categoryhttp "github.com/residwi/go-api-project-template/internal/modules/category/adapter/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-func Category(api, admin *middleware.RouteGroup, m *category.Module, v *validator.Validator) {
-	query := queryhttp.New(m.Query)
-	api.HandleFunc("GET /categories", query.List)
-	api.HandleFunc("GET /categories/{slug}", query.GetBySlug)
+func Category(api, admin *middleware.RouteGroup, s *category.Service, v *validator.Validator) {
+	h := categoryhttp.NewHandler(s)
+	api.HandleFunc("GET /categories", h.List)
+	api.HandleFunc("GET /categories/{slug}", h.GetBySlug)
 
-	admin.HandleFunc("POST /categories", createhttp.New(m.Create, v).Create)
-	admin.HandleFunc("PUT /categories/{id}", updatehttp.New(m.Update, v).Update)
-	admin.HandleFunc("DELETE /categories/{id}", removehttp.New(m.Delete).Delete)
+	adminH := categoryhttp.NewAdminHandler(s, v)
+	admin.HandleFunc("POST /categories", adminH.Create)
+	admin.HandleFunc("PUT /categories/{id}", adminH.Update)
+	admin.HandleFunc("DELETE /categories/{id}", adminH.Delete)
 }

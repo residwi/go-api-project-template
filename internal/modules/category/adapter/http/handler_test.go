@@ -27,10 +27,10 @@ func TestHandler_List(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase := setupQueryMux(t)
+		mux, service := setupMux(t)
 
 		now := time.Now()
-		usecase.EXPECT().List(mock.Anything).Return([]domain.Category{
+		service.EXPECT().List(mock.Anything).Return([]domain.Category{
 			{
 				ID:        uuid.New(),
 				Name:      "Electronics",
@@ -66,12 +66,12 @@ func TestHandler_List(t *testing.T) {
 		assert.NotContains(t, item, "description")
 	})
 
-	t.Run("usecase error", func(t *testing.T) {
+	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase := setupQueryMux(t)
+		mux, service := setupMux(t)
 
-		usecase.EXPECT().List(mock.Anything).Return(nil, errors.New("db error"))
+		service.EXPECT().List(mock.Anything).Return(nil, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/categories", nil)
@@ -88,11 +88,11 @@ func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase := setupQueryMux(t)
+		mux, service := setupMux(t)
 
 		catID := uuid.New()
 		now := time.Now()
-		usecase.EXPECT().GetBySlug(mock.Anything, "electronics").Return(&domain.Category{
+		service.EXPECT().GetBySlug(mock.Anything, "electronics").Return(&domain.Category{
 			ID:        catID,
 			Name:      "Electronics",
 			Slug:      "electronics",
@@ -135,9 +135,9 @@ func TestHandler_GetBySlug(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase := setupQueryMux(t)
+		mux, service := setupMux(t)
 
-		usecase.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
+		service.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/categories/nonexistent", nil)
@@ -151,12 +151,12 @@ func TestHandler_GetBySlug(t *testing.T) {
 		assert.False(t, resp.Success)
 	})
 
-	t.Run("usecase error", func(t *testing.T) {
+	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase := setupQueryMux(t)
+		mux, service := setupMux(t)
 
-		usecase.EXPECT().GetBySlug(mock.Anything, "fail").Return(nil, errors.New("db error"))
+		service.EXPECT().GetBySlug(mock.Anything, "fail").Return(nil, errors.New("db error"))
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/categories/fail", nil)
@@ -219,16 +219,16 @@ func TestToCategoryResponse_OmitsModerationAndAuditFields(t *testing.T) {
 		"description must carry the category's own value, not be dropped or defaulted")
 }
 
-func setupQueryMux(t *testing.T) (*http.ServeMux, *MockCategoryReader) {
+func setupMux(t *testing.T) (*http.ServeMux, *MockCategoryReader) {
 	t.Helper()
 
-	usecase := NewMockCategoryReader(t)
+	service := NewMockCategoryReader(t)
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api/v1")
-	h := New(usecase)
+	h := NewHandler(service)
 	api.HandleFunc("GET /categories", h.List)
 	api.HandleFunc("GET /categories/{slug}", h.GetBySlug)
 
-	return mux, usecase
+	return mux, service
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/category"
+	categorypg "github.com/residwi/go-api-project-template/internal/modules/category/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/checkout"
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
 	dashboardpg "github.com/residwi/go-api-project-template/internal/modules/dashboard/adapter/postgres"
@@ -41,7 +42,7 @@ type Deps struct {
 type App struct {
 	Users         *user.Module
 	Auth          *auth.Module
-	Categories    *category.Module
+	Categories    *category.Service
 	Products      *product.Module
 	Inventory     *inventory.Module
 	Carts         *cart.Module
@@ -62,7 +63,7 @@ func New(d Deps) (*App, error) {
 
 	inv := inventory.New(inventory.Deps{Pool: d.Pool})
 	prod := product.New(product.Deps{Pool: d.Pool, InventoryReader: inv.Query, InventoryRegistrar: inv.Register})
-	categoryMod := category.New(category.Deps{Pool: d.Pool, Products: prod.Query})
+	categoryMod := category.New(category.Deps{Repo: categorypg.New(d.Pool), Products: prod.Query})
 	promotionMod := promotion.New(promotion.Deps{Pool: d.Pool, Tx: txRunner})
 	notificationMod := notification.New(notification.Deps{
 		Repo:   notificationpg.New(d.Pool),
