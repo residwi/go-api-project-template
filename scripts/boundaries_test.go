@@ -98,12 +98,12 @@ func pickSliceWithSibling(t *testing.T) (feature, slice, sibling string) {
 		if !f.IsDir() {
 			continue
 		}
-		slices, err := os.ReadDir(filepath.Join(modulesRoot, f.Name(), "usecase"))
+		entries, err := os.ReadDir(filepath.Join(modulesRoot, f.Name(), "usecase"))
 		if err != nil {
 			continue // no usecase/ dir -- flattened, or a feature with none
 		}
 		var names []string
-		for _, s := range slices {
+		for _, s := range entries {
 			if s.IsDir() {
 				names = append(names, s.Name())
 			}

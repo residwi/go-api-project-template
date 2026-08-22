@@ -144,9 +144,7 @@ func TestPostgresRepository_ListItemsForUser(t *testing.T) {
 			assert.NotEqual(t, page1[1].ID, item.ID)
 		}
 	})
-}
 
-func TestPostgresRepository_ListItemsForUser_InvalidCursor(t *testing.T) {
 	t.Run("returns error for invalid cursor", func(t *testing.T) {
 		userID := seedUser(t)
 		repo := New(testPool)
