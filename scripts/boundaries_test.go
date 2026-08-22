@@ -50,6 +50,28 @@ func TestCheckBoundaries(t *testing.T) {
 		out := runCheckWithProbe(t, filepath.Join(sliceDir, "probe_transport.go"), transportProbe)
 		assert.Contains(t, out, "imports internal/transport")
 	})
+
+	// Check 4's post-refactor rule: a module's root package is importable
+	// like a contract/ package always was; domain/, every adapter and every
+	// still-sliced usecase/<slice> stay private. wishlist and category are
+	// both already flattened (no usecase/ tree, so check 5 has nothing to
+	// say about either), which is what makes them stable probe targets --
+	// unlike the usecase/<slice> probes above, this check scans every .go
+	// file under a module, so the probe does not need a slice directory at
+	// all.
+	wishlistDir := filepath.Join("internal", "modules", "wishlist")
+	rootImportProbe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/category\"\n"
+	domainImportProbe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/category/domain\"\n"
+
+	t.Run("check 4 allows a module importing another module's root package", func(t *testing.T) {
+		out := runCheckWithoutError(t, filepath.Join(wishlistDir, "probe_rootimport.go"), rootImportProbe)
+		assert.Contains(t, out, "Boundaries OK")
+	})
+
+	t.Run("check 4 still reports a module importing another module's domain", func(t *testing.T) {
+		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_domainimport.go"), domainImportProbe)
+		assert.Contains(t, out, "imports another module's internals")
+	})
 }
 
 func repoRoot(t *testing.T) string {
@@ -76,6 +98,17 @@ func runCheckWithProbe(t *testing.T, relPath, content string) string {
 
 	out, err := runCheck(t)
 	require.Error(t, err, "check-boundaries.sh must fail while the probe file exists:\n%s", out)
+	return out
+}
+
+func runCheckWithoutError(t *testing.T, relPath, content string) string {
+	t.Helper()
+	full := filepath.Join(repoRoot(t), relPath)
+	require.NoError(t, os.WriteFile(full, []byte(content), 0o600))
+	t.Cleanup(func() { _ = os.Remove(full) })
+
+	out, err := runCheck(t)
+	require.NoError(t, err, "check-boundaries.sh must pass while the probe file exists:\n%s", out)
 	return out
 }
 

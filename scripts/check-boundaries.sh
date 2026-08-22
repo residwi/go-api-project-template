@@ -9,7 +9,10 @@
 #   Check 3  A feature's SQL -- anywhere under the module, not only its
 #            postgres adapter -- only queries tables it owns, where "owns"
 #            is read out of db/OWNERSHIP.md at run time.
-#   Check 4  A module imports only <feature>/contract from another module.
+#   Check 4  A module may not import another module's domain/, its
+#            adapter/ (postgres, http, redis, ...), or -- while any module
+#            is still sliced -- a usecase/<slice>. Its root package and its
+#            contract/, where one still exists, are importable.
 #   Check 5  A slice imports no sibling slice within its own module.
 #   Check 6  A module may not import internal/transport/, except a slice's
 #            own http adapter.
@@ -706,22 +709,24 @@ check_table_ownership() {
 }
 
 # ---------------------------------------------------------------------------
-# Check 4 -- a module imports only <feature>/contract from another module
+# Check 4 -- a module may not import another module's domain/, adapter/, or
+# a still-sliced usecase/<slice>
 # ---------------------------------------------------------------------------
 #
-# This replaces the old check 3, which named three adapter package types
-# (postgres, http, redis) and asked who imported them. The new rule is one
-# sentence and covers strictly more: from another module, only contract/ is
-# importable. domain/ is private, every slice -- root package and adapter
-# alike -- is private, and contract/ is the whole published surface. Neither
-# domain/ nor a slice's bare root package (internal/modules/order/place, with
-# no adapter suffix) was nameable by the old check's pattern; this one does
-# not need to name what is forbidden, only what is allowed.
+# This is the post-refactor form of the rule (Task 23 of REFACTOR-PLAN.md,
+# front-loaded here so the flatten in progress does not fail this check
+# partway through). Collapsing a module's contract/ into a contract.go at
+# its own root means a consumer that used to import <feature>/contract now
+# imports <feature> itself, so a module's root package is importable from
+# outside, the same as a contract/ package already was and, for as long as
+# any module still has one, still is. What stays private is domain/ (the
+# rich model), every adapter (postgres, http, redis, ...), and a still-sliced
+# module's usecase/<slice> packages -- the things a producer's root package
+# was never meant to expose just because its own package became reachable.
 #
 # Same-module imports are unrestricted here: a slice reaching a sibling slice
 # in its own module is not a cross-module import at all -- both packages live
-# under the same feature -- and is a separate rule, for a later check to add,
-# not this one's job.
+# under the same feature -- and is check 5's job, not this one's.
 #
 # Exempt as an importer: the wiring layer, and only the wiring layer.
 # internal/bootstrap/ and internal/transport/ exist precisely to import
@@ -730,15 +735,14 @@ check_table_ownership() {
 # that walks it). Everything else under internal/ is scanned, features and
 # shared infrastructure alike -- "not a feature" is not the same permission
 # as "may wire adapters", and internal/platform must not import
-# product/domain any more than it may import product/postgres.
+# product/domain any more than it may import product/adapter/postgres.
 #
 # checkout is scanned as an importer like every other feature -- it is not on
 # WIRING_DIRS -- but is granted one narrow target exemption below: importing
-# order/domain (and only domain/, not a slice root or adapter) passes, the
-# same way a contract/ import always does, because checkout is built to the
-# post-refactor rules where a module root is importable and it genuinely
-# needs order/domain.NewOrder and order/domain.Order. Everything else it
-# might reach for in another module is still reported.
+# order/domain (and only domain/, never a slice root or adapter) passes, the
+# same way a bare root-package or contract/ import always does, because
+# checkout genuinely needs order/domain.NewOrder and order/domain.Order.
+# Everything else it might reach for in another module is still reported.
 #
 # _test.go files are in scope, unlike check_table_ownership's scan. A test
 # reaching into a sibling module's slice proves the same coupling a production
@@ -816,11 +820,14 @@ check_cross_module_imports() {
 
 			while IFS= read -r hit; do
 				[ -n "$hit" ] || continue
-				# hit looks like "12:\"<module>/internal/modules/<target>\"" or,
-				# with anything past the feature name, ".../<target>/domain",
-				# ".../<target>/usecase/<slice>", ".../<target>/usecase/<slice>/postgres", or
-				# ".../<target>/contract" -- the only shape this check accepts
-				# from another module.
+				# hit looks like "12:\"<module>/internal/modules/<target>\"" --
+				# a bare import of the target's root package, which is
+				# allowed post-refactor -- or, with anything past the
+				# feature name, ".../<target>/domain", ".../<target>/adapter"
+				# or ".../<target>/adapter/postgres" (private, reported), a
+				# still-sliced target's ".../<target>/usecase/<slice>" (also
+				# private, reported), or ".../<target>/contract" (still a
+				# published surface while any module keeps one, so allowed).
 				imp="${hit#*:}"
 				imp="${imp#\"}"
 				imp="${imp%\"}"
@@ -831,8 +838,12 @@ check_cross_module_imports() {
 
 				target_rest="${rest#"$target"}"
 				target_rest="${target_rest#/}"
+				# Empty target_rest is a bare import of the target's root
+				# package -- the post-refactor shape, importable like any
+				# other package. contract/ stays importable too: six modules
+				# still publish one for the transition (AGENTS.md rule 10).
 				case "$target_rest" in
-				contract | contract/*) continue ;;
+				"" | contract | contract/*) continue ;;
 				esac
 
 				# checkout alone may reach past contract/ into another
@@ -850,12 +861,13 @@ check_cross_module_imports() {
 
 				report "'${importer_name}' imports another module's internals: ${file}:${hit%%:*}
     ${imp}
-    A module may import only <feature>/contract from another module -- domain
-    types and every slice, root package or adapter alike, are private to the
-    module that owns them. Declare a consumer-side port instead (AGENTS.md
-    rule 10; e.g. internal/modules/product/usecase/query/ports.go or
-    internal/modules/category/usecase/remove/ports.go), or add a contract/
-    package if a struct genuinely needs to cross."
+    A module may import another module's root package or its contract/
+    package -- domain/, every adapter (postgres, http, redis, ...), and
+    every still-sliced usecase/<slice> stay private to the module that owns
+    them. Declare a consumer-side port instead (AGENTS.md rule 10; e.g.
+    internal/modules/product/usecase/query/ports.go or
+    internal/modules/category/ports.go), or add a contract/ package if a
+    struct genuinely needs to cross."
 			done <<<"$hits"
 		done <<<"$files"
 	done <<<"$importers"
