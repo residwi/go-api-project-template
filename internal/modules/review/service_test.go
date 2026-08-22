@@ -1,7 +1,6 @@
-package create
+package review
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -12,9 +11,10 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/review/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-func TestCommand_Execute(t *testing.T) {
+func TestService_Create(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
@@ -22,9 +22,8 @@ func TestCommand_Execute(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		cmd := New(repo, purchase)
+		svc := New(Deps{Repo: repo, Purchase: purchase})
 
-		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 		orderID := uuid.New()
@@ -41,14 +40,7 @@ func TestCommand_Execute(t *testing.T) {
 				rv.Status == "published"
 		})).Return(nil)
 
-		p := Params{
-			OrderID: orderID,
-			Rating:  5,
-			Title:   "Great product",
-			Body:    "Really loved it",
-		}
-
-		result, err := cmd.Execute(ctx, userID, productID, p)
+		result, err := svc.Create(t.Context(), userID, productID, orderID, 5, "Great product", "Really loved it")
 		require.NoError(t, err)
 		assert.Equal(t, &domain.Review{
 			UserID:    userID,
@@ -66,21 +58,14 @@ func TestCommand_Execute(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		cmd := New(repo, purchase)
+		svc := New(Deps{Repo: repo, Purchase: purchase})
 
-		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(false, nil)
 
-		p := Params{
-			OrderID: uuid.New(),
-			Rating:  4,
-			Title:   "Good",
-		}
-
-		result, err := cmd.Execute(ctx, userID, productID, p)
+		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 4, "Good", "")
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, apperror.ErrBadRequest)
@@ -91,17 +76,15 @@ func TestCommand_Execute(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		cmd := New(repo, purchase)
+		svc := New(Deps{Repo: repo, Purchase: purchase})
 
-		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
 		verifyErr := errors.New("purchase check failed")
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(false, verifyErr)
 
-		p := Params{OrderID: uuid.New(), Rating: 5, Title: "Great"}
-		result, err := cmd.Execute(ctx, userID, productID, p)
+		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 5, "Great", "")
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, verifyErr)
 	})
@@ -111,9 +94,8 @@ func TestCommand_Execute(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		cmd := New(repo, purchase)
+		svc := New(Deps{Repo: repo, Purchase: purchase})
 
-		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
@@ -121,8 +103,7 @@ func TestCommand_Execute(t *testing.T) {
 		dbErr := errors.New("database error")
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, dbErr)
 
-		p := Params{OrderID: uuid.New(), Rating: 4, Title: "Good"}
-		result, err := cmd.Execute(ctx, userID, productID, p)
+		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 4, "Good", "")
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, dbErr)
 	})
@@ -132,9 +113,8 @@ func TestCommand_Execute(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		cmd := New(repo, purchase)
+		svc := New(Deps{Repo: repo, Purchase: purchase})
 
-		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
@@ -143,8 +123,7 @@ func TestCommand_Execute(t *testing.T) {
 		createErr := errors.New("insert failed")
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Review")).Return(createErr)
 
-		p := Params{OrderID: uuid.New(), Rating: 3, Title: "OK"}
-		result, err := cmd.Execute(ctx, userID, productID, p)
+		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 3, "OK", "")
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, createErr)
 	})
@@ -154,22 +133,15 @@ func TestCommand_Execute(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		cmd := New(repo, purchase)
+		svc := New(Deps{Repo: repo, Purchase: purchase})
 
-		ctx := context.Background()
 		userID := uuid.New()
 		productID := uuid.New()
 
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(true, nil)
 
-		p := Params{
-			OrderID: uuid.New(),
-			Rating:  3,
-			Title:   "OK",
-		}
-
-		result, err := cmd.Execute(ctx, userID, productID, p)
+		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 3, "OK", "")
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, apperror.ErrConflict)
@@ -180,24 +152,128 @@ func TestCommand_Execute(t *testing.T) {
 // there is no longer a named struct to catch a positional swap at compile
 // time. All three ids are distinct: reusing one would let a swapped call
 // still pass by accident.
-func TestCommand_Execute_PassesArgumentsInOrder(t *testing.T) {
+func TestService_Create_PassesArgumentsInOrder(t *testing.T) {
 	t.Parallel()
 
 	repo := NewMockRepository(t)
-	verifier := NewMockPurchaseVerifier(t)
-	cmd := New(repo, verifier)
+	purchase := NewMockPurchaseVerifier(t)
+	svc := New(Deps{Repo: repo, Purchase: purchase})
 
 	userID := uuid.New()
 	productID := uuid.New()
 	orderID := uuid.New()
 
-	verifier.EXPECT().HasDeliveredOrder(mock.Anything, userID, orderID, productID).Return(false, nil)
+	purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, orderID, productID).Return(false, nil)
 
-	_, err := cmd.Execute(context.Background(), userID, productID, Params{
-		OrderID: orderID,
-		Rating:  5,
-		Title:   "Great",
-		Body:    "Worked well",
-	})
+	_, err := svc.Create(t.Context(), userID, productID, orderID, 5, "Great", "Worked well")
 	require.ErrorIs(t, err, apperror.ErrBadRequest, "a non-delivered purchase must be rejected")
+}
+
+func TestService_ListByProduct(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		repo := NewMockRepository(t)
+		svc := New(Deps{Repo: repo})
+
+		productID := uuid.New()
+		cursor := paging.CursorPage{Limit: 20}
+		expected := []domain.Review{
+			{ID: uuid.New(), ProductID: productID, Rating: 5, Title: "Great"},
+			{ID: uuid.New(), ProductID: productID, Rating: 4, Title: "Good"},
+		}
+
+		repo.EXPECT().ListByProduct(mock.Anything, productID, cursor).Return(expected, nil)
+
+		result, err := svc.ListByProduct(t.Context(), productID, cursor)
+		require.NoError(t, err)
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("error propagates", func(t *testing.T) {
+		t.Parallel()
+
+		repo := NewMockRepository(t)
+		svc := New(Deps{Repo: repo})
+
+		productID := uuid.New()
+		cursor := paging.CursorPage{Limit: 20}
+		dbErr := errors.New("query failed")
+
+		repo.EXPECT().ListByProduct(mock.Anything, productID, cursor).Return(nil, dbErr)
+
+		result, err := svc.ListByProduct(t.Context(), productID, cursor)
+		assert.Nil(t, result)
+		assert.ErrorIs(t, err, dbErr)
+	})
+}
+
+func TestService_GetStats(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		repo := NewMockRepository(t)
+		svc := New(Deps{Repo: repo})
+
+		productID := uuid.New()
+		expected := domain.Stats{AverageRating: 4.5, TotalReviews: 10}
+
+		repo.EXPECT().GetStats(mock.Anything, productID).Return(expected, nil)
+
+		result, err := svc.GetStats(t.Context(), productID)
+		require.NoError(t, err)
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("error propagates", func(t *testing.T) {
+		t.Parallel()
+
+		repo := NewMockRepository(t)
+		svc := New(Deps{Repo: repo})
+
+		productID := uuid.New()
+		dbErr := errors.New("stats query failed")
+
+		repo.EXPECT().GetStats(mock.Anything, productID).Return(domain.Stats{}, dbErr)
+
+		result, err := svc.GetStats(t.Context(), productID)
+		assert.Equal(t, domain.Stats{}, result)
+		assert.ErrorIs(t, err, dbErr)
+	})
+}
+
+func TestService_Delete(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		repo := NewMockRepository(t)
+		svc := New(Deps{Repo: repo})
+
+		id := uuid.New()
+
+		repo.EXPECT().Delete(mock.Anything, id).Return(nil)
+
+		err := svc.Delete(t.Context(), id)
+		require.NoError(t, err)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		t.Parallel()
+
+		repo := NewMockRepository(t)
+		svc := New(Deps{Repo: repo})
+
+		id := uuid.New()
+
+		repo.EXPECT().Delete(mock.Anything, id).Return(apperror.ErrNotFound)
+
+		err := svc.Delete(t.Context(), id)
+		require.ErrorIs(t, err, apperror.ErrNotFound)
+	})
 }

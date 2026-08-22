@@ -20,6 +20,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/modules/review"
+	reviewpg "github.com/residwi/go-api-project-template/internal/modules/review/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
@@ -48,7 +49,7 @@ type App struct {
 	Payments      *payment.Module
 	Checkout      *checkout.Service
 	Shipping      *shipping.Module
-	Reviews       *review.Module
+	Reviews       *review.Service
 	Promotions    *promotion.Module
 	Wishlists     *wishlist.Service
 	Notifications *notification.Service
@@ -113,7 +114,7 @@ func New(d Deps) (*App, error) {
 		OrderRead:        ordMod.Query,
 		OrderStatusWrite: ordMod.Transition,
 	})
-	reviewMod := review.New(review.Deps{Pool: d.Pool, Purchase: ordMod.Query})
+	reviewMod := review.New(review.Deps{Repo: reviewpg.New(d.Pool), Purchase: ordMod.Query})
 
 	return &App{
 		Users:         userMod,

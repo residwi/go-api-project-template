@@ -16,16 +16,16 @@ import (
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
 )
 
-func TestHandler_Delete(t *testing.T) {
+func TestAdminHandler_Delete(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase := setupRemoveMux(t)
+		mux, service := setupAdminMux(t)
 
 		reviewID := uuid.New()
-		usecase.EXPECT().Execute(mock.Anything, reviewID).Return(nil)
+		service.EXPECT().Delete(mock.Anything, reviewID).Return(nil)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/reviews/"+reviewID.String(), nil)
@@ -38,7 +38,7 @@ func TestHandler_Delete(t *testing.T) {
 	t.Run("invalid UUID", func(t *testing.T) {
 		t.Parallel()
 
-		mux, _ := setupRemoveMux(t)
+		mux, _ := setupAdminMux(t)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/reviews/bad", nil)
@@ -56,10 +56,10 @@ func TestHandler_Delete(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		mux, usecase := setupRemoveMux(t)
+		mux, service := setupAdminMux(t)
 
 		reviewID := uuid.New()
-		usecase.EXPECT().Execute(mock.Anything, reviewID).Return(apperror.ErrNotFound)
+		service.EXPECT().Delete(mock.Anything, reviewID).Return(apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/reviews/"+reviewID.String(), nil)
@@ -70,14 +70,14 @@ func TestHandler_Delete(t *testing.T) {
 	})
 }
 
-func setupRemoveMux(t *testing.T) (*http.ServeMux, *MockReviewDeleter) {
+func setupAdminMux(t *testing.T) (*http.ServeMux, *MockReviewDeleter) {
 	t.Helper()
 
-	usecase := NewMockReviewDeleter(t)
+	service := NewMockReviewDeleter(t)
 
 	mux := http.NewServeMux()
 	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
-	admin.HandleFunc("DELETE /reviews/{id}", New(usecase).Delete)
+	admin.HandleFunc("DELETE /reviews/{id}", NewAdminHandler(service).Delete)
 
-	return mux, usecase
+	return mux, service
 }

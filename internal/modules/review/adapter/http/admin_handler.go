@@ -10,24 +10,24 @@ import (
 )
 
 type ReviewDeleter interface {
-	Execute(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
-type Handler struct {
-	usecase ReviewDeleter
+type AdminHandler struct {
+	service ReviewDeleter
 }
 
-func New(usecase ReviewDeleter) *Handler {
-	return &Handler{usecase: usecase}
+func NewAdminHandler(service ReviewDeleter) *AdminHandler {
+	return &AdminHandler{service: service}
 }
 
-func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
 
-	if err := h.usecase.Execute(r.Context(), id); err != nil {
+	if err := h.service.Delete(r.Context(), id); err != nil {
 		response.HandleErr(w, err)
 		return
 	}
