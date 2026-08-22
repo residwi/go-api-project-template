@@ -479,7 +479,7 @@ HTTP.
 Seven of fourteen modules — `auth cart inventory order payment product user` —
 have a `contract/` package: `user/contract.User`,
 `inventory/contract.StockState`, `order/contract.Order`, `payment/contract.ChargeRequest`,
-`cart/contract.Cart`, and their siblings. Each package
+and their siblings. Each package
 imports no module and no platform package, so importing one can never pull the
 producer's implementation along with it — a consumer takes the type by value
 and never learns how it is built. A port still names the type it needs
@@ -603,7 +603,7 @@ cannot hide behind a live one.
 
 Every route in the system is declared in `internal/transport/http/routes/`,
 one file per feature, 14 files, 64 routes. Each file exports one function —
-`routes.Cart(authed, m *cart.Module, v *validator.Validator)`,
+`routes.Cart(authed, m *cart.Service, v *validator.Validator)`,
 `routes.Order(authed, admin, m *order.Module, v, writeLimiter)` — and
 `router.go` calls all fourteen in one readable list. A module supplies a
 handler with exported route methods and nothing else: no `routes.go`, no

@@ -8,8 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/modules/cart/contract"
-	contract0 "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/cart"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -125,23 +125,23 @@ func (_m *MockCartReader) EXPECT() *MockCartReader_Expecter {
 }
 
 // Snapshot provides a mock function for the type MockCartReader
-func (_mock *MockCartReader) Snapshot(ctx context.Context, userID uuid.UUID) (*contract.Cart, error) {
+func (_mock *MockCartReader) Snapshot(ctx context.Context, userID uuid.UUID) (*cart.Snapshot, error) {
 	ret := _mock.Called(ctx, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Snapshot")
 	}
 
-	var r0 *contract.Cart
+	var r0 *cart.Snapshot
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*contract.Cart, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*cart.Snapshot, error)); ok {
 		return returnFunc(ctx, userID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *contract.Cart); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *cart.Snapshot); ok {
 		r0 = returnFunc(ctx, userID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*contract.Cart)
+			r0 = ret.Get(0).(*cart.Snapshot)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -182,12 +182,12 @@ func (_c *MockCartReader_Snapshot_Call) Run(run func(ctx context.Context, userID
 	return _c
 }
 
-func (_c *MockCartReader_Snapshot_Call) Return(cart *contract.Cart, err error) *MockCartReader_Snapshot_Call {
-	_c.Call.Return(cart, err)
+func (_c *MockCartReader_Snapshot_Call) Return(snapshot *cart.Snapshot, err error) *MockCartReader_Snapshot_Call {
+	_c.Call.Return(snapshot, err)
 	return _c
 }
 
-func (_c *MockCartReader_Snapshot_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (*contract.Cart, error)) *MockCartReader_Snapshot_Call {
+func (_c *MockCartReader_Snapshot_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (*cart.Snapshot, error)) *MockCartReader_Snapshot_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -472,7 +472,7 @@ func (_m *MockInventoryRestorer) EXPECT() *MockInventoryRestorer_Expecter {
 }
 
 // Restore provides a mock function for the type MockInventoryRestorer
-func (_mock *MockInventoryRestorer) Restore(ctx context.Context, items map[uuid.UUID]int, prior contract0.StockState) error {
+func (_mock *MockInventoryRestorer) Restore(ctx context.Context, items map[uuid.UUID]int, prior contract.StockState) error {
 	ret := _mock.Called(ctx, items, prior)
 
 	if len(ret) == 0 {
@@ -480,7 +480,7 @@ func (_mock *MockInventoryRestorer) Restore(ctx context.Context, items map[uuid.
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, map[uuid.UUID]int, contract0.StockState) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[uuid.UUID]int, contract.StockState) error); ok {
 		r0 = returnFunc(ctx, items, prior)
 	} else {
 		r0 = ret.Error(0)
@@ -496,12 +496,12 @@ type MockInventoryRestorer_Restore_Call struct {
 // Restore is a helper method to define mock.On call
 //   - ctx context.Context
 //   - items map[uuid.UUID]int
-//   - prior contract0.StockState
+//   - prior contract.StockState
 func (_e *MockInventoryRestorer_Expecter) Restore(ctx any, items any, prior any) *MockInventoryRestorer_Restore_Call {
 	return &MockInventoryRestorer_Restore_Call{Call: _e.mock.On("Restore", ctx, items, prior)}
 }
 
-func (_c *MockInventoryRestorer_Restore_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int, prior contract0.StockState)) *MockInventoryRestorer_Restore_Call {
+func (_c *MockInventoryRestorer_Restore_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int, prior contract.StockState)) *MockInventoryRestorer_Restore_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -511,9 +511,9 @@ func (_c *MockInventoryRestorer_Restore_Call) Run(run func(ctx context.Context, 
 		if args[1] != nil {
 			arg1 = args[1].(map[uuid.UUID]int)
 		}
-		var arg2 contract0.StockState
+		var arg2 contract.StockState
 		if args[2] != nil {
-			arg2 = args[2].(contract0.StockState)
+			arg2 = args[2].(contract.StockState)
 		}
 		run(
 			arg0,
@@ -529,7 +529,7 @@ func (_c *MockInventoryRestorer_Restore_Call) Return(err error) *MockInventoryRe
 	return _c
 }
 
-func (_c *MockInventoryRestorer_Restore_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int, prior contract0.StockState) error) *MockInventoryRestorer_Restore_Call {
+func (_c *MockInventoryRestorer_Restore_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int, prior contract.StockState) error) *MockInventoryRestorer_Restore_Call {
 	_c.Call.Return(run)
 	return _c
 }

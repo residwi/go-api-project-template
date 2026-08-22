@@ -8,6 +8,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
+	cartpg "github.com/residwi/go-api-project-template/internal/modules/cart/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/category"
 	categorypg "github.com/residwi/go-api-project-template/internal/modules/category/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/checkout"
@@ -47,7 +48,7 @@ type App struct {
 	Categories    *category.Service
 	Products      *product.Service
 	Inventory     *inventory.Module
-	Carts         *cart.Module
+	Carts         *cart.Service
 	Orders        *order.Module
 	Payments      *payment.Module
 	Checkout      *checkout.Service
@@ -78,13 +79,15 @@ func New(d Deps) (*App, error) {
 	userMod := user.New(user.Deps{Pool: d.Pool, Cache: d.Cache, Logger: d.Logger})
 	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userMod.Credentials})
 
-	cartMod := cart.New(cart.Deps{Pool: d.Pool, Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod})
+	cartMod := cart.New(cart.Deps{
+		Repo: cartpg.New(d.Pool), Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod,
+	})
 
 	ordMod := order.New(order.Deps{
 		Pool: d.Pool, Tx: txRunner, Logger: d.Logger,
-		CartLock:         cartMod.Lock,
-		CartRead:         cartMod.Query,
-		CartClear:        cartMod.ClearCart,
+		CartLock:         cartMod,
+		CartRead:         cartMod,
+		CartClear:        cartMod,
 		InventoryReserve: inv.Reserve,
 		InventoryDeduct:  inv.Deduct,
 		InventoryRestore: inv.Restore,

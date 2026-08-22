@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/modules/cart/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -125,23 +125,23 @@ func (_m *MockCartReader) EXPECT() *MockCartReader_Expecter {
 }
 
 // Snapshot provides a mock function for the type MockCartReader
-func (_mock *MockCartReader) Snapshot(ctx context.Context, userID uuid.UUID) (*contract.Cart, error) {
+func (_mock *MockCartReader) Snapshot(ctx context.Context, userID uuid.UUID) (*cart.Snapshot, error) {
 	ret := _mock.Called(ctx, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Snapshot")
 	}
 
-	var r0 *contract.Cart
+	var r0 *cart.Snapshot
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*contract.Cart, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*cart.Snapshot, error)); ok {
 		return returnFunc(ctx, userID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *contract.Cart); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *cart.Snapshot); ok {
 		r0 = returnFunc(ctx, userID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*contract.Cart)
+			r0 = ret.Get(0).(*cart.Snapshot)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -182,12 +182,12 @@ func (_c *MockCartReader_Snapshot_Call) Run(run func(ctx context.Context, userID
 	return _c
 }
 
-func (_c *MockCartReader_Snapshot_Call) Return(cart *contract.Cart, err error) *MockCartReader_Snapshot_Call {
-	_c.Call.Return(cart, err)
+func (_c *MockCartReader_Snapshot_Call) Return(snapshot *cart.Snapshot, err error) *MockCartReader_Snapshot_Call {
+	_c.Call.Return(snapshot, err)
 	return _c
 }
 
-func (_c *MockCartReader_Snapshot_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (*contract.Cart, error)) *MockCartReader_Snapshot_Call {
+func (_c *MockCartReader_Snapshot_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (*cart.Snapshot, error)) *MockCartReader_Snapshot_Call {
 	_c.Call.Return(run)
 	return _c
 }

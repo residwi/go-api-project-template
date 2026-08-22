@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 )
 
@@ -14,7 +14,7 @@ type CartLocker interface {
 }
 
 type CartReader interface {
-	Snapshot(ctx context.Context, userID uuid.UUID) (*cartcontract.Cart, error)
+	Snapshot(ctx context.Context, userID uuid.UUID) (*cart.Snapshot, error)
 }
 
 type CartClearer interface {

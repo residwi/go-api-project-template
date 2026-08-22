@@ -82,7 +82,7 @@ Alternative is `product` writing inventory's table inside own transaction — pr
 **Where you hit it:** price change between customer adding item and checking out, cart total change under them.
 
 `cart_items` have columns `id, cart_id, product_id, quantity, created_at,
-updated_at`. **No price column**. `cart/usecase/query.UseCase.GetCart` read lines then call `products.GetInfoByIDs` for current name, price, status, available stock. So cart not display stale price — never pinned one at all. Every read current.
+updated_at`. **No price column**. `cart.Service.Get` read lines then call `products.GetInfoByIDs` for current name, price, status, available stock. So cart not display stale price — never pinned one at all. Every read current.
 
 Note this cut against intuitive framing. Cart's total never _stale_; it **unpinned**. What genuinely point-in-time snapshot is `available_stock` each line report: true when cart read, can be wrong by time `PlaceOrder` run — why checkout re-reserve against `inventory` instead of trusting what cart displayed.
 
@@ -94,7 +94,7 @@ Note this cut against intuitive framing. Cart's total never _stale_; it **unpinn
 
 **Where you hit it:** product archived, unpublished or deleted after customer added it, and `GET /api/cart` still return line — with `"sellable": false`, excluded from `total`.
 
-Behaviour change, and chosen. Previous implementation drop line with `JOIN … AND p.deleted_at IS NULL`, so customer's total fell with nothing on screen to explain. If product record gone entirely, `cart/usecase/query.UseCase.GetCart` substitute synthetic `&Product{Status: "unavailable"}` placeholder instead of dropping item.
+Behaviour change, and chosen. Previous implementation drop line with `JOIN … AND p.deleted_at IS NULL`, so customer's total fell with nothing on screen to explain. If product record gone entirely, `cart.Service.Get` substitute synthetic `&Product{Status: "unavailable"}` placeholder instead of dropping item.
 
 **What it costs:** every client rendering cart must handle `sellable: false`, and client written against old behaviour will show line it cannot check out. `Cart.Total()` fold sellable lines only, so `total` will not equal sum of line prices client can see — look like bug if you not read this.
 
@@ -104,7 +104,7 @@ Behaviour change, and chosen. Previous implementation drop line with `JOIN … A
 
 **Where you hit it:** cart contain items priced in different currencies, endpoint that used to return 200 now return 400.
 
-`money.Money.Add` refuse to sum across currencies, so `cart.Cart.Total()` return `(money.Money, error)`, and `internal/modules/cart/usecase/query/http/handler.go`'s `Get` propagate that error instead of publishing total it could not compute. Error wrap `apperror.ErrBadRequest` alongside `money.ErrCurrencyMismatch`, because `ErrCurrencyMismatch` alone match no case in `response.HandleErr` and would surface as 500 for what is plainly user input.
+`money.Money.Add` refuse to sum across currencies, so `cart.Cart.Total()` return `(money.Money, error)`, and `internal/modules/cart/adapter/http/handler.go`'s `Get` propagate that error instead of publishing total it could not compute. Error wrap `apperror.ErrBadRequest` alongside `money.ErrCurrencyMismatch`, because `ErrCurrencyMismatch` alone match no case in `response.HandleErr` and would surface as 500 for what is plainly user input.
 
 **Nothing prevents such a cart existing.** Prices per-product and `cart.AddItem` not constrain them, so catalogue with mixed currencies will produce this. Checkout already reject it; this change make `GET /api/cart` agree with `PlaceOrder` instead of showing number denominated in nothing.
 
@@ -262,7 +262,7 @@ A slice's own `handler_test.go` builds its own `middleware.NewRouteGroup` and wr
 
 **Where you hit it, the second way:** a sliced command's repository write moves outside its own `tx.Run` callback — a bug that should fail a test — and nothing fails.
 
-`testhelper.FakeTxRunner.Run` (`internal/testhelper/txrunner.go`) is `return fn(ctx)`: it calls the callback inline, with no transaction underneath it, so a mock-based `usecase_test.go` cannot observe whether a repository call happened inside `tx.Run`'s closure or leaked outside it — both look identical to the fake. Eight slices are in that position today (`grep -rl FakeTxRunner --include='*_test.go' internal/modules`): `cart/usecase/add`, `order/usecase/{cancel,expire,place}`, `payment/usecase/{charge,refund}`, `promotion/usecase/reserve`, and `shipping`'s own merged `service_test.go` — one file standing in for what used to be `create` and `deliver`'s two, now that shipping has flattened.
+`testhelper.FakeTxRunner.Run` (`internal/testhelper/txrunner.go`) is `return fn(ctx)`: it calls the callback inline, with no transaction underneath it, so a mock-based `usecase_test.go` cannot observe whether a repository call happened inside `tx.Run`'s closure or leaked outside it — both look identical to the fake. Eight slices are in that position today (`grep -rl FakeTxRunner --include='*_test.go' internal/modules`): `order/usecase/{cancel,expire,place}`, `payment/usecase/{charge,refund}`, `promotion/usecase/reserve`, and `cart`'s and `shipping`'s own merged `service_test.go` files — one file apiece standing in for what used to be `cart/usecase/add` alone, and `shipping`'s `create` and `deliver`'s two, now that both have flattened.
 
 **What you would do:** for the first, either assert the mounted prefix somewhere real-router-shaped — a route-table snapshot test driven through `apihttp.NewRouter` itself, which decision 15 made cheap by putting all 64 routes in one directory — or accept that `router_test.go` plus `test/e2e` is the only backstop and say so out loud, which is what this entry does. For the second, a real `TxRunner` backed by a test transaction (not the fake) would let a test assert call order across the boundary, at the cost of every affected `usecase_test.go` needing a real Postgres connection instead of a mock — trading a fast unit test for a slower, more honest one. Neither fix is free; neither is done here.
 
@@ -300,7 +300,7 @@ Every batch method — `ReserveBatch`, `ReleaseBatch`, `DeductBatch`, `RestockBa
 
 **Why it is safe today.** Every current caller builds the map from data that cannot contain a duplicate product id before this code ever runs:
 
-- `cart_items` carries `UNIQUE (cart_id, product_id)`, and `cart/usecase/add.UseCase.Execute` upserts via `ON CONFLICT (cart_id, product_id) DO UPDATE` — a cart cannot hold two rows for one product.
+- `cart_items` carries `UNIQUE (cart_id, product_id)`, and `cart.Service.Add` upserts via `ON CONFLICT (cart_id, product_id) DO UPDATE` — a cart cannot hold two rows for one product.
 - `order/usecase/place.UseCase.Place` builds its reservation map one entry per cart-snapshot item, inheriting that guarantee directly — the map and the cart are keyed by the same product ids, one-for-one.
 - `order_items` — read back by `place.UseCase.finalizeFreeOrder`, `cancel.UseCase.cancelWithReversal`, `expire.UseCase.releaseOrderHolds`, and payment's refund and charge-success paths via `order/usecase/query.UseCase.ListItemQuantities` (reached through `order.Module.Query` — the same `*query.UseCase` value `order.New` already builds and exposes as `order.Module.Query`, handed to `payment.New` by name-match once `order.New` has run, breaking the order/payment construction cycle without a second copy — which is what `refund.OrderItemsGetter` and `charge.OrderItemsGetter` both name; payment never receives `order.Module` itself) — has **no unique constraint on `(order_id, product_id)`**, only `PRIMARY KEY (id)` and a plain index on `order_id` (`db/migrations/20260424120005_create_orders.sql`). It is unique-per-product today only because the one write path that populates it (`place.UseCase.Place` → `repo.CreateItems`, one row per cart-snapshot item) already can't produce duplicates. The invariant holds one level removed from any enforcement of its own.
 

@@ -283,7 +283,7 @@ check trusted past its reach is worse than no check.
   `//` and SQL `--` comments are stripped, and `_test.go` files are skipped,
   which between them removed most of it. What remains is prose in a *production*
   string literal: `var msg = "update orders failed"` in, say,
-  `internal/modules/cart/usecase/remove/postgres/` reports `orders`. Nothing available to a grep can
+  `internal/modules/payment/usecase/charge/postgres/` reports `orders`. Nothing available to a grep can
   tell that string from a query. It fails loudly rather than silently, so the
   cost is an afternoon of confusion, not a boundary crossing — but if it starts
   happening often the answer is a SQL parser, not a wider allowlist.

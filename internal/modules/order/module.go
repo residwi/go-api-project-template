@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	cartcontract "github.com/residwi/go-api-project-template/internal/modules/cart/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel"
 	cancelpg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel/postgres"
@@ -46,7 +46,7 @@ type CartLocker interface {
 }
 
 type CartReader interface {
-	Snapshot(ctx context.Context, userID uuid.UUID) (*cartcontract.Cart, error)
+	Snapshot(ctx context.Context, userID uuid.UUID) (*cart.Snapshot, error)
 }
 
 type CartClearer interface {
