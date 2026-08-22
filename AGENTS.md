@@ -72,7 +72,7 @@ internal/modules/<feature>/
                      not by any check -- nothing outside the module imports it
   module.go          composes every slice into Module; also declares any
                      cross-module port more than one sibling slice shares
-  module_test.go     composition test, where one exists (order, payment) --
+  module_test.go     composition test, where one exists (payment) --
                      proves New wires every slice correctly; not every
                      module needs one
   contract/          published struct types, only if another module consumes
@@ -139,19 +139,19 @@ duplication it costs, not a check it satisfies. Sharing between sibling slices
 is a second reason, and for `cart`, `auth` and `shipping` it is the whole
 story: every field on their `Deps` feeds two or more slices. `order` and
 `payment` are where the convention reason shows up on its own:
-`order/module.go` declares ten fields — up from six before `CartProvider` split
-into the three `Cart*` ports and `InventoryPort` split into the three
-`Inventory*` ports, one method per port — but only two of the ten are
-actually shared (`InventoryRestorer` between `cancel` and `expire`,
-`CouponPort` across `place`, `cancel` and `expire`); the other eight each feed
-exactly one slice — `CartLocker`, `CartReader`, `CartClearer`,
-`InventoryReserver`, `InventoryDeductor` and `NotificationEnqueuer` all feed
-only `place`, `PaymentInitiator` feeds only `retrypayment` now that `place`'s
-own payment call moved to `checkout` — and sit in `module.go` for the
-convention reason alone. `PaymentJobCanceller` is gone from this list: the
-payment-job-cancel edge `cancel` used to carry moved to
-`checkout.Service.CancelOrder`, so `order/module.go` now declares no
-payment-shaped port at all. `payment`
+`order/module.go` declares eight fields — up from six before `CartProvider`
+split into the three `Cart*` ports and `InventoryPort` split into the three
+`Inventory*` ports, one method per port, then down from ten once
+`retrypayment`'s `PaymentInitiator` and `cancel`'s `PaymentJobCanceller`
+both left for `checkout` (`place`'s own payment call moved first, then
+`cancel`'s payment-job-cancel edge, into `checkout.Service.CancelOrder`) —
+but only two of the eight are actually shared (`InventoryRestorer` between
+`cancel` and `expire`, `CouponPort` across `place`, `cancel` and `expire`);
+the other six each feed exactly one slice, and every one of them feeds
+`place` alone — `CartLocker`, `CartReader`, `CartClearer`,
+`InventoryReserver`, `InventoryDeductor` and `NotificationEnqueuer` — and
+sit in `module.go` for the convention reason alone. `order/module.go` now
+declares no payment-shaped port at all. `payment`
 has the same shape: `InventoryDeductor` reaches only `charge`,
 `InventoryRestorer` only `refund`. Either way the rule
 is the same one decision 2 states: the consumer names the interface, never the
@@ -265,8 +265,8 @@ exception: 13 external test files, no more
 (`grep -rl '^package .*_test$' --include='*_test.go' .`). A slice's
 `usecase_test.go` is never among them: mocks generate in-package, so a mock
 no longer imports the package it mocks, and every one of those is
-`package <slice>` (`package place`, `package add`, …), same as the two
-feature-root `module_test.go` files (`order`, `payment`) are
+`package <slice>` (`package place`, `package add`, …), same as the
+feature-root `module_test.go` file (`payment`) is
 `package <feature>`. `scripts/boundaries_test.go` (1 file, `package
 scripts_test`) is the fourth carve-out and the newest: it shells out to
 `scripts/check-boundaries.sh`, plants a probe file in a real slice, and
@@ -499,8 +499,8 @@ reservation or restocking deducted goods; callers supply order's prior state, ne
     pattern.** `CartAdder`, `ProductCreator`, `Authenticator`, `OrderPlacer`,
     `WebhookProcessor` — all 53 slice `http/` packages, 56 ports, no exceptions.
     Never `UseCase`: the directory already says the value is a use case, so the
-    name would add nothing, and `retrypaymenthttp.UseCase` would sit one import from
-    `retrypayment.UseCase`, two different things sharing a name. Three packages hold
+    name would add nothing, and `refundhttp.UseCase` would sit one import from
+    `refund.UseCase`, two different things sharing a name. Three packages hold
     two ports because they split routes by caller role (`user/usecase/query/http`
     `UserGetter` + `UserLister`, `product/usecase/query/http` `ProductReader` +
     `AdminProductReader`, `order/usecase/query/http` `OrderReader` +

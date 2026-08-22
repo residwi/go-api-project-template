@@ -269,10 +269,14 @@ unexported mappers directly. **No feature has a root `http/` any more**: the
 `internal/transport/http/routes/<feature>.go` instead — decision 15.
 
 **Response DTOs are duplicated across slices on purpose.**
-`order/usecase/place`, `order/usecase/query`, `order/usecase/retrypayment`
-and every other slice that returns an order all declare their own
-unexported response type rather than share one, even where two slices'
-shapes happen to match today. This is the
+`order/usecase/query` and every other slice that returns an order all
+declare their own unexported response type rather than share one --
+`checkout/adapter/http` does the same for the two order-returning
+endpoints that moved out of `order/usecase/place` and the now-deleted
+`order/usecase/retrypayment` (decision 15's `place`/`retrypayment` move),
+even where two shapes happen to match today: `checkout/adapter/http`'s own
+`orderResponse` and `order/usecase/query/http`'s are structurally
+identical right now. This is the
 same trade decision 14 makes explicit for shipping's four slices — one
 endpoint's new field cannot leak into another's response by sharing its
 struct — generalised to all fourteen modules now that all fourteen are
