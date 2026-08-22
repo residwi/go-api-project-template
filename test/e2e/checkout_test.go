@@ -336,7 +336,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	// coupon_code drives promotion/usecase/reserve.UseCase.Reserve through place.CouponReserver.
+	// coupon_code drives promotion.Service.Reserve through place.CouponReserver.
 	orderBody := fmt.Sprintf(`{"payment_method_id":"pm_test_123","coupon_code":"%s"}`, couponCode)
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
@@ -361,7 +361,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	})
 
 	t.Run("cancel order releases coupon", func(t *testing.T) {
-		// Cancelling drives promotion/usecase/reserve.UseCase.Release through the same port.
+		// Cancelling drives promotion.Service.Release through the same port.
 		req := httptest.NewRequest(http.MethodPost, "/api/orders/"+orderID+"/cancel", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()

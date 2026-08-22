@@ -10,16 +10,16 @@ import (
 )
 
 type PromotionApplier interface {
-	Execute(ctx context.Context, code string, orderAmount int64) (int64, error)
+	Apply(ctx context.Context, code string, orderAmount int64) (int64, error)
 }
 
 type Handler struct {
-	usecase   PromotionApplier
+	service   PromotionApplier
 	validator *validator.Validator
 }
 
-func New(usecase PromotionApplier, v *validator.Validator) *Handler {
-	return &Handler{usecase: usecase, validator: v}
+func NewHandler(service PromotionApplier, v *validator.Validator) *Handler {
+	return &Handler{service: service, validator: v}
 }
 
 type applyRequest struct {
@@ -50,7 +50,7 @@ func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	discount, err := h.usecase.Execute(r.Context(), req.Code, req.Subtotal)
+	discount, err := h.service.Apply(r.Context(), req.Code, req.Subtotal)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

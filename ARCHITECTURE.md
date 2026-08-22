@@ -93,7 +93,7 @@ in the tree: every port file, at either level, is `ports.go`.
 graph has no cycles by construction and each slice's — or module's — port
 list is exactly the API it would need if extracted. Pays off immediately:
 because interfaces are declared narrow at the consumer,
-`promotion/usecase/reserve.UseCase` satisfies both `order.CouponPort` and
+`promotion.Service` satisfies both `order.CouponPort` and
 `payment.CouponPort` directly, and notification's `jobs.Worker` satisfies
 `platform/jobs.Processor` directly — adapters never needed writing.
 
@@ -485,7 +485,7 @@ contract package supplies only the shape, never the interface — that stays
 declared by the consumer, per decision 2.
 
 **Why:** decision 2's trick — a producer's own value already had a method
-named what the consumer's port asked for, so `promotion/usecase/reserve.UseCase`
+named what the consumer's port asked for, so `promotion.Service`
 satisfies `payment.CouponPort` with no adapter at all — works for scalars and for
 interfaces a producer already implements. It does not work when what crosses
 is a struct: two modules cannot each declare their own `User` and have the

@@ -455,7 +455,7 @@ spot the way it was before this phase.
     `module.go` when several slices share it (see "Inside a feature", above).
     Two mechanisms satisfy the port without an adapter:
     - **Name-match.** The producer's own value already has a method named
-      what the consumer's port asks for. `promotion/usecase/reserve.UseCase`
+      what the consumer's port asks for. `promotion.Service`
       satisfies both `order.CouponPort` (`Reserve` + `Release`) and
       `payment.CouponPort` (`Release` alone) directly — two differently-shaped
       interfaces, same producer value, no adapter for either. Notification's

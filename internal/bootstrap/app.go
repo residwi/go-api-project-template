@@ -22,6 +22,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	productpg "github.com/residwi/go-api-project-template/internal/modules/product/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
+	promotionpg "github.com/residwi/go-api-project-template/internal/modules/promotion/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/review"
 	reviewpg "github.com/residwi/go-api-project-template/internal/modules/review/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
@@ -56,7 +57,7 @@ type App struct {
 	Checkout      *checkout.Service
 	Shipping      *shipping.Service
 	Reviews       *review.Service
-	Promotions    *promotion.Module
+	Promotions    *promotion.Service
 	Wishlists     *wishlist.Service
 	Notifications *notification.Service
 	Dashboard     *dashboard.Service
@@ -71,7 +72,7 @@ func New(d Deps) (*App, error) {
 		product.Deps{Repo: productpg.New(d.Pool), InventoryReader: inv.Query, InventoryRegistrar: inv.Register},
 	)
 	categoryMod := category.New(category.Deps{Repo: categorypg.New(d.Pool), Products: prod})
-	promotionMod := promotion.New(promotion.Deps{Pool: d.Pool, Tx: txRunner})
+	promotionMod := promotion.New(promotion.Deps{Repo: promotionpg.New(d.Pool), Tx: txRunner})
 	notificationMod := notification.New(notification.Deps{
 		Repo:   notificationpg.New(d.Pool),
 		Pool:   d.Pool,
@@ -97,7 +98,7 @@ func New(d Deps) (*App, error) {
 		InventoryReserve: inv.Reserve,
 		InventoryDeduct:  inv.Deduct,
 		InventoryRestore: inv.Restore,
-		Promotions:       promotionMod.Reserve,
+		Promotions:       promotionMod,
 		Notifications:    notificationMod.Jobs,
 	})
 
@@ -111,7 +112,7 @@ func New(d Deps) (*App, error) {
 		OrderReader:      ordMod.Query,
 		InventoryDeduct:  inv.Deduct,
 		InventoryRestore: inv.Restore,
-		Promotions:       promotionMod.Reserve,
+		Promotions:       promotionMod,
 	})
 
 	checkoutSvc := checkout.New(checkout.Deps{

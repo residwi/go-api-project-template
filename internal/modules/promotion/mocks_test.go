@@ -2,7 +2,7 @@
 // github.com/vektra/mockery
 // template: testify
 
-package reserve
+package promotion
 
 import (
 	"context"
@@ -96,6 +96,63 @@ func (_c *MockRepository_ApplyPromotion_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// Create provides a mock function for the type MockRepository
+func (_mock *MockRepository) Create(ctx context.Context, promo *domain.Promotion) error {
+	ret := _mock.Called(ctx, promo)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Create")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *domain.Promotion) error); ok {
+		r0 = returnFunc(ctx, promo)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockRepository_Create_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Create'
+type MockRepository_Create_Call struct {
+	*mock.Call
+}
+
+// Create is a helper method to define mock.On call
+//   - ctx context.Context
+//   - promo *domain.Promotion
+func (_e *MockRepository_Expecter) Create(ctx any, promo any) *MockRepository_Create_Call {
+	return &MockRepository_Create_Call{Call: _e.mock.On("Create", ctx, promo)}
+}
+
+func (_c *MockRepository_Create_Call) Run(run func(ctx context.Context, promo *domain.Promotion)) *MockRepository_Create_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *domain.Promotion
+		if args[1] != nil {
+			arg1 = args[1].(*domain.Promotion)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_Create_Call) Return(err error) *MockRepository_Create_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockRepository_Create_Call) RunAndReturn(run func(ctx context.Context, promo *domain.Promotion) error) *MockRepository_Create_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateUsage provides a mock function for the type MockRepository
 func (_mock *MockRepository) CreateUsage(ctx context.Context, usage *domain.CouponUsage) error {
 	ret := _mock.Called(ctx, usage)
@@ -149,6 +206,63 @@ func (_c *MockRepository_CreateUsage_Call) Return(err error) *MockRepository_Cre
 }
 
 func (_c *MockRepository_CreateUsage_Call) RunAndReturn(run func(ctx context.Context, usage *domain.CouponUsage) error) *MockRepository_CreateUsage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Delete provides a mock function for the type MockRepository
+func (_mock *MockRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Delete")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockRepository_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
+type MockRepository_Delete_Call struct {
+	*mock.Call
+}
+
+// Delete is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+func (_e *MockRepository_Expecter) Delete(ctx any, id any) *MockRepository_Delete_Call {
+	return &MockRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
+}
+
+func (_c *MockRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockRepository_Delete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_Delete_Call) Return(err error) *MockRepository_Delete_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -289,6 +403,148 @@ func (_c *MockRepository_GetByCode_Call) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
+// GetByID provides a mock function for the type MockRepository
+func (_mock *MockRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Promotion, error) {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByID")
+	}
+
+	var r0 *domain.Promotion
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*domain.Promotion, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *domain.Promotion); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.Promotion)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_GetByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByID'
+type MockRepository_GetByID_Call struct {
+	*mock.Call
+}
+
+// GetByID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+func (_e *MockRepository_Expecter) GetByID(ctx any, id any) *MockRepository_GetByID_Call {
+	return &MockRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
+}
+
+func (_c *MockRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockRepository_GetByID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_GetByID_Call) Return(promotion *domain.Promotion, err error) *MockRepository_GetByID_Call {
+	_c.Call.Return(promotion, err)
+	return _c
+}
+
+func (_c *MockRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*domain.Promotion, error)) *MockRepository_GetByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListAdmin provides a mock function for the type MockRepository
+func (_mock *MockRepository) ListAdmin(ctx context.Context, params AdminListParams) ([]domain.Promotion, int, error) {
+	ret := _mock.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAdmin")
+	}
+
+	var r0 []domain.Promotion
+	var r1 int
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, AdminListParams) ([]domain.Promotion, int, error)); ok {
+		return returnFunc(ctx, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, AdminListParams) []domain.Promotion); ok {
+		r0 = returnFunc(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.Promotion)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, AdminListParams) int); ok {
+		r1 = returnFunc(ctx, params)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, AdminListParams) error); ok {
+		r2 = returnFunc(ctx, params)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockRepository_ListAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAdmin'
+type MockRepository_ListAdmin_Call struct {
+	*mock.Call
+}
+
+// ListAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params AdminListParams
+func (_e *MockRepository_Expecter) ListAdmin(ctx any, params any) *MockRepository_ListAdmin_Call {
+	return &MockRepository_ListAdmin_Call{Call: _e.mock.On("ListAdmin", ctx, params)}
+}
+
+func (_c *MockRepository_ListAdmin_Call) Run(run func(ctx context.Context, params AdminListParams)) *MockRepository_ListAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 AdminListParams
+		if args[1] != nil {
+			arg1 = args[1].(AdminListParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_ListAdmin_Call) Return(promotions []domain.Promotion, n int, err error) *MockRepository_ListAdmin_Call {
+	_c.Call.Return(promotions, n, err)
+	return _c
+}
+
+func (_c *MockRepository_ListAdmin_Call) RunAndReturn(run func(ctx context.Context, params AdminListParams) ([]domain.Promotion, int, error)) *MockRepository_ListAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReleasePromotion provides a mock function for the type MockRepository
 func (_mock *MockRepository) ReleasePromotion(ctx context.Context, id uuid.UUID) error {
 	ret := _mock.Called(ctx, id)
@@ -342,6 +598,63 @@ func (_c *MockRepository_ReleasePromotion_Call) Return(err error) *MockRepositor
 }
 
 func (_c *MockRepository_ReleasePromotion_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockRepository_ReleasePromotion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Update provides a mock function for the type MockRepository
+func (_mock *MockRepository) Update(ctx context.Context, promo *domain.Promotion) error {
+	ret := _mock.Called(ctx, promo)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Update")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *domain.Promotion) error); ok {
+		r0 = returnFunc(ctx, promo)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockRepository_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
+type MockRepository_Update_Call struct {
+	*mock.Call
+}
+
+// Update is a helper method to define mock.On call
+//   - ctx context.Context
+//   - promo *domain.Promotion
+func (_e *MockRepository_Expecter) Update(ctx any, promo any) *MockRepository_Update_Call {
+	return &MockRepository_Update_Call{Call: _e.mock.On("Update", ctx, promo)}
+}
+
+func (_c *MockRepository_Update_Call) Run(run func(ctx context.Context, promo *domain.Promotion)) *MockRepository_Update_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *domain.Promotion
+		if args[1] != nil {
+			arg1 = args[1].(*domain.Promotion)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_Update_Call) Return(err error) *MockRepository_Update_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockRepository_Update_Call) RunAndReturn(run func(ctx context.Context, promo *domain.Promotion) error) *MockRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }

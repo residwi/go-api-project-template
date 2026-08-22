@@ -2,20 +2,18 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
-	applyhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/usecase/apply/http"
-	createhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/usecase/create/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/usecase/query/http"
-	removehttp "github.com/residwi/go-api-project-template/internal/modules/promotion/usecase/remove/http"
-	updatehttp "github.com/residwi/go-api-project-template/internal/modules/promotion/usecase/update/http"
+	promotionhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/adapter/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-func Promotion(authed, admin *middleware.RouteGroup, m *promotion.Module, v *validator.Validator) {
-	authed.HandleFunc("POST /promotions/apply", applyhttp.New(m.Apply, v).Apply)
+func Promotion(authed, admin *middleware.RouteGroup, s *promotion.Service, v *validator.Validator) {
+	h := promotionhttp.NewHandler(s, v)
+	authed.HandleFunc("POST /promotions/apply", h.Apply)
 
-	admin.HandleFunc("POST /promotions", createhttp.New(m.Create, v).Create)
-	admin.HandleFunc("GET /promotions", queryhttp.New(m.Query).List)
-	admin.HandleFunc("PUT /promotions/{id}", updatehttp.New(m.Update, v).Update)
-	admin.HandleFunc("DELETE /promotions/{id}", removehttp.New(m.Delete).Delete)
+	adminH := promotionhttp.NewAdminHandler(s, v)
+	admin.HandleFunc("POST /promotions", adminH.Create)
+	admin.HandleFunc("GET /promotions", adminH.List)
+	admin.HandleFunc("PUT /promotions/{id}", adminH.Update)
+	admin.HandleFunc("DELETE /promotions/{id}", adminH.Delete)
 }

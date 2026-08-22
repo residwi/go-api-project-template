@@ -12,7 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
@@ -39,6 +41,150 @@ func TestPostgresRepository_GetByCode(t *testing.T) {
 		repo := New(testPool)
 		_, err := repo.GetByCode(context.Background(), "NONEXISTENT-"+uuid.New().String()[:8])
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
+	})
+}
+
+func TestPostgresRepository_GetByID(t *testing.T) {
+	t.Run("returns promotion", func(t *testing.T) {
+		p := seedPromotion(t)
+		repo := New(testPool)
+
+		got, err := repo.GetByID(context.Background(), p.ID)
+		require.NoError(t, err)
+		assert.Equal(t, p.ID, got.ID)
+		assert.Equal(t, p.Code, got.Code)
+	})
+
+	t.Run("returns not found", func(t *testing.T) {
+		repo := New(testPool)
+		_, err := repo.GetByID(context.Background(), uuid.New())
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
+	})
+}
+
+func TestPostgresRepository_Create(t *testing.T) {
+	t.Run("creates promotion", func(t *testing.T) {
+		repo := New(testPool)
+		p := newPromotion("CREATE-" + uuid.New().String()[:8])
+
+		err := repo.Create(context.Background(), p)
+		require.NoError(t, err)
+		assert.NotEqual(t, uuid.Nil, p.ID)
+		assert.Equal(t, 0, p.UsedCount)
+		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM promotions WHERE id = $1`, p.ID) })
+	})
+
+	t.Run("returns conflict error on duplicate code", func(t *testing.T) {
+		repo := New(testPool)
+		existing := newPromotion("CREATE-DUP-" + uuid.New().String()[:8])
+		require.NoError(t, repo.Create(context.Background(), existing))
+		t.Cleanup(func() {
+			testPool.Exec(context.Background(), `DELETE FROM promotions WHERE id = $1`, existing.ID)
+		})
+
+		dup := newPromotion(existing.Code)
+		err := repo.Create(context.Background(), dup)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
+	})
+}
+
+func TestPostgresRepository_Update(t *testing.T) {
+	t.Run("updates promotion fields", func(t *testing.T) {
+		p := seedPromotion(t)
+		repo := New(testPool)
+
+		p.Active = false
+		err := repo.Update(context.Background(), p)
+		require.NoError(t, err)
+
+		got, _ := repo.GetByID(context.Background(), p.ID)
+		assert.False(t, got.Active)
+	})
+
+	t.Run("returns not found", func(t *testing.T) {
+		repo := New(testPool)
+		p := newPromotion("NOPE-" + uuid.New().String()[:8])
+		p.ID = uuid.New()
+		err := repo.Update(context.Background(), p)
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
+	})
+
+	t.Run("returns conflict on duplicate code", func(t *testing.T) {
+		p1 := seedPromotion(t)
+		p2 := seedPromotion(t)
+		repo := New(testPool)
+
+		p2.Code = p1.Code
+		err := repo.Update(context.Background(), p2)
+		assert.ErrorIs(t, err, apperror.ErrConflict)
+	})
+
+	t.Run("keeping its own code is not a conflict", func(t *testing.T) {
+		p := seedPromotion(t)
+		repo := New(testPool)
+
+		// Same code, so no unique violation: covers isUniqueViolation returning false.
+		p.Active = false
+		err := repo.Update(context.Background(), p)
+		require.NoError(t, err)
+	})
+}
+
+func TestPostgresRepository_Delete(t *testing.T) {
+	t.Run("deletes promotion", func(t *testing.T) {
+		p := seedPromotion(t)
+		repo := New(testPool)
+
+		require.NoError(t, repo.Delete(context.Background(), p.ID))
+
+		var count int
+		err := testPool.QueryRow(context.Background(), `SELECT COUNT(*) FROM promotions WHERE id = $1`, p.ID).
+			Scan(&count)
+		require.NoError(t, err)
+		assert.Equal(t, 0, count)
+	})
+
+	t.Run("returns not found", func(t *testing.T) {
+		repo := New(testPool)
+		err := repo.Delete(context.Background(), uuid.New())
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
+	})
+}
+
+func TestPostgresRepository_ListAdmin(t *testing.T) {
+	t.Run("returns the promotions this subtest seeded, newest first", func(t *testing.T) {
+		repo := New(testPool)
+		p1 := seedPromotion(t)
+		p2 := seedPromotion(t)
+
+		// PageSize large enough to cover every row test_promotion could hold: the
+		// database is shared and never reset, so this asserts p1 and p2 are among
+		// the results rather than asserting an exact total.
+		items, total, err := repo.ListAdmin(
+			context.Background(),
+			promotion.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 1000}},
+		)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, total, 2)
+
+		ids := make([]uuid.UUID, len(items))
+		for i, p := range items {
+			ids[i] = p.ID
+		}
+		assert.Contains(t, ids, p1.ID)
+		assert.Contains(t, ids, p2.ID)
+	})
+
+	t.Run("returns error on cancelled context", func(t *testing.T) {
+		cancelledCtx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		repo := New(testPool)
+		_, _, err := repo.ListAdmin(
+			cancelledCtx,
+			promotion.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}},
+		)
+		assert.Error(t, err)
 	})
 }
 
@@ -166,6 +312,11 @@ func TestPostgresRepository_DeleteUsageByOrderID(t *testing.T) {
 	})
 }
 
+// TestPostgresRepository_CancelledContext covers every repository method's
+// error path once each -- the pre-flatten tree had this scattered across all
+// six slices' own postgres packages (with GetByCode's subtest duplicated
+// verbatim between apply and reserve), so one subtest per method here is a
+// straight dedup, not a coverage cut.
 func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -174,6 +325,37 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("GetByCode", func(t *testing.T) {
 		_, err := repo.GetByCode(cancelledCtx, "NONEXISTENT")
+		assert.Error(t, err)
+	})
+
+	t.Run("GetByID", func(t *testing.T) {
+		_, err := repo.GetByID(cancelledCtx, uuid.New())
+		assert.Error(t, err)
+	})
+
+	t.Run("Create", func(t *testing.T) {
+		p := newPromotion("CANCEL-" + uuid.New().String()[:8])
+		err := repo.Create(cancelledCtx, p)
+		assert.Error(t, err)
+	})
+
+	t.Run("Update", func(t *testing.T) {
+		p := newPromotion("CANCEL-UPD-" + uuid.New().String()[:8])
+		p.ID = uuid.New()
+		err := repo.Update(cancelledCtx, p)
+		assert.Error(t, err)
+	})
+
+	t.Run("Delete", func(t *testing.T) {
+		err := repo.Delete(cancelledCtx, uuid.New())
+		assert.Error(t, err)
+	})
+
+	t.Run("ListAdmin", func(t *testing.T) {
+		_, _, err := repo.ListAdmin(
+			cancelledCtx,
+			promotion.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}},
+		)
 		assert.Error(t, err)
 	})
 
@@ -231,11 +413,10 @@ func insertPromotion(p *domain.Promotion) error {
 	).Scan(&p.ID, &p.UsedCount, &p.CreatedAt, &p.UpdatedAt)
 }
 
-func seedPromotion(t *testing.T) *domain.Promotion {
-	t.Helper()
+func newPromotion(code string) *domain.Promotion {
 	maxUses := 10
-	p := &domain.Promotion{
-		Code:      "PROMO-" + uuid.New().String()[:8],
+	return &domain.Promotion{
+		Code:      code,
 		Type:      domain.TypePercentage,
 		Value:     10,
 		StartsAt:  time.Now().Add(-time.Hour),
@@ -243,6 +424,11 @@ func seedPromotion(t *testing.T) *domain.Promotion {
 		MaxUses:   &maxUses,
 		Active:    true,
 	}
+}
+
+func seedPromotion(t *testing.T) *domain.Promotion {
+	t.Helper()
+	p := newPromotion("PROMO-" + uuid.New().String()[:8])
 	require.NoError(t, insertPromotion(p))
 	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM promotions WHERE id = $1`, p.ID) })
 	return p

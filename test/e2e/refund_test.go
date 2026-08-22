@@ -219,7 +219,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 
 func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	setup(t)
-	// Drives refund.InventoryRestorer.Restore and promotion/usecase/reserve.UseCase.Release
+	// Drives refund.InventoryRestorer.Restore and promotion.Service.Release
 	// through a refund job with inventory_action='release' on a coupon order.
 	mockMux := http.NewServeMux()
 	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
