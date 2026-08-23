@@ -9,17 +9,17 @@ pkgname: "{{.SrcPackageName}}"
 filename: "mocks_test.go"
 
 # One recursive rule instead of an entry per interface: every interface gets
-# exactly one mock, written into the package that declares it. Per-slice
-# ports -- the shape this refactor is moving toward -- have exactly one
-# consumer, their own tests, so that is always the right destination, and the
-# per-interface `configs:` fan-out check 4 policed no longer exists to drift.
+# exactly one mock, written into the package that declares it. A port has one
+# consumer -- the package that declares it, and its own tests -- so that is
+# always the right destination, and the per-interface `configs:` fan-out that
+# had to be kept in step by hand no longer exists to drift.
 #
-# The modules not yet sliced still split <feature> from <feature>/http, and
-# mockery cannot write a private mock into a package that does not declare
-# the interface -- so their existing <feature>/http/mocks_test.go, built by
-# the old *dual config, is no longer regenerated here. It stays correct until
-# the interface it mirrors next changes; go vet in that http/ package will
-# catch the drift as an ordinary compile error when it does.
+# Nothing in the tree is exempt or frozen. A module declares its service-level
+# ports in <feature>/ports.go and its handler ports in <feature>/adapter/http,
+# two packages, so both get their own mocks_test.go and mockery rewrites every
+# one of them on each run: the count of "Writing template to file" lines a run
+# logs equals `find internal -name mocks_test.go | wc -l`, and the tree is byte
+# clean afterwards. Never hand-edit one -- the next `make mocks` overwrites it.
 #
 # Rooted at internal/ rather than internal/modules and internal/platform
 # separately: internal/server/middleware's auth_test.go calls

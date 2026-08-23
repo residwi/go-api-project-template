@@ -484,12 +484,19 @@ linters:
       - common-false-positives
     # Excluding configuration per-path, per-linter, per-text and per-source.
     rules:
-      - source: "TODO"
-        linters: [godot]
       - text: "should have a package comment"
         linters: [revive]
       - text: 'exported \S+ \S+ should have comment( \(or a comment on this block\))? or be unexported'
         linters: [revive]
+      # These two skip nothing today, and both are reachable: delete either one
+      # and a `// TODO` comment standing where a doc comment goes reports
+      # `package-comments` or `exported` from revive. The `nolint` half of the
+      # source pattern is inert -- revive ignores a directive comment when it
+      # decides what the doc comment is, so the five //nolint declarations in
+      # the tree never reach here -- and it is kept as the belt to that braces.
+      # Neither exclusion permits the shape: godoclint reports the same TODO
+      # doc comment under its own name, and is not excluded. They only keep the
+      # report down to one linter.
       - text: 'package comment should be of the form ".+"'
         source: "// ?(nolint|TODO)"
         linters: [revive]
@@ -515,18 +522,20 @@ linters:
         text: "exitAfterDefer"
         linters:
           - gocritic
-      - path: "cmd/*"
-        text: "unused-parameter"
-        linters:
-          - revive
-      # Unanchored on purpose: a binary's entry point and the test harness both
-      # legitimately hold package-level state, wherever they sit. The third
-      # alternative this carried, `command/`, matched no directory in the tree
-      # -- an exclusion that matches nothing is indistinguishable from a
-      # deleted one, so it is deleted. Every other `path:` in this file that
-      # starts with `^` is anchored to the repo root and dies silently if the
-      # directory it names moves; check them against `git ls-files` after any
-      # structural change.
+      # Skips nothing today: no non-test file under cmd/ or internal/testutil/
+      # declares a package-level var, only consts, which gochecknoglobals does
+      # not flag. Kept as policy, not as a live suppression -- a binary's entry
+      # point and the test harness both legitimately hold package-level state
+      # (an ldflags-stamped `var version`, a cached docker handle), and the
+      # blanket `_test.go` exclusion above covers neither, because both
+      # locations hold ordinary non-test files. Unanchored on purpose, so it
+      # follows either directory if it moves. The third alternative this
+      # carried, `command/`, named no directory in the tree at all and was
+      # deleted for that -- a path that names nothing is different from a path
+      # that names a real location nobody has put a global in yet. Every other
+      # `path:` in this file that starts with `^` is anchored to the repo root
+      # and dies silently if the directory it names moves; check them against
+      # `git ls-files` after any structural change.
       - path: "cmd/|testutil/"
         linters:
           - gochecknoglobals
@@ -549,6 +558,13 @@ linters:
       # one package is the unsafe kind.
       - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testutil/|^internal/platform/(cache|database)/|/redis/|^internal/server/([^/]+_test\.go|middleware/)|^internal/bootstrap/|^scripts/)
         linters: [paralleltest]
-      # t.Setenv panics when the test also calls t.Parallel.
+      # t.Setenv panics when the test, or an ancestor, calls t.Parallel.
+      # paralleltest already knows that and skips the test doing the Setenv, so
+      # what this covers is the tests *beside* it: the process environment is
+      # global, so a parallel sibling races a Setenv it never calls. Two of the
+      # five files have such a sibling today (platform/config, modules/order);
+      # the other three are listed for the same whole-file reason the exclusion
+      # above states -- naming only the files that currently report is what made
+      # that list wrong the first time.
       - path: ^internal/(platform/(config/config_test|logger/logger_test)|modules/(payment|order|auth)/config_test)\.go
         linters: [paralleltest]
