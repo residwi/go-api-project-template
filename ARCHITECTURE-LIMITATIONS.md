@@ -107,54 +107,59 @@ publishing it means either duplicating the struct or publishing the model. Do
 not describe this exemption as pending cleanup unless you are proposing one of
 those two.
 
-## One flat `Service` satisfying several of a consumer's ports means the swap between them compiles
+## One flat `Service` satisfying several of a consumer's ports leaves the compiler nothing to check
 
-**Where you hit it:** you paste `OrderShip: ordMod` where `OrderDeliver:
-ordMod` belonged in `internal/bootstrap/app.go`, and the build succeeds.
+**Where you hit it:** nowhere yet. A consumer declares one narrow port per
+capability (decision 2) and the producer is one `Service` that satisfies all of
+them, so the ports differ in shape but not in the value assigned and the
+compiler has nothing left to check. You hit it the first time one consumer
+needs two ports backed by two *different* values and someone assigns the wrong
+value to one of them: that builds now, and under decision 14 it did not.
+Counting one pair for every two fields on the same consumer that take the same
+value, `internal/bootstrap/app.go`'s struct literals hold **18** such pairs
+today:
 
-A consumer declares one narrow port per capability (decision 2) and the
-producer is one `Service` that satisfies all of them, so the ports differ in
-shape but not in the value assigned and the compiler has nothing left to
-check. Counting one pair for every two fields on the same consumer that take
-the same value, `internal/bootstrap/app.go`'s struct literals hold **18** such
-swap-pairs today:
+| Consumer        | Value        | Fields | Pairs |
+| --------------- | ------------ | -----: | ----: |
+| `order.Deps`    | `cartMod`    |      3 |     3 |
+| `order.Deps`    | `inv`        |      3 |     3 |
+| `payment.Deps`  | `ordMod`     |      3 |     3 |
+| `payment.Deps`  | `inv`        |      2 |     1 |
+| `checkout.Deps` | `ordMod`     |      3 |     3 |
+| `checkout.Deps` | `paymentMod` |      2 |     1 |
+| `shipping.Deps` | `ordMod`     |      3 |     3 |
+| `product.Deps`  | `inv`        |      2 |     1 |
 
-| Consumer        | Value        | Fields | Swap-pairs |
-| --------------- | ------------ | -----: | ---------: |
-| `order.Deps`    | `cartMod`    |      3 |          3 |
-| `order.Deps`    | `inv`        |      3 |          3 |
-| `payment.Deps`  | `ordMod`     |      3 |          3 |
-| `payment.Deps`  | `inv`        |      2 |          1 |
-| `checkout.Deps` | `ordMod`     |      3 |          3 |
-| `checkout.Deps` | `paymentMod` |      2 |          1 |
-| `shipping.Deps` | `ordMod`     |      3 |          3 |
-| `product.Deps`  | `inv`        |      2 |          1 |
+**Every pair assigns the same value to both fields**, so there is no live swap
+to make. Paste `OrderShip: ordMod` over `OrderDeliver: ordMod` in `app.go` and
+Go refuses it — `duplicate field name OrderShip in struct literal`. Delete the
+`OrderDeliver` line instead of duplicating it and you have a *dropped* field,
+not a swap: a struct literal compiles with a field left unset, the result is a
+`nil` port, and nothing caught that before the flatten either — see
+[`order.Deps.InventoryDeduct` is wired to a path e2e never
+runs](#orderdepsinventorydeduct-is-wired-to-a-path-e2e-never-runs).
 
-Under decision 14 most of those were compile errors.
+So the flatten introduced no bug. It removed a guarantee, and the guarantee
+was real. Under decision 14 most of those pairs were compile errors.
 `order.Deps.InventoryReserve`, `InventoryDeduct` and `InventoryRestore` took
 `inv.Reserve`, `inv.Deduct` and `inv.Restore` — three different slice values
 whose method sets did not overlap — so `InventoryDeduct: inv.Reserve` did not
 build. Flattening `inventory` made `inv` one value satisfying all three, and
 the same thing happened at every flatten. `order`'s was the largest: one
 `*order.Service` now satisfies ten port fields across four consumers, and
-eight compile errors went with it — three swap-pairs on `payment`, three on
+eight compile errors went with it — three pairs on `payment`, three on
 `checkout`, two on `shipping` (its `OrderShip`/`OrderDeliver` pair already
 took the same value, so that one was never guarded), none on `review`, which
-has a single field.
+has a single field. What replaces those eight is an eye: read the value when
+you add a port to a consumer that already has one.
 
-**What has not changed.** A *dropped* field was never caught either: a struct
-literal compiles with a field left unset, and the result is a `nil` port. That
-failure mode is identical before and after.
-
-**What you would do:** nothing cheap, and nothing here. A distinct wrapper
-type per port would restore the compile error and reintroduce exactly the
-pass-through packages decision 4 rejects. A `bootstrap` test asserting each
-field holds the value it should is a test of a struct literal against itself.
-The honest mitigation is `test/e2e`: a swap that changes behaviour on the
-paid-checkout path fails the saga. A swap on a path e2e does not run does not
-— see [`order.Deps.InventoryDeduct` is wired to a path e2e never
-runs](#orderdepsinventorydeduct-is-wired-to-a-path-e2e-never-runs) for the one
-field that is documented to be in that position.
+**What you would do:** nothing, until a second value shows up on one consumer.
+A distinct wrapper type per port would restore the compile error and
+reintroduce exactly the pass-through packages decision 4 rejects. A
+`bootstrap` test asserting each field holds the value it should is a test of a
+struct literal against itself. The mitigation that will matter on the day the
+second value arrives is `test/e2e`: a wrong value that changes behaviour on the
+paid-checkout path fails the saga, and one on a path e2e does not run does not.
 
 ## The public and admin response mappers now sit one identifier apart
 
@@ -193,7 +198,9 @@ wrong mapper is a deliberate-looking act that publishes four extra fields.
 
 **What you would do:** for each public route that has an admin twin, assert
 the exact key set of the response body through the handler rather than through
-the mapper. Three routes need it. Not done here — the decision belongs with
+the mapper. Six routes need it: `GET` and `PUT /api/users/me`, `GET
+/api/categories` and `/api/categories/{slug}`, `GET /api/products` and
+`/api/products/{slug}`. Not done here — the decision belongs with
 whoever reviews the whole shape, because fixing three modules and not the
 other twelve manufactures a consistency that is not there.
 
@@ -409,14 +416,14 @@ One of the 18 load-bearing in Go not merely defensive. `products.category_id` is
 | Module      | Inbound FKs | Inbound ports |
 | ----------- | ----------- | ------------- |
 | `user`      | 7           | **1**         |
-| `order`     | 6           | **7**         |
+| `order`     | 6           | **10**        |
 | `product`   | 6           | **2**         |
-| `inventory` | **0**       | **5**         |
+| `inventory` | **0**       | **7**         |
 | `category`  | 2           | 0             |
 
-Inbound FKs count constraints referencing table the module owns. Inbound ports count interfaces _other_ modules declare that this module's service satisfies — `auth.UserDirectory`, `payment.OrderReader`, `product.InventoryReader` and so on.
+Inbound FKs count constraints referencing table the module owns. Inbound ports count interfaces _other_ modules declare that this module's service satisfies — `auth.UserDirectory`, `payment.OrderReader`, `product.InventoryReader` and so on. Derive the port column with `grep -n 'type .* interface' internal/modules/*/ports.go` and attribute each name to the producer it asks for: `order`'s ten come from four modules (`payment` 3, `checkout` 3, `shipping` 3, `review` 1), `inventory`'s seven from three (`order` 3, `payment` 2, `product` 2).
 
-`users` most-referenced table in schema and almost nothing call into `user`: seven tables carry `user_id`, and caller writing one already **has** the id, so nothing to ask. `inventory_levels` have no inbound foreign keys whatsoever and five interfaces across three modules declare ports against `inventory`, because stock is answer that _changes_ and must be asked every time.
+`users` most-referenced table in schema and almost nothing call into `user`: seven tables carry `user_id`, and caller writing one already **has** the id, so nothing to ask. `inventory_levels` have no inbound foreign keys whatsoever and seven interfaces across three modules declare ports against `inventory`, because stock is answer that _changes_ and must be asked every time.
 
 **Foreign-key fan-in measures how many tables carry an identity. Port fan-in
 measures how much behaviour other modules need.** Close to independent, and neither alone tell you what coupling costs.
@@ -682,15 +689,15 @@ _layer_ (build every module's dependencies, then every module) not by module.
 
 ## `order.Deps.InventoryDeduct` is wired to a path e2e never runs
 
-**Where you hit it:** you drop the `InventoryDeduct: inv` line at `internal/bootstrap/app.go:101` — a struct literal compiles fine with a field left unset, so `order.Deps.InventoryDeduct` is silently `nil` — and `make check-boundaries`, `make lint`, `make test` and every `test/e2e` saga still pass.
+**Where you hit it:** you drop the `InventoryDeduct: inv` line at `internal/bootstrap/app.go:102` — a struct literal compiles fine with a field left unset, so `order.Deps.InventoryDeduct` is silently `nil` — and `make check-boundaries`, `make lint`, `make test` and every `test/e2e` saga still pass.
 
-**Why it is safe today.** `order` has a `Deps.InventoryDeduct` field, wired at `app.go:101` to the same `inv` value `payment.Deps.InventoryDeduct` already gets at `app.go:117`. Inside `order`, that field lands on `Service.inventoryDeduct` (`internal/modules/order/service.go:63`), and exactly one method calls it — `finalizeFreeOrder` (`internal/modules/order/service.go:421`), reached only when `order.Total.Amount == 0`, a 100%-discount coupon or an entirely free line. `order/service_test.go`'s "zero total finalizes order without payment" subtest (line 539) exercises that branch, but against `NewMockInventoryDeductor`, which proves `finalizeFreeOrder` calls whatever it is handed, not that `app.go` handed it the right thing. `test/e2e/checkout_test.go`'s only coupon saga, `TestE2ECouponOrderFlow` (`checkout_test.go:224`), applies a 10% discount and asserts a 999 total (`checkout_test.go:356-359`); no `test/e2e` file builds an order whose total lands at zero.
+**Why it is safe today.** `order` has a `Deps.InventoryDeduct` field, wired at `app.go:102` to the same `inv` value `payment.Deps.InventoryDeduct` already gets at `app.go:117`. Inside `order`, that field lands on `Service.inventoryDeduct` (`internal/modules/order/service.go:63`), and exactly one method calls it — `finalizeFreeOrder` (`internal/modules/order/service.go:421`), reached only when `order.Total.Amount == 0`, a 100%-discount coupon or an entirely free line. `order/service_test.go`'s "zero total finalizes order without payment" subtest (line 539) exercises that branch, but against `NewMockInventoryDeductor`, which proves `finalizeFreeOrder` calls whatever it is handed, not that `app.go` handed it the right thing. `test/e2e/checkout_test.go`'s only coupon saga, `TestE2ECouponOrderFlow` (`checkout_test.go:224`), applies a 10% discount and asserts a 999 total (`checkout_test.go:360`); no `test/e2e` file builds an order whose total lands at zero.
 
-**What it costs.** The other five cart/inventory fields on `order.Deps` (`CartLock`, `CartRead`, `CartClear`, `InventoryReserve`, `InventoryRestore`) are reached by every paid checkout `test/e2e/checkout_test.go` runs, so a mis-wire on any of those fails the suite immediately. `InventoryDeduct` is the one exception: dropping it from the block at `app.go:95`-`105` passes every check this repo runs and only misbehaves the first time a customer places a 100%-discount order in production.
+**What it costs.** The other five cart/inventory fields on `order.Deps` (`CartLock`, `CartRead`, `CartClear`, `InventoryReserve`, `InventoryRestore`) are reached by every paid checkout `test/e2e/checkout_test.go` runs, so a mis-wire on any of those fails the suite immediately. `InventoryDeduct` is the one exception: dropping it from the block at `app.go:96`-`106` passes every check this repo runs and only misbehaves the first time a customer places a 100%-discount order in production.
 
 **This entry is about a *dropped* field, not a swapped one.** The swap has
 its own entry — [One flat `Service` satisfying several of a consumer's ports
-means the swap between them compiles](#one-flat-service-satisfying-several-of-a-consumers-ports-means-the-swap-between-them-compiles)
+leaves the compiler nothing to check](#one-flat-service-satisfying-several-of-a-consumers-ports-leaves-the-compiler-nothing-to-check)
 — and it used to be a compile error here: `InventoryReserve`, `InventoryDeduct`
 and `InventoryRestore` were wired to three different slice values with three
 different method names, so pasting one into the wrong field did not build. The

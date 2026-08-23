@@ -138,9 +138,9 @@ adapts that module's own aggregate:
 
 #### Naming
 
-**One `Service` per module, and its methods carry the verb.** `grep -rn
-Execute --include='*.go' internal/modules` returns nothing. Four rules came
-out of the flatten, and they are worth knowing before adding a method:
+**One `Service` per module, and its methods carry the verb.** `grep -rn 'func
+(s \*Service) Execute' internal/modules` returns nothing. Four rules came out
+of the flatten, and they are worth knowing before adding a method:
 
 1. **No `Execute`.** `place.UseCase.Execute` read correctly because the
    package said `place`. One `Service` cannot hold five `Execute` methods, so
@@ -169,8 +169,8 @@ method that performs an ownership check, the plain one does not.
 #### Ports
 
 **A cross-module port is declared in the consuming module's own `ports.go` —
-one file per module, nine files, 29 interfaces** (`grep -c '^type .*
-interface' internal/modules/*/ports.go`). The consumer names the interface;
+one file per module, nine files, 29 interfaces** (`grep -h '^type .* interface'
+internal/modules/*/ports.go | wc -l`). The consumer names the interface;
 the producer never publishes it. `category/ports.go` declares `ProductCounter`
 (`CountPublished`, one method). `order/ports.go` declares eight and
 `payment/ports.go` seven. A module that reaches nothing outside itself has no
@@ -196,10 +196,13 @@ three wired to the same `*order.Service` — because a port names what its
 caller asks for, not what the producer happens to offer. No `Service` carries
 a forwarding method for another module's benefit.
 
-That has a price the sliced shape did not pay. When three ports bound to three
-*different* slice values, pasting one into the wrong `Deps` field was a
-compile error; one flat `Service` satisfying all three means the swap compiles.
-`ARCHITECTURE-LIMITATIONS.md` prices it and counts what is exposed.
+That has a price the sliced shape did not pay. Two ports bound to two
+*different* slice values, so the compiler checked each `Deps` field against the
+value it was handed; one flat `Service` satisfying both means it cannot.
+Nothing misbehaves today — wherever one `Service` satisfies several of a
+consumer's ports, every one of those fields is wired to that same value, so
+there is no wrong value to assign. `ARCHITECTURE-LIMITATIONS.md` prices the
+guarantee that went away and says when the absence starts to bite.
 
 A `dto.go` belongs nowhere at all: check 1c refuses that filename **anywhere**
 under `internal/`. Wire types live in the module's own `adapter/http`, in the
@@ -630,7 +633,7 @@ History stays linear. No `Merge branch …` commit — it says nothing about the
 - **`test/e2e/` is for sagas no single module can own** — checkout, payment, refund, fulfilment failure, admin flows — driven through the real `server.NewRouter`, real Postgres, and the mock gateway on an `httptest.Server`.
 - **Postgres databases are per module, created once under an advisory lock, and never dropped; Redis indices are still a slot you claim.** `MustStartPostgres(dbName)` creates and migrates `dbName` the first time any caller asks for it — the lock covers the migration too, so a second caller that finds the database already there finds it at the latest schema — and every later caller, same test binary or a different one, just connects. **25 packages call `testutil.MustStart*` today** (`grep -rl 'testutil.MustStart' --include='*_test.go' . | xargs -n1 dirname | sort -u | wc -l`), and the mapping is one database per module: `test_cart`, `test_order`, `test_payment`, and so on (`grep -rn 'MustStartPostgres(' --include='*_test.go' internal/modules` is the live mapping). Two modules still put two test packages on one name — `notification` and `payment` each have an `adapter/postgres` and a `jobs/postgres` test package sharing `test_notification` / `test_payment`. Packages sharing a name never tear each other down, but they get no clean table between them either: seed the rows your subtest asserts on and never `TRUNCATE`. **`ResetDB` is safe only for a package that owns its database outright, and nothing under `internal/modules` does.** Three callers today: `internal/bootstrap/app_test.go` (`test_bootstrap`), `internal/server/router_test.go` (`test_server`) and `test/e2e/testmain_test.go` (`test_e2e`). `ResetDB` takes a `*pgxpool.Pool`, not a package name, so nothing stops a fourth caller inside a module adding it — check before copying a `setup` helper that calls it. `MustStartRedis(dbIndex)` takes an index the caller picks by hand against the registry comment above that function in `internal/testutil/testutil.go`. Indices 0, 1, 3, 5 and 6 are claimed (`platform/cache`, `server/middleware`, `server`, `test/e2e`, `modules/user/adapter/redis`); 2 and 4 are free. Nothing enforces a claim — a collision compiles, passes review, and fails as a flake in an unrelated package — so update that comment in the same commit that takes an index, and cross-check it against `grep -rn 'MustStartRedis(' --include='*_test.go' .`, which is the only record that cannot drift.
 - **`t.Parallel()` buys nothing in a package that owns a database or a Redis
-  index**, because everything in that package shares one connection and `ResetDB` TRUNCATEs every table in it. Those packages excluded from `paralleltest` wholesale in `.golangci.yml` -- per package, never per file, because parallel sibling gets its rows deleted mid-assertion even when that sibling never calls reset itself. That exclusion's `path:` regex is **anchored** (`^internal/...`), so it dies silently the day one of the directories it names moves -- check it against `git ls-files` after any structural change. The two unanchored `path:` patterns in that file (`cmd/*` and `cmd/|testutil/`) survive a move by accident rather than by edit, which is the distinction to know when auditing the list. Nothing given up: `go test` already runs packages concurrently and each owns own database. Have each subtest seed own data instead.
+  index**, because everything in that package shares one connection and `ResetDB` TRUNCATEs every table in it. Those packages excluded from `paralleltest` wholesale in `.golangci.yml` -- per package, never per file, because parallel sibling gets its rows deleted mid-assertion even when that sibling never calls reset itself. That exclusion's `path:` regex is **mixed**: seven of its nine alternatives are anchored to the repo root (`^db/(migrations|seeds)/`, `^test/e2e/`, `^internal/testutil/`, and four more), two are not (`/postgres/`, `/redis/`). Only an anchored alternative dies silently when the directory it names moves, and the anchored seven carry most of the weight -- 70 of the 102 files this pattern matches are reached by an anchored alternative and nothing else -- so check those against `git ls-files` after any structural change. `/postgres/` is the single widest alternative in the file at 30 files and needs no such check: it follows `adapter/postgres` wherever that goes. Nothing given up: `go test` already runs packages concurrently and each owns own database. Have each subtest seed own data instead.
 - **Everywhere else `t.Parallel()` is mandatory**, and `paralleltest` enforces it on both test function and every `t.Run` closure. If you add test package claiming database or Redis slot, add it to that exclusion list in same commit.
 - **Order a test file so the tests come first.** Package-level `var`s and `TestMain` at top, then every `func TestXxx`, then stub types with their own methods grouped under them, then plain helpers last. `internal/platform/jobs/runner_test.go` is the shape. Someone opening file came for scenarios, not fakes that serve them. `funcorder` only orders methods against their struct, so nothing lints the rest — on you.
 - **Prefer subtests over table-driven tests.** One logical scenario per subtest, descriptive name, own setup. Break large scenarios up; no monolithic tests.
