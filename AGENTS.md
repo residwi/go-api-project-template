@@ -157,7 +157,7 @@ split into the three `Cart*` ports and `InventoryPort` split into the three
 both left for `checkout` (`place`'s own payment call moved first, then
 `cancel`'s payment-job-cancel edge, into `checkout.Service.CancelOrder`) —
 but only two of the eight are actually shared (`InventoryRestorer` between
-`cancel` and `expire`, `CouponPort` across `place`, `cancel` and `expire`);
+`cancel` and `expire`, `CouponReserver` across `place`, `cancel` and `expire`);
 the other six each feed exactly one slice, and every one of them feeds
 `place` alone — `CartLocker`, `CartReader`, `CartClearer`,
 `InventoryReserver`, `InventoryDeductor` and `NotificationEnqueuer` — and
@@ -457,7 +457,7 @@ spot the way it was before this phase.
     Two mechanisms satisfy the port without an adapter:
     - **Name-match.** The producer's own value already has a method named
       what the consumer's port asks for. `promotion.Service`
-      satisfies both `order.CouponPort` (`Reserve` + `Release`) and
+      satisfies both `order.CouponReserver` (`Reserve` + `Release`) and
       `payment.CouponPort` (`Release` alone) directly — two differently-shaped
       interfaces, same producer value, no adapter for either. Notification's
       `jobs.Worker` satisfies `platform/jobs.Processor` directly.

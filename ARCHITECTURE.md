@@ -93,7 +93,7 @@ in the tree: every port file, at either level, is `ports.go`.
 graph has no cycles by construction and each slice's — or module's — port
 list is exactly the API it would need if extracted. Pays off immediately:
 because interfaces are declared narrow at the consumer,
-`promotion.Service` satisfies both `order.CouponPort` and
+`promotion.Service` satisfies both `order.CouponReserver` and
 `payment.CouponPort` directly, and notification's `jobs.Worker` satisfies
 `platform/jobs.Processor` directly — adapters never needed writing.
 

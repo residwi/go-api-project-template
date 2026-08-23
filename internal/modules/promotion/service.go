@@ -141,7 +141,7 @@ func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]doma
 	return s.repo.ListAdmin(ctx, params)
 }
 
-// Reserve and Release are bound by name-match into order.CouponPort
+// Reserve and Release are bound by name-match into order.CouponReserver
 // (both methods) and payment.CouponPort (Release alone); their signatures
 // must stay byte-identical to what those two ports declare.
 func (s *Service) Reserve(
