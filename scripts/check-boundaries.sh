@@ -864,7 +864,10 @@ check_cross_module_imports() {
 				# own signature names order/domain.NewOrder and
 				# order/domain.Order, so checkout's port cannot avoid them.
 				# See the header comment above this function for why this is a
-				# per-target exemption rather than a WIRING_DIRS entry.
+				# per-importer exemption rather than a WIRING_DIRS entry. The
+				# test keys on the importer, so the grant is open on the
+				# target: checkout may reach any module's domain/, though
+				# order's is the only one it needs today.
 				if [ "$file_feature" = "checkout" ]; then
 					case "$target_rest" in
 					domain | domain/*) continue ;;

@@ -495,8 +495,10 @@ linters:
       # decides what the doc comment is, so the five //nolint declarations in
       # the tree never reach here -- and it is kept as the belt to that braces.
       # Neither exclusion permits the shape: godoclint reports the same TODO
-      # doc comment under its own name, and is not excluded. They only keep the
-      # report down to one linter.
+      # doc comment under its own name, and is not excluded. What collapses the
+      # two reports into one line is golangci's default uniq-by-line, not these
+      # exclusions -- remove them and revive reports while godoclint's identical
+      # finding disappears.
       - text: 'package comment should be of the form ".+"'
         source: "// ?(nolint|TODO)"
         linters: [revive]
