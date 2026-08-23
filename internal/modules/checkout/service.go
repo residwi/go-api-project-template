@@ -2,6 +2,7 @@ package checkout
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/google/uuid"
@@ -21,6 +22,7 @@ type Deps struct {
 	Orders      OrderWriter
 	Payments    PaymentCharger
 	Snapshots   OrderSnapshotReader
+	Attempts    PaymentAttemptClaimer
 	Cancels     OrderCanceller
 	PaymentJobs PaymentJobCanceller
 	Logger      *slog.Logger
@@ -30,6 +32,7 @@ type Service struct {
 	orders      OrderWriter
 	payments    PaymentCharger
 	snapshots   OrderSnapshotReader
+	attempts    PaymentAttemptClaimer
 	cancels     OrderCanceller
 	paymentJobs PaymentJobCanceller
 	logger      *slog.Logger
@@ -40,6 +43,7 @@ func New(d Deps) *Service {
 		orders:      d.Orders,
 		payments:    d.Payments,
 		snapshots:   d.Snapshots,
+		attempts:    d.Attempts,
 		cancels:     d.Cancels,
 		paymentJobs: d.PaymentJobs,
 		logger:      d.Logger,
@@ -86,15 +90,29 @@ func (s *Service) RetryPayment(
 	if order.UserID != userID {
 		return payment.ChargeResult{}, apperror.ErrNotFound
 	}
-	if order.Status != string(orderdomain.StatusAwaitingPayment) {
-		return payment.ChargeResult{}, apperror.ErrOrderNotPayable
+	// The claim is the payability check, not a step after one.
+	if claimErr := s.attempts.BeginPaymentAttempt(ctx, orderID); claimErr != nil {
+		if errors.Is(claimErr, apperror.ErrConflict) {
+			return payment.ChargeResult{}, apperror.ErrOrderNotPayable
+		}
+		return payment.ChargeResult{}, claimErr
 	}
 
-	return s.payments.Charge(ctx, payment.ChargeRequest{
+	result, err := s.payments.Charge(ctx, payment.ChargeRequest{
 		OrderID:         order.ID,
 		Amount:          order.Total,
 		PaymentMethodID: paymentMethodID,
 	})
+	if err != nil {
+		// Without this the order stays payment_processing and can never retry.
+		if releaseErr := s.attempts.MarkAwaitingPayment(ctx, orderID); releaseErr != nil {
+			s.logger.ErrorContext(ctx, "failed to release the payment attempt claim",
+				slog.String("order_id", orderID.String()), slog.String("error", releaseErr.Error()))
+		}
+		return result, err
+	}
+
+	return result, nil
 }
 
 func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) error {

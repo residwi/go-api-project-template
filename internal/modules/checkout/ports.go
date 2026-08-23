@@ -34,6 +34,14 @@ type OrderSnapshotReader interface {
 	Snapshot(ctx context.Context, orderID uuid.UUID) (order.Snapshot, error)
 }
 
+// PaymentAttemptClaimer is satisfied by order.Service. Reading the status and
+// then charging bills the card twice under two concurrent retries, so the claim
+// is a compare-and-set instead.
+type PaymentAttemptClaimer interface {
+	BeginPaymentAttempt(ctx context.Context, orderID uuid.UUID) error
+	MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error
+}
+
 type OrderCanceller interface {
 	CancelByUser(ctx context.Context, userID, orderID uuid.UUID) error
 }

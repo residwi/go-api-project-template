@@ -194,7 +194,10 @@ func TestService_RetryPayment(t *testing.T) {
 			PaymentMethodID: "pm_retry",
 		}).Return(payment.ChargeResult{PaymentURL: "https://pay.test/1"}, nil)
 
-		svc := New(Deps{Snapshots: orders, Payments: payments, Logger: testutil.DiscardLogger()})
+		attempts := NewMockPaymentAttemptClaimer(t)
+		attempts.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(nil)
+
+		svc := New(Deps{Snapshots: orders, Attempts: attempts, Payments: payments, Logger: testutil.DiscardLogger()})
 
 		got, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
 
@@ -214,7 +217,12 @@ func TestService_RetryPayment(t *testing.T) {
 			Status: string(orderdomain.StatusAwaitingPayment),
 		}, nil)
 
-		svc := New(Deps{Snapshots: orders, Payments: NewMockPaymentCharger(t), Logger: testutil.DiscardLogger()})
+		svc := New(Deps{
+			Snapshots: orders,
+			Attempts:  NewMockPaymentAttemptClaimer(t),
+			Payments:  NewMockPaymentCharger(t),
+			Logger:    testutil.DiscardLogger(),
+		})
 
 		_, err := svc.RetryPayment(t.Context(), uuid.New(), orderID, "pm_retry")
 
@@ -233,11 +241,80 @@ func TestService_RetryPayment(t *testing.T) {
 			Status: string(orderdomain.StatusPaid),
 		}, nil)
 
-		svc := New(Deps{Snapshots: orders, Payments: NewMockPaymentCharger(t), Logger: testutil.DiscardLogger()})
+		attempts := NewMockPaymentAttemptClaimer(t)
+		attempts.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(apperror.ErrConflict)
+
+		svc := New(Deps{
+			Snapshots: orders,
+			Attempts:  attempts,
+			Payments:  NewMockPaymentCharger(t),
+			Logger:    testutil.DiscardLogger(),
+		})
 
 		_, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
 
 		require.ErrorIs(t, err, apperror.ErrOrderNotPayable)
+	})
+
+	// The snapshot still reports awaiting_payment, so a status check would have
+	// charged. Only the lost compare-and-set stops the second retry.
+	t.Run("does not charge when a concurrent retry already claimed the order", func(t *testing.T) {
+		t.Parallel()
+
+		userID, orderID := uuid.New(), uuid.New()
+
+		orders := NewMockOrderSnapshotReader(t)
+		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
+			ID:     orderID,
+			UserID: userID,
+			Total:  money.New(4000, "USD"),
+			Status: string(orderdomain.StatusAwaitingPayment),
+		}, nil)
+
+		attempts := NewMockPaymentAttemptClaimer(t)
+		attempts.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(apperror.ErrConflict)
+
+		svc := New(Deps{
+			Snapshots: orders,
+			Attempts:  attempts,
+			Payments:  NewMockPaymentCharger(t),
+			Logger:    testutil.DiscardLogger(),
+		})
+
+		_, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
+
+		require.ErrorIs(t, err, apperror.ErrOrderNotPayable)
+	})
+
+	t.Run("releases the claim when the charge fails", func(t *testing.T) {
+		t.Parallel()
+
+		userID, orderID := uuid.New(), uuid.New()
+
+		orders := NewMockOrderSnapshotReader(t)
+		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
+			ID:     orderID,
+			UserID: userID,
+			Total:  money.New(4000, "USD"),
+			Status: string(orderdomain.StatusAwaitingPayment),
+		}, nil)
+
+		attempts := NewMockPaymentAttemptClaimer(t)
+		attempts.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(nil)
+		attempts.EXPECT().MarkAwaitingPayment(t.Context(), orderID).Return(nil)
+
+		payments := NewMockPaymentCharger(t)
+		payments.EXPECT().Charge(t.Context(), payment.ChargeRequest{
+			OrderID:         orderID,
+			Amount:          money.New(4000, "USD"),
+			PaymentMethodID: "pm_retry",
+		}).Return(payment.ChargeResult{}, errors.New("gateway down"))
+
+		svc := New(Deps{Snapshots: orders, Attempts: attempts, Payments: payments, Logger: testutil.DiscardLogger()})
+
+		_, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
+
+		require.Error(t, err)
 	})
 }
 

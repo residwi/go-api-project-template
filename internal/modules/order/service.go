@@ -396,6 +396,12 @@ func (s *Service) MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) 
 	return s.Apply(ctx, orderID, domain.PaymentProcessingTransition)
 }
 
+// BeginPaymentAttempt returns apperror.ErrConflict unless the order was
+// awaiting payment, so a caller may charge only once this returns nil.
+func (s *Service) BeginPaymentAttempt(ctx context.Context, orderID uuid.UUID) error {
+	return s.Apply(ctx, orderID, domain.PaymentAttemptTransition)
+}
+
 func (s *Service) MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error {
 	return s.Apply(ctx, orderID, domain.AwaitingPaymentTransition)
 }

@@ -122,6 +122,7 @@ func New(d Deps) (*App, error) {
 	checkoutSvc := checkout.New(checkout.Deps{
 		Orders:      ordMod,
 		Snapshots:   ordMod,
+		Attempts:    ordMod,
 		Cancels:     ordMod,
 		Payments:    paymentMod,
 		PaymentJobs: paymentMod,

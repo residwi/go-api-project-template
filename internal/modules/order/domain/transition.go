@@ -18,6 +18,13 @@ var (
 		From: []Status{StatusAwaitingPayment, StatusPaymentProcessing},
 	}
 
+	// PaymentAttemptTransition refuses an order already processing, unlike
+	// PaymentProcessingTransition, so of two concurrent retries only one wins.
+	PaymentAttemptTransition = Transition{
+		To:   StatusPaymentProcessing,
+		From: []Status{StatusAwaitingPayment},
+	}
+
 	AwaitingPaymentTransition = Transition{To: StatusAwaitingPayment, From: []Status{StatusPaymentProcessing}}
 
 	// PaidTransition allows awaiting_payment for the race where the gateway confirms
@@ -80,6 +87,7 @@ var (
 //nolint:gochecknoglobals // immutable registry of the named transitions above
 var allTransitions = []Transition{
 	PaymentProcessingTransition,
+	PaymentAttemptTransition,
 	AwaitingPaymentTransition,
 	PaidTransition,
 	FulfillmentFailedAfterChargeTransition,
