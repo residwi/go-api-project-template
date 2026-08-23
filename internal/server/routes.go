@@ -101,14 +101,10 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	admin.HandleFunc("PUT /orders/{id}/status", orderAdminHandler.UpdateStatus)
 
 	// checkout
-	placeHandler := checkouthttp.NewHandler(app.Checkout, v)
-	authed.Handle("POST /orders", orderWriteLimiter(http.HandlerFunc(placeHandler.Place)))
-
-	retryHandler := checkouthttp.NewRetryHandler(app.Checkout, v)
-	authed.Handle("POST /orders/{id}/pay", orderWriteLimiter(http.HandlerFunc(retryHandler.Retry)))
-
-	cancelHandler := checkouthttp.NewCancelHandler(app.Checkout)
-	authed.HandleFunc("POST /orders/{id}/cancel", cancelHandler.Cancel)
+	checkoutHandler := checkouthttp.NewHandler(app.Checkout, v)
+	authed.Handle("POST /orders", orderWriteLimiter(http.HandlerFunc(checkoutHandler.Place)))
+	authed.Handle("POST /orders/{id}/pay", orderWriteLimiter(http.HandlerFunc(checkoutHandler.Retry)))
+	authed.HandleFunc("POST /orders/{id}/cancel", checkoutHandler.Cancel)
 
 	// payment
 	api.HandleFunc("POST /payments/webhook", paymenthttp.NewWebhookHandler(app.Payments, log).HandleWebhook)

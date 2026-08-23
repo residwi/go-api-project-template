@@ -9,25 +9,32 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/checkout"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
-type OrderPlacer interface {
+// Checkout is one port for all three routes rather than one per route: they are
+// the same caller role acting on the same order through the same process.
+type Checkout interface {
 	PlaceOrder(
 		ctx context.Context,
 		userID uuid.UUID,
 		in checkout.PlaceOrderInput,
 	) (*orderdomain.Order, error)
+	RetryPayment(
+		ctx context.Context, userID, orderID uuid.UUID, paymentMethodID string,
+	) (payment.ChargeResult, error)
+	CancelOrder(ctx context.Context, userID, orderID uuid.UUID) error
 }
 
 type Handler struct {
-	service   OrderPlacer
+	service   Checkout
 	validator *validator.Validator
 }
 
-func NewHandler(service OrderPlacer, v *validator.Validator) *Handler {
+func NewHandler(service Checkout, v *validator.Validator) *Handler {
 	return &Handler{service: service, validator: v}
 }
 
@@ -161,6 +168,24 @@ func toPlaceOrderResponse(o *orderdomain.Order) placeOrderResponse {
 	return placeOrderResponse{Order: toOrderResponse(o)}
 }
 
+type payRequest struct {
+	PaymentMethodID string `json:"payment_method_id" validate:"required"`
+}
+
+type payResultResponse struct {
+	PaymentID  uuid.UUID `json:"payment_id"`
+	PaymentURL string    `json:"payment_url,omitempty"`
+	Charged    bool      `json:"charged"`
+}
+
+func toPayResultResponse(r payment.ChargeResult) payResultResponse {
+	return payResultResponse{
+		PaymentID:  r.PaymentID,
+		PaymentURL: r.PaymentURL,
+		Charged:    r.Charged,
+	}
+}
+
 func (h *Handler) Place(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
@@ -191,4 +216,48 @@ func (h *Handler) Place(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Created(w, toPlaceOrderResponse(order))
+}
+
+func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
+	uc, ok := middleware.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	id, ok := response.ParseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	req, ok := response.Bind[payRequest](w, r, h.validator)
+	if !ok {
+		return
+	}
+
+	result, err := h.service.RetryPayment(r.Context(), uc.UserID, id, req.PaymentMethodID)
+	if err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.OK(w, toPayResultResponse(result))
+}
+
+func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
+	uc, ok := middleware.RequireUser(w, r)
+	if !ok {
+		return
+	}
+
+	id, ok := response.ParseUUIDParam(w, r, "id")
+	if !ok {
+		return
+	}
+
+	if err := h.service.CancelOrder(r.Context(), uc.UserID, id); err != nil {
+		response.HandleErr(w, err)
+		return
+	}
+
+	response.NoContent(w)
 }

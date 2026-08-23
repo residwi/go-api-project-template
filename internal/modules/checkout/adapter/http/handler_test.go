@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 	"github.com/residwi/go-api-project-template/internal/server/response"
@@ -234,16 +235,215 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 		"StockReversed is saga state and must not be serialised")
 }
 
-func setupMux(t *testing.T) (*http.ServeMux, *MockOrderPlacer) {
-	usecase := NewMockOrderPlacer(t)
-	v := validator.New()
+func TestRetryHandler_RetryPayment(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		mux, service := setupMux(t)
+
+		userID := uuid.New()
+		orderID := uuid.New()
+		service.EXPECT().
+			RetryPayment(mock.Anything, userID, orderID, "pm_test_123").
+			Return(payment.ChargeResult{PaymentID: uuid.New()}, nil)
+
+		w := httptest.NewRecorder()
+		body := `{"payment_method_id":"pm_test_123"}`
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+orderID.String()+"/pay", strings.NewReader(body))
+		r = setAuthContext(r, userID)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.True(t, resp.Success)
+	})
+
+	t.Run("missing auth context", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupMux(t)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+uuid.NewString()+"/pay", nil)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.False(t, resp.Success)
+	})
+
+	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupMux(t)
+
+		userID := uuid.New()
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/bad-uuid/pay", nil)
+		r = setAuthContext(r, userID)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.Equal(t, "invalid id", resp.Error.Message)
+	})
+
+	t.Run("invalid JSON body", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupMux(t)
+
+		userID := uuid.New()
+		orderID := uuid.New()
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/v1/orders/"+orderID.String()+"/pay",
+			strings.NewReader("{invalid"),
+		)
+		r = setAuthContext(r, userID)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("validation error missing payment method", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupMux(t)
+
+		userID := uuid.New()
+		orderID := uuid.New()
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+orderID.String()+"/pay", strings.NewReader(`{}`))
+		r = setAuthContext(r, userID)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	})
+
+	t.Run("service error not found", func(t *testing.T) {
+		t.Parallel()
+
+		mux, service := setupMux(t)
+
+		userID := uuid.New()
+		orderID := uuid.New()
+		service.EXPECT().RetryPayment(mock.Anything, userID, orderID, mock.Anything).
+			Return(payment.ChargeResult{}, apperror.ErrNotFound)
+
+		w := httptest.NewRecorder()
+		body := `{"payment_method_id":"pm_test_123"}`
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+orderID.String()+"/pay", strings.NewReader(body))
+		r = setAuthContext(r, userID)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+}
+
+func TestCancelHandler_CancelOrder(t *testing.T) {
+	t.Parallel()
+
+	t.Run("service error handled gracefully", func(t *testing.T) {
+		t.Parallel()
+
+		mux, service := setupMux(t)
+
+		userID := uuid.New()
+		orderID := uuid.New()
+		service.EXPECT().CancelOrder(mock.Anything, userID, orderID).Return(apperror.ErrOrderCharging)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+orderID.String()+"/cancel", nil)
+		r = setAuthContext(r, userID)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+	})
+
+	t.Run("missing auth context", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupMux(t)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+uuid.NewString()+"/cancel", nil)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.False(t, resp.Success)
+	})
+
+	t.Run("invalid UUID", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupMux(t)
+
+		userID := uuid.New()
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/not-a-uuid/cancel", nil)
+		r = setAuthContext(r, userID)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.Equal(t, "invalid id", resp.Error.Message)
+	})
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		mux, service := setupMux(t)
+
+		userID := uuid.New()
+		orderID := uuid.New()
+		service.EXPECT().CancelOrder(mock.Anything, userID, orderID).Return(nil)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+orderID.String()+"/cancel", nil)
+		r = setAuthContext(r, userID)
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+}
+
+func setupMux(t *testing.T) (*http.ServeMux, *MockCheckout) {
+	service := NewMockCheckout(t)
+	h := NewHandler(service, validator.New())
 
 	mux := http.NewServeMux()
 	authed := middleware.NewRouteGroup(mux, "/api/v1")
 
-	authed.HandleFunc("POST /orders", NewHandler(usecase, v).Place)
+	authed.HandleFunc("POST /orders", h.Place)
+	authed.HandleFunc("POST /orders/{id}/pay", h.Retry)
+	authed.HandleFunc("POST /orders/{id}/cancel", h.Cancel)
 
-	return mux, usecase
+	return mux, service
 }
 
 func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {

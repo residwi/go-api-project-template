@@ -243,28 +243,30 @@ table enumerating every module's shape belongs nowhere in this file: three
 such paragraphs have already gone stale by doing exactly that.
 
 Inside `adapter/http`, files split by **handler role**. Unqualified
-`handler.go` is the default (public or authed) handler; `admin_handler.go`,
-`webhook_handler.go`, `cancel_handler.go` and `retry_handler.go` are the
-qualified exceptions. `routes.go` never appears here, or anywhere under
-`internal/modules/` — every URL lives in `internal/server/routes.go`, see rule
-10. Seven modules carry an `admin_handler.go` beside a `handler.go` because
-they split their own routes by caller role (`category order product promotion
-review shipping user`); `payment`'s only public route is the gateway callback,
+`handler.go` is the default (public or authed) handler; `admin_handler.go` and
+`webhook_handler.go` are the qualified exceptions. One handler may carry
+several routes: `checkout`'s three — place, retry, cancel — are one `Handler`
+in one file, because they are the same caller role acting on the same order.
+`routes.go` never appears here, or anywhere under `internal/modules/` — every
+URL lives in `internal/server/routes.go`, see rule 10. Seven modules carry an
+`admin_handler.go` beside a `handler.go` because they split their own routes by
+caller role (`category order product promotion review shipping user`);
+`payment`'s only public route is the gateway callback,
 so it has `admin_handler.go` and `webhook_handler.go` and no `handler.go` at
 all.
 
 **The route methods on those handlers are exported**, and that is not
 cosmetic: `internal/server/routes.go` is a different package in a different
 tree, and it can only mount `orderHandler.List`, `userAdminHandler.Get`,
-`placeHandler.Place` if it can name them.
+`checkoutHandler.Place` if it can name them.
 
 The port a handler takes is declared locally, in the handler's own package,
-and is named for the role it needs — 25 interfaces across the 15 `adapter/http`
+and is named for the role it needs — 23 interfaces across the 15 `adapter/http`
 packages, none of them called `UseCase`
 (`grep -hoE '^type [A-Za-z]+ interface' internal/modules/*/adapter/http/*.go`).
 `CartManager`, `ProductReader`, `WebhookProcessor`, `Reporter`. Eight packages
-hold two ports and `checkout` holds three, which is what role naming buys:
-naming both `UseCase` would redeclare an identifier. See rule 18a.
+hold two ports, which is what role naming buys: naming both `UseCase` would
+redeclare an identifier. See rule 18a.
 
 #### Tests
 
@@ -566,24 +568,25 @@ compiler; they are all greps.
 18. **Handlers use the shared helpers.** Decode and validate with `response.Bind[T](w, r, h.validator)`; read caller with `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks.
 18a. **An `adapter/http` port is named for the role it plays, never for the
     pattern.** `CartManager`, `ProductReader`, `WebhookProcessor`,
-    `PromotionApplier`, `Reporter` — 25 ports across the 15 `adapter/http`
+    `PromotionApplier`, `Reporter` — 23 ports across the 15 `adapter/http`
     packages, no exceptions
     (`grep -hoE '^type [A-Za-z]+ interface' internal/modules/*/adapter/http/*.go`).
     Never `UseCase`, and never `Service` either: the port is what the *handler*
     asks for, which is a subset of what the module's `Service` offers, and
     reusing the producer's name would say otherwise. Eight packages hold two
-    ports and `checkout` holds three, because they split routes by caller role
-    — `user` has `ProfileManager` + `UserManager`, `product` has
-    `ProductReader` + `ProductManager`, `checkout` has `OrderPlacer` +
-    `PaymentRetrier` + `OrderCanceller`. Role naming is what lets them
-    coexist; one shared name would redeclare an identifier.
+    ports, because they split routes by caller role — `user` has
+    `ProfileManager` + `UserManager`, `product` has `ProductReader` +
+    `ProductManager`. Role naming is what lets them coexist; one shared name
+    would redeclare an identifier. The other seven hold one port each, and a
+    single port may carry several routes: `checkout.Checkout` covers place,
+    retry and cancel, since splitting one caller role three ways bought
+    nothing.
 
     **The `Handler` field holding that port is `service`, and so is the
     constructor parameter that sets it**: `h.service.PlaceOrder(...)`, in all
-    25. The constructors are `NewHandler` (14), `NewAdminHandler` (8), and one
-    each of `NewWebhookHandler`, `NewCancelHandler` and `NewRetryHandler`. The
-    old `usecase` field name and bare `New` constructor retired with the
-    slices. A field is private and there is only ever one, so it is named for
+    23. The constructors are `NewHandler` (14), `NewAdminHandler` (8) and
+    `NewWebhookHandler` (1). The old `usecase` field name and bare `New`
+    constructor retired with the slices. A field is private and there is only ever one, so it is named for
     the layer, not the role — never `cmd`, `reader` or `svc`.
 19. **New config invariants go in the owning type's own loader.** Infra-level
     invariants go in `Infra.validate()` (`internal/platform/config/config.go`);
