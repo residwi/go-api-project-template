@@ -16,6 +16,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -64,7 +65,7 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 			GatewayURL:     "http://127.0.0.1:1",
 			GatewayTimeout: time.Second,
 		},
-		Pool:   testPool,
+		DB:     database.DB{Primary: testPool},
 		Logger: testutil.DiscardLogger(),
 	})
 	require.NoError(t, err)

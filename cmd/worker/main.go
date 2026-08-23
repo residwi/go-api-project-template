@@ -102,7 +102,7 @@ func run() error {
 		Auth:    authCfg,
 		Cart:    cartCfg,
 		Payment: paymentCfg,
-		Pool:    pool,
+		DB:      database.DB{Primary: pool},
 		Logger:  appLog,
 	})
 	if err != nil {

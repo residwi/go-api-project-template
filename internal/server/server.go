@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
@@ -84,25 +83,25 @@ func RunContext(ctx context.Context) error {
 		defer rdb.Close()
 	}
 
+	db := database.DB{Primary: pool, Replica: readerPool}
+
 	deps := &Deps{
-		Infra:      infra,
-		Auth:       authCfg,
-		Order:      orderCfg,
-		Payment:    paymentCfg,
-		Pool:       pool,
-		ReaderPool: readerPool,
-		Cache:      rdb,
-		Logger:     appLog,
+		Infra:   infra,
+		Auth:    authCfg,
+		Order:   orderCfg,
+		Payment: paymentCfg,
+		DB:      db,
+		Cache:   rdb,
+		Logger:  appLog,
 	}
 
 	app, err := bootstrap.New(bootstrap.Deps{
-		Auth:       authCfg,
-		Cart:       cartCfg,
-		Payment:    paymentCfg,
-		Pool:       pool,
-		ReaderPool: readerPool,
-		Cache:      rdb,
-		Logger:     appLog,
+		Auth:    authCfg,
+		Cart:    cartCfg,
+		Payment: paymentCfg,
+		DB:      db,
+		Cache:   rdb,
+		Logger:  appLog,
 	})
 	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
@@ -186,14 +185,13 @@ func loadModuleConfigs(
 }
 
 type Deps struct {
-	Infra      *config.Settings
-	Auth       auth.Config
-	Order      order.Config
-	Payment    payment.Config
-	Pool       *pgxpool.Pool
-	ReaderPool *pgxpool.Pool
-	Cache      *redis.Client
-	Logger     *slog.Logger
+	Infra   *config.Settings
+	Auth    auth.Config
+	Order   order.Config
+	Payment payment.Config
+	DB      database.DB
+	Cache   *redis.Client
+	Logger  *slog.Logger
 }
 
 func NewRouter(
@@ -202,7 +200,7 @@ func NewRouter(
 ) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /health", healthHandler(deps.Logger, deps.Pool, deps.Cache))
+	mux.HandleFunc("GET /health", healthHandler(deps.Logger, deps.DB, deps.Cache))
 
 	v := validator.New()
 
@@ -246,13 +244,13 @@ func NewRouter(
 	)(mux)
 }
 
-func healthHandler(log *slog.Logger, pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
+func healthHandler(log *slog.Logger, db database.DB, rdb *redis.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		status := "healthy"
 		httpStatus := http.StatusOK
 		details := make(map[string]string)
 
-		if err := pool.Ping(r.Context()); err != nil {
+		if err := db.Primary.Ping(r.Context()); err != nil {
 			status = "unhealthy"
 			httpStatus = http.StatusServiceUnavailable
 			details["postgres"] = "down"

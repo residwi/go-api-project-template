@@ -26,6 +26,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -77,7 +78,7 @@ func TestMain(m *testing.M) {
 		},
 		Auth:    testAuthCfg,
 		Payment: testPaymentCfg,
-		Pool:    pool,
+		DB:      database.DB{Primary: pool},
 		Cache:   rdb,
 		Logger:  testutil.DiscardLogger(),
 	}
@@ -96,7 +97,7 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 		Auth:    testAuthCfg,
 		Cart:    testCartCfg,
 		Payment: paymentCfg,
-		Pool:    testPool,
+		DB:      database.DB{Primary: testPool},
 		Cache:   testRedis,
 		Logger:  testutil.DiscardLogger(),
 	})
@@ -146,7 +147,7 @@ func TestHealthHandler(t *testing.T) {
 			Auth:    testDeps.Auth,
 			Order:   testDeps.Order,
 			Payment: testDeps.Payment,
-			Pool:    badPool,
+			DB:      database.DB{Primary: badPool},
 			Cache:   testRedis,
 			Logger:  testutil.DiscardLogger(),
 		}
@@ -180,7 +181,7 @@ func TestHealthHandler(t *testing.T) {
 			Auth:    testDeps.Auth,
 			Order:   testDeps.Order,
 			Payment: testDeps.Payment,
-			Pool:    testPool,
+			DB:      database.DB{Primary: testPool},
 			Cache:   badRedis,
 			Logger:  testutil.DiscardLogger(),
 		}
@@ -206,7 +207,7 @@ func TestHealthHandler(t *testing.T) {
 			Auth:    testDeps.Auth,
 			Order:   testDeps.Order,
 			Payment: testDeps.Payment,
-			Pool:    testPool,
+			DB:      database.DB{Primary: testPool},
 			Cache:   nil,
 			Logger:  testutil.DiscardLogger(),
 		}
@@ -559,7 +560,7 @@ func TestHealthHandler_NilRedis(t *testing.T) {
 		Auth:    testDeps.Auth,
 		Order:   testDeps.Order,
 		Payment: testDeps.Payment,
-		Pool:    testDeps.Pool,
+		DB:      testDeps.DB,
 		Cache:   nil,
 		Logger:  testutil.DiscardLogger(),
 	}
@@ -656,7 +657,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		Auth:    testDeps.Auth,
 		Order:   testDeps.Order,
 		Payment: customPaymentCfg,
-		Pool:    testPool,
+		DB:      database.DB{Primary: testPool},
 		Cache:   testRedis,
 		Logger:  testutil.DiscardLogger(),
 	}

@@ -16,6 +16,7 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/server"
 
 	"github.com/residwi/go-api-project-template/internal/testutil"
@@ -38,7 +39,7 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 		Auth:    testDeps.Auth,
 		Order:   testDeps.Order,
 		Payment: customPaymentCfg,
-		Pool:    testPool,
+		DB:      database.DB{Primary: testPool},
 		Cache:   testRedis,
 		Logger:  testutil.DiscardLogger(),
 	}
@@ -175,7 +176,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		Auth:    testDeps.Auth,
 		Order:   testDeps.Order,
 		Payment: customPaymentCfg,
-		Pool:    testPool,
+		DB:      database.DB{Primary: testPool},
 		Cache:   testRedis,
 		Logger:  testutil.DiscardLogger(),
 	}

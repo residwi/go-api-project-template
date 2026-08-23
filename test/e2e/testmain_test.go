@@ -21,6 +21,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/server"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -73,7 +74,7 @@ func TestMain(m *testing.M) {
 		},
 		Auth:    testAuthCfg,
 		Payment: testPaymentCfg,
-		Pool:    pool,
+		DB:      database.DB{Primary: pool},
 		Cache:   rdb,
 		Logger:  testutil.DiscardLogger(),
 	}
@@ -100,7 +101,7 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 		Auth:    testAuthCfg,
 		Cart:    testCartCfg,
 		Payment: paymentCfg,
-		Pool:    testPool,
+		DB:      database.DB{Primary: testPool},
 		Cache:   testRedis,
 		Logger:  testutil.DiscardLogger(),
 	})
