@@ -680,7 +680,7 @@ Stronger reason: **`shared` is one directory name that attracts entropy.**
 Folder with no owner, so everything eventually lands there. Template
 shipping `shared/` with "keep this small!" comment hands reader loaded
 gun with warning label. Absent directory cannot be filled. `money` lives at
-`internal/money`, and `apperror` stayed where it was — moving it would have
+`internal/modules/money`, and `apperror` stayed where it was — moving it would have
 touched nearly every file for nothing.
 
 The rejection has a sharper answer now than "introduce it when a third

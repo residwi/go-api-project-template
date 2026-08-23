@@ -118,7 +118,7 @@ package; a slice may not import a sibling slice within its own module (a
 directory under `usecase/` is a slice — that is the whole rule); a module may
 not import `internal/transport` except through its own slice's `http/`; and a
 `contract/` package imports only stdlib, `github.com/google/uuid` and
-`internal/money`. `scripts/boundaries_test.go` plants a probe file in a real
+`internal/modules/money`. `scripts/boundaries_test.go` plants a probe file in a real
 slice and asserts the script reports it, so a path-keyed check that has
 quietly stopped matching anything fails a test instead of printing
 `Boundaries OK`. See `AGENTS.md` for the full list, each check's exact name in

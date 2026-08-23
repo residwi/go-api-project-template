@@ -8,9 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
-	"github.com/residwi/go-api-project-template/internal/money"
 	mock "github.com/stretchr/testify/mock"
 )
 

@@ -20,7 +20,7 @@
 #            one gap in a list.
 #   Check 6  A module may not import internal/transport/, except its own
 #            http adapter.
-#   Check 7  contract/ stays a leaf: only stdlib, uuid and internal/money.
+#   Check 7  contract/ stays a leaf: only stdlib, uuid and internal/modules/money.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
 # clean; on failure it prints every violation as file:line and exits 1.
@@ -978,8 +978,8 @@ check_transport_direction() {
 # contract/ is what other modules import. If it imports its own module's
 # domain, then importing the contract drags the rich model along and the
 # module's published surface silently becomes everything. Permitted: stdlib,
-# github.com/google/uuid, and internal/money -- the value object that already
-# crosses every seam.
+# github.com/google/uuid, and internal/modules/money -- the value object that
+# already crosses every seam.
 #
 # check 4 cannot see this: a contract/ file importing its own module's
 # domain/ is a same-module import, not a cross-module one, so it never
@@ -1031,12 +1031,12 @@ check_contract_leaf() {
 
 				case "$path" in
 				github.com/google/uuid) continue ;;
-				"$module/internal/money") continue ;;
+				"$module/internal/modules/money") continue ;;
 				esac
 
 				report "'${feature}/contract' imports $path: ${file}:${hit%%:*}
     contract/ must stay a leaf -- stdlib, github.com/google/uuid, and
-    internal/money only. Importing another module or a platform package would
+    internal/modules/money only. Importing another module or a platform package would
     drag that module's own domain along with it, and the whole point of
     contract/ is that another module can import it without pulling that in."
 			done <<<"$hits"

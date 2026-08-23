@@ -408,7 +408,7 @@ falsify every citation to them here, in `ARCHITECTURE.md` and in
    the transport also describes puts the type in its own `contract/` and lets
    middleware import that instead.
 7. **`check_contract_leaf`: `contract/` imports only stdlib,
-   `github.com/google/uuid` and `internal/money`.** If a module's
+   `github.com/google/uuid` and `internal/modules/money`.** If a module's
    `contract/` imported its own `domain/`, importing the contract would drag
    the rich model along, and the module's published surface would silently
    become everything. Check 4 cannot see this either — a `contract/` file

@@ -3,7 +3,7 @@ package product
 import (
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/money"
+	"github.com/residwi/go-api-project-template/internal/modules/money"
 )
 
 // Info is the published lookup shape cart's ProductLookup port reads a

@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/money"
+	"github.com/residwi/go-api-project-template/internal/modules/money"
 )
 
 // StaleProcessingThreshold is how long an order may sit in payment_processing

@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/money"
+	"github.com/residwi/go-api-project-template/internal/modules/money"
 )
 
 const StatusPublished = "published"

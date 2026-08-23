@@ -17,13 +17,13 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
+	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/gateway"
 	gatewaymidtrans "github.com/residwi/go-api-project-template/internal/modules/payment/gateway/midtrans"
 	gatewaymock "github.com/residwi/go-api-project-template/internal/modules/payment/gateway/mock"
 	gatewaystripe "github.com/residwi/go-api-project-template/internal/modules/payment/gateway/stripe"
-	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
