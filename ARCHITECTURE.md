@@ -101,13 +101,17 @@ a struct rather than something a `Service` already satisfies by name, decision
 13 (`contract.go`) is what pays for it, and what it pays is a published
 surface: adding a field to one is a cross-module change, not a local one.
 
-There is a second cost, and it is new since the flatten. When a consumer
-declares three narrow ports over one producer — `shipping`'s `OrderGetter`,
+There is a second cost, but it is latent, not live. When a consumer declares
+three narrow ports over one producer — `shipping`'s `OrderGetter`,
 `OrderShipper` and `OrderDeliverer` — all three are satisfied by the same
-`*order.Service` value, so pasting one into the wrong `Deps` field compiles.
-Under decision 14 they took three different slice values with three different
-method sets and the compiler caught the swap. Narrow consumer ports are still
-the right shape; they just no longer come with that particular free check.
+`*order.Service` value, so there is no wrong value to paste into a `Deps`
+field today: swap two field names and either nothing changes, or Go refuses
+the duplicate field. Under decision 14, `OrderShipper` and `OrderDeliverer`
+already shared one slice value; only `OrderGetter` differed, and pasting it
+over either sibling's field was a real compile error then. Narrow consumer
+ports are still the right shape; what is gone is the cross-check between a
+field and its value, and it is missed only the day this consumer needs two
+ports backed by two different values and someone wires the wrong one.
 `ARCHITECTURE-LIMITATIONS.md` counts what is exposed.
 
 ## 3. Adapters are subpackages named for their technology
@@ -673,11 +677,13 @@ here is a guarantee the sliced tree had and this one does not:
   design, so check 7 (`check_contract_leaf`) had nothing left to be true of
   and was retired. Importing a module for one published struct now pulls its
   whole root package. Decision 13 records the detail.
-- **Consumer ports collapsed onto one value, so a swap between two of them
-  stopped being a compile error.** Ten of `order`'s port fields across four
-  consumers now take the same `*order.Service`; under decision 14 they took
-  different slice values with different method sets, and pasting one into the
-  wrong `Deps` field did not compile.
+- **Consumer ports collapsed onto one value, so the compiler stopped
+  cross-checking a `Deps` field against the value assigned to it.** Ten of
+  `order`'s port fields across four consumers now take the same
+  `*order.Service`, and every one of them already holds the value it should —
+  there is no swap to make until a consumer needs two of its fields backed by
+  different producers again. Under decision 14 most of those fields did, and
+  pasting one value into the other's field was a real compile error then.
   `ARCHITECTURE-LIMITATIONS.md` counts the pairs.
 - **One module of sixteen keeps a weaker boundary rule.** `checkout` alone may
   import `order/domain`, because `order.Service.Place`'s signature names
