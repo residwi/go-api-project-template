@@ -1,6 +1,6 @@
 # Limitations this architecture creates
 
-`ARCHITECTURE.md` record sixteen decisions and fifteen things this codebase deliberately not do. Every one bought something and charged for it. This file the invoice.
+`ARCHITECTURE.md` record seventeen decisions and fifteen things this codebase deliberately not do. Every one bought something and charged for it. This file the invoice.
 
 Exist because this repo a **template**: structure is product, someone about to copy into real system. Doc listing only what design make easy teach nothing — design never in danger of blame there. Reader need list of moments where they hit wall, so they recognize wall as this design's, not own mistake.
 
@@ -8,12 +8,276 @@ Each section state limitation, moment you meet it, what you must do about it. Wh
 
 Last section, [When not to copy this](#when-not-to-copy-this), for someone still deciding.
 
-**A refactor is in progress, collapsing slices into per-module services.** See
-`REFACTOR-PLAN.md`. Sections below written while all fourteen modules were
-sliced; that stopped being true at Task 6 (`wishlist` flattened first), one
-more module at a time. Read "all fourteen modules" and any per-slice test
-count below as the pre-refactor state, not the present tree, until the
-refactor completes.
+The first six sections are the bill for decision 16 — collapsing each module
+from a tree of vertical slices into one flat package. They come first because
+they are the newest, the least obvious, and the ones a reader copying this
+template is most likely to inherit without noticing.
+
+---
+
+## A module's whole exported surface is reachable from every other module
+
+**Where you hit it:** you add a method to `order.Service` so `checkout` can
+call it, and discover `payment`, `shipping` and `review` can call it too — and
+that nothing will ever tell you if one of them does.
+
+Check 4 makes a module's root package importable. That is decision 16's
+deliberate choice: the root package is the published surface, so
+`order.Snapshot` and `promotion.Service`'s methods cross a boundary with no
+separate `contract/` package standing between them. The cost is that
+"published surface" now means *every exported identifier in the package*.
+`payment` imports `order` for `order.Snapshot`, and having imported it can
+call `order.Service.Place`, `order.Service.Apply`, `order.Service.ExpireStale`
+— anything — with no port declared for it and no check able to object. Check 4
+sees a legal root-package import, and whether the code then calls a method
+some `ports.go` declares is not a fact about imports.
+
+Under decision 14 this was a compile error. A module's root package was
+off-limits and `<feature>/contract/` was the only door, so reaching a
+sibling's behaviour meant declaring a port and having `bootstrap` wire it.
+It is now a convention, and it is the largest single guarantee the flatten
+gave up.
+
+**Why it holds today.** Every cross-module call goes through a port declared
+in the caller's own `ports.go` — nine files, 29 interfaces — and
+`internal/bootstrap/app.go` is the only place any of them is wired. Those nine
+files are still an honest dependency inventory. Nothing enforces that they
+stay complete.
+
+**What you would do.** Three options, ascending cost:
+
+- **Keep the convention and review for it.** For each cross-module import,
+  check that every identifier it reaches is named by a port in the importing
+  package's own `ports.go`. That is what happens today, by hand.
+- **Narrow the surface.** Unexport what no port names. Impossible for
+  `Service` itself — `adapter/http` and `bootstrap` both need it — but it
+  works for anything that drifted out of `service.go` and stayed exported out
+  of habit.
+- **Check the calls, not the imports.** A real fix parses Go: for each
+  cross-module import, resolve the selector expressions and assert each names
+  something a port in the importing package declares. That is a `go/types`
+  pass, not a grep, and it is the only version of this check that could work.
+  Nothing here does it.
+
+## `checkout` is held to a weaker boundary rule than its fifteen siblings
+
+**Where you hit it:** you read `scripts/check-boundaries.sh`, find a `case`
+guarded by `if [ "$file_feature" = "checkout" ]`, and wonder whether it is a
+leftover.
+
+It is not. Every other module may import only another module's root package;
+`checkout` may also reach `order/domain`. One signature is the reason:
+
+```go
+func (s *Service) Place(
+	ctx context.Context,
+	userID uuid.UUID,
+	in domain.NewOrder,
+	idempotencyKey string,
+) (*domain.Order, error)
+```
+
+`order.Service.Place` takes `orderdomain.NewOrder` and returns
+`*orderdomain.Order`, and `order/contract.go` publishes neither type. So
+`checkout.OrderWriter` cannot name what it has to name, and neither can
+`checkout/adapter/http/handler.go`, which builds the input and serialises the
+result. Removing the exemption reports **7** violations — `checkout/service.go`,
+`checkout/ports.go`, `checkout/adapter/http/handler.go` and four test files —
+not zero.
+
+The grant is narrow and pinned. It covers `domain/` only, and
+`scripts/boundaries_test.go` holds it there from both sides: one subtest
+asserts `checkout` importing `order/adapter/postgres` is still reported,
+another asserts the `order/domain` import stays clean. So the grant's silent
+failure mode — `NewOrder` and `Order` moving into `order`'s published surface
+and leaving the exemption behind as an unnoticed permanent weakening — has
+something to break.
+
+**What it costs.** `checkout` sees `order`'s rich model: every field, every
+method, every invariant, where its siblings see only what `contract.go`
+publishes. Rename a domain field on `order` and `checkout` breaks; no other
+module can.
+
+**What you would do:** move `NewOrder` and `Order` into `order`'s published
+surface — either as `contract.go` types with an explicit mapping inside
+`order.Service.Place`, or by giving `Place` a signature written in published
+types and keeping the domain construction in `order`. That is a design change
+this refactor did not make, and it is not free: `Order` is the aggregate, so
+publishing it means either duplicating the struct or publishing the model. Do
+not describe this exemption as pending cleanup unless you are proposing one of
+those two.
+
+## One flat `Service` satisfying several of a consumer's ports means the swap between them compiles
+
+**Where you hit it:** you paste `OrderShip: ordMod` where `OrderDeliver:
+ordMod` belonged in `internal/bootstrap/app.go`, and the build succeeds.
+
+A consumer declares one narrow port per capability (decision 2) and the
+producer is one `Service` that satisfies all of them, so the ports differ in
+shape but not in the value assigned and the compiler has nothing left to
+check. Counting one pair for every two fields on the same consumer that take
+the same value, `internal/bootstrap/app.go`'s struct literals hold **18** such
+swap-pairs today:
+
+| Consumer        | Value        | Fields | Swap-pairs |
+| --------------- | ------------ | -----: | ---------: |
+| `order.Deps`    | `cartMod`    |      3 |          3 |
+| `order.Deps`    | `inv`        |      3 |          3 |
+| `payment.Deps`  | `ordMod`     |      3 |          3 |
+| `payment.Deps`  | `inv`        |      2 |          1 |
+| `checkout.Deps` | `ordMod`     |      3 |          3 |
+| `checkout.Deps` | `paymentMod` |      2 |          1 |
+| `shipping.Deps` | `ordMod`     |      3 |          3 |
+| `product.Deps`  | `inv`        |      2 |          1 |
+
+Under decision 14 most of those were compile errors.
+`order.Deps.InventoryReserve`, `InventoryDeduct` and `InventoryRestore` took
+`inv.Reserve`, `inv.Deduct` and `inv.Restore` — three different slice values
+whose method sets did not overlap — so `InventoryDeduct: inv.Reserve` did not
+build. Flattening `inventory` made `inv` one value satisfying all three, and
+the same thing happened at every flatten. `order`'s was the largest: one
+`*order.Service` now satisfies ten port fields across four consumers, and
+eight compile errors went with it — three swap-pairs on `payment`, three on
+`checkout`, two on `shipping` (its `OrderShip`/`OrderDeliver` pair already
+took the same value, so that one was never guarded), none on `review`, which
+has a single field.
+
+**What has not changed.** A *dropped* field was never caught either: a struct
+literal compiles with a field left unset, and the result is a `nil` port. That
+failure mode is identical before and after.
+
+**What you would do:** nothing cheap, and nothing here. A distinct wrapper
+type per port would restore the compile error and reintroduce exactly the
+pass-through packages decision 4 rejects. A `bootstrap` test asserting each
+field holds the value it should is a test of a struct literal against itself.
+The honest mitigation is `test/e2e`: a swap that changes behaviour on the
+paid-checkout path fails the saga. A swap on a path e2e does not run does not
+— see [`order.Deps.InventoryDeduct` is wired to a path e2e never
+runs](#orderdepsinventorydeduct-is-wired-to-a-path-e2e-never-runs) for the one
+field that is documented to be in that position.
+
+## The public and admin response mappers now sit one identifier apart
+
+**Where you hit it:** you never do, which is the problem.
+
+`user/adapter/http` holds `toUserResponse` (five fields: `id`, `email`,
+`first_name`, `last_name`, `phone`) and `toAdminUserResponse` (nine — it adds
+`role`, `active`, `created_at`, `updated_at`). Both take `*domain.User`. Both
+are in `package http`. `response.OK(w http.ResponseWriter, data any)` accepts
+either. So writing `response.OK(w, toAdminUserResponse(u))` inside
+`Handler.Me` — the authed `GET /api/users/me` — publishes a user's role and
+account state to any authenticated caller, and every gate in the repo lets it
+through:
+
+- **it compiles**, because `response.OK` takes `any`;
+- **`TestHandler_Me/success` passes**: it unmarshals `email` and `first_name`
+  from the body and asserts those two, so extra keys are ignored;
+- **the leak test in the same file passes**: it calls `toUserResponse`
+  *directly* and asserts its five keys, so it tests the mapper, not the
+  handler;
+- **`router_test.go`'s `GET /api/users/me` subtest passes**: it asserts `200`
+  and nothing about the body;
+- **`TestRouteSnapshot` passes**: it asserts the route is mounted on the
+  `authed` group.
+
+`category/adapter/http` and `product/adapter/http` carry the same pair
+(`toCategoryResponse`/`toAdminCategoryResponse`,
+`toProductResponse`/`toAdminProductResponse`). Under decision 14 the two
+mappers lived in different packages — one per slice — so the wrong one was not
+in scope at the call site.
+
+This matters here specifically because this codebase controls field exposure
+by **DTO omission** rather than by `json:"-"` (decision 9). The point of that
+inversion is that publishing a field has to be a deliberate act. Naming the
+wrong mapper is a deliberate-looking act that publishes four extra fields.
+
+**What you would do:** for each public route that has an admin twin, assert
+the exact key set of the response body through the handler rather than through
+the mapper. Three routes need it. Not done here — the decision belongs with
+whoever reviews the whole shape, because fixing three modules and not the
+other twelve manufactures a consistency that is not there.
+
+## Nothing tests the middleware chain `NewRouter` builds, or either rate limiter's binding
+
+**Where you hit it:** you reorder `middleware.Chain`'s arguments, or bind a
+route group to the wrong limiter, and the whole suite stays green.
+
+`internal/server/middleware` tests each middleware in isolation —
+`recover_test.go`, `requestid_test.go`, `logging_test.go` and
+`ratelimit_test.go` all exist. Nothing tests the composition.
+`internal/server/server.go`'s `NewRouter` ends with:
+
+```go
+return middleware.Chain(
+	middleware.RequestID,
+	middleware.Logging(deps.Logger),
+	middleware.Recovery(deps.Logger),
+	middleware.CORS(deps.Infra.CORS),
+)(mux)
+```
+
+`internal/server/router_test.go` asserts CORS headers, but has no
+request-ID-correlation test and no panic test. Two things therefore go
+unproven:
+
+- **`Recovery` is third.** A panic raised inside `RequestID` or `Logging`
+  escapes unrecovered. This is not a defect the flatten introduced — the order
+  is identical at every commit on this branch and before it — and it is not
+  fixed here, but it is exactly the class of bug a chain-level test catches and
+  nothing in this repo would.
+- **Neither rate limiter's binding is visible to any test.** `NewRouter`
+  builds two: `authLimiter`, mounted as a group middleware on `authPublic`,
+  and `orderWriteLimiter`, wrapped around two handlers individually
+  (`POST /api/orders`, `POST /api/orders/{id}/pay`). The 64-route golden
+  labels the three `/api/auth/*` routes' group `api` and both order-write
+  routes' group `authed`, because `TestRouteSnapshot` classifies a route by
+  whether an anonymous request gets 401 and an authed one gets 403 — which a
+  limiter does not change. Detach either limiter from what it guards and not
+  one golden line moves and not one test fails.
+
+The near-miss is worth recording, because it was real. Before the fourteen
+route files collapsed into one, `routes.Auth`'s first parameter was named
+`api` while `router.go` called it as `routes.Auth(authPublic, ...)`. Inlining
+those files by parameter name — the obvious mechanical way to do it — would
+have mounted all three auth routes on the unlimited `api` group, dropping
+login rate limiting entirely, with `make all` green and the golden unchanged.
+
+**What you would do:** two small tests, neither expensive. For the chain,
+register a handler that panics and assert a 500 with a request-ID header, and
+assert the header round-trips on a normal request. For the limiters, drive
+`POST /api/auth/login` past `AUTH_RATE_LIMIT` and assert a 429, and the same
+for `POST /api/orders` against `ORDER_RATE_LIMIT`. Both can use the
+Redis-backed router test that already exists. Neither is done here.
+
+## `cmd/` and `test/` are outside every boundary check
+
+**Where you hit it:** you look for the check that stops a binary reaching into
+a module's `domain/`, and there is not one.
+
+All five checks walk `internal/` and nothing else. Check 1 finds its files
+with `find internal -type f -name '*.go'`; check 4's `importer_roots` iterates
+`internal/*/`; check 6 iterates `internal/modules/*`. So `cmd/` and `test/`
+are never scanned, and both use the freedom: `cmd/worker/main.go` imports
+`payment/domain` for the `Job` type its processor's methods take, `test/e2e`
+imports it to assert on, and `cmd/mockgateway/mockserver` imports
+`payment/gateway` and declares three `json` tags of its own. None of it is
+reported.
+
+This is not new — the same imports were there at the last commit before the
+flatten, plus `payment/worker`, since deleted — and none of them is obviously
+wrong: a binary is wiring, and `test/e2e` exists precisely to reach across
+modules. What is missing is the *statement* of that in a form a check could
+hold. `internal/bootstrap` and `internal/server` are exempt through an
+explicit, argued `WIRING_DIRS` entry. `cmd/` and `test/` are exempt through
+never having been in scope, which is the same kind of silence check 4's old
+denylist used to keep.
+
+**What you would do:** add `cmd/` and `test/` to check 4's walk *without*
+adding them to `WIRING_DIRS`, then decide each surviving import on its merits
+— `payment/domain` in `cmd/worker` looks like a published type that belongs in
+`payment/contract.go`, and `payment/gateway` in the mock gateway is genuinely
+someone else's contract. That turns three unexamined imports into three named
+ones. Half an hour, and not done here.
 
 ---
 
@@ -165,34 +429,77 @@ measures how much behaviour other modules need.** Close to independent, and neit
 
 **Where you hit it:** you assume green `Boundaries OK` mean boundaries hold. It mean boundaries hold _in the places the script can see_.
 
-Seven checks, all greps, none a compiler. `db/OWNERSHIP.md` documents check 3's (table ownership) gaps in full; the ones most likely to bite:
+Five checks, all greps, none a compiler. `db/OWNERSHIP.md` documents check 3's (table ownership) gaps in full; the ones most likely to bite:
 
 - **Table names must be literals.** Check 3 greps for the identifier after `FROM` / `JOIN` / `INSERT INTO` / `UPDATE` / `TRUNCATE` / `COPY`. Every query today has its table name in a string literal, but `fmt.Sprintf` is already routine in these adapters for `WHERE` fragments and placeholder lists. The habit of assembling SQL exists; it simply has not reached a table name yet. The day it does, the check goes quiet instead of failing. `pgx.CopyFrom` would be the same hole immediately: its table is a `pgx.Identifier` Go value with no keyword in front. Nothing uses it today.
-- **Prose in a production string literal is a false positive.** Comments and `_test.go` files excluded, but `"update orders failed"` in a slice's `postgres/` package still reports `orders`. Fails loudly, not quietly — the right direction, but the failure mode that gets a check disabled.
+- **Prose in a production string literal is a false positive.** Comments and `_test.go` files excluded, but `"update orders failed"` in a module's `adapter/postgres` — or in its `service.go`, now that the whole module is scanned — still reports `orders`. Fails loudly, not quietly, which is the right direction, but it is the failure mode that gets a check disabled.
 - **Test files are skipped, deliberately.** A test seeds sibling tables to satisfy foreign keys — fixture setup, not an architectural crossing. Cost: a real violation living in a `_test.go` helper is invisible.
 - **`dashboard` is exempt wholesale.** Nothing verifies it stays read-only — no grant, no separate role, no check. An `UPDATE` in `internal/modules/dashboard/adapter/postgres` passes CI today. Nothing bounds it to today's two tables either, so "may read anything" can become a second, undeclared copy of the schema without a review comment.
 - **Ownership is per table, so column coupling is invisible.** `dashboard` depends on `order_items.unit_price`. Rename that column and `dashboard` breaks at runtime, in a query only an admin runs, with `go build` unable to see inside the SQL string.
 - **Nothing the database does on its own.** A view, trigger or function crossing modules is not Go source, not scanned.
 
-Two blind spots outside check 3, worth naming because they are new to this phase — checks 1 and 3 both ran on effectively nothing for the length of the migration, and check 4's contract-only rule is still a regex over a quoted import path — each gets its own entry below rather than a bullet here, since each has its own "where you hit it."
+Four blind spots sit outside check 3 entirely and each gets its own entry
+rather than a bullet here, because each has its own "where you hit it": [a
+module's exported surface](#a-modules-whole-exported-surface-is-reachable-from-every-other-module)
+and [`checkout`'s exemption](#checkout-is-held-to-a-weaker-boundary-rule-than-its-fifteen-siblings)
+above, [`cmd/` and `test/` being unscanned](#cmd-and-test-are-outside-every-boundary-check)
+above, and [SQL built from a string](#a-module-can-still-smuggle-sql-past-check-3-with-a-built-string)
+below. The shape they share: every check matches a **quoted import path** or a
+**string literal**, so what a check can see is a spelling, never a call.
 
-**What you would do:** treat check as ratchet against regression, not proof of correctness. If you start building table names dynamically, replace grep with parser or ban the pattern — do not widen allowlist.
+**What you would do:** treat the checks as a ratchet against regression, not proof of correctness. If you start building table names dynamically, replace the grep with a parser or ban the pattern — do not widen the allowlist.
 
-## The boundary checks ran on nothing for the length of the migration
+## A path-keyed check can quietly stop matching anything
 
-**Where you hit it:** you bisect a boundary violation and find it was introduced during phase 2, in a commit where `make check-boundaries` passed.
+**Where you hit it:** you bisect a boundary violation and find it was
+introduced in a commit where `make check-boundaries` passed.
 
-Checks 1 and 3 are path-based: check 1 exempts `internal/modules/<feature>/usecase/<slice>/http/`, and check 3 (before this phase) scanned only a `postgres/` directory. From the moment a module was sliced until this phase rewrote both, every path either check keyed off had already moved deeper than the check expected, so both matched nothing in that module and reported nothing — verified during this phase by planting a `json` tag on a domain type and a foreign `FROM orders` in a command, in an already-sliced module, both of which passed a green `check-boundaries` before the fix.
+This has happened, twice, and it is the failure mode of every check in this
+script. Checks 1 and 6 key off a path. When the modules were sliced, check 1
+exempted `internal/modules/<feature>/usecase/<slice>/http/` and check 3 scanned
+only a directory named `postgres`; from the moment a module was sliced until
+the checks were rewritten, every path either check keyed off had already moved
+deeper than the check expected, so both matched nothing in that module and
+reported nothing. It was verified at the time by planting a `json` tag on a
+domain type and a foreign `FROM orders` in a use case, both of which passed a
+green `check-boundaries`. The flatten set the same trap in the other direction:
+those `usecase/` exemptions matched nothing at all once the slices were gone,
+and an exemption that matches nothing is indistinguishable from a deleted one
+until the linter starts complaining about the wrong thing.
 
-The same trap was set again by the move to `usecase/`, and this time it was answered rather than rediscovered: `scripts/boundaries_test.go` now plants a probe file in a real slice — a `json` tag, a sibling-slice import, an `internal/transport` import — and asserts `check-boundaries.sh` reports each one. A path-keyed check that has quietly stopped matching anything fails that test instead of printing `Boundaries OK`.
+The answer is `scripts/boundaries_test.go`, and it now probes from both sides.
+It plants a probe file in a real module and asserts each check reports it — a
+`json` tag, a `json:"-"`, a `dto.go`, a foreign `FROM orders`, a `domain/`
+import, an `adapter/postgres` import, an `internal/server` import. It also
+plants files that must **not** be reported: a json tag inside `adapter/http`,
+a root-package import between two modules, an adapter import from
+`internal/bootstrap`, `checkout` importing `order/domain`. Those are the
+subtests that catch a dead exemption, because a check that has stopped
+matching anything passes the negative probes for the wrong reason and fails
+the positive ones.
 
-**What you would do:** on the next structural migration, rewrite the checks against a hand-built pilot module first and run both shapes — old check, new tree — in parallel, rather than choosing to rewrite the checks at the end. The cost of the choice made in the earlier phase is that the first green run of the real checks came after every module had already moved, which is exactly backwards from when a boundary check is most useful. The probe test is the ratchet that stops it being paid a third time; it is not a substitute for doing the checks first.
+Every surviving exemption also has a number behind it, established by removing
+it and counting rather than by reading its comment: check 1 without its
+`adapter/http` arm reports 295 violations, check 6 without its `adapter/http`
+arm reports 85 across fifteen modules, and `WIRING_DIRS` emptied reports 30.
+Three exemptions that produced *zero* when removed were deleted for exactly
+that reason.
 
-## A slice can still smuggle SQL past check 3 with a built string
+**What you would do:** on the next structural migration, rewrite the checks
+against a hand-built pilot module first and run both shapes — old check, new
+tree — in parallel, rather than rewriting the checks at the end. Both times so
+far, the first green run of the real checks came after every module had
+already moved, which is backwards from when a boundary check is most useful.
+The probe test is the ratchet that stops it being paid a third time; it is not
+a substitute for doing the checks first. And when you remove an exemption,
+count what appears. "The regex looks right" is how this branch shipped three
+dead exemptions.
+
+## A module can still smuggle SQL past check 3 with a built string
 
 **Where you hit it:** you write `db.Query(ctx, "SELECT * FROM "+table)` or hand a variable to `pgx.CopyFrom`, and `make check-boundaries` says nothing.
 
-Check 3 now scans every non-test `.go` file under a module, so SQL in a slice's `usecase.go` is caught exactly like SQL in its `postgres/` adapter — the hole the previous entry describes is closed. It still only matches string literals. A table name assembled with `+` or `fmt.Sprintf`, or reaching `pgx.CopyFrom` as a `pgx.Identifier` value, is invisible either way; widening which directories get scanned changes nothing about what the pattern itself can see.
+Check 3 scans every non-test `.go` file under a module, so SQL in `service.go` is caught exactly like SQL in `adapter/postgres` — the directory-scoped hole the previous entry describes is closed. It still only matches string literals. A table name assembled with `+` or `fmt.Sprintf`, or reaching `pgx.CopyFrom` as a `pgx.Identifier` value, is invisible either way; widening which directories get scanned changes nothing about what the pattern itself can see.
 
 **What you would do:** nothing cheap. A real fix parses Go. The literal-only scan catches every violation anyone has written by accident, and none written on purpose — which is the trade every grep-based check in this script makes, not a gap unique to this one.
 
@@ -200,10 +507,10 @@ Check 3 now scans every non-test `.go` file under a module, so SQL in a slice's 
 
 **Where you hit it:** you set `READER_DATABASE_URL`, expect read load to move, nothing change.
 
-Everything except last link exist. `READER_DATABASE_URL` in `.env.example` and README's environment table. `database.NewReaderPostgres` build second pool. `transport/http/server.go` construct it at boot, store as `Deps.ReaderPool`. `database.ReadDB(ctx, primary, reader)` pick reader unless request marked by `database.WithRecentWrite`.
+Everything except last link exist. `READER_DATABASE_URL` in `.env.example` and README's environment table. `database.NewReaderPostgres` build second pool. `internal/server/server.go` construct it at boot, store as `Deps.ReaderPool`. `database.ReadDB(ctx, primary, reader)` pick reader unless request marked by `database.WithRecentWrite`.
 
 **No repository calls it.** Every adapter constructor is `New(pool
-*pgxpool.Pool)` — one pool — and `Deps.ReaderPool` read by nothing outside `server.go`. Grep for `ReadDB` outside `internal/platform/database` and you find only that package's own tests. `WithRecentWrite` have no production caller either.
+*pgxpool.Pool)` — one pool — and `Deps.ReaderPool` read by nothing outside `internal/server/server.go`. Grep for `ReadDB` outside `internal/platform/database` and you find only that package's own tests. `WithRecentWrite` have no production caller either.
 
 So setting variable open connection pool to replica that receive no queries. This the failure mode `ARCHITECTURE.md` warn about under multi-warehouse — knob that look wired and is not — in different place.
 
@@ -230,8 +537,8 @@ Same shape as read-replica seam above: mechanism that exist, compile, is dispatc
 
 `internal/testutil` start two long-lived containers by fixed name — `go-api-test-postgres` and `go-api-test-redis` — and every test binary attach to whichever already exist. Isolation by **claimed slot**, not by container:
 
-- **Postgres: one database per module now, not per package.** Since phase 1, `MustStartPostgres(dbName)` create and migrate `dbName` once, under an advisory lock, and nothing ever drop it — every slice's test package under one module passes the same name on purpose, for all fourteen modules now (`"test_shipping"`, `"test_order"`, `"test_payment"`, … — `grep -rn 'MustStartPostgres(' --include='*_test.go' internal/modules` shows the current mapping). See [Slice test packages share a database and never get a clean table](#slice-test-packages-share-a-database-and-never-get-a-clean-table) for the cost that trades in for.
-- **Redis: a hand-assigned integer, tracked by a comment nothing checks.** `MustStartRedis(dbIndex)` take an index the caller picks against the registry comment above that function in `internal/testutil/testutil.go`: 0, 1, 3, 5 and 6 claimed (`platform/cache`, `transport/http/middleware`, `transport/http`, `test/e2e`, `modules/user/adapter/redis`); 2 and 4 free. The comment is prose — it drifts the moment someone forgets it, and `grep -rn 'MustStartRedis(' --include='*_test.go' .` is the only record that cannot. `ResetRedis` call `FlushDB`, so reusing index flush other package's fixtures.
+- **Postgres: one database per module.** `MustStartPostgres(dbName)` create and migrate `dbName` once, under an advisory lock, and nothing ever drop it — `"test_cart"`, `"test_order"`, `"test_payment"`, and so on (`grep -rn 'MustStartPostgres(' --include='*_test.go' internal/modules` is the live mapping). After the flatten most modules have exactly one test package on their name; two — `notification` and `payment` — still have two, because each has a `jobs/postgres` beside its `adapter/postgres`. See [Two test packages on one database never get a clean table](#two-test-packages-on-one-database-never-get-a-clean-table) for the cost that trades in for.
+- **Redis: a hand-assigned integer, tracked by a comment nothing checks.** `MustStartRedis(dbIndex)` take an index the caller picks against the registry comment above that function in `internal/testutil/testutil.go`: 0, 1, 3, 5 and 6 claimed (`platform/cache`, `server/middleware`, `server`, `test/e2e`, `modules/user/adapter/redis`); 2 and 4 free. The comment is prose — it drifts the moment someone forgets it, and `grep -rn 'MustStartRedis(' --include='*_test.go' .` is the only record that cannot. `ResetRedis` call `FlushDB`, so reusing index flush other package's fixtures.
 
 Nothing enforce either claim, and losing the comment removed the one place a reader would have looked before guessing. Duplicate name or index compile, pass review, and fail as flake in unrelated package — worst possible signal, because failure nowhere near the change.
 
@@ -242,53 +549,154 @@ Two further consequences worth knowing before writing tests:
 
 **What you would do:** when adding test package, pass the owning module's existing database name, and (if it need Redis) grep the five call sites above for a free index before taking one. If suite grow much past 15 Redis-using packages, index space run out and allocation must become dynamic.
 
-## Slice test packages share a database and never get a clean table
+## Two test packages on one database never get a clean table
 
-**Where you hit it:** you write a slice test asserting `SELECT count(*)`, and it pass alone and fail under `go test ./...`.
+**Where you hit it:** you write an adapter test asserting `SELECT count(*)`, and it pass alone and fail under `go test ./...`.
 
-Every still-sliced module shows this shape: `order` spreads `test_order` across nine test packages, `payment` across five sharing `test_payment`, and so on for the rest (`grep -c` the mapping above rather than trust a number here — it moves with every test file added). A flattened module collapses to the opposite extreme — one `adapter/postgres` package, one `TestMain`, one `testutil.MustStartPostgres` call. `inventory` is the worked example: seven slices each with their own `test_inventory`-owning test binary merged into `internal/modules/inventory/adapter/postgres`, one binary, still never truncating. Since phase 1, that function create and migrate a database once, under an advisory lock, and never drop it: dropping it mid-run would tear down whichever sibling package still hold it open. So there is no `ResetDB` between any of a module's own slice packages and no clean table to assume, even though `go test ./...` runs them concurrently against the one database.
+Two modules put two test packages on one database name: `notification` and `payment`, each with a `jobs/postgres` test package beside its `adapter/postgres` one. `MustStartPostgres` create and migrate a database once, under an advisory lock, and never drop it — dropping it mid-run would tear down whichever sibling package still hold it open — so there is no `ResetDB` between those two packages and no clean table to assume, even though `go test ./...` runs them concurrently against the one database.
 
-**What you would do:** seed the rows your subtest owns and scope every assertion to them — by a freshly generated `uuid.New()`, the way shipping's own tests do (`seedOrder`, `seedShipment`). Never `TRUNCATE`: the sibling package whose rows you delete is not in your file, and will fail somewhere else, possibly minutes later in an unrelated CI run. Nothing enforce this — the failure look like a flake in a package you never touched.
+The flatten shrank this from a general problem to a two-module one. Before it, every module was in this position: `order` spread `test_order` across **nine** test packages and `payment` spread `test_payment` across **five** (`git grep -l 'MustStartPostgres("test_order")' 0ee2cc5 -- internal/modules`), and 75 packages in the repo called `testhelper.MustStart*`. It is 25 now, 15 of them Postgres-claiming packages across 13 modules, and **11 of those 13 modules own their database outright**.
 
-## Two things the test suite cannot see: which route group a slice lands on, and where its write sits inside its own transaction
+**Do not read that as permission to `TRUNCATE`.** A module that owns its database today gains a second test package the moment someone adds one, and `ResetDB` would then delete a sibling's rows from a file that never mentions it. Seed the rows your subtest owns and scope every assertion to them — by a freshly generated `uuid.New()`, the way shipping's own tests do (`seedOrder`, `seedShipment`). Nothing enforces this; the failure look like a flake in a package you never touched.
 
-**Where you hit it, the first way:** you move a route to the wrong `middleware.RouteGroup` in `internal/transport/http/routes/<feature>.go` — admin instead of authed, or the reverse — and every test still passes.
+## What the route golden proves, and the three things it still cannot
 
-A slice's own `handler_test.go` builds its own `middleware.NewRouteGroup` and writes the prefix itself, rather than importing anything from the real router. 55 of the 56 test files in slice `http/` packages do this; the exception, `order/usecase/query/http/admin_handler_test.go`, calls the handler directly instead. It is not even the same prefix: `internal/modules/category/adapter/http/admin_handler_test.go:375` builds `middleware.NewRouteGroup(mux, "/api/v1/admin")`, while `internal/transport/http/router.go` mounts the real admin group at `/api/admin` — no `/v1` anywhere in production. The test passes either way, because it never touches the real router, only its own hand-built stand-in.
+**Where you hit it:** you move a route to the wrong `middleware.RouteGroup` in
+`internal/server/routes.go` — admin instead of authed, or the reverse — and
+you want to know whether a test catches it. It does now.
 
-`internal/transport/http/router_test.go` and `test/e2e` are the only things that drive the real `NewRouter` and would catch a route landing on the wrong group — and **neither snapshots the whole table**. `router_test.go` asserts a sample — 24 distinct `/api…` paths appear in the whole file (`grep -oE '"/api[^"]*"' internal/transport/http/router_test.go | sort -u | wc -l`), against 64 routes in the table, and several of those 24 only assert a 401 or a 403 rather than the handler behind them. The rest are covered only where an e2e saga happens to exercise that exact route.
+`internal/server/routes_snapshot_test.go` reads
+`internal/server/testdata/routes.golden` — 64 lines of
+`method<TAB>path<TAB>group` — builds the real `NewRouter`, and probes every
+line: an anonymous request, plus a real-token request for the two
+authenticated groups. A route that moved from `authed` to `admin` fails,
+because the authed probe gets 403 where the golden says it should not. A route
+that stopped being mounted fails too: `http.ServeMux` exposes no route table,
+so the test detects "not mounted" by the mux falling through to Go's default
+404, which writes `text/plain` where every real handler writes JSON. Before
+this test existed, `router_test.go` and `test/e2e` sampled the table and
+nothing enumerated it.
 
-**Decision 15 changed where this mistake gets made, not whether it can be made.** The URL now lives one tree over from the handler, in `internal/transport/http/routes/`, so **adding a slice with a route touches two trees** and the wrong-group edit is made in the route file rather than in the module. What that buys is that every URL in the system is in one directory, 14 files, so a route-table snapshot test is now a thing someone could actually write in an afternoon — under the old shape it would have had to read 14 modules. What it costs is that nothing links the two halves: a handler with no route file mounting it compiles, lints, passes `check-boundaries`, and serves nothing, and no check anywhere says so.
+**Three things it still cannot see:**
 
-**Where you hit it, the second way:** a sliced command's repository write moves outside its own `tx.Run` callback — a bug that should fail a test — and nothing fails.
+- **A route that was *added* and never written into the golden.** The test
+  iterates the golden and probes each line; it does not enumerate the mux and
+  compare the other way. So the golden proves nothing was removed or moved,
+  and says nothing about what is mounted that it does not list. Adding a route
+  and forgetting the golden line leaves that route untested, silently.
+- **Which rate limiter, if any, guards a route.** Its own entry above.
+- **Anything about the handler behind the route.** A mounted route may answer
+  any status; the snapshot only refuses the default-404 signature.
 
-`testutil.FakeTxRunner.Run` (`internal/testutil/txrunner.go`) is `return fn(ctx)`: it calls the callback inline, with no transaction underneath it, so a mock-based `usecase_test.go` or `service_test.go` cannot observe whether a repository call happened inside `tx.Run`'s closure or leaked outside it — both look identical to the fake. Five files are in that position today (`grep -rl FakeTxRunner --include='*_test.go' internal/modules`): `cart`'s, `order`'s, `payment`'s, `promotion`'s and `shipping`'s own `service_test.go` files, now that all five have flattened — one file apiece standing in for what used to be `cart/usecase/add` alone, order's `cancel`, `expire` and `place`, `payment`'s `charge` and `refund`, `promotion`'s `reserve` alone, and `shipping`'s `create` and `deliver`'s two.
+The rest of the picture is unchanged by the flatten. A module's own
+`handler_test.go` builds its own `middleware.NewRouteGroup` and writes the
+prefix itself rather than importing anything from the real router — and it is
+not even the same prefix:
+`internal/modules/category/adapter/http/admin_handler_test.go:375` builds
+`middleware.NewRouteGroup(mux, "/api/v1/admin")` while `NewRouter` mounts the
+real admin group at `/api/admin`, with no `/v1` anywhere in production. The
+test passes either way, because it never touches the real router.
+`router_test.go` still samples rather than enumerates: 24 distinct `/api…`
+paths appear in the whole file (`grep -oE '"/api[^"]*"'
+internal/server/router_test.go | sort -u | wc -l`) against 64 routes, and
+several of those 24 only assert a 401 or a 403 rather than the handler behind
+them.
 
-**What you would do:** for the first, either assert the mounted prefix somewhere real-router-shaped — a route-table snapshot test driven through `apihttp.NewRouter` itself, which decision 15 made cheap by putting all 64 routes in one directory — or accept that `router_test.go` plus `test/e2e` is the only backstop and say so out loud, which is what this entry does. For the second, a real `TxRunner` backed by a test transaction (not the fake) would let a test assert call order across the boundary, at the cost of every affected `usecase_test.go` needing a real Postgres connection instead of a mock — trading a fast unit test for a slower, more honest one. Neither fix is free; neither is done here.
+**What decision 15 still costs:** nothing links the two halves. An
+`adapter/http` method that no route mounts compiles, lints, passes
+`check-boundaries`, and serves nothing, and no check says so. What decision 15
+bought is that all 64 URLs are in one file — which is what made the golden
+cheap enough to exist at all.
+
+## A repository write can leak outside its own transaction with no test failing
+
+**Where you hit it:** a `Service`'s repository call moves outside its own
+`tx.Run` callback — a bug that should fail a test — and nothing fails.
+
+`testutil.FakeTxRunner.Run` (`internal/testutil/txrunner.go`) is `return
+fn(ctx)`: it calls the callback inline, with no transaction underneath it, so
+a mock-based `service_test.go` cannot observe whether a repository call
+happened inside `tx.Run`'s closure or leaked outside it. Both look identical
+to the fake. Five files are in that position (`grep -rl FakeTxRunner
+--include='*_test.go' internal/modules`) — `cart`, `order`, `payment`,
+`promotion` and `shipping`'s own `service_test.go` — which is exactly the five
+modules that hold a `TxRunner`.
+
+**What you would do:** a real `TxRunner` backed by a test transaction would let
+a test assert call order across the boundary, at the cost of every affected
+`service_test.go` needing a real Postgres connection instead of a mock —
+trading a fast unit test for a slower, more honest one. Not done here.
 
 ## The composition site is deliberately tedious
 
-**Where you hit it:** you open `internal/bootstrap/app.go` expecting the pile of adapter aliases a template this size usually carries, and find thirteen — `cartpg`, `categorypg`, `dashboardpg`, `inventorypg`, `notificationpg`, `orderpg`, `paymentpg`, `productpg`, `promotionpg`, `reviewpg`, `shippingpg`, `userpg`, `wishlistpg` — plus `userredis`. The six order/payment aliases this entry used to describe are still gone, but every flattened module's own adapter has nowhere else to hide.
+**Where you hit it:** you open `internal/bootstrap/app.go` expecting the pile
+of adapter aliases a template this size usually carries, and find fourteen —
+`cartpg`, `categorypg`, `dashboardpg`, `inventorypg`, `notificationpg`,
+`orderpg`, `paymentpg`, `productpg`, `promotionpg`, `reviewpg`, `shippingpg`,
+`userpg`, `wishlistpg` and `userredis`.
 
-Phase 0 made `bootstrap.New` the single composition root, so the tedium moved there first — phase 2's slicing moved it back out again, one level down, into each module's own `module.go` — and the in-progress flatten (`REFACTOR-PLAN.md`) starts moving a sliver of it back in: a flattened module has no `module.go` left to wire its own adapter inside, so `bootstrap.New` imports that module's `adapter/postgres` package directly and aliases it (same pattern for all thirteen, since the package itself is still named `postgres` in every one) to build the `Repository` its `New` takes. The alias count is per adapter package, not per module, so it does not grow by exactly one per flatten task: `checkout`, already flattened, owns no store and reopens none; `user` reopens two (`userpg` and `userredis`), since `user/usecase/query` is the one slice backed by both Postgres and Redis. Read this count the same way as the others — stale until the refactor completes. `payment` reopens only `paymentpg`, even though `payment.Deps` also keeps a raw `Pool` field alongside `Repo` — that field is for the job queue's own postgres adapter, which `payment.New` builds itself (see the next limitation), not for `bootstrap.New` to alias a second time. Six aliased imports used to survive here regardless — `ordercancel`, `ordercancelpg`, `ordertransition`, `ordertransitionpg`, `orderquery`, `orderquerypg` — kept only because breaking the order/payment cycle needed three pieces of `order` (`usecase/transition`, `usecase/cancel`, `usecase/query`) built before `order.New` itself could run. With `order` needing nothing from `payment` any more, `order.New` now runs first and `app.go` hands `payment.New` the single `ordMod` value (`*order.Service`) for all three of its order-facing ports — `OrderTransition`, `OrderCanceller` and `OrderReader` — one value, not three sub-values, and not a standalone copy, so `app.go` no longer reaches past a module boundary for order/payment's sake. `func New` is 88 lines (`internal/bootstrap/app.go:70`-`157`).
+That is one alias per adapter package, not one per module: `auth`, `checkout`
+and `money` own no store and cost none, `user` costs two. `func New` is 88
+lines (`internal/bootstrap/app.go:70`-`157`) and builds every module in
+dependency order — `inventory` first because `product` needs it, `order`
+before `payment` because `payment`'s three order-facing ports all take the one
+`*order.Service`, and `checkout` after both because it orchestrates them.
 
-`internal/transport/http/router.go` used to keep its own pile — 14 aliased `http` imports, one per feature, plus the dev-only mock gateway's registrar. Decision 15 emptied it: `router.go` now holds **one** aliased import (`mockgatewayserver`), imports `routes` unaliased, and calls fourteen functions — `routes.Auth(...)`, `routes.Cart(...)` — inside a 62-line `NewRouter`. The aliases did not vanish, they moved: `internal/transport/http/routes/<feature>.go` imports that feature's slice handlers, 3 to 5 aliases per file, 14 files. That is one more file per feature than the old shape, and the honest description is that the pile was redistributed rather than paid off. What it bought is that every URL in the system is now readable in one directory. `cmd/worker/main.go` needs one alias of its own now (`paymentdomain`, for the `Job` type its own processor wrapper's methods take), down from the three this entry used to describe — it reads the queue and processor straight off `app.Payments` instead of building a second `paymentpg`/`notificationpg` repository handle.
+`payment` reopens only `paymentpg`, even though `payment.Deps` carries a raw
+`Pool` field beside `Repo` — that field is for the job queue's own postgres
+adapter, which `payment.New` builds itself (see the charge-job entry above),
+not for `bootstrap` to alias a second time. `notification.Deps` carries a
+`Pool` for the same reason.
 
-64 packages named `postgres` and 53 named `http` exist under `internal/modules` today, one named `redis` — re-run `find internal/modules -type d -name postgres | wc -l` (and `http`, `redis`) rather than trust these; they move with every slice added. The `http` figure was 67 before decision 15 took the 14 feature route tables out of the modules. Every one of them still needs an alias somewhere, just mostly inside the `module.go` or the `routes/<feature>.go` that wires it rather than at the top of the binary. `ARCHITECTURE.md` §0 and §3 own this: in a product codebase the subpackage split would be hard to justify, here it is the point — physical boundary makes a slice importing its own `postgres/` a compile error, not a convention.
+The tedium has moved three times, and the history is the interesting part.
+Phase 0 made `bootstrap.New` the single composition root. Slicing moved most
+of it back out, one level down, into each module's own `module.go` — and left
+six aliases in `app.go` regardless (`ordercancel`, `ordercancelpg`,
+`ordertransition`, `ordertransitionpg`, `orderquery`, `orderquerypg`), because
+breaking the order/payment cycle needed three pieces of `order` built before
+`order.New` itself could run. The flatten brought all of it back to `app.go`
+and dissolved those six at the same time: `checkout` took the cycle, so
+`order.New` runs first and hands `payment.New` one value for all three of its
+order-facing ports.
 
-**What it costs beyond ugliness:** adding a feature means touching `app.go` once (one line to build the module, one field on `App`), `router.go` once (one `routes.<Feature>(...)` call), and creating `routes/<feature>.go` — three files every feature collides on, up from two. Adding a *route* to an existing feature touches two trees: the slice for the handler, `routes/<feature>.go` for the URL. Neither `New` nor `NewRouter` carries a `//nolint:funlen`; both fit comfortably under the linter's 120-line limit, so the tedium here is pure import-alias noise, not the cognitive-complexity kind five slices' `usecase.go` files still carry `//nolint` for elsewhere in the tree (see AGENTS.md's Guardrails section for the current list). Cost concentrated in one file per binary-wide concern, deliberately.
+`internal/server/routes.go` keeps the other pile: 15 aliased `*http` imports,
+one per module that serves a route, inside one `registerRoutes` function. It
+was 3 to 5 aliases in each of 14 files under `internal/transport/http/routes/`
+before the collapse — 53 in total, plus one in `router.go` for the dev-only
+mock gateway registrar. The honest description is that this pile has been
+redistributed twice and never paid off. What each move bought is different:
+decision 15 bought "every URL in one directory", and the flatten bought "every
+URL in one file, in one function, in the order the router mounts them".
 
-**What you would do:** leave it. Splitting `New` per feature scatters the wiring graph, and a single readable list of every module and what it depends on is worth more than diff conflicts. If it becomes unbearable, split by _layer_ (build every module's dependencies, then every module) not by feature.
+**What it costs beyond ugliness:** adding a module means touching `app.go`
+once — one line to build it, one field on `App` — and `routes.go` once. Adding
+a route to an existing module touches `routes.go` and the route golden.
+Neither `New` nor `NewRouter` carries a `//nolint:funlen`; `registerRoutes`
+does, and its justification says why — one flat wiring list mounting fifteen
+modules' routes, not nested logic.
+
+**What you would do:** leave it. Splitting `New` per module scatters the
+wiring graph, and a single readable list of every module and what it depends
+on is worth more than diff conflicts. If it becomes unbearable, split by
+_layer_ (build every module's dependencies, then every module) not by module.
 
 ## `order.Deps.InventoryDeduct` is wired to a path e2e never runs
 
-**Where you hit it:** you drop the `InventoryDeduct: inv` line in `internal/bootstrap/app.go:102` — a struct literal compiles fine with a field left unset, so `order.Deps.InventoryDeduct` is silently `nil` — and `make check-boundaries`, `make lint`, `make test` and every `test/e2e` saga still pass.
+**Where you hit it:** you drop the `InventoryDeduct: inv` line at `internal/bootstrap/app.go:101` — a struct literal compiles fine with a field left unset, so `order.Deps.InventoryDeduct` is silently `nil` — and `make check-boundaries`, `make lint`, `make test` and every `test/e2e` saga still pass.
 
-**Why it is safe today.** `order` has a `Deps.InventoryDeduct` field, wired at `app.go:102` to the same `inv` value `payment.Deps.InventoryDeduct` already gets at `app.go:117`. Inside `order`, that field lands on `Service.inventoryDeduct` (`internal/modules/order/service.go:63`), and exactly one method calls it — `finalizeFreeOrder` (`internal/modules/order/service.go:421`), reached only when `order.Total.Amount == 0`, a 100%-discount coupon or an entirely free line. `order/service_test.go`'s "zero total finalizes order without payment" subtest (line 539) exercises that branch, but against `NewMockInventoryDeductor`, which proves `finalizeFreeOrder` calls whatever it is handed, not that `app.go` handed it the right thing. `test/e2e/checkout_test.go`'s only coupon saga, `TestE2ECouponOrderFlow`, applies a 10% discount and asserts a 999 total (`checkout_test.go:355-360`); no `test/e2e` file builds an order whose total lands at zero.
+**Why it is safe today.** `order` has a `Deps.InventoryDeduct` field, wired at `app.go:101` to the same `inv` value `payment.Deps.InventoryDeduct` already gets at `app.go:117`. Inside `order`, that field lands on `Service.inventoryDeduct` (`internal/modules/order/service.go:63`), and exactly one method calls it — `finalizeFreeOrder` (`internal/modules/order/service.go:421`), reached only when `order.Total.Amount == 0`, a 100%-discount coupon or an entirely free line. `order/service_test.go`'s "zero total finalizes order without payment" subtest (line 539) exercises that branch, but against `NewMockInventoryDeductor`, which proves `finalizeFreeOrder` calls whatever it is handed, not that `app.go` handed it the right thing. `test/e2e/checkout_test.go`'s only coupon saga, `TestE2ECouponOrderFlow` (`checkout_test.go:224`), applies a 10% discount and asserts a 999 total (`checkout_test.go:356-359`); no `test/e2e` file builds an order whose total lands at zero.
 
-**What it costs.** The other five cart/inventory fields on `order.Deps` (`CartLock`, `CartRead`, `CartClear`, `InventoryReserve`, `InventoryRestore`) are reached by every paid checkout `test/e2e/checkout_test.go` runs, so a mis-wire on any of those fails the suite immediately. `InventoryDeduct` is the one exception: dropping it from the block at `app.go:96-106` passes every check this repo runs and only misbehaves the first time a customer places a 100%-discount order in production.
+**What it costs.** The other five cart/inventory fields on `order.Deps` (`CartLock`, `CartRead`, `CartClear`, `InventoryReserve`, `InventoryRestore`) are reached by every paid checkout `test/e2e/checkout_test.go` runs, so a mis-wire on any of those fails the suite immediately. `InventoryDeduct` is the one exception: dropping it from the block at `app.go:95`-`105` passes every check this repo runs and only misbehaves the first time a customer places a 100%-discount order in production.
 
-**What breaks it, and what changed here.** Before `inventory` flattened (Task 17), `InventoryReserve`, `InventoryDeduct` and `InventoryRestore` were wired to three *different* concrete values — `inv.Reserve`, `inv.Deduct`, `inv.Restore`, one slice each — with three different method names (`ReserveBatch`, `DeductBatch`, `Restore`). Pasting the wrong one into the wrong field did not compile, because e.g. `*reserve.UseCase` had no `DeductBatch` method. Flattening removed that guard: `inv` is now one `*inventory.Service` value that satisfies `InventoryReserver`, `InventoryDeductor` and `InventoryRestorer` all at once, so `InventoryReserve: inv`, `InventoryDeduct: inv` and `InventoryRestore: inv` all compile regardless of which line gets which — there is no longer a wrong value to paste, only a line to forget. That removes the specific "swapped accessor" typo this entry used to warn about, but it does nothing for the failure mode the entry is actually about: a dropped field still compiles to `nil` exactly as before, and nothing here or elsewhere catches it before production. The same loss is not `order`-specific: `payment.InventoryDeduct`/`InventoryRestore` used to be `inv.Deduct`/`inv.Restore`, two values where `inv.Deduct` exposed no `Restore` method; `product.InventoryReader`/`InventoryRegistrar` used to be `inv.Query`/`inv.Register`, where `inv.Query` exposed no `EnsureLevel`. Both pairs compiled-guarded against a swap before this flatten and do not now, for the identical reason. The rule is general, not particular to `inventory`'s three order-facing ports: **wherever one flattened Service satisfies two or more of a single consumer's ports, the swap between them stops being a compile error.** That prediction has now played out at its largest scale. Task 19 flattened `order`, and one `*order.Service` satisfies **ten** port fields across **four** consumers — `payment` (`OrderTransition`, `OrderCanceller`, `OrderReader`), `checkout` (`Orders`, `Snapshots`, `Cancels`), `shipping` (`OrderRead`, `OrderShip`, `OrderDeliver`) and `review` (`Purchase`); the nine this entry predicted, plus `review`'s, which the count missed. Eight compile errors went with it: three swap-pairs on `payment`, three on `checkout`, two on `shipping` (its `OrderShip`/`OrderDeliver` pair already took the same value, so that swap was never guarded), and none on `review`, which has one field. **The rule is general, not particular to `inventory` or to `order`: wherever one flattened Service satisfies two or more of a single consumer's ports, the swap between them stops being a compile error.**
+**This entry is about a *dropped* field, not a swapped one.** The swap has
+its own entry — [One flat `Service` satisfying several of a consumer's ports
+means the swap between them compiles](#one-flat-service-satisfying-several-of-a-consumers-ports-means-the-swap-between-them-compiles)
+— and it used to be a compile error here: `InventoryReserve`, `InventoryDeduct`
+and `InventoryRestore` were wired to three different slice values with three
+different method names, so pasting one into the wrong field did not build. The
+dropped field was never caught, before or after: a struct literal compiles
+with a field left unset, the result is a `nil` port, and nothing in this repo
+looks for one.
 
 **What you would do:** seed one zero-total order in `test/e2e/checkout_test.go` — a 100%-off coupon against a real product, asserting the order lands `paid` with inventory actually deducted — or accept that this one field's wiring is proven only by reading `app.go`, and say so, which is what this entry does. Not done here: the checkout saga already covers nine order/payment/inventory wiring points, and adding a tenth for one narrow field is a call for whoever owns the next e2e pass, not a correctness bug today.
 
@@ -322,7 +730,7 @@ Go type, so nothing stopped a caller handed the sparse value from reading
 `Dispatched` and always observing `false` — not because no order is
 dispatched, but because `GetInfo` never set it.
 
-**Why it is gone.** Task 19 deleted `GetInfo` and kept one method,
+**Why it is gone.** The flatten deleted `GetInfo` and kept one method,
 `order.Service.Snapshot`, which fills every field. Shipping — the sparse
 method's only caller — reads `Status` and `UserID`, both of which the full
 projection populates from the same row, so the merge cost it nothing and
@@ -336,7 +744,7 @@ producer needs no split.
 `orderSnap.Dispatched` and `orderSnap.StockReversed`, and neither branch has
 a test that sets either field `true`. That is an untested branch, not a
 type-safety hole — the fields are populated now, so the branch reads what the
-row actually says. It predates this phase and is still worth a test.
+row actually says. It predates the flatten and is still worth a test.
 
 ## Config load order is load-bearing and unchecked
 
@@ -350,13 +758,13 @@ row actually says. It predates this phase and is still worth a test.
 
 **What you would do:** nothing speculative ahead of a second call site that gets this wrong — today there are exactly two, and both thread the same value through by construction. If a third ever appears, either have `Load` return a lease-bearing type that both `LoadConfig`s require as their parameter instead of a bare `time.Duration` — a compile-time guarantee that the validated value came from a successful infra load — or keep the load sequence in the one function per binary that already owns it (`loadModuleConfigs`, `cmd/worker/main.go`'s `run`) and never inline a module's `LoadConfig` at a new use site.
 
-## A contract package can grow into the shared domain model `internal/shared/` was rejected for being
+## `contract.go` can grow into the shared domain model `internal/shared/` was rejected for being
 
-**Where you hit it:** `<feature>/contract/` is imported by every consumer of that feature, so a field added there is public API. Nothing limits what may go in one, and the pressure is always to add "just one more field" rather than to ask why the consumer needs it. `db/OWNERSHIP.md`-style enforcement does not apply here: a struct field is not a table, so nothing machine-checks what a contract package is allowed to carry the way check 2 machine-checks table ownership.
+**Where you hit it:** a module's `contract.go` is read by every consumer of that module, so a field added there is public API. Nothing limits what may go in one, and the pressure is always to add "just one more field" rather than to ask why the consumer needs it. `db/OWNERSHIP.md`-style enforcement does not apply here: a struct field is not a table, so nothing machine-checks what `contract.go` may carry the way check 2 machine-checks table ownership. There used to be a partial guard — check 7 (`check_contract_leaf`) kept every `contract/` package to stdlib, `uuid` and `money`, so at least a published type could not drag a `domain/` along behind it. Decision 16 moved those types into the module's root package and check 7 was retired, so that half is gone too.
 
-`order.Snapshot` is the shape this looks like from the inside: one struct with eight fields that, until Task 19, two different producer methods filled differently for two different consumers (see the resolved entry above). That happened inside a single phase, with both call sites known in advance. A contract package accreting fields one unrelated PR at a time, each individually reasonable, is the same failure with no phase boundary forcing a review of the whole shape at once.
+`order.Snapshot` is the shape this looks like from the inside: one struct with eight fields that two different producer methods once filled differently for two different consumers (see the resolved entry above). That happened inside a single phase, with both call sites known in advance. A `contract.go` accreting fields one unrelated PR at a time, each individually reasonable, is the same failure with no phase boundary forcing a review of the whole shape at once.
 
-**What you would do:** before adding a field to a `contract/` package, check whether the consumer needs the _value_ or the _decision_. `order.Snapshot.Dispatched bool` is a decision `order` already made; a `Status string` field plus the consumer re-deriving "is this dispatched" from it would be the model leaking instead — the same distinction `ARCHITECTURE.md` §10 draws between `payment.OrderUpdater.MarkPaid` (an intent) and an ad-hoc from/to status list (the mechanics). `ARCHITECTURE.md` decision 6 rejected `internal/shared/` for the same reason a contract package earns scrutiny: an owned, single-purpose surface with one publisher and named consumers stays legible; an unowned one that answers "what if we just add a field" enough times becomes a second copy of the schema with none of decision 6's ownership discipline.
+**What you would do:** before adding a field to a `contract.go`, check whether the consumer needs the _value_ or the _decision_. `order.Snapshot.Dispatched bool` is a decision `order` already made; a `Status string` field plus the consumer re-deriving "is this dispatched" from it would be the model leaking instead — the same distinction `ARCHITECTURE.md` §10 draws between `payment.OrderUpdater.MarkPaid` (an intent) and an ad-hoc from/to status list (the mechanics). `ARCHITECTURE.md` rejected `internal/shared/` for the same reason `contract.go` earns scrutiny: an owned, single-purpose surface with one publisher and named consumers stays legible; an unowned one that answers "what if we just add a field" enough times becomes a second copy of the schema with none of decision 6's ownership discipline. `internal/modules/money` is the one shared-kernel directory that survived that rejection, and it is worth watching for the same reason: a second value object landing beside it starts to look like `shared/` with a different parent.
 
 ## Context log attributes are write-only
 
@@ -366,7 +774,7 @@ row actually says. It predates this phase and is still worth a test.
 
 **A second, sharper limit: nothing checks the single-naming invariant.** An attribute named at two points on one code path is emitted twice, and slog does not deduplicate keys. `payment/adapter/jobs.Dispatcher.Process` names `job_id` for the whole worker path; `Service.FinalizeSuccess` and `Service.CompensateRefund` are also reached from `Service.Charge` and `Service.HandleWebhook`, which pass a `Job` literal with no `ID` and so deliberately name nothing. Add a fourth caller that names `job_id` itself and the worker path start emitting the key twice, with no test or linter to catch it. The check is a grep of the callers, run by hand.
 
-This is not hypothetical. Naming `user_id` at the auth edge immediately collided with an `invalidateStatusCache` helper that logged its own `user_id` — the user being acted upon, not the caller. On an admin role change the record carried both, and a last-wins parser kept the admin's id while silently dropping the target's. The fix was to rename the inner one to `target_user_id`, because the two values answer different questions. That helper was duplicated three times — one private copy per slice that needed it (`remove`, `adminupdate`, `updaterole`), each logging `target_user_id` the same way — until user's flatten (Task 15, `internal/modules/user/service.go`) collapsed the three back into one shared method now that all three call sites are methods on the same `Service`; the collision this paragraph describes had to be fixed in each copy independently while slicing kept them apart.
+This is not hypothetical. Naming `user_id` at the auth edge immediately collided with an `invalidateStatusCache` helper that logged its own `user_id` — the user being acted upon, not the caller. On an admin role change the record carried both, and a last-wins parser kept the admin's id while silently dropping the target's. The fix was to rename the inner one to `target_user_id`, because the two values answer different questions. That helper was duplicated three times while `user` was sliced — one private copy per slice that needed it (`remove`, `adminupdate`, `updaterole`), each logging `target_user_id` the same way — and the collision this paragraph describes had to be fixed in each copy independently. One `invalidateStatusCache` method on `user.Service` (`internal/modules/user/service.go`) replaced all three, which is the shape of what decision 16 bought: three copies of one fix became one.
 
 **What you would do:** for the accessor, re-add a typed one beside the middleware that produces the value — `middleware.GetRequestID` as it was, a `context.WithValue` next to the `logger.WithAttrs` call. Do not add a generic `logger.Attrs(ctx)` reader: callers would loop the slice matching on a string key, which worse than the typed accessor it replaced. For the naming invariant, grep the tree for a key before naming it at a new edge — a collision look like nothing at all until someone query the logs.
 
@@ -378,7 +786,7 @@ Structure above priced for one situation: system with several genuinely distinct
 
 Do not copy this if:
 
-- **You have one domain.** Fourteen modules for one bounded context give you aliased imports, ports, mapper functions and ownership check with nothing on other side of ledger. Single package with `handler`/`service`/`repository` split is right shape.
+- **You have one domain.** Sixteen module directories for one bounded context give you aliased imports, ports, mapper functions and an ownership check with nothing on the other side of the ledger. A single package with a `handler`/`service`/`repository` split is the right shape.
 - **You need cross-module queries more often than not.** Every join across boundary become two queries and a port, and reporting is the _only_ carve-out. If most reads are aggregates over many entities, you want schema you can join, or read model from start — not dozen ownership fences and one exception.
 - **You are prototyping.** Rules cost most at beginning, when boundaries still guesses. Ports declared around domain you not understand yet are wrong ports, and harder to move than functions.
 - **You want to extract services soon.** This structure make _code_ side of extraction cheap and leave data side entirely undone — 18 cross-module foreign keys in one schema. If service split imminent, separate data first; module boundaries will follow more easily than reverse.
@@ -390,6 +798,6 @@ Do copy it if you want boundaries checkable not aspirational, and willing to pay
 
 Read alongside:
 
-- `ARCHITECTURE.md` — the sixteen decisions and fifteen rejections these are shadow of.
+- `ARCHITECTURE.md` — the seventeen decisions and fifteen rejections these are the shadow of. Decision 14 is marked reversed and decision 16 is what replaced it; the first six sections above are its bill.
 - `db/OWNERSHIP.md` — table-ownership map, foreign-key inventory, and full blind-spot list for `make check-boundaries`.
 - `AGENTS.md` — working rules, and which of them machine-checked.
