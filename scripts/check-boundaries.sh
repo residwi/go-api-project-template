@@ -3,24 +3,31 @@
 # check-boundaries.sh -- turn Phase 4's module boundaries into a build failure
 # instead of a paragraph in a plan document.
 #
-#   Check 1  Wire (`json:`) tags live only in a slice's http adapter.
+# Five checks run, numbered 1, 2, 3, 4 and 6. The gaps are where checks 5 and
+# 7 were retired and are deliberate: renumbering would falsify every
+# by-number citation in AGENTS.md, ARCHITECTURE.md and db/OWNERSHIP.md at
+# once, and a gap states something true -- a check used to be here -- that a
+# closed list would hide.
+#
+#   Check 1  Wire (`json:`) tags live only in a module's http adapter.
 #   Check 2  db/OWNERSHIP.md itself has no duplicate rows, no row for a
 #            table no migration creates, and no table with no owning row.
 #   Check 3  A feature's SQL -- anywhere under the module, not only its
 #            postgres adapter -- only queries tables it owns, where "owns"
 #            is read out of db/OWNERSHIP.md at run time.
 #   Check 4  A module may not import another module's domain/ or its
-#            adapter/ (postgres, http, redis, ...). Its root package, and
-#            its contract/ where one still exists, are importable.
-#   Check 5  RETIRED. It refused a slice importing a sibling slice; no module
+#            adapter/ (postgres, http, redis, jobs). Its root package is
+#            importable; that is the published surface.
+#   Check 5  RETIRED. It refused a slice importing a sibling slice. No module
 #            has a usecase/ tree left for it to walk, so it could only ever
-#            pass. The numbers of checks 6 and 7 are deliberately NOT shifted
-#            down -- AGENTS.md, ARCHITECTURE.md and REFACTOR-PLAN.md all cite
-#            them by number, and renaming a live check is a worse trade than
-#            one gap in a list.
+#            pass.
 #   Check 6  A module may not import internal/server/, except its own
-#            http adapter.
-#   Check 7  contract/ stays a leaf: only stdlib, uuid and internal/modules/money.
+#            adapter/http.
+#   Check 7  RETIRED. It kept each contract/ package a leaf -- stdlib, uuid
+#            and money only. No module has a contract/ package: the types
+#            those held are declared in contract.go in the module's own root
+#            package, which imports domain/ by design, so there is nothing
+#            left for the rule to be true of.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
 # clean; on failure it prints every violation as file:line and exits 1.
@@ -59,15 +66,14 @@ MODULES_ROOT='internal/modules'
 # it is a genuine permission grant, not a classification: it should be short, and
 # adding to it should be a visible, argued diff.
 #
-# checkout is deliberately NOT on this list, even though it is built to the
-# post-refactor rules and needs to import order/domain: a blanket importer
-# exemption would also let it import any module's slice root or postgres
-# adapter with nothing left to catch it. Its one real need -- order/domain --
-# is granted narrowly inside check_cross_module_imports below instead, so
-# everything else checkout might reach for is still scanned like any other
-# feature.
+# checkout is deliberately NOT on this list, even though it needs to import
+# order/domain: a blanket importer exemption would also let it import any
+# module's postgres adapter with nothing left to catch it. Its one real need
+# -- order/domain -- is granted narrowly inside check_cross_module_imports
+# below instead, so everything else checkout might reach for is still scanned
+# like any other feature.
 #
-# Held as a full path rather than the bare name (bootstrap, transport) this
+# Held as a full path rather than the bare name (bootstrap, server) this
 # held before: importer_roots' two loops walk directories at different
 # depths, and is_wiring now takes whichever full path each loop already
 # prints, so a future entry naming a module (internal/modules/<feature>)
@@ -164,31 +170,25 @@ importer_roots() {
 # ---------------------------------------------------------------------------
 #
 # Phase 4 moved every feature's wire DTOs into the http adapter beside the
-# handler that serialises them, today internal/modules/<feature>/usecase/<slice>/http/.
+# handler that serialises them, today internal/modules/<feature>/adapter/http/.
 # A `json:` tag on a domain model means the model has started doubling as a
 # transport type again, which is what the phase existed to undo.
 #
 # Exempt by location:
-#   internal/modules/<feature>/usecase/<slice>/http/*.go
+#   internal/modules/<feature>/adapter/http/*.go
 #                       the wire adapters -- this is where tags belong. A path
 #                       short of this pattern
 #                       (internal/modules/<feature>/http/) is deliberately NOT
 #                       exempt: that path held the feature route tables until
 #                       they moved to internal/server/routes.go, and a
 #                       json tag reappearing there would mean a DTO had drifted
-#                       out of the slice that owns it. Likewise
+#                       out of the module that owns it. Likewise
 #                       internal/server/ (the top-level router) is not
-#                       exempt: it wires slices together and defines no wire
-#                       types of its own. `is_slice_http` below is the one
+#                       exempt: it wires modules together and defines no wire
+#                       types of its own. `is_http_adapter` below is the one
 #                       predicate for "is this path the exempt location", used
 #                       by both the walk and its filter, so the two cannot drift
 #                       apart the way a glob and a prose description can.
-#   internal/modules/<feature>/adapter/http/*.go
-#                       the same role, one level up, for a module built in the
-#                       post-refactor target shape instead of sliced --
-#                       checkout is the first. It has no usecase/<slice>/ tree
-#                       for the pattern above to match, so `is_slice_http`
-#                       checks this shape too.
 #   *_test.go           tests may build wire payloads inline
 #   internal/platform/  transport infrastructure; internal/platform/config/ is
 #                       envconfig, not a domain model (no json tags today, but
@@ -219,12 +219,12 @@ importer_roots() {
 #
 #   internal/server/response/response.go
 #     Response and Error are the shared envelope every handler in every
-#     slice writes through -- the same role internal/platform/paging's
+#     module writes through -- the same role internal/platform/paging's
 #     cursor/offset envelope plays, just one layer up in the wiring tier
 #     instead of platform. It used to be exempt for free, as a side effect
 #     of the old */http/* glob matching any path containing "/http/"
-#     (transport/http/ qualified); narrowing that glob to slice http/
-#     directories dropped it, so it is named here instead. The other three
+#     (the router's own transport/http/ qualified); narrowing that glob to
+#     a module's adapter/http dropped it, so it is named here instead. The other three
 #     files in this package (bind.go, error_mapper.go, pagination_cursor.go)
 #     need no entry -- they carry no json tags today.
 JSON_TAG_ALLOWLIST='
@@ -236,16 +236,17 @@ is_json_tag_allowlisted() {
 	printf '%s\n' "$JSON_TAG_ALLOWLIST" | grep -qxF -- "$1"
 }
 
-# is_slice_http is true for a slice's own http adapter --
-# internal/modules/<feature>/usecase/<slice>/http/*.go -- or, for a module
-# built in the post-refactor target shape instead of sliced (checkout is the
-# first), its module-root equivalent: internal/modules/<feature>/adapter/http/*.go.
-# A path short of either pattern (internal/modules/<feature>/http/*.go)
-# correctly returns false: no such directory exists any more, and nothing may
-# recreate one to hold a DTO.
-is_slice_http() {
+# is_http_adapter is true for a module's own http adapter --
+# internal/modules/<feature>/adapter/http/*.go -- and nothing else. A path
+# short of that pattern (internal/modules/<feature>/http/*.go) correctly
+# returns false: no such directory exists, and nothing may recreate one to
+# hold a DTO. The second arm this carried, matching a slice's
+# usecase/<slice>/http/, went with the slices; while it lasted it was the
+# only exemption in this script that could not be reached from any path in
+# the tree. This one arm carries every module: drop it and check 1 reports
+# 295 tags in sixteen adapters at once.
+is_http_adapter() {
 	case "$1" in
-	"$MODULES_ROOT"/*/usecase/*/http/*.go) return 0 ;;
 	"$MODULES_ROOT"/*/adapter/http/*.go) return 0 ;;
 	esac
 	return 1
@@ -254,13 +255,13 @@ is_slice_http() {
 check_wire_tags() {
 	local file line
 
-	# 1a. json: tags on types this system owns, outside a slice's http adapter.
+	# 1a. json: tags on types this system owns, outside a module's http adapter.
 	while IFS= read -r file; do
-		is_slice_http "$file" && continue
+		is_http_adapter "$file" && continue
 		is_json_tag_allowlisted "$file" && continue
 		while IFS= read -r line; do
 			report "json tag outside an http adapter: ${file}:${line%%:*}
-    Wire DTOs belong in internal/modules/<feature>/usecase/<slice>/http/. Domain models carry no json tags.
+    Wire DTOs belong in internal/modules/<feature>/adapter/http/. Domain models carry no json tags.
     If this type really is someone else's wire contract, add it to
     JSON_TAG_ALLOWLIST in scripts/check-boundaries.sh with a reason."
 		done < <(grep -n 'json:"' "$file" || true)
@@ -270,6 +271,10 @@ check_wire_tags() {
 		| sort)
 
 	# 1b. json:"-" anywhere under internal/ outside an http adapter.
+	#
+	# Filtered on /adapter/http/ rather than the looser /http/ this used to
+	# carry: with the slices gone there is exactly one kind of http adapter,
+	# and a filter wider than the rule is a place a tag could hide.
 	#
 	# Phase 4 replaced all 14 of these with omission from a DTO. The point is
 	# that a field is now private *by default* rather than private by someone
@@ -281,13 +286,13 @@ check_wire_tags() {
     Phase 4 replaced every json:\"-\" with omission from a DTO. A field is
     private because no DTO exposes it, not because a tag hides it."
 	done < <(grep -rn 'json:"-"' --include='*.go' internal/ \
-		| grep -v '/http/' \
+		| grep -v '/adapter/http/' \
 		| cut -d: -f1,2 || true)
 
 	# 1c. A feature's dto.go must not come back.
 	#
 	# These files were deleted in Phase 4; their contents now live beside the
-	# handler that serialises them, in internal/modules/<feature>/usecase/<slice>/http/.
+	# handler that serialises them, in internal/modules/<feature>/adapter/http/.
 	#
 	# No -mindepth/-maxdepth. They used to pin this to internal/<feature>/dto.go
 	# at exactly depth 2, and Phase 6 moved the features to depth 3 -- a depth
@@ -297,13 +302,21 @@ check_wire_tags() {
 	while IFS= read -r file; do
 		report "resurrected DTO file: ${file}
     dto.go was deleted in Phase 4. Wire types live in
-    internal/modules/<feature>/usecase/<slice>/http/ next to the handler that serialises them."
+    internal/modules/<feature>/adapter/http/ next to the handler that serialises them."
 	done < <(find internal -type f -name 'dto.go' | sort)
 }
 
 # ---------------------------------------------------------------------------
-# Check 2 -- a feature's postgres adapter only queries tables it owns
+# Checks 2 and 3 -- the ownership document is sound, and a feature's SQL only
+# names tables it owns
 # ---------------------------------------------------------------------------
+#
+# Two checks share this section because they share the parser below: check 2
+# (check_ownership_doc) validates db/OWNERSHIP.md against db/migrations/, and
+# check 3 (check_table_ownership) holds each module's SQL to the rows that
+# document gives it. Check 3 is worthless if check 2 has not already proved
+# the document is neither empty nor stale, which is why they run in that
+# order.
 #
 # ARCHITECTURE.md section 6 ("Modules own their data"): "A module's SQL may
 # only name tables it owns. Cross-module reads go through a port." Go-level
@@ -325,7 +338,7 @@ check_wire_tags() {
 #         INSERT INTO
 #             products (id, name)
 #     Line-oriented matching missed that entirely, and this codebase already
-#     wraps SQL mid-statement (internal/modules/inventory/postgres/repository.go ends a
+#     wraps SQL mid-statement (internal/modules/inventory/adapter/postgres/repository.go ends a
 #     line with `DO UPDATE`), so a maintainer reformatting a long column list
 #     could ship a cross-module write green. Collapsing is safe because the
 #     pattern requires whitespace *and then* a letter or underscore after the
@@ -338,7 +351,7 @@ check_wire_tags() {
 #     does shadow a real table is reported as its own violation. Before that, one
 #     CTE named after a sibling table silenced every reference to the real table
 #     in the whole file, reads and writes alike: a roll-up CTE named `orders` in
-#     payment/postgres made every genuine `FROM orders` and `UPDATE orders` in
+#     payment/adapter/postgres made every genuine `FROM orders` and `UPDATE orders` in
 #     that file invisible, without touching $OWNERSHIP_DOC at all.
 #     Per-*statement* CTE scoping would not have fixed it either, and is the
 #     wrong shape: SQL's own rules say a non-recursive CTE body does not see the
@@ -368,36 +381,35 @@ check_wire_tags() {
 #     table can hide, and a phrase-based one is not. The cost is that
 #     `FOR UPDATE OF <table>` goes unseen, which is fine -- it is a lock hint on
 #     a table the same query has already named.
-#   - Only non-test files are scanned, and every directory named `postgres`
-#     under a feature is walked, at any depth, not only
-#     internal/modules/<feature>/postgres/ itself. A vertical slice's adapter
-#     lives at internal/modules/<feature>/usecase/<slice>/postgres/, and that SQL is
-#     this feature's own adapter as much as the top-level one is -- the table
-#     it may name does not change because a slice sits between the feature and
-#     its postgres/ directory. Test files legitimately seed and assert against
+#   - Only non-test files are scanned, and every .go file under a feature is
+#     walked, at any depth, not only the ones inside a directory named
+#     `postgres`. A module's SQL sits in
+#     internal/modules/<feature>/adapter/postgres/ today, but nothing makes it
+#     stay there: a query in service.go names a table just as effectively.
+#     Test files legitimately seed and assert against
 #     sibling tables to satisfy foreign keys; that is fixture setup, not an
 #     architectural crossing.
 #   - Skipping tests removed the prose false positives that lived in test names
 #     ("removes all items from cart", "returns top products from paid orders"),
 #     but not all of them: prose in a *production* string literal still trips
-#     this check. `var msg = "update orders failed"` in internal/modules/cart/postgres/
+#     this check. `var msg = "update orders failed"` in internal/modules/cart/adapter/postgres/
 #     reports `orders`. Nothing here can tell that string from a query, so the
 #     failure mode is a loud false positive rather than a silent miss -- it is
 #     recorded in $OWNERSHIP_DOC rather than papered over, because a check that
 #     cries wolf gets disabled.
 #   - `pg_constraint`, a Postgres catalog table rather than a domain table,
-#     appears only in internal/modules/cart/postgres/repository_test.go, which asserts
+#     appears only in internal/modules/cart/adapter/postgres/repository_test.go, which asserts
 #     each foreign key's ON DELETE action. Because tests are out of scope it
 #     needs no allowlist entry -- recorded here so the next reader does not
 #     rediscover it as a violation.
 #
-# `dashboard` is exempt from this check entirely. That is a deliberate
+# `dashboard` is exempt from check 3 entirely. That is a deliberate
 # architectural decision, not an oversight. ARCHITECTURE.md section 6 states
 # the carve-out directly: "dashboard is a reporting read-model and may
 # read-only join across anything. Expressing a revenue aggregate as
 # cross-module service calls instead of a GROUP BY would be slower *and* less
 # correct."
-CHECK_2_EXEMPT_FEATURES='dashboard'
+CHECK_3_EXEMPT_FEATURES='dashboard'
 
 # The single source of truth for who owns what. Prose for a human, parseable by
 # the awk below; the contract binding the two together is written down in the
@@ -593,13 +605,10 @@ sql_cte_names() {
 }
 
 # module_go_files prints every non-test .go file under a module, not just the
-# ones inside a directory named postgres. Before slicing, a feature's SQL all
-# lived in one <feature>/postgres/, so scanning that one directory was scanning
-# all of it. Slices put SQL in <feature>/usecase/<slice>/postgres/ instead, and there
-# is no longer a single privileged directory to point a narrower scan at --
-# and SQL was never guaranteed to stay inside postgres/ in the first place, so
-# service.go or a slice's command.go naming a table was already invisible to
-# the old scan. Widening to the whole module closes that hole for free.
+# ones inside a directory named postgres. A module's SQL does live in one place
+# today -- <feature>/adapter/postgres/ -- but nothing enforces that, and a
+# table named from service.go was invisible to the narrower scan this replaced.
+# Walking the whole module closes that hole for free.
 module_go_files() {
 	find "$MODULES_ROOT/$1" -name '*.go' ! -name '*_test.go' -type f
 }
@@ -616,19 +625,17 @@ check_table_ownership() {
 	known=" $(known_tables)"
 
 	while IFS= read -r feature; do
-		case " $CHECK_2_EXEMPT_FEATURES " in
+		case " $CHECK_3_EXEMPT_FEATURES " in
 		*" $feature "*) continue ;;
 		esac
 
-		# A postgres/ directory can sit at the feature root or inside a slice
-		# (internal/modules/<feature>/usecase/<slice>/postgres/), so presence is a
-		# search by name under the whole feature, not a test of one fixed
-		# path. Testing only the fixed path was the bug: it skipped a
-		# feature's SQL entirely once that feature's adapters moved into
-		# slices, and would have skipped the feature outright the day its
-		# last top-level postgres/ was deleted. A feature with no postgres/
-		# anywhere legitimately owns no table -- auth is today's example --
-		# and is still skipped exactly as before.
+		# Presence of a postgres adapter is a search by name under the whole
+		# feature, not a test of one fixed path. Testing a fixed path is what
+		# broke this before: <feature>/postgres/ was hard-coded, so the check
+		# skipped a feature's SQL the day that directory moved -- first under
+		# a slice, now under adapter/. A feature with no postgres/ anywhere
+		# legitimately owns no table (auth, checkout and money today) and is
+		# skipped.
 		[ -n "$(find "$MODULES_ROOT/$feature" -type d -name postgres)" ] || continue
 
 		allowed="$(allowed_tables "$feature")"
@@ -701,32 +708,30 @@ check_table_ownership() {
 				fi
 			done < <(sql_table_refs "$file")
 			# Every .go file under the feature, at any depth, not only the
-			# ones inside a directory named postgres: a query moved into
-			# internal/modules/<feature>/postgres/queries/ was already
-			# scanned before this widening, and so was one that lives in
-			# internal/modules/<feature>/usecase/<slice>/postgres/ -- but SQL sitting
-			# in service.go or a slice's command.go, outside any postgres/
-			# directory, was not. That was the hole db/OWNERSHIP.md's "what
-			# it does not catch" section named; module_go_files closes it.
+			# ones inside a directory named postgres: SQL sitting in
+			# service.go, outside any postgres/ directory, was the hole
+			# db/OWNERSHIP.md's "what it does not catch" section named, and
+			# module_go_files closes it.
 		done <<<"$files"
 	done < <(feature_dirs)
 }
 
 # ---------------------------------------------------------------------------
-# Check 4 -- a module may not import another module's domain/, adapter/, or
-# a still-sliced usecase/<slice>
+# Check 4 -- a module may not import another module's domain/ or adapter/
 # ---------------------------------------------------------------------------
 #
-# This is the post-refactor form of the rule (Task 23 of REFACTOR-PLAN.md,
-# front-loaded here so the flatten in progress does not fail this check
-# partway through). Collapsing a module's contract/ into a contract.go at
-# its own root means a consumer that used to import <feature>/contract now
-# imports <feature> itself, so a module's root package is importable from
-# outside, the same as a contract/ package already was and, for as long as
-# any module still has one, still is. What stays private is domain/ (the
-# rich model) and every adapter (postgres, http, redis, ...) -- the things a
-# producer's root package was never meant to expose just because its own
-# package became reachable.
+# Collapsing every module's contract/ package into a contract.go at its own
+# root means a consumer that used to import <feature>/contract now imports
+# <feature> itself: a module's root package is the published surface, and it
+# is importable. What stays private is domain/ (the rich model) and every
+# adapter (postgres, http, redis, jobs) -- the things a producer's root
+# package was never meant to expose just because its own package became
+# reachable.
+#
+# The cost of that trade is not enforced here and cannot be: a module's root
+# package publishes every exported method on its Service, so nothing stops
+# payment naming order.Place. This check draws the line at the package, not
+# at the method.
 #
 # Same-module imports are unrestricted here, and nothing checks them any more:
 # a module's own adapter importing its root package is the target shape, and
@@ -743,14 +748,17 @@ check_table_ownership() {
 #
 # checkout is scanned as an importer like every other feature -- it is not on
 # WIRING_DIRS -- but is granted one narrow target exemption below: importing
-# order/domain (and only domain/, never a slice root or adapter) passes, the
-# same way a bare root-package or contract/ import always does, because
-# checkout genuinely needs order/domain.NewOrder and order/domain.Order.
-# Everything else it might reach for in another module is still reported.
+# order/domain, and only domain/, never an adapter. That exemption is
+# load-bearing, not historical: order.Service.Place takes an
+# order/domain.NewOrder and returns an *order/domain.Order, so checkout's own
+# OrderWriter port has to name both types, and seven files under checkout
+# import order/domain today. Retiring it means moving those two types into
+# order's root package first, which is a change to two modules rather than to
+# this script.
 #
 # _test.go files are in scope, unlike check_table_ownership's scan. A test
-# reaching into a sibling module's slice proves the same coupling a production
-# import would, and it is the cheaper place to introduce one.
+# reaching into a sibling module's internals proves the same coupling a
+# production import would, and it is the cheaper place to introduce one.
 check_cross_module_imports() {
 	local module module_re modules_re feature_alt
 	local importers importer importer_name
@@ -770,9 +778,9 @@ check_cross_module_imports() {
 	# feature_dirs cannot be empty by the time this runs -- the guard beside its
 	# definition exits the script first -- and that guard is what makes this bail
 	# safe to keep as belt and braces. On its own it was the silent death of this
-	# check: with no features the alternation collapses to `()`, which matches the
-	# empty string, so the pattern would demand `internal/modules//contract`, match
-	# nothing, and contribute no violations.
+	# check: with no features the alternation collapses to `()`, which matches
+	# the empty string, so the pattern would demand a doubled slash --
+	# `internal/modules//` -- match nothing, and contribute no violations.
 	feature_alt="$(feature_dirs | tr '\n' '|' | sed -e 's/|$//')"
 	[ -n "$feature_alt" ] || return 0
 
@@ -798,7 +806,8 @@ check_cross_module_imports() {
 			# Empty for anything outside $MODULES_ROOT -- internal/platform, a
 			# stray file directly at the modules root -- which is deliberate:
 			# such a file belongs to no module, so it is held to exactly the
-			# same contract-only rule as a sibling module would be.
+			# same rule a sibling module is: root packages yes, domain/ and
+			# adapters no.
 			file_feature=''
 			case "$file" in
 			"$MODULES_ROOT"/*)
@@ -825,13 +834,11 @@ check_cross_module_imports() {
 			while IFS= read -r hit; do
 				[ -n "$hit" ] || continue
 				# hit looks like "12:\"<module>/internal/modules/<target>\"" --
-				# a bare import of the target's root package, which is
-				# allowed post-refactor -- or, with anything past the
-				# feature name, ".../<target>/domain", ".../<target>/adapter"
-				# or ".../<target>/adapter/postgres" (private, reported), a
-				# still-sliced target's ".../<target>/usecase/<slice>" (also
-				# private, reported), or ".../<target>/contract" (still a
-				# published surface while any module keeps one, so allowed).
+				# a bare import of the target's root package, which is the
+				# published surface and allowed -- or, with anything past the
+				# feature name, ".../<target>/domain",
+				# ".../<target>/adapter/postgres", ".../<target>/jobs" and so
+				# on: all private, all reported.
 				imp="${hit#*:}"
 				imp="${imp#\"}"
 				imp="${imp%\"}"
@@ -843,19 +850,20 @@ check_cross_module_imports() {
 				target_rest="${rest#"$target"}"
 				target_rest="${target_rest#/}"
 				# Empty target_rest is a bare import of the target's root
-				# package -- the post-refactor shape, importable like any
-				# other package. contract/ stays importable too: six modules
-				# still publish one for the transition (AGENTS.md rule 10).
+				# package: importable, because that is the module's published
+				# surface. The `contract | contract/*` arm this carried went
+				# with the last contract/ directory -- no path under
+				# internal/modules can match it any more, so keeping it could
+				# only excuse a directory nobody is allowed to recreate.
 				case "$target_rest" in
-				"" | contract | contract/*) continue ;;
+				"") continue ;;
 				esac
 
-				# checkout alone may reach past contract/ into another
-				# module's domain/ -- and only domain/, never a slice root or
-				# its postgres/http adapter. It is built to the post-refactor
-				# rules, where a module root is importable, and it names
-				# order/domain.NewOrder and order/domain.Order directly. See
-				# the header comment above this function for why this is a
+				# checkout alone may reach into another module's domain/ --
+				# and only domain/, never an adapter. order.Service.Place's
+				# own signature names order/domain.NewOrder and
+				# order/domain.Order, so checkout's port cannot avoid them.
+				# See the header comment above this function for why this is a
 				# per-target exemption rather than a WIRING_DIRS entry.
 				if [ "$file_feature" = "checkout" ]; then
 					case "$target_rest" in
@@ -865,13 +873,12 @@ check_cross_module_imports() {
 
 				report "'${importer_name}' imports another module's internals: ${file}:${hit%%:*}
     ${imp}
-    A module may import another module's root package or its contract/
-    package -- domain/, every adapter (postgres, http, redis, ...), and
-    every still-sliced usecase/<slice> stay private to the module that owns
-    them. Declare a consumer-side port instead (AGENTS.md rule 10; e.g.
-    internal/modules/product/usecase/query/ports.go or
-    internal/modules/category/ports.go), or add a contract/ package if a
-    struct genuinely needs to cross."
+    A module may import another module's root package -- that is its
+    published surface. domain/ and every adapter (postgres, http, redis,
+    jobs) stay private to the module that owns them. Declare a consumer-side
+    port instead (AGENTS.md rule 10; e.g. internal/modules/category/ports.go
+    or internal/modules/checkout/ports.go), or declare the struct that has to
+    cross in the producing module's own contract.go."
 			done <<<"$hits"
 		done <<<"$files"
 	done <<<"$importers"
@@ -881,24 +888,30 @@ check_cross_module_imports() {
 # Check 6 -- the transport arrow points one way
 # ---------------------------------------------------------------------------
 #
-# A module may not import internal/server/. Only a slice's own http/
-# adapter may, because that package exists to speak HTTP and nothing
-# constructs it except the route table.
+# A module may not import internal/server/. Only its own adapter/http may,
+# because that package exists to speak HTTP and nothing constructs it except
+# the route table.
 #
-# Two things this catches that a module.go-only check would miss:
+# That one exemption carries every module: adapter/http is where
+# response.Bind and middleware.RequireUser are called (AGENTS.md rule 18), so
+# dropping it reports 85 imports across sixteen modules in one run. The second
+# arm this case used to hold, matching a slice's usecase/<slice>/http/, went
+# with the slices and matched nothing while it lasted.
+#
+# Two things this catches that a service-file-only check would miss:
 #   - a service returning a transport type, which is how user.Service came to
 #     return middleware.UserStatusResult and auth.Service *middleware.TokenClaims
 #     (both fixed in phase 0, before this check existed to stop the third)
-#   - module.go registering routes, which would make every binary
-#     constructing the module link HTTP -- including the worker, which
-#     serves nothing
+#   - a module registering routes, which would make every binary constructing
+#     it link HTTP -- including the worker, which serves nothing
 #
-# Go imports are per-package, so splitting module.go into module.go plus
+# Go imports are per-package, so splitting service.go into service.go plus
 # http.go would not help: one import of the module pulls every file in it.
 #
-# A module that needs to describe something the transport also describes puts
-# the type in its own contract/ and lets middleware import that instead. That
-# is what user/contract.AccountStatus and auth/contract.Claims are for.
+# A module that needs to describe something the transport also describes
+# declares the type in its own contract.go and lets middleware import the
+# module root instead. That is what user.AccountStatus and auth.ClaimsView
+# are for.
 #
 # Matching is on a quoted import path, not on any occurrence of the text --
 # a doc comment explaining why a setter was removed could say it "would
@@ -930,17 +943,13 @@ check_transport_direction() {
 		while IFS= read -r file; do
 			[ -f "$file" ] || continue
 
-			# A slice's own http adapter
-			# (internal/modules/<feature>/usecase/<slice>/http/) is one
-			# legitimate importer -- it speaks HTTP by design. A module built in
-			# the post-refactor target shape instead of sliced (checkout is the
-			# first) plays the same adapter role at its module root instead:
-			# internal/modules/<feature>/adapter/http/. The feature route tables
-			# that used to be a third exemption are gone: every URL now lives in
-			# internal/server/routes.go, so no file under a module names a
+			# A module's own http adapter
+			# (internal/modules/<feature>/adapter/http/) is the one legitimate
+			# importer -- it speaks HTTP by design. The feature route tables
+			# that used to be a second exemption are gone: every URL now lives
+			# in internal/server/routes.go, so no file under a module names a
 			# route or needs middleware.RouteGroup.
 			case "$file" in
-			"$MODULES_ROOT/$feature"/usecase/*/http/*.go) continue ;;
 			"$MODULES_ROOT/$feature"/adapter/http/*.go) continue ;;
 			esac
 
@@ -961,84 +970,11 @@ check_transport_direction() {
 			while IFS= read -r hit; do
 				[ -n "$hit" ] || continue
 				report "'${feature}' imports internal/server: ${file}:${hit%%:*}
-    A module may not import internal/server -- only a slice's own http/
-    adapter may, because that package exists to speak HTTP and nothing
-    constructs it but the route table. Put the shared type in
-    ${MODULES_ROOT}/${feature}/contract/ and let the transport import that
-    instead."
-			done <<<"$hits"
-		done <<<"$files"
-	done < <(feature_dirs)
-}
-
-# ---------------------------------------------------------------------------
-# Check 7 -- contract/ is a leaf
-# ---------------------------------------------------------------------------
-#
-# contract/ is what other modules import. If it imports its own module's
-# domain, then importing the contract drags the rich model along and the
-# module's published surface silently becomes everything. Permitted: stdlib,
-# github.com/google/uuid, and internal/modules/money -- the value object that
-# already crosses every seam.
-#
-# check 4 cannot see this: a contract/ file importing its own module's
-# domain/ is a same-module import, not a cross-module one, so it never
-# produces a cross-module path for check 4's grep to flag.
-#
-# The allowlist is closed under "not a github.com/... path" rather than an
-# open stdlib list: an import path is read as third-party (and therefore
-# subject to the allowlist) only if it contains a dot before its first slash
-# -- what distinguishes github.com/google/uuid from stdlib time or
-# encoding/json, without this script needing to know the stdlib's contents.
-check_contract_leaf() {
-	local module
-	local feature dir files file rc hits hit path
-
-	module="$(awk '/^module /{print $2; exit}' go.mod)"
-	if [ -z "$module" ]; then
-		report 'could not read the module path from go.mod'
-		return 0
-	fi
-
-	while IFS= read -r feature; do
-		[ -n "$feature" ] || continue
-		dir="$MODULES_ROOT/$feature/contract"
-		[ -d "$dir" ] || continue
-
-		files="$(find "$dir" -type f -name '*.go' | sort)"
-		[ -n "$files" ] || continue
-
-		while IFS= read -r file; do
-			[ -f "$file" ] || continue
-
-			# Same status-checked-assignment-plus-here-string shape as every
-			# other grep in this script that walks production files: grep's
-			# exit 1 ("no match") is not a failure, anything greater is, and is
-			# reported rather than read as a clean file.
-			rc=0
-			hits="$(grep -noE '"[a-z0-9./-]*\.[a-z]*/[^"]*"' "$file")" || rc=$?
-			if [ "$rc" -gt 1 ]; then
-				report "grep exited $rc scanning $file for contract/ imports -- the check could not run on this file, which is not the same as it passing"
-				continue
-			fi
-			[ -n "$hits" ] || continue
-
-			while IFS= read -r hit; do
-				[ -n "$hit" ] || continue
-				path="${hit#*:}"
-				path="${path#\"}"
-				path="${path%\"}"
-
-				case "$path" in
-				github.com/google/uuid) continue ;;
-				"$module/internal/modules/money") continue ;;
-				esac
-
-				report "'${feature}/contract' imports $path: ${file}:${hit%%:*}
-    contract/ must stay a leaf -- stdlib, github.com/google/uuid, and
-    internal/modules/money only. Importing another module or a platform package would
-    drag that module's own domain along with it, and the whole point of
-    contract/ is that another module can import it without pulling that in."
+    A module may not import internal/server -- only its own adapter/http
+    may, because that package exists to speak HTTP and nothing constructs it
+    but the route table. Declare the shared type in
+    ${MODULES_ROOT}/${feature}/contract.go and let the transport import the
+    module root instead."
 			done <<<"$hits"
 		done <<<"$files"
 	done < <(feature_dirs)
@@ -1051,7 +987,6 @@ check_ownership_doc
 check_table_ownership
 check_cross_module_imports
 check_transport_direction
-check_contract_leaf
 
 if [ -s "$VIOLATIONS" ]; then
 	echo "Architectural boundary violations found:" >&2

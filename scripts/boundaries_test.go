@@ -4,12 +4,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// Every check the script registers gets a probe here. A check that has stopped
+// matching anything still prints "Boundaries OK", so a green run is only worth
+// something if each check has been shown to fail on demand -- this branch
+// shipped a check that could no longer match, and the probes are what would
+// have caught it.
 func TestCheckBoundaries(t *testing.T) {
 	t.Run("clean tree passes", func(t *testing.T) {
 		out, err := runCheck(t)
@@ -17,43 +23,100 @@ func TestCheckBoundaries(t *testing.T) {
 		assert.Contains(t, out, "Boundaries OK")
 	})
 
-	// Every probe lands at a module root. That used to be impossible for
-	// checks 1 and 6, whose probes needed a real usecase/<slice>/ directory
-	// and so had to hunt for whichever module was still sliced; no module is,
-	// since Task 19 flattened the last one. A module root is scanned by every
-	// check below and, unlike a slice directory, is not something a later task
-	// deletes.
+	// Probes land at a module root, or in an adapter directory that already
+	// exists. Nothing plants a directory: a probe file is removed by cleanup,
+	// a probe directory would linger if the test failed hard.
 	wishlistDir := filepath.Join("internal", "modules", "wishlist")
+	wishlistHTTPDir := filepath.Join(wishlistDir, "adapter", "http")
 
-	wireTagProbe := "package wishlist\n\ntype probe struct {\n\tName string `json:\"name\"`\n}\n"
-	transportProbe := "package wishlist\n\n" +
-		"import _ \"github.com/residwi/go-api-project-template/internal/server/middleware\"\n"
-
-	t.Run("check 1 catches a json tag outside an http adapter", func(t *testing.T) {
-		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_wiretag.go"), wireTagProbe)
+	t.Run("check 1a catches a json tag outside an http adapter", func(t *testing.T) {
+		probe := "package wishlist\n\ntype boundaryProbe struct {\n\tName string `json:\"name\"`\n}\n"
+		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_wiretag.go"), probe)
 		assert.Contains(t, out, "json tag outside an http adapter")
 	})
 
-	t.Run("check 6 catches a module importing internal/server", func(t *testing.T) {
-		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_transport.go"), transportProbe)
-		assert.Contains(t, out, "imports internal/server")
-	})
-
-	// Check 4's post-refactor rule: a module's root package is importable
-	// like a contract/ package always was; domain/ and every adapter stay
-	// private.
-	rootImportProbe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/category\"\n"
-	domainImportProbe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/category/domain\"\n"
-
-	t.Run("check 4 allows a module importing another module's root package", func(t *testing.T) {
-		out := runCheckWithoutError(t, filepath.Join(wishlistDir, "probe_rootimport.go"), rootImportProbe)
+	// The exempt arm, proved from the other side. It is the one exemption in
+	// check 1 that sixteen real modules depend on, so a probe that passes
+	// inside adapter/http is what distinguishes "the exemption works" from
+	// "the walk no longer reaches this path at all".
+	t.Run("check 1a exempts a json tag inside adapter/http", func(t *testing.T) {
+		probe := "package http\n\ntype boundaryProbe struct {\n\tName string `json:\"name\"`\n}\n"
+		out := runCheckWithoutError(t, filepath.Join(wishlistHTTPDir, "probe_wiretag.go"), probe)
 		assert.Contains(t, out, "Boundaries OK")
 	})
 
-	t.Run("check 4 still reports a module importing another module's domain", func(t *testing.T) {
-		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_domainimport.go"), domainImportProbe)
+	t.Run("check 1b catches a json:\"-\" tag outside an http adapter", func(t *testing.T) {
+		probe := "package wishlist\n\ntype boundaryProbe struct {\n\tSecret string `json:\"-\"`\n}\n"
+		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_hidden.go"), probe)
+		assert.Contains(t, out, `json:"-" found outside an http adapter`)
+	})
+
+	t.Run("check 1c catches a resurrected dto.go", func(t *testing.T) {
+		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "dto.go"), "package wishlist\n")
+		assert.Contains(t, out, "resurrected DTO file")
+	})
+
+	// Check 2 validates the ownership document itself, so its probe patches
+	// that document rather than planting a file. Adding a migration instead
+	// would be the more direct probe and is deliberately not used: `go test
+	// ./...` runs packages concurrently, and a stray migration file would be
+	// applied by whichever package started a container while it existed.
+	t.Run("check 2 catches an ownership row no migration backs", func(t *testing.T) {
+		out := runCheckWithPatchedFile(t, filepath.Join("db", "OWNERSHIP.md"),
+			"<!-- END OWNERSHIP TABLE -->",
+			"| `probe_boundary_table` | `wishlist` |\n<!-- END OWNERSHIP TABLE -->")
+		assert.Contains(t, out, "records a table no migration creates")
+	})
+
+	// Check 3 scans every non-test .go file under a module, not only its
+	// postgres adapter, which is why a probe at the module root is enough.
+	t.Run("check 3 catches a module querying a table it does not own", func(t *testing.T) {
+		probe := "package wishlist\n\nconst probeBoundaryQuery = `SELECT id FROM orders`\n"
+		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_sql.go"), probe)
+		assert.Contains(t, out, "cross-module table reference")
+	})
+
+	// Check 4's post-refactor rule: a module's root package is importable,
+	// the way a contract/ package used to be. domain/ and every adapter stay
+	// private.
+	t.Run("check 4 allows a module importing another module's root package", func(t *testing.T) {
+		probe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/category\"\n"
+		out := runCheckWithoutError(t, filepath.Join(wishlistDir, "probe_rootimport.go"), probe)
+		assert.Contains(t, out, "Boundaries OK")
+	})
+
+	t.Run("check 4 catches a module importing another module's domain", func(t *testing.T) {
+		probe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/category/domain\"\n"
+		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_domainimport.go"), probe)
 		assert.Contains(t, out, "imports another module's internals")
 	})
+
+	t.Run("check 4 catches a module importing another module's postgres adapter", func(t *testing.T) {
+		probe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres\"\n"
+		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_adapterimport.go"), probe)
+		assert.Contains(t, out, "adapter/postgres")
+	})
+
+	// The wiring layer is exempt as an importer, and that exemption is what
+	// lets bootstrap construct adapters at all: empty WIRING_DIRS and check 4
+	// reports 30 imports in internal/bootstrap alone.
+	t.Run("check 4 exempts the wiring layer as an importer", func(t *testing.T) {
+		probe := "package bootstrap\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres\"\n"
+		out := runCheckWithoutError(t, filepath.Join("internal", "bootstrap", "probe_wiring.go"), probe)
+		assert.Contains(t, out, "Boundaries OK")
+	})
+
+	t.Run("check 6 catches a module importing internal/server", func(t *testing.T) {
+		probe := "package wishlist\n\n" +
+			"import _ \"github.com/residwi/go-api-project-template/internal/server/middleware\"\n"
+		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_transport.go"), probe)
+		assert.Contains(t, out, "imports internal/server")
+	})
+
+	// Check 6's exempt arm needs no probe of its own: every module's
+	// adapter/http imports internal/server/response and
+	// internal/server/middleware already, so "clean tree passes" above fails
+	// the moment that exemption stops matching.
 }
 
 func repoRoot(t *testing.T) string {
@@ -91,5 +154,25 @@ func runCheckWithoutError(t *testing.T, relPath, content string) string {
 
 	out, err := runCheck(t)
 	require.NoError(t, err, "check-boundaries.sh must pass while the probe file exists:\n%s", out)
+	return out
+}
+
+// runCheckWithPatchedFile edits a tracked file in place for the duration of one
+// subtest. Editing in place rather than pointing the script at a copy matters:
+// the script resolves its own repository root and every path it reports is
+// relative to that, so a probe outside the tree is a probe of a different tree.
+func runCheckWithPatchedFile(t *testing.T, relPath, old, replacement string) string {
+	t.Helper()
+	full := filepath.Join(repoRoot(t), relPath)
+	original, err := os.ReadFile(full)
+	require.NoError(t, err)
+	require.Contains(t, string(original), old, "%s no longer contains the text this probe patches", relPath)
+
+	patched := strings.Replace(string(original), old, replacement, 1)
+	require.NoError(t, os.WriteFile(full, []byte(patched), 0o600))
+	t.Cleanup(func() { _ = os.WriteFile(full, original, 0o600) })
+
+	out, err := runCheck(t)
+	require.Error(t, err, "check-boundaries.sh must fail while %s is patched:\n%s", relPath, out)
 	return out
 }
