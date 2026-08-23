@@ -69,7 +69,7 @@ test-one: ## Run tests matching NAME, with .env loaded (e.g. make test-one NAME=
 test-coverage: ## Run tests with coverage report (requires Docker)
 	@echo "Running tests with coverage..."
 	go test -v -race -count=1 -timeout 5m ./internal/... ./test/... \
-		-coverpkg=$$(go list ./internal/... | grep -v /testhelper | paste -sd, -) \
+		-coverpkg=$$(go list ./internal/... | grep -v /testutil | paste -sd, -) \
 		-coverprofile=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"

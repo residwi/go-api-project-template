@@ -14,7 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestService_Add(t *testing.T) {
@@ -25,7 +25,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -50,7 +50,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -69,7 +69,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -89,7 +89,7 @@ func TestService_Add(t *testing.T) {
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
 		maxItems := 3
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}, Products: products, MaxItems: maxItems})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: maxItems})
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -114,7 +114,7 @@ func TestService_Add(t *testing.T) {
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
 		maxItems := 3
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}, Products: products, MaxItems: maxItems})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: maxItems})
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -139,7 +139,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -157,7 +157,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -177,7 +177,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -201,7 +201,7 @@ func TestService_Add_RunsInsideTxRunner(t *testing.T) {
 
 	repo := NewMockRepository(t)
 	products := NewMockProductLookup(t)
-	svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}, Products: products, MaxItems: 50})
+	svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
 
 	userID := uuid.New()
 	productID := uuid.New()

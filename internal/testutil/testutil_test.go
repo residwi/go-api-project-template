@@ -1,4 +1,4 @@
-package testhelper_test
+package testutil_test
 
 import (
 	"context"
@@ -17,14 +17,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 // Two sequential calls stand in for two test binaries racing on the same
 // database name. The old behaviour dropped and recreated on the second call,
 // which is what destroyed a sibling package's rows mid-run.
 func TestMustStartPostgresIsRepeatableWithoutDroppingData(t *testing.T) {
-	poolA, cleanupA := testhelper.MustStartPostgres("test_helper_share")
+	poolA, cleanupA := testutil.MustStartPostgres("test_helper_share")
 	t.Cleanup(cleanupA)
 
 	// ON CONFLICT DO NOTHING: the database this test claims is never dropped once
@@ -35,7 +35,7 @@ func TestMustStartPostgresIsRepeatableWithoutDroppingData(t *testing.T) {
 		`INSERT INTO categories (name, slug) VALUES ('Survivor', 'survivor') ON CONFLICT (slug) DO NOTHING`)
 	require.NoError(t, err)
 
-	poolB, cleanupB := testhelper.MustStartPostgres("test_helper_share")
+	poolB, cleanupB := testutil.MustStartPostgres("test_helper_share")
 	t.Cleanup(cleanupB)
 
 	var count int
@@ -64,7 +64,7 @@ func TestMustStartPostgresIsRepeatableWithoutDroppingData(t *testing.T) {
 func TestMustStartPostgresConcurrentCreateWaitsForMigration(t *testing.T) {
 	const name = "test_helper_race"
 
-	probe, probeCleanup := testhelper.MustStartPostgres(name)
+	probe, probeCleanup := testutil.MustStartPostgres(name)
 	dsn := adminDSN(probe)
 	probeCleanup()
 	dropDatabase(t, dsn, name)
@@ -77,7 +77,7 @@ func TestMustStartPostgresConcurrentCreateWaitsForMigration(t *testing.T) {
 	for i := range 2 {
 		go func(i int) {
 			defer wg.Done()
-			pool, cleanup := testhelper.MustStartPostgres(name)
+			pool, cleanup := testutil.MustStartPostgres(name)
 			cleanups[i] = cleanup
 			var count int
 			errs[i] = pool.QueryRow(context.Background(), `SELECT count(*) FROM categories`).Scan(&count)
@@ -111,13 +111,13 @@ func TestMustStartPostgresConcurrentCreateWaitsForMigration(t *testing.T) {
 func TestMustStartPostgresReattachRepairsPartialMigration(t *testing.T) {
 	const name = "test_helper_reattach"
 
-	probe, probeCleanup := testhelper.MustStartPostgres(name)
+	probe, probeCleanup := testutil.MustStartPostgres(name)
 	dsn := adminDSN(probe)
 	probeCleanup()
 	dropDatabase(t, dsn, name)
 	t.Cleanup(func() { dropDatabase(t, dsn, name) })
 
-	pool, cleanup := testhelper.MustStartPostgres(name)
+	pool, cleanup := testutil.MustStartPostgres(name)
 	t.Cleanup(cleanup)
 
 	db := stdlib.OpenDBFromPool(pool)
@@ -131,7 +131,7 @@ func TestMustStartPostgresReattachRepairsPartialMigration(t *testing.T) {
 	require.True(t, hasStockQuantityColumn(t, pool),
 		"test setup: goose Down should have restored the column")
 
-	pool2, cleanup2 := testhelper.MustStartPostgres(name)
+	pool2, cleanup2 := testutil.MustStartPostgres(name)
 	t.Cleanup(cleanup2)
 
 	assert.False(t, hasStockQuantityColumn(t, pool2),
@@ -140,7 +140,7 @@ func TestMustStartPostgresReattachRepairsPartialMigration(t *testing.T) {
 
 // adminDSN reconstructs the maintenance-database DSN from an already-connected
 // pool's own config, so this file does not need to know the container's port
-// or duplicate testhelper's internal connection details.
+// or duplicate testutil's internal connection details.
 func adminDSN(pool *pgxpool.Pool) string {
 	cfg := pool.Config().ConnConfig
 	hostPort := net.JoinHostPort(cfg.Host, strconv.Itoa(int(cfg.Port)))
@@ -159,7 +159,7 @@ func dropDatabase(t *testing.T, dsn, name string) {
 	require.NoError(t, err)
 }
 
-// migrationsDir mirrors the path testhelper's own runMigrations computes --
+// migrationsDir mirrors the path testutil's own runMigrations computes --
 // this file cannot import that unexported function, so it locates the
 // migrations directory the same way, relative to its own source file.
 func migrationsDir() string {

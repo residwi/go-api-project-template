@@ -13,13 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/platform/config"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testRedisClient *redis.Client
 
 func TestMain(m *testing.M) {
-	client, cleanup := testhelper.MustStartRedis(0)
+	client, cleanup := testutil.MustStartRedis(0)
 	defer cleanup()
 	testRedisClient = client
 	os.Exit(m.Run())

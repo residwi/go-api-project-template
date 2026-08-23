@@ -14,7 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestService_PlaceOrder(t *testing.T) {
@@ -45,7 +45,7 @@ func TestService_PlaceOrder(t *testing.T) {
 			}).
 			Return(payment.ChargeResult{}, nil)
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testhelper.DiscardLogger()})
+		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
 			Order:           orderdomain.NewOrder{Notes: "leave at door"},
@@ -75,7 +75,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		payments.EXPECT().Charge(t.Context(), mock.Anything).
 			Return(payment.ChargeResult{}, errors.New("gateway down"))
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testhelper.DiscardLogger()})
+		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
 			Order:          orderdomain.NewOrder{},
@@ -103,7 +103,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		// No EXPECT on payments: mockery fails the test if Charge is called.
 		payments := NewMockPaymentCharger(t)
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testhelper.DiscardLogger()})
+		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
 			Order:          orderdomain.NewOrder{},
@@ -125,7 +125,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		payments := NewMockPaymentCharger(t)
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testhelper.DiscardLogger()})
+		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
 			Order:          orderdomain.NewOrder{},
@@ -160,7 +160,7 @@ func TestService_RetryPayment(t *testing.T) {
 			PaymentMethodID: "pm_retry",
 		}).Return(payment.ChargeResult{PaymentURL: "https://pay.test/1"}, nil)
 
-		svc := New(Deps{Snapshots: orders, Payments: payments, Logger: testhelper.DiscardLogger()})
+		svc := New(Deps{Snapshots: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
 		got, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
 
@@ -180,7 +180,7 @@ func TestService_RetryPayment(t *testing.T) {
 			Status: string(orderdomain.StatusAwaitingPayment),
 		}, nil)
 
-		svc := New(Deps{Snapshots: orders, Payments: NewMockPaymentCharger(t), Logger: testhelper.DiscardLogger()})
+		svc := New(Deps{Snapshots: orders, Payments: NewMockPaymentCharger(t), Logger: testutil.DiscardLogger()})
 
 		_, err := svc.RetryPayment(t.Context(), uuid.New(), orderID, "pm_retry")
 
@@ -199,7 +199,7 @@ func TestService_RetryPayment(t *testing.T) {
 			Status: string(orderdomain.StatusPaid),
 		}, nil)
 
-		svc := New(Deps{Snapshots: orders, Payments: NewMockPaymentCharger(t), Logger: testhelper.DiscardLogger()})
+		svc := New(Deps{Snapshots: orders, Payments: NewMockPaymentCharger(t), Logger: testutil.DiscardLogger()})
 
 		_, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
 
@@ -221,7 +221,7 @@ func TestService_CancelOrder(t *testing.T) {
 		jobs := NewMockPaymentJobCanceller(t)
 		jobs.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(nil)
 
-		svc := New(Deps{Cancels: orders, PaymentJobs: jobs, Logger: testhelper.DiscardLogger()})
+		svc := New(Deps{Cancels: orders, PaymentJobs: jobs, Logger: testutil.DiscardLogger()})
 
 		require.NoError(t, svc.CancelOrder(t.Context(), userID, orderID))
 	})
@@ -237,7 +237,7 @@ func TestService_CancelOrder(t *testing.T) {
 		jobs := NewMockPaymentJobCanceller(t)
 		jobs.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(errors.New("db down"))
 
-		svc := New(Deps{Cancels: orders, PaymentJobs: jobs, Logger: testhelper.DiscardLogger()})
+		svc := New(Deps{Cancels: orders, PaymentJobs: jobs, Logger: testutil.DiscardLogger()})
 
 		require.NoError(t, svc.CancelOrder(t.Context(), userID, orderID))
 	})
@@ -253,7 +253,7 @@ func TestService_CancelOrder(t *testing.T) {
 		svc := New(Deps{
 			Cancels:     orders,
 			PaymentJobs: NewMockPaymentJobCanceller(t),
-			Logger:      testhelper.DiscardLogger(),
+			Logger:      testutil.DiscardLogger(),
 		})
 
 		require.ErrorIs(t, svc.CancelOrder(t.Context(), userID, orderID), apperror.ErrOrderCharging)

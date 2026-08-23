@@ -24,7 +24,7 @@ import (
 	gatewaymidtrans "github.com/residwi/go-api-project-template/internal/modules/payment/gateway/midtrans"
 	gatewaymock "github.com/residwi/go-api-project-template/internal/modules/payment/gateway/mock"
 	gatewaystripe "github.com/residwi/go-api-project-template/internal/modules/payment/gateway/stripe"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 // TestNewGateway pins each Config.Gateway string to the concrete
@@ -2381,10 +2381,10 @@ func newTestService(t *testing.T) (*Service, testDeps) {
 
 	svc := &Service{
 		repo:             d.repo,
-		tx:               testhelper.FakeTxRunner{},
+		tx:               testutil.FakeTxRunner{},
 		gateway:          d.gateway,
 		jobs:             d.jobs,
-		logger:           testhelper.DiscardLogger(),
+		logger:           testutil.DiscardLogger(),
 		orderTransition:  d.orderTransition,
 		orderCancel:      d.orderCancel,
 		orderRead:        d.orderRead,

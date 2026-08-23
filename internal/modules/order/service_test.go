@@ -16,7 +16,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestService_Place(t *testing.T) {
@@ -1709,8 +1709,8 @@ func newService(t *testing.T, withCoupons bool) (*Service, testDeps) {
 
 	deps := Deps{
 		Repo:             d.repo,
-		Tx:               testhelper.FakeTxRunner{},
-		Logger:           testhelper.DiscardLogger(),
+		Tx:               testutil.FakeTxRunner{},
+		Logger:           testutil.DiscardLogger(),
 		CartLock:         d.cartLock,
 		CartRead:         d.cartRead,
 		CartClear:        d.cartClear,

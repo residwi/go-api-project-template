@@ -87,7 +87,7 @@ the verb, the path and the middleware group.
 │   │   │                       # lives in each module's own config.go instead
 │   │   ├── /database           # Postgres pools, transactions, TxRunner
 │   │   ├── /cache /jobs /logger /paging /slug /storage /validator
-│   └── /testhelper             # Shared container plumbing for tests
+│   └── /testutil               # Shared container plumbing for tests
 ├── /test/e2e                   # Cross-module sagas through the real router
 ├── /db
 │   ├── /migrations             # goose migrations

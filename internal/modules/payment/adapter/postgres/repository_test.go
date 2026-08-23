@@ -15,13 +15,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_payment")
+	pool, cleanup := testutil.MustStartPostgres("test_payment")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
@@ -465,7 +465,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 func seedUser(t *testing.T) uuid.UUID {
 	t.Helper()
-	return testhelper.SeedUser(t, testPool)
+	return testutil.SeedUser(t, testPool)
 }
 
 func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {

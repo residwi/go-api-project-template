@@ -12,13 +12,13 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_category")
+	pool, cleanup := testutil.MustStartPostgres("test_category")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())

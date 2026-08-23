@@ -13,11 +13,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestDataSQL_Applies(t *testing.T) {
-	pool, cleanup := testhelper.MustStartPostgres("test_db_seeds")
+	pool, cleanup := testutil.MustStartPostgres("test_db_seeds")
 	defer cleanup()
 	ctx := context.Background()
 
@@ -45,7 +45,7 @@ func TestDataSQL_Applies(t *testing.T) {
 	require.NoError(t, err, "re-applying db/seeds/data.sql must also succeed")
 }
 
-// Resolved relative to this source file, as testhelper locates the migrations
+// Resolved relative to this source file, as testutil locates the migrations
 // directory.
 func seedFilePath() string {
 	_, file, _, _ := runtime.Caller(0)

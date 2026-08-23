@@ -13,13 +13,13 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testContainerPort string
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("testdb")
+	pool, cleanup := testutil.MustStartPostgres("testdb")
 	defer cleanup()
 	testContainerPort = strconv.FormatUint(uint64(pool.Config().ConnConfig.Port), 10)
 	os.Exit(m.Run())

@@ -12,14 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/modules/user"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
-// This package owns Redis DB index 6; see the registry in internal/testhelper.
+// This package owns Redis DB index 6; see the registry in internal/testutil.
 var testRedis *goredis.Client
 
 func TestMain(m *testing.M) {
-	rdb, cleanup := testhelper.MustStartRedis(6)
+	rdb, cleanup := testutil.MustStartRedis(6)
 	defer cleanup()
 	testRedis = rdb
 	os.Exit(m.Run())

@@ -18,7 +18,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/server"
 
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestE2EOrderFlow(t *testing.T) {
@@ -224,7 +224,7 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 func TestE2ECouponOrderFlow(t *testing.T) {
 	setup(t)
 	mockMux := http.NewServeMux()
-	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
+	mockgatewayserver.RegisterRoutes(mockMux, testutil.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -240,7 +240,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 		Payment: customPaymentCfg,
 		Pool:    testPool,
 		Cache:   testRedis,
-		Logger:  testhelper.DiscardLogger(),
+		Logger:  testutil.DiscardLogger(),
 	}
 	handler := server.NewRouter(deps, newTestApp(customPaymentCfg))
 	ctx := context.Background()
@@ -390,7 +390,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 func TestE2ERetryPayment(t *testing.T) {
 	setup(t)
 	mockMux := http.NewServeMux()
-	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
+	mockgatewayserver.RegisterRoutes(mockMux, testutil.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -406,7 +406,7 @@ func TestE2ERetryPayment(t *testing.T) {
 		Payment: customPaymentCfg,
 		Pool:    testPool,
 		Cache:   testRedis,
-		Logger:  testhelper.DiscardLogger(),
+		Logger:  testutil.DiscardLogger(),
 	}
 	handler := server.NewRouter(deps, newTestApp(customPaymentCfg))
 	ctx := context.Background()

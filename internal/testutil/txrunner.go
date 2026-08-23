@@ -1,4 +1,4 @@
-package testhelper
+package testutil
 
 import (
 	"context"

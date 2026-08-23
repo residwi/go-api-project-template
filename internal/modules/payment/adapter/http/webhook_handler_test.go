@@ -14,7 +14,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 // Signature verification and the business dispatch it guards used to need a
@@ -71,7 +71,7 @@ func setupWebhookMux(t *testing.T) (*http.ServeMux, *MockWebhookProcessor) {
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
-	api.HandleFunc("POST /payments/webhook", NewWebhookHandler(service, testhelper.DiscardLogger()).HandleWebhook)
+	api.HandleFunc("POST /payments/webhook", NewWebhookHandler(service, testutil.DiscardLogger()).HandleWebhook)
 
 	return mux, service
 }

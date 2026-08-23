@@ -440,8 +440,8 @@ advisory lock, and never dropped — but they also never get a clean table
 between them, which is why `ResetDB` is off-limits to any of them (see
 `ARCHITECTURE-LIMITATIONS.md`).
 
-**Cost accepted:** 75 packages call `testhelper.MustStartPostgres` or
-`MustStartRedis` today (`grep -rl testhelper.MustStart --include='*_test.go'
+**Cost accepted:** 75 packages call `testutil.MustStartPostgres` or
+`MustStartRedis` today (`grep -rl testutil.MustStart --include='*_test.go'
 . | xargs -n1 dirname | sort -u | wc -l`) — up from 19 test binaries before
 this phase's slicing, each still with its own `TestMain`, none of it
 collapsed into fewer database claims: a module gained test binaries in the

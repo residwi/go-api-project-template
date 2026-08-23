@@ -18,7 +18,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/server"
 
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestE2EAdminFlow(t *testing.T) {
@@ -101,7 +101,7 @@ func TestE2EAdminFlow(t *testing.T) {
 func TestE2EShippingAndReviewFlow(t *testing.T) {
 	setup(t)
 	mockMux := http.NewServeMux()
-	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
+	mockgatewayserver.RegisterRoutes(mockMux, testutil.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -117,7 +117,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 		Payment: customPaymentCfg,
 		Pool:    testPool,
 		Cache:   testRedis,
-		Logger:  testhelper.DiscardLogger(),
+		Logger:  testutil.DiscardLogger(),
 	}
 	handler := server.NewRouter(deps, newTestApp(customPaymentCfg))
 	ctx := context.Background()

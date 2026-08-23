@@ -16,13 +16,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_order")
+	pool, cleanup := testutil.MustStartPostgres("test_order")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
@@ -481,7 +481,7 @@ func TestPostgresRepository_GetExpiredOrders(t *testing.T) {
 		oldOrderID := uuid.New()
 		// GetExpiredOrders sorts oldest-first with a LIMIT, and test_order is a
 		// shared database that is never truncated (see the registry comment in
-		// internal/testhelper/testhelper.go), so accumulated rows from earlier
+		// internal/testutil/testutil.go), so accumulated rows from earlier
 		// runs sort ahead of this one. 100 years is arbitrary -- it only needs to
 		// predate every row that has ever accumulated so this order is always
 		// oldest and never crowded out of the LIMIT.
@@ -531,7 +531,7 @@ func TestPostgresRepository_GetStaleProcessingOrders(t *testing.T) {
 		staleID := uuid.New()
 		// GetStaleProcessingOrders sorts oldest-first with a LIMIT, and
 		// test_order is a shared database that is never truncated (see the
-		// registry comment in internal/testhelper/testhelper.go), so
+		// registry comment in internal/testutil/testutil.go), so
 		// accumulated rows from earlier runs sort ahead of this one. 100 years
 		// is arbitrary -- it only needs to predate every row that has ever
 		// accumulated so this order is always oldest and never crowded out of
@@ -724,7 +724,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 func seedUser(t *testing.T) uuid.UUID {
 	t.Helper()
-	return testhelper.SeedUser(t, testPool)
+	return testutil.SeedUser(t, testPool)
 }
 
 func seedProduct(t *testing.T) uuid.UUID {

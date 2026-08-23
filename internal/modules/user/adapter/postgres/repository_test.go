@@ -14,18 +14,18 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 // This package shares test_user with every other user postgres access in
-// the module; see the registry comment in internal/testhelper. It never
+// the module; see the registry comment in internal/testutil. It never
 // resets or truncates -- every row it touches is seeded here with a fresh
 // uuid.New() and cleaned up by name.
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_user")
+	pool, cleanup := testutil.MustStartPostgres("test_user")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
@@ -253,7 +253,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("soft deletes user", func(t *testing.T) {
-		id := testhelper.SeedUser(t, testPool)
+		id := testutil.SeedUser(t, testPool)
 		repo := New(testPool)
 
 		err := repo.Delete(context.Background(), id)
@@ -261,7 +261,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	})
 
 	t.Run("GetByID returns not found after delete", func(t *testing.T) {
-		id := testhelper.SeedUser(t, testPool)
+		id := testutil.SeedUser(t, testPool)
 		repo := New(testPool)
 		ctx := context.Background()
 
@@ -299,7 +299,7 @@ func TestPostgresRepository_CountAdmins(t *testing.T) {
 		before, err := repo.CountAdmins(ctx)
 		require.NoError(t, err)
 
-		testhelper.SeedUserWith(t, testPool, testhelper.SeedUserOpts{
+		testutil.SeedUserWith(t, testPool, testutil.SeedUserOpts{
 			FirstName: "Admin",
 			LastName:  "User",
 			Role:      "admin",
@@ -408,7 +408,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 func seedUser(t *testing.T) *domain.User {
 	t.Helper()
-	id := testhelper.SeedUser(t, testPool)
+	id := testutil.SeedUser(t, testPool)
 
 	repo := New(testPool)
 	u, err := repo.GetByID(context.Background(), id)

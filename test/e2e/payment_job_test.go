@@ -12,7 +12,7 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 // Order total and payment amount must be the same number or
@@ -32,7 +32,7 @@ func TestE2EChargeJob(t *testing.T) {
 
 	t.Run("processes a pending charge job to completion", func(t *testing.T) {
 		mockMux := http.NewServeMux()
-		mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
+		mockgatewayserver.RegisterRoutes(mockMux, testutil.DiscardLogger())
 		mockServer := httptest.NewServer(mockMux)
 		defer mockServer.Close()
 
@@ -96,7 +96,7 @@ func seedChargeJob(t *testing.T, maxAttempts int) chargeJobFixture {
 	t.Helper()
 	ctx := context.Background()
 
-	userID := testhelper.SeedUser(t, testPool)
+	userID := testutil.SeedUser(t, testPool)
 
 	prodID := uuid.New()
 	_, err := testPool.Exec(ctx,

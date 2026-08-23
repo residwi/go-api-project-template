@@ -1,4 +1,4 @@
-package testhelper
+package testutil
 
 import (
 	"context"
@@ -43,7 +43,7 @@ func SeedUserWith(t testing.TB, pool *pgxpool.Pool, opts SeedUserOpts) uuid.UUID
 		 VALUES ($1, $2, 'x', $3, $4, $5)`,
 		id, id.String()+"@test.com", firstName, lastName, role,
 	); err != nil {
-		t.Fatalf("testhelper: SeedUserWith: %v", err)
+		t.Fatalf("testutil: SeedUserWith: %v", err)
 	}
 
 	t.Cleanup(func() {

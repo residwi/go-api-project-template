@@ -11,13 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_dashboard")
+	pool, cleanup := testutil.MustStartPostgres("test_dashboard")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
@@ -181,7 +181,7 @@ func TestPostgresRepository_ListTopProducts_CancelledContext(t *testing.T) {
 
 func seedUser(t *testing.T) uuid.UUID {
 	t.Helper()
-	return testhelper.SeedUser(t, testPool)
+	return testutil.SeedUser(t, testPool)
 }
 
 func seedPaidOrder(t *testing.T, userID uuid.UUID) uuid.UUID {

@@ -19,13 +19,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/server"
 
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestE2EAdminRefundEndpoint(t *testing.T) {
 	setup(t)
 	mockMux := http.NewServeMux()
-	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
+	mockgatewayserver.RegisterRoutes(mockMux, testutil.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -41,7 +41,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		Payment: customPaymentCfg,
 		Pool:    testPool,
 		Cache:   testRedis,
-		Logger:  testhelper.DiscardLogger(),
+		Logger:  testutil.DiscardLogger(),
 	}
 	handler := server.NewRouter(webhookDeps, newTestApp(customPaymentCfg))
 	ctx := context.Background()
@@ -222,7 +222,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	// Drives refund.InventoryRestorer.Restore and promotion.Service.Release
 	// through a refund job with inventory_action='release' on a coupon order.
 	mockMux := http.NewServeMux()
-	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
+	mockgatewayserver.RegisterRoutes(mockMux, testutil.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -238,7 +238,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		Payment: customPaymentCfg,
 		Pool:    testPool,
 		Cache:   testRedis,
-		Logger:  testhelper.DiscardLogger(),
+		Logger:  testutil.DiscardLogger(),
 	}
 	handler := server.NewRouter(webhookDeps, newTestApp(customPaymentCfg))
 	ctx := context.Background()

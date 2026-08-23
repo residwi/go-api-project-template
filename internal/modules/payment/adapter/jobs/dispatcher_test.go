@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestDispatcher_Process(t *testing.T) {
@@ -66,7 +66,7 @@ func newTestDispatcher(t *testing.T) (*Dispatcher, *MockChargeProcessor, *MockRe
 	charge := NewMockChargeProcessor(t)
 	refund := NewMockRefundProcessor(t)
 
-	d := NewDispatcher(charge, refund, testhelper.DiscardLogger())
+	d := NewDispatcher(charge, refund, testutil.DiscardLogger())
 
 	return d, charge, refund
 }

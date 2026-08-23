@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func seedExpiryUser(t *testing.T) uuid.UUID {
 	t.Helper()
-	return testhelper.SeedUser(t, testPool)
+	return testutil.SeedUser(t, testPool)
 }
 
 // seedAwaitingPaymentOrder is raw SQL, not order's own adapters: domain.Order

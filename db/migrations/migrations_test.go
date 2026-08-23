@@ -15,14 +15,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 // An Up/Down/Up round trip on a scratch database, driven the way `goose down`
 // would be in an emergency: the Down must reconstruct the dropped columns for a
 // product with an inventory_levels row and one without.
 func TestDropProductsStockColumns_DownRoundTrip(t *testing.T) {
-	pool, cleanup := testhelper.MustStartPostgres("test_db_migrations_stock_columns")
+	pool, cleanup := testutil.MustStartPostgres("test_db_migrations_stock_columns")
 	defer cleanup()
 	ctx := context.Background()
 

@@ -14,13 +14,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_shipping")
+	pool, cleanup := testutil.MustStartPostgres("test_shipping")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates shipment with correct fields", func(t *testing.T) {
-		userID := testhelper.SeedUser(t, testPool)
+		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
 		repo := New(testPool)
 
@@ -52,7 +52,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	})
 
 	t.Run("sets shipped_at when status is shipped", func(t *testing.T) {
-		userID := testhelper.SeedUser(t, testPool)
+		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
 		repo := New(testPool)
 
@@ -84,7 +84,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	})
 
 	t.Run("rolls back the insert when the enclosing transaction fails", func(t *testing.T) {
-		userID := testhelper.SeedUser(t, testPool)
+		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
 		repo := New(testPool)
 		tx := database.NewTxRunner(testPool)
@@ -115,7 +115,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 
 func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns shipment", func(t *testing.T) {
-		userID := testhelper.SeedUser(t, testPool)
+		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
 		shipmentID := seedShipment(t, orderID, "UPS", domain.StatusShipped)
 		repo := New(testPool)
@@ -146,7 +146,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 func TestPostgresRepository_GetByOrderID(t *testing.T) {
 	t.Run("returns shipment for order", func(t *testing.T) {
-		userID := testhelper.SeedUser(t, testPool)
+		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
 		shipmentID := seedShipment(t, orderID, "DHL", domain.StatusPending)
 		repo := New(testPool)
@@ -177,7 +177,7 @@ func TestPostgresRepository_GetByOrderID(t *testing.T) {
 
 func TestPostgresRepository_MarkDelivered(t *testing.T) {
 	t.Run("sets delivered_at and status to delivered", func(t *testing.T) {
-		userID := testhelper.SeedUser(t, testPool)
+		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
 		shipmentID := seedShipment(t, orderID, "UPS", domain.StatusShipped)
 		repo := New(testPool)
@@ -207,7 +207,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 
 func TestPostgresRepository_Update(t *testing.T) {
 	t.Run("updates carrier and tracking number", func(t *testing.T) {
-		userID := testhelper.SeedUser(t, testPool)
+		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
 		shipmentID := seedShipment(t, orderID, "OldCarrier", domain.StatusPending)
 		repo := New(testPool)

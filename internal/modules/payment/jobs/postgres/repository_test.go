@@ -13,13 +13,13 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_payment")
+	pool, cleanup := testutil.MustStartPostgres("test_payment")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
@@ -94,7 +94,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 			MaxAttempts: 3,
 			// Claim sorts due jobs oldest-next_retry_at-first with a LIMIT, over
 			// test_payment, a shared database that is never truncated (see the
-			// registry comment in internal/testhelper/testhelper.go). 100 years
+			// registry comment in internal/testutil/testutil.go). 100 years
 			// is arbitrary -- it only needs to predate every job that has ever
 			// accumulated so this one is always claimed first and never crowded
 			// out of the LIMIT, while still landing on the next_retry_at <= NOW()
@@ -158,7 +158,7 @@ func TestPostgresRepository_Claim_WithOptionalFields(t *testing.T) {
 			// Claim sorts by next_retry_at (regardless of the pending/processing
 			// branch that matched) with a LIMIT, over test_payment, a shared
 			// database that is never truncated (see the registry comment in
-			// internal/testhelper/testhelper.go). 100 years is arbitrary -- it
+			// internal/testutil/testutil.go). 100 years is arbitrary -- it
 			// only needs to predate every job that has ever accumulated so this
 			// one is always claimed first and never crowded out of the LIMIT.
 			NextRetryAt: time.Now().AddDate(-100, 0, 0),
@@ -235,7 +235,7 @@ func TestPostgresRepository_MarkJobCompletedByPaymentID(t *testing.T) {
 			MaxAttempts: 3,
 			// Claim sorts oldest-next_retry_at-first with a LIMIT, over
 			// test_payment, a shared database that is never truncated (see the
-			// registry comment in internal/testhelper/testhelper.go). 100 years
+			// registry comment in internal/testutil/testutil.go). 100 years
 			// is arbitrary -- it only needs to predate every job that has ever
 			// accumulated so this one is always claimed first and never crowded
 			// out of the LIMIT.
@@ -311,7 +311,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 func seedUser(t *testing.T) uuid.UUID {
 	t.Helper()
-	return testhelper.SeedUser(t, testPool)
+	return testutil.SeedUser(t, testPool)
 }
 
 func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {

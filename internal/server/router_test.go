@@ -26,7 +26,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var (
@@ -53,11 +53,11 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	pool, cleanupPG := testhelper.MustStartPostgres("test_server")
+	pool, cleanupPG := testutil.MustStartPostgres("test_server")
 	defer cleanupPG()
 	testPool = pool
 
-	rdb, cleanupRedis := testhelper.MustStartRedis(3)
+	rdb, cleanupRedis := testutil.MustStartRedis(3)
 	defer cleanupRedis()
 	testRedis = rdb
 
@@ -79,7 +79,7 @@ func TestMain(m *testing.M) {
 		Payment: testPaymentCfg,
 		Pool:    pool,
 		Cache:   rdb,
-		Logger:  testhelper.DiscardLogger(),
+		Logger:  testutil.DiscardLogger(),
 	}
 
 	testApp = newTestApp(testPaymentCfg)
@@ -98,7 +98,7 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 		Payment: paymentCfg,
 		Pool:    testPool,
 		Cache:   testRedis,
-		Logger:  testhelper.DiscardLogger(),
+		Logger:  testutil.DiscardLogger(),
 	})
 	if err != nil {
 		panic(err)
@@ -148,7 +148,7 @@ func TestHealthHandler(t *testing.T) {
 			Payment: testDeps.Payment,
 			Pool:    badPool,
 			Cache:   testRedis,
-			Logger:  testhelper.DiscardLogger(),
+			Logger:  testutil.DiscardLogger(),
 		}
 		h := NewRouter(badDeps, testApp)
 
@@ -182,7 +182,7 @@ func TestHealthHandler(t *testing.T) {
 			Payment: testDeps.Payment,
 			Pool:    testPool,
 			Cache:   badRedis,
-			Logger:  testhelper.DiscardLogger(),
+			Logger:  testutil.DiscardLogger(),
 		}
 		h := NewRouter(badDeps, testApp)
 
@@ -208,7 +208,7 @@ func TestHealthHandler(t *testing.T) {
 			Payment: testDeps.Payment,
 			Pool:    testPool,
 			Cache:   nil,
-			Logger:  testhelper.DiscardLogger(),
+			Logger:  testutil.DiscardLogger(),
 		}
 		h := NewRouter(nilRedisDeps, testApp)
 
@@ -561,7 +561,7 @@ func TestHealthHandler_NilRedis(t *testing.T) {
 		Payment: testDeps.Payment,
 		Pool:    testDeps.Pool,
 		Cache:   nil,
-		Logger:  testhelper.DiscardLogger(),
+		Logger:  testutil.DiscardLogger(),
 	}
 	handler := NewRouter(nilRedisDeps, testApp)
 
@@ -642,7 +642,7 @@ func TestAdapterErrorPaths(t *testing.T) {
 func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	setup(t)
 	mockMux := http.NewServeMux()
-	mockgatewayserver.RegisterRoutes(mockMux, testhelper.DiscardLogger())
+	mockgatewayserver.RegisterRoutes(mockMux, testutil.DiscardLogger())
 	mockServer := httptest.NewServer(mockMux)
 	defer mockServer.Close()
 
@@ -658,7 +658,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		Payment: customPaymentCfg,
 		Pool:    testPool,
 		Cache:   testRedis,
-		Logger:  testhelper.DiscardLogger(),
+		Logger:  testutil.DiscardLogger(),
 	}
 	handler := NewRouter(deps, newTestApp(customPaymentCfg))
 	ctx := context.Background()
@@ -959,8 +959,8 @@ func TestServerRun(t *testing.T) {
 
 func setup(t *testing.T) {
 	t.Helper()
-	testhelper.ResetDB(t, testPool)
-	testhelper.ResetRedis(t, testRedis)
+	testutil.ResetDB(t, testPool)
+	testutil.ResetRedis(t, testRedis)
 }
 
 // newPaymentServiceForTest wires a whole App against a custom gateway URL (a

@@ -12,13 +12,13 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_cart")
+	pool, cleanup := testutil.MustStartPostgres("test_cart")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
@@ -364,7 +364,7 @@ func TestCrossModuleCascadesDropped(t *testing.T) {
 
 func seedUser(t *testing.T) uuid.UUID {
 	t.Helper()
-	return testhelper.SeedUser(t, testPool)
+	return testutil.SeedUser(t, testPool)
 }
 
 func seedProduct(t *testing.T) uuid.UUID {

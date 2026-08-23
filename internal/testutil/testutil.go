@@ -1,4 +1,4 @@
-package testhelper
+package testutil
 
 import (
 	"context"
@@ -64,7 +64,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 
 	dt, err := dockertest.NewPool("")
 	if err != nil {
-		harnessLogger().Error("testhelper: dockertest.NewPool", slog.String("error", err.Error()))
+		harnessLogger().Error("testutil: dockertest.NewPool", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	dt.MaxWait = 60e9
@@ -101,7 +101,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		adminConn = conn
 		return nil
 	}); retryErr != nil {
-		harnessLogger().Error("testhelper: waiting for postgres", slog.String("error", retryErr.Error()))
+		harnessLogger().Error("testutil: waiting for postgres", slog.String("error", retryErr.Error()))
 		os.Exit(1)
 	}
 
@@ -109,7 +109,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	_ = adminConn.Close(ctx)
 	if ensureErr != nil {
 		harnessLogger().Error(
-			"testhelper: ensuring database",
+			"testutil: ensuring database",
 			slog.String("db", dbName),
 			slog.String("error", ensureErr.Error()),
 		)
@@ -119,7 +119,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		harnessLogger().Error(
-			"testhelper: building package pool",
+			"testutil: building package pool",
 			slog.String("db", dbName),
 			slog.String("error", err.Error()),
 		)
@@ -127,7 +127,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	}
 	if retryErr := dt.Retry(func() error { return pool.Ping(ctx) }); retryErr != nil {
 		harnessLogger().Error(
-			"testhelper: connecting to package db",
+			"testutil: connecting to package db",
 			slog.String("db", dbName),
 			slog.String("error", retryErr.Error()),
 		)
@@ -185,7 +185,7 @@ func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 
 	dt, err := dockertest.NewPool("")
 	if err != nil {
-		harnessLogger().Error("testhelper: dockertest.NewPool", slog.String("error", err.Error()))
+		harnessLogger().Error("testutil: dockertest.NewPool", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	dt.MaxWait = 30e9
@@ -202,7 +202,7 @@ func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 		client = redis.NewClient(&redis.Options{Addr: addr, DB: dbIndex})
 		return client.Ping(ctx).Err()
 	}); retryErr != nil {
-		harnessLogger().Error("testhelper: waiting for redis", slog.String("error", retryErr.Error()))
+		harnessLogger().Error("testutil: waiting for redis", slog.String("error", retryErr.Error()))
 		os.Exit(1)
 	}
 
@@ -233,14 +233,14 @@ func ResetDB(t testing.TB, pool *pgxpool.Pool) {
 	}
 
 	if _, execErr := pool.Exec(ctx, "TRUNCATE "+tableList+" RESTART IDENTITY CASCADE"); execErr != nil {
-		t.Fatalf("testhelper: ResetDB: %v", execErr)
+		t.Fatalf("testutil: ResetDB: %v", execErr)
 	}
 }
 
 func ResetRedis(t testing.TB, client *redis.Client) {
 	t.Helper()
 	if err := client.FlushDB(context.Background()).Err(); err != nil {
-		t.Fatalf("testhelper: ResetRedis: %v", err)
+		t.Fatalf("testutil: ResetRedis: %v", err)
 	}
 }
 
@@ -259,13 +259,13 @@ func getOrCreateContainer(dt *dockertest.Pool, name, portID string, opts *docker
 			cfg.AutoRemove = false
 			cfg.RestartPolicy = docker.RestartPolicy{Name: "no"}
 		}); err != nil && !isAlreadyExists(err) {
-			harnessLogger().Error("testhelper: starting container", slog.String("name", name), slog.String("error", err.Error()))
+			harnessLogger().Error("testutil: starting container", slog.String("name", name), slog.String("error", err.Error()))
 			os.Exit(1)
 		}
 
 		if time.Since(start) > containerReadyTimeout {
 			harnessLogger().Error(
-				"testhelper: container never became ready",
+				"testutil: container never became ready",
 				slog.String("name", name),
 				slog.Duration("waited", time.Since(start)),
 			)
@@ -294,14 +294,14 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) {
 
 	if err := goose.SetDialect("postgres"); err != nil {
 		_ = db.Close()
-		harnessLogger().ErrorContext(ctx, "testhelper: goose.SetDialect", slog.String("error", err.Error()))
+		harnessLogger().ErrorContext(ctx, "testutil: goose.SetDialect", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	if err := goose.UpContext(ctx, db, migrationsDir); err != nil {
 		_ = db.Close()
 		harnessLogger().ErrorContext(
 			ctx,
-			"testhelper: goose.Up",
+			"testutil: goose.Up",
 			slog.String("dir", migrationsDir),
 			slog.String("error", err.Error()),
 		)

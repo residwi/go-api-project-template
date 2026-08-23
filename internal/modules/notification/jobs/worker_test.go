@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestWorker_EnqueueOrderPlaced(t *testing.T) {
@@ -21,7 +21,7 @@ func TestWorker_EnqueueOrderPlaced(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		w := New(repo, testhelper.DiscardLogger())
+		w := New(repo, testutil.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -45,7 +45,7 @@ func TestWorker_EnqueueOrderPlaced(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		w := New(repo, testhelper.DiscardLogger())
+		w := New(repo, testutil.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -68,7 +68,7 @@ func TestWorker_Process(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		w := New(repo, testhelper.DiscardLogger())
+		w := New(repo, testutil.DiscardLogger())
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -104,7 +104,7 @@ func TestWorker_Process(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		w := New(repo, testhelper.DiscardLogger())
+		w := New(repo, testutil.DiscardLogger())
 
 		ctx := context.Background()
 		job := domain.Job{

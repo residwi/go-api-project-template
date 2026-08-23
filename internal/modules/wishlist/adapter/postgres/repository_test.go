@@ -12,13 +12,13 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_wishlist")
+	pool, cleanup := testutil.MustStartPostgres("test_wishlist")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
@@ -185,7 +185,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 func seedUser(t *testing.T) uuid.UUID {
 	t.Helper()
-	return testhelper.SeedUser(t, testPool)
+	return testutil.SeedUser(t, testPool)
 }
 
 func seedWishlist(t *testing.T, userID uuid.UUID) uuid.UUID {

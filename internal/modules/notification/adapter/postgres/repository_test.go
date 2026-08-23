@@ -12,13 +12,13 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_notification")
+	pool, cleanup := testutil.MustStartPostgres("test_notification")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
@@ -208,7 +208,7 @@ func TestPostgresRepository_MarkAllRead_CancelledContext(t *testing.T) {
 
 func seedUser(t *testing.T) uuid.UUID {
 	t.Helper()
-	return testhelper.SeedUser(t, testPool)
+	return testutil.SeedUser(t, testPool)
 }
 
 // seedNotification inserts a row directly: this module's Repository has no

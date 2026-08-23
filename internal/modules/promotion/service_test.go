@@ -13,7 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestService_Apply(t *testing.T) {
@@ -502,7 +502,7 @@ func TestService_Reserve(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}})
 
 		promoID := uuid.New()
 		userID := uuid.New()
@@ -533,7 +533,7 @@ func TestService_Reserve(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}})
 
 		repo.EXPECT().GetByCode(mock.Anything, "INACTIVE").
 			Return(&domain.Promotion{
@@ -553,7 +553,7 @@ func TestService_Reserve(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}})
 
 		repo.EXPECT().GetByCode(mock.Anything, "UNKNOWN").Return(nil, apperror.ErrNotFound)
 
@@ -566,7 +566,7 @@ func TestService_Reserve(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}})
 
 		promoID := uuid.New()
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
@@ -591,7 +591,7 @@ func TestService_Reserve(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}})
 
 		promoID := uuid.New()
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
@@ -623,7 +623,7 @@ func TestService_Release(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}})
 
 		orderID := uuid.New()
 		couponID := uuid.New()
@@ -639,7 +639,7 @@ func TestService_Release(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}})
 
 		orderID := uuid.New()
 		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
@@ -652,7 +652,7 @@ func TestService_Release(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}})
 
 		orderID := uuid.New()
 		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).Return(nil, assert.AnError)
@@ -665,7 +665,7 @@ func TestService_Release(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo, Tx: testhelper.FakeTxRunner{}})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}})
 
 		orderID := uuid.New()
 		couponID := uuid.New()

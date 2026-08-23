@@ -9,7 +9,7 @@ import (
 
 	paymentdomain "github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 // These three subtests are payment/worker/processor_test.go's TestProcessorSweep,
@@ -32,7 +32,7 @@ func TestPaymentProcessor_Sweep(t *testing.T) {
 				calls = append(calls, "expire")
 				return nil
 			},
-			logger: testhelper.DiscardLogger(),
+			logger: testutil.DiscardLogger(),
 		}
 
 		require.NoError(t, p.Sweep(context.Background()))
@@ -49,7 +49,7 @@ func TestPaymentProcessor_Sweep(t *testing.T) {
 				expireRan = true
 				return nil
 			},
-			logger: testhelper.DiscardLogger(),
+			logger: testutil.DiscardLogger(),
 		}
 
 		require.NoError(t, p.Sweep(context.Background()), "a recovery failure must not stop the tick")
@@ -62,7 +62,7 @@ func TestPaymentProcessor_Sweep(t *testing.T) {
 		p := paymentProcessor{
 			recover: func(context.Context) error { return nil },
 			expire:  func(context.Context) error { return errors.New("expire boom") },
-			logger:  testhelper.DiscardLogger(),
+			logger:  testutil.DiscardLogger(),
 		}
 
 		require.EqualError(t, p.Sweep(context.Background()), "expire boom")

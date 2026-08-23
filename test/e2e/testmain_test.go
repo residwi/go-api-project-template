@@ -2,7 +2,7 @@
 // exclusively:
 // cleanup drops the database WITH (FORCE) and flushes the index, so sharing
 // either would tear down another package's fixtures mid-run. The registry is in
-// internal/testhelper.
+// internal/testutil.
 package e2e_test
 
 import (
@@ -22,7 +22,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/server"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var (
@@ -49,11 +49,11 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	pool, cleanupPG := testhelper.MustStartPostgres("test_e2e")
+	pool, cleanupPG := testutil.MustStartPostgres("test_e2e")
 	defer cleanupPG()
 	testPool = pool
 
-	rdb, cleanupRedis := testhelper.MustStartRedis(5)
+	rdb, cleanupRedis := testutil.MustStartRedis(5)
 	defer cleanupRedis()
 	testRedis = rdb
 
@@ -75,7 +75,7 @@ func TestMain(m *testing.M) {
 		Payment: testPaymentCfg,
 		Pool:    pool,
 		Cache:   rdb,
-		Logger:  testhelper.DiscardLogger(),
+		Logger:  testutil.DiscardLogger(),
 	}
 
 	testApp = newTestApp(testPaymentCfg)
@@ -85,8 +85,8 @@ func TestMain(m *testing.M) {
 
 func setup(t *testing.T) {
 	t.Helper()
-	testhelper.ResetDB(t, testPool)
-	testhelper.ResetRedis(t, testRedis)
+	testutil.ResetDB(t, testPool)
+	testutil.ResetRedis(t, testRedis)
 }
 
 // newTestApp wires a bootstrap.App against testPool/testRedis for a given
@@ -102,7 +102,7 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 		Payment: paymentCfg,
 		Pool:    testPool,
 		Cache:   testRedis,
-		Logger:  testhelper.DiscardLogger(),
+		Logger:  testutil.DiscardLogger(),
 	})
 	if err != nil {
 		panic(err)

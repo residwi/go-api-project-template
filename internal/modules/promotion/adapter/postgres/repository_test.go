@@ -15,13 +15,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_promotion")
+	pool, cleanup := testutil.MustStartPostgres("test_promotion")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
@@ -241,7 +241,7 @@ func TestPostgresRepository_ReleasePromotion(t *testing.T) {
 
 func TestPostgresRepository_CreateUsage(t *testing.T) {
 	t.Run("records coupon usage for order", func(t *testing.T) {
-		userID := testhelper.SeedUser(t, testPool)
+		userID := testutil.SeedUser(t, testPool)
 		p := seedPromotion(t)
 		repo := New(testPool)
 		ctx := context.Background()
@@ -260,7 +260,7 @@ func TestPostgresRepository_CreateUsage(t *testing.T) {
 	})
 
 	t.Run("returns conflict on duplicate usage for same order", func(t *testing.T) {
-		userID := testhelper.SeedUser(t, testPool)
+		userID := testutil.SeedUser(t, testPool)
 		p := seedPromotion(t)
 		repo := New(testPool)
 		ctx := context.Background()
@@ -283,7 +283,7 @@ func TestPostgresRepository_CreateUsage(t *testing.T) {
 
 func TestPostgresRepository_DeleteUsageByOrderID(t *testing.T) {
 	t.Run("removes usage record by order id", func(t *testing.T) {
-		userID := testhelper.SeedUser(t, testPool)
+		userID := testutil.SeedUser(t, testPool)
 		p := seedPromotion(t)
 		repo := New(testPool)
 		ctx := context.Background()

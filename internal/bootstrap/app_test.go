@@ -16,13 +16,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_bootstrap")
+	pool, cleanup := testutil.MustStartPostgres("test_bootstrap")
 	defer cleanup()
 	testPool = pool
 
@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 // This package owns Postgres database "test_bootstrap", so it is on the
 // paralleltest exclusion list in .golangci.yml and does not call t.Parallel().
 func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
-	testhelper.ResetDB(t, testPool)
+	testutil.ResetDB(t, testPool)
 	ctx := context.Background()
 
 	app, err := bootstrap.New(bootstrap.Deps{
@@ -65,11 +65,11 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 			GatewayTimeout: time.Second,
 		},
 		Pool:   testPool,
-		Logger: testhelper.DiscardLogger(),
+		Logger: testutil.DiscardLogger(),
 	})
 	require.NoError(t, err)
 
-	userID := testhelper.SeedUser(t, testPool)
+	userID := testutil.SeedUser(t, testPool)
 	seedOrder := func() uuid.UUID {
 		var orderID uuid.UUID
 		require.NoError(t, testPool.QueryRow(

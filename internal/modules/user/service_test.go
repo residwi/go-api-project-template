@@ -14,7 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestService_GetByEmail(t *testing.T) {
@@ -24,7 +24,7 @@ func TestService_GetByEmail(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		id := uuid.New()
 		repo.EXPECT().GetByEmail(mock.Anything, "alice@example.com").
@@ -57,7 +57,7 @@ func TestService_GetByEmail(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		repo.EXPECT().GetByEmail(mock.Anything, "nobody@example.com").
 			Return(nil, apperror.ErrNotFound)
@@ -74,7 +74,7 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.User")).
 			Run(func(_ context.Context, u *domain.User) {
@@ -104,7 +104,7 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.User")).
 			Return(apperror.ErrConflict)
@@ -126,7 +126,7 @@ func TestService_GetByID(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -157,7 +157,7 @@ func TestService_GetByID(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -179,7 +179,7 @@ func TestService_GetUser(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		id := uuid.New()
 		expected := &domain.User{
@@ -202,7 +202,7 @@ func TestService_GetUser(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -219,7 +219,7 @@ func TestService_ListAdmin(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		params := AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}}
 		users := []domain.User{
@@ -247,7 +247,7 @@ func TestService_CheckStatus(t *testing.T) {
 		c := NewMockStatusCache(t)
 		c.EXPECT().Get(mock.Anything, userID).
 			Return(StatusSnapshot{Active: true, TokenVersion: 42}, true, nil)
-		s := New(Deps{Repo: repo, Cache: c, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: c, Logger: testutil.DiscardLogger()})
 
 		got, err := s.CheckStatus(context.Background(), userID)
 
@@ -264,7 +264,7 @@ func TestService_CheckStatus(t *testing.T) {
 		c.EXPECT().Get(mock.Anything, userID).Return(StatusSnapshot{}, false, nil)
 		c.EXPECT().Put(mock.Anything, userID,
 			StatusSnapshot{Active: true, TokenVersion: 7}, 30*time.Second).Return(nil)
-		s := New(Deps{Repo: repo, Cache: c, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: c, Logger: testutil.DiscardLogger()})
 
 		got, err := s.CheckStatus(context.Background(), userID)
 
@@ -281,7 +281,7 @@ func TestService_CheckStatus(t *testing.T) {
 		c.EXPECT().Get(mock.Anything, userID).
 			Return(StatusSnapshot{}, false, errors.New("backend down"))
 		c.EXPECT().Put(mock.Anything, userID, mock.Anything, mock.Anything).Return(nil)
-		s := New(Deps{Repo: repo, Cache: c, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: c, Logger: testutil.DiscardLogger()})
 
 		got, err := s.CheckStatus(context.Background(), userID)
 
@@ -298,7 +298,7 @@ func TestService_CheckStatus(t *testing.T) {
 		c.EXPECT().Get(mock.Anything, userID).Return(StatusSnapshot{}, false, nil)
 		c.EXPECT().Put(mock.Anything, userID,
 			StatusSnapshot{Active: false, TokenVersion: 4}, 30*time.Second).Return(nil)
-		s := New(Deps{Repo: repo, Cache: c, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: c, Logger: testutil.DiscardLogger()})
 
 		got, err := s.CheckStatus(context.Background(), userID)
 
@@ -313,7 +313,7 @@ func TestService_CheckStatus(t *testing.T) {
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 0, apperror.ErrNotFound)
 		c := NewMockStatusCache(t)
 		c.EXPECT().Get(mock.Anything, userID).Return(StatusSnapshot{}, false, nil)
-		s := New(Deps{Repo: repo, Cache: c, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: c, Logger: testutil.DiscardLogger()})
 
 		got, err := s.CheckStatus(context.Background(), userID)
 
@@ -330,7 +330,7 @@ func TestService_CheckStatus(t *testing.T) {
 		c.EXPECT().Get(mock.Anything, userID).Return(StatusSnapshot{}, false, nil)
 		c.EXPECT().Put(mock.Anything, userID, mock.Anything, mock.Anything).
 			Return(errors.New("backend down"))
-		s := New(Deps{Repo: repo, Cache: c, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: c, Logger: testutil.DiscardLogger()})
 
 		got, err := s.CheckStatus(context.Background(), userID)
 
@@ -343,7 +343,7 @@ func TestService_CheckStatus(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 9, nil)
-		s := New(Deps{Repo: repo, Cache: NoCache{}, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NoCache{}, Logger: testutil.DiscardLogger()})
 
 		got, err := s.CheckStatus(context.Background(), userID)
 
@@ -358,7 +358,7 @@ func TestService_CheckStatus(t *testing.T) {
 		c := NewMockStatusCache(t)
 		c.EXPECT().Get(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(StatusSnapshot{}, false, nil)
-		s := New(Deps{Repo: repo, Cache: c, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: c, Logger: testutil.DiscardLogger()})
 
 		dbErr := errors.New("database timeout")
 		repo.EXPECT().GetStatusByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
@@ -376,7 +376,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -409,7 +409,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -433,7 +433,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -446,7 +446,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Logger: testutil.DiscardLogger()})
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -475,7 +475,7 @@ func TestService_AdminUpdate(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		cache := NewMockStatusCache(t)
-		s := New(Deps{Repo: repo, Cache: cache, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: cache, Logger: testutil.DiscardLogger()})
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -507,7 +507,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -520,7 +520,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -545,7 +545,7 @@ func TestService_AdminUpdate(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		cache := NewMockStatusCache(t)
-		s := New(Deps{Repo: repo, Cache: cache, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: cache, Logger: testutil.DiscardLogger()})
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -581,7 +581,7 @@ func TestService_AdminUpdate(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		cache := NewMockStatusCache(t)
-		s := New(Deps{Repo: repo, Cache: cache, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: cache, Logger: testutil.DiscardLogger()})
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -609,7 +609,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		cache := NewMockStatusCache(t)
-		s := New(Deps{Repo: repo, Cache: cache, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: cache, Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -628,7 +628,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		sameID := uuid.New()
 
@@ -640,7 +640,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -657,7 +657,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -677,7 +677,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		cache := NewMockStatusCache(t)
-		s := New(Deps{Repo: repo, Cache: cache, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: cache, Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -697,7 +697,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -710,7 +710,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -729,7 +729,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -750,7 +750,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		cache := NewMockStatusCache(t)
-		s := New(Deps{Repo: repo, Cache: cache, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: cache, Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -773,7 +773,7 @@ func TestService_Delete(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		cache := NewMockStatusCache(t)
-		s := New(Deps{Repo: repo, Cache: cache, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: cache, Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -791,7 +791,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		sameID := uuid.New()
 
@@ -803,7 +803,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -820,7 +820,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, apperror.ErrNotFound)
@@ -833,7 +833,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -853,7 +853,7 @@ func TestService_Delete(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		cache := NewMockStatusCache(t)
-		s := New(Deps{Repo: repo, Cache: cache, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: cache, Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -872,7 +872,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: NewMockStatusCache(t), Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -892,7 +892,7 @@ func TestService_Delete(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		cache := NewMockStatusCache(t)
-		s := New(Deps{Repo: repo, Cache: cache, Logger: testhelper.DiscardLogger()})
+		s := New(Deps{Repo: repo, Cache: cache, Logger: testutil.DiscardLogger()})
 
 		requesterID := uuid.New()
 		targetID := uuid.New()

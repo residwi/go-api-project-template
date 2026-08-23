@@ -12,7 +12,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
-	"github.com/residwi/go-api-project-template/internal/testhelper"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 // This package owns test_inventory outright now that every inventory slice
@@ -23,7 +23,7 @@ import (
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testhelper.MustStartPostgres("test_inventory")
+	pool, cleanup := testutil.MustStartPostgres("test_inventory")
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
