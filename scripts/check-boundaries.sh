@@ -244,7 +244,7 @@ is_json_tag_allowlisted() {
 # usecase/<slice>/http/, went with the slices; while it lasted it was the
 # only exemption in this script that could not be reached from any path in
 # the tree. This one arm carries every module: drop it and check 1 reports
-# 295 tags in sixteen adapters at once.
+# 295 tags in fifteen adapters at once.
 is_http_adapter() {
 	case "$1" in
 	"$MODULES_ROOT"/*/adapter/http/*.go) return 0 ;;
@@ -817,7 +817,7 @@ check_cross_module_imports() {
 			esac
 
 			# A status-checked assignment, not `done < <(grep ...)`. This
-			# pattern -- a 14-way feature alternation -- is exactly the shape
+			# pattern -- a sixteen-way feature alternation -- is exactly the shape
 			# that once made BSD grep exit via SIGTRAP while a process
 			# substitution downstream read the death as EOF and reported
 			# nothing checked. grep exits 1 for "no match", which is not a
@@ -894,7 +894,7 @@ check_cross_module_imports() {
 #
 # That one exemption carries every module: adapter/http is where
 # response.Bind and middleware.RequireUser are called (AGENTS.md rule 18), so
-# dropping it reports 85 imports across sixteen modules in one run. The second
+# dropping it reports 85 imports across fifteen modules in one run. The second
 # arm this case used to hold, matching a slice's usecase/<slice>/http/, went
 # with the slices and matched nothing while it lasted.
 #
@@ -930,7 +930,7 @@ check_transport_direction() {
 		report 'could not read the module path from go.mod'
 		return 0
 	fi
-	# Escaped the same way checks 4 and 5 escape it: github.com/... has dots,
+	# Escaped the same way check 4 escapes it: github.com/... has dots,
 	# which are regex metacharacters.
 	module_re="$(printf '%s' "$module" | sed -e 's/[.[\*^$\/]/\\&/g')"
 

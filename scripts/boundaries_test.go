@@ -36,7 +36,7 @@ func TestCheckBoundaries(t *testing.T) {
 	})
 
 	// The exempt arm, proved from the other side. It is the one exemption in
-	// check 1 that sixteen real modules depend on, so a probe that passes
+	// check 1 that fifteen real modules depend on, so a probe that passes
 	// inside adapter/http is what distinguishes "the exemption works" from
 	// "the walk no longer reaches this path at all".
 	t.Run("check 1a exempts a json tag inside adapter/http", func(t *testing.T) {
@@ -104,6 +104,30 @@ func TestCheckBoundaries(t *testing.T) {
 		probe := "package bootstrap\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres\"\n"
 		out := runCheckWithoutError(t, filepath.Join("internal", "bootstrap", "probe_wiring.go"), probe)
 		assert.Contains(t, out, "Boundaries OK")
+	})
+
+	// checkout is the script's only per-target grant: it alone may import
+	// order/domain, because order.Service.Place's signature names
+	// order/domain.NewOrder and order/domain.Order directly. Both subtests
+	// below pin behaviour the review already confirmed holds today -- they
+	// are regression pins, not a TDD cycle -- so that the grant's silent-death
+	// mode (order.NewOrder and order.Order moving into order's published
+	// surface, leaving the exemption an unnoticed permanent weakening) has
+	// something to break.
+	checkoutDir := filepath.Join("internal", "modules", "checkout")
+
+	t.Run("check 4 exempts checkout importing order/domain", func(t *testing.T) {
+		probe := "package checkout\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order/domain\"\n"
+		out := runCheckWithoutError(t, filepath.Join(checkoutDir, "probe_orderdomain.go"), probe)
+		assert.Contains(t, out, "Boundaries OK")
+	})
+
+	// The grant is domain/-only, not a blanket pass for checkout into order:
+	// reaching into any other part of order's internals still fails.
+	t.Run("check 4 does not extend checkout's exemption to order's postgres adapter", func(t *testing.T) {
+		probe := "package checkout\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres\"\n"
+		out := runCheckWithProbe(t, filepath.Join(checkoutDir, "probe_orderadapter.go"), probe)
+		assert.Contains(t, out, "imports another module's internals")
 	})
 
 	t.Run("check 6 catches a module importing internal/server", func(t *testing.T) {
