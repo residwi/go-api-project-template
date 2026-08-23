@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
@@ -31,7 +30,7 @@ const jitterDivisor = 2
 
 type Deps struct {
 	Repo   Repository
-	Pool   *pgxpool.Pool
+	DB     database.DB
 	Tx     database.TxRunner
 	Config Config
 	Logger *slog.Logger
@@ -68,7 +67,7 @@ func New(d Deps) *Service {
 		repo:             d.Repo,
 		tx:               d.Tx,
 		gateway:          newGateway(d.Config),
-		jobs:             jobspg.New(d.Pool),
+		jobs:             jobspg.New(d.DB),
 		logger:           d.Logger,
 		orderTransition:  d.OrderTransition,
 		orderCancel:      d.OrderCanceller,

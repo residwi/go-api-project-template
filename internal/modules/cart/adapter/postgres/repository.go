@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
@@ -28,15 +27,15 @@ func scanCartItem(row pgx.CollectableRow) (domain.Item, error) {
 }
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) GetOrCreate(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var cartID uuid.UUID
 	err := db.QueryRow(
 		ctx,
@@ -52,7 +51,7 @@ func (r *Repository) GetOrCreate(ctx context.Context, userID uuid.UUID) (uuid.UU
 }
 
 func (r *Repository) CountAndHasItem(ctx context.Context, cartID, productID uuid.UUID) (int, bool, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var (
 		count      int
 		hasProduct bool
@@ -69,7 +68,7 @@ func (r *Repository) CountAndHasItem(ctx context.Context, cartID, productID uuid
 }
 
 func (r *Repository) AddItem(ctx context.Context, cartID, productID uuid.UUID, qty int) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(
 		ctx,
 		`INSERT INTO cart_items (cart_id, product_id, quantity) VALUES ($1, $2, $3)
@@ -83,7 +82,7 @@ func (r *Repository) AddItem(ctx context.Context, cartID, productID uuid.UUID, q
 }
 
 func (r *Repository) RemoveItem(ctx context.Context, cartID, productID uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`DELETE FROM cart_items WHERE cart_id = $1 AND product_id = $2`,
 		cartID, productID,
@@ -98,7 +97,7 @@ func (r *Repository) RemoveItem(ctx context.Context, cartID, productID uuid.UUID
 }
 
 func (r *Repository) UpdateItemQuantity(ctx context.Context, cartID, productID uuid.UUID, qty int) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE cart_items SET quantity = $1 WHERE cart_id = $2 AND product_id = $3`,
 		qty, cartID, productID,
@@ -113,7 +112,7 @@ func (r *Repository) UpdateItemQuantity(ctx context.Context, cartID, productID u
 }
 
 func (r *Repository) GetCart(ctx context.Context, userID uuid.UUID) (*domain.Cart, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	var c domain.Cart
 	err := db.QueryRow(ctx,
@@ -146,7 +145,7 @@ func (r *Repository) GetCart(ctx context.Context, userID uuid.UUID) (*domain.Car
 }
 
 func (r *Repository) Clear(ctx context.Context, userID uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(ctx,
 		`DELETE FROM cart_items WHERE cart_id = (SELECT id FROM carts WHERE user_id = $1)`,
 		userID,
@@ -158,7 +157,7 @@ func (r *Repository) Clear(ctx context.Context, userID uuid.UUID) error {
 }
 
 func (r *Repository) GetCartForLock(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var cartID uuid.UUID
 	err := db.QueryRow(ctx,
 		`SELECT id FROM carts WHERE user_id = $1 FOR UPDATE`,

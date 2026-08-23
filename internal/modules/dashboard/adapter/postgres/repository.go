@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard/domain"
@@ -34,15 +33,15 @@ func scanTopProduct(row pgx.CollectableRow) (domain.TopProduct, error) {
 }
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) GetSalesSummary(ctx context.Context, from, to time.Time) (domain.SalesSummary, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var s domain.SalesSummary
 	err := db.QueryRow(ctx,
 		`SELECT COUNT(*), COALESCE(SUM(total_amount), 0), COALESCE(AVG(total_amount), 0)
@@ -60,7 +59,7 @@ func (r *Repository) ListOrderStatusBreakdown(
 	ctx context.Context,
 	from, to time.Time,
 ) ([]domain.StatusBreakdown, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT status, COUNT(*) FROM orders
 		WHERE created_at BETWEEN $1 AND $2
@@ -79,7 +78,7 @@ func (r *Repository) ListOrderStatusBreakdown(
 }
 
 func (r *Repository) ListRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT DATE(created_at) AS date, COALESCE(SUM(total_amount), 0) AS revenue, COUNT(*) AS order_count
 		FROM orders
@@ -104,7 +103,7 @@ func (r *Repository) ListTopProducts(
 	limit int,
 	from, to time.Time,
 ) ([]domain.TopProduct, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT oi.product_id, oi.product_name, SUM(oi.quantity) AS total_sold, SUM(oi.subtotal) AS revenue
 		FROM order_items oi

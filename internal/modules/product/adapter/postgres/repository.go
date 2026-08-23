@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
@@ -65,15 +64,15 @@ func scanImage(row pgx.CollectableRow) (domain.Image, error) {
 }
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Product, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var p domain.Product
 	var amt amountColumns
 	err := db.QueryRow(ctx,
@@ -93,7 +92,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Product
 }
 
 func (r *Repository) GetBySlug(ctx context.Context, slug string) (*domain.Product, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var p domain.Product
 	var amt amountColumns
 	err := db.QueryRow(ctx,
@@ -116,7 +115,7 @@ func (r *Repository) ListPublished(
 	ctx context.Context,
 	params product.PublishedListParams,
 ) ([]domain.Product, string, bool, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	where := "deleted_at IS NULL AND status = 'published'"
 	args := []any{}
@@ -184,7 +183,7 @@ func (r *Repository) ListPublished(
 }
 
 func (r *Repository) ListAdmin(ctx context.Context, params product.AdminListParams) ([]domain.Product, int, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	where := "deleted_at IS NULL"
 	args := []any{}
@@ -236,7 +235,7 @@ func (r *Repository) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UU
 	if len(ids) == 0 {
 		return []domain.Product{}, nil
 	}
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT id, category_id, name, slug, description, price, compare_at_price,
 		        currency, sku, status, created_at, updated_at, deleted_at
@@ -249,7 +248,7 @@ func (r *Repository) GetByIDsIncludingDeleted(ctx context.Context, ids []uuid.UU
 }
 
 func (r *Repository) GetImagesByProductID(ctx context.Context, productID uuid.UUID) ([]domain.Image, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT id, product_id, url, alt_text, sort_order, created_at
 		FROM product_images WHERE product_id = $1 ORDER BY sort_order`, productID,
@@ -266,7 +265,7 @@ func (r *Repository) GetImagesByProductID(ctx context.Context, productID uuid.UU
 }
 
 func (r *Repository) CountPublishedByCategory(ctx context.Context, categoryID uuid.UUID) (int, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var count int
 	err := db.QueryRow(ctx,
 		`SELECT COUNT(*) FROM products
@@ -287,7 +286,7 @@ func compareAtPriceAmount(p *domain.Product) *int64 {
 }
 
 func (r *Repository) Create(ctx context.Context, p *domain.Product) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	err := db.QueryRow(ctx,
 		`INSERT INTO products (category_id, name, slug, description, price, compare_at_price, currency, sku, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -305,7 +304,7 @@ func (r *Repository) Create(ctx context.Context, p *domain.Product) error {
 }
 
 func (r *Repository) Update(ctx context.Context, p *domain.Product) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE products SET category_id=$1, name=$2, slug=$3, description=$4, price=$5,
 		        compare_at_price=$6, currency=$7, sku=$8, status=$9
@@ -326,7 +325,7 @@ func (r *Repository) Update(ctx context.Context, p *domain.Product) error {
 }
 
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE products SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id,
 	)
@@ -340,7 +339,7 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *Repository) AddImage(ctx context.Context, img *domain.Image) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	err := db.QueryRow(ctx,
 		`INSERT INTO product_images (product_id, url, alt_text, sort_order)
 		VALUES ($1, $2, $3, $4)
@@ -354,7 +353,7 @@ func (r *Repository) AddImage(ctx context.Context, img *domain.Image) error {
 }
 
 func (r *Repository) DeleteImage(ctx context.Context, imageID uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`DELETE FROM product_images WHERE id = $1`, imageID,
 	)

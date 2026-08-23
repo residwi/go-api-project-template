@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
@@ -25,15 +24,15 @@ func scanUser(row pgx.CollectableRow) (domain.User, error) {
 }
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) Create(ctx context.Context, user *domain.User) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	err := db.QueryRow(ctx,
 		`INSERT INTO users (email, password_hash, first_name, last_name, phone, role, active)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -51,7 +50,7 @@ func (r *Repository) Create(ctx context.Context, user *domain.User) error {
 }
 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var u domain.User
 	err := db.QueryRow(
 		ctx,
@@ -70,7 +69,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, e
 }
 
 func (r *Repository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var u domain.User
 	err := db.QueryRow(
 		ctx,
@@ -89,7 +88,7 @@ func (r *Repository) GetByEmail(ctx context.Context, email string) (*domain.User
 }
 
 func (r *Repository) GetStatusByID(ctx context.Context, id uuid.UUID) (bool, int, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var active bool
 	var tokenVersion int
 	err := db.QueryRow(ctx,
@@ -105,7 +104,7 @@ func (r *Repository) GetStatusByID(ctx context.Context, id uuid.UUID) (bool, int
 }
 
 func (r *Repository) ListAdmin(ctx context.Context, params user.AdminListParams) ([]domain.User, int, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	where := "deleted_at IS NULL"
 	args := []any{}
@@ -159,7 +158,7 @@ func (r *Repository) ListAdmin(ctx context.Context, params user.AdminListParams)
 }
 
 func (r *Repository) Update(ctx context.Context, u *domain.User) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE users SET first_name=$1, last_name=$2, phone=$3, role=$4, active=$5
 		WHERE id = $6 AND deleted_at IS NULL`,
@@ -175,7 +174,7 @@ func (r *Repository) Update(ctx context.Context, u *domain.User) error {
 }
 
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id,
 	)
@@ -189,7 +188,7 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *Repository) CountAdmins(ctx context.Context) (int, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var count int
 	err := db.QueryRow(ctx,
 		`SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = true AND deleted_at IS NULL`,
@@ -201,7 +200,7 @@ func (r *Repository) CountAdmins(ctx context.Context) (int, error) {
 }
 
 func (r *Repository) IncrementTokenVersion(ctx context.Context, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE users SET token_version = token_version + 1 WHERE id = $1 AND deleted_at IS NULL`, id,
 	)

@@ -69,16 +69,17 @@ type App struct {
 
 func New(d Deps) (*App, error) {
 	txRunner := database.NewTxRunner(d.Pool)
+	db := database.DB{Primary: d.Pool}
 
-	inv := inventory.New(inventory.Deps{Repo: inventorypg.New(d.Pool)})
+	inv := inventory.New(inventory.Deps{Repo: inventorypg.New(db)})
 	prod := product.New(
-		product.Deps{Repo: productpg.New(d.Pool), InventoryReader: inv, InventoryRegistrar: inv},
+		product.Deps{Repo: productpg.New(db), InventoryReader: inv, InventoryRegistrar: inv},
 	)
-	categoryMod := category.New(category.Deps{Repo: categorypg.New(d.Pool), Products: prod})
-	promotionMod := promotion.New(promotion.Deps{Repo: promotionpg.New(d.Pool), Tx: txRunner})
+	categoryMod := category.New(category.Deps{Repo: categorypg.New(db), Products: prod})
+	promotionMod := promotion.New(promotion.Deps{Repo: promotionpg.New(db), Tx: txRunner})
 	notificationMod := notification.New(notification.Deps{
-		Repo:   notificationpg.New(d.Pool),
-		Pool:   d.Pool,
+		Repo:   notificationpg.New(db),
+		DB:     db,
 		Logger: d.Logger,
 	})
 
@@ -86,15 +87,15 @@ func New(d Deps) (*App, error) {
 	if d.Cache != nil {
 		statusCache = userredis.New(d.Cache)
 	}
-	userMod := user.New(user.Deps{Repo: userpg.New(d.Pool), Cache: statusCache, Logger: d.Logger})
+	userMod := user.New(user.Deps{Repo: userpg.New(db), Cache: statusCache, Logger: d.Logger})
 	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userMod})
 
 	cartMod := cart.New(cart.Deps{
-		Repo: cartpg.New(d.Pool), Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod,
+		Repo: cartpg.New(db), Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod,
 	})
 
 	ordMod := order.New(order.Deps{
-		Repo: orderpg.New(d.Pool), Tx: txRunner, Logger: d.Logger,
+		Repo: orderpg.New(db), Tx: txRunner, Logger: d.Logger,
 		CartLock:         cartMod,
 		CartRead:         cartMod,
 		CartClear:        cartMod,
@@ -106,8 +107,8 @@ func New(d Deps) (*App, error) {
 	})
 
 	paymentMod := payment.New(payment.Deps{
-		Repo:             paymentpg.New(d.Pool),
-		Pool:             d.Pool,
+		Repo:             paymentpg.New(db),
+		DB:               db,
 		Tx:               txRunner,
 		Config:           d.Payment,
 		Logger:           d.Logger,
@@ -130,12 +131,12 @@ func New(d Deps) (*App, error) {
 	})
 
 	shippingMod := shipping.New(shipping.Deps{
-		Repo: shippingpg.New(d.Pool), Tx: txRunner,
+		Repo: shippingpg.New(db), Tx: txRunner,
 		OrderRead:    ordMod,
 		OrderShip:    ordMod,
 		OrderDeliver: ordMod,
 	})
-	reviewMod := review.New(review.Deps{Repo: reviewpg.New(d.Pool), Purchase: ordMod})
+	reviewMod := review.New(review.Deps{Repo: reviewpg.New(db), Purchase: ordMod})
 
 	return &App{
 		Users:         userMod,
@@ -150,9 +151,9 @@ func New(d Deps) (*App, error) {
 		Shipping:      shippingMod,
 		Reviews:       reviewMod,
 		Promotions:    promotionMod,
-		Wishlists:     wishlist.New(wishlist.Deps{Repo: wishlistpg.New(d.Pool)}),
+		Wishlists:     wishlist.New(wishlist.Deps{Repo: wishlistpg.New(db)}),
 		Notifications: notificationMod,
-		Dashboard:     dashboard.New(dashboard.Deps{Repo: dashboardpg.New(d.Pool)}),
+		Dashboard:     dashboard.New(dashboard.Deps{Repo: dashboardpg.New(db)}),
 		TxRunner:      txRunner,
 	}, nil
 }

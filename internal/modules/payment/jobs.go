@@ -11,7 +11,7 @@ import (
 
 // JobRepository is the storage port jobs/postgres satisfies. It is declared
 // here -- the consumer's package, per rule 10 -- rather than in jobs/postgres
-// itself: Service constructs jobs/postgres directly from Deps.Pool (see
+// itself: Service constructs jobs/postgres directly from Deps.DB (see
 // service.go), so the import has to run payment -> jobs/postgres, and a
 // compile-time assertion the other way, in jobs/postgres, would cycle back.
 type JobRepository interface {

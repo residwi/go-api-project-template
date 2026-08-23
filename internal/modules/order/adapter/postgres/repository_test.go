@@ -15,6 +15,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -31,7 +32,7 @@ func TestMain(m *testing.M) {
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates order with correct fields", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		o := newOrder(userID)
 		err := repo.Create(context.Background(), o)
@@ -44,7 +45,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("returns conflict on duplicate idempotency key", func(t *testing.T) {
 		userID := seedUser(t)
 		o := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		dup := newOrder(userID)
 		dup.IdempotencyKey = o.IdempotencyKey
@@ -58,7 +59,7 @@ func TestPostgresRepository_CreateItems(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		o := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		items := []domain.Item{
@@ -90,7 +91,7 @@ func TestPostgresRepository_GetByUserIDAndIdempotencyKey(t *testing.T) {
 	t.Run("returns existing order", func(t *testing.T) {
 		userID := seedUser(t)
 		o := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByUserIDAndIdempotencyKey(context.Background(), userID, o.IdempotencyKey)
 		require.NoError(t, err)
@@ -100,7 +101,7 @@ func TestPostgresRepository_GetByUserIDAndIdempotencyKey(t *testing.T) {
 
 	t.Run("returns ErrNotFound when not found", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByUserIDAndIdempotencyKey(context.Background(), userID, "nonexistent-key")
 		require.ErrorIs(t, err, apperror.ErrNotFound)
@@ -126,7 +127,7 @@ func TestPostgresRepository_GetByUserIDAndIdempotencyKey(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		got, err := repo.GetByUserIDAndIdempotencyKey(ctx, userID, key)
 		require.NoError(t, err)
 		require.NotNil(t, got)
@@ -143,7 +144,7 @@ func TestPostgresRepository_UpdateTotals(t *testing.T) {
 	t.Run("updates discount and total on the order row", func(t *testing.T) {
 		userID := seedUser(t)
 		o := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		err := repo.UpdateTotals(context.Background(), o.ID, 1000, 4000)
 		require.NoError(t, err)
@@ -155,7 +156,7 @@ func TestPostgresRepository_UpdateTotals(t *testing.T) {
 	})
 
 	t.Run("returns not found for a missing order", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		err := repo.UpdateTotals(context.Background(), uuid.New(), 0, 0)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -166,7 +167,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns order", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID).ID
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByID(context.Background(), orderID)
 		require.NoError(t, err)
@@ -182,7 +183,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("populates the ID and UserID that Snapshot projects", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID).ID
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByID(context.Background(), orderID)
 		require.NoError(t, err)
@@ -210,7 +211,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		got, err := repo.GetByID(ctx, orderID)
 		require.NoError(t, err)
 
@@ -220,7 +221,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -243,7 +244,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		got, err := repo.GetByID(ctx, orderID)
 		require.NoError(t, err)
 		assert.Empty(t, got.IdempotencyKey)
@@ -258,7 +259,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 		for range 3 {
 			seedOrder(t, userID)
 		}
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		orders, err := repo.ListByUser(context.Background(), userID, paging.CursorPage{Limit: 10})
 		require.NoError(t, err)
@@ -270,7 +271,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 		for range 4 {
 			seedOrder(t, userID)
 		}
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		page1, err := repo.ListByUser(context.Background(), userID, paging.CursorPage{Limit: 2})
 		require.NoError(t, err)
@@ -290,7 +291,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 
 	t.Run("returns empty for user with no orders", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		orders, err := repo.ListByUser(context.Background(), userID, paging.CursorPage{Limit: 10})
 		require.NoError(t, err)
@@ -314,7 +315,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		orders, err := repo.ListByUser(ctx, userID, paging.CursorPage{Limit: 10})
 		require.NoError(t, err)
 		require.Len(t, orders, 1)
@@ -327,7 +328,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 	t.Run("returns all orders without status filter", func(t *testing.T) {
 		userID := seedUser(t)
 		seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		orders, total, err := repo.ListAdmin(context.Background(), order.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50},
@@ -340,7 +341,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 	t.Run("returns offset-paginated results with status filter", func(t *testing.T) {
 		userID := seedUser(t)
 		seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		orders, total, err := repo.ListAdmin(context.Background(), order.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}, Status: "awaiting_payment",
@@ -363,7 +364,7 @@ func TestPostgresRepository_ListItemsByOrderID(t *testing.T) {
 			 VALUES ($1, $2, 'Widget', 500, 1, 500)`, orderID, productID)
 		require.NoError(t, err)
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		got, err := repo.ListItemsByOrderID(ctx, orderID)
 		require.NoError(t, err)
 		assert.Len(t, got, 1)
@@ -372,7 +373,7 @@ func TestPostgresRepository_ListItemsByOrderID(t *testing.T) {
 	t.Run("returns empty slice for order with no items", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID).ID
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.ListItemsByOrderID(context.Background(), orderID)
 		require.NoError(t, err)
@@ -381,7 +382,7 @@ func TestPostgresRepository_ListItemsByOrderID(t *testing.T) {
 }
 
 func TestPostgresRepository_HasDeliveredOrder(t *testing.T) {
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 	ctx := context.Background()
 
 	seedOrderItem := func(t *testing.T, userID, productID uuid.UUID, status domain.Status) uuid.UUID {
@@ -475,7 +476,7 @@ func TestPostgresRepository_HasDeliveredOrder(t *testing.T) {
 func TestPostgresRepository_GetExpiredOrders(t *testing.T) {
 	t.Run("returns awaiting_payment orders older than 30 minutes", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		oldOrderID := uuid.New()
@@ -511,7 +512,7 @@ func TestPostgresRepository_GetExpiredOrders(t *testing.T) {
 	t.Run("does not return recent orders", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID).ID // created now -- not expired
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		orders, err := repo.GetExpiredOrders(context.Background(), 100)
 		require.NoError(t, err)
@@ -525,7 +526,7 @@ func TestPostgresRepository_GetExpiredOrders(t *testing.T) {
 func TestPostgresRepository_GetStaleProcessingOrders(t *testing.T) {
 	t.Run("returns orders stuck in payment_processing beyond threshold", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		staleID := uuid.New()
@@ -564,7 +565,7 @@ func TestPostgresRepository_Apply(t *testing.T) {
 	t.Run("updates order matching any of the from-statuses", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID).ID
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		err := repo.Apply(context.Background(), orderID, domain.Transition{
 			To:   domain.StatusExpired,
@@ -578,7 +579,7 @@ func TestPostgresRepository_Apply(t *testing.T) {
 	t.Run("conflict when current status is not in from", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrderWith(t, userID, domain.StatusPaid, money.New(1000, "USD")).ID
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		err := repo.Apply(context.Background(), orderID, domain.PaidTransition)
 		assert.ErrorIs(t, err, apperror.ErrConflict)
@@ -587,7 +588,7 @@ func TestPostgresRepository_Apply(t *testing.T) {
 	t.Run("sets the stock flags the transition carries", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrderWith(t, userID, domain.StatusPaymentProcessing, money.New(1000, "USD")).ID
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		require.NoError(t, repo.Apply(context.Background(), orderID, domain.PaidTransition))
 
@@ -601,7 +602,7 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 	t.Run("transitions to new status", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID).ID
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		err := repo.UpdateStatus(
 			context.Background(),
@@ -617,7 +618,7 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 	t.Run("returns conflict when from-status does not match", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID).ID
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		// paid is the wrong from-status for an awaiting_payment order.
 		err := repo.UpdateStatus(context.Background(), orderID, domain.StatusPaid, domain.StatusProcessing)
@@ -638,7 +639,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Create", func(t *testing.T) {
 		userID := seedUser(t)
-		err := New(testPool).Create(cancelled(), newOrder(userID))
+		err := New(database.DB{Primary: testPool}).Create(cancelled(), newOrder(userID))
 		assert.Error(t, err)
 	})
 
@@ -647,7 +648,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		o := seedOrder(t, userID)
 		productID := seedProduct(t)
 
-		err := New(testPool).CreateItems(cancelled(), []domain.Item{
+		err := New(database.DB{Primary: testPool}).CreateItems(cancelled(), []domain.Item{
 			{
 				OrderID:     o.ID,
 				ProductID:   productID,
@@ -661,39 +662,39 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("GetByUserIDAndIdempotencyKey", func(t *testing.T) {
-		_, err := New(testPool).GetByUserIDAndIdempotencyKey(cancelled(), uuid.New(), "key")
+		_, err := New(database.DB{Primary: testPool}).GetByUserIDAndIdempotencyKey(cancelled(), uuid.New(), "key")
 		assert.Error(t, err)
 	})
 
 	t.Run("UpdateTotals", func(t *testing.T) {
-		err := New(testPool).UpdateTotals(cancelled(), uuid.New(), 0, 0)
+		err := New(database.DB{Primary: testPool}).UpdateTotals(cancelled(), uuid.New(), 0, 0)
 		assert.Error(t, err)
 	})
 
 	t.Run("GetByID", func(t *testing.T) {
-		_, err := New(testPool).GetByID(cancelled(), uuid.New())
+		_, err := New(database.DB{Primary: testPool}).GetByID(cancelled(), uuid.New())
 		assert.Error(t, err)
 	})
 
 	t.Run("ListByUser", func(t *testing.T) {
-		_, err := New(testPool).ListByUser(cancelled(), uuid.New(), paging.CursorPage{Limit: 10})
+		_, err := New(database.DB{Primary: testPool}).ListByUser(cancelled(), uuid.New(), paging.CursorPage{Limit: 10})
 		assert.Error(t, err)
 	})
 
 	t.Run("ListAdmin", func(t *testing.T) {
-		_, _, err := New(testPool).ListAdmin(cancelled(), order.AdminListParams{
+		_, _, err := New(database.DB{Primary: testPool}).ListAdmin(cancelled(), order.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 		})
 		assert.Error(t, err)
 	})
 
 	t.Run("ListItemsByOrderID", func(t *testing.T) {
-		_, err := New(testPool).ListItemsByOrderID(cancelled(), uuid.New())
+		_, err := New(database.DB{Primary: testPool}).ListItemsByOrderID(cancelled(), uuid.New())
 		assert.Error(t, err)
 	})
 
 	t.Run("HasDeliveredOrder", func(t *testing.T) {
-		_, err := New(testPool).HasDeliveredOrder(cancelled(), order.DeliveredPurchaseParams{
+		_, err := New(database.DB{Primary: testPool}).HasDeliveredOrder(cancelled(), order.DeliveredPurchaseParams{
 			UserID:    uuid.New(),
 			OrderID:   uuid.New(),
 			ProductID: uuid.New(),
@@ -702,22 +703,24 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("GetExpiredOrders", func(t *testing.T) {
-		_, err := New(testPool).GetExpiredOrders(cancelled(), 10)
+		_, err := New(database.DB{Primary: testPool}).GetExpiredOrders(cancelled(), 10)
 		assert.Error(t, err)
 	})
 
 	t.Run("GetStaleProcessingOrders", func(t *testing.T) {
-		_, err := New(testPool).GetStaleProcessingOrders(cancelled(), 30*time.Minute, 10)
+		_, err := New(database.DB{Primary: testPool}).GetStaleProcessingOrders(cancelled(), 30*time.Minute, 10)
 		assert.Error(t, err)
 	})
 
 	t.Run("Apply", func(t *testing.T) {
-		err := New(testPool).Apply(cancelled(), uuid.New(), domain.PaidTransition)
+		err := New(database.DB{Primary: testPool}).Apply(cancelled(), uuid.New(), domain.PaidTransition)
 		assert.Error(t, err)
 	})
 
 	t.Run("UpdateStatus", func(t *testing.T) {
-		err := New(testPool).UpdateStatus(cancelled(), uuid.New(), domain.StatusAwaitingPayment, domain.StatusPaid)
+		err := New(
+			database.DB{Primary: testPool},
+		).UpdateStatus(cancelled(), uuid.New(), domain.StatusAwaitingPayment, domain.StatusPaid)
 		assert.Error(t, err)
 	})
 }

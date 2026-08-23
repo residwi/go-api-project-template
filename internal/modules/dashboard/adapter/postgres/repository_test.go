@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -25,7 +26,7 @@ func TestMain(m *testing.M) {
 
 func TestPostgresRepository_GetSalesSummary(t *testing.T) {
 	t.Run("returns zero stats when no paid orders in range", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		from := time.Now().Add(100 * 24 * time.Hour)
 		to := time.Now().Add(200 * 24 * time.Hour)
@@ -40,7 +41,7 @@ func TestPostgresRepository_GetSalesSummary(t *testing.T) {
 	t.Run("returns correct stats for paid orders", func(t *testing.T) {
 		userID := seedUser(t)
 		seedPaidOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		from := time.Now().Add(-24 * time.Hour)
 		to := time.Now().Add(24 * time.Hour)
@@ -56,7 +57,7 @@ func TestPostgresRepository_ListOrderStatusBreakdown(t *testing.T) {
 	t.Run("returns breakdown including seeded order status", func(t *testing.T) {
 		userID := seedUser(t)
 		seedPaidOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		breakdowns, err := repo.ListOrderStatusBreakdown(context.Background(),
 			time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour))
@@ -79,7 +80,7 @@ func TestPostgresRepository_ListRevenueByDay(t *testing.T) {
 	t.Run("returns revenue grouped by day", func(t *testing.T) {
 		userID := seedUser(t)
 		seedPaidOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		from := time.Now().Add(-24 * time.Hour)
 		to := time.Now().Add(24 * time.Hour)
@@ -98,7 +99,7 @@ func TestPostgresRepository_ListRevenueByDay(t *testing.T) {
 
 func TestPostgresRepository_ListTopProducts(t *testing.T) {
 	t.Run("returns empty slice when no orders", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		from := time.Now().Add(100 * 24 * time.Hour)
 		to := time.Now().Add(200 * 24 * time.Hour)
@@ -113,7 +114,7 @@ func TestPostgresRepository_ListTopProducts(t *testing.T) {
 		orderID := seedPaidOrder(t, userID)
 		productID := seedProduct(t)
 		seedOrderItem(t, orderID, productID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		from := time.Now().Add(-24 * time.Hour)
 		to := time.Now().Add(24 * time.Hour)
@@ -137,7 +138,7 @@ func TestPostgresRepository_ListTopProducts(t *testing.T) {
 
 func TestPostgresRepository_GetSalesSummary_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -148,7 +149,7 @@ func TestPostgresRepository_GetSalesSummary_CancelledContext(t *testing.T) {
 
 func TestPostgresRepository_ListOrderStatusBreakdown_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -159,7 +160,7 @@ func TestPostgresRepository_ListOrderStatusBreakdown_CancelledContext(t *testing
 
 func TestPostgresRepository_ListRevenueByDay_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -170,7 +171,7 @@ func TestPostgresRepository_ListRevenueByDay_CancelledContext(t *testing.T) {
 
 func TestPostgresRepository_ListTopProducts_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 

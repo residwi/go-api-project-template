@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
@@ -70,15 +69,15 @@ func scanItem(row pgx.CollectableRow) (domain.Item, error) {
 }
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Order, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var o domain.Order
 	var idempotencyKey, requestHash, notes *string
 	var amt amountColumns
@@ -114,7 +113,7 @@ func (r *Repository) ListByUser(
 	userID uuid.UUID,
 	cursor paging.CursorPage,
 ) ([]domain.Order, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	args := []any{userID}
 	where := "user_id = $1"
@@ -149,7 +148,7 @@ func (r *Repository) ListByUser(
 }
 
 func (r *Repository) ListAdmin(ctx context.Context, params order.AdminListParams) ([]domain.Order, int, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	where := "1=1"
 	args := []any{}
@@ -188,7 +187,7 @@ func (r *Repository) ListAdmin(ctx context.Context, params order.AdminListParams
 }
 
 func (r *Repository) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) ([]domain.Item, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	rows, err := db.Query(
 		ctx,
 		`SELECT oi.id, oi.order_id, oi.product_id, oi.product_name, oi.price, oi.quantity, oi.subtotal, oi.created_at, o.currency
@@ -207,7 +206,7 @@ func (r *Repository) ListItemsByOrderID(ctx context.Context, orderID uuid.UUID) 
 }
 
 func (r *Repository) HasDeliveredOrder(ctx context.Context, p order.DeliveredPurchaseParams) (bool, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var exists bool
 	err := db.QueryRow(ctx,
 		`SELECT EXISTS(
@@ -224,7 +223,7 @@ func (r *Repository) HasDeliveredOrder(ctx context.Context, p order.DeliveredPur
 }
 
 func (r *Repository) Create(ctx context.Context, o *domain.Order) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	err := db.QueryRow(
 		ctx,
 		`INSERT INTO orders (user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, coupon_code, currency, shipping_address, billing_address, notes)
@@ -256,7 +255,7 @@ func (r *Repository) CreateItems(ctx context.Context, items []domain.Item) error
 	if len(items) == 0 {
 		return nil
 	}
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	const orderItemColumns = 6
 	placeholders := make([]string, len(items))
@@ -317,7 +316,7 @@ func (r *Repository) GetByUserIDAndIdempotencyKey(
 	userID uuid.UUID,
 	key string,
 ) (*domain.Order, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var o domain.Order
 	var idempotencyKey, requestHash, notes *string
 	var amt amountColumns
@@ -349,7 +348,7 @@ func (r *Repository) GetByUserIDAndIdempotencyKey(
 }
 
 func (r *Repository) UpdateTotals(ctx context.Context, id uuid.UUID, discount, total int64) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE orders SET discount_amount = $1, total_amount = $2 WHERE id = $3`,
 		discount, total, id,
@@ -364,7 +363,7 @@ func (r *Repository) UpdateTotals(ctx context.Context, id uuid.UUID, discount, t
 }
 
 func (r *Repository) GetExpiredOrders(ctx context.Context, limit int) ([]domain.Order, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT id, user_id, idempotency_key, status, subtotal_amount, discount_amount, total_amount,
 		        coupon_code, currency, stock_deducted, stock_reversed, created_at, updated_at
@@ -386,7 +385,7 @@ func (r *Repository) GetStaleProcessingOrders(
 	threshold time.Duration,
 	limit int,
 ) ([]domain.Order, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT id, user_id, idempotency_key, status, subtotal_amount, discount_amount, total_amount,
 		        coupon_code, currency, stock_deducted, stock_reversed, created_at, updated_at
@@ -404,7 +403,7 @@ func (r *Repository) GetStaleProcessingOrders(
 }
 
 func (r *Repository) Apply(ctx context.Context, id uuid.UUID, t domain.Transition) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var returnedID uuid.UUID
 	err := db.QueryRow(ctx,
 		`UPDATE orders SET status = $1,
@@ -423,7 +422,7 @@ func (r *Repository) Apply(ctx context.Context, id uuid.UUID, t domain.Transitio
 }
 
 func (r *Repository) UpdateStatus(ctx context.Context, id uuid.UUID, from, to domain.Status) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var returnedID uuid.UUID
 	err := db.QueryRow(ctx,
 		`UPDATE orders SET status = $1 WHERE id = $2 AND status = $3 RETURNING id`,

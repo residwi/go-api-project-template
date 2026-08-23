@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
@@ -19,15 +18,15 @@ import (
 var _ shipping.Repository = (*Repository)(nil)
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) Create(ctx context.Context, shipment *domain.Shipment) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	var shippedAt *time.Time
 	if shipment.Status == domain.StatusShipped {
@@ -51,7 +50,7 @@ func (r *Repository) Create(ctx context.Context, shipment *domain.Shipment) erro
 }
 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Shipment, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var s domain.Shipment
 	err := db.QueryRow(ctx,
 		`SELECT id, order_id, carrier, tracking_number, status, shipped_at, delivered_at, created_at, updated_at
@@ -68,7 +67,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Shipmen
 }
 
 func (r *Repository) MarkDelivered(ctx context.Context, id uuid.UUID) (*domain.Shipment, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var s domain.Shipment
 	err := db.QueryRow(ctx,
 		`UPDATE shipments SET status = 'delivered', delivered_at = NOW()
@@ -87,7 +86,7 @@ func (r *Repository) MarkDelivered(ctx context.Context, id uuid.UUID) (*domain.S
 }
 
 func (r *Repository) GetByOrderID(ctx context.Context, orderID uuid.UUID) (*domain.Shipment, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var s domain.Shipment
 	err := db.QueryRow(ctx,
 		`SELECT id, order_id, carrier, tracking_number, status, shipped_at, delivered_at, created_at, updated_at
@@ -104,7 +103,7 @@ func (r *Repository) GetByOrderID(ctx context.Context, orderID uuid.UUID) (*doma
 }
 
 func (r *Repository) Update(ctx context.Context, shipment *domain.Shipment) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE shipments SET carrier=$1, tracking_number=$2, status=$3
 		WHERE id = $4`,

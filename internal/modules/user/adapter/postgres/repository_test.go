@@ -13,6 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -33,7 +34,7 @@ func TestMain(m *testing.M) {
 
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates user", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		u := &domain.User{
 			Email:        uuid.New().String() + "@example.com",
 			PasswordHash: "hashed",
@@ -54,7 +55,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 
 	t.Run("returns conflict on duplicate email", func(t *testing.T) {
 		existing := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		dup := &domain.User{
 			Email:        existing.Email,
@@ -72,7 +73,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns user", func(t *testing.T) {
 		u := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByID(context.Background(), u.ID)
 		require.NoError(t, err)
@@ -81,7 +82,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -91,7 +92,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 func TestPostgresRepository_GetByEmail(t *testing.T) {
 	t.Run("returns user by email", func(t *testing.T) {
 		u := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByEmail(context.Background(), u.Email)
 		require.NoError(t, err)
@@ -100,7 +101,7 @@ func TestPostgresRepository_GetByEmail(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByEmail(context.Background(), "nobody-"+uuid.New().String()+"@nowhere.example")
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -110,7 +111,7 @@ func TestPostgresRepository_GetByEmail(t *testing.T) {
 func TestPostgresRepository_GetStatusByID(t *testing.T) {
 	t.Run("returns the user's active flag and token version", func(t *testing.T) {
 		u := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		active, tokenVersion, err := repo.GetStatusByID(context.Background(), u.ID)
 		require.NoError(t, err)
@@ -119,7 +120,7 @@ func TestPostgresRepository_GetStatusByID(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, _, err := repo.GetStatusByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -131,7 +132,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		token := "listadmin-" + uuid.New().String()[:8]
 		u1 := seedUserWithEmailToken(t, token)
 		u2 := seedUserWithEmailToken(t, token)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		users, total, err := repo.ListAdmin(context.Background(), user.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50},
@@ -157,7 +158,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		seedUserWithEmailToken(t, token)
 		seedUserWithEmailToken(t, token)
 		seedUserWithEmailToken(t, token)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		first, total, err := repo.ListAdmin(ctx, user.AdminListParams{
@@ -179,7 +180,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		u := seedUser(t)
 		_, err := testPool.Exec(context.Background(), `UPDATE users SET role = 'admin' WHERE id = $1`, u.ID)
 		require.NoError(t, err)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		users, total, err := repo.ListAdmin(context.Background(), user.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50}, Role: "admin",
@@ -193,7 +194,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 
 	t.Run("filters by active", func(t *testing.T) {
 		seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		active := true
 
 		users, _, err := repo.ListAdmin(context.Background(), user.AdminListParams{
@@ -207,7 +208,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 
 	t.Run("filters by search", func(t *testing.T) {
 		u := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		users, total, err := repo.ListAdmin(context.Background(), user.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50}, Search: u.Email,
@@ -221,7 +222,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 func TestPostgresRepository_Update(t *testing.T) {
 	t.Run("updates user fields", func(t *testing.T) {
 		u := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		u.FirstName = "Updated"
 		u.LastName = "Name"
@@ -237,7 +238,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		u := &domain.User{
 			ID:        uuid.New(),
@@ -254,7 +255,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("soft deletes user", func(t *testing.T) {
 		id := testutil.SeedUser(t, testPool)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		err := repo.Delete(context.Background(), id)
 		require.NoError(t, err)
@@ -262,7 +263,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 
 	t.Run("GetByID returns not found after delete", func(t *testing.T) {
 		id := testutil.SeedUser(t, testPool)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		require.NoError(t, repo.Delete(ctx, id))
@@ -272,7 +273,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	})
 
 	t.Run("returns not found for nonexistent user", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		err := repo.Delete(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -285,7 +286,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 // keeps the assertion true regardless of what a concurrent sibling does.
 func TestPostgresRepository_CountAdmins(t *testing.T) {
 	t.Run("returns a non-negative count", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		count, err := repo.CountAdmins(context.Background())
 		require.NoError(t, err)
@@ -293,7 +294,7 @@ func TestPostgresRepository_CountAdmins(t *testing.T) {
 	})
 
 	t.Run("increases after seeding an active admin", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		before, err := repo.CountAdmins(ctx)
@@ -314,7 +315,7 @@ func TestPostgresRepository_CountAdmins(t *testing.T) {
 func TestPostgresRepository_IncrementTokenVersion(t *testing.T) {
 	t.Run("increments token version", func(t *testing.T) {
 		u := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		err := repo.IncrementTokenVersion(ctx, u.ID)
@@ -326,7 +327,7 @@ func TestPostgresRepository_IncrementTokenVersion(t *testing.T) {
 	})
 
 	t.Run("returns not found for missing user", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		err := repo.IncrementTokenVersion(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -334,7 +335,7 @@ func TestPostgresRepository_IncrementTokenVersion(t *testing.T) {
 }
 
 func TestPostgresRepository_CancelledContext(t *testing.T) {
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -410,7 +411,7 @@ func seedUser(t *testing.T) *domain.User {
 	t.Helper()
 	id := testutil.SeedUser(t, testPool)
 
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 	u, err := repo.GetByID(context.Background(), id)
 	require.NoError(t, err)
 	return u
@@ -433,7 +434,7 @@ func seedUserWithEmailToken(t *testing.T, token string) *domain.User {
 		testPool.Exec(context.Background(), `DELETE FROM users WHERE id = $1`, id)
 	})
 
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 	u, err := repo.GetByID(context.Background(), id)
 	require.NoError(t, err)
 	return u

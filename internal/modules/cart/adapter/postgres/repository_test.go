@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 func TestPostgresRepository_GetOrCreate(t *testing.T) {
 	t.Run("creates cart on first call", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		cartID, err := repo.GetOrCreate(context.Background(), userID)
 		require.NoError(t, err)
@@ -37,7 +37,7 @@ func TestPostgresRepository_GetOrCreate(t *testing.T) {
 
 	t.Run("returns same id on second call", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		first, err := repo.GetOrCreate(context.Background(), userID)
 		require.NoError(t, err)
@@ -53,7 +53,7 @@ func TestPostgresRepository_AddItem(t *testing.T) {
 	t.Run("accumulates quantity on duplicate insert", func(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		cartID, err := repo.GetOrCreate(ctx, userID)
@@ -75,7 +75,7 @@ func TestPostgresRepository_CountAndHasItem(t *testing.T) {
 	t.Run("returns zero count and false when the product is not in the cart", func(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		cartID, err := repo.GetOrCreate(ctx, userID)
@@ -92,7 +92,7 @@ func TestPostgresRepository_CountAndHasItem(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		otherID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		cartID, err := repo.GetOrCreate(ctx, userID)
@@ -112,7 +112,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 	t.Run("removes existing item", func(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		cartID, err := repo.GetOrCreate(ctx, userID)
@@ -128,7 +128,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 	})
 
 	t.Run("returns not found when item does not exist", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		err := repo.RemoveItem(context.Background(), uuid.New(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -138,7 +138,7 @@ func TestPostgresRepository_UpdateItemQuantity(t *testing.T) {
 	t.Run("updates quantity of existing item", func(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		cartID, err := repo.GetOrCreate(ctx, userID)
@@ -155,7 +155,7 @@ func TestPostgresRepository_UpdateItemQuantity(t *testing.T) {
 	})
 
 	t.Run("returns not found when item does not exist", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		err := repo.UpdateItemQuantity(context.Background(), uuid.New(), uuid.New(), 5)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -164,7 +164,7 @@ func TestPostgresRepository_UpdateItemQuantity(t *testing.T) {
 func TestPostgresRepository_GetCart(t *testing.T) {
 	t.Run("returns empty cart when no cart exists for user", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		c, err := repo.GetCart(context.Background(), userID)
 		require.NoError(t, err)
@@ -175,7 +175,7 @@ func TestPostgresRepository_GetCart(t *testing.T) {
 	t.Run("returns cart with items", func(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		cartID := seedCart(t, userID)
@@ -197,7 +197,7 @@ func TestPostgresRepository_GetCart(t *testing.T) {
 	t.Run("keeps the line when its product is soft-deleted", func(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		cartID := seedCart(t, userID)
@@ -217,7 +217,7 @@ func TestPostgresRepository_Clear(t *testing.T) {
 	t.Run("removes all items from cart", func(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		cartID := seedCart(t, userID)
@@ -238,7 +238,7 @@ func TestPostgresRepository_Clear(t *testing.T) {
 func TestPostgresRepository_GetCartForLock(t *testing.T) {
 	t.Run("returns not found when cart does not exist", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetCartForLock(context.Background(), userID)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -246,7 +246,7 @@ func TestPostgresRepository_GetCartForLock(t *testing.T) {
 
 	t.Run("returns cart id when cart exists", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		cartID := seedCart(t, userID)
@@ -260,7 +260,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 
 	t.Run("GetOrCreate", func(t *testing.T) {
 		_, err := repo.GetOrCreate(cancelledCtx, uuid.New())
@@ -309,7 +309,7 @@ func TestUserHardDeleteIsRestricted(t *testing.T) {
 	ctx := context.Background()
 
 	userID := seedUser(t)
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 	cartID, err := repo.GetOrCreate(ctx, userID)
 	require.NoError(t, err)
 	cleanupCart(t, cartID)

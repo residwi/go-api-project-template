@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
@@ -18,11 +17,11 @@ import (
 var _ notification.Repository = (*Repository)(nil)
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func scanNotification(row pgx.CollectableRow) (domain.Notification, error) {
@@ -36,7 +35,7 @@ func (r *Repository) ListByUser(
 	userID uuid.UUID,
 	cursor paging.CursorPage,
 ) ([]domain.Notification, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	args := []any{userID}
 	where := "user_id = $1"
@@ -70,7 +69,7 @@ func (r *Repository) ListByUser(
 }
 
 func (r *Repository) CountUnread(ctx context.Context, userID uuid.UUID) (int, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var count int
 	err := db.QueryRow(ctx,
 		`SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = false`, userID,
@@ -82,7 +81,7 @@ func (r *Repository) CountUnread(ctx context.Context, userID uuid.UUID) (int, er
 }
 
 func (r *Repository) MarkRead(ctx context.Context, userID, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2`, id, userID,
 	)
@@ -96,7 +95,7 @@ func (r *Repository) MarkRead(ctx context.Context, userID, id uuid.UUID) error {
 }
 
 func (r *Repository) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(ctx,
 		`UPDATE notifications SET is_read = true WHERE user_id = $1 AND is_read = false`, userID,
 	)

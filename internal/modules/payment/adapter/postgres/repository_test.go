@@ -14,6 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -31,7 +32,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates payment with correct fields", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		p := &domain.Payment{
 			OrderID: orderID,
@@ -59,7 +60,7 @@ func TestPostgresRepository_GetActiveByOrderID(t *testing.T) {
 	t.Run("returns active payment for order", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 
 		got, err := repo.GetActiveByOrderID(context.Background(), orderID)
@@ -71,7 +72,7 @@ func TestPostgresRepository_GetActiveByOrderID(t *testing.T) {
 	t.Run("returns ErrNotFound when none", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetActiveByOrderID(context.Background(), orderID)
 		require.ErrorIs(t, err, apperror.ErrNotFound)
@@ -83,7 +84,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns payment", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 
 		got, err := repo.GetByID(context.Background(), p.ID)
@@ -95,7 +96,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -106,7 +107,7 @@ func TestPostgresRepository_MarkPaid(t *testing.T) {
 	t.Run("marks payment as paid", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
@@ -122,7 +123,7 @@ func TestPostgresRepository_MarkPaid(t *testing.T) {
 	t.Run("returns conflict when status does not match", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 
 		err := repo.MarkPaid(context.Background(), p.ID, []domain.Status{domain.StatusFailed})
@@ -134,7 +135,7 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 	t.Run("transitions status", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
@@ -149,7 +150,7 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 	t.Run("returns conflict when from-status does not match", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 
 		err := repo.UpdateStatus(
@@ -166,7 +167,7 @@ func TestPostgresRepository_GetActiveByOrderID_WithNullableFields(t *testing.T) 
 	t.Run("returns active payment with payment_method_id, payment_url, and gateway_txn_id", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
@@ -189,7 +190,7 @@ func TestPostgresRepository_UpdateGateway(t *testing.T) {
 	t.Run("updates gateway txn id and response", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
@@ -209,7 +210,7 @@ func TestPostgresRepository_UpdatePaymentURL(t *testing.T) {
 	t.Run("updates payment url", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
@@ -227,7 +228,7 @@ func TestPostgresRepository_GetByID_WithNullableFields(t *testing.T) {
 	t.Run("returns payment with payment_method_id", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
@@ -245,7 +246,7 @@ func TestPostgresRepository_GetByGatewayTxnID(t *testing.T) {
 	t.Run("returns payment by txn id", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
@@ -261,7 +262,7 @@ func TestPostgresRepository_GetByGatewayTxnID(t *testing.T) {
 	})
 
 	t.Run("returns ErrNotFound when none", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByGatewayTxnID(context.Background(), "nonexistent-txn-id")
 		require.ErrorIs(t, err, apperror.ErrNotFound)
@@ -273,7 +274,7 @@ func TestPostgresRepository_GetByGatewayTxnID_WithNullableFields(t *testing.T) {
 	t.Run("returns payment with payment_method_id and payment_url", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
@@ -295,7 +296,7 @@ func TestPostgresRepository_ClearPaymentURL(t *testing.T) {
 	t.Run("clears an existing payment url", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
@@ -316,7 +317,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 	t.Run("returns paginated results", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		seedPayment(t, repo, orderID)
 
 		payments, total, err := repo.ListAdmin(context.Background(), payment.AdminListParams{
@@ -333,7 +334,7 @@ func TestPostgresRepository_ListAdmin_WithNullableFields(t *testing.T) {
 	t.Run("returns payments with payment_method_id and gateway_txn_id", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
@@ -364,7 +365,7 @@ func TestPostgresRepository_ListAdmin_Filters(t *testing.T) {
 	t.Run("filters by status", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		seedPayment(t, repo, orderID)
 
 		payments, total, err := repo.ListAdmin(context.Background(), payment.AdminListParams{
@@ -382,7 +383,7 @@ func TestPostgresRepository_ListAdmin_Filters(t *testing.T) {
 	t.Run("filters by order ID", func(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		seedPayment(t, repo, orderID)
 
 		payments, total, err := repo.ListAdmin(context.Background(), payment.AdminListParams{
@@ -401,7 +402,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 
 	t.Run("Create", func(t *testing.T) {
 		p := &domain.Payment{OrderID: uuid.New(), Amount: money.New(1000, "USD"), Status: domain.StatusPending}

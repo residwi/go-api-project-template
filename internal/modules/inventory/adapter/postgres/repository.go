@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
@@ -70,15 +69,15 @@ func scanLevel(row pgx.CollectableRow) (domain.Stock, error) {
 }
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) AdjustStock(ctx context.Context, productID uuid.UUID, newQuantity int) (*domain.Stock, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var available, reserved int
 	err := db.QueryRow(ctx,
 		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
@@ -99,7 +98,7 @@ func (r *Repository) AdjustStock(ctx context.Context, productID uuid.UUID, newQu
 }
 
 func (r *Repository) Restock(ctx context.Context, productID uuid.UUID, qty int) (*domain.Stock, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var available, reserved int
 	err := db.QueryRow(ctx,
 		`UPDATE inventory_levels SET available_stock = available_stock + $1
@@ -117,7 +116,7 @@ func (r *Repository) Restock(ctx context.Context, productID uuid.UUID, qty int) 
 }
 
 func (r *Repository) EnsureLevel(ctx context.Context, productID uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(ctx,
 		`INSERT INTO inventory_levels (product_id, available_stock, reserved_stock)
 		 VALUES ($1, 0, 0) ON CONFLICT (product_id) DO NOTHING`, productID)
@@ -128,7 +127,7 @@ func (r *Repository) EnsureLevel(ctx context.Context, productID uuid.UUID) error
 }
 
 func (r *Repository) GetStock(ctx context.Context, productID uuid.UUID) (*domain.Stock, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var available, reserved int
 	err := db.QueryRow(ctx,
 		`SELECT available_stock, reserved_stock FROM inventory_levels WHERE product_id = $1`,
@@ -147,7 +146,7 @@ func (r *Repository) GetLevels(ctx context.Context, ids []uuid.UUID) (map[uuid.U
 	if len(ids) == 0 {
 		return map[uuid.UUID]domain.Stock{}, nil
 	}
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT product_id, available_stock, reserved_stock
 		 FROM inventory_levels WHERE product_id = ANY($1)`, ids)
@@ -173,7 +172,7 @@ func (r *Repository) Reserve(ctx context.Context, items map[uuid.UUID]int) error
 	if len(items) == 0 {
 		return nil
 	}
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	values, args, ids := buildStockValues(items)
 	if err := lockLevels(ctx, db, ids); err != nil {
 		return err
@@ -199,7 +198,7 @@ func (r *Repository) Deduct(ctx context.Context, items map[uuid.UUID]int) error 
 	if len(items) == 0 {
 		return nil
 	}
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	values, args, ids := buildStockValues(items)
 	if err := lockLevels(ctx, db, ids); err != nil {
 		return err
@@ -228,7 +227,7 @@ func (r *Repository) ReleaseBatch(ctx context.Context, items map[uuid.UUID]int) 
 	if len(items) == 0 {
 		return nil
 	}
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	values, args, ids := buildStockValues(items)
 	if err := lockLevels(ctx, db, ids); err != nil {
 		return err
@@ -254,7 +253,7 @@ func (r *Repository) RestockBatch(ctx context.Context, items map[uuid.UUID]int) 
 	if len(items) == 0 {
 		return nil
 	}
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	values, args, ids := buildStockValues(items)
 	if err := lockLevels(ctx, db, ids); err != nil {
 		return err

@@ -35,30 +35,26 @@ func WithTx(ctx context.Context, pool *pgxpool.Pool, fn func(ctx context.Context
 	return tx.Commit(ctx)
 }
 
-func DB(ctx context.Context, pool *pgxpool.Pool) DBTX {
+type DB struct {
+	Primary *pgxpool.Pool
+	Replica *pgxpool.Pool
+}
+
+func PrimaryDB(ctx context.Context, db DB) DBTX {
 	if tx, ok := ctx.Value(txCtxKey{}).(DBTX); ok {
 		return tx
 	}
-	return pool
+	return db.Primary
 }
 
-type recentWriteCtxKey struct{}
-
-func ReadDB(ctx context.Context, primary *pgxpool.Pool, reader *pgxpool.Pool) DBTX {
+func ReplicaDB(ctx context.Context, db DB) DBTX {
 	if tx, ok := ctx.Value(txCtxKey{}).(DBTX); ok {
 		return tx
 	}
-	if _, ok := ctx.Value(recentWriteCtxKey{}).(bool); ok {
-		return primary
+	if db.Replica != nil {
+		return db.Replica
 	}
-	if reader != nil {
-		return reader
-	}
-	return primary
-}
-
-func WithRecentWrite(ctx context.Context) context.Context {
-	return context.WithValue(ctx, recentWriteCtxKey{}, true)
+	return db.Primary
 }
 
 type TxRunner interface {

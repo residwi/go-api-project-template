@@ -12,6 +12,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/review/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -30,7 +31,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		rv := &domain.Review{
 			UserID:    userID,
@@ -58,7 +59,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		first := &domain.Review{
@@ -88,7 +89,7 @@ func TestPostgresRepository_HasUserReviewed(t *testing.T) {
 	t.Run("returns false when user has not reviewed", func(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		has, err := repo.HasUserReviewed(context.Background(), userID, productID)
 		require.NoError(t, err)
@@ -99,7 +100,7 @@ func TestPostgresRepository_HasUserReviewed(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		rv := &domain.Review{
@@ -126,7 +127,7 @@ func TestPostgresRepository_ListByProduct(t *testing.T) {
 		productID := seedProduct(t)
 		orderA := seedOrder(t, userA)
 		orderB := seedOrder(t, userB)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		published := seedReview(t, userA, productID, orderA, "published")
@@ -141,7 +142,7 @@ func TestPostgresRepository_ListByProduct(t *testing.T) {
 
 	t.Run("cursor pagination returns next page", func(t *testing.T) {
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		for range 4 {
@@ -166,7 +167,7 @@ func TestPostgresRepository_ListByProduct(t *testing.T) {
 func TestPostgresRepository_ListByProduct_InvalidCursor(t *testing.T) {
 	t.Run("returns error for invalid cursor", func(t *testing.T) {
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.ListByProduct(
 			context.Background(),
@@ -180,7 +181,7 @@ func TestPostgresRepository_ListByProduct_InvalidCursor(t *testing.T) {
 func TestPostgresRepository_GetStats(t *testing.T) {
 	t.Run("returns zero stats when no reviews", func(t *testing.T) {
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		stats, err := repo.GetStats(context.Background(), productID)
 		require.NoError(t, err)
@@ -192,7 +193,7 @@ func TestPostgresRepository_GetStats(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		seedReview(t, userID, productID, orderID, "published")
 
@@ -209,7 +210,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		productID := seedProduct(t)
 		orderID := seedOrder(t, userID)
 		id := seedReview(t, userID, productID, orderID, "published")
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		err := repo.Delete(ctx, id)
@@ -219,7 +220,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		err := repo.Delete(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -230,7 +231,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 
 	t.Run("Create", func(t *testing.T) {
 		rv := &domain.Review{

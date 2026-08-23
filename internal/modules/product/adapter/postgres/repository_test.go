@@ -14,6 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -30,7 +31,7 @@ func TestMain(m *testing.M) {
 func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns product", func(t *testing.T) {
 		p := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByID(context.Background(), p.ID)
 		require.NoError(t, err)
@@ -39,7 +40,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -51,7 +52,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	// omitempty does not suppress a non-nil pointer.
 	t.Run("leaves a NULL compare_at_price nil rather than a denominated zero", func(t *testing.T) {
 		p := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByID(context.Background(), p.ID)
 		require.NoError(t, err)
@@ -70,7 +71,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 			testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id)
 		})
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		got, err := repo.GetByID(context.Background(), id)
 		require.NoError(t, err)
 		require.NotNil(t, got.CompareAtPrice)
@@ -81,7 +82,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 func TestPostgresRepository_GetBySlug(t *testing.T) {
 	t.Run("returns product by slug", func(t *testing.T) {
 		p := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetBySlug(context.Background(), p.Slug)
 		require.NoError(t, err)
@@ -90,7 +91,7 @@ func TestPostgresRepository_GetBySlug(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetBySlug(context.Background(), "nonexistent-slug")
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -110,7 +111,7 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 			testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id)
 		})
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		products, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
 			Limit: 10,
 		})
@@ -137,7 +138,7 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		products, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
 			CategoryID: &catID,
 			Limit:      10,
@@ -158,7 +159,7 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		products, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
 			Search: "UniqueSearchable",
 			Limit:  10,
@@ -177,7 +178,7 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		minPrice := int64(4000)
 		maxPrice := int64(6000)
 		products, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
@@ -206,7 +207,7 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 			t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 		}
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		products, nextCursor, hasMore, err := repo.ListPublished(context.Background(), product.PublishedListParams{
 			Limit: 2,
@@ -232,7 +233,7 @@ func TestPostgresRepository_ListPublished(t *testing.T) {
 
 func TestPostgresRepository_ListPublished_InvalidCursor(t *testing.T) {
 	t.Run("returns bad request error on invalid cursor", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		_, _, _, err := repo.ListPublished(context.Background(), product.PublishedListParams{
 			Cursor: "invalid-cursor-value",
 			Limit:  10,
@@ -246,7 +247,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 	t.Run("returns all products with total", func(t *testing.T) {
 		seedProduct(t)
 		seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
@@ -265,7 +266,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 			Status:     "draft",
@@ -293,7 +294,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 			CategoryID: &catID,
@@ -315,7 +316,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		products, total, err := repo.ListAdmin(context.Background(), product.AdminListParams{
 			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
 			Search:     sku,
@@ -349,7 +350,7 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, deletedID) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		got, err := repo.GetByIDsIncludingDeleted(
 			context.Background(),
 			[]uuid.UUID{live.ID, archivedID, deletedID, uuid.New()},
@@ -377,7 +378,7 @@ func TestPostgresRepository_GetByIDsIncludingDeleted(t *testing.T) {
 	})
 
 	t.Run("returns empty slice for empty ids", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByIDsIncludingDeleted(context.Background(), nil)
 		require.NoError(t, err)
@@ -394,7 +395,7 @@ func TestPostgresRepository_CountPublishedByCategory(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM categories WHERE id = $1`, catID) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		count, err := repo.CountPublishedByCategory(context.Background(), catID)
 		require.NoError(t, err)
 		assert.Equal(t, 0, count)
@@ -418,7 +419,7 @@ func TestPostgresRepository_CountPublishedByCategory(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, productID) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		count, err := repo.CountPublishedByCategory(ctx, catID)
 		require.NoError(t, err)
 		assert.Equal(t, 1, count)
@@ -427,7 +428,7 @@ func TestPostgresRepository_CountPublishedByCategory(t *testing.T) {
 
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates product", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		desc := "A description"
 		p := &domain.Product{
 			Name:        "New Product",
@@ -452,7 +453,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	// branch is exercised in TestPostgresRepository_Update's own compare-at-price
 	// subtest, against this same GetByID.
 	t.Run("round-trips both amounts under the row's single currency", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		compareAt := money.New(2999, "EUR")
 		p := &domain.Product{
 			Name:           "Denominated Product",
@@ -478,7 +479,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 
 	t.Run("returns conflict on duplicate slug", func(t *testing.T) {
 		existing := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		dup := &domain.Product{
 			Name:   "Duplicate",
@@ -494,7 +495,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 func TestPostgresRepository_Update(t *testing.T) {
 	t.Run("updates product fields", func(t *testing.T) {
 		p := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		p.Name = "Updated Product"
 		p.Price = money.New(2000, "EUR")
@@ -524,7 +525,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id) })
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		p, err := repo.GetByID(context.Background(), id)
 		require.NoError(t, err)
 		require.NotNil(t, p.CompareAtPrice)
@@ -540,7 +541,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		p := &domain.Product{
 			ID:     uuid.New(),
@@ -556,7 +557,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 	t.Run("returns conflict on duplicate slug", func(t *testing.T) {
 		p1 := seedProduct(t)
 		p2 := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		p2.Slug = p1.Slug
 		err := repo.Update(context.Background(), p2)
@@ -569,7 +570,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 func TestSearchString(t *testing.T) {
 	t.Run("returns false when substring not found", func(t *testing.T) {
 		existing := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		existing.Name = "Updated Name"
 		err := repo.Update(context.Background(), existing)
@@ -580,7 +581,7 @@ func TestSearchString(t *testing.T) {
 func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("soft deletes product", func(t *testing.T) {
 		p := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		err := repo.Delete(context.Background(), p.ID)
 		require.NoError(t, err)
@@ -593,7 +594,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 
 	t.Run("returns not found after delete", func(t *testing.T) {
 		p := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		require.NoError(t, repo.Delete(ctx, p.ID))
@@ -603,7 +604,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	})
 
 	t.Run("returns not found for nonexistent product", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		err := repo.Delete(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -612,7 +613,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 func TestPostgresRepository_Images(t *testing.T) {
 	t.Run("add, list, and delete image", func(t *testing.T) {
 		p := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		altText := "Test alt"
@@ -650,7 +651,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 
 	t.Run("GetByID", func(t *testing.T) {
 		_, err := repo.GetByID(cancelledCtx, uuid.New())
@@ -745,7 +746,7 @@ func seedProduct(t *testing.T) *domain.Product {
 		testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id)
 	})
 
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 	p, err := repo.GetByID(context.Background(), id)
 	require.NoError(t, err)
 	return p

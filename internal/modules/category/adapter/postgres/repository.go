@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/category"
@@ -18,11 +17,11 @@ import (
 var _ category.Repository = (*Repository)(nil)
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func scanCategory(row pgx.CollectableRow) (domain.Category, error) {
@@ -33,7 +32,7 @@ func scanCategory(row pgx.CollectableRow) (domain.Category, error) {
 }
 
 func (r *Repository) Create(ctx context.Context, cat *domain.Category) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	err := db.QueryRow(ctx,
 		`INSERT INTO categories (name, slug, description, parent_id, sort_order, active)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -50,7 +49,7 @@ func (r *Repository) Create(ctx context.Context, cat *domain.Category) error {
 }
 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Category, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var c domain.Category
 	err := db.QueryRow(ctx,
 		`SELECT id, name, slug, description, parent_id, sort_order, active, created_at, updated_at
@@ -67,7 +66,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Categor
 }
 
 func (r *Repository) GetBySlug(ctx context.Context, slug string) (*domain.Category, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var c domain.Category
 	err := db.QueryRow(ctx,
 		`SELECT id, name, slug, description, parent_id, sort_order, active, created_at, updated_at
@@ -84,7 +83,7 @@ func (r *Repository) GetBySlug(ctx context.Context, slug string) (*domain.Catego
 }
 
 func (r *Repository) List(ctx context.Context) ([]domain.Category, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT id, name, slug, description, parent_id, sort_order, active, created_at, updated_at
 		FROM categories ORDER BY sort_order, name`,
@@ -101,7 +100,7 @@ func (r *Repository) List(ctx context.Context) ([]domain.Category, error) {
 }
 
 func (r *Repository) Update(ctx context.Context, cat *domain.Category) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE categories SET name=$1, slug=$2, description=$3, parent_id=$4, sort_order=$5, active=$6
 		WHERE id = $7`,
@@ -120,7 +119,7 @@ func (r *Repository) Update(ctx context.Context, cat *domain.Category) error {
 }
 
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`DELETE FROM categories WHERE id = $1`, id,
 	)
@@ -141,7 +140,7 @@ func (r *Repository) AncestorDepthAndCycle(
 	parentID, selfID uuid.UUID,
 	maxDepth int,
 ) (int, bool, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var (
 		depth      int
 		formsCycle bool

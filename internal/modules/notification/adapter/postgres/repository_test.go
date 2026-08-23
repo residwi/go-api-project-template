@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -27,7 +28,7 @@ func TestMain(m *testing.M) {
 func TestPostgresRepository_ListByUser(t *testing.T) {
 	t.Run("returns all notifications for user", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		for range 3 {
@@ -41,7 +42,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 
 	t.Run("returns paginated results when results exceed limit", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		for range 5 {
@@ -56,7 +57,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 
 	t.Run("cursor pagination returns next page", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		for range 5 {
@@ -82,7 +83,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 
 func TestPostgresRepository_ListByUser_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -94,7 +95,7 @@ func TestPostgresRepository_ListByUser_CancelledContext(t *testing.T) {
 func TestPostgresRepository_CountUnread(t *testing.T) {
 	t.Run("returns zero when no notifications", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		count, err := repo.CountUnread(context.Background(), userID)
 		require.NoError(t, err)
@@ -103,7 +104,7 @@ func TestPostgresRepository_CountUnread(t *testing.T) {
 
 	t.Run("returns correct count of unread notifications", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		seedNotification(t, userID)
 		seedNotification(t, userID)
@@ -116,7 +117,7 @@ func TestPostgresRepository_CountUnread(t *testing.T) {
 
 func TestPostgresRepository_CountUnread_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -129,7 +130,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 	t.Run("marks notification as read", func(t *testing.T) {
 		userID := seedUser(t)
 		id := seedNotification(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		require.NoError(t, repo.MarkRead(context.Background(), userID, id))
 
@@ -140,7 +141,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		userID := seedUser(t)
 		otherUserID := seedUser(t)
 		id := seedNotification(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		err := repo.MarkRead(context.Background(), otherUserID, id)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -148,7 +149,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 
 	t.Run("returns not found for a missing notification id", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		err := repo.MarkRead(context.Background(), userID, uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -157,7 +158,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 	t.Run("is idempotent: re-marking an already-read notification succeeds", func(t *testing.T) {
 		userID := seedUser(t)
 		id := seedNotification(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		require.NoError(t, repo.MarkRead(ctx, userID, id))
@@ -171,7 +172,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 
 func TestPostgresRepository_MarkRead_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -183,7 +184,7 @@ func TestPostgresRepository_MarkRead_CancelledContext(t *testing.T) {
 func TestPostgresRepository_MarkAllRead(t *testing.T) {
 	t.Run("marks all user notifications as read", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		for range 3 {
@@ -197,7 +198,7 @@ func TestPostgresRepository_MarkAllRead(t *testing.T) {
 
 func TestPostgresRepository_MarkAllRead_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 

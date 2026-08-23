@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
@@ -18,15 +17,15 @@ import (
 var _ promotion.Repository = (*Repository)(nil)
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) GetByCode(ctx context.Context, code string) (*domain.Promotion, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var p domain.Promotion
 	err := db.QueryRow(
 		ctx,
@@ -46,7 +45,7 @@ func (r *Repository) GetByCode(ctx context.Context, code string) (*domain.Promot
 }
 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Promotion, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var p domain.Promotion
 	err := db.QueryRow(
 		ctx,
@@ -66,7 +65,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Promoti
 }
 
 func (r *Repository) Create(ctx context.Context, promo *domain.Promotion) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	err := db.QueryRow(
 		ctx,
 		`INSERT INTO promotions (code, type, value, min_order_amount, max_discount, max_uses, starts_at, expires_at, active)
@@ -92,7 +91,7 @@ func (r *Repository) Create(ctx context.Context, promo *domain.Promotion) error 
 }
 
 func (r *Repository) Update(ctx context.Context, promo *domain.Promotion) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(
 		ctx,
 		`UPDATE promotions SET code=$1, type=$2, value=$3, min_order_amount=$4, max_discount=$5, max_uses=$6, starts_at=$7, expires_at=$8, active=$9
@@ -121,7 +120,7 @@ func (r *Repository) Update(ctx context.Context, promo *domain.Promotion) error 
 }
 
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx, `DELETE FROM promotions WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("deleting promotion: %w", err)
@@ -141,7 +140,7 @@ func scanPromotion(row pgx.CollectableRow) (domain.Promotion, error) {
 }
 
 func (r *Repository) ListAdmin(ctx context.Context, params promotion.AdminListParams) ([]domain.Promotion, int, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	var total int
 	if err := db.QueryRow(ctx, `SELECT COUNT(*) FROM promotions`).Scan(&total); err != nil {
@@ -167,7 +166,7 @@ func (r *Repository) ListAdmin(ctx context.Context, params promotion.AdminListPa
 }
 
 func (r *Repository) ApplyPromotion(ctx context.Context, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE promotions SET used_count = used_count + 1
 		WHERE id = $1 AND active = true AND (max_uses IS NULL OR used_count < max_uses)
@@ -184,7 +183,7 @@ func (r *Repository) ApplyPromotion(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *Repository) ReleasePromotion(ctx context.Context, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(ctx,
 		`UPDATE promotions SET used_count = used_count - 1 WHERE id = $1 AND used_count > 0`,
 		id,
@@ -196,7 +195,7 @@ func (r *Repository) ReleasePromotion(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *Repository) CreateUsage(ctx context.Context, usage *domain.CouponUsage) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	err := db.QueryRow(ctx,
 		`INSERT INTO coupon_usages (coupon_id, user_id, order_id, discount)
 		VALUES ($1, $2, $3, $4)
@@ -213,7 +212,7 @@ func (r *Repository) CreateUsage(ctx context.Context, usage *domain.CouponUsage)
 }
 
 func (r *Repository) DeleteUsageByOrderID(ctx context.Context, orderID uuid.UUID) (*domain.CouponUsage, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var usage domain.CouponUsage
 	err := db.QueryRow(ctx,
 		`DELETE FROM coupon_usages WHERE order_id = $1 RETURNING coupon_id, discount`,

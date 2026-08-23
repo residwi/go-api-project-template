@@ -12,6 +12,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -32,7 +33,7 @@ func TestMain(m *testing.M) {
 func TestPostgresRepository_AdjustStock(t *testing.T) {
 	t.Run("adjusts to new quantity", func(t *testing.T) {
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		stock, err := repo.AdjustStock(context.Background(), productID, 20)
 		require.NoError(t, err)
@@ -44,7 +45,7 @@ func TestPostgresRepository_AdjustStock(t *testing.T) {
 
 	t.Run("returns error when new quantity below reserved", func(t *testing.T) {
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		arrangeReservation(t, productID, 5)
@@ -68,7 +69,7 @@ func TestPostgresRepository_AdjustStock(t *testing.T) {
 			testPool.Exec(context.Background(), `DELETE FROM products WHERE id = $1`, id)
 		})
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		stock, err := repo.AdjustStock(ctx, id, 15)
 		require.NoError(t, err)
 		assert.Equal(t, &domain.Stock{ProductID: id, Quantity: 15, Reserved: 0, Available: 15}, stock)
@@ -77,7 +78,7 @@ func TestPostgresRepository_AdjustStock(t *testing.T) {
 
 func TestPostgresRepository_AdjustStock_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -89,7 +90,7 @@ func TestPostgresRepository_AdjustStock_CancelledContext(t *testing.T) {
 func TestPostgresRepository_Restock(t *testing.T) {
 	t.Run("adds to stock quantity", func(t *testing.T) {
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		stock, err := repo.Restock(context.Background(), productID, 5)
 		require.NoError(t, err)
@@ -100,7 +101,7 @@ func TestPostgresRepository_Restock(t *testing.T) {
 	})
 
 	t.Run("returns not found for unknown product", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.Restock(context.Background(), uuid.New(), 5)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -109,7 +110,7 @@ func TestPostgresRepository_Restock(t *testing.T) {
 
 func TestPostgresRepository_Restock_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -121,7 +122,7 @@ func TestPostgresRepository_Restock_CancelledContext(t *testing.T) {
 func TestPostgresRepository_EnsureLevel(t *testing.T) {
 	t.Run("creates a zeroed level row for a product with none", func(t *testing.T) {
 		ctx := context.Background()
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		id := uuid.New()
 		_, err := testPool.Exec(ctx,
@@ -143,7 +144,7 @@ func TestPostgresRepository_EnsureLevel(t *testing.T) {
 
 	t.Run("is idempotent and does not clobber an existing reservation", func(t *testing.T) {
 		ctx := context.Background()
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		productID := seedProduct(t)
 		arrangeReservation(t, productID, 3)
@@ -157,7 +158,7 @@ func TestPostgresRepository_EnsureLevel(t *testing.T) {
 
 func TestPostgresRepository_EnsureLevel_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -169,7 +170,7 @@ func TestPostgresRepository_EnsureLevel_CancelledContext(t *testing.T) {
 func TestPostgresRepository_GetStock(t *testing.T) {
 	t.Run("returns stock for product", func(t *testing.T) {
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		stock, err := repo.GetStock(context.Background(), productID)
 		require.NoError(t, err)
@@ -180,7 +181,7 @@ func TestPostgresRepository_GetStock(t *testing.T) {
 	})
 
 	t.Run("returns not found for unknown product", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetStock(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -189,7 +190,7 @@ func TestPostgresRepository_GetStock(t *testing.T) {
 
 func TestPostgresRepository_GetStock_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -200,7 +201,7 @@ func TestPostgresRepository_GetStock_CancelledContext(t *testing.T) {
 
 func TestPostgresRepository_GetLevels(t *testing.T) {
 	t.Run("returns levels for many products in one call", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		id1 := seedProduct(t)
 		id2 := seedProduct(t)
@@ -214,7 +215,7 @@ func TestPostgresRepository_GetLevels(t *testing.T) {
 	})
 
 	t.Run("omits ids with no level row", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		id := seedProduct(t)
 		missing := uuid.New()
@@ -227,7 +228,7 @@ func TestPostgresRepository_GetLevels(t *testing.T) {
 	})
 
 	t.Run("empty ids returns empty map without querying", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		levels, err := repo.GetLevels(context.Background(), nil)
 		require.NoError(t, err)
@@ -237,7 +238,7 @@ func TestPostgresRepository_GetLevels(t *testing.T) {
 
 func TestPostgresRepository_GetLevels_CancelledContext(t *testing.T) {
 	t.Run("returns error on cancelled context", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -248,7 +249,7 @@ func TestPostgresRepository_GetLevels_CancelledContext(t *testing.T) {
 
 func TestPostgresRepository_Reserve_UsesInventoryLevels(t *testing.T) {
 	ctx := context.Background()
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 
 	productID := seedProduct(t)
 	_, err := testPool.Exec(ctx,
@@ -270,7 +271,7 @@ func TestPostgresRepository_Reserve_UsesInventoryLevels(t *testing.T) {
 
 func TestPostgresRepository_Reserve_RejectsOverReservation(t *testing.T) {
 	ctx := context.Background()
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 
 	productID := seedProduct(t)
 	_, err := testPool.Exec(ctx,
@@ -296,7 +297,7 @@ func TestPostgresRepository_Reserve_RejectsOverReservation(t *testing.T) {
 // deduction path.
 func TestPostgresRepository_Deduct_UsesInventoryLevels(t *testing.T) {
 	ctx := context.Background()
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 
 	productID := seedProduct(t)
 	arrangeReservation(t, productID, 4)
@@ -313,7 +314,7 @@ func TestPostgresRepository_Deduct_UsesInventoryLevels(t *testing.T) {
 
 func TestPostgresRepository_Deduct_RejectsOverDeduction(t *testing.T) {
 	ctx := context.Background()
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 
 	productID := seedProduct(t)
 	arrangeReservation(t, productID, 2)
@@ -329,7 +330,7 @@ func TestPostgresRepository_ReleaseBatch(t *testing.T) {
 	t.Run("releases the reservation for every product", func(t *testing.T) {
 		first := seedProduct(t)
 		second := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		arrangeReservation(t, first, 4)
@@ -347,7 +348,7 @@ func TestPostgresRepository_ReleaseBatch(t *testing.T) {
 	// Silent success here would strand the reservation forever.
 	t.Run("refuses to release more than is reserved", func(t *testing.T) {
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		arrangeReservation(t, productID, 2)
@@ -359,7 +360,7 @@ func TestPostgresRepository_ReleaseBatch(t *testing.T) {
 	})
 
 	t.Run("no items is a no-op", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		assert.NoError(t, repo.ReleaseBatch(context.Background(), nil))
 	})

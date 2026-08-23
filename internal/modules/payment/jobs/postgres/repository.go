@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -15,23 +14,23 @@ import (
 
 // Repository backs payment's JobRepository port. No compile-time assertion
 // against it here: payment's own New constructs this Repository directly
-// from Deps.Pool (see payment/jobs.go), so an import running the other way
+// from Deps.DB (see payment/jobs.go), so an import running the other way
 // -- this package back into payment, just to write
 // "var _ payment.JobRepository = (*Repository)(nil)" -- would cycle.
 // Structural typing still catches a mismatch at that construction call site.
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 // defaultJobMaxAttempts mirrors the payment_jobs.max_attempts column default.
 const defaultJobMaxAttempts = 3
 
 func (r *Repository) CreateJob(ctx context.Context, job *domain.Job) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	if job.MaxAttempts <= 0 {
 		job.MaxAttempts = defaultJobMaxAttempts
@@ -51,7 +50,7 @@ func (r *Repository) CreateJob(ctx context.Context, job *domain.Job) error {
 }
 
 func (r *Repository) Claim(ctx context.Context, batchSize int, leaseDuration time.Duration) ([]domain.Job, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`WITH picked AS (
 			SELECT id
@@ -101,7 +100,7 @@ func scanJob(row pgx.CollectableRow) (domain.Job, error) {
 }
 
 func (r *Repository) UpdateJob(ctx context.Context, job *domain.Job) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(ctx,
 		`UPDATE payment_jobs SET status = $1, attempts = $2, last_error = $3,
 		 locked_until = $4, next_retry_at = $5
@@ -116,7 +115,7 @@ func (r *Repository) UpdateJob(ctx context.Context, job *domain.Job) error {
 }
 
 func (r *Repository) CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(ctx,
 		`UPDATE payment_jobs SET status = 'cancelled' WHERE order_id = $1 AND status IN ('pending', 'processing')`,
 		orderID,
@@ -128,7 +127,7 @@ func (r *Repository) CancelJobsByOrderID(ctx context.Context, orderID uuid.UUID)
 }
 
 func (r *Repository) MarkJobCompleted(ctx context.Context, jobID uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(ctx,
 		`UPDATE payment_jobs SET status = 'completed', locked_until = NULL WHERE id = $1`,
 		jobID,
@@ -144,7 +143,7 @@ func (r *Repository) MarkJobCompletedByPaymentID(
 	paymentID uuid.UUID,
 	action domain.JobAction,
 ) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(ctx,
 		`UPDATE payment_jobs SET status = 'completed', locked_until = NULL
 		 WHERE payment_id = $1 AND action = $2 AND status IN ('pending', 'processing')`,
@@ -157,7 +156,7 @@ func (r *Repository) MarkJobCompletedByPaymentID(
 }
 
 func (r *Repository) Prune(ctx context.Context, olderThan time.Duration, limit int) (int, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`DELETE FROM payment_jobs WHERE id IN (
 			SELECT id FROM payment_jobs

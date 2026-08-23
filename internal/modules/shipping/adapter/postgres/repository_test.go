@@ -30,7 +30,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates shipment with correct fields", func(t *testing.T) {
 		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		s := &domain.Shipment{
 			OrderID:        orderID,
@@ -54,7 +54,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("sets shipped_at when status is shipped", func(t *testing.T) {
 		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		s := &domain.Shipment{
 			OrderID:        orderID,
@@ -73,7 +73,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 		cancelledCtx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		s := &domain.Shipment{
 			OrderID: uuid.New(),
 			Carrier: "FedEx",
@@ -86,7 +86,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("rolls back the insert when the enclosing transaction fails", func(t *testing.T) {
 		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		tx := database.NewTxRunner(testPool)
 
 		s := &domain.Shipment{
@@ -118,7 +118,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
 		shipmentID := seedShipment(t, orderID, "UPS", domain.StatusShipped)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByID(context.Background(), shipmentID)
 		require.NoError(t, err)
@@ -128,7 +128,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -138,7 +138,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		cancelledCtx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		_, err := repo.GetByID(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
@@ -149,7 +149,7 @@ func TestPostgresRepository_GetByOrderID(t *testing.T) {
 		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
 		shipmentID := seedShipment(t, orderID, "DHL", domain.StatusPending)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByOrderID(context.Background(), orderID)
 		require.NoError(t, err)
@@ -159,7 +159,7 @@ func TestPostgresRepository_GetByOrderID(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByOrderID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -169,7 +169,7 @@ func TestPostgresRepository_GetByOrderID(t *testing.T) {
 		cancelledCtx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		_, err := repo.GetByOrderID(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
@@ -180,7 +180,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
 		shipmentID := seedShipment(t, orderID, "UPS", domain.StatusShipped)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.MarkDelivered(context.Background(), shipmentID)
 		require.NoError(t, err)
@@ -189,7 +189,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.MarkDelivered(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
@@ -199,7 +199,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 		cancelledCtx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		_, err := repo.MarkDelivered(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
@@ -210,7 +210,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		userID := testutil.SeedUser(t, testPool)
 		orderID := seedOrder(t, userID)
 		shipmentID := seedShipment(t, orderID, "OldCarrier", domain.StatusPending)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		s := &domain.Shipment{
@@ -229,7 +229,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		s := &domain.Shipment{
 			ID:      uuid.New(),
@@ -244,7 +244,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		cancelledCtx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		s := &domain.Shipment{ID: uuid.New(), Carrier: "UPS", Status: domain.StatusPending}
 		err := repo.Update(cancelledCtx, s)
 		assert.Error(t, err)

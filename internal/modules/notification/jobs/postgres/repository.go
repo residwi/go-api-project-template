@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
@@ -30,15 +29,15 @@ func scanJob(row pgx.CollectableRow) (domain.Job, error) {
 }
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) Create(ctx context.Context, n *domain.Notification) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	err := db.QueryRow(ctx,
 		`INSERT INTO notifications (user_id, type, title, body, is_read, data)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -52,7 +51,7 @@ func (r *Repository) Create(ctx context.Context, n *domain.Notification) error {
 }
 
 func (r *Repository) CreateJob(ctx context.Context, job *domain.Job) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	err := db.QueryRow(ctx,
 		`INSERT INTO notification_jobs (user_id, type, title, body, data, status, attempts, max_attempts)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -66,7 +65,7 @@ func (r *Repository) CreateJob(ctx context.Context, job *domain.Job) error {
 }
 
 func (r *Repository) Claim(ctx context.Context, batchSize int, lease time.Duration) ([]domain.Job, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	rows, err := db.Query(ctx,
 		`WITH picked AS (
@@ -98,7 +97,7 @@ func (r *Repository) Claim(ctx context.Context, batchSize int, lease time.Durati
 }
 
 func (r *Repository) UpdateJob(ctx context.Context, job *domain.Job) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
 		`UPDATE notification_jobs SET status = $1, attempts = $2, last_error = $3
 		WHERE id = $4`,
@@ -114,7 +113,7 @@ func (r *Repository) UpdateJob(ctx context.Context, job *domain.Job) error {
 }
 
 func (r *Repository) CreateAndComplete(ctx context.Context, n *domain.Notification, job *domain.Job) error {
-	return database.WithTx(ctx, r.pool, func(txCtx context.Context) error {
+	return database.WithTx(ctx, r.db.Primary, func(txCtx context.Context) error {
 		if err := r.Create(txCtx, n); err != nil {
 			return err
 		}
@@ -123,7 +122,7 @@ func (r *Repository) CreateAndComplete(ctx context.Context, n *domain.Notificati
 }
 
 func (r *Repository) Prune(ctx context.Context, olderThan time.Duration, limit int) (int, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	tag, err := db.Exec(ctx,
 		`DELETE FROM notification_jobs

@@ -14,46 +14,51 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDBWithoutPool(t *testing.T) {
-	t.Run("returns pool when no transaction in context", func(t *testing.T) {
-		ctx := context.Background()
-		result := DB(ctx, nil)
-		assert.Nil(t, result)
+func TestPrimaryDB(t *testing.T) {
+	t.Run("returns the primary pool when no transaction in context", func(t *testing.T) {
+		pool := newTestPool(t)
+
+		assert.Equal(t, DBTX(pool), PrimaryDB(context.Background(), DB{Primary: pool}))
+	})
+
+	t.Run("returns the transaction when one is in context", func(t *testing.T) {
+		fake := noopDBTX{}
+
+		assert.Equal(t, fake, PrimaryDB(withTx(context.Background(), fake), DB{}))
 	})
 }
 
-func TestReadDB(t *testing.T) {
-	t.Run("returns primary after recent write", func(t *testing.T) {
-		ctx := context.Background()
-		ctx = WithRecentWrite(ctx)
+func TestReplicaDB(t *testing.T) {
+	t.Run("returns the primary when no replica is configured", func(t *testing.T) {
+		pool := newTestPool(t)
 
-		result := ReadDB(ctx, nil, nil)
-		assert.Nil(t, result)
+		assert.Equal(t, DBTX(pool), ReplicaDB(context.Background(), DB{Primary: pool}))
 	})
 
-	t.Run("returns primary when no reader available", func(t *testing.T) {
-		ctx := context.Background()
+	t.Run("returns the replica when one is configured", func(t *testing.T) {
+		primary := newTestPool(t)
+		replica := newTestPool(t)
 
-		result := ReadDB(ctx, nil, nil)
-		assert.Nil(t, result)
+		assert.Equal(t, DBTX(replica), ReplicaDB(context.Background(), DB{Primary: primary, Replica: replica}))
 	})
-}
 
-func TestDB_ReturnsTransactionFromContext(t *testing.T) {
-	fake := noopDBTX{}
-	assert.Equal(t, fake, DB(withTx(context.Background(), fake), nil))
-}
+	t.Run("returns the transaction when one is in context", func(t *testing.T) {
+		fake := noopDBTX{}
+		primary := newTestPool(t)
+		replica := newTestPool(t)
 
-func TestReadDB_ReturnsTransactionFromContext(t *testing.T) {
-	fake := noopDBTX{}
-	assert.Equal(t, fake, ReadDB(withTx(context.Background(), fake), nil, nil))
+		assert.Equal(t, fake, ReplicaDB(withTx(context.Background(), fake), DB{Primary: primary, Replica: replica}))
+	})
 }
 
 func TestWithTx(t *testing.T) {
 	t.Run("commits on success", func(t *testing.T) {
 		pool := newTestPool(t)
 		err := WithTx(context.Background(), pool, func(ctx context.Context) error {
-			_, err := DB(ctx, pool).Exec(ctx, `CREATE TEMP TABLE IF NOT EXISTS tx_commit_test (id int)`)
+			_, err := PrimaryDB(
+				ctx,
+				DB{Primary: pool},
+			).Exec(ctx, `CREATE TEMP TABLE IF NOT EXISTS tx_commit_test (id int)`)
 			return err
 		})
 		require.NoError(t, err)
@@ -86,41 +91,13 @@ func TestWithTx(t *testing.T) {
 			outerCalled = true
 			return WithTx(outerCtx, pool, func(innerCtx context.Context) error {
 				innerCalled = true
-				assert.Equal(t, DB(outerCtx, pool), DB(innerCtx, pool))
+				assert.Equal(t, PrimaryDB(outerCtx, DB{Primary: pool}), PrimaryDB(innerCtx, DB{Primary: pool}))
 				return nil
 			})
 		})
 		require.NoError(t, err)
 		assert.True(t, outerCalled)
 		assert.True(t, innerCalled)
-	})
-}
-
-func TestReadDB_WithReaderPool(t *testing.T) {
-	primary := newTestPool(t)
-	reader := newTestPool(t)
-
-	t.Run("returns reader pool when available and no tx or recent write", func(t *testing.T) {
-		ctx := context.Background()
-		result := ReadDB(ctx, primary, reader)
-		assert.Equal(t, reader, result)
-	})
-
-	t.Run("returns primary after recent write even with reader available", func(t *testing.T) {
-		ctx := WithRecentWrite(context.Background())
-		result := ReadDB(ctx, primary, reader)
-		assert.Equal(t, primary, result)
-	})
-}
-
-func TestDB(t *testing.T) {
-	t.Run("returns transaction when one is in context", func(t *testing.T) {
-		pool := newTestPool(t)
-		err := WithTx(context.Background(), pool, func(txCtx context.Context) error {
-			assert.NotNil(t, DB(txCtx, pool))
-			return nil
-		})
-		require.NoError(t, err)
 	})
 }
 
@@ -133,7 +110,7 @@ func TestTxRunner_Run(t *testing.T) {
 		email := "txrunner-commit-" + uuid.NewString() + "@example.com"
 
 		err := runner.Run(ctx, func(txCtx context.Context) error {
-			_, err := DB(txCtx, pool).Exec(txCtx,
+			_, err := PrimaryDB(txCtx, DB{Primary: pool}).Exec(txCtx,
 				`INSERT INTO users (email, password_hash, first_name, last_name)
 				 VALUES ($1, 'x', 'Tx', 'Runner')`, email)
 			return err
@@ -152,7 +129,7 @@ func TestTxRunner_Run(t *testing.T) {
 		sentinel := errors.New("boom")
 
 		err := runner.Run(ctx, func(txCtx context.Context) error {
-			if _, err := DB(txCtx, pool).Exec(txCtx,
+			if _, err := PrimaryDB(txCtx, DB{Primary: pool}).Exec(txCtx,
 				`INSERT INTO users (email, password_hash, first_name, last_name)
 				 VALUES ($1, 'x', 'Tx', 'Runner')`, email); err != nil {
 				return err
@@ -174,7 +151,7 @@ func TestTxRunner_Run(t *testing.T) {
 
 		err := runner.Run(ctx, func(outerCtx context.Context) error {
 			if err := runner.Run(outerCtx, func(innerCtx context.Context) error {
-				_, err := DB(innerCtx, pool).Exec(innerCtx,
+				_, err := PrimaryDB(innerCtx, DB{Primary: pool}).Exec(innerCtx,
 					`INSERT INTO users (email, password_hash, first_name, last_name)
 					 VALUES ($1, 'x', 'Tx', 'Runner')`, email)
 				return err

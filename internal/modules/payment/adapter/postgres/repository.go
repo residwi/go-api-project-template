@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
@@ -28,15 +27,15 @@ func (a amountColumns) assignTo(p *domain.Payment) {
 }
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) Create(ctx context.Context, p *domain.Payment) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	err := db.QueryRow(
 		ctx,
 		`INSERT INTO payments (order_id, amount, currency, status, method, payment_method_id, payment_url, gateway_txn_id, gateway_response)
@@ -59,7 +58,7 @@ func (r *Repository) Create(ctx context.Context, p *domain.Payment) error {
 }
 
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Payment, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var p domain.Payment
 	var amt amountColumns
 	var paymentMethodID, paymentURL, gatewayTxnID *string
@@ -90,7 +89,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Payment
 }
 
 func (r *Repository) GetActiveByOrderID(ctx context.Context, orderID uuid.UUID) (*domain.Payment, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var p domain.Payment
 	var amt amountColumns
 	var paymentMethodID, paymentURL, gatewayTxnID *string
@@ -127,7 +126,7 @@ func (r *Repository) UpdateStatus(
 	toStatus domain.Status,
 	fromStatuses []domain.Status,
 ) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var returnedID uuid.UUID
 	err := db.QueryRow(ctx,
 		`UPDATE payments SET status = $1 WHERE id = $2 AND status = ANY($3) RETURNING id`,
@@ -143,7 +142,7 @@ func (r *Repository) UpdateStatus(
 }
 
 func (r *Repository) UpdateGateway(ctx context.Context, id uuid.UUID, txnID string, response []byte) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(ctx,
 		`UPDATE payments SET gateway_txn_id = $1, gateway_response = $2 WHERE id = $3`,
 		txnID, response, id,
@@ -155,7 +154,7 @@ func (r *Repository) UpdateGateway(ctx context.Context, id uuid.UUID, txnID stri
 }
 
 func (r *Repository) UpdatePaymentURL(ctx context.Context, id uuid.UUID, paymentURL string) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(ctx,
 		`UPDATE payments SET payment_url = $1 WHERE id = $2`,
 		paymentURL, id,
@@ -167,7 +166,7 @@ func (r *Repository) UpdatePaymentURL(ctx context.Context, id uuid.UUID, payment
 }
 
 func (r *Repository) MarkPaid(ctx context.Context, id uuid.UUID, fromStatuses []domain.Status) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var returnedID uuid.UUID
 	err := db.QueryRow(ctx,
 		`UPDATE payments SET status = 'success', paid_at = NOW() WHERE id = $1 AND status = ANY($2) RETURNING id`,
@@ -183,7 +182,7 @@ func (r *Repository) MarkPaid(ctx context.Context, id uuid.UUID, fromStatuses []
 }
 
 func (r *Repository) GetByGatewayTxnID(ctx context.Context, txnID string) (*domain.Payment, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var p domain.Payment
 	var amt amountColumns
 	var paymentMethodID, paymentURL, gwTxnID *string
@@ -214,7 +213,7 @@ func (r *Repository) GetByGatewayTxnID(ctx context.Context, txnID string) (*doma
 }
 
 func (r *Repository) ClearPaymentURL(ctx context.Context, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	_, err := db.Exec(ctx,
 		`UPDATE payments SET payment_url = NULL WHERE id = $1`,
 		id,
@@ -226,7 +225,7 @@ func (r *Repository) ClearPaymentURL(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *Repository) ListAdmin(ctx context.Context, params payment.AdminListParams) ([]domain.Payment, int, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	where := "1=1"
 	args := []any{}

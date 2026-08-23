@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/review"
@@ -35,15 +34,15 @@ func scanReview(row pgx.CollectableRow) (domain.Review, error) {
 }
 
 type Repository struct {
-	pool *pgxpool.Pool
+	db database.DB
 }
 
-func New(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+func New(db database.DB) *Repository {
+	return &Repository{db: db}
 }
 
 func (r *Repository) Create(ctx context.Context, rv *domain.Review) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	err := db.QueryRow(ctx,
 		`INSERT INTO reviews (user_id, product_id, order_id, rating, title, body, status)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -60,7 +59,7 @@ func (r *Repository) Create(ctx context.Context, rv *domain.Review) error {
 }
 
 func (r *Repository) HasUserReviewed(ctx context.Context, userID, productID uuid.UUID) (bool, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var exists bool
 	err := db.QueryRow(ctx,
 		`SELECT EXISTS(SELECT 1 FROM reviews WHERE user_id = $1 AND product_id = $2)`,
@@ -77,7 +76,7 @@ func (r *Repository) ListByProduct(
 	productID uuid.UUID,
 	cursor paging.CursorPage,
 ) ([]domain.Review, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 
 	args := []any{productID}
 	where := "product_id = $1 AND status = 'published'"
@@ -111,7 +110,7 @@ func (r *Repository) ListByProduct(
 }
 
 func (r *Repository) GetStats(ctx context.Context, productID uuid.UUID) (domain.Stats, error) {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	var stats domain.Stats
 	err := db.QueryRow(ctx,
 		`SELECT COALESCE(AVG(rating), 0), COUNT(*)
@@ -124,7 +123,7 @@ func (r *Repository) GetStats(ctx context.Context, productID uuid.UUID) (domain.
 }
 
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
-	db := database.DB(ctx, r.pool)
+	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx, `DELETE FROM reviews WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("deleting review: %w", err)

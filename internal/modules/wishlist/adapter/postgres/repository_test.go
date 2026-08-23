@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -27,7 +28,7 @@ func TestMain(m *testing.M) {
 func TestPostgresRepository_GetOrCreate(t *testing.T) {
 	t.Run("creates wishlist on first call", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		wishlistID, err := repo.GetOrCreate(context.Background(), userID)
 		require.NoError(t, err)
@@ -36,7 +37,7 @@ func TestPostgresRepository_GetOrCreate(t *testing.T) {
 
 	t.Run("returns same id on second call", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		first, err := repo.GetOrCreate(context.Background(), userID)
 		require.NoError(t, err)
@@ -51,7 +52,7 @@ func TestPostgresRepository_AddItem(t *testing.T) {
 	t.Run("adds product to wishlist", func(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		wishlistID, err := repo.GetOrCreate(ctx, userID)
@@ -64,7 +65,7 @@ func TestPostgresRepository_AddItem(t *testing.T) {
 	t.Run("silently ignores duplicate (ON CONFLICT DO NOTHING)", func(t *testing.T) {
 		userID := seedUser(t)
 		productID := seedProduct(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		wishlistID, err := repo.GetOrCreate(ctx, userID)
@@ -80,7 +81,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 		productID := seedProduct(t)
 		wishlistID := seedWishlist(t, userID)
 		seedItem(t, wishlistID, productID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		require.NoError(t, repo.RemoveItem(ctx, userID, productID))
@@ -89,7 +90,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 	})
 
 	t.Run("returns not found when item does not exist", func(t *testing.T) {
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		err := repo.RemoveItem(context.Background(), uuid.New(), uuid.New())
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -98,7 +99,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 func TestPostgresRepository_ListItemsForUser(t *testing.T) {
 	t.Run("returns empty list when wishlist does not exist", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		items, err := repo.ListItemsForUser(context.Background(), userID, paging.CursorPage{Limit: 10})
 		require.NoError(t, err)
@@ -108,7 +109,7 @@ func TestPostgresRepository_ListItemsForUser(t *testing.T) {
 	t.Run("returns items with pagination cursor when results exceed limit", func(t *testing.T) {
 		userID := seedUser(t)
 		wishlistID := seedWishlist(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		for range 5 {
 			seedItem(t, wishlistID, seedProduct(t))
@@ -123,7 +124,7 @@ func TestPostgresRepository_ListItemsForUser(t *testing.T) {
 	t.Run("cursor pagination returns next page", func(t *testing.T) {
 		userID := seedUser(t)
 		wishlistID := seedWishlist(t, userID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		for range 5 {
 			seedItem(t, wishlistID, seedProduct(t))
@@ -147,7 +148,7 @@ func TestPostgresRepository_ListItemsForUser(t *testing.T) {
 
 	t.Run("returns error for invalid cursor", func(t *testing.T) {
 		userID := seedUser(t)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.ListItemsForUser(
 			context.Background(), userID, paging.CursorPage{Cursor: "!!!invalid!!!", Limit: 10},
@@ -160,7 +161,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 
 	t.Run("GetOrCreate", func(t *testing.T) {
 		_, err := repo.GetOrCreate(cancelledCtx, uuid.New())

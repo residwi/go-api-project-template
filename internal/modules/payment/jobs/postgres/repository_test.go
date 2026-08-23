@@ -13,6 +13,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -40,7 +41,7 @@ func TestPostgresRepository_CreateJob_MaxAttempts(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
 		paymentID := seedPayment(t, orderID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		job := &domain.Job{
 			PaymentID:   paymentID,
@@ -60,7 +61,7 @@ func TestPostgresRepository_CreateJob_MaxAttempts(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
 		paymentID := seedPayment(t, orderID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 
 		job := &domain.Job{
 			PaymentID:   paymentID,
@@ -83,7 +84,7 @@ func TestPostgresRepository_JobLifecycle(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
 		paymentID := seedPayment(t, orderID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		job := &domain.Job{
@@ -146,7 +147,7 @@ func TestPostgresRepository_Claim_WithOptionalFields(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
 		paymentID := seedPayment(t, orderID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		job := &domain.Job{
@@ -195,7 +196,7 @@ func TestPostgresRepository_MarkJobCompletedByPaymentID(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
 		paymentID := seedPayment(t, orderID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		job := &domain.Job{
@@ -224,7 +225,7 @@ func TestPostgresRepository_MarkJobCompletedByPaymentID(t *testing.T) {
 		userID := seedUser(t)
 		orderID := seedOrder(t, userID)
 		paymentID := seedPayment(t, orderID)
-		repo := New(testPool)
+		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
 		job := &domain.Job{
@@ -264,7 +265,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	repo := New(testPool)
+	repo := New(database.DB{Primary: testPool})
 
 	t.Run("CreateJob", func(t *testing.T) {
 		job := &domain.Job{
