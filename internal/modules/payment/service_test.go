@@ -2359,7 +2359,7 @@ type testDeps struct {
 	orderRead        *MockOrderReader
 	inventoryDeduct  *MockInventoryDeductor
 	inventoryRestore *MockInventoryRestorer
-	coupon           *MockCouponPort
+	coupon           *MockCouponReleaser
 	jobs             *MockJobRepository
 }
 
@@ -2375,7 +2375,7 @@ func newTestService(t *testing.T) (*Service, testDeps) {
 		orderRead:        NewMockOrderReader(t),
 		inventoryDeduct:  NewMockInventoryDeductor(t),
 		inventoryRestore: NewMockInventoryRestorer(t),
-		coupon:           NewMockCouponPort(t),
+		coupon:           NewMockCouponReleaser(t),
 		jobs:             NewMockJobRepository(t),
 	}
 

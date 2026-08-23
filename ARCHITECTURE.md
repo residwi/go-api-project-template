@@ -91,7 +91,7 @@ tree.
 has no cycles by construction and each module's port list is exactly the API
 it would need if extracted. It pays off immediately: because interfaces are
 declared narrow at the consumer, `promotion.Service` satisfies both
-`order.CouponReserver` and `payment.CouponPort` directly, and
+`order.CouponReserver` and `payment.CouponReleaser` directly, and
 `notification/jobs.Worker` satisfies `platform/jobs.Processor` directly — no
 adapter ever needed writing.
 
@@ -470,7 +470,7 @@ declared by the consumer, per decision 2.
 
 **Why:** decision 2's trick — a producer's own value already has a method
 named what the consumer's port asks for, so `promotion.Service` satisfies
-`payment.CouponPort` with no adapter at all — works for scalars and for
+`payment.CouponReleaser` with no adapter at all — works for scalars and for
 interfaces a producer already implements. It does not work when what crosses
 is a struct: two modules cannot each declare their own `User` and have the
 compiler agree the two are the same type. Every module that names a struct

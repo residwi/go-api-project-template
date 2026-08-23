@@ -41,7 +41,7 @@ type Deps struct {
 	OrderReader      OrderReader
 	InventoryDeduct  InventoryDeductor
 	InventoryRestore InventoryRestorer
-	Promotions       CouponPort
+	Promotions       CouponReleaser
 }
 
 type Service struct {
@@ -56,7 +56,7 @@ type Service struct {
 	orderRead        OrderReader
 	inventoryDeduct  InventoryDeductor
 	inventoryRestore InventoryRestorer
-	coupon           CouponPort
+	coupon           CouponReleaser
 
 	webhookSecret string
 

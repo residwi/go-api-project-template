@@ -41,6 +41,6 @@ type InventoryRestorer interface {
 	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventory.StockState) error
 }
 
-type CouponPort interface {
+type CouponReleaser interface {
 	Release(ctx context.Context, orderID uuid.UUID) error
 }

@@ -182,7 +182,7 @@ the one place either is used:
 
 - **Name-match.** The producer's own value already has a method named what the
   consumer's port asks for. `promotion.Service` satisfies both
-  `order.CouponReserver` (`Reserve` + `Release`) and `payment.CouponPort`
+  `order.CouponReserver` (`Reserve` + `Release`) and `payment.CouponReleaser`
   (`Release` alone) — two differently-shaped interfaces, one producer value,
   no adapter for either. `notification/jobs.Worker` satisfies
   `platform/jobs.Processor` directly. `*order.Service` satisfies ten port
@@ -530,7 +530,7 @@ compiler; they are all greps.
     Two mechanisms satisfy a port without an adapter:
     - **Name-match.** The producer's own value already has a method named what
       the consumer's port asks for. `promotion.Service` satisfies both
-      `order.CouponReserver` (`Reserve` + `Release`) and `payment.CouponPort`
+      `order.CouponReserver` (`Reserve` + `Release`) and `payment.CouponReleaser`
       (`Release` alone) directly — two differently-shaped interfaces, one
       producer value, no adapter for either. `notification/jobs.Worker`
       satisfies `platform/jobs.Processor` directly. `*order.Service` satisfies

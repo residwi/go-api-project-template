@@ -606,7 +606,7 @@ This template puts one module per feature and one `Service` per module:
   the API server and the worker) wires them once: **name-match**, when the
   producer's own value already has a method named what the port asks for
   (`promotion.Service` satisfies both `order.CouponReserver` and
-  `payment.CouponPort` with no adapter), or a **type in the producer's
+  `payment.CouponReleaser` with no adapter), or a **type in the producer's
   `contract.go`**, when what crosses is a struct rather than something a value
   already satisfies. The dependency graph stays acyclic by construction.
 - Order status changes from other modules go through named `domain.Transition`
