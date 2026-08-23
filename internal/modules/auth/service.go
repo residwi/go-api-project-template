@@ -139,10 +139,6 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (*domain.Tok
 	return s.BuildTokenPair(user)
 }
 
-// BuildTokenPair and ValidateToken keep the names they had as their own
-// slice: other code binds to them by name-match (middleware.Auth's
-// TokenValidator port, satisfied by *Service directly now that token no
-// longer lives behind a separate cross-slice port).
 func (s *Service) BuildTokenPair(user user.Profile) (*domain.TokenPair, error) {
 	claims := domain.Claims{
 		UserID:       user.ID,

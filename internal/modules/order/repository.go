@@ -22,10 +22,6 @@ type DeliveredPurchaseParams struct {
 	ProductID uuid.UUID
 }
 
-// Repository is the deduplicated union of the seven slice repositories this
-// module used to carry. GetByID was declared three times and
-// ListItemsByOrderID four; every copy was the same signature over the same
-// SQL, so the union has one of each.
 type Repository interface {
 	Create(ctx context.Context, order *domain.Order) error
 	CreateItems(ctx context.Context, items []domain.Item) error

@@ -21,11 +21,6 @@ type Deps struct {
 
 type Service struct {
 	repo Repository
-	// Jobs is exported because it is not a slice: notification/jobs is the
-	// queue-draining worker at the feature root, consumed directly by
-	// order/checkout (name-matched against order.NotificationEnqueuer) and by
-	// cmd/worker/main.go, which hands it to jobs.Runner as both queue and
-	// processor.
 	Jobs *jobs.Worker
 }
 

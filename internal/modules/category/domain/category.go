@@ -11,8 +11,7 @@ import (
 )
 
 // MaxDepth bounds how many ancestors a category chain may have. create and
-// update both walk the chain before writing a parent_id, so the number lives
-// here once rather than as a literal `5` repeated in each slice.
+// update both walk the chain before writing a parent_id, so the number lives.
 const MaxDepth = 5
 
 type Category struct {

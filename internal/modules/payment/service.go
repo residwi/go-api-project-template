@@ -48,11 +48,8 @@ type Service struct {
 	repo    Repository
 	tx      database.TxRunner
 	gateway Gateway
-	// jobs is the storage port behind the queue behaviour in jobs.go: Service
-	// calls it directly, with no interface between the two, now that the
-	// queue lives in this package instead of a sibling one.
-	jobs   JobRepository
-	logger *slog.Logger
+	jobs    JobRepository
+	logger  *slog.Logger
 
 	orderTransition  OrderTransition
 	orderCancel      OrderCanceller
@@ -63,11 +60,6 @@ type Service struct {
 
 	webhookSecret string
 
-	// JobProcessor is exported because it is not a slice: it is the
-	// dispatcher cmd/worker hands to jobs.Runner as the processor half of
-	// the payment queue, exactly where app.Payments.JobProcessor lived
-	// before this flatten. It routes a claimed job to RunChargeJob or
-	// RunRefundJob on this same Service.
 	JobProcessor *paymentjobs.Dispatcher
 }
 

@@ -9,8 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-// Repository is the deduplicated union of every former slice's storage
-// port. GetByID alone was declared six times before this merge.
 type Repository interface {
 	Create(ctx context.Context, user *domain.User) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
@@ -23,9 +21,6 @@ type Repository interface {
 	IncrementTokenVersion(ctx context.Context, id uuid.UUID) error
 }
 
-// AdminListParams filters the admin user list. Renamed from query's bare
-// Params on promotion, matching the AdminListParams/PublishedListParams
-// naming product's own admin listing already uses.
 type AdminListParams struct {
 	paging.OffsetPage
 

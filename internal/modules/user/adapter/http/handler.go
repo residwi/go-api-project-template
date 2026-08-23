@@ -12,10 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
-// ProfileManager is what the authed handler needs to serve a caller's own
-// record: read it back (Me) and update it (Update). Grew from a
-// get-only port on merge, so it is named for the capability set rather than
-// kept as the old get-only name.
 type ProfileManager interface {
 	GetUser(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	UpdateProfile(ctx context.Context, id uuid.UUID, firstName, lastName string, phone *string) (*domain.User, error)

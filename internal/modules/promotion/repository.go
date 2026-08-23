@@ -9,9 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-// Repository is the deduplicated union of every former slice's storage
-// port. GetByCode was declared twice -- once for apply's read-only path,
-// once for reserve's transactional one -- before this merge.
 type Repository interface {
 	GetByCode(ctx context.Context, code string) (*domain.Promotion, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Promotion, error)
@@ -25,9 +22,6 @@ type Repository interface {
 	DeleteUsageByOrderID(ctx context.Context, orderID uuid.UUID) (*domain.CouponUsage, error)
 }
 
-// AdminListParams paginates the admin promotion list. Renamed from query's
-// bare Params, matching the AdminListParams/PublishedListParams naming
-// product's and user's own admin listings already use.
 type AdminListParams struct {
 	paging.OffsetPage
 }

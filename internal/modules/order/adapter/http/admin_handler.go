@@ -13,9 +13,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
-// OrderManager is named for the capability set, not for reading: the admin
-// group's three routes list, read and write a status, and the status write is
-// what the plain OrderReader must not reach.
 type OrderManager interface {
 	ListAdmin(ctx context.Context, params order.AdminListParams) ([]domain.Order, int, error)
 	Get(ctx context.Context, orderID uuid.UUID) (*domain.Order, error)

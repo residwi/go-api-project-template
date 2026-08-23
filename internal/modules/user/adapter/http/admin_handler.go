@@ -15,10 +15,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
-// UserManager is what the admin handler needs across all five of its
-// routes: list, get, full update, role change and delete. Grew from a
-// list-and-get-only port on merge, so it is named for the capability set
-// rather than kept as the old, narrower name.
 type UserManager interface {
 	ListAdmin(ctx context.Context, params user.AdminListParams) ([]domain.User, int, error)
 	GetUser(ctx context.Context, id uuid.UUID) (*domain.User, error)

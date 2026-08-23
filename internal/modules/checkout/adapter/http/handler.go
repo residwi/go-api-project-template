@@ -15,8 +15,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
-// Checkout is one port for all three routes rather than one per route: they are
-// the same caller role acting on the same order through the same process.
 type Checkout interface {
 	PlaceOrder(
 		ctx context.Context,

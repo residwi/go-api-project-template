@@ -66,9 +66,6 @@ type Item struct {
 	CreatedAt   time.Time
 }
 
-// NewOrder is the input a caller supplies to place an order. It lives in domain
-// rather than the place package so a consumer outside order can name it without
-// importing a slice.
 type NewOrder struct {
 	CouponCode      *string
 	ShippingAddress *Address

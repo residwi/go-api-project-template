@@ -31,10 +31,6 @@ func New(d Deps) *Service {
 	return &Service{repo: d.Repo, cache: d.Cache, logger: d.Logger}
 }
 
-// GetByEmail and Create and GetByID (below) keep the names auth's
-// UserDirectory port binds to by name-match; renaming any of the three here
-// breaks that wiring at the interface level rather than near this file.
-
 func (s *Service) GetByEmail(ctx context.Context, email string) (Credentials, error) {
 	u, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
@@ -93,11 +89,6 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (Profile, error) {
 	}, nil
 }
 
-// GetUser serves both /users/me and the admin /users/{id} route with the
-// full domain record: the old query slice had merged these from two
-// identically-bodied methods before this flatten. It is a distinct method
-// from GetByID, not a rename of it, because GetByID's signature is fixed by
-// auth's UserDirectory port and cannot also return *domain.User.
 func (s *Service) GetUser(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	return s.repo.GetByID(ctx, id)
 }
@@ -257,12 +248,6 @@ func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) e
 	return nil
 }
 
-// invalidateStatusCache is the one copy of a helper that used to be
-// duplicated three times, once per slice (AdminUpdate, UpdateRole, Delete)
-// that needed it -- each held its own StatusInvalidator port over the same
-// underlying cache. Flattening puts all three methods on the one Service
-// that already holds the cache directly, so the three ports dissolved and
-// this is now a plain private method.
 func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
 	if err := s.cache.Invalidate(ctx, userID); err != nil {
 		s.logger.WarnContext(

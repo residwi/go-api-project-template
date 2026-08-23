@@ -33,11 +33,6 @@ type InventoryRestorer interface {
 	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventory.StockState) error
 }
 
-// CouponReserver is place's CouponReserver plus cancel's and expire's
-// CouponReleaser. Reserve and Release are two halves of one coupon hold, so
-// they stay one port rather than three; promotion's own service satisfies it
-// by name-match. Nil is a supported value: an order placed with no coupon
-// code never reaches either method.
 type CouponReserver interface {
 	Reserve(
 		ctx context.Context,
