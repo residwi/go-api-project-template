@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
@@ -78,7 +78,7 @@ func (s *Service) Create(
 		return nil, err
 	}
 
-	prod.Availability = inventorycontract.Availability{}
+	prod.Availability = inventory.Availability{}
 	return prod, nil
 }
 

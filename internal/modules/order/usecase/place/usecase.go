@@ -130,7 +130,7 @@ func (c *UseCase) Place(
 			return txErr
 		}
 
-		if txErr := c.reserver.ReserveBatch(txCtx, reservations); txErr != nil {
+		if txErr := c.reserver.Reserve(txCtx, reservations); txErr != nil {
 			return fmt.Errorf("reserving stock: %w", txErr)
 		}
 
@@ -193,6 +193,6 @@ func (c *UseCase) finalizeFreeOrder(ctx context.Context, order *domain.Order) er
 		for _, item := range order.Items {
 			deductions[item.ProductID] = item.Quantity
 		}
-		return c.deductor.DeductBatch(txCtx, deductions)
+		return c.deductor.Deduct(txCtx, deductions)
 	})
 }

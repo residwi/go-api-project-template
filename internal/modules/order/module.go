@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
-	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel"
 	cancelpg "github.com/residwi/go-api-project-template/internal/modules/order/usecase/cancel/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order/usecase/changestatus"
@@ -54,15 +54,15 @@ type CartClearer interface {
 }
 
 type InventoryReserver interface {
-	ReserveBatch(ctx context.Context, items map[uuid.UUID]int) error
+	Reserve(ctx context.Context, items map[uuid.UUID]int) error
 }
 
 type InventoryDeductor interface {
-	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
+	Deduct(ctx context.Context, items map[uuid.UUID]int) error
 }
 
 type InventoryRestorer interface {
-	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventorycontract.StockState) error
+	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventory.StockState) error
 }
 
 type CouponPort interface {

@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
@@ -94,9 +94,9 @@ func (c *UseCase) releaseOrderHolds(ctx context.Context, o domain.Order) error {
 	return nil
 }
 
-func stockStateFor(deducted bool) inventorycontract.StockState {
+func stockStateFor(deducted bool) inventory.StockState {
 	if deducted {
-		return inventorycontract.Deducted
+		return inventory.Deducted
 	}
-	return inventorycontract.Reserved
+	return inventory.Reserved
 }

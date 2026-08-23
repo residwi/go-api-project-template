@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/money"
 )
 
@@ -30,7 +30,7 @@ type Product struct {
 	UpdatedAt      time.Time
 	DeletedAt      *time.Time
 
-	Availability inventorycontract.Availability
+	Availability inventory.Availability
 }
 
 type Image struct {

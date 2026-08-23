@@ -2,15 +2,14 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	adjusthttp "github.com/residwi/go-api-project-template/internal/modules/inventory/usecase/adjust/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/usecase/query/http"
-	restockhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/usecase/restock/http"
+	inventoryhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/adapter/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
-func Inventory(admin *middleware.RouteGroup, m *inventory.Module, v *validator.Validator) {
-	admin.HandleFunc("GET /inventory/{product_id}", queryhttp.New(m.Query).GetStock)
-	admin.HandleFunc("PUT /inventory/{product_id}/restock", restockhttp.New(m.Restock, v).Restock)
-	admin.HandleFunc("PUT /inventory/{product_id}/adjust", adjusthttp.New(m.Adjust, v).Adjust)
+func Inventory(admin *middleware.RouteGroup, s *inventory.Service, v *validator.Validator) {
+	h := inventoryhttp.NewHandler(s, v)
+	admin.HandleFunc("GET /inventory/{product_id}", h.GetStock)
+	admin.HandleFunc("PUT /inventory/{product_id}/restock", h.Restock)
+	admin.HandleFunc("PUT /inventory/{product_id}/adjust", h.Adjust)
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/gateway"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -18,11 +18,11 @@ import (
 
 const jitterDivisor = 2
 
-func stockStateFor(deducted bool) inventorycontract.StockState {
+func stockStateFor(deducted bool) inventory.StockState {
 	if deducted {
-		return inventorycontract.Deducted
+		return inventory.Deducted
 	}
-	return inventorycontract.Reserved
+	return inventory.Reserved
 }
 
 type UseCase struct {

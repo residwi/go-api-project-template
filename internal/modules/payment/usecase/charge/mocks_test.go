@@ -634,12 +634,12 @@ func (_m *MockInventoryDeductor) EXPECT() *MockInventoryDeductor_Expecter {
 	return &MockInventoryDeductor_Expecter{mock: &_m.Mock}
 }
 
-// DeductBatch provides a mock function for the type MockInventoryDeductor
-func (_mock *MockInventoryDeductor) DeductBatch(ctx context.Context, items map[uuid.UUID]int) error {
+// Deduct provides a mock function for the type MockInventoryDeductor
+func (_mock *MockInventoryDeductor) Deduct(ctx context.Context, items map[uuid.UUID]int) error {
 	ret := _mock.Called(ctx, items)
 
 	if len(ret) == 0 {
-		panic("no return value specified for DeductBatch")
+		panic("no return value specified for Deduct")
 	}
 
 	var r0 error
@@ -651,19 +651,19 @@ func (_mock *MockInventoryDeductor) DeductBatch(ctx context.Context, items map[u
 	return r0
 }
 
-// MockInventoryDeductor_DeductBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeductBatch'
-type MockInventoryDeductor_DeductBatch_Call struct {
+// MockInventoryDeductor_Deduct_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Deduct'
+type MockInventoryDeductor_Deduct_Call struct {
 	*mock.Call
 }
 
-// DeductBatch is a helper method to define mock.On call
+// Deduct is a helper method to define mock.On call
 //   - ctx context.Context
 //   - items map[uuid.UUID]int
-func (_e *MockInventoryDeductor_Expecter) DeductBatch(ctx any, items any) *MockInventoryDeductor_DeductBatch_Call {
-	return &MockInventoryDeductor_DeductBatch_Call{Call: _e.mock.On("DeductBatch", ctx, items)}
+func (_e *MockInventoryDeductor_Expecter) Deduct(ctx any, items any) *MockInventoryDeductor_Deduct_Call {
+	return &MockInventoryDeductor_Deduct_Call{Call: _e.mock.On("Deduct", ctx, items)}
 }
 
-func (_c *MockInventoryDeductor_DeductBatch_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int)) *MockInventoryDeductor_DeductBatch_Call {
+func (_c *MockInventoryDeductor_Deduct_Call) Run(run func(ctx context.Context, items map[uuid.UUID]int)) *MockInventoryDeductor_Deduct_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -681,12 +681,12 @@ func (_c *MockInventoryDeductor_DeductBatch_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockInventoryDeductor_DeductBatch_Call) Return(err error) *MockInventoryDeductor_DeductBatch_Call {
+func (_c *MockInventoryDeductor_Deduct_Call) Return(err error) *MockInventoryDeductor_Deduct_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockInventoryDeductor_DeductBatch_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int) error) *MockInventoryDeductor_DeductBatch_Call {
+func (_c *MockInventoryDeductor_Deduct_Call) RunAndReturn(run func(ctx context.Context, items map[uuid.UUID]int) error) *MockInventoryDeductor_Deduct_Call {
 	_c.Call.Return(run)
 	return _c
 }

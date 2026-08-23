@@ -316,7 +316,7 @@ func (c *UseCase) FinalizePaymentSuccess(ctx context.Context, job domain.Job) er
 			return fmt.Errorf("listing order items: %w", err)
 		}
 
-		if err := c.inventory.DeductBatch(txCtx, items); err != nil {
+		if err := c.inventory.Deduct(txCtx, items); err != nil {
 			return fmt.Errorf("deducting inventory: %w", err)
 		}
 

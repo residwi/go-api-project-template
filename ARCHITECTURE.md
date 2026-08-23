@@ -254,7 +254,7 @@ Alternative — product writing inventory's table inside its own transaction —
 is exact violation being removed.
 
 **Shape detail:** `available_stock` _stored_, not derived, so each operation is
-single guarded column update and `DeductBatch` touches one column instead of
+single guarded column update and `Deduct` touches one column instead of
 two. Total on hand derived as `available + reserved`.
 
 ## 8. Foreign keys stay; cross-module cascades do not
@@ -476,7 +476,7 @@ HTTP.
 ## 13. A `<feature>/contract/` package publishes the structs that cross a boundary
 
 Seven of fourteen modules — `auth cart inventory order payment product user` —
-have a `contract/` package: `inventory/contract.StockState`, `order/contract.Order`,
+have a `contract/` package: `order/contract.Order`,
 `payment/contract.ChargeRequest`, and their siblings. Each package
 imports no module and no platform package, so importing one can never pull the
 producer's implementation along with it — a consumer takes the type by value

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	inventorypkg "github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
@@ -169,7 +169,7 @@ func TestUseCase_CancelByUser(t *testing.T) {
 		inventory.EXPECT().Restore(mock.Anything, map[uuid.UUID]int{
 			productA: 2,
 			productB: 1,
-		}, inventorycontract.Reserved).Return(nil)
+		}, inventorypkg.Reserved).Return(nil)
 
 		err := cmd.CancelByUser(ctx, userID, orderID)
 
@@ -203,7 +203,7 @@ func TestUseCase_CancelByUser(t *testing.T) {
 				Subtotal:    money.New(5000, "USD"),
 			},
 		}, nil)
-		inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).Return(nil)
+		inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventorypkg.Reserved).Return(nil)
 		coupons.EXPECT().Release(mock.Anything, orderID).Return(nil)
 
 		err := cmd.CancelByUser(ctx, userID, orderID)
@@ -238,7 +238,7 @@ func TestUseCase_CancelByUser(t *testing.T) {
 			},
 		}, nil)
 		inventory.EXPECT().
-			Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).
+			Restore(mock.Anything, mock.Anything, inventorypkg.Reserved).
 			Return(errors.New("inventory error"))
 
 		err := cmd.CancelByUser(ctx, userID, orderID)
@@ -274,7 +274,7 @@ func TestUseCase_CancelByUser(t *testing.T) {
 				Subtotal:    money.New(5000, "USD"),
 			},
 		}, nil)
-		inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventorycontract.Reserved).Return(nil)
+		inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventorypkg.Reserved).Return(nil)
 		coupons.EXPECT().Release(mock.Anything, orderID).Return(errors.New("coupon service down"))
 
 		err := cmd.CancelByUser(ctx, userID, orderID)

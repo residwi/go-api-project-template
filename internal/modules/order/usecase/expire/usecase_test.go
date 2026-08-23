@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	inventorypkg "github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -37,7 +37,7 @@ func TestUseCase_ExpireStale(t *testing.T) {
 		repo.EXPECT().ListItemsByOrderID(mock.Anything, expired.ID).
 			Return([]domain.Item{{ProductID: productID, Quantity: 2}}, nil)
 		inventory.EXPECT().
-			Restore(mock.Anything, map[uuid.UUID]int{productID: 2}, inventorycontract.Reserved).
+			Restore(mock.Anything, map[uuid.UUID]int{productID: 2}, inventorypkg.Reserved).
 			Return(nil)
 		coupons.EXPECT().Release(mock.Anything, expired.ID).Return(nil)
 

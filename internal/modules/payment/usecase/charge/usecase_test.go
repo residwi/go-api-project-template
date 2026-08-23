@@ -83,7 +83,7 @@ func TestCommand_Charge(t *testing.T) {
 		productID := uuid.New()
 		orderItems.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 2}, nil)
-		inventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).
+		inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 		jobs.EXPECT().MarkJobCompleted(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil)
@@ -148,7 +148,7 @@ func TestCommand_Charge(t *testing.T) {
 		productID := uuid.New()
 		orderItems.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
-		inventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).
+		inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 		jobs.EXPECT().MarkJobCompleted(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil)
@@ -345,7 +345,7 @@ func TestCommand_Charge_UpdateGatewayError(t *testing.T) {
 		productID := uuid.New()
 		orderItems.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
-		inventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).
+		inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 		jobs.EXPECT().MarkJobCompleted(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil)
@@ -585,7 +585,7 @@ func TestCommand_ProcessCharge(t *testing.T) {
 		orderItems.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID: 2}, nil)
 
-		inventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).
+		inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 
 		jobs.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -879,7 +879,7 @@ func TestCommand_FinalizePaymentSuccess(t *testing.T) {
 		orderItems.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID: 3}, nil)
 
-		inventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).
+		inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 
 		jobs.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -1090,7 +1090,7 @@ func TestCommand_FinalizePaymentSuccess(t *testing.T) {
 		orderItems.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
-		inventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).
+		inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(errors.New("out of stock"))
 
 		err := cmd.FinalizePaymentSuccess(ctx, job)
@@ -1292,7 +1292,7 @@ func TestCommand_FinalizePaymentSuccess_MultipleItems(t *testing.T) {
 		orderItems.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID2: 1, productID1: 2}, nil)
 
-		inventory.EXPECT().DeductBatch(mock.Anything, mock.Anything).
+		inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 
 		jobs.EXPECT().MarkJobCompleted(mock.Anything, job.ID).

@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
@@ -615,7 +615,7 @@ func TestToAdminProductResponse_KeepsSKUAndStatus(t *testing.T) {
 		CompareAtPrice: &compareAtPrice,
 		SKU:            &sku,
 		Status:         "draft",
-		Availability: inventorycontract.Availability{
+		Availability: inventory.Availability{
 			OnHand:    50,
 			Available: 424242,
 		},

@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/gateway"
@@ -28,7 +28,7 @@ type OrderItemsGetter interface {
 }
 
 type InventoryRestorer interface {
-	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventorycontract.StockState) error
+	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventory.StockState) error
 }
 
 type CouponReleaser interface {

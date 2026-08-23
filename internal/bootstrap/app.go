@@ -15,6 +15,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard"
 	dashboardpg "github.com/residwi/go-api-project-template/internal/modules/dashboard/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
+	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
@@ -50,7 +51,7 @@ type App struct {
 	Auth          *auth.Service
 	Categories    *category.Service
 	Products      *product.Service
-	Inventory     *inventory.Module
+	Inventory     *inventory.Service
 	Carts         *cart.Service
 	Orders        *order.Module
 	Payments      *payment.Module
@@ -67,9 +68,9 @@ type App struct {
 func New(d Deps) (*App, error) {
 	txRunner := database.NewTxRunner(d.Pool)
 
-	inv := inventory.New(inventory.Deps{Pool: d.Pool})
+	inv := inventory.New(inventory.Deps{Repo: inventorypg.New(d.Pool)})
 	prod := product.New(
-		product.Deps{Repo: productpg.New(d.Pool), InventoryReader: inv.Query, InventoryRegistrar: inv.Register},
+		product.Deps{Repo: productpg.New(d.Pool), InventoryReader: inv, InventoryRegistrar: inv},
 	)
 	categoryMod := category.New(category.Deps{Repo: categorypg.New(d.Pool), Products: prod})
 	promotionMod := promotion.New(promotion.Deps{Repo: promotionpg.New(d.Pool), Tx: txRunner})
@@ -95,9 +96,9 @@ func New(d Deps) (*App, error) {
 		CartLock:         cartMod,
 		CartRead:         cartMod,
 		CartClear:        cartMod,
-		InventoryReserve: inv.Reserve,
-		InventoryDeduct:  inv.Deduct,
-		InventoryRestore: inv.Restore,
+		InventoryReserve: inv,
+		InventoryDeduct:  inv,
+		InventoryRestore: inv,
 		Promotions:       promotionMod,
 		Notifications:    notificationMod.Jobs,
 	})
@@ -110,8 +111,8 @@ func New(d Deps) (*App, error) {
 		OrderTransition:  ordMod.Transition,
 		OrderCanceller:   ordMod.Cancel,
 		OrderReader:      ordMod.Query,
-		InventoryDeduct:  inv.Deduct,
-		InventoryRestore: inv.Restore,
+		InventoryDeduct:  inv,
+		InventoryRestore: inv,
 		Promotions:       promotionMod,
 	})
 

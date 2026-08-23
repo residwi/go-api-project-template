@@ -978,7 +978,7 @@ func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Module {
 	}).Payments
 }
 
-// ReserveBatch and DeductBatch need a row to update, and these tests insert
+// Reserve and Deduct need a row to update, and these tests insert
 // products with raw SQL, bypassing the EnsureLevel in product.Service.Create.
 //
 // test/e2e/testmain_test.go carries its own copy. Keep them in step.

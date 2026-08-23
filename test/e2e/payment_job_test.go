@@ -44,7 +44,7 @@ func TestE2EChargeJob(t *testing.T) {
 		assert.Equal(t, string(domain.StatusSuccess), paymentStatusOf(t, f.paymentID))
 		assert.Equal(t, "paid", orderStatusOf(t, f.job.OrderID))
 
-		// A DeductBatch on the wrong column would still affect one row and return nil,
+		// A Deduct on the wrong column would still affect one row and return nil,
 		// so only this available/reserved split says which column moved.
 		available, reserved := inventoryLevelOf(t, f.productID)
 		assert.Equal(t, chargeAvailableStock, available)
@@ -91,7 +91,7 @@ type chargeJobFixture struct {
 // claiming CAS, a non-empty payment_method_id or the gateway answers "pending",
 // payments.amount equal to orders.total_amount or FinalizePaymentSuccess bails
 // with ErrAmountMismatch, payments.status 'pending', and an order_items row over
-// reserved stock for DeductBatch to consume.
+// reserved stock for Deduct to consume.
 func seedChargeJob(t *testing.T, maxAttempts int) chargeJobFixture {
 	t.Helper()
 	ctx := context.Background()

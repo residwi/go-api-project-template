@@ -173,7 +173,7 @@ Seven of the fourteen features — `auth cart inventory order payment product
 user` — have a `contract/` package: the one place another module may import
 a *type* from, as opposed to merely satisfying an interface. Holds only the
 structs a consumer's port names in its return type
-(`inventory/contract.StockState`, …), imports no
+(`order/contract.Order`, …), imports no
 module and no platform package, so importing it can never pull the
 producer's implementation along. A module gets one only when a struct — not
 a scalar, not something a producer's service already satisfies by name —
@@ -482,10 +482,13 @@ spot the way it was before this phase.
 12. **Money is `money.Money`, never an `int64` beside a `Currency string`.** Scope is four features: `order`, `payment`, `product`, `cart`. `promotion` and `dashboard` stay on `int64` for stated reasons — `ARCHITECTURE.md` §10 and `ARCHITECTURE-LIMITATIONS.md`. `Money` carries no `json` tag and implements no `sql.Scanner`: each adapter maps it explicit, because wire shapes genuinely differ per endpoint. No float constructor and no `Div`.
 13. **A slice runs no SQL and holds no pool.** Every read and write goes through the slice's own repository interface; its `postgres/` adapter owns the pool and reaches it with `database.DB(ctx, pool)`, which returns the context's transaction if there is one. A `UseCase` composes several repository calls into one unit of work via its `TxRunner`, and the transaction propagates to every repository it touches — own and other modules' — through `ctx`.
 14. **Order status changes only through `order/usecase/transition.UseCase.Apply`.** Every guarded transition is a named `domain.Transition` value in `internal/modules/order/domain/transition.go` (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other modules depend on _intent_ methods on their own port interface (`payment.OrderTransition.MarkPaid`; `shipping.OrderShipper.MarkShipped` and `shipping.OrderDeliverer.MarkDelivered`, two ports rather than one because `Create` and `Deliver` are two different callers asking for two different intents), and every caller wires directly to `order/usecase/transition.UseCase` — the only value any of them name, since `Apply` and every `Mark*` method live there and nowhere else. Never write an ad-hoc from/to status list at a call site.
-15. **Inventory reversal goes through `inventory.Module.Restore`, a
-`*restore.UseCase` field.** Its own `Restore(ctx, items map[uuid.UUID]int,
-prior contract.StockState) error` decides whether that means releasing a
-reservation or restocking deducted goods; callers supply order's prior state, never the mechanics. `StockState` lives in `inventory/contract` — `order` is the caller and names the type without importing inventory's implementation.
+15. **Inventory reversal goes through `inventory.Service.Restore`.**
+`Restore(ctx, items map[uuid.UUID]int, prior StockState) error` decides
+whether that means releasing a reservation or restocking deducted goods;
+callers supply order's prior state, never the mechanics. `StockState` lives
+in `inventory`'s own root package now that the module has flattened —
+`order` and `payment` name the type by importing that package directly,
+never `inventory/adapter/postgres`.
 16. **Background job workers use `platform/jobs`.** The package draining a queue implements `jobs.Queue[T]` (`Claim` + `Prune`) and `jobs.Processor[T]` (`Process`) on whichever value the binary hands to `jobs.Runner[T]`, plus an optional `jobs.Sweeper` for per-tick housekeeping. `payment/jobs.Queue` and `notification/jobs.Worker` are the two queues today; `payment/jobs.Dispatcher` is the processor that routes a claimed payment job to charge or refund, and `payment/worker.Processor` wraps the dispatcher to add order's stale-order sweep. All four live at a feature root, outside `usecase/`, and none is a slice. Never hand-roll a ticker/lease/poll loop — the runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
 17. **Repository reads use `pgx.CollectRows`**, never a hand-rolled `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and build keyset predicates with `database.KeysetCursor()`.
 18. **Handlers use the shared helpers.** Decode and validate with `response.Bind[T](w, r, h.validator)`; read caller with `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks.

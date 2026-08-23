@@ -31,7 +31,7 @@ type OrderItemsGetter interface {
 }
 
 type InventoryDeductor interface {
-	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
+	Deduct(ctx context.Context, items map[uuid.UUID]int) error
 }
 
 type JobStore interface {

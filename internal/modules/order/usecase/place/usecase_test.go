@@ -178,7 +178,7 @@ func TestUseCase_Place(t *testing.T) {
 		}, nil)
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
-		deps.reserver.EXPECT().ReserveBatch(mock.Anything, map[uuid.UUID]int{
+		deps.reserver.EXPECT().Reserve(mock.Anything, map[uuid.UUID]int{
 			productA: 2,
 			productB: 1,
 		}).Return(nil)
@@ -225,7 +225,7 @@ func TestUseCase_Place(t *testing.T) {
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		deps.reserver.EXPECT().
-			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
+			Reserve(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		deps.coupons.EXPECT().
@@ -335,7 +335,7 @@ func TestUseCase_Place(t *testing.T) {
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		deps.reserver.EXPECT().
-			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
+			Reserve(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		deps.coupons.EXPECT().
@@ -375,7 +375,7 @@ func TestUseCase_Place(t *testing.T) {
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		deps.reserver.EXPECT().
-			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
+			Reserve(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(nil)
@@ -450,7 +450,7 @@ func TestUseCase_Place(t *testing.T) {
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		deps.reserver.EXPECT().
-			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
+			Reserve(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(errors.New("insufficient stock"))
 
 		resp, err := cmd.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
@@ -486,7 +486,7 @@ func TestUseCase_Place(t *testing.T) {
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		deps.reserver.EXPECT().
-			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
+			Reserve(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
@@ -523,7 +523,7 @@ func TestUseCase_Place(t *testing.T) {
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		deps.reserver.EXPECT().
-			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
+			Reserve(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		deps.clearer.EXPECT().Clear(mock.Anything, userID).Return(errors.New("cache error"))
@@ -562,7 +562,7 @@ func TestUseCase_Place(t *testing.T) {
 
 		deps.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 		deps.reserver.EXPECT().
-			ReserveBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
+			Reserve(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		deps.coupons.EXPECT().
@@ -576,7 +576,7 @@ func TestUseCase_Place(t *testing.T) {
 		// nonzero total, since this branch and that one are mutually exclusive.
 		deps.transition.EXPECT().Apply(mock.Anything, mock.Anything, domain.PaidTransition).Return(nil)
 		deps.deductor.EXPECT().
-			DeductBatch(mock.Anything, map[uuid.UUID]int{productA: 1}).
+			Deduct(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
 		deps.notifications.EXPECT().EnqueueOrderPlaced(mock.Anything, userID, mock.Anything).Return(nil)
 
@@ -618,7 +618,7 @@ func TestUseCase_Place_RejectsWithdrawnProduct(t *testing.T) {
 		"the error must name the product so the customer can fix their cart")
 	// Direct and intentional, rather than incidental: the guard must reject
 	// before any stock is reserved, not merely happen to fail elsewhere first.
-	deps.reserver.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
+	deps.reserver.AssertNotCalled(t, "Reserve", mock.Anything, mock.Anything)
 }
 
 func TestUseCase_Place_RejectsUnavailableProduct(t *testing.T) {
@@ -646,14 +646,14 @@ func TestUseCase_Place_RejectsUnavailableProduct(t *testing.T) {
 	require.ErrorIs(t, err, apperror.ErrBadRequest)
 	// Direct and intentional, rather than incidental: the guard must reject
 	// before any stock is reserved, not merely happen to fail elsewhere first.
-	deps.reserver.AssertNotCalled(t, "ReserveBatch", mock.Anything, mock.Anything)
+	deps.reserver.AssertNotCalled(t, "Reserve", mock.Anything, mock.Anything)
 }
 
 // Both sentinels: money.ErrCurrencyMismatch names the cause but is not a case in
 // response.HandleErr, so alone it would be a 500 for what is user input.
 //
 // Only Lock and Snapshot are expected. The mocks are strict, so that bare set
-// forbids ReserveBatch, Create and the coupon path -- which is what proves
+// forbids Reserve, Create and the coupon path -- which is what proves
 // the rejection happens in the fold, not merely eventually.
 func TestUseCase_Place_RejectsMixedCurrencyCart(t *testing.T) {
 	t.Parallel()

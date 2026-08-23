@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	inventorycontract "github.com/residwi/go-api-project-template/internal/modules/inventory/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/gateway"
 	gatewaymidtrans "github.com/residwi/go-api-project-template/internal/modules/payment/gateway/midtrans"
@@ -59,11 +59,11 @@ type OrderReader interface {
 }
 
 type InventoryDeductor interface {
-	DeductBatch(ctx context.Context, items map[uuid.UUID]int) error
+	Deduct(ctx context.Context, items map[uuid.UUID]int) error
 }
 
 type InventoryRestorer interface {
-	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventorycontract.StockState) error
+	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventory.StockState) error
 }
 
 type CouponPort interface {
