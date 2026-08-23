@@ -66,7 +66,12 @@ guarded by `if [ "$file_feature" = "checkout" ]`, and wonder whether it is a
 leftover.
 
 It is not. Every other module may import only another module's root package;
-`checkout` may also reach `order/domain`. One signature is the reason:
+`checkout` may also reach a `domain/`. Read the grant as written: it is keyed on
+the importer, not on the target, so `checkout` may import **any** of the fifteen
+other modules' `domain/` packages and the check stays green -- add
+`payment/domain` to `checkout/service.go` and `make check-boundaries` still
+prints "Boundaries OK". `order/domain` is the only one it needs, and one
+signature is the reason:
 
 ```go
 func (s *Service) Place(
@@ -85,10 +90,12 @@ result. Removing the exemption reports **7** violations — `checkout/service.go
 `checkout/ports.go`, `checkout/adapter/http/handler.go` and four test files —
 not zero.
 
-The grant is narrow and pinned. It covers `domain/` only, and
-`scripts/boundaries_test.go` holds it there from both sides: one subtest
-asserts `checkout` importing `order/adapter/postgres` is still reported,
-another asserts the `order/domain` import stays clean. So the grant's silent
+The grant is pinned on one axis and open on the other. It covers `domain/`
+only -- never an adapter -- and `scripts/boundaries_test.go` holds it there from
+both sides: one subtest asserts `checkout` importing `order/adapter/postgres` is
+still reported, another asserts the `order/domain` import stays clean. Nothing
+holds it to `order`'s `domain/` in particular: a per-target grant would have to
+name the target, and this one names only the importer. So the grant's silent
 failure mode — `NewOrder` and `Order` moving into `order`'s published surface
 and leaving the exemption behind as an unnoticed permanent weakening — has
 something to break.

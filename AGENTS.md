@@ -434,10 +434,12 @@ here, and why it is not.
    check reports **30** imports in the wiring layer alone. Same-module imports
    are unrestricted, which is the target shape: a module's `adapter/postgres`
    importing its own root package for `var _ order.Repository` is exactly
-   right. **One per-target exemption exists: `checkout` alone may import
-   `order/domain`**, because `order.Service.Place`'s signature is written in
+   right. **One per-importer exemption exists: `checkout` alone may import a
+   module's `domain/`**, because `order.Service.Place`'s signature is written in
    `orderdomain.NewOrder` and `*orderdomain.Order` and `order/contract.go`
-   publishes neither. Removing that exemption reports **7** violations, not
+   publishes neither. It is keyed on the importer and not on the target, so
+   `checkout` importing `payment/domain` passes just as cleanly; `order/domain`
+   is simply the only one it needs. Removing that exemption reports **7** violations, not
    zero. It is a real weakening of the rule for one module of sixteen, and
    `ARCHITECTURE-LIMITATIONS.md` names it as its own limitation.
 5. **RETIRED — `check_sibling_slice_imports`.** It refused a slice importing a

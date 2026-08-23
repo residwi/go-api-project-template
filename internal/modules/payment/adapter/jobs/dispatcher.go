@@ -1,8 +1,9 @@
 // Package jobs holds the dispatcher that routes a claimed payment job to the
-// charge or refund path. It declares its own narrow ports rather than
-// importing the payment module root: the root package constructs a Queue
-// from Deps.Pool (see payment/jobs.go), so an import running the other way
-// -- this package back into payment -- would cycle.
+// charge or refund path. It declares its own narrow ports rather than naming
+// *payment.Service: payment.New already imports this package to build the
+// Dispatcher, handing its own Service in as both processor
+// (NewDispatcher(s, s, ...) in payment/service.go), so an import running the
+// other way -- this package back into payment -- would cycle.
 package jobs
 
 import (

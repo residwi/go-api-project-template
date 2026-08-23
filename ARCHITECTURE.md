@@ -686,7 +686,8 @@ here is a guarantee the sliced tree had and this one does not:
   pasting one value into the other's field was a real compile error then.
   `ARCHITECTURE-LIMITATIONS.md` counts the pairs.
 - **One module of sixteen keeps a weaker boundary rule.** `checkout` alone may
-  import `order/domain`, because `order.Service.Place`'s signature names
+  import a module's `domain/` -- any of the fifteen, since the grant names the
+  importer and not the target -- because `order.Service.Place`'s signature names
   `orderdomain.NewOrder` and `*orderdomain.Order` and `order/contract.go`
   publishes neither. Removing that exemption reports 7 violations, not zero.
   Closing it means moving both types into `order`'s published surface, which
