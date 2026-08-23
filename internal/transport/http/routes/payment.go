@@ -9,7 +9,7 @@ import (
 )
 
 func Payment(api, admin *middleware.RouteGroup, s *payment.Service, log *slog.Logger) {
-	api.HandleFunc("POST /payments/webhook", paymenthttp.NewHandler(s, log).HandleWebhook)
+	api.HandleFunc("POST /payments/webhook", paymenthttp.NewWebhookHandler(s, log).HandleWebhook)
 
 	adminHandler := paymenthttp.NewAdminHandler(s)
 	admin.HandleFunc("GET /payments", adminHandler.List)

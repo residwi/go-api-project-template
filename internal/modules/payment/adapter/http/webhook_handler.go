@@ -13,18 +13,18 @@ type WebhookProcessor interface {
 	HandleWebhook(ctx context.Context, payload []byte, signature string) error
 }
 
-type Handler struct {
+type WebhookHandler struct {
 	service WebhookProcessor
 	logger  *slog.Logger
 }
 
-func NewHandler(service WebhookProcessor, log *slog.Logger) *Handler {
-	return &Handler{service: service, logger: log}
+func NewWebhookHandler(service WebhookProcessor, log *slog.Logger) *WebhookHandler {
+	return &WebhookHandler{service: service, logger: log}
 }
 
 const webhookSignatureHeader = "X-Webhook-Signature"
 
-func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
+func (h *WebhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 	if err != nil {
 		h.logger.ErrorContext(r.Context(), "webhook: failed to read body", slog.String("error", err.Error()))

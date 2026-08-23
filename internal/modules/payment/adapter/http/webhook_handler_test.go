@@ -24,7 +24,7 @@ import (
 // directly with no HTTP involved, so this file goes back to the standard
 // mocked-port shape every other slice's handler test already uses.
 
-func TestHandler_HandleWebhook(t *testing.T) {
+func TestWebhookHandler_HandleWebhook(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success threads body and signature header to the service", func(t *testing.T) {
@@ -71,7 +71,7 @@ func setupWebhookMux(t *testing.T) (*http.ServeMux, *MockWebhookProcessor) {
 
 	mux := http.NewServeMux()
 	api := middleware.NewRouteGroup(mux, "/api")
-	api.HandleFunc("POST /payments/webhook", NewHandler(service, testhelper.DiscardLogger()).HandleWebhook)
+	api.HandleFunc("POST /payments/webhook", NewWebhookHandler(service, testhelper.DiscardLogger()).HandleWebhook)
 
 	return mux, service
 }
