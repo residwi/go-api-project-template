@@ -22,7 +22,7 @@ type Config struct {
 // development.
 const defaultWebhookSecret = "webhook-secret"
 
-// The three gateways newGateway (module.go) knows how to build. Named here,
+// The three gateways newGateway (service.go) knows how to build. Named here,
 // not just there, so LoadConfig can reject an unrecognised Config.Gateway at
 // boot instead of newGateway silently falling back to the mock on a typo --
 // the same invariant, checked where a wrong value is loud instead of where a

@@ -12,7 +12,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
-	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -38,12 +38,12 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		payments := NewMockPaymentCharger(t)
 		payments.EXPECT().
-			Charge(t.Context(), paymentcontract.ChargeRequest{
+			Charge(t.Context(), payment.ChargeRequest{
 				OrderID:         orderID,
 				Amount:          money.New(2500, "USD"),
 				PaymentMethodID: "pm_123",
 			}).
-			Return(paymentcontract.ChargeResult{}, nil)
+			Return(payment.ChargeResult{}, nil)
 
 		svc := New(Deps{Orders: orders, Payments: payments, Logger: testhelper.DiscardLogger()})
 
@@ -73,7 +73,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		payments := NewMockPaymentCharger(t)
 		payments.EXPECT().Charge(t.Context(), mock.Anything).
-			Return(paymentcontract.ChargeResult{}, errors.New("gateway down"))
+			Return(payment.ChargeResult{}, errors.New("gateway down"))
 
 		svc := New(Deps{Orders: orders, Payments: payments, Logger: testhelper.DiscardLogger()})
 
@@ -154,18 +154,18 @@ func TestService_RetryPayment(t *testing.T) {
 		}, nil)
 
 		payments := NewMockPaymentCharger(t)
-		payments.EXPECT().Charge(t.Context(), paymentcontract.ChargeRequest{
+		payments.EXPECT().Charge(t.Context(), payment.ChargeRequest{
 			OrderID:         orderID,
 			Amount:          money.New(4000, "USD"),
 			PaymentMethodID: "pm_retry",
-		}).Return(paymentcontract.ChargeResult{PaymentURL: "https://pay.test/1"}, nil)
+		}).Return(payment.ChargeResult{PaymentURL: "https://pay.test/1"}, nil)
 
 		svc := New(Deps{Snapshots: orders, Payments: payments, Logger: testhelper.DiscardLogger()})
 
 		got, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
 
 		require.NoError(t, err)
-		assert.Equal(t, paymentcontract.ChargeResult{PaymentURL: "https://pay.test/1"}, got)
+		assert.Equal(t, payment.ChargeResult{PaymentURL: "https://pay.test/1"}, got)
 	})
 
 	t.Run("hides another user's order behind not found", func(t *testing.T) {

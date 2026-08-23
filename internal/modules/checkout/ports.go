@@ -7,7 +7,7 @@ import (
 
 	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
-	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 )
 
 // OrderWriter is satisfied by order's place use case. Everything through the
@@ -22,7 +22,7 @@ type OrderWriter interface {
 }
 
 type PaymentCharger interface {
-	Charge(ctx context.Context, p paymentcontract.ChargeRequest) (paymentcontract.ChargeResult, error)
+	Charge(ctx context.Context, p payment.ChargeRequest) (payment.ChargeResult, error)
 }
 
 // OrderSnapshotReader is satisfied by order's query use case. contract.Order

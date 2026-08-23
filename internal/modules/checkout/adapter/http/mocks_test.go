@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/residwi/go-api-project-template/internal/modules/checkout"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
-	"github.com/residwi/go-api-project-template/internal/modules/payment/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -233,22 +233,22 @@ func (_m *MockPaymentRetrier) EXPECT() *MockPaymentRetrier_Expecter {
 }
 
 // RetryPayment provides a mock function for the type MockPaymentRetrier
-func (_mock *MockPaymentRetrier) RetryPayment(ctx context.Context, userID uuid.UUID, orderID uuid.UUID, paymentMethodID string) (contract.ChargeResult, error) {
+func (_mock *MockPaymentRetrier) RetryPayment(ctx context.Context, userID uuid.UUID, orderID uuid.UUID, paymentMethodID string) (payment.ChargeResult, error) {
 	ret := _mock.Called(ctx, userID, orderID, paymentMethodID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RetryPayment")
 	}
 
-	var r0 contract.ChargeResult
+	var r0 payment.ChargeResult
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) (contract.ChargeResult, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) (payment.ChargeResult, error)); ok {
 		return returnFunc(ctx, userID, orderID, paymentMethodID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) contract.ChargeResult); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) payment.ChargeResult); ok {
 		r0 = returnFunc(ctx, userID, orderID, paymentMethodID)
 	} else {
-		r0 = ret.Get(0).(contract.ChargeResult)
+		r0 = ret.Get(0).(payment.ChargeResult)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
 		r1 = returnFunc(ctx, userID, orderID, paymentMethodID)
@@ -300,12 +300,12 @@ func (_c *MockPaymentRetrier_RetryPayment_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *MockPaymentRetrier_RetryPayment_Call) Return(chargeResult contract.ChargeResult, err error) *MockPaymentRetrier_RetryPayment_Call {
+func (_c *MockPaymentRetrier_RetryPayment_Call) Return(chargeResult payment.ChargeResult, err error) *MockPaymentRetrier_RetryPayment_Call {
 	_c.Call.Return(chargeResult, err)
 	return _c
 }
 
-func (_c *MockPaymentRetrier_RetryPayment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, orderID uuid.UUID, paymentMethodID string) (contract.ChargeResult, error)) *MockPaymentRetrier_RetryPayment_Call {
+func (_c *MockPaymentRetrier_RetryPayment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, orderID uuid.UUID, paymentMethodID string) (payment.ChargeResult, error)) *MockPaymentRetrier_RetryPayment_Call {
 	_c.Call.Return(run)
 	return _c
 }

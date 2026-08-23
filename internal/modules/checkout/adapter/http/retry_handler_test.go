@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -31,7 +31,7 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 		orderID := uuid.New()
 		service.EXPECT().
 			RetryPayment(mock.Anything, userID, orderID, "pm_test_123").
-			Return(paymentcontract.ChargeResult{PaymentID: uuid.New()}, nil)
+			Return(payment.ChargeResult{PaymentID: uuid.New()}, nil)
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`
@@ -127,7 +127,7 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 		userID := uuid.New()
 		orderID := uuid.New()
 		service.EXPECT().RetryPayment(mock.Anything, userID, orderID, mock.Anything).
-			Return(paymentcontract.ChargeResult{}, apperror.ErrNotFound)
+			Return(payment.ChargeResult{}, apperror.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`

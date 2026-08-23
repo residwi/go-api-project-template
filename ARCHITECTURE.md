@@ -56,7 +56,7 @@ originally described. Both are true at once: `order` is still one feature
 package, not three layer packages: it is now also a boundary containing
 several slice packages, not one flat package.
 
-**Why:** `charge.New()` and `payment/usecase/charge.Repository` read
+**Why:** `payment.New()` and `payment.Repository` read
 naturally in Go; `application.NewService()` and `domain.Repository` put the
 layer name in every import and tell nothing about what the code is for.
 Layered trees also scatter one change across three directories.
@@ -77,9 +77,9 @@ construction cannot drift way list of exceptions can.
 ## 2. Ports live with the consumer
 
 The consumer is now a slice, or the module composing several of them.
-`internal/modules/payment/usecase/webhook/ports.go` declares `OrderUpdater`
-— the interface `webhook` alone needs from order. `order` does not
-publish it; `webhook` names exactly what it needs and something else
+`internal/modules/order/usecase/place/ports.go` declares `CartLocker`
+— the interface `place` alone needs from cart. `cart` does not
+publish it; `place` names exactly what it needs and something else
 satisfies it. `order/module.go` is the
 other shape: `place`, `cancel` and `expire` all need inventory, so
 `order`'s port lives in `module.go` instead, as one interface plus one
@@ -110,9 +110,9 @@ not a local one.
 ## 3. Adapters are subpackages named for their technology
 
 Now two levels deeper, per slice:
-`internal/modules/payment/usecase/charge/postgres`,
-`internal/modules/payment/usecase/webhook/postgres`,
-`internal/modules/payment/usecase/webhook/http`.
+`internal/modules/order/usecase/place/postgres`,
+`internal/modules/order/usecase/query/postgres`,
+`internal/modules/order/usecase/query/http`.
 `payment/gateway/stripe`, `payment/gateway/midtrans` and `payment/gateway/mock`
 are the exception that proves the rule at a different scope — an adapter
 family for one outbound port shared by two slices, still named for its
@@ -282,7 +282,7 @@ explicit mapping; those live beside the handler that serialises them.
 Files inside a slice's `http/` split by **handler role**, not one per use
 case: `handler.go` for the default handler, `admin_handler.go` where that
 slice's routes split by caller role, and `webhook_handler.go` in
-`payment/usecase/webhook`, whose only route is the gateway callback and
+`payment/adapter/http`, whose only route is the gateway callback and
 which therefore has no `handler.go` at all. Each has a `_test.go` beside it,
 `package http`, holding both route-level tests and tests that must reach
 unexported mappers directly. **No feature has a root `http/` any more**: the
@@ -453,7 +453,7 @@ installs the wrapper, so every logger in both binaries has it. Services
 keep their constructor-injected `*slog.Logger` and their existing
 `InfoContext(ctx, ...)` calls unchanged. Only the four edges that name an
 attribute gained one `logger.WithAttrs` line each — two of them,
-`payment/jobs.Dispatcher.Process` and `notification/jobs.Worker.Process`,
+`payment/adapter/jobs.Dispatcher.Process` and `notification/jobs.Worker.Process`,
 inside a slice package. Every other call, in every other slice, needed no
 change to start carrying the context's attributes.
 
@@ -747,9 +747,9 @@ methods — no slice moves.
 ## `x/webhook/` as a package
 
 **Rejected** in favour of
-`internal/modules/payment/usecase/webhook/http/webhook_handler.go` — the
-callback is `payment`'s own slice now, not a bolt-on file at the feature
-root. Webhook _is_ HTTP; splitting it out fragments the handler across two
+`internal/modules/payment/adapter/http/webhook_handler.go` — the
+callback lives in `payment`'s own adapter now, not a bolt-on file at the
+feature root. Webhook _is_ HTTP; splitting it out fragments the handler across two
 packages for one use case. Things that actually need protecting — no JWT
 middleware, raw body access, signature verification — already handled by the
 route group `internal/transport/http/routes/payment.go` mounts it on.

@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 	"github.com/residwi/go-api-project-template/internal/transport/http/response"
@@ -15,7 +15,7 @@ import (
 type PaymentRetrier interface {
 	RetryPayment(
 		ctx context.Context, userID, orderID uuid.UUID, paymentMethodID string,
-	) (paymentcontract.ChargeResult, error)
+	) (payment.ChargeResult, error)
 }
 
 type RetryHandler struct {
@@ -37,7 +37,7 @@ type payResultResponse struct {
 	Charged    bool      `json:"charged"`
 }
 
-func toPayResultResponse(r paymentcontract.ChargeResult) payResultResponse {
+func toPayResultResponse(r payment.ChargeResult) payResultResponse {
 	return payResultResponse{
 		PaymentID:  r.PaymentID,
 		PaymentURL: r.PaymentURL,

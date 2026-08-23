@@ -10,12 +10,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
-	"github.com/residwi/go-api-project-template/internal/modules/payment/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-var _ jobs.Repository = (*Repository)(nil)
-
+// Repository backs payment's JobRepository port. No compile-time assertion
+// against it here: payment's own New constructs this Repository directly
+// from Deps.Pool (see payment/jobs.go), so an import running the other way
+// -- this package back into payment, just to write
+// "var _ payment.JobRepository = (*Repository)(nil)" -- would cycle.
+// Structural typing still catches a mismatch at that construction call site.
 type Repository struct {
 	pool *pgxpool.Pool
 }

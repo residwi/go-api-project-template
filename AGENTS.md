@@ -75,9 +75,11 @@ internal/modules/<feature>/
                      not by any check -- nothing outside the module imports it
   module.go          composes every slice into Module; also declares any
                      cross-module port more than one sibling slice shares
-  module_test.go     composition test, where one exists (payment) --
-                     proves New wires every slice correctly; not every
-                     module needs one
+  module_test.go     composition test -- proves New wires every slice
+                     correctly; not every module needs one. `order` is the
+                     only module left in this shape and has none; payment's
+                     is gone with this flatten (see `service_test.go`'s
+                     `TestNewGateway` for what survived of it)
   contract/          published struct types, only if another module consumes
                      one (seven of fourteen: auth cart inventory order
                      payment product user)
@@ -497,15 +499,15 @@ no check anywhere holds a flattened module's root package to a leaf-import
 rule. Not a defect introduced here — five earlier flattens did the same the
 moment their `contract/` promoted — but it belongs in the record before
 Task 23, which still owns the surviving contract-package prose, inherits it.
-16. **Background job workers use `platform/jobs`.** The package draining a queue implements `jobs.Queue[T]` (`Claim` + `Prune`) and `jobs.Processor[T]` (`Process`) on whichever value the binary hands to `jobs.Runner[T]`, plus an optional `jobs.Sweeper` for per-tick housekeeping. `payment/jobs.Queue` and `notification/jobs.Worker` are the two queues today; `payment/jobs.Dispatcher` is the processor that routes a claimed payment job to charge or refund, and `payment/worker.Processor` wraps the dispatcher to add order's stale-order sweep. All four live at a feature root, outside `usecase/`, and none is a slice. Never hand-roll a ticker/lease/poll loop — the runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
+16. **Background job workers use `platform/jobs`.** The package draining a queue implements `jobs.Queue[T]` (`Claim` + `Prune`) and `jobs.Processor[T]` (`Process`) on whichever value the binary hands to `jobs.Runner[T]`, plus an optional `jobs.Sweeper` for per-tick housekeeping. `*payment.Service` and `notification/jobs.Worker` are the two queues today — payment's flatten moved `Claim`/`Prune` onto the Service itself, so there is no separate `Queue` type to name any more. `payment/adapter/jobs.Dispatcher` is the processor that routes a claimed payment job to `Service.RunChargeJob` or `Service.RunRefundJob`; the composition that used to be `payment/worker.Processor` — wrapping the dispatcher to add order's stale-order sweep — is gone as a package and lives instead as `cmd/worker/main.go`'s own unexported `paymentProcessor`, since that composition crosses payment and order and belongs at the root that already imports both. Never hand-roll a ticker/lease/poll loop — the runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
 17. **Repository reads use `pgx.CollectRows`**, never a hand-rolled `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and build keyset predicates with `database.KeysetCursor()`.
 18. **Handlers use the shared helpers.** Decode and validate with `response.Bind[T](w, r, h.validator)`; read caller with `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks.
 18a. **A slice `http/` port is named for the role it plays, never for the
     pattern.** `CartAdder`, `ProductCreator`, `Authenticator`, `OrderPlacer`,
     `WebhookProcessor` — all 53 slice `http/` packages, 56 ports, no exceptions.
     Never `UseCase`: the directory already says the value is a use case, so the
-    name would add nothing, and `refundhttp.UseCase` would sit one import from
-    `refund.UseCase`, two different things sharing a name. Three packages hold
+    name would add nothing, and `changestatushttp.UseCase` would sit one import from
+    `changestatus.UseCase`, two different things sharing a name. Three packages hold
     two ports because they split routes by caller role (`user/adapter/http`
     `ProfileManager` + `UserManager`, `product/adapter/http` `ProductReader` +
     `ProductManager`, `order/usecase/query/http` `OrderReader` +
@@ -594,7 +596,7 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 - Never commit `.env`, secrets or API keys.
 - Run `make check-boundaries`, `make vet` and `make test` before calling change complete. `make all` does all three plus lint and build.
 - Do not add third-party router.
-- Do not suppress lint or vet findings with `//nolint` without justification comment on same line — see `order/usecase/place/usecase.go:63` (`//nolint:gocognit // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`) for expected form. Four more slices carry the same pattern for the same reason: `order/usecase/cancel/usecase.go`, `payment/usecase/webhook/usecase.go`, `payment/usecase/charge/usecase.go`, `payment/usecase/refund/usecase.go`.
+- Do not suppress lint or vet findings with `//nolint` without justification comment on same line — see `order/usecase/place/usecase.go:63` (`//nolint:gocognit // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`) for expected form. `order/usecase/cancel/usecase.go` carries the same pattern for the same reason, and so does `payment/service.go`, three times over now that `charge`, `refund` and `webhook` have merged into one file: `FinalizeSuccess`, `RunRefundJob` and `HandleWebhook` each keep their own slice's original justification on their own guarded method.
 - Do not make subpackage tree uniform, and do not add pass-through adapter package to fill slot.
 - Backward compatibility explicitly **not** a goal here. API shapes may change where better design demands — but say so when they do.
 - When adding a feature: create `internal/modules/<feature>/` with `domain/` for its aggregate, one `module.go` per the shape under "Inside a feature" above, and `usecase/<slice>/` per use case, each with `usecase.go` declaring one `UseCase`, `repository.go`, `postgres/`, and `http/` where it has a route. Add a row per owned table to `db/OWNERSHIP.md`, add `internal/transport/http/routes/<feature>.go` and call it from `internal/transport/http/router.go`, and wire the module into `internal/bootstrap/app.go` — by name-match if an existing port already fits, or by adding a `contract/` package if a struct needs to cross. **Adding one slice with one route touches two trees**: the module for the handler, `routes/<feature>.go` for the URL. Then run `make check-boundaries` — a new feature with a `postgres/` adapter and no ownership row fails it by design.

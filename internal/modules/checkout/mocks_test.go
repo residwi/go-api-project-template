@@ -8,9 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	contract0 "github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/order/contract"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
-	"github.com/residwi/go-api-project-template/internal/modules/payment/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -149,24 +149,24 @@ func (_m *MockPaymentCharger) EXPECT() *MockPaymentCharger_Expecter {
 }
 
 // Charge provides a mock function for the type MockPaymentCharger
-func (_mock *MockPaymentCharger) Charge(ctx context.Context, p contract.ChargeRequest) (contract.ChargeResult, error) {
+func (_mock *MockPaymentCharger) Charge(ctx context.Context, p payment.ChargeRequest) (payment.ChargeResult, error) {
 	ret := _mock.Called(ctx, p)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Charge")
 	}
 
-	var r0 contract.ChargeResult
+	var r0 payment.ChargeResult
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, contract.ChargeRequest) (contract.ChargeResult, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, payment.ChargeRequest) (payment.ChargeResult, error)); ok {
 		return returnFunc(ctx, p)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, contract.ChargeRequest) contract.ChargeResult); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, payment.ChargeRequest) payment.ChargeResult); ok {
 		r0 = returnFunc(ctx, p)
 	} else {
-		r0 = ret.Get(0).(contract.ChargeResult)
+		r0 = ret.Get(0).(payment.ChargeResult)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, contract.ChargeRequest) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, payment.ChargeRequest) error); ok {
 		r1 = returnFunc(ctx, p)
 	} else {
 		r1 = ret.Error(1)
@@ -181,20 +181,20 @@ type MockPaymentCharger_Charge_Call struct {
 
 // Charge is a helper method to define mock.On call
 //   - ctx context.Context
-//   - p contract.ChargeRequest
+//   - p payment.ChargeRequest
 func (_e *MockPaymentCharger_Expecter) Charge(ctx any, p any) *MockPaymentCharger_Charge_Call {
 	return &MockPaymentCharger_Charge_Call{Call: _e.mock.On("Charge", ctx, p)}
 }
 
-func (_c *MockPaymentCharger_Charge_Call) Run(run func(ctx context.Context, p contract.ChargeRequest)) *MockPaymentCharger_Charge_Call {
+func (_c *MockPaymentCharger_Charge_Call) Run(run func(ctx context.Context, p payment.ChargeRequest)) *MockPaymentCharger_Charge_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 contract.ChargeRequest
+		var arg1 payment.ChargeRequest
 		if args[1] != nil {
-			arg1 = args[1].(contract.ChargeRequest)
+			arg1 = args[1].(payment.ChargeRequest)
 		}
 		run(
 			arg0,
@@ -204,12 +204,12 @@ func (_c *MockPaymentCharger_Charge_Call) Run(run func(ctx context.Context, p co
 	return _c
 }
 
-func (_c *MockPaymentCharger_Charge_Call) Return(chargeResult contract.ChargeResult, err error) *MockPaymentCharger_Charge_Call {
+func (_c *MockPaymentCharger_Charge_Call) Return(chargeResult payment.ChargeResult, err error) *MockPaymentCharger_Charge_Call {
 	_c.Call.Return(chargeResult, err)
 	return _c
 }
 
-func (_c *MockPaymentCharger_Charge_Call) RunAndReturn(run func(ctx context.Context, p contract.ChargeRequest) (contract.ChargeResult, error)) *MockPaymentCharger_Charge_Call {
+func (_c *MockPaymentCharger_Charge_Call) RunAndReturn(run func(ctx context.Context, p payment.ChargeRequest) (payment.ChargeResult, error)) *MockPaymentCharger_Charge_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -242,22 +242,22 @@ func (_m *MockOrderSnapshotReader) EXPECT() *MockOrderSnapshotReader_Expecter {
 }
 
 // GetSnapshot provides a mock function for the type MockOrderSnapshotReader
-func (_mock *MockOrderSnapshotReader) GetSnapshot(ctx context.Context, orderID uuid.UUID) (contract0.Order, error) {
+func (_mock *MockOrderSnapshotReader) GetSnapshot(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
 	ret := _mock.Called(ctx, orderID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetSnapshot")
 	}
 
-	var r0 contract0.Order
+	var r0 contract.Order
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (contract0.Order, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (contract.Order, error)); ok {
 		return returnFunc(ctx, orderID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) contract0.Order); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) contract.Order); ok {
 		r0 = returnFunc(ctx, orderID)
 	} else {
-		r0 = ret.Get(0).(contract0.Order)
+		r0 = ret.Get(0).(contract.Order)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, orderID)
@@ -297,12 +297,12 @@ func (_c *MockOrderSnapshotReader_GetSnapshot_Call) Run(run func(ctx context.Con
 	return _c
 }
 
-func (_c *MockOrderSnapshotReader_GetSnapshot_Call) Return(order contract0.Order, err error) *MockOrderSnapshotReader_GetSnapshot_Call {
+func (_c *MockOrderSnapshotReader_GetSnapshot_Call) Return(order contract.Order, err error) *MockOrderSnapshotReader_GetSnapshot_Call {
 	_c.Call.Return(order, err)
 	return _c
 }
 
-func (_c *MockOrderSnapshotReader_GetSnapshot_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (contract0.Order, error)) *MockOrderSnapshotReader_GetSnapshot_Call {
+func (_c *MockOrderSnapshotReader_GetSnapshot_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (contract.Order, error)) *MockOrderSnapshotReader_GetSnapshot_Call {
 	_c.Call.Return(run)
 	return _c
 }

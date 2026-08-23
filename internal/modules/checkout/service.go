@@ -8,7 +8,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
-	paymentcontract "github.com/residwi/go-api-project-template/internal/modules/payment/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 )
 
 type PlaceOrderInput struct {
@@ -57,7 +57,7 @@ func (s *Service) PlaceOrder(
 	}
 
 	if order.Total.Amount > 0 {
-		if _, payErr := s.payments.Charge(ctx, paymentcontract.ChargeRequest{
+		if _, payErr := s.payments.Charge(ctx, payment.ChargeRequest{
 			OrderID:         order.ID,
 			Amount:          order.Total,
 			PaymentMethodID: in.PaymentMethodID,
@@ -74,19 +74,19 @@ func (s *Service) RetryPayment(
 	ctx context.Context,
 	userID, orderID uuid.UUID,
 	paymentMethodID string,
-) (paymentcontract.ChargeResult, error) {
+) (payment.ChargeResult, error) {
 	order, err := s.snapshots.GetSnapshot(ctx, orderID)
 	if err != nil {
-		return paymentcontract.ChargeResult{}, err
+		return payment.ChargeResult{}, err
 	}
 	if order.UserID != userID {
-		return paymentcontract.ChargeResult{}, apperror.ErrNotFound
+		return payment.ChargeResult{}, apperror.ErrNotFound
 	}
 	if order.Status != string(orderdomain.StatusAwaitingPayment) {
-		return paymentcontract.ChargeResult{}, apperror.ErrOrderNotPayable
+		return payment.ChargeResult{}, apperror.ErrOrderNotPayable
 	}
 
-	return s.payments.Charge(ctx, paymentcontract.ChargeRequest{
+	return s.payments.Charge(ctx, payment.ChargeRequest{
 		OrderID:         order.ID,
 		Amount:          order.Total,
 		PaymentMethodID: paymentMethodID,

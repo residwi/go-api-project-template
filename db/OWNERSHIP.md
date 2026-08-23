@@ -254,7 +254,7 @@ here; there is no list in the script to keep in step.
   `INSERT INTO\n    products (...)` is caught. It was not, before Phase 5.
 * The same, when the table is written as a quoted identifier: `FROM "products"`.
 * A CTE named after a real table — `WITH orders AS (...)` in, say,
-  `internal/modules/payment/usecase/webhook/postgres/`. This is refused rather than exempted, because
+  `internal/modules/payment/adapter/postgres/`. This is refused rather than exempted, because
   exempting it hid every genuine reference to `orders` in that file, reads and
   writes alike, without anyone touching this document. Per-statement CTE scoping
   would not have been enough: SQL says a non-recursive CTE body does not see the
@@ -283,7 +283,7 @@ check trusted past its reach is worse than no check.
   `//` and SQL `--` comments are stripped, and `_test.go` files are skipped,
   which between them removed most of it. What remains is prose in a *production*
   string literal: `var msg = "update orders failed"` in, say,
-  `internal/modules/payment/usecase/charge/postgres/` reports `orders`. Nothing available to a grep can
+  `internal/modules/payment/adapter/postgres/` reports `orders`. Nothing available to a grep can
   tell that string from a query. It fails loudly rather than silently, so the
   cost is an afternoon of confusion, not a boundary crossing — but if it starts
   happening often the answer is a SQL parser, not a wider allowlist.

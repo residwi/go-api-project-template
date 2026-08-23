@@ -20,6 +20,7 @@ import (
 	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	productpg "github.com/residwi/go-api-project-template/internal/modules/product/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
@@ -54,7 +55,7 @@ type App struct {
 	Inventory     *inventory.Service
 	Carts         *cart.Service
 	Orders        *order.Module
-	Payments      *payment.Module
+	Payments      *payment.Service
 	Checkout      *checkout.Service
 	Shipping      *shipping.Service
 	Reviews       *review.Service
@@ -104,6 +105,7 @@ func New(d Deps) (*App, error) {
 	})
 
 	paymentMod := payment.New(payment.Deps{
+		Repo:             paymentpg.New(d.Pool),
 		Pool:             d.Pool,
 		Tx:               txRunner,
 		Config:           d.Payment,
@@ -120,8 +122,8 @@ func New(d Deps) (*App, error) {
 		Orders:      ordMod.Place,
 		Snapshots:   ordMod.Query,
 		Cancels:     ordMod.Cancel,
-		Payments:    paymentMod.Charge,
-		PaymentJobs: paymentMod.Jobs,
+		Payments:    paymentMod,
+		PaymentJobs: paymentMod,
 		Logger:      d.Logger,
 	})
 

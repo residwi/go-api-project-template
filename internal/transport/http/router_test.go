@@ -799,12 +799,12 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	}
 
 	// GatewayURL is the placeholder from TestMain (never a real listener):
-	// FinalizePaymentSuccess fails inside orderGetterAdapter.GetByID before it
+	// FinalizeSuccess fails inside orderGetterAdapter.GetByID before it
 	// ever reaches the gateway, so no URL here is actually dialled.
 	err := newPaymentServiceForTest(
 		t,
 		testDeps.Payment.GatewayURL,
-	).Charge.FinalizePaymentSuccess(context.Background(), fakeJob)
+	).FinalizeSuccess(context.Background(), fakeJob)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "getting order for verification")
 }
@@ -964,11 +964,11 @@ func setup(t *testing.T) {
 }
 
 // newPaymentServiceForTest wires a whole App against a custom gateway URL (a
-// local httptest mock server) and hands back the payment module.
+// local httptest mock server) and hands back the payment service.
 // test/e2e carries its own copy in testmain_test.go, built against the old
 // shared *config.Config -- the two diverged in this task, since bootstrap.Deps
 // no longer has a field of that type. See task 8's report.
-func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Module {
+func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Service {
 	t.Helper()
 
 	return newTestApp(payment.Config{
