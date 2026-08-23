@@ -224,7 +224,8 @@ does mean deleting its lines.
 ## Enforcement
 
 `make check-boundaries` runs `scripts/check-boundaries.sh`, which registers
-six checks. Two of them read the table above, straight out of this
+five checks -- numbered 1, 2, 3, 4 and 6, with the gaps left where checks 5
+and 7 were retired. Two of them read the table above, straight out of this
 document at run time, so this document is the source of truth and not a
 copy of one: check 2 (`check_ownership_doc`) validates the table itself —
 no duplicate row, no row for a table no migration creates, no table with
@@ -239,8 +240,8 @@ here; there is no list in the script to keep in step.
   module — every non-test `.go` file under `internal/modules/<module>/`, not
   only the ones inside a directory named `postgres`. The scan used to be
   scoped to `postgres/` directories only, which meant a query in `service.go`
-  or a slice's `usecase.go` was invisible; there is no longer a privileged
-  directory, so the whole module is scanned. A module is skipped only when
+  was invisible; there is no longer a privileged directory, so the whole
+  module is scanned. A module is skipped only when
   it has no `postgres/` directory anywhere under it — a legitimate no-storage
   feature, e.g. `auth`. Only a match against a table actually listed in this
   document is reported: the identifier a keyword is followed by must be a

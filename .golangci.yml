@@ -519,7 +519,15 @@ linters:
         text: "unused-parameter"
         linters:
           - revive
-      - path: "cmd/|command/|testutil/"
+      # Unanchored on purpose: a binary's entry point and the test harness both
+      # legitimately hold package-level state, wherever they sit. The third
+      # alternative this carried, `command/`, matched no directory in the tree
+      # -- an exclusion that matches nothing is indistinguishable from a
+      # deleted one, so it is deleted. Every other `path:` in this file that
+      # starts with `^` is anchored to the repo root and dies silently if the
+      # directory it names moves; check them against `git ls-files` after any
+      # structural change.
+      - path: "cmd/|testutil/"
         linters:
           - gochecknoglobals
       - source: "time\\.(Second|Minute|Hour|Millisecond|Microsecond)"
