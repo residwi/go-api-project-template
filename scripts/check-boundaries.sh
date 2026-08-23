@@ -18,7 +18,7 @@
 #            down -- AGENTS.md, ARCHITECTURE.md and REFACTOR-PLAN.md all cite
 #            them by number, and renaming a live check is a worse trade than
 #            one gap in a list.
-#   Check 6  A module may not import internal/transport/, except its own
+#   Check 6  A module may not import internal/server/, except its own
 #            http adapter.
 #   Check 7  contract/ stays a leaf: only stdlib, uuid and internal/modules/money.
 #
@@ -74,7 +74,7 @@ MODULES_ROOT='internal/modules'
 # works the same way an entry naming a top-level directory does, without a
 # depth-specific comparison. Nothing in $MODULES_ROOT sits on this list
 # today -- see the checkout paragraph above.
-WIRING_DIRS='internal/bootstrap internal/transport'
+WIRING_DIRS='internal/bootstrap internal/server'
 
 is_wiring() {
 	case " $WIRING_DIRS " in
@@ -174,10 +174,10 @@ importer_roots() {
 #                       short of this pattern
 #                       (internal/modules/<feature>/http/) is deliberately NOT
 #                       exempt: that path held the feature route tables until
-#                       they moved to internal/transport/http/routes/, and a
+#                       they moved to internal/server/routes.go, and a
 #                       json tag reappearing there would mean a DTO had drifted
 #                       out of the slice that owns it. Likewise
-#                       internal/transport/http/ (the top-level router) is not
+#                       internal/server/ (the top-level router) is not
 #                       exempt: it wires slices together and defines no wire
 #                       types of its own. `is_slice_http` below is the one
 #                       predicate for "is this path the exempt location", used
@@ -217,7 +217,7 @@ importer_roots() {
 #     earns it. An unexplained exemption in a lint rule is how the rule
 #     erodes, so this one carries its reason.
 #
-#   internal/transport/http/response/response.go
+#   internal/server/response/response.go
 #     Response and Error are the shared envelope every handler in every
 #     slice writes through -- the same role internal/platform/paging's
 #     cursor/offset envelope plays, just one layer up in the wiring tier
@@ -229,7 +229,7 @@ importer_roots() {
 #     need no entry -- they carry no json tags today.
 JSON_TAG_ALLOWLIST='
 internal/modules/payment/gateway/gateway.go
-internal/transport/http/response/response.go
+internal/server/response/response.go
 '
 
 is_json_tag_allowlisted() {
@@ -733,7 +733,7 @@ check_table_ownership() {
 # check 5, which used to police one same-module case, is retired.
 #
 # Exempt as an importer: the wiring layer, and only the wiring layer.
-# internal/bootstrap/ and internal/transport/ exist precisely to import
+# internal/bootstrap/ and internal/server/ exist precisely to import
 # adapters and wire them together, so they are skipped as importers via
 # WIRING_DIRS (importer_roots applies that exemption once, for every check
 # that walks it). Everything else under internal/ is scanned, features and
@@ -881,7 +881,7 @@ check_cross_module_imports() {
 # Check 6 -- the transport arrow points one way
 # ---------------------------------------------------------------------------
 #
-# A module may not import internal/transport/. Only a slice's own http/
+# A module may not import internal/server/. Only a slice's own http/
 # adapter may, because that package exists to speak HTTP and nothing
 # constructs it except the route table.
 #
@@ -902,8 +902,8 @@ check_cross_module_imports() {
 #
 # Matching is on a quoted import path, not on any occurrence of the text --
 # a doc comment explaining why a setter was removed could say it "would
-# compile from cmd/, from internal/transport/, from any test", and that
-# sentence contains the string "internal/transport" with no surrounding
+# compile from cmd/, from internal/server/, from any test", and that
+# sentence contains the string "internal/server" with no surrounding
 # quotes and no module prefix. A check that grepped for the bare text would
 # flag a comment that imports nothing. Requiring the full module path inside
 # quotes -- the same shape check_cross_module_imports already requires for its
@@ -937,7 +937,7 @@ check_transport_direction() {
 			# first) plays the same adapter role at its module root instead:
 			# internal/modules/<feature>/adapter/http/. The feature route tables
 			# that used to be a third exemption are gone: every URL now lives in
-			# internal/transport/http/routes/, so no file under a module names a
+			# internal/server/routes.go, so no file under a module names a
 			# route or needs middleware.RouteGroup.
 			case "$file" in
 			"$MODULES_ROOT/$feature"/usecase/*/http/*.go) continue ;;
@@ -951,17 +951,17 @@ check_transport_direction() {
 			# "no match", which is not a failure here; anything greater than 1
 			# is, and is reported rather than silently treated as a clean file.
 			rc=0
-			hits="$(grep -noE "\"${module_re}/internal/transport(/[^\"]*)?\"" "$file")" || rc=$?
+			hits="$(grep -noE "\"${module_re}/internal/server(/[^\"]*)?\"" "$file")" || rc=$?
 			if [ "$rc" -gt 1 ]; then
-				report "grep exited $rc scanning $file for internal/transport imports -- the check could not run on this file, which is not the same as it passing"
+				report "grep exited $rc scanning $file for internal/server imports -- the check could not run on this file, which is not the same as it passing"
 				continue
 			fi
 			[ -n "$hits" ] || continue
 
 			while IFS= read -r hit; do
 				[ -n "$hit" ] || continue
-				report "'${feature}' imports internal/transport: ${file}:${hit%%:*}
-    A module may not import internal/transport -- only a slice's own http/
+				report "'${feature}' imports internal/server: ${file}:${hit%%:*}
+    A module may not import internal/server -- only a slice's own http/
     adapter may, because that package exists to speak HTTP and nothing
     constructs it but the route table. Put the shared type in
     ${MODULES_ROOT}/${feature}/contract/ and let the transport import that

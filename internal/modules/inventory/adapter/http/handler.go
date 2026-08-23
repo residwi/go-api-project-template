@@ -8,7 +8,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 // InventoryManager is everything this admin-only handler needs from

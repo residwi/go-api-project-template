@@ -20,8 +20,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
-	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	"github.com/residwi/go-api-project-template/internal/server/middleware"
+	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 func TestHandler_PlaceOrder(t *testing.T) {

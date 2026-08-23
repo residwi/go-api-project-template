@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
+	apihttp "github.com/residwi/go-api-project-template/internal/server"
 )
 
 func TestE2ECheckoutRejectsWithdrawnProduct(t *testing.T) {

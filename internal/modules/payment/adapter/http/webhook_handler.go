@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 type WebhookProcessor interface {

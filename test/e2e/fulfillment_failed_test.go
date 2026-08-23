@@ -17,7 +17,7 @@ import (
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
-	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
+	apihttp "github.com/residwi/go-api-project-template/internal/server"
 
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )

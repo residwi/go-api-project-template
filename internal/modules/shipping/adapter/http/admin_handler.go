@@ -8,7 +8,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 type ShipmentManager interface {

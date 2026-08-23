@@ -11,7 +11,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 type PromotionManager interface {

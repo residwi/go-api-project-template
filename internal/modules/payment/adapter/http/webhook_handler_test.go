@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/server/middleware"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 // Signature verification and the business dispatch it guards used to need a

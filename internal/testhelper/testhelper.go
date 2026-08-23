@@ -174,9 +174,9 @@ func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) er
 // an unrelated package. Claim yours here in the same commit that uses it.
 //
 //	0 - internal/platform/cache
-//	1 - internal/transport/http/middleware
+//	1 - internal/server/middleware
 //	2 - (free)
-//	3 - internal/transport/http
+//	3 - internal/server
 //	4 - (free)
 //	5 - test/e2e
 //	6 - internal/modules/user/adapter/redis

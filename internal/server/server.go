@@ -1,7 +1,8 @@
-package http
+package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
@@ -23,6 +25,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
+	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
 
 func Run() error {
@@ -190,4 +194,106 @@ type Deps struct {
 	ReaderPool *pgxpool.Pool
 	Cache      *redis.Client
 	Logger     *slog.Logger
+}
+
+func NewRouter(
+	deps *Deps,
+	app *bootstrap.App,
+) http.Handler {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /health", healthHandler(deps.Logger, deps.Pool, deps.Cache))
+
+	v := validator.New()
+
+	authMiddleware := middleware.Auth(app.Auth, app.Users)
+	adminMiddleware := middleware.RequireAdmin
+
+	api := middleware.NewRouteGroup(mux, "/api")
+	authed := middleware.NewRouteGroup(mux, "/api", authMiddleware)
+	admin := middleware.NewRouteGroup(mux, "/api/admin", authMiddleware, adminMiddleware)
+
+	authLimiter := middleware.RateLimit(
+		deps.Logger,
+		deps.Cache,
+		deps.Auth.RateLimit,
+		deps.Auth.RateWindow,
+	)
+	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
+
+	orderWriteLimiter := middleware.RateLimit(
+		deps.Logger,
+		deps.Cache,
+		deps.Order.RateLimit,
+		deps.Order.RateWindow,
+	)
+
+	registerRoutes(app, v, deps.Logger, api, authed, admin, authPublic, orderWriteLimiter)
+
+	if deps.Infra.App.Env == "development" {
+		mockgatewayserver.RegisterRoutes(
+			mux,
+			deps.Logger,
+			mockgatewayserver.WithWebhookSecret(deps.Payment.WebhookSecret),
+		)
+	}
+
+	return middleware.Chain(
+		middleware.RequestID,
+		middleware.Logging(deps.Logger),
+		middleware.Recovery(deps.Logger),
+		middleware.CORS(deps.Infra.CORS),
+	)(mux)
+}
+
+func healthHandler(log *slog.Logger, pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		status := "healthy"
+		httpStatus := http.StatusOK
+		details := make(map[string]string)
+
+		if err := pool.Ping(r.Context()); err != nil {
+			status = "unhealthy"
+			httpStatus = http.StatusServiceUnavailable
+			details["postgres"] = "down"
+			log.ErrorContext(r.Context(), "health check: postgres down", slog.String("error", err.Error()))
+		} else {
+			details["postgres"] = "up"
+		}
+
+		checkRedis(r.Context(), log, rdb, &status, &httpStatus, details)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(httpStatus)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status":  status,
+			"details": details,
+		})
+	}
+}
+
+func checkRedis(
+	ctx context.Context,
+	log *slog.Logger,
+	rdb *redis.Client,
+	status *string,
+	httpStatus *int,
+	details map[string]string,
+) {
+	if rdb == nil {
+		details["redis"] = "not configured"
+		return
+	}
+
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		if *status == "healthy" {
+			*status = "degraded"
+			*httpStatus = http.StatusServiceUnavailable
+		}
+		details["redis"] = "down"
+		log.WarnContext(ctx, "health check: redis down", slog.String("error", err.Error()))
+		return
+	}
+
+	details["redis"] = "up"
 }

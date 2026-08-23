@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 func RequireAdmin(next http.Handler) http.Handler {

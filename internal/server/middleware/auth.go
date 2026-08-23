@@ -11,7 +11,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
-	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 type UserContext struct {

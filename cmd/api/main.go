@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
+	apihttp "github.com/residwi/go-api-project-template/internal/server"
 )
 
 func main() {

@@ -21,8 +21,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
+	apihttp "github.com/residwi/go-api-project-template/internal/server"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
-	apihttp "github.com/residwi/go-api-project-template/internal/transport/http"
 )
 
 var (
@@ -94,7 +94,7 @@ func setup(t *testing.T) {
 // payment gateway URL (a local httptest mock server) build their own
 // payment.Config and call this instead.
 //
-// internal/transport/http/router_test.go carries its own copy. Keep them in step.
+// internal/server/router_test.go carries its own copy. Keep them in step.
 func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 	app, err := bootstrap.New(bootstrap.Deps{
 		Auth:    testAuthCfg,
@@ -114,7 +114,7 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 // httptest mock server) and hands back the payment service, so a saga test
 // can drive a job directly through its JobProcessor.
 //
-// internal/transport/http/router_test.go carries its own copy. Keep them in step.
+// internal/server/router_test.go carries its own copy. Keep them in step.
 func newPaymentService(t *testing.T, gatewayURL string) *payment.Service {
 	t.Helper()
 
@@ -128,7 +128,7 @@ func newPaymentService(t *testing.T, gatewayURL string) *payment.Service {
 // Reserve and Deduct need a row to update, and these flows insert
 // products with raw SQL, bypassing the EnsureLevel in product.Service.Create.
 //
-// internal/transport/http/router_test.go carries its own copy. Keep them in step.
+// internal/server/router_test.go carries its own copy. Keep them in step.
 func seedInventoryLevel(t *testing.T, productID uuid.UUID, available, reserved int) {
 	t.Helper()
 	_, err := testPool.Exec(context.Background(),

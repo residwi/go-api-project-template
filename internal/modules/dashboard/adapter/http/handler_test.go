@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard/domain"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
+	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
 
 func TestHandler_Summary(t *testing.T) {

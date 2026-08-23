@@ -9,8 +9,8 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
-	"github.com/residwi/go-api-project-template/internal/transport/http/response"
+	"github.com/residwi/go-api-project-template/internal/server/middleware"
+	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 type OrderReader interface {

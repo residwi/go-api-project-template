@@ -27,16 +27,16 @@ func TestCheckBoundaries(t *testing.T) {
 
 	wireTagProbe := "package wishlist\n\ntype probe struct {\n\tName string `json:\"name\"`\n}\n"
 	transportProbe := "package wishlist\n\n" +
-		"import _ \"github.com/residwi/go-api-project-template/internal/transport/http/middleware\"\n"
+		"import _ \"github.com/residwi/go-api-project-template/internal/server/middleware\"\n"
 
 	t.Run("check 1 catches a json tag outside an http adapter", func(t *testing.T) {
 		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_wiretag.go"), wireTagProbe)
 		assert.Contains(t, out, "json tag outside an http adapter")
 	})
 
-	t.Run("check 6 catches a module importing internal/transport", func(t *testing.T) {
+	t.Run("check 6 catches a module importing internal/server", func(t *testing.T) {
 		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_transport.go"), transportProbe)
-		assert.Contains(t, out, "imports internal/transport")
+		assert.Contains(t, out, "imports internal/server")
 	})
 
 	// Check 4's post-refactor rule: a module's root package is importable
