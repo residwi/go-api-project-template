@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	apihttp "github.com/residwi/go-api-project-template/internal/server"
+	"github.com/residwi/go-api-project-template/internal/server"
 )
 
 func TestE2ECheckoutRejectsWithdrawnProduct(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps, testApp)
+	handler := server.NewRouter(testDeps, testApp)
 	ctx := context.Background()
 
 	catID := uuid.New()

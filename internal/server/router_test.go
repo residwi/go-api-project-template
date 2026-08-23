@@ -879,7 +879,7 @@ func TestServerRunListenError(t *testing.T) {
 		require.ErrorContains(t, runErr, "address already in use",
 			"the returned error must name the bind failure, not some later shutdown error")
 	case <-time.After(30 * time.Second):
-		t.Fatal("apihttp.RunContext did not return the listen error for an already-bound port")
+		t.Fatal("RunContext did not return the listen error for an already-bound port")
 	}
 }
 
@@ -953,7 +953,7 @@ func TestServerRun(t *testing.T) {
 	case runErr := <-errCh:
 		require.NoError(t, runErr)
 	case <-time.After(30 * time.Second):
-		t.Fatal("apihttp.RunContext did not return after its context was cancelled")
+		t.Fatal("RunContext did not return after its context was cancelled")
 	}
 }
 
@@ -1042,7 +1042,7 @@ func startAndStopServer(t *testing.T, healthAddr string) error {
 	case runErr := <-errCh:
 		return runErr
 	case <-time.After(30 * time.Second):
-		t.Fatal("apihttp.RunContext did not return after its context was cancelled")
+		t.Fatal("RunContext did not return after its context was cancelled")
 		return nil
 	}
 }

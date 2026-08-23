@@ -17,7 +17,7 @@ import (
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
-	apihttp "github.com/residwi/go-api-project-template/internal/server"
+	"github.com/residwi/go-api-project-template/internal/server"
 
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -34,7 +34,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		GatewayURL:     mockServer.URL + "/mock/payment",
 		GatewayTimeout: 5 * time.Second,
 	}
-	webhookDeps := &apihttp.Deps{
+	webhookDeps := &server.Deps{
 		Infra:   testDeps.Infra,
 		Auth:    testDeps.Auth,
 		Order:   testDeps.Order,
@@ -43,7 +43,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 		Cache:   testRedis,
 		Logger:  testhelper.DiscardLogger(),
 	}
-	handler := apihttp.NewRouter(webhookDeps, newTestApp(customPaymentCfg))
+	handler := server.NewRouter(webhookDeps, newTestApp(customPaymentCfg))
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -231,7 +231,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		GatewayURL:     mockServer.URL + "/mock/payment",
 		GatewayTimeout: 5 * time.Second,
 	}
-	webhookDeps := &apihttp.Deps{
+	webhookDeps := &server.Deps{
 		Infra:   testDeps.Infra,
 		Auth:    testDeps.Auth,
 		Order:   testDeps.Order,
@@ -240,7 +240,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		Cache:   testRedis,
 		Logger:  testhelper.DiscardLogger(),
 	}
-	handler := apihttp.NewRouter(webhookDeps, newTestApp(customPaymentCfg))
+	handler := server.NewRouter(webhookDeps, newTestApp(customPaymentCfg))
 	ctx := context.Background()
 
 	catID := uuid.New()

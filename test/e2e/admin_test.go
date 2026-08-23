@@ -16,14 +16,14 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	apihttp "github.com/residwi/go-api-project-template/internal/server"
+	"github.com/residwi/go-api-project-template/internal/server"
 
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
 func TestE2EAdminFlow(t *testing.T) {
 	setup(t)
-	handler := apihttp.NewRouter(testDeps, testApp)
+	handler := server.NewRouter(testDeps, testApp)
 	ctx := context.Background()
 
 	email := "admin-e2e@example.com"
@@ -110,7 +110,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 		GatewayURL:     mockServer.URL + "/mock/payment",
 		GatewayTimeout: 5 * time.Second,
 	}
-	deps := &apihttp.Deps{
+	deps := &server.Deps{
 		Infra:   testDeps.Infra,
 		Auth:    testDeps.Auth,
 		Order:   testDeps.Order,
@@ -119,7 +119,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 		Cache:   testRedis,
 		Logger:  testhelper.DiscardLogger(),
 	}
-	handler := apihttp.NewRouter(deps, newTestApp(customPaymentCfg))
+	handler := server.NewRouter(deps, newTestApp(customPaymentCfg))
 	ctx := context.Background()
 
 	catID := uuid.New()

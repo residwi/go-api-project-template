@@ -21,14 +21,14 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
-	apihttp "github.com/residwi/go-api-project-template/internal/server"
+	"github.com/residwi/go-api-project-template/internal/server"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
 
 var (
 	testPool  *pgxpool.Pool
 	testRedis *redis.Client
-	testDeps  *apihttp.Deps
+	testDeps  *server.Deps
 	testApp   *bootstrap.App
 
 	// Fixed across every App this package builds, so a token minted by one is
@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 	defer cleanupRedis()
 	testRedis = rdb
 
-	testDeps = &apihttp.Deps{
+	testDeps = &server.Deps{
 		Infra: &config.Settings{
 			App: config.App{
 				Name: "test",

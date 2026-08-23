@@ -22,10 +22,10 @@ filename: "mocks_test.go"
 # catch the drift as an ordinary compile error when it does.
 #
 # Rooted at internal/ rather than internal/modules and internal/platform
-# separately: internal/transport/http/middleware's auth_test.go calls
+# separately: internal/server/middleware's auth_test.go calls
 # NewMockTokenValidator and NewMockUserStatusChecker, so a narrower root would
-# silently stop regenerating that package's mocks. internal/transport/http/
-# response also declares an interface (Validator), but nothing consumes
+# silently stop regenerating that package's mocks. internal/server/response
+# also declares an interface (Validator), but nothing consumes
 # MockValidator -- bind_test.go uses a hand-rolled fakeValidator -- it just
 # comes along for free at no cost from rooting one level up for middleware.
 packages:

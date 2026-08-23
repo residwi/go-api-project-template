@@ -27,8 +27,8 @@ import (
 // registerRoutes mounts every feature's handlers on the four groups
 // server.go's NewRouter builds, in the same feature order router.go called
 // routes.<Feature> before this collapse -- changing that order changes
-// nothing about behaviour, but the snapshot test's group assignments are
-// keyed off it, so it stays deliberate.
+// nothing about behaviour, but keeping it lets this function be read
+// against the file it replaced, so it stays deliberate.
 func registerRoutes( //nolint:funlen // one wiring function mounting all 15 features' routes in router.go's original order; each block is a flat HandleFunc list, not nested logic
 	app *bootstrap.App,
 	v *validator.Validator,
