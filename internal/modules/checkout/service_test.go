@@ -34,7 +34,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		orders := NewMockOrderWriter(t)
 		orders.EXPECT().
 			Place(t.Context(), userID, orderdomain.NewOrder{Notes: "leave at door"}, "idem-1").
-			Return(placed, nil)
+			Return(placed, true, nil)
 
 		payments := NewMockPaymentCharger(t)
 		payments.EXPECT().
@@ -69,7 +69,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		}
 
 		orders := NewMockOrderWriter(t)
-		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-2").Return(placed, nil)
+		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-2").Return(placed, true, nil)
 
 		payments := NewMockPaymentCharger(t)
 		payments.EXPECT().Charge(t.Context(), mock.Anything).
@@ -98,7 +98,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		}
 
 		orders := NewMockOrderWriter(t)
-		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-3").Return(placed, nil)
+		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-3").Return(placed, true, nil)
 
 		// No EXPECT on payments: mockery fails the test if Charge is called.
 		payments := NewMockPaymentCharger(t)
@@ -121,7 +121,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		orders := NewMockOrderWriter(t)
 		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-4").
-			Return(nil, apperror.ErrCartEmpty)
+			Return(nil, false, apperror.ErrCartEmpty)
 
 		payments := NewMockPaymentCharger(t)
 
@@ -134,6 +134,40 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		require.ErrorIs(t, err, apperror.ErrCartEmpty)
 		assert.Nil(t, got)
+	})
+
+	t.Run("does not charge again when the idempotency key was a replay", func(t *testing.T) {
+		t.Parallel()
+
+		userID := uuid.New()
+		// A paid order is what a real replay returns, but the status is not what
+		// the guard reads: created=false is, so the order below is deliberately
+		// still awaiting_payment with a payable total. Status-inference would
+		// charge it a second time.
+		replayed := &orderdomain.Order{
+			ID:     uuid.New(),
+			UserID: userID,
+			Total:  money.New(2500, "USD"),
+			Status: orderdomain.StatusAwaitingPayment,
+		}
+
+		orders := NewMockOrderWriter(t)
+		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-replay").
+			Return(replayed, false, nil)
+
+		// No EXPECT on payments: mockery fails the test if Charge is called.
+		payments := NewMockPaymentCharger(t)
+
+		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
+
+		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
+			Order:           orderdomain.NewOrder{},
+			PaymentMethodID: "pm_123",
+			IdempotencyKey:  "idem-replay",
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, replayed, got)
 	})
 }
 

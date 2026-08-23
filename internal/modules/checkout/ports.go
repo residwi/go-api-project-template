@@ -12,13 +12,16 @@ import (
 
 // OrderWriter is satisfied by order.Service. Everything through the
 // order-writing transaction stays there; checkout only adds the payment tail.
+// The created flag is what keeps that tail idempotent: false means the
+// idempotency key was a replay of an order already placed -- and already
+// charged -- so the tail must not run again.
 type OrderWriter interface {
 	Place(
 		ctx context.Context,
 		userID uuid.UUID,
 		in orderdomain.NewOrder,
 		idempotencyKey string,
-	) (*orderdomain.Order, error)
+	) (order *orderdomain.Order, created bool, err error)
 }
 
 type PaymentCharger interface {

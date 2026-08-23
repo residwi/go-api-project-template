@@ -67,24 +67,30 @@ func New(d Deps) *Service {
 	}
 }
 
+// Place reports whether it created the order. A repeated idempotency key
+// returns the stored order with created=false, and that flag is the only signal
+// the caller gets: the returned order looks the same either way, so anything a
+// replay must not repeat -- charging a card, above all -- has to branch on it
+// rather than infer a replay from order status.
+//
 //nolint:gocognit // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction
 func (s *Service) Place(
 	ctx context.Context,
 	userID uuid.UUID,
 	in domain.NewOrder,
 	idempotencyKey string,
-) (*domain.Order, error) {
+) (*domain.Order, bool, error) {
 	existing, err := s.repo.GetByUserIDAndIdempotencyKey(ctx, userID, idempotencyKey)
 	if err != nil && !errors.Is(err, apperror.ErrNotFound) {
-		return nil, err
+		return nil, false, err
 	}
 	if existing != nil {
 		items, itemErr := s.repo.ListItemsByOrderID(ctx, existing.ID)
 		if itemErr != nil {
-			return nil, itemErr
+			return nil, false, itemErr
 		}
 		existing.Items = items
-		return existing, nil
+		return existing, false, nil
 	}
 
 	order := &domain.Order{
@@ -170,7 +176,7 @@ func (s *Service) Place(
 		return s.cartClear.Clear(txCtx, userID)
 	})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	order.Items = orderItems
@@ -188,7 +194,7 @@ func (s *Service) Place(
 		}
 	}
 
-	return order, nil
+	return order, true, nil
 }
 
 func (s *Service) ListByUser(

@@ -74,7 +74,7 @@ func (s *Service) Place(
 	userID uuid.UUID,
 	in domain.NewOrder,
 	idempotencyKey string,
-) (*domain.Order, error)
+) (*domain.Order, bool, error)
 ```
 
 `order.Service.Place` takes `orderdomain.NewOrder` and returns

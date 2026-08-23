@@ -51,12 +51,16 @@ func (s *Service) PlaceOrder(
 	userID uuid.UUID,
 	in PlaceOrderInput,
 ) (*orderdomain.Order, error) {
-	order, err := s.orders.Place(ctx, userID, in.Order, in.IdempotencyKey)
+	order, created, err := s.orders.Place(ctx, userID, in.Order, in.IdempotencyKey)
 	if err != nil {
 		return nil, err
 	}
 
-	if order.Total.Amount > 0 {
+	// A replay of an idempotency key returns the stored order, which was already
+	// charged on the call that created it. Charging again bills the customer
+	// twice and lands the order in fulfillment_failed, so the same successful
+	// response is returned untouched.
+	if created && order.Total.Amount > 0 {
 		if _, payErr := s.payments.Charge(ctx, payment.ChargeRequest{
 			OrderID:         order.ID,
 			Amount:          order.Total,
