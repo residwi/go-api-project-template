@@ -174,9 +174,15 @@ one slice in the whole repo with two backing stores, `postgres/` and
 does reaches outside the module, so there is no cross-module dependency for
 a port to name. `notification` has **no** `worker/` package because its
 `jobs/` package's `Worker` satisfies `platform/jobs.Processor` directly —
-one value does both roles `payment` needs three packages for (`jobs.Queue`
-the queue, `jobs.Dispatcher` the processor, and `worker/` the wrapper that
-also drives order's housekeeping sweep).
+one value doing both roles. `payment`'s own flatten (Task 18) needs even
+less: `Claim`/`Prune` are two methods on `*payment.Service` itself, with no
+`Queue` type standing between them and the value `cmd/worker` hands
+`jobs.Runner`, and the one processor package that remains,
+`payment/adapter/jobs.Dispatcher`, is leaner than `notification`'s
+single-value trick, not the three-package cost this decision used to
+charge it — `worker/`, the wrapper that used to bolt order's housekeeping
+sweep onto the dispatcher, is gone; that composition is `cmd/worker/main.go`'s
+own job now.
 `contract/` is not counted as an adapter — it adapts no technology,
 decision 13 covers it on its own terms, and a module gets one
 independently of how many adapters it needs.

@@ -16,7 +16,7 @@ import (
 )
 
 // Order total and payment amount must be the same number or
-// FinalizePaymentSuccess rejects the charge as a mismatch. 1000 is also not
+// FinalizeSuccess rejects the charge as a mismatch. 1000 is also not
 // 99 mod 100, which the mock gateway declines.
 const (
 	chargeAmount = 1000
@@ -89,7 +89,7 @@ type chargeJobFixture struct {
 //
 // What the fixture has to satisfy: orders.status 'awaiting_payment' for the
 // claiming CAS, a non-empty payment_method_id or the gateway answers "pending",
-// payments.amount equal to orders.total_amount or FinalizePaymentSuccess bails
+// payments.amount equal to orders.total_amount or FinalizeSuccess bails
 // with ErrAmountMismatch, payments.status 'pending', and an order_items row over
 // reserved stock for Deduct to consume.
 func seedChargeJob(t *testing.T, maxAttempts int) chargeJobFixture {

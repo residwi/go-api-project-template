@@ -180,7 +180,7 @@ child table, which is why they carry no ports: nothing outside asks them
 anything.
 
 ("Inbound ports" counts interfaces other modules declare that this module's
-service satisfies — `auth.UserDirectory`, `payment.OrderGetter`,
+service satisfies — `auth.UserDirectory`, `payment.OrderReader`,
 `product.InventoryReader` and so on.)
 
 It is tempting to read the first column as a module dependency ranking. It is

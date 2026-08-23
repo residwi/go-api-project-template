@@ -109,25 +109,33 @@ internal/modules/*/usecase -mindepth 1 -maxdepth 1 -type d | wc -l`. Re-run
 it rather than trust the number. Four directories sit outside `usecase/` at a
 feature root, and none of them is a slice. Three are `payment`'s.
 `gateway/` bundles the outbound `Gateway` port and its three real
-implementations (`stripe/ midtrans/ mock/`), picked once in `module.go` from
-`Config.Gateway` — check 1's json-tag exemption names `gateway/gateway.go`
-alone, not the directory, because none of the three implementations declares
-a json-tagged type of its own. `jobs/` is payment's own queue (`jobs.Queue`)
-plus the `jobs.Dispatcher` that routes a claimed job to `charge` or `refund`.
-`worker/` wraps that dispatcher plus order's stale-order housekeeping into
-the binary's per-tick `Sweep` hook — a behaviour decision predating slicing,
-kept deliberately, not a boundary one. The fourth is `notification/jobs/`,
-whose `jobs.Worker` is queue and processor at once. None has a `usecase.go`,
-none declares a `UseCase`, and `cmd/worker/main.go` constructs
-`worker.Processor` directly rather than through `payment.New` — so none is a
-slice, whichever way an import into it points.
+implementations (`stripe/ midtrans/ mock/`), picked once in `service.go`'s
+`newGateway` from `Config.Gateway` — check 1's json-tag exemption names
+`gateway/gateway.go` alone, not the directory, because none of the three
+implementations declares a json-tagged type of its own. `jobs/` used to be
+payment's own queue (`jobs.Queue`) plus the `jobs.Dispatcher` that routes a
+claimed job to `charge` or `refund`; the flatten moved the queue onto
+`*payment.Service` itself (`Claim`/`Prune`) and the dispatcher to
+`payment/adapter/jobs.Dispatcher`, so `jobs/` now holds only its `postgres/`
+adapter. `worker/` — which used to wrap that dispatcher plus order's
+stale-order housekeeping into the binary's per-tick `Sweep` hook — is
+deleted outright; that composition now lives as `cmd/worker/main.go`'s own
+unexported `paymentProcessor`, since crossing payment and order is
+composition-root work. The fourth is `notification/jobs/`, whose
+`jobs.Worker` is queue and processor at once. None has a `usecase.go`, none
+declares a `UseCase`, and `cmd/worker/main.go` wires
+`app.Payments.JobProcessor` into that `paymentProcessor` directly rather
+than payment declaring a port for order's sweep — so none is a slice,
+whichever way an import into it points.
 
 A cross-module port is declared where it is consumed: in a slice's own
 `ports.go` when only that slice needs it (`order/usecase/changestatus/ports.go`
-declares `TransitionPort`; `payment/usecase/charge`,
+declares `TransitionPort`; `order/usecase/cancel`,
 `order/usecase/place` and 22 more each declare their own the same way — 26
-`ports.go` files in the tree, 25 of them a slice's and one `payment/jobs`', per
-`find internal/modules -name ports.go`), or in `module.go` — as an interface
+`ports.go` files in the tree, per
+`find internal/modules -name ports.go` — that count, and any breakdown of
+it, is stale until the refactor completes; `payment/jobs` in particular has
+none any more, since payment flattened), or in `module.go` — as an interface
 plus a `Deps` field. The first reason is convention, not enforcement: every
 type a `Deps` field names is declared in the module's own package, so the
 module's wiring surface reads without opening a slice, and a slice can rename
