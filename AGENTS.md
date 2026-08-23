@@ -488,7 +488,15 @@ whether that means releasing a reservation or restocking deducted goods;
 callers supply order's prior state, never the mechanics. `StockState` lives
 in `inventory`'s own root package now that the module has flattened —
 `order` and `payment` name the type by importing that package directly,
-never `inventory/adapter/postgres`.
+never `inventory/adapter/postgres`. That import is no longer the leaf it was:
+while `StockState` sat in `inventory/contract`, check 7
+(`check_contract_leaf`) guaranteed the package `order`/`payment` imported for
+it pulled in nothing but stdlib, `uuid` and `money`; the root package it now
+lives in imports `inventory/domain` and defines `Service`/`Repository`, and
+no check anywhere holds a flattened module's root package to a leaf-import
+rule. Not a defect introduced here — five earlier flattens did the same the
+moment their `contract/` promoted — but it belongs in the record before
+Task 23, which still owns the surviving contract-package prose, inherits it.
 16. **Background job workers use `platform/jobs`.** The package draining a queue implements `jobs.Queue[T]` (`Claim` + `Prune`) and `jobs.Processor[T]` (`Process`) on whichever value the binary hands to `jobs.Runner[T]`, plus an optional `jobs.Sweeper` for per-tick housekeeping. `payment/jobs.Queue` and `notification/jobs.Worker` are the two queues today; `payment/jobs.Dispatcher` is the processor that routes a claimed payment job to charge or refund, and `payment/worker.Processor` wraps the dispatcher to add order's stale-order sweep. All four live at a feature root, outside `usecase/`, and none is a slice. Never hand-roll a ticker/lease/poll loop — the runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
 17. **Repository reads use `pgx.CollectRows`**, never a hand-rolled `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and build keyset predicates with `database.KeysetCursor()`.
 18. **Handlers use the shared helpers.** Decode and validate with `response.Bind[T](w, r, h.validator)`; read caller with `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks.
