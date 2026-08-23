@@ -41,7 +41,7 @@ func New(db database.DB) *Repository {
 }
 
 func (r *Repository) GetSalesSummary(ctx context.Context, from, to time.Time) (domain.SalesSummary, error) {
-	db := database.PrimaryDB(ctx, r.db)
+	db := database.ReplicaDB(ctx, r.db)
 	var s domain.SalesSummary
 	err := db.QueryRow(ctx,
 		`SELECT COUNT(*), COALESCE(SUM(total_amount), 0), COALESCE(AVG(total_amount), 0)
@@ -59,7 +59,7 @@ func (r *Repository) ListOrderStatusBreakdown(
 	ctx context.Context,
 	from, to time.Time,
 ) ([]domain.StatusBreakdown, error) {
-	db := database.PrimaryDB(ctx, r.db)
+	db := database.ReplicaDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT status, COUNT(*) FROM orders
 		WHERE created_at BETWEEN $1 AND $2
@@ -78,7 +78,7 @@ func (r *Repository) ListOrderStatusBreakdown(
 }
 
 func (r *Repository) ListRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error) {
-	db := database.PrimaryDB(ctx, r.db)
+	db := database.ReplicaDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT DATE(created_at) AS date, COALESCE(SUM(total_amount), 0) AS revenue, COUNT(*) AS order_count
 		FROM orders
@@ -103,7 +103,7 @@ func (r *Repository) ListTopProducts(
 	limit int,
 	from, to time.Time,
 ) ([]domain.TopProduct, error) {
-	db := database.PrimaryDB(ctx, r.db)
+	db := database.ReplicaDB(ctx, r.db)
 	rows, err := db.Query(ctx,
 		`SELECT oi.product_id, oi.product_name, SUM(oi.quantity) AS total_sold, SUM(oi.subtotal) AS revenue
 		FROM order_items oi

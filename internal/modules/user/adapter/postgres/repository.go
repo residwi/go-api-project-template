@@ -104,7 +104,7 @@ func (r *Repository) GetStatusByID(ctx context.Context, id uuid.UUID) (bool, int
 }
 
 func (r *Repository) ListAdmin(ctx context.Context, params user.AdminListParams) ([]domain.User, int, error) {
-	db := database.PrimaryDB(ctx, r.db)
+	db := database.ReplicaDB(ctx, r.db)
 
 	where := "deleted_at IS NULL"
 	args := []any{}

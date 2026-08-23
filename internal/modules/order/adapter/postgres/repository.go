@@ -148,7 +148,7 @@ func (r *Repository) ListByUser(
 }
 
 func (r *Repository) ListAdmin(ctx context.Context, params order.AdminListParams) ([]domain.Order, int, error) {
-	db := database.PrimaryDB(ctx, r.db)
+	db := database.ReplicaDB(ctx, r.db)
 
 	where := "1=1"
 	args := []any{}

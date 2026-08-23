@@ -140,7 +140,7 @@ func scanPromotion(row pgx.CollectableRow) (domain.Promotion, error) {
 }
 
 func (r *Repository) ListAdmin(ctx context.Context, params promotion.AdminListParams) ([]domain.Promotion, int, error) {
-	db := database.PrimaryDB(ctx, r.db)
+	db := database.ReplicaDB(ctx, r.db)
 
 	var total int
 	if err := db.QueryRow(ctx, `SELECT COUNT(*) FROM promotions`).Scan(&total); err != nil {

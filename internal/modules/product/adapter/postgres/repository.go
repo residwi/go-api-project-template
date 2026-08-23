@@ -183,7 +183,7 @@ func (r *Repository) ListPublished(
 }
 
 func (r *Repository) ListAdmin(ctx context.Context, params product.AdminListParams) ([]domain.Product, int, error) {
-	db := database.PrimaryDB(ctx, r.db)
+	db := database.ReplicaDB(ctx, r.db)
 
 	where := "deleted_at IS NULL"
 	args := []any{}
