@@ -44,7 +44,7 @@ func (s *Service) Create(
 	orderID uuid.UUID,
 	carrier, trackingNumber string,
 ) (*domain.Shipment, error) {
-	order, err := s.orderRead.GetInfo(ctx, orderID)
+	order, err := s.orderRead.Snapshot(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func (s *Service) UpdateTracking(
 }
 
 func (s *Service) GetForUser(ctx context.Context, userID, orderID uuid.UUID) (*domain.Shipment, error) {
-	order, err := s.orderRead.GetInfo(ctx, orderID)
+	order, err := s.orderRead.Snapshot(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}

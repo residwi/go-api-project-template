@@ -8,7 +8,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -40,23 +40,23 @@ func (_m *MockOrderGetter) EXPECT() *MockOrderGetter_Expecter {
 	return &MockOrderGetter_Expecter{mock: &_m.Mock}
 }
 
-// GetInfo provides a mock function for the type MockOrderGetter
-func (_mock *MockOrderGetter) GetInfo(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
+// Snapshot provides a mock function for the type MockOrderGetter
+func (_mock *MockOrderGetter) Snapshot(ctx context.Context, orderID uuid.UUID) (order.Snapshot, error) {
 	ret := _mock.Called(ctx, orderID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetInfo")
+		panic("no return value specified for Snapshot")
 	}
 
-	var r0 contract.Order
+	var r0 order.Snapshot
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (contract.Order, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (order.Snapshot, error)); ok {
 		return returnFunc(ctx, orderID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) contract.Order); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) order.Snapshot); ok {
 		r0 = returnFunc(ctx, orderID)
 	} else {
-		r0 = ret.Get(0).(contract.Order)
+		r0 = ret.Get(0).(order.Snapshot)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = returnFunc(ctx, orderID)
@@ -66,19 +66,19 @@ func (_mock *MockOrderGetter) GetInfo(ctx context.Context, orderID uuid.UUID) (c
 	return r0, r1
 }
 
-// MockOrderGetter_GetInfo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetInfo'
-type MockOrderGetter_GetInfo_Call struct {
+// MockOrderGetter_Snapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Snapshot'
+type MockOrderGetter_Snapshot_Call struct {
 	*mock.Call
 }
 
-// GetInfo is a helper method to define mock.On call
+// Snapshot is a helper method to define mock.On call
 //   - ctx context.Context
 //   - orderID uuid.UUID
-func (_e *MockOrderGetter_Expecter) GetInfo(ctx any, orderID any) *MockOrderGetter_GetInfo_Call {
-	return &MockOrderGetter_GetInfo_Call{Call: _e.mock.On("GetInfo", ctx, orderID)}
+func (_e *MockOrderGetter_Expecter) Snapshot(ctx any, orderID any) *MockOrderGetter_Snapshot_Call {
+	return &MockOrderGetter_Snapshot_Call{Call: _e.mock.On("Snapshot", ctx, orderID)}
 }
 
-func (_c *MockOrderGetter_GetInfo_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderGetter_GetInfo_Call {
+func (_c *MockOrderGetter_Snapshot_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderGetter_Snapshot_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -96,12 +96,12 @@ func (_c *MockOrderGetter_GetInfo_Call) Run(run func(ctx context.Context, orderI
 	return _c
 }
 
-func (_c *MockOrderGetter_GetInfo_Call) Return(order contract.Order, err error) *MockOrderGetter_GetInfo_Call {
-	_c.Call.Return(order, err)
+func (_c *MockOrderGetter_Snapshot_Call) Return(snapshot order.Snapshot, err error) *MockOrderGetter_Snapshot_Call {
+	_c.Call.Return(snapshot, err)
 	return _c
 }
 
-func (_c *MockOrderGetter_GetInfo_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (contract.Order, error)) *MockOrderGetter_GetInfo_Call {
+func (_c *MockOrderGetter_Snapshot_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (order.Snapshot, error)) *MockOrderGetter_Snapshot_Call {
 	_c.Call.Return(run)
 	return _c
 }

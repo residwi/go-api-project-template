@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/testhelper"
 )
@@ -24,8 +24,8 @@ func TestService_Create(t *testing.T) {
 		orderID := uuid.New()
 
 		orders := NewMockOrderGetter(t)
-		orders.EXPECT().GetInfo(mock.Anything, orderID).
-			Return(ordercontract.Order{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
+		orders.EXPECT().Snapshot(mock.Anything, orderID).
+			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
 		shipper := NewMockOrderShipper(t)
 		shipper.EXPECT().MarkShipped(mock.Anything, orderID).Return(nil)
 
@@ -49,8 +49,8 @@ func TestService_Create(t *testing.T) {
 		orderID := uuid.New()
 
 		orders := NewMockOrderGetter(t)
-		orders.EXPECT().GetInfo(mock.Anything, orderID).
-			Return(ordercontract.Order{ID: orderID, Status: "awaiting_payment"}, nil)
+		orders.EXPECT().Snapshot(mock.Anything, orderID).
+			Return(order.Snapshot{ID: orderID, Status: "awaiting_payment"}, nil)
 
 		// Repository is never called: the guard runs before the transaction opens.
 		svc := New(Deps{
@@ -67,8 +67,8 @@ func TestService_Create(t *testing.T) {
 		orderID := uuid.New()
 
 		orders := NewMockOrderGetter(t)
-		orders.EXPECT().GetInfo(mock.Anything, orderID).
-			Return(ordercontract.Order{}, apperror.ErrNotFound)
+		orders.EXPECT().Snapshot(mock.Anything, orderID).
+			Return(order.Snapshot{}, apperror.ErrNotFound)
 
 		svc := New(Deps{
 			Repo: NewMockRepository(t), Tx: testhelper.FakeTxRunner{},
@@ -84,8 +84,8 @@ func TestService_Create(t *testing.T) {
 		orderID := uuid.New()
 
 		orders := NewMockOrderGetter(t)
-		orders.EXPECT().GetInfo(mock.Anything, orderID).
-			Return(ordercontract.Order{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
+		orders.EXPECT().Snapshot(mock.Anything, orderID).
+			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
 
 		dbErr := errors.New("insert failed")
 		repo := NewMockRepository(t)
@@ -107,8 +107,8 @@ func TestService_Create(t *testing.T) {
 		flipErr := errors.New("order is no longer shippable")
 
 		orders := NewMockOrderGetter(t)
-		orders.EXPECT().GetInfo(mock.Anything, orderID).
-			Return(ordercontract.Order{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
+		orders.EXPECT().Snapshot(mock.Anything, orderID).
+			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
 		shipper := NewMockOrderShipper(t)
 		shipper.EXPECT().MarkShipped(mock.Anything, orderID).Return(flipErr)
 
@@ -281,8 +281,8 @@ func TestService_GetForUser(t *testing.T) {
 		userID, orderID, shipmentID := uuid.New(), uuid.New(), uuid.New()
 
 		orders := NewMockOrderGetter(t)
-		orders.EXPECT().GetInfo(mock.Anything, orderID).
-			Return(ordercontract.Order{ID: orderID, UserID: userID, Status: "shipped"}, nil)
+		orders.EXPECT().Snapshot(mock.Anything, orderID).
+			Return(order.Snapshot{ID: orderID, UserID: userID, Status: "shipped"}, nil)
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetByOrderID(mock.Anything, orderID).
@@ -300,8 +300,8 @@ func TestService_GetForUser(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 
 		orders := NewMockOrderGetter(t)
-		orders.EXPECT().GetInfo(mock.Anything, orderID).
-			Return(ordercontract.Order{ID: orderID, UserID: uuid.New(), Status: "shipped"}, nil)
+		orders.EXPECT().Snapshot(mock.Anything, orderID).
+			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "shipped"}, nil)
 
 		// Not ErrForbidden: a 403 would confirm the order exists to someone who
 		// does not own it.
@@ -316,8 +316,8 @@ func TestService_GetForUser(t *testing.T) {
 		orderID := uuid.New()
 
 		orders := NewMockOrderGetter(t)
-		orders.EXPECT().GetInfo(mock.Anything, orderID).
-			Return(ordercontract.Order{}, apperror.ErrNotFound)
+		orders.EXPECT().Snapshot(mock.Anything, orderID).
+			Return(order.Snapshot{}, apperror.ErrNotFound)
 
 		svc := New(Deps{Repo: NewMockRepository(t), OrderRead: orders})
 		_, err := svc.GetForUser(t.Context(), uuid.New(), orderID)
@@ -331,8 +331,8 @@ func TestService_GetForUser(t *testing.T) {
 		repoErr := errors.New("connection reset")
 
 		orders := NewMockOrderGetter(t)
-		orders.EXPECT().GetInfo(mock.Anything, orderID).
-			Return(ordercontract.Order{ID: orderID, UserID: userID, Status: "shipped"}, nil)
+		orders.EXPECT().Snapshot(mock.Anything, orderID).
+			Return(order.Snapshot{ID: orderID, UserID: userID, Status: "shipped"}, nil)
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetByOrderID(mock.Anything, orderID).Return(nil, repoErr)

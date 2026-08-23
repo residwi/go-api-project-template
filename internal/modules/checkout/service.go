@@ -75,7 +75,7 @@ func (s *Service) RetryPayment(
 	userID, orderID uuid.UUID,
 	paymentMethodID string,
 ) (payment.ChargeResult, error) {
-	order, err := s.snapshots.GetSnapshot(ctx, orderID)
+	order, err := s.snapshots.Snapshot(ctx, orderID)
 	if err != nil {
 		return payment.ChargeResult{}, err
 	}

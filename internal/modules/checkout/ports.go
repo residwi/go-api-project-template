@@ -5,12 +5,12 @@ import (
 
 	"github.com/google/uuid"
 
-	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 )
 
-// OrderWriter is satisfied by order's place use case. Everything through the
+// OrderWriter is satisfied by order.Service. Everything through the
 // order-writing transaction stays there; checkout only adds the payment tail.
 type OrderWriter interface {
 	Place(
@@ -25,10 +25,10 @@ type PaymentCharger interface {
 	Charge(ctx context.Context, p payment.ChargeRequest) (payment.ChargeResult, error)
 }
 
-// OrderSnapshotReader is satisfied by order's query use case. contract.Order
-// carries every field retry needs, so no order write port is required.
+// OrderSnapshotReader is satisfied by order.Service. order.Snapshot carries
+// every field retry needs, so no order write port is required.
 type OrderSnapshotReader interface {
-	GetSnapshot(ctx context.Context, orderID uuid.UUID) (ordercontract.Order, error)
+	Snapshot(ctx context.Context, orderID uuid.UUID) (order.Snapshot, error)
 }
 
 type OrderCanceller interface {

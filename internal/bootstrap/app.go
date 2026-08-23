@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
+	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
@@ -54,7 +55,7 @@ type App struct {
 	Products      *product.Service
 	Inventory     *inventory.Service
 	Carts         *cart.Service
-	Orders        *order.Module
+	Orders        *order.Service
 	Payments      *payment.Service
 	Checkout      *checkout.Service
 	Shipping      *shipping.Service
@@ -93,7 +94,7 @@ func New(d Deps) (*App, error) {
 	})
 
 	ordMod := order.New(order.Deps{
-		Pool: d.Pool, Tx: txRunner, Logger: d.Logger,
+		Repo: orderpg.New(d.Pool), Tx: txRunner, Logger: d.Logger,
 		CartLock:         cartMod,
 		CartRead:         cartMod,
 		CartClear:        cartMod,
@@ -110,18 +111,18 @@ func New(d Deps) (*App, error) {
 		Tx:               txRunner,
 		Config:           d.Payment,
 		Logger:           d.Logger,
-		OrderTransition:  ordMod.Transition,
-		OrderCanceller:   ordMod.Cancel,
-		OrderReader:      ordMod.Query,
+		OrderTransition:  ordMod,
+		OrderCanceller:   ordMod,
+		OrderReader:      ordMod,
 		InventoryDeduct:  inv,
 		InventoryRestore: inv,
 		Promotions:       promotionMod,
 	})
 
 	checkoutSvc := checkout.New(checkout.Deps{
-		Orders:      ordMod.Place,
-		Snapshots:   ordMod.Query,
-		Cancels:     ordMod.Cancel,
+		Orders:      ordMod,
+		Snapshots:   ordMod,
+		Cancels:     ordMod,
 		Payments:    paymentMod,
 		PaymentJobs: paymentMod,
 		Logger:      d.Logger,
@@ -129,11 +130,11 @@ func New(d Deps) (*App, error) {
 
 	shippingMod := shipping.New(shipping.Deps{
 		Repo: shippingpg.New(d.Pool), Tx: txRunner,
-		OrderRead:    ordMod.Query,
-		OrderShip:    ordMod.Transition,
-		OrderDeliver: ordMod.Transition,
+		OrderRead:    ordMod,
+		OrderShip:    ordMod,
+		OrderDeliver: ordMod,
 	})
-	reviewMod := review.New(review.Deps{Repo: reviewpg.New(d.Pool), Purchase: ordMod.Query})
+	reviewMod := review.New(review.Deps{Repo: reviewpg.New(d.Pool), Purchase: ordMod})
 
 	return &App{
 		Users:         userMod,

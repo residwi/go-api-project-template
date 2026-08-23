@@ -385,7 +385,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 // TestE2ERetryPayment is the endpoint's first e2e coverage. Nothing else in
 // this suite ever drove POST /api/orders/{id}/pay through the real router,
 // which is exactly how a refactor moved it from order to checkout, wired it
-// to order/usecase/query.GetSnapshot, and left it 404-ing for every real
+// to order's Snapshot projection, and left it 404-ing for every real
 // caller while every mock-backed unit test stayed green.
 func TestE2ERetryPayment(t *testing.T) {
 	setup(t)

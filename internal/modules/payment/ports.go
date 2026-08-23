@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/gateway"
 )
 
@@ -19,9 +19,8 @@ type Gateway interface {
 }
 
 // OrderTransition is charge's OrderUpdater (five methods) plus refund's
-// OrderUpdater (MarkRefunded) -- the exact union module.go already declared
-// before this flatten, moved here unchanged. Satisfied by
-// order/usecase/transition.UseCase, per AGENTS.md rule 14.
+// OrderUpdater (MarkRefunded). Every method is an intent, and order.Service
+// turns each into a named domain.Transition, per AGENTS.md rule 14.
 type OrderTransition interface {
 	MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error
 	MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error
@@ -31,10 +30,10 @@ type OrderTransition interface {
 	MarkRefunded(ctx context.Context, orderID uuid.UUID) error
 }
 
-// OrderCanceller was webhook's own OrderUpdater. It stays a separate port
-// from OrderTransition because the two bind to different order sub-values
-// (order.Module.Cancel vs order.Module.Transition) -- merging them would
-// require one order value to satisfy both, which none does.
+// OrderCanceller stays a separate port from OrderTransition even though one
+// order.Service now satisfies both: cancelling and transitioning are different
+// asks, and a port names what its caller needs, not what the producer happens
+// to offer.
 type OrderCanceller interface {
 	CancelUnpaid(ctx context.Context, orderID uuid.UUID) error
 }
@@ -42,7 +41,7 @@ type OrderCanceller interface {
 // OrderReader is charge's OrderGetter+OrderItemsGetter and refund's
 // OrderGetter+OrderItemsGetter, all four already the same two methods.
 type OrderReader interface {
-	GetSnapshot(ctx context.Context, orderID uuid.UUID) (ordercontract.Order, error)
+	Snapshot(ctx context.Context, orderID uuid.UUID) (order.Snapshot, error)
 	ListItemQuantities(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error)
 }
 

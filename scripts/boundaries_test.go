@@ -1,7 +1,6 @@
 package scripts_test
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,48 +17,31 @@ func TestCheckBoundaries(t *testing.T) {
 		assert.Contains(t, out, "Boundaries OK")
 	})
 
-	// Checks 1, 5 and 6 need a real usecase/<slice>/ directory to drop a probe
-	// file into. Every flatten task (see REFACTOR-PLAN.md) deletes one
-	// module's usecase/ tree entirely -- wishlist's went first, in Task 6 --
-	// so the probe target cannot be a fixed feature name; it has to be
-	// whichever sliced feature is still standing when this test runs.
-	feature, slice, sibling := pickSliceWithSibling(t)
-	sliceDir := filepath.Join("internal", "modules", feature, "usecase", slice)
+	// Every probe lands at a module root. That used to be impossible for
+	// checks 1 and 6, whose probes needed a real usecase/<slice>/ directory
+	// and so had to hunt for whichever module was still sliced; no module is,
+	// since Task 19 flattened the last one. A module root is scanned by every
+	// check below and, unlike a slice directory, is not something a later task
+	// deletes.
+	wishlistDir := filepath.Join("internal", "modules", "wishlist")
 
-	wireTagProbe := fmt.Sprintf("package %s\n\ntype probe struct {\n\tName string `json:\"name\"`\n}\n", slice)
-	siblingProbe := fmt.Sprintf(
-		"package %s\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/%s/usecase/%s\"\n",
-		slice, feature, sibling,
-	)
-	transportProbe := fmt.Sprintf(
-		"package %s\n\nimport _ \"github.com/residwi/go-api-project-template/internal/transport/http/middleware\"\n",
-		slice,
-	)
+	wireTagProbe := "package wishlist\n\ntype probe struct {\n\tName string `json:\"name\"`\n}\n"
+	transportProbe := "package wishlist\n\n" +
+		"import _ \"github.com/residwi/go-api-project-template/internal/transport/http/middleware\"\n"
 
-	t.Run("check 1 catches a json tag outside a slice http adapter", func(t *testing.T) {
-		out := runCheckWithProbe(t, filepath.Join(sliceDir, "probe_wiretag.go"), wireTagProbe)
+	t.Run("check 1 catches a json tag outside an http adapter", func(t *testing.T) {
+		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_wiretag.go"), wireTagProbe)
 		assert.Contains(t, out, "json tag outside an http adapter")
 	})
 
-	t.Run("check 5 catches a sibling slice import", func(t *testing.T) {
-		out := runCheckWithProbe(t, filepath.Join(sliceDir, "probe_sibling.go"), siblingProbe)
-		assert.Contains(t, out, "imports sibling slice")
-	})
-
 	t.Run("check 6 catches a module importing internal/transport", func(t *testing.T) {
-		out := runCheckWithProbe(t, filepath.Join(sliceDir, "probe_transport.go"), transportProbe)
+		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_transport.go"), transportProbe)
 		assert.Contains(t, out, "imports internal/transport")
 	})
 
 	// Check 4's post-refactor rule: a module's root package is importable
-	// like a contract/ package always was; domain/, every adapter and every
-	// still-sliced usecase/<slice> stay private. wishlist and category are
-	// both already flattened (no usecase/ tree, so check 5 has nothing to
-	// say about either), which is what makes them stable probe targets --
-	// unlike the usecase/<slice> probes above, this check scans every .go
-	// file under a module, so the probe does not need a slice directory at
-	// all.
-	wishlistDir := filepath.Join("internal", "modules", "wishlist")
+	// like a contract/ package always was; domain/ and every adapter stay
+	// private.
 	rootImportProbe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/category\"\n"
 	domainImportProbe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/category/domain\"\n"
 
@@ -110,43 +92,4 @@ func runCheckWithoutError(t *testing.T, relPath, content string) string {
 	out, err := runCheck(t)
 	require.NoError(t, err, "check-boundaries.sh must pass while the probe file exists:\n%s", out)
 	return out
-}
-
-// pickSliceWithSibling finds a feature that still has at least two
-// usecase/<slice>/ directories, so the sibling-import probe names a real
-// sibling. It fails loudly rather than skipping if none is left: today that
-// only happens once every module in REFACTOR-PLAN.md has flattened, at which
-// point check_sibling_slice_imports itself has nothing left to check and
-// this whole test (Task 23, per the plan) needs rewriting anyway -- a silent
-// skip would instead report a green suite for a check that quietly stopped
-// running.
-func pickSliceWithSibling(t *testing.T) (feature, slice, sibling string) {
-	t.Helper()
-
-	modulesRoot := filepath.Join(repoRoot(t), "internal", "modules")
-	features, err := os.ReadDir(modulesRoot)
-	require.NoError(t, err)
-
-	for _, f := range features {
-		if !f.IsDir() {
-			continue
-		}
-		entries, err := os.ReadDir(filepath.Join(modulesRoot, f.Name(), "usecase"))
-		if err != nil {
-			continue // no usecase/ dir -- flattened, or a feature with none
-		}
-		var names []string
-		for _, s := range entries {
-			if s.IsDir() {
-				names = append(names, s.Name())
-			}
-		}
-		if len(names) >= 2 {
-			return f.Name(), names[0], names[1]
-		}
-	}
-
-	t.Fatal("no feature under internal/modules has two usecase/ slices left -- " +
-		"every module has flattened; check_sibling_slice_imports and this probe are due for retirement")
-	return "", "", ""
 }

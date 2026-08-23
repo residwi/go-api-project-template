@@ -121,8 +121,8 @@ func run() error {
 
 	proc := paymentProcessor{
 		dispatcher: app.Payments.JobProcessor,
-		recover:    app.Orders.RecoverStale.RecoverStaleProcessing,
-		expire:     app.Orders.Expire.ExpireStale,
+		recover:    app.Orders.RecoverStale,
+		expire:     app.Orders.ExpireStale,
 		logger:     appLog,
 	}
 	// app.Payments satisfies jobs.Queue[paymentdomain.Job] directly, via

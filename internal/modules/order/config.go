@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-
-	"github.com/residwi/go-api-project-template/internal/modules/order/contract"
 )
 
 type Config struct {
@@ -21,11 +19,11 @@ func LoadConfig(jobsLease time.Duration) (Config, error) {
 		return Config{}, fmt.Errorf("loading order config: %w", err)
 	}
 
-	if jobsLease >= contract.StaleProcessingThreshold {
+	if jobsLease >= StaleProcessingThreshold {
 		return Config{}, fmt.Errorf(
 			"WORKER_LEASE_DURATION (%s) must be less than the order stale-processing threshold (%s), or the recovery sweep can revert an order whose charge is still leased",
 			jobsLease,
-			contract.StaleProcessingThreshold,
+			StaleProcessingThreshold,
 		)
 	}
 

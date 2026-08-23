@@ -6,8 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/modules/order/contract"
 )
 
 // No t.Parallel: the second subtest calls t.Setenv, which panics if the test
@@ -15,7 +13,7 @@ import (
 // exclusion list in .golangci.yml for that reason.
 func TestLoadConfig(t *testing.T) {
 	t.Run("rejects a lease that outlives the stale-processing threshold", func(t *testing.T) {
-		_, err := LoadConfig(contract.StaleProcessingThreshold)
+		_, err := LoadConfig(StaleProcessingThreshold)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "must be less than the order stale-processing threshold")

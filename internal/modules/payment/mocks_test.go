@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
-	"github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/gateway"
 	mock "github.com/stretchr/testify/mock"
@@ -1119,72 +1119,6 @@ func (_m *MockOrderReader) EXPECT() *MockOrderReader_Expecter {
 	return &MockOrderReader_Expecter{mock: &_m.Mock}
 }
 
-// GetSnapshot provides a mock function for the type MockOrderReader
-func (_mock *MockOrderReader) GetSnapshot(ctx context.Context, orderID uuid.UUID) (contract.Order, error) {
-	ret := _mock.Called(ctx, orderID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetSnapshot")
-	}
-
-	var r0 contract.Order
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (contract.Order, error)); ok {
-		return returnFunc(ctx, orderID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) contract.Order); ok {
-		r0 = returnFunc(ctx, orderID)
-	} else {
-		r0 = ret.Get(0).(contract.Order)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, orderID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockOrderReader_GetSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshot'
-type MockOrderReader_GetSnapshot_Call struct {
-	*mock.Call
-}
-
-// GetSnapshot is a helper method to define mock.On call
-//   - ctx context.Context
-//   - orderID uuid.UUID
-func (_e *MockOrderReader_Expecter) GetSnapshot(ctx any, orderID any) *MockOrderReader_GetSnapshot_Call {
-	return &MockOrderReader_GetSnapshot_Call{Call: _e.mock.On("GetSnapshot", ctx, orderID)}
-}
-
-func (_c *MockOrderReader_GetSnapshot_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderReader_GetSnapshot_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockOrderReader_GetSnapshot_Call) Return(order contract.Order, err error) *MockOrderReader_GetSnapshot_Call {
-	_c.Call.Return(order, err)
-	return _c
-}
-
-func (_c *MockOrderReader_GetSnapshot_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (contract.Order, error)) *MockOrderReader_GetSnapshot_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // ListItemQuantities provides a mock function for the type MockOrderReader
 func (_mock *MockOrderReader) ListItemQuantities(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error) {
 	ret := _mock.Called(ctx, orderID)
@@ -1249,6 +1183,72 @@ func (_c *MockOrderReader_ListItemQuantities_Call) Return(uUIDToInt map[uuid.UUI
 }
 
 func (_c *MockOrderReader_ListItemQuantities_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error)) *MockOrderReader_ListItemQuantities_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Snapshot provides a mock function for the type MockOrderReader
+func (_mock *MockOrderReader) Snapshot(ctx context.Context, orderID uuid.UUID) (order.Snapshot, error) {
+	ret := _mock.Called(ctx, orderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Snapshot")
+	}
+
+	var r0 order.Snapshot
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (order.Snapshot, error)); ok {
+		return returnFunc(ctx, orderID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) order.Snapshot); ok {
+		r0 = returnFunc(ctx, orderID)
+	} else {
+		r0 = ret.Get(0).(order.Snapshot)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, orderID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOrderReader_Snapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Snapshot'
+type MockOrderReader_Snapshot_Call struct {
+	*mock.Call
+}
+
+// Snapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - orderID uuid.UUID
+func (_e *MockOrderReader_Expecter) Snapshot(ctx any, orderID any) *MockOrderReader_Snapshot_Call {
+	return &MockOrderReader_Snapshot_Call{Call: _e.mock.On("Snapshot", ctx, orderID)}
+}
+
+func (_c *MockOrderReader_Snapshot_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrderReader_Snapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOrderReader_Snapshot_Call) Return(snapshot order.Snapshot, err error) *MockOrderReader_Snapshot_Call {
+	_c.Call.Return(snapshot, err)
+	return _c
+}
+
+func (_c *MockOrderReader_Snapshot_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (order.Snapshot, error)) *MockOrderReader_Snapshot_Call {
 	_c.Call.Return(run)
 	return _c
 }

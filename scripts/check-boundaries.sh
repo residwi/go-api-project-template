@@ -9,13 +9,17 @@
 #   Check 3  A feature's SQL -- anywhere under the module, not only its
 #            postgres adapter -- only queries tables it owns, where "owns"
 #            is read out of db/OWNERSHIP.md at run time.
-#   Check 4  A module may not import another module's domain/, its
-#            adapter/ (postgres, http, redis, ...), or -- while any module
-#            is still sliced -- a usecase/<slice>. Its root package and its
-#            contract/, where one still exists, are importable.
-#   Check 5  A slice imports no sibling slice within its own module.
-#   Check 6  A module may not import internal/transport/, except a slice's
-#            own http adapter.
+#   Check 4  A module may not import another module's domain/ or its
+#            adapter/ (postgres, http, redis, ...). Its root package, and
+#            its contract/ where one still exists, are importable.
+#   Check 5  RETIRED. It refused a slice importing a sibling slice; no module
+#            has a usecase/ tree left for it to walk, so it could only ever
+#            pass. The numbers of checks 6 and 7 are deliberately NOT shifted
+#            down -- AGENTS.md, ARCHITECTURE.md and REFACTOR-PLAN.md all cite
+#            them by number, and renaming a live check is a worse trade than
+#            one gap in a list.
+#   Check 6  A module may not import internal/transport/, except its own
+#            http adapter.
 #   Check 7  contract/ stays a leaf: only stdlib, uuid and internal/money.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
@@ -720,13 +724,13 @@ check_table_ownership() {
 # imports <feature> itself, so a module's root package is importable from
 # outside, the same as a contract/ package already was and, for as long as
 # any module still has one, still is. What stays private is domain/ (the
-# rich model), every adapter (postgres, http, redis, ...), and a still-sliced
-# module's usecase/<slice> packages -- the things a producer's root package
-# was never meant to expose just because its own package became reachable.
+# rich model) and every adapter (postgres, http, redis, ...) -- the things a
+# producer's root package was never meant to expose just because its own
+# package became reachable.
 #
-# Same-module imports are unrestricted here: a slice reaching a sibling slice
-# in its own module is not a cross-module import at all -- both packages live
-# under the same feature -- and is check 5's job, not this one's.
+# Same-module imports are unrestricted here, and nothing checks them any more:
+# a module's own adapter importing its root package is the target shape, and
+# check 5, which used to police one same-module case, is retired.
 #
 # Exempt as an importer: the wiring layer, and only the wiring layer.
 # internal/bootstrap/ and internal/transport/ exist precisely to import
@@ -874,137 +878,6 @@ check_cross_module_imports() {
 }
 
 # ---------------------------------------------------------------------------
-# Check 5 -- a slice imports no sibling slice within its own module
-# ---------------------------------------------------------------------------
-#
-# Check 4 enforces contract-only imports ACROSS modules. It cannot see this
-# rule at all: two slices reaching into each other are both inside the same
-# module, so grep never sees a cross-module path to flag. A slice that needs a
-# sibling's capability is supposed to declare a port for it in its own
-# ports.go and let <feature>/module.go supply the sibling by name-match or via
-# a contract/ package -- importing the sibling directly is exactly the
-# coupling that pattern exists to prevent. Every one of the 14 sliced modules
-# followed this voluntarily through phase 2; nothing enforced it until now.
-#
-# A directory under <feature>/usecase/ is a slice; that is the whole rule.
-# It replaces the NOT_A_SLICE denylist this check used to carry, which named
-# domain, contract, http, gateway, worker, postgres and redis and had to be
-# kept in step by hand -- miss an entry and a legitimate shared directory got
-# reported, or a real slice went unscanned. Everything a slice may reach into
-# on its own terms (domain/, contract/) and every adapter family module.go or
-# cmd/worker constructs directly (payment's gateway/, worker/, and the two
-# jobs/ queues) stays at the feature root, outside usecase/, so the walk below
-# never sees it. module.go and module_test.go are outside it too, which is
-# what exempts order/module_test.go's imports of order/usecase/place and
-# order/usecase/retrypayment: the module-level composition test sits beside
-# the module.go it tests, not inside any slice.
-#
-# _test.go files are in scope, matching check 4: a test reaching into a
-# sibling slice's internals proves the same coupling a production import
-# would, and mocks are the cheapest place to introduce one (payment/charge's
-# mocks_test.go imports payment/gateway for the interface it fakes -- that
-# passes here because gateway is not under usecase/, not because tests are
-# exempt).
-check_sibling_slice_imports() {
-	local module module_re modules_re feature slice dir
-	local files file rc hits hit imp rest target
-
-	module="$(awk '/^module /{print $2; exit}' go.mod)"
-	if [ -z "$module" ]; then
-		report 'could not read the module path from go.mod'
-		return 0
-	fi
-	# Escaped the same way check 4 escapes them, for the same reason: both
-	# strings land in an ERE below and github.com/... contains dots.
-	module_re="$(printf '%s' "$module" | sed -e 's/[.[\*^$\/]/\\&/g')"
-	modules_re="$(printf '%s' "$MODULES_ROOT" | sed -e 's/[.[\*^$\/]/\\&/g')"
-
-	while IFS= read -r feature; do
-		[ -n "$feature" ] || continue
-
-		# Same fail-open shape lines 88-97 refuse for feature_dirs, one level
-		# down: a usecase/*/ glob that matches nothing yields no iterations, no
-		# report, and this feature passes the same as one with no sibling-slice
-		# violation. Renaming or removing $feature/usecase is not a legitimate
-		# state for a sliced feature -- every one of them has one -- so it is
-		# reported rather than silently skipped, UNLESS the feature has an
-		# adapter/ directory instead: that is the post-refactor target shape
-		# (checkout is the first), which has no usecase/ tree at all by design
-		# and so no sibling slices for this check to compare in the first place.
-		if [ ! -d "$MODULES_ROOT/$feature/usecase" ]; then
-			[ -d "$MODULES_ROOT/$feature/adapter" ] && continue
-			report "feature '$feature' has no usecase/ directory: $MODULES_ROOT/$feature/usecase
-    Every sliced feature keeps its slices there; check_sibling_slice_imports globs
-    ${MODULES_ROOT}/${feature}/usecase/*/ to find them; a moved or renamed
-    usecase/ makes that glob match nothing, which this check cannot tell
-    apart from a feature with no sibling-slice violation. A feature built in
-    the target shape instead (adapter/ present) is not this case -- it is
-    exempted above."
-			continue
-		fi
-
-		for dir in "$MODULES_ROOT/$feature"/usecase/*/; do
-			[ -d "$dir" ] || continue
-			slice="$(basename "$dir")"
-
-			files="$(find "$dir" -type f -name '*.go' | sort)"
-			[ -n "$files" ] || continue
-
-			while IFS= read -r file; do
-				[ -f "$file" ] || continue
-
-				# A status-checked assignment, not `done < <(grep ...)`, and a
-				# single feature name rather than an alternation -- the shape
-				# that once made BSD grep exit via SIGTRAP while a downstream
-				# process substitution read the death as EOF and reported
-				# nothing checked (see the note above check_cross_module_imports).
-				# grep exits 1 for "no match", which is not a failure here;
-				# anything greater than 1 is, and is reported rather than
-				# silently treated as a clean file.
-				#
-				# The pattern names <feature>/usecase/ rather than <feature>/,
-				# because only a path under usecase/ can be a slice at all. Left
-				# at <feature>/ it also matched this module's own domain/ and
-				# contract/ -- paths with no usecase/ segment for the strip below
-				# to remove, which left `rest` holding the whole import path and
-				# reported every slice's own `<feature>/domain` import as a
-				# sibling slice named `github.com`.
-				rc=0
-				hits="$(grep -noE "\"${module_re}/${modules_re}/${feature}/usecase/[^\"]*\"" "$file")" || rc=$?
-				if [ "$rc" -gt 1 ]; then
-					report "grep exited $rc scanning $file for sibling-slice imports -- the check could not run on this file, which is not the same as it passing"
-					continue
-				fi
-				[ -n "$hits" ] || continue
-
-				while IFS= read -r hit; do
-					[ -n "$hit" ] || continue
-					# hit looks like "12:\"<module>/internal/modules/<feature>/usecase/<slice>...\"".
-					imp="${hit#*:}"
-					imp="${imp#\"}"
-					imp="${imp%\"}"
-					rest="${imp#*"$MODULES_ROOT"/"$feature"/usecase/}"
-					target="${rest%%/*}"
-
-					# Own adapter or own handler importing its own slice root --
-					# the compile-time port assertion in <slice>/postgres and the
-					# handler in <slice>/http both do this, and both are fine.
-					[ "$target" = "$slice" ] && continue
-
-					report "'${slice}' imports sibling slice '${target}': ${file}:${hit%%:*}
-    ${imp}
-    A slice may not import a sibling slice directly -- check 4 cannot see this,
-    since both live in the same module. Declare a port for the capability in
-    ${MODULES_ROOT}/${feature}/usecase/${slice}/ports.go and let
-    ${MODULES_ROOT}/${feature}/module.go supply ${target} by name-match or a
-    contract/ package."
-				done <<<"$hits"
-			done <<<"$files"
-		done
-	done < <(feature_dirs)
-}
-
-# ---------------------------------------------------------------------------
 # Check 6 -- the transport arrow points one way
 # ---------------------------------------------------------------------------
 #
@@ -1033,9 +906,8 @@ check_sibling_slice_imports() {
 # sentence contains the string "internal/transport" with no surrounding
 # quotes and no module prefix. A check that grepped for the bare text would
 # flag a comment that imports nothing. Requiring the full module path inside
-# quotes -- the same shape check_cross_module_imports and
-# check_sibling_slice_imports already require for their own cross-module
-# greps -- only matches a real import.
+# quotes -- the same shape check_cross_module_imports already requires for its
+# own cross-module greps -- only matches a real import.
 check_transport_direction() {
 	local module module_re
 	local feature files file rc hits hit
@@ -1178,7 +1050,6 @@ check_wire_tags
 check_ownership_doc
 check_table_ownership
 check_cross_module_imports
-check_sibling_slice_imports
 check_transport_direction
 check_contract_leaf
 

@@ -7,7 +7,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 
-	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
 )
 
 type Config struct {
@@ -56,11 +56,11 @@ func LoadConfig(appEnv string, jobsLease time.Duration) (Config, error) {
 		)
 	}
 
-	if cfg.GatewayTimeout*3 >= ordercontract.StaleProcessingThreshold {
+	if cfg.GatewayTimeout*3 >= order.StaleProcessingThreshold {
 		return Config{}, fmt.Errorf(
 			"PAYMENT_GATEWAY_TIMEOUT (%s) is too large: 3× it must stay below the order stale-processing threshold (%s) so a valid WORKER_LEASE_DURATION range exists",
 			cfg.GatewayTimeout,
-			ordercontract.StaleProcessingThreshold,
+			order.StaleProcessingThreshold,
 		)
 	}
 

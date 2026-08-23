@@ -2,25 +2,22 @@ package routes
 
 import (
 	"github.com/residwi/go-api-project-template/internal/modules/order"
-	changestatushttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/changestatus/http"
-	queryhttp "github.com/residwi/go-api-project-template/internal/modules/order/usecase/query/http"
+	orderhttp "github.com/residwi/go-api-project-template/internal/modules/order/adapter/http"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/transport/http/middleware"
 )
 
 func Order(
 	authed, admin *middleware.RouteGroup,
-	m *order.Module,
+	s *order.Service,
 	v *validator.Validator,
 ) {
-	query := queryhttp.New(m.Query)
-	authed.HandleFunc("GET /orders", query.List)
-	authed.HandleFunc("GET /orders/{id}", query.Get)
+	handler := orderhttp.NewHandler(s)
+	authed.HandleFunc("GET /orders", handler.List)
+	authed.HandleFunc("GET /orders/{id}", handler.Get)
 
-	adminQuery := queryhttp.NewAdmin(m.Query)
-	admin.HandleFunc("GET /orders", adminQuery.List)
-	admin.HandleFunc("GET /orders/{id}", adminQuery.Get)
-
-	adminStatus := changestatushttp.NewAdmin(m.ChangeStatus, v)
-	admin.HandleFunc("PUT /orders/{id}/status", adminStatus.UpdateStatus)
+	adminHandler := orderhttp.NewAdminHandler(s, v)
+	admin.HandleFunc("GET /orders", adminHandler.List)
+	admin.HandleFunc("GET /orders/{id}", adminHandler.Get)
+	admin.HandleFunc("PUT /orders/{id}/status", adminHandler.UpdateStatus)
 }

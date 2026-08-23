@@ -224,7 +224,7 @@ does mean deleting its lines.
 ## Enforcement
 
 `make check-boundaries` runs `scripts/check-boundaries.sh`, which registers
-seven checks. Two of them read the table above, straight out of this
+six checks. Two of them read the table above, straight out of this
 document at run time, so this document is the source of truth and not a
 copy of one: check 2 (`check_ownership_doc`) validates the table itself —
 no duplicate row, no row for a table no migration creates, no table with

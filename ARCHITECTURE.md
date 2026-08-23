@@ -146,9 +146,10 @@ adapters. Six aliased imports (`ordercancel`, `ordercancelpg`,
 to survive there regardless, kept only because the order/payment cycle
 forced bootstrap to build three pieces of `order` two levels past its own
 module boundary before `order.New` could run. With `order` needing nothing
-from `payment` any more, `order.New` runs first and hands `payment.New` its
-own `Module.Transition`, `Module.Cancel` and `Module.Query` by name-match,
-so none of the six is needed — down from the double digits a flat, unsliced
+from `payment` any more, `order.New` runs first and hands `payment.New` the
+one `*order.Service` all three of its order ports match by name, so none of
+the six is needed — `order` now costs the single `orderpg` its one adapter
+package earns — down from the double digits a flat, unsliced
 `app.go` used to carry. A flattened module reopens one alias here *per
 adapter package it owns*, not one per module: `wishlist` (Task 6) owns one
 store, so it costs exactly one, `wishlistpg`; `checkout`, a flattened module
@@ -396,10 +397,10 @@ that states its policy in its name.
 **Two seams where `Money` deliberately stops.** Both places reader will
 otherwise read as oversight:
 
-1. **`place.CouponReserver`** (`internal/modules/order/usecase/place/ports.go`) still passes `orderSubtotal int64`
+1. **`order.CouponReserver`** (`internal/modules/order/ports.go`) still passes `orderSubtotal int64`
    and returns `discountAmount int64`. Its implementer is `promotion`, which has no
    currency to honour `Money` with. Pairing happens on order's side of
-   seam — `internal/modules/order/usecase/place/usecase.go` passes `subtotal.Amount` and rebuilds
+   seam — `order.Service.Place` passes `subtotal.Amount` and rebuilds
    `money.New(discount, subtotal.Currency)` — which also where clamp policy
    lives: `max(subtotal-discount, 0)`, so over-large coupon cannot produce
    negative charge. `Money.Sub` deliberately does not decide that, so clamp
@@ -472,8 +473,8 @@ derived from one parent would otherwise share a backing array and
 overwrite each other.
 
 **The cost:** you can no longer read a single log call and know everything
-it emits. `order/usecase/expire.UseCase.ExpireStale`'s
-`c.logger.ErrorContext(ctx, "failed to expire order", slog.String("order_id", o.ID.String()), slog.String("error", err.Error()))`
+it emits. `order.Service.ExpireStale`'s
+`s.logger.ErrorContext(ctx, "failed to expire order", slog.String("order_id", o.ID.String()), slog.String("error", err.Error()))`
 also emits `runner`, because it runs inside the payment runner's per-tick
 sweep, and nothing at that line names it. In exchange, 32 repeated
 attributes are gone and `request_id` reaches code that has never heard of
@@ -607,7 +608,7 @@ cannot hide behind a live one.
 Every route in the system is declared in `internal/transport/http/routes/`,
 one file per feature, 14 files, 64 routes. Each file exports one function —
 `routes.Cart(authed, m *cart.Service, v *validator.Validator)`,
-`routes.Order(authed, admin, m *order.Module, v, writeLimiter)` — and
+`routes.Order(authed, admin, s *order.Service, v *validator.Validator)` — and
 `router.go` calls all fourteen in one readable list. A module supplies a
 handler with exported route methods and nothing else: no `routes.go`, no
 `RegisterRoutes`, no `middleware.RouteGroup` in its signature, no string

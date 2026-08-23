@@ -79,7 +79,7 @@ func TestE2EOrderExpiry(t *testing.T) {
 			`UPDATE orders SET created_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, orderID)
 		require.NoError(t, err)
 
-		require.NoError(t, testApp.Orders.Expire.ExpireStale(ctx))
+		require.NoError(t, testApp.Orders.ExpireStale(ctx))
 
 		assert.Equal(t, "expired", orderStatusOf(t, orderID))
 
@@ -94,7 +94,7 @@ func TestE2EOrderExpiry(t *testing.T) {
 		userID := seedExpiryUser(t)
 		orderID := seedAwaitingPaymentOrder(t, userID)
 
-		require.NoError(t, testApp.Orders.Expire.ExpireStale(ctx))
+		require.NoError(t, testApp.Orders.ExpireStale(ctx))
 
 		assert.Equal(t, "awaiting_payment", orderStatusOf(t, orderID))
 	})

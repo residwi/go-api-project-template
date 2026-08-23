@@ -278,7 +278,7 @@ func (s *Service) RunChargeJob(ctx context.Context, job domain.Job) error {
 //nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches; funlen counts golines' wrapping, not added logic
 func (s *Service) FinalizeSuccess(ctx context.Context, job domain.Job) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
-		orderSnap, err := s.orderRead.GetSnapshot(txCtx, job.OrderID)
+		orderSnap, err := s.orderRead.Snapshot(txCtx, job.OrderID)
 		if err != nil {
 			return fmt.Errorf("getting order for verification: %w", err)
 		}
@@ -509,7 +509,7 @@ func (s *Service) RunRefundJob(ctx context.Context, job domain.Job) error {
 		slog.String("refund_id", resp.RefundID))
 
 	txErr := s.tx.Run(ctx, func(txCtx context.Context) error {
-		orderSnap, snapErr := s.orderRead.GetSnapshot(txCtx, job.OrderID)
+		orderSnap, snapErr := s.orderRead.Snapshot(txCtx, job.OrderID)
 		if snapErr != nil {
 			return fmt.Errorf("getting order for refund: %w", snapErr)
 		}

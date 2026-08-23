@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	ordercontract "github.com/residwi/go-api-project-template/internal/modules/order/contract"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/money"
@@ -146,7 +146,7 @@ func TestService_RetryPayment(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 
 		orders := NewMockOrderSnapshotReader(t)
-		orders.EXPECT().GetSnapshot(t.Context(), orderID).Return(ordercontract.Order{
+		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(4000, "USD"),
@@ -174,7 +174,7 @@ func TestService_RetryPayment(t *testing.T) {
 		orderID := uuid.New()
 
 		orders := NewMockOrderSnapshotReader(t)
-		orders.EXPECT().GetSnapshot(t.Context(), orderID).Return(ordercontract.Order{
+		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: uuid.New(),
 			Status: string(orderdomain.StatusAwaitingPayment),
@@ -193,7 +193,7 @@ func TestService_RetryPayment(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 
 		orders := NewMockOrderSnapshotReader(t)
-		orders.EXPECT().GetSnapshot(t.Context(), orderID).Return(ordercontract.Order{
+		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Status: string(orderdomain.StatusPaid),

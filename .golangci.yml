@@ -534,11 +534,11 @@ linters:
       # itself. Excluding per-file instead of per-package is what made this
       # list wrong the first time.
       # Nothing is lost: `go test` already runs these packages concurrently
-      # with each other. Most own their database outright; order's seven
-      # slice postgres/ packages share test_order instead and, for exactly
-      # this reason, none of them calls ResetDB -- they seed and delete their
-      # own rows by id. Either way, the only concurrency t.Parallel could add
-      # within one package is the unsafe kind.
+      # with each other. Most own their database outright; order's adapter
+      # shares test_order with nothing else now that its slices have merged,
+      # but still seeds and deletes its own rows by id rather than calling
+      # ResetDB. Either way, the only concurrency t.Parallel could add within
+      # one package is the unsafe kind.
       - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testhelper/|^internal/platform/(cache|database)/|/redis/|^internal/transport/http/([^/]+_test\.go|middleware/)|^internal/bootstrap/|^scripts/)
         linters: [paralleltest]
       # t.Setenv panics when the test also calls t.Parallel.
