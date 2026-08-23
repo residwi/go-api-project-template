@@ -139,6 +139,7 @@ func cleanupOrdersOf(userID uuid.UUID) {
 		`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id = $1)`,
 		`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id = $1)`,
 		`DELETE FROM notifications WHERE user_id = $1`,
+		`DELETE FROM coupon_usages WHERE order_id IN (SELECT id FROM orders WHERE user_id = $1)`,
 		`DELETE FROM orders WHERE user_id = $1`,
 	} {
 		testPool.Exec(ctx, q, userID)

@@ -36,6 +36,7 @@ func TestHandler_Me(t *testing.T) {
 			Email:     "test@example.com",
 			FirstName: "John",
 			LastName:  "Doe",
+			Phone:     "+15551234567",
 			Role:      "user",
 			Active:    true,
 			CreatedAt: time.Now(),
@@ -70,6 +71,8 @@ func TestHandler_Me(t *testing.T) {
 			Email     string `json:"email"`
 			FirstName string `json:"first_name"`
 		}{Email: "test@example.com", FirstName: "John"}, got)
+
+		assertPublicProfileKeys(t, dataJSON)
 	})
 
 	t.Run("missing auth context", func(t *testing.T) {
@@ -123,6 +126,7 @@ func TestHandler_Update(t *testing.T) {
 			Email:     "test@example.com",
 			FirstName: "Jane",
 			LastName:  "Doe",
+			Phone:     "+15551234567",
 			Role:      "user",
 			Active:    true,
 			CreatedAt: now,
@@ -158,6 +162,8 @@ func TestHandler_Update(t *testing.T) {
 		assert.Equal(t, struct {
 			FirstName string `json:"first_name"`
 		}{FirstName: "Jane"}, got)
+
+		assertPublicProfileKeys(t, dataJSON)
 	})
 
 	t.Run("validation error invalid first_name too long", func(t *testing.T) {
@@ -285,6 +291,25 @@ func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 		"active is reserved for the admin response")
 	assert.NotContains(t, string(raw), "2026-01-01",
 		"timestamps are reserved for the admin response")
+}
+
+// assertPublicProfileKeys nets the swap TestToUserResponse cannot see.
+// toUserResponse and toAdminUserResponse sit in one package, take the same
+// argument and feed response.OK, which takes any -- so writing
+// toAdminUserResponse at a /users/me call site compiles, and decoding the body
+// into a narrow struct would not notice, because [json.Unmarshal] drops the extra
+// keys silently. Every key of the raw body is checked instead.
+func assertPublicProfileKeys(t *testing.T, dataJSON []byte) {
+	t.Helper()
+
+	var fields map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(dataJSON, &fields))
+	assert.ElementsMatch(
+		t,
+		[]string{"id", "email", "first_name", "last_name", "phone"},
+		slices.Collect(maps.Keys(fields)),
+		"the authed profile endpoints serve the public mapper: role, active and the timestamps are admin-only",
+	)
 }
 
 func setupHandlerMux(t *testing.T) (*http.ServeMux, *MockProfileManager) {
