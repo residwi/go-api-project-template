@@ -102,7 +102,7 @@ func TestService_Charge(t *testing.T) {
 		d.repo.EXPECT().UpdateGateway(mock.Anything, mock.AnythingOfType("uuid.UUID"), "txn_abc", mock.Anything).
 			Return(nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, orderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{
 				Total:  money.New(10000, "USD"),
 				Status: "awaiting_payment",
@@ -119,12 +119,12 @@ func TestService_Charge(t *testing.T) {
 				domain.StatusCancelled,
 			}).
 			Return(nil)
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, orderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, orderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 2}, nil)
-		d.inventoryDeduct.EXPECT().Deduct(mock.Anything, mock.Anything).
+		d.inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil)
@@ -169,7 +169,7 @@ func TestService_Charge(t *testing.T) {
 		d.repo.EXPECT().UpdateGateway(mock.Anything, existingID, "txn_existing", mock.Anything).
 			Return(nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, orderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{
 				Total:  money.New(10000, "USD"),
 				Status: "awaiting_payment",
@@ -184,12 +184,12 @@ func TestService_Charge(t *testing.T) {
 				domain.StatusCancelled,
 			}).
 			Return(nil)
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, orderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, orderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
-		d.inventoryDeduct.EXPECT().Deduct(mock.Anything, mock.Anything).
+		d.inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil)
@@ -364,7 +364,7 @@ func TestService_Charge_UpdateGatewayError(t *testing.T) {
 		d.repo.EXPECT().UpdateGateway(mock.Anything, mock.AnythingOfType("uuid.UUID"), "txn_gw_err", mock.Anything).
 			Return(errors.New("update gateway failed"))
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, orderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{
 				Total:  money.New(10000, "USD"),
 				Status: "awaiting_payment",
@@ -381,12 +381,12 @@ func TestService_Charge_UpdateGatewayError(t *testing.T) {
 				domain.StatusCancelled,
 			}).
 			Return(nil)
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, orderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, orderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
-		d.inventoryDeduct.EXPECT().Deduct(mock.Anything, mock.Anything).
+		d.inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil)
@@ -449,7 +449,7 @@ func TestService_RunChargeJob(t *testing.T) {
 			OrderID:   uuid.New(),
 		}
 
-		d.orderTransition.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
 			Return(errors.New("order not in expected state"))
 
 		d.jobs.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *domain.Job) bool {
@@ -471,7 +471,7 @@ func TestService_RunChargeJob(t *testing.T) {
 			OrderID:   uuid.New(),
 		}
 
-		d.orderTransition.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -501,7 +501,7 @@ func TestService_RunChargeJob(t *testing.T) {
 			PaymentMethodID: "pm_123",
 		}
 
-		d.orderTransition.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -510,7 +510,7 @@ func TestService_RunChargeJob(t *testing.T) {
 		d.gateway.EXPECT().Charge(mock.Anything, mock.Anything).
 			Return(gateway.ChargeResponse{}, errors.New("gateway error"))
 
-		d.orderTransition.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.jobs.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *domain.Job) bool {
@@ -544,7 +544,7 @@ func TestService_RunChargeJob(t *testing.T) {
 			PaymentMethodID: "pm_123",
 		}
 
-		d.orderTransition.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -553,7 +553,7 @@ func TestService_RunChargeJob(t *testing.T) {
 		d.gateway.EXPECT().Charge(mock.Anything, mock.Anything).
 			Return(gateway.ChargeResponse{}, errors.New("gateway error"))
 
-		d.orderTransition.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.jobs.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *domain.Job) bool {
@@ -586,7 +586,7 @@ func TestService_RunChargeJob(t *testing.T) {
 			PaymentMethodID: "pm_123",
 		}
 
-		d.orderTransition.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -601,7 +601,7 @@ func TestService_RunChargeJob(t *testing.T) {
 		d.repo.EXPECT().UpdateGateway(mock.Anything, p.ID, "txn_success", mock.Anything).
 			Return(nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{
 				Total:  money.New(5000, "USD"),
 				Status: "awaiting_payment",
@@ -619,14 +619,14 @@ func TestService_RunChargeJob(t *testing.T) {
 			}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
 			Return(nil)
 
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID: 2}, nil)
 
-		d.inventoryDeduct.EXPECT().Deduct(mock.Anything, mock.Anything).
+		d.inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -656,7 +656,7 @@ func TestService_RunChargeJob(t *testing.T) {
 			PaymentMethodID: "pm_123",
 		}
 
-		d.orderTransition.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -665,7 +665,7 @@ func TestService_RunChargeJob(t *testing.T) {
 		d.gateway.EXPECT().Charge(mock.Anything, mock.Anything).
 			Return(gateway.ChargeResponse{}, errors.New("gateway error"))
 
-		d.orderTransition.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
 			Return(errors.New("CAS failed"))
 
 		d.jobs.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *domain.Job) bool {
@@ -696,7 +696,7 @@ func TestService_RunChargeJob(t *testing.T) {
 			PaymentMethodID: "pm_123",
 		}
 
-		d.orderTransition.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -705,7 +705,7 @@ func TestService_RunChargeJob(t *testing.T) {
 		d.gateway.EXPECT().Charge(mock.Anything, mock.Anything).
 			Return(gateway.ChargeResponse{}, errors.New("gateway error"))
 
-		d.orderTransition.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.jobs.EXPECT().UpdateJob(mock.Anything, mock.Anything).
@@ -735,7 +735,7 @@ func TestService_RunChargeJob(t *testing.T) {
 			PaymentMethodID: "pm_123",
 		}
 
-		d.orderTransition.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -750,14 +750,14 @@ func TestService_RunChargeJob(t *testing.T) {
 		d.repo.EXPECT().UpdateGateway(mock.Anything, p.ID, "txn_comp", mock.Anything).
 			Return(nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{}, errors.New("db down"))
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, domain.StatusRequiresReview,
 			[]domain.Status{domain.StatusPending, domain.StatusProcessing, domain.StatusSuccess}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkFulfillmentFailedCompensating(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkFulfillmentFailedCompensating(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.jobs.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(refundJobFor(job.PaymentID, job.OrderID))).
@@ -787,7 +787,7 @@ func TestService_RunChargeJob(t *testing.T) {
 			PaymentMethodID: "pm_123",
 		}
 
-		d.orderTransition.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -802,7 +802,7 @@ func TestService_RunChargeJob(t *testing.T) {
 		d.repo.EXPECT().UpdateGateway(mock.Anything, p.ID, "txn_failed", mock.Anything).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkAwaitingPayment(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.jobs.EXPECT().UpdateJob(mock.Anything, mock.MatchedBy(func(j *domain.Job) bool {
@@ -841,7 +841,7 @@ func TestService_CompensateRefund_Error(t *testing.T) {
 			PaymentMethodID: "pm_123",
 		}
 
-		d.orderTransition.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaymentProcessing(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.repo.EXPECT().GetByID(mock.Anything, job.PaymentID).
@@ -856,14 +856,14 @@ func TestService_CompensateRefund_Error(t *testing.T) {
 		d.repo.EXPECT().UpdateGateway(mock.Anything, p.ID, "txn_comp_err", mock.Anything).
 			Return(nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{}, errors.New("db down"))
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, domain.StatusRequiresReview,
 			[]domain.Status{domain.StatusPending, domain.StatusProcessing, domain.StatusSuccess}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkFulfillmentFailedCompensating(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkFulfillmentFailedCompensating(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.jobs.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(refundJobFor(job.PaymentID, job.OrderID))).
@@ -895,7 +895,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			Amount:  money.New(10000, "USD"),
 		}
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{
 				Total:  money.New(10000, "USD"),
 				Status: "awaiting_payment",
@@ -913,14 +913,14 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
 			Return(nil)
 
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID: 3}, nil)
 
-		d.inventoryDeduct.EXPECT().Deduct(mock.Anything, mock.Anything).
+		d.inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -947,7 +947,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			Amount: money.New(5000, "USD"),
 		}
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{
 				Total: money.New(10000, "USD"),
 			}, nil)
@@ -977,7 +977,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			Amount: money.New(10000, "EUR"),
 		}
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{
 				Total: money.New(10000, "USD"),
 			}, nil)
@@ -1007,7 +1007,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			Amount: money.New(10000, "USD"),
 		}
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{
 				Total: money.New(10000, "USD"),
 			}, nil)
@@ -1024,7 +1024,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			}).
 			Return(errors.New("already paid"))
 
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
 			Return(errors.New("already paid"))
 
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -1051,7 +1051,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			Amount: money.New(10000, "USD"),
 		}
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{
 				Total:  money.New(10000, "USD"),
 				Status: "cancelled",
@@ -1069,14 +1069,14 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
 			Return(errors.New("order already cancelled"))
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, domain.StatusRequiresReview,
 			[]domain.Status{domain.StatusSuccess}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkFulfillmentFailedAfterCharge(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkFulfillmentFailedAfterCharge(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.jobs.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(refundJobFor(job.PaymentID, job.OrderID))).
@@ -1106,7 +1106,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			Amount: money.New(10000, "USD"),
 		}
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{
 				Total:  money.New(10000, "USD"),
 				Status: "awaiting_payment",
@@ -1124,14 +1124,14 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
 			Return(nil)
 
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
-		d.inventoryDeduct.EXPECT().Deduct(mock.Anything, mock.Anything).
+		d.inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(errors.New("out of stock"))
 
 		err := svc.FinalizeSuccess(ctx, job)
@@ -1151,7 +1151,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			OrderID:   uuid.New(),
 		}
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{}, errors.New("db down"))
 
 		err := svc.FinalizeSuccess(ctx, job)
@@ -1171,7 +1171,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			OrderID:   uuid.New(),
 		}
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{
 				Total: money.New(10000, "USD"),
 			}, nil)
@@ -1201,7 +1201,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			Amount: money.New(10000, "USD"),
 		}
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{
 				Total:         money.New(10000, "USD"),
 				Status:        "paid",
@@ -1220,14 +1220,14 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
 			Return(errors.New("already paid"))
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, job.PaymentID, domain.StatusRequiresReview,
 			[]domain.Status{domain.StatusSuccess}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkFulfillmentFailedAfterCharge(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkFulfillmentFailedAfterCharge(mock.Anything, job.OrderID).
 			Return(nil)
 
 		d.jobs.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(refundJobFor(job.PaymentID, job.OrderID))).
@@ -1257,7 +1257,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			Amount: money.New(10000, "USD"),
 		}
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{
 				Total:  money.New(10000, "USD"),
 				Status: "awaiting_payment",
@@ -1275,10 +1275,10 @@ func TestService_FinalizeSuccess(t *testing.T) {
 			}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
 			Return(nil)
 
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(nil, errors.New("items db error"))
 
 		err := svc.FinalizeSuccess(ctx, job)
@@ -1307,7 +1307,7 @@ func TestService_FinalizeSuccess_MultipleItems(t *testing.T) {
 			Amount: money.New(20000, "USD"),
 		}
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{
 				Total:  money.New(20000, "USD"),
 				Status: "awaiting_payment",
@@ -1325,15 +1325,15 @@ func TestService_FinalizeSuccess_MultipleItems(t *testing.T) {
 			}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, job.OrderID).
 			Return(nil)
 
 		productID1 := uuid.New()
 		productID2 := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID2: 1, productID1: 2}, nil)
 
-		d.inventoryDeduct.EXPECT().Deduct(mock.Anything, mock.Anything).
+		d.inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -1524,17 +1524,17 @@ func TestService_RunRefundJob(t *testing.T) {
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
 			Return(nil)
 
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID: 2}, nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{CouponCode: "SAVE10", StockDeducted: false}, nil)
 
-		d.inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
 			Return(nil)
 
 		d.coupon.EXPECT().Release(mock.Anything, job.OrderID).
@@ -1584,17 +1584,17 @@ func TestService_RunRefundJob(t *testing.T) {
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
 			Return(nil)
 
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID: 5}, nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{StockDeducted: true}, nil)
 
-		d.inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Deducted).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Deducted).
 			Return(nil)
 
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -1759,13 +1759,13 @@ func TestService_RunRefundJob(t *testing.T) {
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
 			Return(nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{}, nil)
 
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(nil, errors.New("db error"))
 
 		processErr := svc.RunRefundJob(ctx, job)
@@ -1805,18 +1805,18 @@ func TestService_RunRefundJob(t *testing.T) {
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
 			Return(nil)
 
 		productID1 := uuid.New()
 		productID2 := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID2: 1, productID1: 2}, nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{StockDeducted: false}, nil)
 
-		d.inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
 			Return(nil)
 
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -1859,17 +1859,17 @@ func TestService_RunRefundJob(t *testing.T) {
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
 			Return(nil)
 
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{StockDeducted: false}, nil)
 
-		d.inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
 			Return(errors.New("release failed"))
 
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -1912,17 +1912,17 @@ func TestService_RunRefundJob(t *testing.T) {
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
 			Return(nil)
 
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{StockDeducted: true}, nil)
 
-		d.inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Deducted).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Deducted).
 			Return(errors.New("restock failed"))
 
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, job.ID).
@@ -1965,17 +1965,17 @@ func TestService_RunRefundJob(t *testing.T) {
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
+		d.orders.EXPECT().MarkRefunded(mock.Anything, job.OrderID).
 			Return(nil)
 
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, job.OrderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, job.OrderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, job.OrderID).
 			Return(order.Snapshot{CouponCode: "SAVE10", StockDeducted: false}, nil)
 
-		d.inventoryRestore.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
 			Return(nil)
 
 		d.coupon.EXPECT().Release(mock.Anything, job.OrderID).
@@ -2059,7 +2059,7 @@ func TestService_HandleWebhook(t *testing.T) {
 			Return(nil)
 
 		// A failed payment also cancels the order and releases its reserved stock.
-		d.orderCancel.EXPECT().CancelUnpaid(mock.Anything, orderID).
+		d.orders.EXPECT().CancelUnpaid(mock.Anything, orderID).
 			Return(nil)
 
 		payload := marshal(t, map[string]any{
@@ -2103,7 +2103,7 @@ func TestService_HandleWebhook(t *testing.T) {
 			Return(nil)
 
 		// An expired payment also cancels the order and releases its reserved stock.
-		d.orderCancel.EXPECT().CancelUnpaid(mock.Anything, orderID).
+		d.orders.EXPECT().CancelUnpaid(mock.Anything, orderID).
 			Return(nil)
 
 		payload := marshal(t, map[string]any{
@@ -2211,7 +2211,7 @@ func TestService_HandleWebhook(t *testing.T) {
 		// both calls.
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).Return(p, nil)
 
-		d.orderRead.EXPECT().Snapshot(mock.Anything, orderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{Total: amount, Status: "awaiting_payment"}, nil)
 
 		d.repo.EXPECT().MarkPaid(mock.Anything, paymentID,
@@ -2223,14 +2223,14 @@ func TestService_HandleWebhook(t *testing.T) {
 			}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkPaid(mock.Anything, orderID).
+		d.orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
 
 		productID := uuid.New()
-		d.orderRead.EXPECT().ListItemQuantities(mock.Anything, orderID).
+		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
-		d.inventoryDeduct.EXPECT().Deduct(mock.Anything, mock.Anything).
+		d.inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
 			Return(nil)
 
 		d.jobs.EXPECT().MarkJobCompleted(mock.Anything, mock.Anything).
@@ -2271,14 +2271,14 @@ func TestService_HandleWebhook(t *testing.T) {
 		// A Snapshot failure fails FinalizeSuccess with a generic error --
 		// not apperror.ErrAlreadyFinalized -- which is exactly what should
 		// trigger the compensating refund below.
-		d.orderRead.EXPECT().Snapshot(mock.Anything, orderID).
+		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{}, errors.New("db down"))
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, paymentID, domain.StatusRequiresReview,
 			[]domain.Status{domain.StatusPending, domain.StatusProcessing, domain.StatusSuccess}).
 			Return(nil)
 
-		d.orderTransition.EXPECT().MarkFulfillmentFailedCompensating(mock.Anything, orderID).
+		d.orders.EXPECT().MarkFulfillmentFailedCompensating(mock.Anything, orderID).
 			Return(nil)
 
 		d.jobs.EXPECT().CreateJob(mock.Anything, mock.MatchedBy(refundJobFor(paymentID, orderID))).
@@ -2352,15 +2352,12 @@ func TestService_HandleWebhook_SignatureVerification(t *testing.T) {
 }
 
 type testDeps struct {
-	repo             *MockRepository
-	gateway          *MockGateway
-	orderTransition  *MockOrderTransition
-	orderCancel      *MockOrderCanceller
-	orderRead        *MockOrderReader
-	inventoryDeduct  *MockInventoryDeductor
-	inventoryRestore *MockInventoryRestorer
-	coupon           *MockCouponReleaser
-	jobs             *MockJobRepository
+	repo      *MockRepository
+	gateway   *MockGateway
+	orders    *MockOrders
+	inventory *MockInventory
+	coupon    *MockCouponReleaser
+	jobs      *MockJobRepository
 }
 
 // newTestService builds *Service directly rather than through New, because
@@ -2368,29 +2365,23 @@ type testDeps struct {
 // unit test needs a mock there instead of a real pool.
 func newTestService(t *testing.T) (*Service, testDeps) {
 	d := testDeps{
-		repo:             NewMockRepository(t),
-		gateway:          NewMockGateway(t),
-		orderTransition:  NewMockOrderTransition(t),
-		orderCancel:      NewMockOrderCanceller(t),
-		orderRead:        NewMockOrderReader(t),
-		inventoryDeduct:  NewMockInventoryDeductor(t),
-		inventoryRestore: NewMockInventoryRestorer(t),
-		coupon:           NewMockCouponReleaser(t),
-		jobs:             NewMockJobRepository(t),
+		repo:      NewMockRepository(t),
+		gateway:   NewMockGateway(t),
+		orders:    NewMockOrders(t),
+		inventory: NewMockInventory(t),
+		coupon:    NewMockCouponReleaser(t),
+		jobs:      NewMockJobRepository(t),
 	}
 
 	svc := &Service{
-		repo:             d.repo,
-		tx:               testutil.FakeTxRunner{},
-		gateway:          d.gateway,
-		jobs:             d.jobs,
-		logger:           testutil.DiscardLogger(),
-		orderTransition:  d.orderTransition,
-		orderCancel:      d.orderCancel,
-		orderRead:        d.orderRead,
-		inventoryDeduct:  d.inventoryDeduct,
-		inventoryRestore: d.inventoryRestore,
-		coupon:           d.coupon,
+		repo:      d.repo,
+		tx:        testutil.FakeTxRunner{},
+		gateway:   d.gateway,
+		jobs:      d.jobs,
+		logger:    testutil.DiscardLogger(),
+		orders:    d.orders,
+		inventory: d.inventory,
+		coupon:    d.coupon,
 	}
 
 	return svc, d

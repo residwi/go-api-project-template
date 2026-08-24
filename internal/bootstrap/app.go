@@ -100,17 +100,14 @@ func New(d Deps) (*App, error) {
 	})
 
 	paymentMod := payment.New(payment.Deps{
-		Repo:             paymentpg.New(d.DB),
-		DB:               d.DB,
-		Tx:               txRunner,
-		Config:           d.Payment,
-		Logger:           d.Logger,
-		OrderTransition:  ordMod,
-		OrderCanceller:   ordMod,
-		OrderReader:      ordMod,
-		InventoryDeduct:  inv,
-		InventoryRestore: inv,
-		Promotions:       promotionMod,
+		Repo:      paymentpg.New(d.DB),
+		DB:        d.DB,
+		Tx:        txRunner,
+		Config:    d.Payment,
+		Logger:    d.Logger,
+		Orders:    ordMod,
+		Inventory: inv,
+		Coupons:   promotionMod,
 	})
 
 	checkoutSvc := checkout.New(checkout.Deps{

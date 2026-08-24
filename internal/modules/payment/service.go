@@ -35,12 +35,9 @@ type Deps struct {
 	Config Config
 	Logger *slog.Logger
 
-	OrderTransition  OrderTransition
-	OrderCanceller   OrderCanceller
-	OrderReader      OrderReader
-	InventoryDeduct  InventoryDeductor
-	InventoryRestore InventoryRestorer
-	Promotions       CouponReleaser
+	Orders    Orders
+	Inventory Inventory
+	Coupons   CouponReleaser
 }
 
 type Service struct {
@@ -50,12 +47,9 @@ type Service struct {
 	jobs    JobRepository
 	logger  *slog.Logger
 
-	orderTransition  OrderTransition
-	orderCancel      OrderCanceller
-	orderRead        OrderReader
-	inventoryDeduct  InventoryDeductor
-	inventoryRestore InventoryRestorer
-	coupon           CouponReleaser
+	orders    Orders
+	inventory Inventory
+	coupon    CouponReleaser
 
 	webhookSecret string
 
@@ -64,18 +58,15 @@ type Service struct {
 
 func New(d Deps) *Service {
 	s := &Service{
-		repo:             d.Repo,
-		tx:               d.Tx,
-		gateway:          newGateway(d.Config),
-		jobs:             jobspg.New(d.DB),
-		logger:           d.Logger,
-		orderTransition:  d.OrderTransition,
-		orderCancel:      d.OrderCanceller,
-		orderRead:        d.OrderReader,
-		inventoryDeduct:  d.InventoryDeduct,
-		inventoryRestore: d.InventoryRestore,
-		coupon:           d.Promotions,
-		webhookSecret:    d.Config.WebhookSecret,
+		repo:          d.Repo,
+		tx:            d.Tx,
+		gateway:       newGateway(d.Config),
+		jobs:          jobspg.New(d.DB),
+		logger:        d.Logger,
+		orders:        d.Orders,
+		inventory:     d.Inventory,
+		coupon:        d.Coupons,
+		webhookSecret: d.Config.WebhookSecret,
 	}
 	s.JobProcessor = paymentjobs.NewDispatcher(s, s, d.Logger)
 	return s
@@ -181,7 +172,7 @@ func (s *Service) Charge(ctx context.Context, req ChargeRequest) (ChargeResult, 
 }
 
 func (s *Service) RunChargeJob(ctx context.Context, job domain.Job) error {
-	err := s.orderTransition.MarkPaymentProcessing(ctx, job.OrderID)
+	err := s.orders.MarkPaymentProcessing(ctx, job.OrderID)
 	if err != nil {
 		s.logger.WarnContext(ctx, "charge job cancelled: order not in expected state",
 			slog.String("order_id", job.OrderID.String()), slog.String("payment_id", job.PaymentID.String()))
@@ -269,7 +260,7 @@ func (s *Service) RunChargeJob(ctx context.Context, job domain.Job) error {
 //nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches; funlen counts golines' wrapping, not added logic
 func (s *Service) FinalizeSuccess(ctx context.Context, job domain.Job) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
-		orderSnap, err := s.orderRead.Snapshot(txCtx, job.OrderID)
+		orderSnap, err := s.orders.Snapshot(txCtx, job.OrderID)
 		if err != nil {
 			return fmt.Errorf("getting order for verification: %w", err)
 		}
@@ -294,7 +285,7 @@ func (s *Service) FinalizeSuccess(ctx context.Context, job domain.Job) error {
 			},
 		)
 
-		orderErr := s.orderTransition.MarkPaid(txCtx, job.OrderID)
+		orderErr := s.orders.MarkPaid(txCtx, job.OrderID)
 
 		if paymentErr != nil && orderErr != nil {
 			s.logger.InfoContext(txCtx, "job completed: already finalized by external actor (webhook)",
@@ -322,7 +313,7 @@ func (s *Service) FinalizeSuccess(ctx context.Context, job domain.Job) error {
 					slog.String("error", statusErr.Error()),
 				)
 			}
-			if orderStatusErr := s.orderTransition.MarkFulfillmentFailedAfterCharge(
+			if orderStatusErr := s.orders.MarkFulfillmentFailedAfterCharge(
 				txCtx, job.OrderID,
 			); orderStatusErr != nil {
 				s.logger.ErrorContext(
@@ -351,12 +342,12 @@ func (s *Service) FinalizeSuccess(ctx context.Context, job domain.Job) error {
 			return nil
 		}
 
-		items, err := s.orderRead.ListItemQuantities(txCtx, job.OrderID)
+		items, err := s.orders.ListItemQuantities(txCtx, job.OrderID)
 		if err != nil {
 			return fmt.Errorf("listing order items: %w", err)
 		}
 
-		if err := s.inventoryDeduct.Deduct(txCtx, items); err != nil {
+		if err := s.inventory.Deduct(txCtx, items); err != nil {
 			return fmt.Errorf("deducting inventory: %w", err)
 		}
 
@@ -382,7 +373,7 @@ func (s *Service) CompensateRefund(ctx context.Context, job domain.Job) {
 				slog.String("error", statusErr.Error()),
 			)
 		}
-		if orderErr := s.orderTransition.MarkFulfillmentFailedCompensating(txCtx, job.OrderID); orderErr != nil {
+		if orderErr := s.orders.MarkFulfillmentFailedCompensating(txCtx, job.OrderID); orderErr != nil {
 			s.logger.ErrorContext(
 				txCtx,
 				"failed to update order status in compensating refund",
@@ -500,7 +491,7 @@ func (s *Service) RunRefundJob(ctx context.Context, job domain.Job) error {
 		slog.String("refund_id", resp.RefundID))
 
 	txErr := s.tx.Run(ctx, func(txCtx context.Context) error {
-		orderSnap, snapErr := s.orderRead.Snapshot(txCtx, job.OrderID)
+		orderSnap, snapErr := s.orders.Snapshot(txCtx, job.OrderID)
 		if snapErr != nil {
 			return fmt.Errorf("getting order for refund: %w", snapErr)
 		}
@@ -514,7 +505,7 @@ func (s *Service) RunRefundJob(ctx context.Context, job domain.Job) error {
 				slog.String("error", statusErr.Error()),
 			)
 		}
-		if orderStatusErr := s.orderTransition.MarkRefunded(txCtx, job.OrderID); orderStatusErr != nil {
+		if orderStatusErr := s.orders.MarkRefunded(txCtx, job.OrderID); orderStatusErr != nil {
 			s.logger.ErrorContext(
 				txCtx,
 				"failed to update order status to refunded",
@@ -523,7 +514,7 @@ func (s *Service) RunRefundJob(ctx context.Context, job domain.Job) error {
 			)
 		}
 
-		items, listErr := s.orderRead.ListItemQuantities(txCtx, job.OrderID)
+		items, listErr := s.orders.ListItemQuantities(txCtx, job.OrderID)
 		if listErr != nil {
 			return listErr
 		}
@@ -532,7 +523,7 @@ func (s *Service) RunRefundJob(ctx context.Context, job domain.Job) error {
 			s.logger.InfoContext(txCtx, "refund: skipping inventory restock for dispatched order",
 				slog.String("order_id", job.OrderID.String()), slog.String("order_status", orderSnap.Status))
 		case len(items) > 0 && !orderSnap.StockReversed:
-			if restoreErr := s.inventoryRestore.Restore(
+			if restoreErr := s.inventory.Restore(
 				txCtx,
 				items,
 				stockStateFor(orderSnap.StockDeducted),
@@ -688,7 +679,7 @@ func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature s
 				slog.String("error", err.Error()),
 			)
 		}
-		if err := s.orderCancel.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, apperror.ErrBadRequest) {
+		if err := s.orders.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, apperror.ErrBadRequest) {
 			s.logger.ErrorContext(
 				ctx,
 				"webhook: failed to cancel order after payment failure",
@@ -714,7 +705,7 @@ func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]doma
 func (s *Service) handleChargeFailure(ctx context.Context, job *domain.Job, lastError string) {
 	job.LastError = lastError
 
-	if err := s.orderTransition.MarkAwaitingPayment(ctx, job.OrderID); err != nil {
+	if err := s.orders.MarkAwaitingPayment(ctx, job.OrderID); err != nil {
 		s.logger.ErrorContext(ctx, "failed to CAS order back to awaiting_payment",
 			slog.String("order_id", job.OrderID.String()), slog.String("error", err.Error()))
 	}
