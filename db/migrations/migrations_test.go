@@ -53,8 +53,9 @@ func TestDropProductsStockColumns_DownRoundTrip(t *testing.T) {
 	defer db.Close()
 	require.NoError(t, goose.SetDialect("postgres"))
 
-	// Rolls back only 20260424120018, the migration under test.
-	require.NoError(t, goose.DownContext(ctx, db, migrationsDir()))
+	// Rolls back everything above 20260424120017, putting 20260424120018
+	// (the migration under test) into its pre-applied state for assertions.
+	require.NoError(t, goose.DownToContext(ctx, db, migrationsDir(), 20260424120017))
 
 	var stock, reserved int
 	require.NoError(t, pool.QueryRow(ctx,

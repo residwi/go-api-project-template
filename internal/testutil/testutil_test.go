@@ -122,11 +122,11 @@ func TestMustStartPostgresReattachRepairsPartialMigration(t *testing.T) {
 
 	db := stdlib.OpenDBFromPool(pool)
 	require.NoError(t, goose.SetDialect("postgres"))
-	require.NoError(t, goose.DownContext(context.Background(), db, migrationsDir()))
+	require.NoError(t, goose.DownToContext(context.Background(), db, migrationsDir(), 20260424120017))
 	require.NoError(t, db.Close())
 
-	// products.stock_quantity is what the last migration (20260424120018) drops;
-	// rolling it back should have restored the column, confirming the rollback
+	// products.stock_quantity is what migration 20260424120018 drops;
+	// rolling back to 20260424120017 should have restored the column, confirming the rollback
 	// actually did something before we test whether reattaching undoes it.
 	require.True(t, hasStockQuantityColumn(t, pool),
 		"test setup: goose Down should have restored the column")
