@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
@@ -16,7 +15,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
@@ -68,44 +66,19 @@ func run() error {
 	}
 	defer pool.Close()
 
-	app, err := bootstrap.New(
+	if _, err = bootstrap.New(
 		authCfg,
 		cartCfg,
 		paymentCfg,
 		database.DB{Primary: pool},
 		nil,
 		appLog,
-	)
-	if err != nil {
+	); err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
 		return fmt.Errorf("wiring services: %w", err)
 	}
 
-	jobCfg := jobs.Config{
-		Interval:      infra.Worker.Interval,
-		BatchSize:     infra.Worker.BatchSize,
-		LeaseDuration: infra.Worker.LeaseDuration,
-		Concurrency:   infra.Worker.Concurrency,
-		PruneAge:      infra.Worker.PruneAge,
-		PruneLimit:    infra.Worker.PruneLimit,
-	}
-
-	notificationRunner := jobs.NewLegacyRunner(
-		"notification",
-		app.Notifications.Jobs,
-		app.Notifications.Jobs,
-		jobCfg,
-		appLog,
-	)
-
 	appLog.InfoContext(ctx, "worker starting", slog.String("env", infra.App.Env))
-	var wg sync.WaitGroup
-	for _, start := range []func(context.Context){notificationRunner.Start} {
-		wg.Go(func() {
-			start(ctx)
-		})
-	}
-	wg.Wait()
 	appLog.InfoContext(ctx, "worker stopped")
 	return nil
 }

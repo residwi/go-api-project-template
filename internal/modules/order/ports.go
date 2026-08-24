@@ -7,6 +7,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
+	"github.com/residwi/go-api-project-template/internal/modules/notification"
 )
 
 type Cart interface {
@@ -33,5 +34,5 @@ type CouponReserver interface {
 }
 
 type Notifications interface {
-	EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) error
+	Create(ctx context.Context, in notification.NewNotification) error
 }

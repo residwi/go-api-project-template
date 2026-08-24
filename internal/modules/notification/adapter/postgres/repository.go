@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -26,8 +27,39 @@ func New(db database.DB) *Repository {
 
 func scanNotification(row pgx.CollectableRow) (domain.Notification, error) {
 	var n domain.Notification
-	err := row.Scan(&n.ID, &n.UserID, &n.Type, &n.Title, &n.Body, &n.IsRead, &n.CreatedAt)
+	err := row.Scan(&n.ID, &n.UserID, &n.Title, &n.Body, &n.IsRead, &n.CreatedAt)
 	return n, err
+}
+
+func (r *Repository) Create(ctx context.Context, n *domain.Notification) error {
+	db := database.PrimaryDB(ctx, r.db)
+
+	err := db.QueryRow(ctx,
+		`INSERT INTO notifications (user_id, title, body, is_read)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, created_at`,
+		n.UserID, n.Title, n.Body, n.IsRead,
+	).Scan(&n.ID, &n.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("creating notification: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) Get(ctx context.Context, id uuid.UUID) (domain.Notification, error) {
+	db := database.PrimaryDB(ctx, r.db)
+
+	var n domain.Notification
+	err := db.QueryRow(ctx,
+		`SELECT id, user_id, title, body, is_read, created_at FROM notifications WHERE id = $1`, id,
+	).Scan(&n.ID, &n.UserID, &n.Title, &n.Body, &n.IsRead, &n.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Notification{}, apperror.ErrNotFound
+	}
+	if err != nil {
+		return domain.Notification{}, fmt.Errorf("getting notification: %w", err)
+	}
+	return n, nil
 }
 
 func (r *Repository) ListByUser(
@@ -50,7 +82,7 @@ func (r *Repository) ListByUser(
 	}
 
 	queryStr := fmt.Sprintf(
-		`SELECT id, user_id, type, title, body, is_read, created_at
+		`SELECT id, user_id, title, body, is_read, created_at
 		FROM notifications WHERE %s ORDER BY created_at DESC, id DESC LIMIT $%d`,
 		where, argIdx,
 	)

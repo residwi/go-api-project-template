@@ -29,18 +29,16 @@ func NewHandler(service NotificationManager) *Handler {
 }
 
 type notificationResponse struct {
-	ID        uuid.UUID   `json:"id"`
-	Type      domain.Type `json:"type"`
-	Title     string      `json:"title"`
-	Body      string      `json:"body,omitempty"`
-	IsRead    bool        `json:"is_read"`
-	CreatedAt time.Time   `json:"created_at"`
+	ID        uuid.UUID `json:"id"`
+	Title     string    `json:"title"`
+	Body      string    `json:"body,omitempty"`
+	IsRead    bool      `json:"is_read"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func toNotificationResponse(n domain.Notification) notificationResponse {
 	return notificationResponse{
 		ID:        n.ID,
-		Type:      n.Type,
 		Title:     n.Title,
 		Body:      n.Body,
 		IsRead:    n.IsRead,

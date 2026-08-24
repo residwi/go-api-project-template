@@ -16,6 +16,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
+	channellog "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/channel/log"
 	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres"
@@ -71,7 +72,13 @@ func New(
 	prod := product.New(productpg.New(db), inv)
 	categoryMod := category.New(categorypg.New(db), prod)
 	promotionMod := promotion.New(promotionpg.New(db), txRunner)
-	notificationMod := notification.New(notificationpg.New(db), db, logger)
+	notificationMod := notification.New(
+		notificationpg.New(db),
+		txRunner,
+		jobspg.New(db),
+		channellog.New(logger),
+		logger,
+	)
 
 	var statusCache user.StatusCache = user.NoCache{}
 	if cache != nil {
@@ -89,7 +96,7 @@ func New(
 		cartMod,
 		inv,
 		promotionMod,
-		notificationMod.Jobs,
+		notificationMod,
 	)
 
 	paymentMod := payment.New(

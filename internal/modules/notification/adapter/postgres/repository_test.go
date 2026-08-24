@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
@@ -23,6 +24,40 @@ func TestMain(m *testing.M) {
 	defer cleanup()
 	testPool = pool
 	os.Exit(m.Run())
+}
+
+func TestPostgresRepository_Create(t *testing.T) {
+	t.Run("inserts a notification and returns its id and timestamp", func(t *testing.T) {
+		userID := seedUser(t)
+		repo := New(database.DB{Primary: testPool})
+
+		n := &domain.Notification{UserID: userID, Title: "Order Placed", Body: "Your order has been placed."}
+
+		require.NoError(t, repo.Create(context.Background(), n))
+		assert.NotEqual(t, uuid.Nil, n.ID)
+		assert.False(t, n.CreatedAt.IsZero())
+	})
+}
+
+func TestPostgresRepository_Get(t *testing.T) {
+	t.Run("returns the notification by id", func(t *testing.T) {
+		userID := seedUser(t)
+		repo := New(database.DB{Primary: testPool})
+
+		n := &domain.Notification{UserID: userID, Title: "Order Placed", Body: "Your order has been placed."}
+		require.NoError(t, repo.Create(context.Background(), n))
+
+		got, err := repo.Get(context.Background(), n.ID)
+		require.NoError(t, err)
+		assert.Equal(t, *n, got)
+	})
+
+	t.Run("returns not found for a missing id", func(t *testing.T) {
+		repo := New(database.DB{Primary: testPool})
+
+		_, err := repo.Get(context.Background(), uuid.New())
+		assert.ErrorIs(t, err, apperror.ErrNotFound)
+	})
 }
 
 func TestPostgresRepository_ListByUser(t *testing.T) {
@@ -212,9 +247,6 @@ func seedUser(t *testing.T) uuid.UUID {
 	return testutil.SeedUser(t, testPool)
 }
 
-// seedNotification inserts a row directly: this module's Repository has no
-// Create -- that write path lives in jobs/postgres, which owns the queue
-// that produces notifications.
 func seedNotification(t *testing.T, userID uuid.UUID) uuid.UUID {
 	t.Helper()
 	id := uuid.New()

@@ -10,6 +10,8 @@ import (
 )
 
 type Repository interface {
+	Create(ctx context.Context, n *domain.Notification) error
+	Get(ctx context.Context, id uuid.UUID) (domain.Notification, error)
 	ListByUser(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Notification, error)
 	CountUnread(ctx context.Context, userID uuid.UUID) (int, error)
 	MarkRead(ctx context.Context, userID, id uuid.UUID) error

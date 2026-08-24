@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"maps"
 	"net/http"
@@ -34,7 +33,6 @@ func TestHandler_List_Success(t *testing.T) {
 			{
 				ID:        uuid.New(),
 				UserID:    uc.UserID,
-				Type:      domain.TypeOrderPlaced,
 				Title:     "Order Placed",
 				CreatedAt: now,
 			},
@@ -135,7 +133,6 @@ func TestHandler_List_Pagination(t *testing.T) {
 			notifications[i] = domain.Notification{
 				ID:        uuid.New(),
 				UserID:    uc.UserID,
-				Type:      domain.TypeOrderPlaced,
 				Title:     "Order",
 				CreatedAt: now.Add(-time.Duration(i) * time.Minute),
 			}
@@ -201,21 +198,18 @@ func TestHandler_UnreadCount(t *testing.T) {
 	})
 }
 
-func TestToNotificationResponse_OmitsUserIDAndRawPayload(t *testing.T) {
+func TestToNotificationResponse_OmitsUserID(t *testing.T) {
 	t.Parallel()
 
 	userID := uuid.New()
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	data := []byte(`{"order_id":"distinguishable-raw-payload"}`)
 
 	got := toNotificationResponse(domain.Notification{
 		ID:        uuid.New(),
 		UserID:    userID,
-		Type:      domain.TypeOrderPlaced,
 		Title:     "Order Placed",
 		Body:      "Your order has been placed.",
 		IsRead:    false,
-		Data:      data,
 		CreatedAt: now,
 	})
 
@@ -226,19 +220,12 @@ func TestToNotificationResponse_OmitsUserIDAndRawPayload(t *testing.T) {
 	require.NoError(t, json.Unmarshal(raw, &fields))
 	assert.ElementsMatch(
 		t,
-		[]string{"id", "type", "title", "body", "is_read", "created_at"},
+		[]string{"id", "title", "body", "is_read", "created_at"},
 		slices.Collect(maps.Keys(fields)),
-		"the response must expose exactly these fields -- this key-set assertion is the real control against "+
-			"Data leaking back in, since it is a []byte and would marshal to base64 rather than the plaintext "+
-			"checked below",
 	)
 
 	assert.NotContains(t, string(raw), userID.String(),
 		"the caller is always the authenticated user; echoing user_id back adds nothing")
-	// []byte marshals to base64, so a plaintext NotContains could never fire even
-	// if Data came back. Assert the base64 form.
-	assert.NotContains(t, string(raw), base64.StdEncoding.EncodeToString(data),
-		"Data is a raw job payload and must never pass through as raw bytes")
 }
 
 func TestHandler_MarkRead_Success(t *testing.T) {

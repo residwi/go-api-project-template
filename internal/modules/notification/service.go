@@ -7,22 +7,40 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
-	"github.com/residwi/go-api-project-template/internal/modules/notification/jobs"
-	jobspg "github.com/residwi/go-api-project-template/internal/modules/notification/jobs/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 type Service struct {
-	repo Repository
-	Jobs *jobs.Worker
+	repo    Repository
+	tx      database.TxRunner
+	queue   jobs.Enqueuer
+	channel Channel
+	logger  *slog.Logger
 }
 
-func New(repo Repository, db database.DB, logger *slog.Logger) *Service {
-	return &Service{
-		repo: repo,
-		Jobs: jobs.New(jobspg.New(db), logger),
-	}
+func New(
+	repo Repository,
+	tx database.TxRunner,
+	queue jobs.Enqueuer,
+	channel Channel,
+	logger *slog.Logger,
+) *Service {
+	return &Service{repo: repo, tx: tx, queue: queue, channel: channel, logger: logger}
+}
+
+func (s *Service) Create(ctx context.Context, in NewNotification) error {
+	return s.tx.Run(ctx, func(txCtx context.Context) error {
+		n := &domain.Notification{UserID: in.UserID, Title: in.Title, Body: in.Body}
+		if err := s.repo.Create(txCtx, n); err != nil {
+			return err
+		}
+
+		return jobs.Enqueue(txCtx, s.queue, SendJob{NotificationID: n.ID}, jobs.Keys{
+			Dedup: "notification.send:" + n.ID.String(),
+		})
+	})
 }
 
 func (s *Service) List(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Notification, error) {

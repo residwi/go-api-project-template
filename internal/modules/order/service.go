@@ -11,6 +11,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
+	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
@@ -58,7 +59,7 @@ func New(
 // replay must not repeat -- charging a card, above all -- has to branch on it
 // rather than infer a replay from order status.
 //
-//nolint:gocognit // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction
+//nolint:gocognit,funlen // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction
 func (s *Service) Place(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -174,7 +175,11 @@ func (s *Service) Place(
 	}
 
 	if s.notifications != nil {
-		if err := s.notifications.EnqueueOrderPlaced(ctx, userID, order.ID); err != nil {
+		if err := s.notifications.Create(ctx, notification.NewNotification{
+			UserID: userID,
+			Title:  "Order Placed",
+			Body:   fmt.Sprintf("Your order %s has been placed.", order.ID),
+		}); err != nil {
 			s.logger.WarnContext(ctx, "failed to enqueue order placed notification", slog.String("error", err.Error()))
 		}
 	}
