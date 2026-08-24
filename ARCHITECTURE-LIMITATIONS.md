@@ -116,6 +116,13 @@ those two.
 
 ## One flat `Service` satisfying several of a consumer's ports leaves the compiler nothing to check
 
+> **Describes the tree before decision 17.** Every `Deps` struct below has
+> since collapsed to one field per producer, so the "two fields, one value"
+> case this entry counts cannot occur any more. The 18 pairs and the
+> ten-port-fields figure are kept as a record of what decision 17 closed; the
+> "Decision 17 spent the same fact a different way" paragraph after the table
+> says what replaced it.
+
 **Where you hit it:** nowhere yet. A consumer declares one narrow port per
 capability (decision 2) and the producer is one `Service` that satisfies all of
 them, so the ports differ in shape but not in the value assigned and the
@@ -123,8 +130,8 @@ compiler has nothing left to check. You hit it the first time one consumer
 needs two ports backed by two *different* values and someone assigns the wrong
 value to one of them: that builds now, and under decision 14 it did not.
 Counting one pair for every two fields on the same consumer that take the same
-value, `internal/bootstrap/app.go`'s struct literals hold **18** such pairs
-today:
+value, `internal/bootstrap/app.go`'s struct literals held **18** such pairs
+before decision 17:
 
 | Consumer        | Value        | Fields | Pairs |
 | --------------- | ------------ | -----: | ----: |
@@ -153,7 +160,7 @@ was real. Under decision 14 most of those pairs were compile errors.
 whose method sets did not overlap — so `InventoryDeduct: inv.Reserve` did not
 build. Flattening `inventory` made `inv` one value satisfying all three, and
 the same thing happened at every flatten. `order`'s was the largest: one
-`*order.Service` now satisfies ten port fields across four consumers, and
+`*order.Service` then satisfied ten port fields across four consumers, and
 eight compile errors went with it — three pairs on `payment`, three on
 `checkout`, two on `shipping` (its `OrderShip`/`OrderDeliver` pair already
 took the same value, so that one was never guarded), none on `review`, which
@@ -714,6 +721,13 @@ on is worth more than diff conflicts. If it becomes unbearable, split by
 _layer_ (build every module's dependencies, then every module) not by module.
 
 ## `order.Deps.InventoryDeduct` is wired to a path e2e never runs
+
+> **Stale, pending a rewrite.** `order.Deps` no longer has `InventoryDeduct`,
+> `CartLock`, `CartRead`, `CartClear`, `InventoryReserve` or `InventoryRestore`
+> fields — decision 17 collapsed them into one `Cart` and one `Inventory`
+> field each — so the field names, `NewMockInventoryDeductor` and the line
+> numbers below are all wrong. Left unrewritten because a later step turning
+> `Deps` into positional parameters may moot the section entirely.
 
 **Where you hit it:** you drop the `InventoryDeduct: inv` line at `internal/bootstrap/app.go:102` — a struct literal compiles fine with a field left unset, so `order.Deps.InventoryDeduct` is silently `nil` — and `make check-boundaries`, `make lint`, `make test` and every `test/e2e` saga still pass.
 

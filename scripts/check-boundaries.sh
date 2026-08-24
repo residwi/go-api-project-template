@@ -752,7 +752,7 @@ check_table_ownership() {
 # order/domain, and only domain/, never an adapter. That exemption is
 # load-bearing, not historical: order.Service.Place takes an
 # order/domain.NewOrder and returns an *order/domain.Order, so checkout's own
-# OrderWriter port has to name both types, and seven files under checkout
+# Orders port has to name both types, and seven files under checkout
 # import order/domain today. Retiring it means moving those two types into
 # order's root package first, which is a change to two modules rather than to
 # this script.
