@@ -198,7 +198,7 @@ func rec(queue, kind, dedup, group string) jobs.Record {
 		GroupKey:    group,
 		Status:      "pending",
 		MaxAttempts: 3,
-		RunAt:       time.Now(),
+		RunAt:       time.Now().Add(-time.Minute),
 	}
 }
 
