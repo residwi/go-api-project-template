@@ -2353,7 +2353,7 @@ func TestService_HandleWebhook_SignatureVerification(t *testing.T) {
 
 type testDeps struct {
 	repo             *MockRepository
-	gateway          *fakeGateway
+	gateway          *MockGateway
 	orderTransition  *MockOrderTransition
 	orderCancel      *MockOrderCanceller
 	orderRead        *MockOrderReader
@@ -2369,7 +2369,7 @@ type testDeps struct {
 func newTestService(t *testing.T) (*Service, testDeps) {
 	d := testDeps{
 		repo:             NewMockRepository(t),
-		gateway:          newFakeGateway(t),
+		gateway:          NewMockGateway(t),
 		orderTransition:  NewMockOrderTransition(t),
 		orderCancel:      NewMockOrderCanceller(t),
 		orderRead:        NewMockOrderReader(t),
@@ -2394,47 +2394,6 @@ func newTestService(t *testing.T) (*Service, testDeps) {
 	}
 
 	return svc, d
-}
-
-type fakeGateway struct {
-	mock.Mock
-}
-
-func newFakeGateway(t interface {
-	mock.TestingT
-	Cleanup(func())
-},
-) *fakeGateway {
-	f := &fakeGateway{}
-	f.Mock.Test(t)
-	t.Cleanup(func() { f.AssertExpectations(t) })
-	return f
-}
-
-func (f *fakeGateway) EXPECT() *fakeGatewayExpecter {
-	return &fakeGatewayExpecter{mock: &f.Mock}
-}
-
-func (f *fakeGateway) Charge(ctx context.Context, req gateway.ChargeRequest) (gateway.ChargeResponse, error) {
-	args := f.Called(ctx, req)
-	return args.Get(0).(gateway.ChargeResponse), args.Error(1)
-}
-
-func (f *fakeGateway) Refund(ctx context.Context, req gateway.RefundRequest) (gateway.RefundResponse, error) {
-	args := f.Called(ctx, req)
-	return args.Get(0).(gateway.RefundResponse), args.Error(1)
-}
-
-type fakeGatewayExpecter struct {
-	mock *mock.Mock
-}
-
-func (e *fakeGatewayExpecter) Charge(ctx, req any) *mock.Call {
-	return e.mock.On("Charge", ctx, req)
-}
-
-func (e *fakeGatewayExpecter) Refund(ctx, req any) *mock.Call {
-	return e.mock.On("Refund", ctx, req)
 }
 
 // refundJobFor builds the mock.MatchedBy predicate every enqueueRefund call

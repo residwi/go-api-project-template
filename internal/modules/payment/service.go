@@ -46,7 +46,7 @@ type Deps struct {
 type Service struct {
 	repo    Repository
 	tx      database.TxRunner
-	gateway gateway.Gateway
+	gateway Gateway
 	jobs    JobRepository
 	logger  *slog.Logger
 
@@ -81,7 +81,7 @@ func New(d Deps) *Service {
 	return s
 }
 
-func newGateway(cfg Config) gateway.Gateway {
+func newGateway(cfg Config) Gateway {
 	switch cfg.Gateway {
 	case gatewayStripe:
 		return gatewaystripe.New(cfg.GatewayAPIKey, cfg.GatewayTimeout)
