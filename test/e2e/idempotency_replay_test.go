@@ -136,7 +136,6 @@ func cleanupOrdersOf(userID uuid.UUID) {
 	for _, q := range []string{
 		`DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM carts WHERE user_id = $1)`,
 		`DELETE FROM carts WHERE user_id = $1`,
-		`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id = $1)`,
 		`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id = $1)`,
 		`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id = $1)`,
 		`DELETE FROM notifications WHERE user_id = $1`,

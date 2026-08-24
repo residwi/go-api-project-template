@@ -43,11 +43,9 @@ is the list, and `scripts/check-boundaries.sh` reads the list from here.
 | `carts` | `cart` |
 | `categories` | `category` |
 | `inventory_levels` | `inventory` |
-| `notification_jobs` | `notification` |
 | `notifications` | `notification` |
 | `order_items` | `order` |
 | `orders` | `order` |
-| `payment_jobs` | `payment` |
 | `payments` | `payment` |
 | `job_queue` | `platform` |
 | `product_images` | `product` |
@@ -110,14 +108,14 @@ protect, because `dashboard` never writes.
 
 ## Cross-module foreign keys are kept
 
-25 foreign keys exist. 18 of them cross a module boundary. All 18 stay.
+22 foreign keys exist. 16 of them cross a module boundary. All 16 stay.
 
-The 7 that do not cross are aggregate-internal and unremarkable:
+The 6 that do not cross are aggregate-internal and unremarkable:
 `cart_items→carts`, `categories→categories` (the parent link),
-`coupon_usages→promotions`, `order_items→orders`, `payment_jobs→payments`,
+`coupon_usages→promotions`, `order_items→orders`,
 `product_images→products`, `wishlist_items→wishlists`.
 
-The 18 that do cross, in full — because "step one of any split is dropping 18
+The 16 that do cross, in full — because "step one of any split is dropping 16
 constraints" is not actionable without the list:
 
 | Referencing table | → | Referenced table | Crosses |
@@ -127,11 +125,9 @@ constraints" is not actionable without the list:
 | `coupon_usages` | → | `orders` | promotion → order |
 | `coupon_usages` | → | `users` | promotion → user |
 | `inventory_levels` | → | `products` | inventory → product |
-| `notification_jobs` | → | `users` | notification → user |
 | `notifications` | → | `users` | notification → user |
 | `order_items` | → | `products` | order → product |
 | `orders` | → | `users` | order → user |
-| `payment_jobs` | → | `orders` | payment → order |
 | `payments` | → | `orders` | payment → order |
 | `products` | → | `categories` | product → category |
 | `reviews` | → | `orders` | review → order |
@@ -141,7 +137,7 @@ constraints" is not actionable without the list:
 | `wishlist_items` | → | `products` | wishlist → product |
 | `wishlists` | → | `users` | wishlist → user |
 
-All 18 are `NO ACTION`. The only 4 `ON DELETE CASCADE` constraints in the schema
+All 16 are `NO ACTION`. The only 4 `ON DELETE CASCADE` constraints in the schema
 are within-module: `cart_items→carts`, `order_items→orders`,
 `product_images→products`, `wishlist_items→wishlists`.
 
@@ -153,13 +149,13 @@ there is a window. The constraint has no window.
 **What they cost.** They are precisely what makes extracting a module into a
 service a *data* problem rather than a code problem. You cannot put `orders` and
 `products` in separate databases while `order_items.product_id` carries a
-foreign key. Step one of any split is dropping 18 constraints and re-expressing
+foreign key. Step one of any split is dropping 16 constraints and re-expressing
 each as an application-level check with an explicit answer for the race the
 constraint used to close — a migration with a correctness argument attached, not
 a refactor. Every port declared during this refactor makes the *code* side of
 that split cheap; none of them touch this side.
 
-One of the 18 is load-bearing in Go rather than merely defensive.
+One of the 16 is load-bearing in Go rather than merely defensive.
 `categories` is the only hard-deleted table that another module's table
 references, so `products.category_id` is the one cross-module constraint that
 can actually fire in normal operation. `category`'s adapter catches the
@@ -170,22 +166,22 @@ backstop goes with it.
 ## The FK graph is not the dependency graph
 
 Inbound foreign keys, by referenced table — every referenced table, so the
-column sums to all 25 rather than to a selection:
+column sums to all 22 rather than to a selection:
 
 | Table | Inbound FKs | Inbound ports |
 | --- | --- | --- |
-| `users` | 7 | 1 |
-| `orders` | 6 | 7 |
+| `users` | 6 | 1 |
+| `orders` | 5 | 7 |
 | `products` | 6 | 2 |
 | `categories` | 2 | — |
 | `carts` | 1 | — |
-| `payments` | 1 | — |
+| `payments` | 0 | — |
 | `promotions` | 1 | — |
 | `wishlists` | 1 | — |
 | `inventory_levels` | 0 | 5 |
-| **total** | **25** | |
+| **total** | **22** | |
 
-The four tables with a single inbound FK each have it from their *own* module's
+The three tables with a single inbound FK each have it from their *own* module's
 child table, which is why they carry no ports: nothing outside asks them
 anything.
 
@@ -194,8 +190,8 @@ service satisfies — `auth.UserDirectory`, `payment.Orders`,
 `product.Inventory` and so on.)
 
 It is tempting to read the first column as a module dependency ranking. It is
-not one. `users` is the most-referenced table in the schema and almost nothing
-calls into `user`: seven tables carry a `user_id`, and a caller writing one
+not one. `users` is among the most-referenced tables in the schema and almost
+nothing calls into `user`: six tables carry a `user_id`, and a caller writing one
 already has the id, so it has nothing to ask. `inventory_levels` has no inbound
 foreign keys at all and five interfaces across three modules (`order`,
 `payment`, `product`) declare ports against `inventory`, because
@@ -208,10 +204,9 @@ extract and the one to be most careful with.
 
 ## Cross-module `ON DELETE CASCADE` is not kept
 
-`db/migrations/20260424120016_drop_cross_module_cascades.sql` dropped six
+`db/migrations/20260424120016_drop_cross_module_cascades.sql` dropped five
 cascades, keeping each reference: `carts.user_id`, `cart_items.product_id`,
-`wishlists.user_id`, `wishlist_items.product_id`, `notifications.user_id`,
-`notification_jobs.user_id`.
+`wishlists.user_id`, `wishlist_items.product_id`, `notifications.user_id`.
 
 They were unreachable. `users` and `products` are soft-deleted — `UPDATE ... SET
 deleted_at` — so no `DELETE` ever reaches those rows and the cascade could never

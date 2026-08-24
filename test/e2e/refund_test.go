@@ -80,11 +80,6 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	t.Cleanup(func() {
 		testPool.Exec(
 			ctx,
-			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
-			email,
-		)
-		testPool.Exec(
-			ctx,
 			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
 			email,
 		)
@@ -276,11 +271,6 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 
 	t.Cleanup(func() {
-		testPool.Exec(
-			ctx,
-			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
-			email,
-		)
 		testPool.Exec(
 			ctx,
 			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,

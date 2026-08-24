@@ -325,7 +325,7 @@ func TestUserHardDeleteIsRestricted(t *testing.T) {
 	assert.Equal(t, 1, count, "cart must survive the refused delete")
 }
 
-// The six cross-module cascades were unreachable (users and products are
+// The five cross-module cascades were unreachable (users and products are
 // soft-deleted); the four within-module ones are aggregate-internal and
 // correct. Needs no seeded row: it reads the constraint catalog directly.
 func TestCrossModuleCascadesDropped(t *testing.T) {
@@ -335,7 +335,6 @@ func TestCrossModuleCascadesDropped(t *testing.T) {
 		"wishlists_user_id_fkey",
 		"wishlist_items_product_id_fkey",
 		"notifications_user_id_fkey",
-		"notification_jobs_user_id_fkey",
 	}
 	stillCascade := []string{
 		"product_images_product_id_fkey",

@@ -452,11 +452,12 @@ else
     ownership to enforce."
 fi
 
-# migration_tables prints every table db/migrations/ creates. Only each file's
-# `-- +goose Up` section is read: a Down section's DROP TABLE list mirrors the
-# Up's CREATE TABLE list, and counting both would make every table look like it
-# had been created twice. Table names are matched literally in uppercase,
-# because every migration writes `CREATE TABLE IF NOT EXISTS <name>`.
+# migration_tables prints every table db/migrations/ still leaves standing.
+# Only each file's `-- +goose Up` section is read: a Down section's DROP TABLE
+# list mirrors the Up's CREATE TABLE list, and counting both would make every
+# table look like it had been created twice. A table an Up section drops --
+# not that same file's own Down, a later file's Up, retiring an earlier one's
+# CREATE TABLE for good -- is removed from the set rather than counted.
 migration_tables() {
 	awk '
 		/^-- \+goose Up/   { section = "up";   next }
@@ -465,9 +466,17 @@ migration_tables() {
 			if (match($0, /CREATE TABLE[[:space:]]+(IF NOT EXISTS[[:space:]]+)?[a-z_][a-z0-9_]*/)) {
 				name = substr($0, RSTART, RLENGTH)
 				sub(/^CREATE TABLE[[:space:]]+(IF NOT EXISTS[[:space:]]+)?/, "", name)
-				print name
+				created[name] = 1
 			}
 		}
+		section == "up" && /DROP TABLE/ {
+			if (match($0, /DROP TABLE[[:space:]]+(IF EXISTS[[:space:]]+)?[a-z_][a-z0-9_]*/)) {
+				name = substr($0, RSTART, RLENGTH)
+				sub(/^DROP TABLE[[:space:]]+(IF EXISTS[[:space:]]+)?/, "", name)
+				delete created[name]
+			}
+		}
+		END { for (name in created) print name }
 	' db/migrations/*.sql | sort -u
 }
 

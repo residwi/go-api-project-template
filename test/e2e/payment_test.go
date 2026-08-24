@@ -80,11 +80,6 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	t.Cleanup(func() {
 		testPool.Exec(
 			ctx,
-			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
-			email,
-		)
-		testPool.Exec(
-			ctx,
 			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
 			email,
 		)
@@ -230,11 +225,6 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 
 	t.Cleanup(func() {
-		testPool.Exec(
-			ctx,
-			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
-			email,
-		)
 		testPool.Exec(
 			ctx,
 			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,

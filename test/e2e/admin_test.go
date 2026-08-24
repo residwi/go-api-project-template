@@ -158,11 +158,6 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM reviews WHERE user_id IN (SELECT id FROM users WHERE email = $1)`, email)
 		testPool.Exec(
 			ctx,
-			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
-			email,
-		)
-		testPool.Exec(
-			ctx,
 			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
 			email,
 		)

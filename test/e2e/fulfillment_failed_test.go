@@ -83,11 +83,6 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 	t.Cleanup(func() {
 		testPool.Exec(
 			ctx,
-			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
-			email,
-		)
-		testPool.Exec(
-			ctx,
 			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
 			email,
 		)

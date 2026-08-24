@@ -74,10 +74,6 @@ func TestE2EOrderFlow(t *testing.T) {
 		)
 		testPool.Exec(
 			ctx,
-			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = 'e2e-flow@example.com'))`,
-		)
-		testPool.Exec(
-			ctx,
 			`DELETE FROM payments WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = 'e2e-flow@example.com'))`,
 		)
 		testPool.Exec(
@@ -174,11 +170,6 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 		testPool.Exec(
 			ctx,
 			`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
-			email,
-		)
-		testPool.Exec(
-			ctx,
-			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
 			email,
 		)
 		testPool.Exec(
@@ -307,11 +298,6 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 		testPool.Exec(
 			ctx,
 			`DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
-			email,
-		)
-		testPool.Exec(
-			ctx,
-			`DELETE FROM payment_jobs WHERE order_id IN (SELECT id FROM orders WHERE user_id IN (SELECT id FROM users WHERE email = $1))`,
 			email,
 		)
 		testPool.Exec(

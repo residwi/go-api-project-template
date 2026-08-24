@@ -251,8 +251,8 @@ func seedNotification(t *testing.T, userID uuid.UUID) uuid.UUID {
 	t.Helper()
 	id := uuid.New()
 	_, err := testPool.Exec(context.Background(),
-		`INSERT INTO notifications (id, user_id, type, title, body, is_read)
-		VALUES ($1, $2, 'test', 'T', 'm', false)`,
+		`INSERT INTO notifications (id, user_id, title, body, is_read)
+		VALUES ($1, $2, 'T', 'm', false)`,
 		id, userID,
 	)
 	require.NoError(t, err)
