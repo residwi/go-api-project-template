@@ -32,12 +32,24 @@ func Load() (*Settings, error) {
 }
 
 func (s *Settings) validate() error {
-	if s.Worker.Interval < 5*time.Second {
-		return errors.New("WORKER_INTERVAL must be at least 5s to avoid database polling overhead")
+	if s.Worker.PaymentInterval < 5*time.Second {
+		return errors.New("WORKER_PAYMENT_INTERVAL must be at least 5s to avoid database polling overhead")
 	}
 
-	if s.Worker.Concurrency < 1 {
-		return errors.New("WORKER_CONCURRENCY must be at least 1 (0 deadlocks the worker on its unbuffered semaphore)")
+	if s.Worker.NotificationInterval < 5*time.Second {
+		return errors.New("WORKER_NOTIFICATION_INTERVAL must be at least 5s to avoid database polling overhead")
+	}
+
+	if s.Worker.PaymentConcurrency < 1 {
+		return errors.New(
+			"WORKER_PAYMENT_CONCURRENCY must be at least 1 (0 deadlocks the worker on its unbuffered semaphore)",
+		)
+	}
+
+	if s.Worker.NotificationConcurrency < 1 {
+		return errors.New(
+			"WORKER_NOTIFICATION_CONCURRENCY must be at least 1 (0 deadlocks the worker on its unbuffered semaphore)",
+		)
 	}
 
 	if s.Worker.PruneLimit < 1 {
@@ -109,10 +121,16 @@ type CORS struct {
 }
 
 type Worker struct {
-	Interval      time.Duration `envconfig:"WORKER_INTERVAL"       default:"10s"`
 	BatchSize     int           `envconfig:"WORKER_BATCH_SIZE"     default:"10"`
 	LeaseDuration time.Duration `envconfig:"WORKER_LEASE_DURATION" default:"2m"`
-	Concurrency   int           `envconfig:"WORKER_CONCURRENCY"    default:"5"`
 	PruneAge      time.Duration `envconfig:"WORKER_PRUNE_AGE"      default:"168h"`
 	PruneLimit    int           `envconfig:"WORKER_PRUNE_LIMIT"    default:"100"`
+
+	PaymentInterval      time.Duration `envconfig:"WORKER_PAYMENT_INTERVAL"    default:"10s"`
+	PaymentConcurrency   int           `envconfig:"WORKER_PAYMENT_CONCURRENCY" default:"5"`
+	PaymentLeaseDuration time.Duration `envconfig:"WORKER_PAYMENT_LEASE"       default:"2m"`
+
+	NotificationInterval    time.Duration `envconfig:"WORKER_NOTIFICATION_INTERVAL"    default:"5s"`
+	NotificationConcurrency int           `envconfig:"WORKER_NOTIFICATION_CONCURRENCY" default:"10"`
+	NotificationLease       time.Duration `envconfig:"WORKER_NOTIFICATION_LEASE"       default:"30s"`
 }

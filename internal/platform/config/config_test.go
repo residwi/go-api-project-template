@@ -66,21 +66,39 @@ func TestLoad(t *testing.T) {
 		assert.Equal(t, Log{Level: "warn", Format: "text"}, appConfig.Log)
 	})
 
-	t.Run("rejects a worker interval that would hammer the database", func(t *testing.T) {
-		t.Setenv("WORKER_INTERVAL", "1s")
+	t.Run("rejects a payment worker interval that would hammer the database", func(t *testing.T) {
+		t.Setenv("WORKER_PAYMENT_INTERVAL", "1s")
 
 		_, err := Load()
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "WORKER_INTERVAL must be at least 5s")
+		assert.Contains(t, err.Error(), "WORKER_PAYMENT_INTERVAL must be at least 5s")
 	})
 
-	t.Run("rejects a zero worker concurrency that would deadlock the runner", func(t *testing.T) {
-		t.Setenv("WORKER_CONCURRENCY", "0")
+	t.Run("rejects a notification worker interval that would hammer the database", func(t *testing.T) {
+		t.Setenv("WORKER_NOTIFICATION_INTERVAL", "1s")
 
 		_, err := Load()
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "WORKER_CONCURRENCY must be at least 1")
+		assert.Contains(t, err.Error(), "WORKER_NOTIFICATION_INTERVAL must be at least 5s")
+	})
+
+	t.Run("rejects a zero payment concurrency that would deadlock the runner", func(t *testing.T) {
+		t.Setenv("WORKER_PAYMENT_CONCURRENCY", "0")
+
+		_, err := Load()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "WORKER_PAYMENT_CONCURRENCY must be at least 1")
+	})
+
+	t.Run("rejects a zero notification concurrency that would deadlock the runner", func(t *testing.T) {
+		t.Setenv("WORKER_NOTIFICATION_CONCURRENCY", "0")
+
+		_, err := Load()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "WORKER_NOTIFICATION_CONCURRENCY must be at least 1")
 	})
 }

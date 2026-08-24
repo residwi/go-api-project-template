@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
@@ -15,8 +16,27 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
+
+type paymentProcessor struct {
+	registry jobs.Processor
+	recover  func(context.Context) error
+	expire   func(context.Context) error
+	logger   *slog.Logger
+}
+
+func (p paymentProcessor) Process(ctx context.Context, rec jobs.Record) error {
+	return p.registry.Process(ctx, rec)
+}
+
+func (p paymentProcessor) Sweep(ctx context.Context) error {
+	if err := p.recover(ctx); err != nil {
+		p.logger.ErrorContext(ctx, "recover stale processing orders failed", slog.String("error", err.Error()))
+	}
+	return p.expire(ctx)
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -66,19 +86,55 @@ func run() error {
 	}
 	defer pool.Close()
 
-	if _, err = bootstrap.New(
+	app, err := bootstrap.New(
 		authCfg,
 		cartCfg,
 		paymentCfg,
 		database.DB{Primary: pool},
 		nil,
 		appLog,
-	); err != nil {
+	)
+	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
 		return fmt.Errorf("wiring services: %w", err)
 	}
 
+	paymentJobCfg := jobs.Config{
+		Interval:      infra.Worker.PaymentInterval,
+		BatchSize:     infra.Worker.BatchSize,
+		LeaseDuration: infra.Worker.PaymentLeaseDuration,
+		Concurrency:   infra.Worker.PaymentConcurrency,
+		PruneAge:      infra.Worker.PruneAge,
+		PruneLimit:    infra.Worker.PruneLimit,
+	}
+
+	notificationJobCfg := jobs.Config{
+		Interval:      infra.Worker.NotificationInterval,
+		BatchSize:     infra.Worker.BatchSize,
+		LeaseDuration: infra.Worker.NotificationLease,
+		Concurrency:   infra.Worker.NotificationConcurrency,
+		PruneAge:      infra.Worker.PruneAge,
+		PruneLimit:    infra.Worker.PruneLimit,
+	}
+
+	proc := paymentProcessor{
+		registry: app.Jobs,
+		recover:  app.Orders.RecoverStale,
+		expire:   app.Orders.ExpireStale,
+		logger:   appLog,
+	}
+
+	paymentRunner := jobs.NewRunner("payment", app.JobStore, proc, paymentJobCfg, appLog)
+	notificationRunner := jobs.NewRunner("notification", app.JobStore, app.Jobs, notificationJobCfg, appLog)
+
 	appLog.InfoContext(ctx, "worker starting", slog.String("env", infra.App.Env))
+	var wg sync.WaitGroup
+	for _, start := range []func(context.Context){paymentRunner.Start, notificationRunner.Start} {
+		wg.Go(func() {
+			start(ctx)
+		})
+	}
+	wg.Wait()
 	appLog.InfoContext(ctx, "worker stopped")
 	return nil
 }
