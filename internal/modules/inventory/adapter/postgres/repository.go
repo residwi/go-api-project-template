@@ -17,8 +17,6 @@ import (
 
 var _ inventory.Repository = (*Repository)(nil)
 
-const stockValueCols = 2
-
 func buildStockValues(items map[uuid.UUID]int) (string, []any, []uuid.UUID) {
 	ids := make([]uuid.UUID, 0, len(items))
 	for id := range items {
@@ -270,3 +268,5 @@ func (r *Repository) RestockBatch(ctx context.Context, items map[uuid.UUID]int) 
 	}
 	return nil
 }
+
+const stockValueCols = 2

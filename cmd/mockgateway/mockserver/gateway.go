@@ -17,6 +17,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway"
 )
 
+type Option func(*mockServer)
+
 const statusSuccess = "success"
 
 type chargeRecord struct {
@@ -31,8 +33,6 @@ type mockServer struct {
 	webhookSecret string
 	logger        *slog.Logger
 }
-
-type Option func(*mockServer)
 
 func WithWebhookSecret(secret string) Option {
 	return func(s *mockServer) { s.webhookSecret = secret }

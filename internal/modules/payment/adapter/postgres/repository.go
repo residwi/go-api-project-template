@@ -17,15 +17,6 @@ import (
 
 var _ payment.Repository = (*Repository)(nil)
 
-type amountColumns struct {
-	amount   int64
-	currency string
-}
-
-func (a amountColumns) assignTo(p *domain.Payment) {
-	p.Amount = money.New(a.amount, a.currency)
-}
-
 type Repository struct {
 	db database.DB
 }
@@ -294,4 +285,13 @@ func nilIfEmpty(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+type amountColumns struct {
+	amount   int64
+	currency string
+}
+
+func (a amountColumns) assignTo(p *domain.Payment) {
+	p.Amount = money.New(a.amount, a.currency)
 }

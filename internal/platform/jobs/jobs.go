@@ -11,8 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const defaultMaxAttempts = 3
-
 var ErrDiscard = errors.New("discard job")
 
 type Job interface {
@@ -122,6 +120,8 @@ func (r *Registry) Process(ctx context.Context, rec Record) error {
 	}
 	return handler(ctx, rec.Payload)
 }
+
+const defaultMaxAttempts = 3
 
 func queueOf(kind string) string {
 	if queue, _, found := strings.Cut(kind, "."); found {

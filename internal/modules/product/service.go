@@ -13,8 +13,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
 
-const defaultCurrency = "USD"
-
 type Service struct {
 	repo Repository
 
@@ -300,3 +298,5 @@ func (s *Service) enrich(ctx context.Context, products []domain.Product) error {
 	}
 	return nil
 }
+
+const defaultCurrency = "USD"

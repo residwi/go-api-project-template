@@ -18,21 +18,6 @@ import (
 
 var _ product.Repository = (*Repository)(nil)
 
-type amountColumns struct {
-	price          int64
-	compareAtPrice *int64
-	currency       string
-}
-
-func (a amountColumns) assignTo(p *domain.Product) {
-	p.Price = money.New(a.price, a.currency)
-	p.CompareAtPrice = nil
-	if a.compareAtPrice != nil {
-		compareAt := money.New(*a.compareAtPrice, a.currency)
-		p.CompareAtPrice = &compareAt
-	}
-}
-
 func scanProduct(row pgx.CollectableRow) (domain.Product, error) {
 	var p domain.Product
 	var amt amountColumns
@@ -364,4 +349,19 @@ func (r *Repository) DeleteImage(ctx context.Context, imageID uuid.UUID) error {
 		return apperror.ErrNotFound
 	}
 	return nil
+}
+
+type amountColumns struct {
+	price          int64
+	compareAtPrice *int64
+	currency       string
+}
+
+func (a amountColumns) assignTo(p *domain.Product) {
+	p.Price = money.New(a.price, a.currency)
+	p.CompareAtPrice = nil
+	if a.compareAtPrice != nil {
+		compareAt := money.New(*a.compareAtPrice, a.currency)
+		p.CompareAtPrice = &compareAt
+	}
 }

@@ -20,19 +20,6 @@ import (
 
 var _ order.Repository = (*Repository)(nil)
 
-type amountColumns struct {
-	subtotal int64
-	discount int64
-	total    int64
-	currency string
-}
-
-func (a amountColumns) assignTo(o *domain.Order) {
-	o.Subtotal = money.New(a.subtotal, a.currency)
-	o.Discount = money.New(a.discount, a.currency)
-	o.Total = money.New(a.total, a.currency)
-}
-
 func scanOrder(row pgx.CollectableRow) (domain.Order, error) {
 	var o domain.Order
 	var idempotencyKey, notes *string
@@ -456,4 +443,17 @@ func scanOrderSummary(row pgx.CollectableRow) (domain.Order, error) {
 		o.IdempotencyKey = *idempotencyKey
 	}
 	return o, nil
+}
+
+type amountColumns struct {
+	subtotal int64
+	discount int64
+	total    int64
+	currency string
+}
+
+func (a amountColumns) assignTo(o *domain.Order) {
+	o.Subtotal = money.New(a.subtotal, a.currency)
+	o.Discount = money.New(a.discount, a.currency)
+	o.Total = money.New(a.total, a.currency)
 }

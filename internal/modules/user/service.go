@@ -13,8 +13,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 )
 
-const statusCacheTTL = 30 * time.Second
-
 type Service struct {
 	repo   Repository
 	cache  StatusCache
@@ -252,3 +250,5 @@ func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
 		)
 	}
 }
+
+const statusCacheTTL = 30 * time.Second

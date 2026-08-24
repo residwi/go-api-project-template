@@ -15,24 +15,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 )
 
-// dummyPassword is hashed once per cost to give the unknown-email login path
-// roughly the same latency as a real bcrypt comparison.
-const dummyPassword = "invalid-user-timing-equalizer"
-
-// maxPasswordBytes is bcrypt's hard input limit; inputs longer than this error
-// in GenerateFromPassword. validator's max=72 counts runes, so we re-check bytes.
-const maxPasswordBytes = 72
-
-type jwtClaims struct {
-	jwt.RegisteredClaims
-
-	UserID       uuid.UUID
-	Email        string
-	Role         string
-	Type         string
-	TokenVersion int
-}
-
 type Service struct {
 	users      UserDirectory
 	dummyHash  []byte
@@ -206,4 +188,22 @@ func (s *Service) generateToken(ttl time.Duration, claims domain.Claims, kind st
 	})
 
 	return token.SignedString([]byte(s.secret))
+}
+
+// dummyPassword is hashed once per cost to give the unknown-email login path
+// roughly the same latency as a real bcrypt comparison.
+const dummyPassword = "invalid-user-timing-equalizer"
+
+// maxPasswordBytes is bcrypt's hard input limit; inputs longer than this error
+// in GenerateFromPassword. validator's max=72 counts runes, so we re-check bytes.
+const maxPasswordBytes = 72
+
+type jwtClaims struct {
+	jwt.RegisteredClaims
+
+	UserID       uuid.UUID
+	Email        string
+	Role         string
+	Type         string
+	TokenVersion int
 }
