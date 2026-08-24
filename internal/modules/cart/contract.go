@@ -7,7 +7,7 @@ import (
 )
 
 // Snapshot is cart's published shape for another module -- order's
-// CartReader port reads a user's cart through it. Named Snapshot, not Cart,
+// Cart port reads a user's cart through it. Named Snapshot, not Cart,
 // because domain.Cart already names the richer type the cart module works
 // with internally.
 type Snapshot struct {

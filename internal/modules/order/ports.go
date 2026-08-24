@@ -9,27 +9,15 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 )
 
-type CartLocker interface {
+type Cart interface {
 	Lock(ctx context.Context, userID uuid.UUID) error
-}
-
-type CartReader interface {
 	Snapshot(ctx context.Context, userID uuid.UUID) (*cart.Snapshot, error)
-}
-
-type CartClearer interface {
 	Clear(ctx context.Context, userID uuid.UUID) error
 }
 
-type InventoryReserver interface {
+type Inventory interface {
 	Reserve(ctx context.Context, items map[uuid.UUID]int) error
-}
-
-type InventoryDeductor interface {
 	Deduct(ctx context.Context, items map[uuid.UUID]int) error
-}
-
-type InventoryRestorer interface {
 	Restore(ctx context.Context, items map[uuid.UUID]int, prior inventory.StockState) error
 }
 
@@ -44,6 +32,6 @@ type CouponReserver interface {
 	Release(ctx context.Context, orderID uuid.UUID) error
 }
 
-type NotificationEnqueuer interface {
+type Notifications interface {
 	EnqueueOrderPlaced(ctx context.Context, userID uuid.UUID, orderID uuid.UUID) error
 }

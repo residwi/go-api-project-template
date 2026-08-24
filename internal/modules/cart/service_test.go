@@ -582,7 +582,7 @@ func TestService_Clear(t *testing.T) {
 
 // Lock discards the cart id GetCartForLock returns and passes through only
 // the error, so this is the only place that proves both halves of that:
-// a found cart returns nil, and ErrNotFound reaches order.CartLocker's
+// a found cart returns nil, and ErrNotFound reaches order.Cart's
 // caller unchanged.
 func TestService_Lock(t *testing.T) {
 	t.Parallel()

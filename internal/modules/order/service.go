@@ -26,14 +26,10 @@ type Deps struct {
 	Tx     database.TxRunner
 	Logger *slog.Logger
 
-	CartLock         CartLocker
-	CartRead         CartReader
-	CartClear        CartClearer
-	InventoryReserve InventoryReserver
-	InventoryDeduct  InventoryDeductor
-	InventoryRestore InventoryRestorer
-	Promotions       CouponReserver
-	Notifications    NotificationEnqueuer
+	Cart          Cart
+	Inventory     Inventory
+	Coupons       CouponReserver
+	Notifications Notifications
 }
 
 type Service struct {
@@ -41,29 +37,21 @@ type Service struct {
 	tx     database.TxRunner
 	logger *slog.Logger
 
-	cartLock         CartLocker
-	cartRead         CartReader
-	cartClear        CartClearer
-	inventoryReserve InventoryReserver
-	inventoryDeduct  InventoryDeductor
-	inventoryRestore InventoryRestorer
-	coupons          CouponReserver
-	notifications    NotificationEnqueuer
+	cart          Cart
+	inventory     Inventory
+	coupons       CouponReserver
+	notifications Notifications
 }
 
 func New(d Deps) *Service {
 	return &Service{
-		repo:             d.Repo,
-		tx:               d.Tx,
-		logger:           d.Logger,
-		cartLock:         d.CartLock,
-		cartRead:         d.CartRead,
-		cartClear:        d.CartClear,
-		inventoryReserve: d.InventoryReserve,
-		inventoryDeduct:  d.InventoryDeduct,
-		inventoryRestore: d.InventoryRestore,
-		coupons:          d.Promotions,
-		notifications:    d.Notifications,
+		repo:          d.Repo,
+		tx:            d.Tx,
+		logger:        d.Logger,
+		cart:          d.Cart,
+		inventory:     d.Inventory,
+		coupons:       d.Coupons,
+		notifications: d.Notifications,
 	}
 }
 
@@ -106,14 +94,14 @@ func (s *Service) Place(
 	var orderItems []domain.Item
 
 	err = s.tx.Run(ctx, func(txCtx context.Context) error {
-		if txErr := s.cartLock.Lock(txCtx, userID); txErr != nil {
+		if txErr := s.cart.Lock(txCtx, userID); txErr != nil {
 			if errors.Is(txErr, apperror.ErrNotFound) {
 				return apperror.ErrCartEmpty
 			}
 			return txErr
 		}
 
-		snapshot, txErr := s.cartRead.Snapshot(txCtx, userID)
+		snapshot, txErr := s.cart.Snapshot(txCtx, userID)
 		if txErr != nil {
 			return txErr
 		}
@@ -143,7 +131,7 @@ func (s *Service) Place(
 			return txErr
 		}
 
-		if txErr := s.inventoryReserve.Reserve(txCtx, reservations); txErr != nil {
+		if txErr := s.inventory.Reserve(txCtx, reservations); txErr != nil {
 			return fmt.Errorf("reserving stock: %w", txErr)
 		}
 
@@ -173,7 +161,7 @@ func (s *Service) Place(
 			}
 		}
 
-		return s.cartClear.Clear(txCtx, userID)
+		return s.cart.Clear(txCtx, userID)
 	})
 	if err != nil {
 		return nil, false, err
@@ -439,7 +427,7 @@ func (s *Service) finalizeFreeOrder(ctx context.Context, order *domain.Order) er
 		for _, item := range order.Items {
 			deductions[item.ProductID] = item.Quantity
 		}
-		return s.inventoryDeduct.Deduct(txCtx, deductions)
+		return s.inventory.Deduct(txCtx, deductions)
 	})
 }
 
@@ -462,7 +450,7 @@ func (s *Service) cancelWithReversal(ctx context.Context, order *domain.Order) e
 			for _, item := range items {
 				releases[item.ProductID] = item.Quantity
 			}
-			releaseErr := s.inventoryRestore.Restore(txCtx, releases, stockStateFor(order.StockDeducted))
+			releaseErr := s.inventory.Restore(txCtx, releases, stockStateFor(order.StockDeducted))
 			if releaseErr != nil {
 				return fmt.Errorf("restoring inventory on cancel: %w", releaseErr)
 			}
@@ -504,7 +492,7 @@ func (s *Service) releaseOrderHolds(ctx context.Context, o domain.Order) error {
 		for _, item := range items {
 			releases[item.ProductID] = item.Quantity
 		}
-		if err := s.inventoryRestore.Restore(ctx, releases, stockStateFor(o.StockDeducted)); err != nil {
+		if err := s.inventory.Restore(ctx, releases, stockStateFor(o.StockDeducted)); err != nil {
 			return fmt.Errorf("restoring inventory on expire: %w", err)
 		}
 	}
