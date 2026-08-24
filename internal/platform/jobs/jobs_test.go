@@ -29,7 +29,7 @@ func TestEnqueue(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, "test.thing", got.Queue)
+		assert.Equal(t, "test", got.Queue)
 		assert.Equal(t, "test.thing.do", got.Kind)
 		assert.Equal(t, "test.thing:1", got.DedupKey)
 		assert.Equal(t, "order:9", got.GroupKey)
@@ -82,6 +82,20 @@ func TestEnqueue(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, when, got.RunAt)
+	})
+
+	t.Run("queue is the kind's first segment", func(t *testing.T) {
+		t.Parallel()
+
+		cases := map[string]string{
+			"payment.refund":    "payment",
+			"notification.send": "notification",
+			"test.thing.do":     "test",
+			"bare":              "bare",
+		}
+		for kind, want := range cases {
+			assert.Equal(t, want, queueOf(kind), "kind %q", kind)
+		}
 	})
 }
 

@@ -119,8 +119,8 @@ func (r *Registry) Process(ctx context.Context, rec Record) error {
 }
 
 func queueOf(kind string) string {
-	if idx := strings.LastIndex(kind, "."); idx >= 0 {
-		return kind[:idx]
+	if queue, _, found := strings.Cut(kind, "."); found {
+		return queue
 	}
 	return kind
 }
