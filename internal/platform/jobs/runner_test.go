@@ -22,7 +22,7 @@ func TestRunner(t *testing.T) {
 
 			q := &fakeQueue{batches: [][]testJob{{{ID: 1}, {ID: 2}}}}
 			p := &fakeProcessor{}
-			r := NewRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
+			r := NewLegacyRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
 
 			go r.Start(ctx)
 
@@ -44,7 +44,7 @@ func TestRunner(t *testing.T) {
 
 			q := &fakeQueue{}
 			p := &fakeProcessor{}
-			r := NewRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
+			r := NewLegacyRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
 
 			go r.Start(ctx)
 
@@ -69,7 +69,7 @@ func TestRunner(t *testing.T) {
 
 			q := &fakeQueue{}
 			p := &fakeSweepProcessor{fakeProcessor: &fakeProcessor{}}
-			r := NewRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
+			r := NewLegacyRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
 
 			go r.Start(ctx)
 
@@ -113,7 +113,7 @@ func TestRunner(t *testing.T) {
 				return nil
 			}}
 			q := &fakeQueue{batches: [][]testJob{{{ID: 1}}}}
-			r := NewRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
+			r := NewLegacyRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
 
 			go r.Start(ctx)
 
@@ -163,7 +163,7 @@ func TestRunner(t *testing.T) {
 			cfg := testConfig()
 			cfg.Concurrency = 2
 			q := &fakeQueue{batches: [][]testJob{{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}}}}
-			r := NewRunner("test", q, p, cfg, slog.New(slog.DiscardHandler))
+			r := NewLegacyRunner("test", q, p, cfg, slog.New(slog.DiscardHandler))
 
 			go r.Start(ctx)
 

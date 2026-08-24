@@ -10,12 +10,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
-type Queue[T any] interface {
+type LegacyQueue[T any] interface {
 	Claim(ctx context.Context, batch int, lease time.Duration) ([]T, error)
 	Prune(ctx context.Context, age time.Duration, limit int) (int, error)
 }
 
-type Processor[T any] interface {
+type LegacyProcessor[T any] interface {
 	Process(ctx context.Context, job T) error
 }
 
@@ -32,10 +32,10 @@ type Config struct {
 	PruneLimit    int
 }
 
-type Runner[T any] struct {
+type LegacyRunner[T any] struct {
 	name   string
-	queue  Queue[T]
-	proc   Processor[T]
+	queue  LegacyQueue[T]
+	proc   LegacyProcessor[T]
 	cfg    Config
 	logger *slog.Logger
 }
@@ -44,11 +44,11 @@ type Runner[T any] struct {
 // and the reclaim window coincide and two workers run the same job.
 const leaseSafetyDivisor = 5
 
-func NewRunner[T any](name string, queue Queue[T], proc Processor[T], cfg Config, log *slog.Logger) *Runner[T] {
-	return &Runner[T]{name: name, queue: queue, proc: proc, cfg: cfg, logger: log}
+func NewLegacyRunner[T any](name string, queue LegacyQueue[T], proc LegacyProcessor[T], cfg Config, log *slog.Logger) *LegacyRunner[T] {
+	return &LegacyRunner[T]{name: name, queue: queue, proc: proc, cfg: cfg, logger: log}
 }
 
-func (r *Runner[T]) Start(ctx context.Context) {
+func (r *LegacyRunner[T]) Start(ctx context.Context) {
 	ctx = logger.WithAttrs(ctx, slog.String("runner", r.name))
 
 	ticker := time.NewTicker(r.cfg.Interval)
@@ -64,7 +64,7 @@ func (r *Runner[T]) Start(ctx context.Context) {
 	}
 }
 
-func (r *Runner[T]) tick(ctx context.Context) {
+func (r *LegacyRunner[T]) tick(ctx context.Context) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			r.logger.ErrorContext(ctx, "tick panicked", slog.String("panic", fmt.Sprint(rec)))
@@ -103,7 +103,7 @@ func (r *Runner[T]) tick(ctx context.Context) {
 	wg.Wait()
 }
 
-func (r *Runner[T]) processOne(ctx context.Context, job T, deadline time.Time) {
+func (r *LegacyRunner[T]) processOne(ctx context.Context, job T, deadline time.Time) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			r.logger.ErrorContext(ctx, "job panicked", slog.String("panic", fmt.Sprint(rec)))

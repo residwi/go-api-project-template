@@ -78,7 +78,7 @@ func TestPaymentProcessor_Sweep(t *testing.T) {
 	t.Run("reaches jobs.Runner as a Sweeper", func(t *testing.T) {
 		t.Parallel()
 
-		var p jobs.Processor[paymentdomain.Job] = paymentProcessor{}
+		var p jobs.LegacyProcessor[paymentdomain.Job] = paymentProcessor{}
 		_, ok := p.(jobs.Sweeper)
 		require.True(t, ok, "runner.go:74 asserts this; a pointer receiver here silently kills the sweep")
 	})

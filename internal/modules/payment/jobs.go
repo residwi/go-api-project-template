@@ -24,8 +24,8 @@ type JobRepository interface {
 	MarkJobCompletedByPaymentID(ctx context.Context, paymentID uuid.UUID, action domain.JobAction) error
 }
 
-// Claim and Prune satisfy platform/jobs.Queue[domain.Job] directly on
-// *Service, so cmd/worker hands app.Payments to jobs.NewRunner as the queue
+// Claim and Prune satisfy platform/jobs.LegacyQueue[domain.Job] directly on
+// *Service, so cmd/worker hands app.Payments to jobs.NewLegacyRunner as the queue
 // with no separate Queue type standing between them.
 func (s *Service) Claim(ctx context.Context, batchSize int, leaseDuration time.Duration) ([]domain.Job, error) {
 	return s.jobs.Claim(ctx, batchSize, leaseDuration)

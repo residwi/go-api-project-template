@@ -28,7 +28,7 @@ import (
 // to bolt this cross-module composition onto the dispatcher, which is
 // exactly the composition root's job.
 type paymentProcessor struct {
-	dispatcher jobs.Processor[paymentdomain.Job]
+	dispatcher jobs.LegacyProcessor[paymentdomain.Job]
 	recover    func(context.Context) error
 	expire     func(context.Context) error
 	logger     *slog.Logger
@@ -126,11 +126,11 @@ func run() error {
 		expire:     app.Orders.ExpireStale,
 		logger:     appLog,
 	}
-	// app.Payments satisfies jobs.Queue[paymentdomain.Job] directly, via
+	// app.Payments satisfies jobs.LegacyQueue[paymentdomain.Job] directly, via
 	// Claim/Prune promoted straight onto the Service (see payment/jobs.go),
 	// now that the queue lives in payment's own root package.
-	paymentRunner := jobs.NewRunner("payment", app.Payments, proc, jobCfg, appLog)
-	notificationRunner := jobs.NewRunner("notification", app.Notifications.Jobs, app.Notifications.Jobs, jobCfg, appLog)
+	paymentRunner := jobs.NewLegacyRunner("payment", app.Payments, proc, jobCfg, appLog)
+	notificationRunner := jobs.NewLegacyRunner("notification", app.Notifications.Jobs, app.Notifications.Jobs, jobCfg, appLog)
 
 	appLog.InfoContext(ctx, "worker starting", slog.String("env", infra.App.Env))
 	var wg sync.WaitGroup
