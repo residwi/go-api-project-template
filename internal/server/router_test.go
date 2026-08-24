@@ -93,14 +93,14 @@ func TestMain(m *testing.M) {
 // payment gateway URL (a local httptest mock server) build their own
 // payment.Config and call this instead.
 func newTestApp(paymentCfg payment.Config) *bootstrap.App {
-	app, err := bootstrap.New(bootstrap.Deps{
-		Auth:    testAuthCfg,
-		Cart:    testCartCfg,
-		Payment: paymentCfg,
-		DB:      database.DB{Primary: testPool},
-		Cache:   testRedis,
-		Logger:  testutil.DiscardLogger(),
-	})
+	app, err := bootstrap.New(
+		testAuthCfg,
+		testCartCfg,
+		paymentCfg,
+		database.DB{Primary: testPool},
+		testRedis,
+		testutil.DiscardLogger(),
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -967,8 +967,9 @@ func setup(t *testing.T) {
 // newPaymentServiceForTest wires a whole App against a custom gateway URL (a
 // local httptest mock server) and hands back the payment service.
 // test/e2e carries its own copy in testmain_test.go, built against the old
-// shared *config.Config -- the two diverged in this task, since bootstrap.Deps
-// no longer has a field of that type. See task 8's report.
+// shared *config.Config -- the two diverged in this task, since bootstrap.New
+// no longer takes a Deps struct with a field of that type. See task 8's
+// report.
 func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Service {
 	t.Helper()
 

@@ -97,14 +97,14 @@ func setup(t *testing.T) {
 //
 // internal/server/router_test.go carries its own copy. Keep them in step.
 func newTestApp(paymentCfg payment.Config) *bootstrap.App {
-	app, err := bootstrap.New(bootstrap.Deps{
-		Auth:    testAuthCfg,
-		Cart:    testCartCfg,
-		Payment: paymentCfg,
-		DB:      database.DB{Primary: testPool},
-		Cache:   testRedis,
-		Logger:  testutil.DiscardLogger(),
-	})
+	app, err := bootstrap.New(
+		testAuthCfg,
+		testCartCfg,
+		paymentCfg,
+		database.DB{Primary: testPool},
+		testRedis,
+		testutil.DiscardLogger(),
+	)
 	if err != nil {
 		panic(err)
 	}

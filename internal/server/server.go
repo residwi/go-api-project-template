@@ -95,14 +95,7 @@ func RunContext(ctx context.Context) error {
 		Logger:  appLog,
 	}
 
-	app, err := bootstrap.New(bootstrap.Deps{
-		Auth:    authCfg,
-		Cart:    cartCfg,
-		Payment: paymentCfg,
-		DB:      db,
-		Cache:   rdb,
-		Logger:  appLog,
-	})
+	app, err := bootstrap.New(authCfg, cartCfg, paymentCfg, db, rdb, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
 		return fmt.Errorf("wiring services: %w", err)

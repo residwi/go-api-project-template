@@ -1,5 +1,6 @@
 // Package bootstrap_test exercises bootstrap.New from outside, the way every
-// real caller (server.go, cmd/worker) does: through its exported Deps and App.
+// real caller (server.go, cmd/worker) does: through its exported constructor
+// and App.
 package bootstrap_test
 
 import (
@@ -10,11 +11,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
+	"github.com/residwi/go-api-project-template/internal/modules/auth"
+	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testutil"
@@ -58,16 +62,20 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 	testutil.ResetDB(t, testPool)
 	ctx := context.Background()
 
-	app, err := bootstrap.New(bootstrap.Deps{
-		Payment: payment.Config{
+	var cache *redis.Client
+	app, err := bootstrap.New(
+		auth.Config{},
+		cart.Config{},
+		payment.Config{
 			// Port 1 is reserved and never listens, so the dial fails immediately
 			// with a real error -- proof the port is wired, not a slow timeout.
 			GatewayURL:     "http://127.0.0.1:1",
 			GatewayTimeout: time.Second,
 		},
-		DB:     database.DB{Primary: testPool},
-		Logger: testutil.DiscardLogger(),
-	})
+		database.DB{Primary: testPool},
+		cache,
+		testutil.DiscardLogger(),
+	)
 	require.NoError(t, err)
 
 	userID := testutil.SeedUser(t, testPool)

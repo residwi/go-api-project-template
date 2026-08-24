@@ -98,13 +98,14 @@ func run() error {
 	}
 	defer pool.Close()
 
-	app, err := bootstrap.New(bootstrap.Deps{
-		Auth:    authCfg,
-		Cart:    cartCfg,
-		Payment: paymentCfg,
-		DB:      database.DB{Primary: pool},
-		Logger:  appLog,
-	})
+	app, err := bootstrap.New(
+		authCfg,
+		cartCfg,
+		paymentCfg,
+		database.DB{Primary: pool},
+		nil,
+		appLog,
+	)
 	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
 		return fmt.Errorf("wiring services: %w", err)

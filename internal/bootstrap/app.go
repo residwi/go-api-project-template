@@ -37,15 +37,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-type Deps struct {
-	Auth    auth.Config
-	Cart    cart.Config
-	Payment payment.Config
-	DB      database.DB
-	Cache   *redis.Client
-	Logger  *slog.Logger
-}
-
 type App struct {
 	Users         *user.Service
 	Auth          *auth.Service
@@ -65,28 +56,35 @@ type App struct {
 	TxRunner      database.TxRunner
 }
 
-func New(d Deps) (*App, error) {
-	txRunner := database.NewTxRunner(d.DB.Primary)
+func New(
+	authCfg auth.Config,
+	cartCfg cart.Config,
+	paymentCfg payment.Config,
+	db database.DB,
+	cache *redis.Client,
+	logger *slog.Logger,
+) (*App, error) {
+	txRunner := database.NewTxRunner(db.Primary)
 
-	inv := inventory.New(inventorypg.New(d.DB))
-	prod := product.New(productpg.New(d.DB), inv)
-	categoryMod := category.New(categorypg.New(d.DB), prod)
-	promotionMod := promotion.New(promotionpg.New(d.DB), txRunner)
-	notificationMod := notification.New(notificationpg.New(d.DB), d.DB, d.Logger)
+	inv := inventory.New(inventorypg.New(db))
+	prod := product.New(productpg.New(db), inv)
+	categoryMod := category.New(categorypg.New(db), prod)
+	promotionMod := promotion.New(promotionpg.New(db), txRunner)
+	notificationMod := notification.New(notificationpg.New(db), db, logger)
 
 	var statusCache user.StatusCache = user.NoCache{}
-	if d.Cache != nil {
-		statusCache = userredis.New(d.Cache)
+	if cache != nil {
+		statusCache = userredis.New(cache)
 	}
-	userMod := user.New(userpg.New(d.DB), statusCache, d.Logger)
-	authMod := auth.New(d.Auth, userMod)
+	userMod := user.New(userpg.New(db), statusCache, logger)
+	authMod := auth.New(authCfg, userMod)
 
-	cartMod := cart.New(cartpg.New(d.DB), txRunner, prod, d.Cart.MaxItems)
+	cartMod := cart.New(cartpg.New(db), txRunner, prod, cartCfg.MaxItems)
 
 	ordMod := order.New(
-		orderpg.New(d.DB),
+		orderpg.New(db),
 		txRunner,
-		d.Logger,
+		logger,
 		cartMod,
 		inv,
 		promotionMod,
@@ -94,20 +92,20 @@ func New(d Deps) (*App, error) {
 	)
 
 	paymentMod := payment.New(
-		paymentpg.New(d.DB),
-		d.DB,
+		paymentpg.New(db),
+		db,
 		txRunner,
-		d.Payment,
-		d.Logger,
+		paymentCfg,
+		logger,
 		ordMod,
 		inv,
 		promotionMod,
 	)
 
-	checkoutSvc := checkout.New(ordMod, paymentMod, d.Logger)
+	checkoutSvc := checkout.New(ordMod, paymentMod, logger)
 
-	shippingMod := shipping.New(shippingpg.New(d.DB), txRunner, ordMod)
-	reviewMod := review.New(reviewpg.New(d.DB), ordMod)
+	shippingMod := shipping.New(shippingpg.New(db), txRunner, ordMod)
+	reviewMod := review.New(reviewpg.New(db), ordMod)
 
 	return &App{
 		Users:         userMod,
@@ -122,9 +120,9 @@ func New(d Deps) (*App, error) {
 		Shipping:      shippingMod,
 		Reviews:       reviewMod,
 		Promotions:    promotionMod,
-		Wishlists:     wishlist.New(wishlistpg.New(d.DB)),
+		Wishlists:     wishlist.New(wishlistpg.New(db)),
 		Notifications: notificationMod,
-		Dashboard:     dashboard.New(dashboardpg.New(d.DB)),
+		Dashboard:     dashboard.New(dashboardpg.New(db)),
 		TxRunner:      txRunner,
 	}, nil
 }
