@@ -431,10 +431,11 @@ make build-worker
 make run-worker
 ```
 
-The worker runs two `platform/jobs.Runner` loops side by side. One polls the
-`payment_jobs` table, dispatches each claimed job to a charge or a refund, and
-runs order's stale-order housekeeping sweep once per tick. The other polls
-`notification_jobs`. Both use the same leased compare-and-set claim, bounded
+The worker runs two `platform/jobs.Runner` loops side by side, both draining
+the shared `job_queue` table, one per queue name. One claims the `payment`
+queue, dispatches each claimed job to a charge or a refund, and runs order's
+stale-order housekeeping sweep once per tick. The other claims the
+`notification` queue. Both use the same leased compare-and-set claim, bounded
 concurrency, per-job timeout and pruning; neither hand-rolls a ticker.
 
 Worker configuration via environment variables:
