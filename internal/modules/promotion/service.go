@@ -21,8 +21,6 @@ func New(repo Repository, tx database.TxRunner) *Service {
 	return &Service{repo: repo, tx: tx}
 }
 
-// Apply previews a coupon's discount without reserving it. Reserve does
-// both, for the order that actually spends the coupon.
 func (s *Service) Apply(ctx context.Context, code string, orderAmount int64) (int64, error) {
 	promo, err := s.repo.GetByCode(ctx, code)
 	if err != nil {
@@ -136,9 +134,6 @@ func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]doma
 	return s.repo.ListAdmin(ctx, params)
 }
 
-// Reserve and Release are bound by name-match into order.CouponReserver
-// (both methods) and payment.CouponReleaser (Release alone); their signatures
-// must stay byte-identical to what those two ports declare.
 func (s *Service) Reserve(
 	ctx context.Context,
 	code string,

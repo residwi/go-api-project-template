@@ -137,7 +137,6 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var price, compareAtPrice *money.Money
 	switch {
 	case req.Price == nil && req.Currency == nil && req.CompareAtPrice == nil:
-		// no monetary fields in the request; leave both nil so Update leaves them untouched.
 	case req.Price == nil || req.Currency == nil:
 		response.HandleErr(w, fmt.Errorf(
 			"%w: price and currency must be supplied together, and compare_at_price requires both",

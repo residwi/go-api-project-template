@@ -68,7 +68,6 @@ func (s *Service) RetryPayment(
 	if order.UserID != userID {
 		return payment.ChargeResult{}, apperror.ErrNotFound
 	}
-	// The claim is the payability check, not a step after one.
 	if claimErr := s.orders.BeginPaymentAttempt(ctx, orderID); claimErr != nil {
 		if errors.Is(claimErr, apperror.ErrConflict) {
 			return payment.ChargeResult{}, apperror.ErrOrderNotPayable
@@ -82,7 +81,6 @@ func (s *Service) RetryPayment(
 		PaymentMethodID: paymentMethodID,
 	})
 	if err != nil {
-		// Without this the order stays payment_processing and can never retry.
 		if releaseErr := s.orders.MarkAwaitingPayment(ctx, orderID); releaseErr != nil {
 			s.logger.ErrorContext(ctx, "failed to release the payment attempt claim",
 				slog.String("order_id", orderID.String()), slog.String("error", releaseErr.Error()))
@@ -98,8 +96,6 @@ func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) er
 		return err
 	}
 
-	// Best effort: the order is already cancelled, and a job that fires against
-	// a cancelled order is rejected by its own status guard.
 	if err := s.payments.CancelPendingByOrderID(ctx, orderID); err != nil {
 		s.logger.WarnContext(ctx, "failed to cancel payment jobs",
 			slog.String("order_id", orderID.String()), slog.String("error", err.Error()))

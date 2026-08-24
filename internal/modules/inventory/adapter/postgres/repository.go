@@ -163,9 +163,6 @@ func (r *Repository) GetLevels(ctx context.Context, ids []uuid.UUID) (map[uuid.U
 	return out, nil
 }
 
-// Reserve and Deduct lost their "Batch" suffix along with the singular
-// per-product methods that used to justify it.
-
 func (r *Repository) Reserve(ctx context.Context, items map[uuid.UUID]int) error {
 	if len(items) == 0 {
 		return nil
@@ -216,10 +213,6 @@ func (r *Repository) Deduct(ctx context.Context, items map[uuid.UUID]int) error 
 	}
 	return nil
 }
-
-// ReleaseBatch and RestockBatch keep their names: Restore dispatches to one
-// or the other depending on StockState, so the two queries stay distinct
-// even though the singular Release they used to sit beside is gone.
 
 func (r *Repository) ReleaseBatch(ctx context.Context, items map[uuid.UUID]int) error {
 	if len(items) == 0 {

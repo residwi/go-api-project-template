@@ -7,16 +7,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// StatusSnapshot is the account state cached against a user id: just the two
-// fields CheckStatus needs to answer whether a bearer token is still good.
 type StatusSnapshot struct {
 	Active       bool
 	TokenVersion int
 }
 
-// StatusCache is the second backing store this module owns, alongside
-// Repository: a hot path over CheckStatus's account-state lookup, adapted by
-// adapter/redis. NoCache satisfies it for a boot with no Redis configured.
 type StatusCache interface {
 	Get(ctx context.Context, userID uuid.UUID) (StatusSnapshot, bool, error)
 	Put(ctx context.Context, userID uuid.UUID, snap StatusSnapshot, ttl time.Duration) error

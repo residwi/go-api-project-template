@@ -31,13 +31,11 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	api, authed, admin, authPublic *middleware.RouteGroup,
 	orderWriteLimiter middleware.Middleware,
 ) {
-	// auth
 	authHandler := authhttp.NewHandler(app.Auth, v)
 	authPublic.HandleFunc("POST /auth/register", authHandler.Register)
 	authPublic.HandleFunc("POST /auth/login", authHandler.Login)
 	authPublic.HandleFunc("POST /auth/refresh", authHandler.Refresh)
 
-	// user
 	userHandler := userhttp.NewHandler(app.Users, v)
 	authed.HandleFunc("GET /users/me", userHandler.Me)
 	authed.HandleFunc("PUT /users/me", userHandler.Update)
@@ -49,7 +47,6 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	admin.HandleFunc("PUT /users/{id}/role", userAdminHandler.UpdateRole)
 	admin.HandleFunc("DELETE /users/{id}", userAdminHandler.Delete)
 
-	// category
 	categoryHandler := categoryhttp.NewHandler(app.Categories)
 	api.HandleFunc("GET /categories", categoryHandler.List)
 	api.HandleFunc("GET /categories/{slug}", categoryHandler.GetBySlug)
@@ -59,7 +56,6 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	admin.HandleFunc("PUT /categories/{id}", categoryAdminHandler.Update)
 	admin.HandleFunc("DELETE /categories/{id}", categoryAdminHandler.Delete)
 
-	// product
 	productHandler := producthttp.NewHandler(app.Products)
 	api.HandleFunc("GET /products", productHandler.List)
 	api.HandleFunc("GET /products/{slug}", productHandler.GetBySlug)
@@ -71,13 +67,11 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	admin.HandleFunc("PUT /products/{id}", productAdminHandler.Update)
 	admin.HandleFunc("DELETE /products/{id}", productAdminHandler.Delete)
 
-	// inventory
 	inventoryHandler := inventoryhttp.NewHandler(app.Inventory, v)
 	admin.HandleFunc("GET /inventory/{product_id}", inventoryHandler.GetStock)
 	admin.HandleFunc("PUT /inventory/{product_id}/restock", inventoryHandler.Restock)
 	admin.HandleFunc("PUT /inventory/{product_id}/adjust", inventoryHandler.Adjust)
 
-	// cart
 	cartHandler := carthttp.NewHandler(app.Carts, v)
 	authed.HandleFunc("GET /cart", cartHandler.Get)
 	authed.HandleFunc("POST /cart/items", cartHandler.Add)
@@ -85,7 +79,6 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	authed.HandleFunc("DELETE /cart/items/{product_id}", cartHandler.Remove)
 	authed.HandleFunc("DELETE /cart", cartHandler.Clear)
 
-	// order
 	orderHandler := orderhttp.NewHandler(app.Orders)
 	authed.HandleFunc("GET /orders", orderHandler.List)
 	authed.HandleFunc("GET /orders/{id}", orderHandler.Get)
@@ -95,13 +88,11 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	admin.HandleFunc("GET /orders/{id}", orderAdminHandler.Get)
 	admin.HandleFunc("PUT /orders/{id}/status", orderAdminHandler.UpdateStatus)
 
-	// checkout
 	checkoutHandler := checkouthttp.NewHandler(app.Checkout, v)
 	authed.Handle("POST /orders", orderWriteLimiter(http.HandlerFunc(checkoutHandler.Place)))
 	authed.Handle("POST /orders/{id}/pay", orderWriteLimiter(http.HandlerFunc(checkoutHandler.Retry)))
 	authed.HandleFunc("POST /orders/{id}/cancel", checkoutHandler.Cancel)
 
-	// payment
 	api.HandleFunc("POST /payments/webhook", paymenthttp.NewWebhookHandler(app.Payments, log).HandleWebhook)
 
 	paymentAdminHandler := paymenthttp.NewAdminHandler(app.Payments)
@@ -109,7 +100,6 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	admin.HandleFunc("GET /payments/{id}", paymentAdminHandler.Get)
 	admin.HandleFunc("POST /payments/{id}/refund", paymentAdminHandler.Refund)
 
-	// shipping
 	authed.HandleFunc("GET /orders/{id}/shipping", shippinghttp.NewHandler(app.Shipping).Get)
 
 	shippingAdminHandler := shippinghttp.NewAdminHandler(app.Shipping, v)
@@ -117,13 +107,11 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	admin.HandleFunc("PUT /shipments/{id}/tracking", shippingAdminHandler.UpdateTracking)
 	admin.HandleFunc("POST /shipments/{id}/deliver", shippingAdminHandler.Deliver)
 
-	// review
 	reviewHandler := reviewhttp.NewHandler(app.Reviews, v)
 	api.HandleFunc("GET /products/{id}/reviews", reviewHandler.List)
 	authed.HandleFunc("POST /products/{id}/reviews", reviewHandler.Create)
 	admin.HandleFunc("DELETE /reviews/{id}", reviewhttp.NewAdminHandler(app.Reviews).Delete)
 
-	// promotion
 	promotionHandler := promotionhttp.NewHandler(app.Promotions, v)
 	authed.HandleFunc("POST /promotions/apply", promotionHandler.Apply)
 
@@ -133,20 +121,17 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	admin.HandleFunc("PUT /promotions/{id}", promotionAdminHandler.Update)
 	admin.HandleFunc("DELETE /promotions/{id}", promotionAdminHandler.Delete)
 
-	// wishlist
 	wishlistHandler := wishlisthttp.NewHandler(app.Wishlists, v)
 	authed.HandleFunc("GET /wishlist", wishlistHandler.List)
 	authed.HandleFunc("POST /wishlist/items", wishlistHandler.Add)
 	authed.HandleFunc("DELETE /wishlist/items/{product_id}", wishlistHandler.Remove)
 
-	// notification
 	notificationHandler := notificationhttp.NewHandler(app.Notifications)
 	authed.HandleFunc("GET /notifications", notificationHandler.List)
 	authed.HandleFunc("GET /notifications/unread-count", notificationHandler.UnreadCount)
 	authed.HandleFunc("PUT /notifications/{id}/read", notificationHandler.MarkRead)
 	authed.HandleFunc("PUT /notifications/read-all", notificationHandler.MarkAllRead)
 
-	// dashboard
 	dashboardHandler := dashboardhttp.NewHandler(app.Dashboard)
 	admin.HandleFunc("GET /dashboard/summary", dashboardHandler.Summary)
 	admin.HandleFunc("GET /dashboard/top-products", dashboardHandler.TopProducts)

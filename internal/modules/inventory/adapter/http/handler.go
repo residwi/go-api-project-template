@@ -11,9 +11,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
-// InventoryManager is everything this admin-only handler needs from
-// inventory.Service -- read, restock and adjust together, since one role
-// fields all three routes.
 type InventoryManager interface {
 	GetStock(ctx context.Context, productID uuid.UUID) (*domain.Stock, error)
 	Restock(ctx context.Context, productID uuid.UUID, qty int) (*domain.Stock, error)

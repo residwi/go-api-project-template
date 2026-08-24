@@ -53,12 +53,6 @@ func New(
 	}
 }
 
-// Place reports whether it created the order. A repeated idempotency key
-// returns the stored order with created=false, and that flag is the only signal
-// the caller gets: the returned order looks the same either way, so anything a
-// replay must not repeat -- charging a card, above all -- has to branch on it
-// rather than infer a replay from order status.
-//
 //nolint:gocognit,funlen // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction
 func (s *Service) Place(
 	ctx context.Context,
@@ -232,11 +226,6 @@ func (s *Service) Get(ctx context.Context, orderID uuid.UUID) (*domain.Order, er
 	return order, nil
 }
 
-// Snapshot is the one projection every consuming module reads. It replaces the
-// pair this module used to expose -- GetSnapshot, which filled every field, and
-// GetInfo, which filled only ID, UserID and Status off the identical read. The
-// full value satisfies every consumer, so the sparse one was a second way to
-// get the same row wrong.
 func (s *Service) Snapshot(ctx context.Context, orderID uuid.UUID) (Snapshot, error) {
 	o, err := s.repo.GetByID(ctx, orderID)
 	if err != nil {
@@ -305,9 +294,6 @@ func (s *Service) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {
 	return s.cancelWithReversal(ctx, order)
 }
 
-// ChangeStatus is the admin's direct status write. It refuses every status a
-// saga owns, so nothing bypasses the inventory or money reversal that status
-// carries; the rest go through the dynamic compare-and-set.
 func (s *Service) ChangeStatus(ctx context.Context, orderID uuid.UUID, toStatus domain.Status) error {
 	switch toStatus {
 	case domain.StatusPaid, domain.StatusPaymentProcessing, domain.StatusCancelled,
@@ -371,9 +357,6 @@ func (s *Service) RecoverStale(ctx context.Context) error {
 	return nil
 }
 
-// Apply is the one guarded status write, per AGENTS.md rule 14: every caller
-// names a domain.Transition value from domain/transition.go rather than an
-// ad-hoc from/to pair.
 func (s *Service) Apply(ctx context.Context, orderID uuid.UUID, t domain.Transition) error {
 	return s.repo.Apply(ctx, orderID, t)
 }
@@ -386,8 +369,6 @@ func (s *Service) MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) 
 	return s.Apply(ctx, orderID, domain.PaymentProcessingTransition)
 }
 
-// BeginPaymentAttempt returns apperror.ErrConflict unless the order was
-// awaiting payment, so a caller may charge only once this returns nil.
 func (s *Service) BeginPaymentAttempt(ctx context.Context, orderID uuid.UUID) error {
 	return s.Apply(ctx, orderID, domain.PaymentAttemptTransition)
 }

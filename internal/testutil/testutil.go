@@ -24,12 +24,8 @@ const (
 	postgresContainerName = "go-api-test-postgres"
 	redisContainerName    = "go-api-test-redis"
 
-	// Every package binary races for the same container name; the loser waits
-	// here for the winner to publish its port.
 	containerReadyTimeout = 90 * time.Second
 
-	// Past this, a still-not-running container is treated as abandoned rather
-	// than starting up, and replaced.
 	transientGrace = 20 * time.Second
 )
 
@@ -85,13 +81,6 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	adminDSN := fmt.Sprintf("postgres://test:test@localhost:%s/postgres?sslmode=disable", port)
 	dsn := fmt.Sprintf("postgres://test:test@localhost:%s/%s?sslmode=disable", port, dbName)
 
-	// The retry wraps the *connect*, never ensureDatabase below.
-	//
-	// Every package binary dials this container at once, so single dials come
-	// back "connection reset by peer". Holding one pgx.Conn across the exists
-	// check and the CREATE means no dial can happen between them; a pool would
-	// not, since it acquires lazily and Ping only proves one connection worked
-	// once.
 	var adminConn *pgx.Conn
 	if retryErr := dt.Retry(func() error {
 		conn, e := pgx.Connect(ctx, adminDSN)
@@ -168,18 +157,6 @@ func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) er
 	return nil
 }
 
-// MustStartRedis returns a client on dbIndex, which the caller picks by hand
-// from the registry below. Indices must be unique across packages and nothing
-// enforces that -- a collision compiles, passes review, and fails as a flake in
-// an unrelated package. Claim yours here in the same commit that uses it.
-//
-//	0 - internal/platform/cache
-//	1 - internal/server/middleware
-//	2 - (free)
-//	3 - internal/server
-//	4 - (free)
-//	5 - test/e2e
-//	6 - internal/modules/user/adapter/redis
 func MustStartRedis(dbIndex int) (*redis.Client, func()) {
 	ctx := context.Background()
 
@@ -215,13 +192,6 @@ func ResetDB(t testing.TB, pool *pgxpool.Pool) {
 	t.Helper()
 	ctx := context.Background()
 
-	// Excludes goose_db_version: it is migration bookkeeping, not the domain
-	// data this call exists to clear. Migration now runs unconditionally on
-	// every MustStartPostgres call (see ensureDatabase), so wiping it here would
-	// make the very next call -- in this process or, since the database is never
-	// dropped, a much later one -- see zero applied versions and error with
-	// goose's ErrNoNextVersion instead of the current, fully migrated schema it
-	// is actually looking at.
 	var tableList string
 	err := pool.QueryRow(ctx, `
 		SELECT string_agg(quote_ident(tablename), ', ')

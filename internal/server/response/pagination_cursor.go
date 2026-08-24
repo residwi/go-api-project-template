@@ -9,8 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-// One layout for every keyset cursor: a handler drifting onto another would break
-// pagination silently.
 const cursorTimeFormat = "2006-01-02T15:04:05.999999Z07:00"
 
 func CursorPage[T any](w http.ResponseWriter, rows []T, limit int, keyOf func(T) (time.Time, uuid.UUID)) {

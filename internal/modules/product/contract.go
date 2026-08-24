@@ -6,8 +6,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 )
 
-// Info is the published lookup shape cart's ProductLookup port reads a
-// product through.
 type Info struct {
 	ID        uuid.UUID
 	Name      string

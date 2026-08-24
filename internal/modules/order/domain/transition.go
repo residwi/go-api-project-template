@@ -11,8 +11,6 @@ type Transition struct {
 
 //nolint:gochecknoglobals // immutable named transitions; struct/slice values cannot be const
 var (
-	// PaymentProcessingTransition claims an order for charge processing
-	// (idempotent if it is already processing).
 	PaymentProcessingTransition = Transition{
 		To:   StatusPaymentProcessing,
 		From: []Status{StatusAwaitingPayment, StatusPaymentProcessing},
@@ -27,30 +25,22 @@ var (
 
 	AwaitingPaymentTransition = Transition{To: StatusAwaitingPayment, From: []Status{StatusPaymentProcessing}}
 
-	// PaidTransition allows awaiting_payment for the race where the gateway confirms
-	// before the local flip to payment_processing.
 	PaidTransition = Transition{
 		To:                StatusPaid,
 		From:              []Status{StatusPaymentProcessing, StatusAwaitingPayment},
 		SetsStockDeducted: true,
 	}
 
-	// FulfillmentFailedAfterChargeTransition marks an order fulfillment_failed
-	// when a charge succeeds on an already-terminal order.
 	FulfillmentFailedAfterChargeTransition = Transition{
 		To:   StatusFulfillmentFailed,
 		From: []Status{StatusCancelled, StatusExpired, StatusPaid},
 	}
 
-	// FulfillmentFailedCompensatingTransition marks an order fulfillment_failed
-	// from the compensating-refund path (a broader set of prior states).
 	FulfillmentFailedCompensatingTransition = Transition{
 		To:   StatusFulfillmentFailed,
 		From: []Status{StatusPaymentProcessing, StatusAwaitingPayment, StatusCancelled, StatusExpired, StatusPaid},
 	}
 
-	// RefundTransition marks an order refunded from any post-paid state. The
-	// refund reverses the order's inventory hold, so this marks it reversed.
 	RefundTransition = Transition{
 		To: StatusRefunded,
 		From: []Status{
@@ -67,23 +57,17 @@ var (
 
 	DeliveredTransition = Transition{To: StatusDelivered, From: []Status{StatusShipped}}
 
-	// CancelledTransition reverses the inventory hold in the same transaction, so it
-	// marks the hold reversed.
 	CancelledTransition = Transition{
 		To:                StatusCancelled,
 		From:              []Status{StatusAwaitingPayment, StatusPaymentProcessing, StatusFulfillmentFailed},
 		SetsStockReversed: true,
 	}
 
-	// ExpiredTransition releases the reservation, so it marks the hold reversed.
 	ExpiredTransition = Transition{To: StatusExpired, From: []Status{StatusAwaitingPayment}, SetsStockReversed: true}
 
 	ProcessingTransition = Transition{To: StatusProcessing, From: []Status{StatusPaid}}
 )
 
-// Every named Transition above must appear here: CanTransition is derived from
-// this registry.
-//
 //nolint:gochecknoglobals // immutable registry of the named transitions above
 var allTransitions = []Transition{
 	PaymentProcessingTransition,

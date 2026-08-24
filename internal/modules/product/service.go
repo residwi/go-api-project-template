@@ -267,9 +267,6 @@ func (s *Service) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.U
 	return out, nil
 }
 
-// getByIDsIncludingDeleted is unexported: GetInfoByIDs is its only caller,
-// inside this package, and nothing outside it has ever named the exported
-// form.
 func (s *Service) getByIDsIncludingDeleted(ctx context.Context, ids []uuid.UUID) ([]domain.Product, error) {
 	products, err := s.repo.GetByIDsIncludingDeleted(ctx, ids)
 	if err != nil {

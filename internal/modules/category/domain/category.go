@@ -10,8 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
 
-// MaxDepth bounds how many ancestors a category chain may have. create and
-// update both walk the chain before writing a parent_id, so the number lives.
 const MaxDepth = 5
 
 type Category struct {

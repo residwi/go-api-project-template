@@ -53,10 +53,6 @@ func (s *Service) Deduct(ctx context.Context, items map[uuid.UUID]int) error {
 	return s.repo.Deduct(ctx, items)
 }
 
-// Restore undoes whichever write order made against these items: a
-// reservation still sitting in reserved_stock, or a deduction already moved
-// into available_stock's ledger. Callers supply the order's prior state so
-// this stays the only place that decision gets made.
 func (s *Service) Restore(ctx context.Context, items map[uuid.UUID]int, prior StockState) error {
 	if prior == Deducted {
 		return s.repo.RestockBatch(ctx, items)

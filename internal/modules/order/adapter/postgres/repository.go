@@ -424,9 +424,6 @@ func (r *Repository) UpdateStatus(ctx context.Context, id uuid.UUID, from, to do
 	return nil
 }
 
-// scanOrderSummary reads the narrower column list the two housekeeping sweeps
-// select: no addresses, no notes, no request hash, since neither sweep looks at
-// them.
 func scanOrderSummary(row pgx.CollectableRow) (domain.Order, error) {
 	var o domain.Order
 	var idempotencyKey *string

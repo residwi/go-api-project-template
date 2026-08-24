@@ -12,10 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
-// PaymentManager merges query's PaymentReader and refund's Refunder: all
-// three admin routes -- List, Get, Refund -- land on one AdminHandler now,
-// so they share one port named for the capability set rather than for any
-// one verb.
 type PaymentManager interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Payment, error)
 	ListAdmin(ctx context.Context, params payment.AdminListParams) ([]domain.Payment, int, error)

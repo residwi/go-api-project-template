@@ -8,8 +8,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-// keysetCursorArgs is the number of placeholders a keyset predicate appends:
-// the createdAt and id bounds of the cursor.
 const keysetCursorArgs = 2
 
 func EscapeLike(s string) string {

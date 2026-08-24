@@ -18,16 +18,8 @@ type Config struct {
 	WebhookSecret  string        `envconfig:"PAYMENT_WEBHOOK_SECRET"  default:"webhook-secret"`
 }
 
-// defaultWebhookSecret is the placeholder; it must be overridden outside
-// development.
 const defaultWebhookSecret = "webhook-secret"
 
-// The three gateways newGateway (service.go) knows how to build. Named here,
-// not just there, so LoadConfig can reject an unrecognised Config.Gateway at
-// boot instead of newGateway silently falling back to the mock on a typo --
-// the same invariant, checked where a wrong value is loud instead of where a
-// wrong value would otherwise stay quiet until every real charge fails or,
-// worse, a reachable dev mock gateway fakes one through unpaid.
 const (
 	gatewayMock     = "mock"
 	gatewayStripe   = "stripe"
