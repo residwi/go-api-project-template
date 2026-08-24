@@ -118,13 +118,9 @@ func New(d Deps) (*App, error) {
 	})
 
 	checkoutSvc := checkout.New(checkout.Deps{
-		Orders:      ordMod,
-		Snapshots:   ordMod,
-		Attempts:    ordMod,
-		Cancels:     ordMod,
-		Payments:    paymentMod,
-		PaymentJobs: paymentMod,
-		Logger:      d.Logger,
+		Orders:   ordMod,
+		Payments: paymentMod,
+		Logger:   d.Logger,
 	})
 
 	shippingMod := shipping.New(shipping.Deps{

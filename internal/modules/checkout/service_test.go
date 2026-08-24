@@ -31,12 +31,12 @@ func TestService_PlaceOrder(t *testing.T) {
 			Status: orderdomain.StatusAwaitingPayment,
 		}
 
-		orders := NewMockOrderWriter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().
 			Place(t.Context(), userID, orderdomain.NewOrder{Notes: "leave at door"}, "idem-1").
 			Return(placed, true, nil)
 
-		payments := NewMockPaymentCharger(t)
+		payments := NewMockPayments(t)
 		payments.EXPECT().
 			Charge(t.Context(), payment.ChargeRequest{
 				OrderID:         orderID,
@@ -68,10 +68,10 @@ func TestService_PlaceOrder(t *testing.T) {
 			Status: orderdomain.StatusAwaitingPayment,
 		}
 
-		orders := NewMockOrderWriter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-2").Return(placed, true, nil)
 
-		payments := NewMockPaymentCharger(t)
+		payments := NewMockPayments(t)
 		payments.EXPECT().Charge(t.Context(), mock.Anything).
 			Return(payment.ChargeResult{}, errors.New("gateway down"))
 
@@ -97,11 +97,11 @@ func TestService_PlaceOrder(t *testing.T) {
 			Status: orderdomain.StatusPaid,
 		}
 
-		orders := NewMockOrderWriter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-3").Return(placed, true, nil)
 
 		// No EXPECT on payments: mockery fails the test if Charge is called.
-		payments := NewMockPaymentCharger(t)
+		payments := NewMockPayments(t)
 
 		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
@@ -119,11 +119,11 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		userID := uuid.New()
 
-		orders := NewMockOrderWriter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-4").
 			Return(nil, false, apperror.ErrCartEmpty)
 
-		payments := NewMockPaymentCharger(t)
+		payments := NewMockPayments(t)
 
 		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
@@ -151,12 +151,12 @@ func TestService_PlaceOrder(t *testing.T) {
 			Status: orderdomain.StatusAwaitingPayment,
 		}
 
-		orders := NewMockOrderWriter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-replay").
 			Return(replayed, false, nil)
 
 		// No EXPECT on payments: mockery fails the test if Charge is called.
-		payments := NewMockPaymentCharger(t)
+		payments := NewMockPayments(t)
 
 		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
@@ -179,25 +179,23 @@ func TestService_RetryPayment(t *testing.T) {
 
 		userID, orderID := uuid.New(), uuid.New()
 
-		orders := NewMockOrderSnapshotReader(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(4000, "USD"),
 			Status: string(orderdomain.StatusAwaitingPayment),
 		}, nil)
+		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(nil)
 
-		payments := NewMockPaymentCharger(t)
+		payments := NewMockPayments(t)
 		payments.EXPECT().Charge(t.Context(), payment.ChargeRequest{
 			OrderID:         orderID,
 			Amount:          money.New(4000, "USD"),
 			PaymentMethodID: "pm_retry",
 		}).Return(payment.ChargeResult{PaymentURL: "https://pay.test/1"}, nil)
 
-		attempts := NewMockPaymentAttemptClaimer(t)
-		attempts.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(nil)
-
-		svc := New(Deps{Snapshots: orders, Attempts: attempts, Payments: payments, Logger: testutil.DiscardLogger()})
+		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
 		got, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
 
@@ -210,7 +208,7 @@ func TestService_RetryPayment(t *testing.T) {
 
 		orderID := uuid.New()
 
-		orders := NewMockOrderSnapshotReader(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: uuid.New(),
@@ -218,10 +216,9 @@ func TestService_RetryPayment(t *testing.T) {
 		}, nil)
 
 		svc := New(Deps{
-			Snapshots: orders,
-			Attempts:  NewMockPaymentAttemptClaimer(t),
-			Payments:  NewMockPaymentCharger(t),
-			Logger:    testutil.DiscardLogger(),
+			Orders:   orders,
+			Payments: NewMockPayments(t),
+			Logger:   testutil.DiscardLogger(),
 		})
 
 		_, err := svc.RetryPayment(t.Context(), uuid.New(), orderID, "pm_retry")
@@ -234,21 +231,18 @@ func TestService_RetryPayment(t *testing.T) {
 
 		userID, orderID := uuid.New(), uuid.New()
 
-		orders := NewMockOrderSnapshotReader(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Status: string(orderdomain.StatusPaid),
 		}, nil)
-
-		attempts := NewMockPaymentAttemptClaimer(t)
-		attempts.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(apperror.ErrConflict)
+		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(apperror.ErrConflict)
 
 		svc := New(Deps{
-			Snapshots: orders,
-			Attempts:  attempts,
-			Payments:  NewMockPaymentCharger(t),
-			Logger:    testutil.DiscardLogger(),
+			Orders:   orders,
+			Payments: NewMockPayments(t),
+			Logger:   testutil.DiscardLogger(),
 		})
 
 		_, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
@@ -263,22 +257,19 @@ func TestService_RetryPayment(t *testing.T) {
 
 		userID, orderID := uuid.New(), uuid.New()
 
-		orders := NewMockOrderSnapshotReader(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(4000, "USD"),
 			Status: string(orderdomain.StatusAwaitingPayment),
 		}, nil)
-
-		attempts := NewMockPaymentAttemptClaimer(t)
-		attempts.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(apperror.ErrConflict)
+		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(apperror.ErrConflict)
 
 		svc := New(Deps{
-			Snapshots: orders,
-			Attempts:  attempts,
-			Payments:  NewMockPaymentCharger(t),
-			Logger:    testutil.DiscardLogger(),
+			Orders:   orders,
+			Payments: NewMockPayments(t),
+			Logger:   testutil.DiscardLogger(),
 		})
 
 		_, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
@@ -291,26 +282,24 @@ func TestService_RetryPayment(t *testing.T) {
 
 		userID, orderID := uuid.New(), uuid.New()
 
-		orders := NewMockOrderSnapshotReader(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(4000, "USD"),
 			Status: string(orderdomain.StatusAwaitingPayment),
 		}, nil)
+		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(nil)
+		orders.EXPECT().MarkAwaitingPayment(t.Context(), orderID).Return(nil)
 
-		attempts := NewMockPaymentAttemptClaimer(t)
-		attempts.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(nil)
-		attempts.EXPECT().MarkAwaitingPayment(t.Context(), orderID).Return(nil)
-
-		payments := NewMockPaymentCharger(t)
+		payments := NewMockPayments(t)
 		payments.EXPECT().Charge(t.Context(), payment.ChargeRequest{
 			OrderID:         orderID,
 			Amount:          money.New(4000, "USD"),
 			PaymentMethodID: "pm_retry",
 		}).Return(payment.ChargeResult{}, errors.New("gateway down"))
 
-		svc := New(Deps{Snapshots: orders, Attempts: attempts, Payments: payments, Logger: testutil.DiscardLogger()})
+		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
 		_, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
 
@@ -326,13 +315,13 @@ func TestService_CancelOrder(t *testing.T) {
 
 		userID, orderID := uuid.New(), uuid.New()
 
-		orders := NewMockOrderCanceller(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().CancelByUser(t.Context(), userID, orderID).Return(nil)
 
-		jobs := NewMockPaymentJobCanceller(t)
-		jobs.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(nil)
+		payments := NewMockPayments(t)
+		payments.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(nil)
 
-		svc := New(Deps{Cancels: orders, PaymentJobs: jobs, Logger: testutil.DiscardLogger()})
+		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
 		require.NoError(t, svc.CancelOrder(t.Context(), userID, orderID))
 	})
@@ -342,13 +331,13 @@ func TestService_CancelOrder(t *testing.T) {
 
 		userID, orderID := uuid.New(), uuid.New()
 
-		orders := NewMockOrderCanceller(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().CancelByUser(t.Context(), userID, orderID).Return(nil)
 
-		jobs := NewMockPaymentJobCanceller(t)
-		jobs.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(errors.New("db down"))
+		payments := NewMockPayments(t)
+		payments.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(errors.New("db down"))
 
-		svc := New(Deps{Cancels: orders, PaymentJobs: jobs, Logger: testutil.DiscardLogger()})
+		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
 
 		require.NoError(t, svc.CancelOrder(t.Context(), userID, orderID))
 	})
@@ -358,13 +347,13 @@ func TestService_CancelOrder(t *testing.T) {
 
 		userID, orderID := uuid.New(), uuid.New()
 
-		orders := NewMockOrderCanceller(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().CancelByUser(t.Context(), userID, orderID).Return(apperror.ErrOrderCharging)
 
 		svc := New(Deps{
-			Cancels:     orders,
-			PaymentJobs: NewMockPaymentJobCanceller(t),
-			Logger:      testutil.DiscardLogger(),
+			Orders:   orders,
+			Payments: NewMockPayments(t),
+			Logger:   testutil.DiscardLogger(),
 		})
 
 		require.ErrorIs(t, svc.CancelOrder(t.Context(), userID, orderID), apperror.ErrOrderCharging)

@@ -10,32 +10,20 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 )
 
-type OrderWriter interface {
+type Orders interface {
 	Place(
 		ctx context.Context,
 		userID uuid.UUID,
 		in orderdomain.NewOrder,
 		idempotencyKey string,
 	) (order *orderdomain.Order, created bool, err error)
-}
-
-type PaymentCharger interface {
-	Charge(ctx context.Context, p payment.ChargeRequest) (payment.ChargeResult, error)
-}
-
-type OrderSnapshotReader interface {
 	Snapshot(ctx context.Context, orderID uuid.UUID) (order.Snapshot, error)
-}
-
-type PaymentAttemptClaimer interface {
 	BeginPaymentAttempt(ctx context.Context, orderID uuid.UUID) error
 	MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error
-}
-
-type OrderCanceller interface {
 	CancelByUser(ctx context.Context, userID, orderID uuid.UUID) error
 }
 
-type PaymentJobCanceller interface {
+type Payments interface {
+	Charge(ctx context.Context, p payment.ChargeRequest) (payment.ChargeResult, error)
 	CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) error
 }

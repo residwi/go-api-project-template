@@ -19,34 +19,22 @@ type PlaceOrderInput struct {
 }
 
 type Deps struct {
-	Orders      OrderWriter
-	Payments    PaymentCharger
-	Snapshots   OrderSnapshotReader
-	Attempts    PaymentAttemptClaimer
-	Cancels     OrderCanceller
-	PaymentJobs PaymentJobCanceller
-	Logger      *slog.Logger
+	Orders   Orders
+	Payments Payments
+	Logger   *slog.Logger
 }
 
 type Service struct {
-	orders      OrderWriter
-	payments    PaymentCharger
-	snapshots   OrderSnapshotReader
-	attempts    PaymentAttemptClaimer
-	cancels     OrderCanceller
-	paymentJobs PaymentJobCanceller
-	logger      *slog.Logger
+	orders   Orders
+	payments Payments
+	logger   *slog.Logger
 }
 
 func New(d Deps) *Service {
 	return &Service{
-		orders:      d.Orders,
-		payments:    d.Payments,
-		snapshots:   d.Snapshots,
-		attempts:    d.Attempts,
-		cancels:     d.Cancels,
-		paymentJobs: d.PaymentJobs,
-		logger:      d.Logger,
+		orders:   d.Orders,
+		payments: d.Payments,
+		logger:   d.Logger,
 	}
 }
 
@@ -83,7 +71,7 @@ func (s *Service) RetryPayment(
 	userID, orderID uuid.UUID,
 	paymentMethodID string,
 ) (payment.ChargeResult, error) {
-	order, err := s.snapshots.Snapshot(ctx, orderID)
+	order, err := s.orders.Snapshot(ctx, orderID)
 	if err != nil {
 		return payment.ChargeResult{}, err
 	}
@@ -91,7 +79,7 @@ func (s *Service) RetryPayment(
 		return payment.ChargeResult{}, apperror.ErrNotFound
 	}
 	// The claim is the payability check, not a step after one.
-	if claimErr := s.attempts.BeginPaymentAttempt(ctx, orderID); claimErr != nil {
+	if claimErr := s.orders.BeginPaymentAttempt(ctx, orderID); claimErr != nil {
 		if errors.Is(claimErr, apperror.ErrConflict) {
 			return payment.ChargeResult{}, apperror.ErrOrderNotPayable
 		}
@@ -105,7 +93,7 @@ func (s *Service) RetryPayment(
 	})
 	if err != nil {
 		// Without this the order stays payment_processing and can never retry.
-		if releaseErr := s.attempts.MarkAwaitingPayment(ctx, orderID); releaseErr != nil {
+		if releaseErr := s.orders.MarkAwaitingPayment(ctx, orderID); releaseErr != nil {
 			s.logger.ErrorContext(ctx, "failed to release the payment attempt claim",
 				slog.String("order_id", orderID.String()), slog.String("error", releaseErr.Error()))
 		}
@@ -116,13 +104,13 @@ func (s *Service) RetryPayment(
 }
 
 func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) error {
-	if err := s.cancels.CancelByUser(ctx, userID, orderID); err != nil {
+	if err := s.orders.CancelByUser(ctx, userID, orderID); err != nil {
 		return err
 	}
 
 	// Best effort: the order is already cancelled, and a job that fires against
 	// a cancelled order is rejected by its own status guard.
-	if err := s.paymentJobs.CancelPendingByOrderID(ctx, orderID); err != nil {
+	if err := s.payments.CancelPendingByOrderID(ctx, orderID); err != nil {
 		s.logger.WarnContext(ctx, "failed to cancel payment jobs",
 			slog.String("order_id", orderID.String()), slog.String("error", err.Error()))
 	}

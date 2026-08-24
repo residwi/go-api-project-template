@@ -35,7 +35,7 @@ func (s *Service) Prune(ctx context.Context, olderThan time.Duration, limit int)
 	return s.jobs.Prune(ctx, olderThan, limit)
 }
 
-// CancelPendingByOrderID satisfies checkout's PaymentJobCanceller port.
+// CancelPendingByOrderID satisfies checkout's Payments port.
 func (s *Service) CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) error {
 	return s.jobs.CancelJobsByOrderID(ctx, orderID)
 }
