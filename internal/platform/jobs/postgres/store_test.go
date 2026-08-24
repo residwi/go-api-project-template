@@ -24,11 +24,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func setup(t *testing.T) {
-	t.Helper()
-	testutil.ResetDB(t, testDB.Primary)
-}
-
 func TestInsertAndClaim(t *testing.T) {
 	setup(t)
 	store := New(testDB)
@@ -137,7 +132,7 @@ func TestSettle(t *testing.T) {
 
 		require.NoError(t, store.Retry(ctx, id, 1, "boom", when))
 
-		got := fetch(t, store, id)
+		got := fetch(t, id)
 		assert.Equal(t, "pending", got.Status)
 		assert.Equal(t, 1, got.Attempts)
 		assert.Equal(t, "boom", got.LastError)
@@ -150,7 +145,7 @@ func TestSettle(t *testing.T) {
 
 		require.NoError(t, store.Bury(ctx, id, 3, "gave up"))
 
-		got := fetch(t, store, id)
+		got := fetch(t, id)
 		assert.Equal(t, "dead", got.Status)
 		assert.Equal(t, "gave up", got.LastError)
 	})
@@ -160,7 +155,7 @@ func TestSettle(t *testing.T) {
 
 		require.NoError(t, store.Cancel(ctx, id, "refused"))
 
-		got := fetch(t, store, id)
+		got := fetch(t, id)
 		assert.Equal(t, "cancelled", got.Status)
 	})
 }
@@ -177,7 +172,7 @@ func TestPrune(t *testing.T) {
 		removed, err := store.Prune(ctx, "payment", 0, 100)
 
 		require.NoError(t, err)
-		assert.GreaterOrEqual(t, removed, 1)
+		assert.Equal(t, 1, removed)
 	})
 
 	t.Run("leaves pending records alone", func(t *testing.T) {
@@ -226,7 +221,7 @@ func claimOne(t *testing.T, store *Store, dedup string) uuid.UUID {
 	return uuid.Nil
 }
 
-func fetch(t *testing.T, _ *Store, id uuid.UUID) jobs.Record {
+func fetch(t *testing.T, id uuid.UUID) jobs.Record {
 	t.Helper()
 
 	var r jobs.Record
@@ -242,4 +237,9 @@ func fetch(t *testing.T, _ *Store, id uuid.UUID) jobs.Record {
 		r.LastError = *lastError
 	}
 	return r
+}
+
+func setup(t *testing.T) {
+	t.Helper()
+	testutil.ResetDB(t, testDB.Primary)
 }
