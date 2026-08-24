@@ -20,23 +20,6 @@ const (
 	StatusRefunded       Status = "refunded"
 )
 
-type JobAction string
-
-const (
-	ActionCharge JobAction = "charge"
-	ActionRefund JobAction = "refund"
-)
-
-type JobStatus string
-
-const (
-	JobStatusPending    JobStatus = "pending"
-	JobStatusProcessing JobStatus = "processing"
-	JobStatusCompleted  JobStatus = "completed"
-	JobStatusFailed     JobStatus = "failed"
-	JobStatusCancelled  JobStatus = "cancelled"
-)
-
 type Payment struct {
 	ID              uuid.UUID
 	OrderID         uuid.UUID
@@ -50,19 +33,4 @@ type Payment struct {
 	PaidAt          *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-}
-
-type Job struct {
-	ID          uuid.UUID
-	PaymentID   uuid.UUID
-	OrderID     uuid.UUID
-	Action      JobAction
-	Status      JobStatus
-	Attempts    int
-	MaxAttempts int
-	LastError   string
-	LockedUntil *time.Time
-	NextRetryAt time.Time
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
 }

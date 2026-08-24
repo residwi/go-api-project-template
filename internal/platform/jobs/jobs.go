@@ -44,6 +44,11 @@ type Enqueuer interface {
 	Insert(ctx context.Context, r Record) error
 }
 
+type Queue interface {
+	Enqueuer
+	CancelByGroupKey(ctx context.Context, groupKey string) (int, error)
+}
+
 type Store interface {
 	Insert(ctx context.Context, r Record) error
 	Claim(ctx context.Context, queue string, batch int, lease time.Duration) ([]Record, error)

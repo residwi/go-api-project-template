@@ -14,41 +14,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	paymentdomain "github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
-
-// paymentProcessor routes a claimed payment job to app.Payments.JobProcessor
-// and, once per tick, runs order's stale-order housekeeping. It lives here
-// rather than in payment because the sweep is order's, and payment has no
-// business declaring a port for it -- payment/worker used to exist solely
-// to bolt this cross-module composition onto the dispatcher, which is
-// exactly the composition root's job.
-type paymentProcessor struct {
-	dispatcher jobs.LegacyProcessor[paymentdomain.Job]
-	recover    func(context.Context) error
-	expire     func(context.Context) error
-	logger     *slog.Logger
-}
-
-func (p paymentProcessor) Process(ctx context.Context, job paymentdomain.Job) error {
-	return p.dispatcher.Process(ctx, job)
-}
-
-// Sweep mirrors the deleted payment/worker.Processor exactly: recovery runs
-// first, and a recovery failure is logged and swallowed so expiry still
-// runs every tick; an expiry failure is returned untouched (not logged
-// here) so the runner's own generic "sweep failed" log captures it, same as
-// it did before this move.
-func (p paymentProcessor) Sweep(ctx context.Context) error {
-	if err := p.recover(ctx); err != nil {
-		p.logger.ErrorContext(ctx, "recover stale processing orders failed", slog.String("error", err.Error()))
-	}
-	return p.expire(ctx)
-}
 
 func main() {
 	if err := run(); err != nil {
@@ -120,16 +90,6 @@ func run() error {
 		PruneLimit:    infra.Worker.PruneLimit,
 	}
 
-	proc := paymentProcessor{
-		dispatcher: app.Payments.JobProcessor,
-		recover:    app.Orders.RecoverStale,
-		expire:     app.Orders.ExpireStale,
-		logger:     appLog,
-	}
-	// app.Payments satisfies jobs.LegacyQueue[paymentdomain.Job] directly, via
-	// Claim/Prune promoted straight onto the Service (see payment/jobs.go),
-	// now that the queue lives in payment's own root package.
-	paymentRunner := jobs.NewLegacyRunner("payment", app.Payments, proc, jobCfg, appLog)
 	notificationRunner := jobs.NewLegacyRunner(
 		"notification",
 		app.Notifications.Jobs,
@@ -140,7 +100,7 @@ func run() error {
 
 	appLog.InfoContext(ctx, "worker starting", slog.String("env", infra.App.Env))
 	var wg sync.WaitGroup
-	for _, start := range []func(context.Context){paymentRunner.Start, notificationRunner.Start} {
+	for _, start := range []func(context.Context){notificationRunner.Start} {
 		wg.Go(func() {
 			start(ctx)
 		})

@@ -35,6 +35,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	wishlistpg "github.com/residwi/go-api-project-template/internal/modules/wishlist/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	jobspg "github.com/residwi/go-api-project-template/internal/platform/jobs/postgres"
 )
 
 type App struct {
@@ -93,10 +94,10 @@ func New(
 
 	paymentMod := payment.New(
 		paymentpg.New(db),
-		db,
 		txRunner,
 		paymentCfg,
 		logger,
+		jobspg.New(db),
 		ordMod,
 		inv,
 		promotionMod,
