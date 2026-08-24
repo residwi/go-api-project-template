@@ -2,13 +2,17 @@ package jobs
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRunner(t *testing.T) {
@@ -20,19 +24,31 @@ func TestRunner(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
-			q := &fakeQueue{batches: [][]testJob{{{ID: 1}, {ID: 2}}}}
-			p := &fakeProcessor{}
-			r := NewLegacyRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
+			recs := []Record{rec("j1"), rec("j2")}
+			store := newFakeStore(recs...)
+
+			var mu sync.Mutex
+			var processed []uuid.UUID
+			proc := processorFunc(func(_ context.Context, r Record) error {
+				mu.Lock()
+				processed = append(processed, r.ID)
+				mu.Unlock()
+				return nil
+			})
+			r := NewRunner("payment", store, proc, testConfig(), slog.New(slog.DiscardHandler))
 
 			go r.Start(ctx)
 
-			time.Sleep(1500 * time.Millisecond) // advance past the first tick
-			synctest.Wait()                     // let the tick's processing drain
+			time.Sleep(1500 * time.Millisecond)
+			synctest.Wait()
 
-			assert.ElementsMatch(t, []testJob{{ID: 1}, {ID: 2}}, p.snapshot())
+			mu.Lock()
+			got := append([]uuid.UUID(nil), processed...)
+			mu.Unlock()
+			assert.ElementsMatch(t, []uuid.UUID{recs[0].ID, recs[1].ID}, got)
 
 			cancel()
-			synctest.Wait() // let the runner observe cancellation and return
+			synctest.Wait()
 		})
 	})
 
@@ -42,18 +58,18 @@ func TestRunner(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
-			q := &fakeQueue{}
-			p := &fakeProcessor{}
-			r := NewLegacyRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
+			store := newFakeStore()
+			proc := processorFunc(func(context.Context, Record) error { return nil })
+			r := NewRunner("payment", store, proc, testConfig(), slog.New(slog.DiscardHandler))
 
 			go r.Start(ctx)
 
-			time.Sleep(1500 * time.Millisecond) // one tick
+			time.Sleep(1500 * time.Millisecond)
 			synctest.Wait()
 
-			q.mu.Lock()
-			calls := q.pruneCalls
-			q.mu.Unlock()
+			store.mu.Lock()
+			calls := store.pruneCalls
+			store.mu.Unlock()
 			assert.Equal(t, 1, calls)
 
 			cancel()
@@ -67,18 +83,18 @@ func TestRunner(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 
-			q := &fakeQueue{}
-			p := &fakeSweepProcessor{fakeProcessor: &fakeProcessor{}}
-			r := NewLegacyRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
+			store := newFakeStore()
+			proc := &fakeSweepProcessor{processorFunc: func(context.Context, Record) error { return nil }}
+			r := NewRunner("payment", store, proc, testConfig(), slog.New(slog.DiscardHandler))
 
 			go r.Start(ctx)
 
-			time.Sleep(1500 * time.Millisecond) // one tick
+			time.Sleep(1500 * time.Millisecond)
 			synctest.Wait()
 
-			p.sweepMu.Lock()
-			calls := p.sweepCalls
-			p.sweepMu.Unlock()
+			proc.sweepMu.Lock()
+			calls := proc.sweepCalls
+			proc.sweepMu.Unlock()
 			assert.Equal(t, 1, calls)
 
 			cancel()
@@ -98,7 +114,7 @@ func TestRunner(t *testing.T) {
 				hasDeadline bool
 				remaining   time.Duration
 			)
-			p := &fakeProcessor{fn: func(jobCtx context.Context, _ testJob) error {
+			proc := processorFunc(func(jobCtx context.Context, _ Record) error {
 				captureMu.Lock()
 				defer captureMu.Unlock()
 				if captured {
@@ -111,20 +127,19 @@ func TestRunner(t *testing.T) {
 					remaining = time.Until(deadline)
 				}
 				return nil
-			}}
-			q := &fakeQueue{batches: [][]testJob{{{ID: 1}}}}
-			r := NewLegacyRunner("test", q, p, testConfig(), slog.New(slog.DiscardHandler))
+			})
+			store := newFakeStore(rec("j1"))
+			r := NewRunner("payment", store, proc, testConfig(), slog.New(slog.DiscardHandler))
 
 			go r.Start(ctx)
 
-			time.Sleep(1500 * time.Millisecond) // one tick
+			time.Sleep(1500 * time.Millisecond)
 			synctest.Wait()
 
 			captureMu.Lock()
 			hd, rem := hasDeadline, remaining
 			captureMu.Unlock()
 			assert.True(t, hd, "job context should carry a deadline")
-			// leaseSafetyDivisor = 5 → timeout is 4/5 of the 1m lease.
 			assert.Equal(t, 48*time.Second, rem)
 
 			cancel()
@@ -144,7 +159,7 @@ func TestRunner(t *testing.T) {
 				inFlight    int
 				maxInFlight int
 			)
-			p := &fakeProcessor{fn: func(_ context.Context, _ testJob) error {
+			proc := processorFunc(func(_ context.Context, _ Record) error {
 				mu.Lock()
 				inFlight++
 				if inFlight > maxInFlight {
@@ -152,23 +167,23 @@ func TestRunner(t *testing.T) {
 				}
 				mu.Unlock()
 
-				<-release // hold the slot until the test releases everyone
+				<-release
 
 				mu.Lock()
 				inFlight--
 				mu.Unlock()
 				return nil
-			}}
+			})
 
 			cfg := testConfig()
 			cfg.Concurrency = 2
-			q := &fakeQueue{batches: [][]testJob{{{ID: 1}, {ID: 2}, {ID: 3}, {ID: 4}}}}
-			r := NewLegacyRunner("test", q, p, cfg, slog.New(slog.DiscardHandler))
+			store := newFakeStore(rec("j1"), rec("j2"), rec("j3"), rec("j4"))
+			r := NewRunner("payment", store, proc, cfg, slog.New(slog.DiscardHandler))
 
 			go r.Start(ctx)
 
-			time.Sleep(1500 * time.Millisecond) // one tick claims all four
-			synctest.Wait()                     // settles with the cap's worth in-flight, the rest queued
+			time.Sleep(1500 * time.Millisecond)
+			synctest.Wait()
 
 			mu.Lock()
 			peak := maxInFlight
@@ -184,72 +199,188 @@ func TestRunner(t *testing.T) {
 	})
 }
 
-type testJob struct{ ID int }
+func TestRunnerSettlesJobs(t *testing.T) {
+	t.Parallel()
 
-type fakeQueue struct {
-	mu         sync.Mutex
-	batches    [][]testJob
-	claimErr   error
-	claimCalls int
-	pruneCalls int
+	t.Run("completes a job whose handler returns nil", func(t *testing.T) {
+		t.Parallel()
+
+		store := newFakeStore(rec("j1"))
+		runner := NewRunner("payment", store, processorFunc(func(context.Context, Record) error {
+			return nil
+		}), fastConfig(), slog.New(slog.DiscardHandler))
+
+		runner.tick(context.Background())
+
+		assert.Equal(t, []string{"complete:j1"}, store.calls)
+	})
+
+	t.Run("retries a job whose handler returns a plain error", func(t *testing.T) {
+		t.Parallel()
+
+		store := newFakeStore(rec("j1"))
+		runner := NewRunner("payment", store, processorFunc(func(context.Context, Record) error {
+			return errors.New("boom")
+		}), fastConfig(), slog.New(slog.DiscardHandler))
+
+		runner.tick(context.Background())
+
+		assert.Equal(t, []string{"retry:j1:1:boom"}, store.calls)
+	})
+
+	t.Run("buries a job whose retries are exhausted", func(t *testing.T) {
+		t.Parallel()
+
+		last := rec("j1")
+		last.Attempts = 2
+		last.MaxAttempts = 3
+
+		store := newFakeStore(last)
+		runner := NewRunner("payment", store, processorFunc(func(context.Context, Record) error {
+			return errors.New("boom")
+		}), fastConfig(), slog.New(slog.DiscardHandler))
+
+		runner.tick(context.Background())
+
+		assert.Equal(t, []string{"bury:j1:3:boom"}, store.calls)
+	})
+
+	t.Run("cancels a job whose handler wraps ErrDiscard", func(t *testing.T) {
+		t.Parallel()
+
+		store := newFakeStore(rec("j1"))
+		runner := NewRunner("payment", store, processorFunc(func(context.Context, Record) error {
+			return fmt.Errorf("not refundable: %w", ErrDiscard)
+		}), fastConfig(), slog.New(slog.DiscardHandler))
+
+		runner.tick(context.Background())
+
+		assert.Equal(t, []string{"cancel:j1:not refundable: discard job"}, store.calls)
+	})
+
+	t.Run("retries a job whose handler panicked", func(t *testing.T) {
+		t.Parallel()
+
+		store := newFakeStore(rec("j1"))
+		runner := NewRunner("payment", store, processorFunc(func(context.Context, Record) error {
+			panic("kaboom")
+		}), fastConfig(), slog.New(slog.DiscardHandler))
+
+		runner.tick(context.Background())
+
+		require.Len(t, store.calls, 1)
+		assert.Contains(t, store.calls[0], "retry:j1:1:")
+		assert.Contains(t, store.calls[0], "kaboom")
+	})
+
+	t.Run("claims only its own queue", func(t *testing.T) {
+		t.Parallel()
+
+		store := newFakeStore()
+		runner := NewRunner("notification", store, processorFunc(func(context.Context, Record) error {
+			return nil
+		}), fastConfig(), slog.New(slog.DiscardHandler))
+
+		runner.tick(context.Background())
+
+		assert.Equal(t, []string{"notification"}, store.claimedQueues)
+	})
 }
 
-func (q *fakeQueue) Claim(_ context.Context, _ int, _ time.Duration) ([]testJob, error) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	q.claimCalls++
-	if q.claimErr != nil {
-		return nil, q.claimErr
-	}
-	if len(q.batches) == 0 {
-		return nil, nil
-	}
-	batch := q.batches[0]
-	q.batches = q.batches[1:]
-	return batch, nil
+func TestBackoff(t *testing.T) {
+	t.Parallel()
+
+	t.Run("grows exponentially and stays within the jitter band", func(t *testing.T) {
+		t.Parallel()
+
+		for attempts, base := range map[int]time.Duration{1: 2 * time.Second, 3: 8 * time.Second} {
+			got := backoff(attempts)
+			assert.GreaterOrEqual(t, got, base)
+			assert.Less(t, got, base+base/2)
+		}
+	})
+
+	t.Run("does not overflow at a high attempt count", func(t *testing.T) {
+		t.Parallel()
+
+		assert.Positive(t, backoff(1_000))
+	})
 }
 
-func (q *fakeQueue) Prune(_ context.Context, _ time.Duration, _ int) (int, error) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	q.pruneCalls++
-	return 0, nil
-}
+type processorFunc func(context.Context, Record) error
 
-type fakeProcessor struct {
-	mu        sync.Mutex
-	processed []testJob
-	fn        func(context.Context, testJob) error
-}
-
-func (p *fakeProcessor) Process(ctx context.Context, job testJob) error {
-	p.mu.Lock()
-	p.processed = append(p.processed, job)
-	fn := p.fn
-	p.mu.Unlock()
-	if fn != nil {
-		return fn(ctx, job)
-	}
-	return nil
-}
-
-func (p *fakeProcessor) snapshot() []testJob {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return append([]testJob(nil), p.processed...)
-}
+func (f processorFunc) Process(ctx context.Context, rec Record) error { return f(ctx, rec) }
 
 type fakeSweepProcessor struct {
-	*fakeProcessor
+	processorFunc
 
 	sweepMu    sync.Mutex
 	sweepCalls int
 }
 
-func (p *fakeSweepProcessor) Sweep(_ context.Context) error {
+func (p *fakeSweepProcessor) Sweep(context.Context) error {
 	p.sweepMu.Lock()
 	defer p.sweepMu.Unlock()
 	p.sweepCalls++
+	return nil
+}
+
+type fakeStore struct {
+	mu            sync.Mutex
+	pending       []Record
+	calls         []string
+	claimedQueues []string
+	pruneCalls    int
+}
+
+func newFakeStore(records ...Record) *fakeStore {
+	return &fakeStore{pending: records}
+}
+
+func (f *fakeStore) Insert(context.Context, Record) error { return nil }
+
+func (f *fakeStore) Claim(_ context.Context, queue string, _ int, _ time.Duration) ([]Record, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.claimedQueues = append(f.claimedQueues, queue)
+	out := f.pending
+	f.pending = nil
+	return out, nil
+}
+
+func (f *fakeStore) Complete(_ context.Context, id uuid.UUID) error {
+	return f.record(fmt.Sprintf("complete:%s", label(id)))
+}
+
+func (f *fakeStore) Retry(_ context.Context, id uuid.UUID, attempts int, lastErr string, _ time.Time) error {
+	return f.record(fmt.Sprintf("retry:%s:%d:%s", label(id), attempts, lastErr))
+}
+
+func (f *fakeStore) Bury(_ context.Context, id uuid.UUID, attempts int, lastErr string) error {
+	return f.record(fmt.Sprintf("bury:%s:%d:%s", label(id), attempts, lastErr))
+}
+
+func (f *fakeStore) Cancel(_ context.Context, id uuid.UUID, lastErr string) error {
+	return f.record(fmt.Sprintf("cancel:%s:%s", label(id), lastErr))
+}
+
+func (f *fakeStore) CancelByDedupKey(context.Context, string) (int, error) { return 0, nil }
+func (f *fakeStore) CancelByGroupKey(context.Context, string) (int, error) { return 0, nil }
+
+func (f *fakeStore) Prune(context.Context, string, time.Duration, int) (int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.pruneCalls++
+	return 0, nil
+}
+
+func (f *fakeStore) record(call string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.calls = append(f.calls, call)
 	return nil
 }
 
@@ -261,5 +392,46 @@ func testConfig() Config {
 		Concurrency:   4,
 		PruneAge:      24 * time.Hour,
 		PruneLimit:    100,
+	}
+}
+
+var (
+	idLabels   = map[uuid.UUID]string{}
+	idLabelsMu sync.Mutex
+)
+
+func rec(name string) Record {
+	id := uuid.New()
+
+	idLabelsMu.Lock()
+	idLabels[id] = name
+	idLabelsMu.Unlock()
+
+	return Record{
+		ID:          id,
+		Queue:       "payment",
+		Kind:        "payment.refund",
+		Payload:     []byte(`{}`),
+		Status:      "processing",
+		MaxAttempts: 3,
+		RunAt:       time.Now(),
+	}
+}
+
+func label(id uuid.UUID) string {
+	idLabelsMu.Lock()
+	defer idLabelsMu.Unlock()
+
+	return idLabels[id]
+}
+
+func fastConfig() Config {
+	return Config{
+		Interval:      time.Millisecond,
+		BatchSize:     10,
+		LeaseDuration: time.Minute,
+		Concurrency:   2,
+		PruneAge:      time.Hour,
+		PruneLimit:    10,
 	}
 }

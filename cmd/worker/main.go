@@ -130,7 +130,13 @@ func run() error {
 	// Claim/Prune promoted straight onto the Service (see payment/jobs.go),
 	// now that the queue lives in payment's own root package.
 	paymentRunner := jobs.NewLegacyRunner("payment", app.Payments, proc, jobCfg, appLog)
-	notificationRunner := jobs.NewLegacyRunner("notification", app.Notifications.Jobs, app.Notifications.Jobs, jobCfg, appLog)
+	notificationRunner := jobs.NewLegacyRunner(
+		"notification",
+		app.Notifications.Jobs,
+		app.Notifications.Jobs,
+		jobCfg,
+		appLog,
+	)
 
 	appLog.InfoContext(ctx, "worker starting", slog.String("env", infra.App.Env))
 	var wg sync.WaitGroup
