@@ -10,18 +10,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
 )
 
-type Deps struct {
-	Repo     Repository
-	Products ProductCounter
-}
-
 type Service struct {
 	repo     Repository
 	products ProductCounter
 }
 
-func New(d Deps) *Service {
-	return &Service{repo: d.Repo, products: d.Products}
+func New(repo Repository, products ProductCounter) *Service {
+	return &Service{repo: repo, products: products}
 }
 
 func (s *Service) Create(

@@ -22,7 +22,8 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *domain.Category) bool {
 			return c.Name == "Electronics" && c.Slug == "electronics" && c.Active
@@ -50,7 +51,8 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
@@ -64,7 +66,8 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		sortOrder := 5
 		active := false
@@ -104,7 +107,8 @@ func TestService_Create_ValidatesParent(t *testing.T) {
 		// than ErrNotFound, and validateParent never calls GetByID.
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(0, false, nil)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		_, err := svc.Create(t.Context(), "Orphan", nil, &parentID, nil, nil)
 
@@ -119,7 +123,8 @@ func TestService_Create_ValidatesParent(t *testing.T) {
 		parentID := uuid.New()
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(5, false, nil)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		_, err := svc.Create(t.Context(), "L6", nil, &parentID, nil, nil)
 
@@ -134,7 +139,8 @@ func TestService_Create_ValidatesParent(t *testing.T) {
 		parentID := uuid.New()
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(0, false, errors.New("connection refused"))
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		_, err := svc.Create(t.Context(), "Child", nil, &parentID, nil, nil)
 
@@ -151,7 +157,8 @@ func TestService_Create_ValidatesParent(t *testing.T) {
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *domain.Category) bool {
 			return c.Name == "Child" && c.ParentID != nil && *c.ParentID == parentID
 		})).Return(nil)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		result, err := svc.Create(t.Context(), "Child", nil, &parentID, nil, nil)
 
@@ -167,7 +174,8 @@ func TestService_Update(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		id := uuid.New()
 		existing := &domain.Category{
@@ -199,7 +207,8 @@ func TestService_Update(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
@@ -215,7 +224,8 @@ func TestService_Update(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		id := uuid.New()
 		existing := &domain.Category{
@@ -238,7 +248,8 @@ func TestService_Update(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		id := uuid.New()
 		existing := &domain.Category{
@@ -277,7 +288,8 @@ func TestService_Update_ValidatesParent(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		selfID, parentID := uuid.New(), uuid.New()
 		// Update loads the category being moved via GetByID(id) before it ever
@@ -297,7 +309,8 @@ func TestService_Update_ValidatesParent(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		selfID := uuid.New()
 		// Update calls GetByID(id) first, unconditionally, whatever the check below does.
@@ -314,7 +327,8 @@ func TestService_Update_ValidatesParent(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		selfID, parentID := uuid.New(), uuid.New()
 		existing := &domain.Category{ID: selfID, Name: "Child", Slug: "child"}
@@ -340,7 +354,7 @@ func TestService_Delete(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		counter := NewMockProductCounter(t)
-		svc := New(Deps{Repo: repo, Products: counter})
+		svc := New(repo, counter)
 
 		id := uuid.New()
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
@@ -356,7 +370,7 @@ func TestService_Delete(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		counter := NewMockProductCounter(t)
-		svc := New(Deps{Repo: repo, Products: counter})
+		svc := New(repo, counter)
 
 		id := uuid.New()
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
@@ -372,7 +386,7 @@ func TestService_Delete(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		counter := NewMockProductCounter(t)
-		svc := New(Deps{Repo: repo, Products: counter})
+		svc := New(repo, counter)
 
 		id := uuid.New()
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(3, nil)
@@ -387,7 +401,7 @@ func TestService_Delete(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		counter := NewMockProductCounter(t)
-		svc := New(Deps{Repo: repo, Products: counter})
+		svc := New(repo, counter)
 
 		id := uuid.New()
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, errors.New("db error"))
@@ -402,7 +416,7 @@ func TestService_Delete(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		counter := NewMockProductCounter(t)
-		svc := New(Deps{Repo: repo, Products: counter})
+		svc := New(repo, counter)
 
 		id := uuid.New()
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
@@ -424,7 +438,7 @@ func TestService_Delete_RefusesCategoryWithPublishedProducts(t *testing.T) {
 
 	repo := NewMockRepository(t)
 	counter := NewMockProductCounter(t)
-	svc := New(Deps{Repo: repo, Products: counter})
+	svc := New(repo, counter)
 
 	categoryID := uuid.New()
 	counter.EXPECT().CountPublished(mock.Anything, categoryID).Return(3, nil)
@@ -440,7 +454,8 @@ func TestService_List(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		expected := []domain.Category{
 			{ID: uuid.New(), Name: "Electronics", Slug: "electronics"},
@@ -458,7 +473,8 @@ func TestService_List(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		repo.EXPECT().List(mock.Anything).Return(nil, errors.New("db error"))
 
@@ -475,7 +491,8 @@ func TestService_GetBySlug(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		expected := &domain.Category{
 			ID:   uuid.New(),
@@ -494,7 +511,8 @@ func TestService_GetBySlug(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var products ProductCounter
+		svc := New(repo, products)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
 

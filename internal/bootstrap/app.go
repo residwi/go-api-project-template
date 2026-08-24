@@ -69,11 +69,9 @@ func New(d Deps) (*App, error) {
 	txRunner := database.NewTxRunner(d.DB.Primary)
 
 	inv := inventory.New(inventorypg.New(d.DB))
-	prod := product.New(
-		product.Deps{Repo: productpg.New(d.DB), Inventory: inv},
-	)
-	categoryMod := category.New(category.Deps{Repo: categorypg.New(d.DB), Products: prod})
-	promotionMod := promotion.New(promotion.Deps{Repo: promotionpg.New(d.DB), Tx: txRunner})
+	prod := product.New(productpg.New(d.DB), inv)
+	categoryMod := category.New(categorypg.New(d.DB), prod)
+	promotionMod := promotion.New(promotionpg.New(d.DB), txRunner)
 	notificationMod := notification.New(notification.Deps{
 		Repo:   notificationpg.New(d.DB),
 		DB:     d.DB,
@@ -84,7 +82,7 @@ func New(d Deps) (*App, error) {
 	if d.Cache != nil {
 		statusCache = userredis.New(d.Cache)
 	}
-	userMod := user.New(user.Deps{Repo: userpg.New(d.DB), Cache: statusCache, Logger: d.Logger})
+	userMod := user.New(userpg.New(d.DB), statusCache, d.Logger)
 	authMod := auth.New(d.Auth, userMod)
 
 	cartMod := cart.New(cart.Deps{

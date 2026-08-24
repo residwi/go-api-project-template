@@ -15,20 +15,14 @@ import (
 
 const defaultCurrency = "USD"
 
-type Deps struct {
-	Repo Repository
-
-	Inventory Inventory
-}
-
 type Service struct {
 	repo Repository
 
 	inventory Inventory
 }
 
-func New(d Deps) *Service {
-	return &Service{repo: d.Repo, inventory: d.Inventory}
+func New(repo Repository, inventory Inventory) *Service {
+	return &Service{repo: repo, inventory: inventory}
 }
 
 func denominateLike(amount *money.Money, price money.Money) *money.Money {

@@ -12,18 +12,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-type Deps struct {
-	Repo Repository
-	Tx   database.TxRunner
-}
-
 type Service struct {
 	repo Repository
 	tx   database.TxRunner
 }
 
-func New(d Deps) *Service {
-	return &Service{repo: d.Repo, tx: d.Tx}
+func New(repo Repository, tx database.TxRunner) *Service {
+	return &Service{repo: repo, tx: tx}
 }
 
 // Apply previews a coupon's discount without reserving it. Reserve does

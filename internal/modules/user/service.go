@@ -15,20 +15,14 @@ import (
 
 const statusCacheTTL = 30 * time.Second
 
-type Deps struct {
-	Repo   Repository
-	Cache  StatusCache
-	Logger *slog.Logger
-}
-
 type Service struct {
 	repo   Repository
 	cache  StatusCache
 	logger *slog.Logger
 }
 
-func New(d Deps) *Service {
-	return &Service{repo: d.Repo, cache: d.Cache, logger: d.Logger}
+func New(repo Repository, cache StatusCache, logger *slog.Logger) *Service {
+	return &Service{repo: repo, cache: cache, logger: logger}
 }
 
 func (s *Service) GetByEmail(ctx context.Context, email string) (Credentials, error) {
