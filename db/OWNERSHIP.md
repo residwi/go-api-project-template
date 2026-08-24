@@ -49,6 +49,7 @@ is the list, and `scripts/check-boundaries.sh` reads the list from here.
 | `orders` | `order` |
 | `payment_jobs` | `payment` |
 | `payments` | `payment` |
+| `job_queue` | `platform` |
 | `product_images` | `product` |
 | `products` | `product` |
 | `coupon_usages` | `promotion` |
@@ -69,6 +70,15 @@ by `user`. Nothing about `auth` is checked here because there is nothing to
 check.
 
 `dashboard` is the interesting one, and it is a deliberate exception.
+
+## The infrastructure owner
+
+`platform` owns `job_queue`, the shared queue drained by the generic job
+runner in `internal/platform/jobs`. `job_queue` is the only table owned
+by infrastructure rather than by a module. `scripts/check-boundaries.sh`
+check 3 loops over `internal/modules/*` only, so no module may name
+`job_queue` in SQL — it is inaccessible to modules by design and readable
+only by the platform layer's own `postgres` adapter.
 
 ## The reporting carve-out
 
@@ -180,8 +190,8 @@ child table, which is why they carry no ports: nothing outside asks them
 anything.
 
 ("Inbound ports" counts interfaces other modules declare that this module's
-service satisfies — `auth.UserDirectory`, `payment.OrderReader`,
-`product.InventoryReader` and so on.)
+service satisfies — `auth.UserDirectory`, `payment.Orders`,
+`product.Inventory` and so on.)
 
 It is tempting to read the first column as a module dependency ranking. It is
 not one. `users` is the most-referenced table in the schema and almost nothing
