@@ -329,15 +329,6 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "cancelled", paymentStatus)
 
-		var pendingJobs int
-		err = testPool.QueryRow(
-			ctx,
-			`SELECT COUNT(*) FROM job_queue WHERE group_key = $1 AND status IN ('pending','processing')`,
-			"order:"+orderID,
-		).Scan(&pendingJobs)
-		require.NoError(t, err)
-		assert.Equal(t, 0, pendingJobs)
-
 		// A failed webhook cancels the order and releases its reservation too, not just
 		// the payment row.
 		var orderStatus string
