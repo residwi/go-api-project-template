@@ -11,13 +11,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-type Deps struct {
-	Repo     Repository
-	Tx       database.TxRunner
-	Products ProductLookup
-	MaxItems int
-}
-
 type Service struct {
 	repo         Repository
 	tx           database.TxRunner
@@ -25,12 +18,12 @@ type Service struct {
 	maxCartItems int
 }
 
-func New(d Deps) *Service {
+func New(repo Repository, tx database.TxRunner, products ProductLookup, maxItems int) *Service {
 	return &Service{
-		repo:         d.Repo,
-		tx:           d.Tx,
-		products:     d.Products,
-		maxCartItems: d.MaxItems,
+		repo:         repo,
+		tx:           tx,
+		products:     products,
+		maxCartItems: maxItems,
 	}
 }
 

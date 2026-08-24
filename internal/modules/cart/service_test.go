@@ -14,6 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -25,7 +26,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -50,7 +51,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -69,7 +70,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -89,7 +90,7 @@ func TestService_Add(t *testing.T) {
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
 		maxItems := 3
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: maxItems})
+		svc := New(repo, testutil.FakeTxRunner{}, products, maxItems)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -114,7 +115,7 @@ func TestService_Add(t *testing.T) {
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
 		maxItems := 3
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: maxItems})
+		svc := New(repo, testutil.FakeTxRunner{}, products, maxItems)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -139,7 +140,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -157,7 +158,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -177,7 +178,7 @@ func TestService_Add(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
+		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -201,7 +202,7 @@ func TestService_Add_RunsInsideTxRunner(t *testing.T) {
 
 	repo := NewMockRepository(t)
 	products := NewMockProductLookup(t)
-	svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Products: products, MaxItems: 50})
+	svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 	userID := uuid.New()
 	productID := uuid.New()
@@ -229,7 +230,9 @@ func TestService_Remove(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var tx database.TxRunner
+		var products ProductLookup
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -247,7 +250,9 @@ func TestService_Remove(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var tx database.TxRunner
+		var products ProductLookup
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -266,7 +271,9 @@ func TestService_Remove(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var tx database.TxRunner
+		var products ProductLookup
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -287,7 +294,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Products: products})
+		var tx database.TxRunner
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -308,7 +316,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Products: products})
+		var tx database.TxRunner
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -326,7 +335,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Products: products})
+		var tx database.TxRunner
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -344,7 +354,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Products: products})
+		var tx database.TxRunner
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -361,7 +372,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		products := NewMockProductLookup(t)
-		svc := New(Deps{Repo: repo, Products: products})
+		var tx database.TxRunner
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -383,7 +395,9 @@ func TestService_Get(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var tx database.TxRunner
+		var products ProductLookup
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -404,7 +418,9 @@ func TestService_Get(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var tx database.TxRunner
+		var products ProductLookup
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -422,7 +438,8 @@ func TestService_Get_FlagsUnavailableLines(t *testing.T) {
 
 	repo := NewMockRepository(t)
 	products := NewMockProductLookup(t)
-	svc := New(Deps{Repo: repo, Products: products})
+	var tx database.TxRunner
+	svc := New(repo, tx, products, 0)
 
 	userID := uuid.New()
 	liveID, goneID := uuid.New(), uuid.New()
@@ -455,7 +472,8 @@ func TestService_Get_MissingProductBecomesUnavailable(t *testing.T) {
 
 	repo := NewMockRepository(t)
 	products := NewMockProductLookup(t)
-	svc := New(Deps{Repo: repo, Products: products})
+	var tx database.TxRunner
+	svc := New(repo, tx, products, 0)
 
 	userID := uuid.New()
 	missingID := uuid.New()
@@ -502,7 +520,8 @@ func TestService_Snapshot(t *testing.T) {
 				productID: {Name: "Widget", Price: money.New(1500, "IDR"), Status: "published"},
 			}, nil)
 
-		svc := New(Deps{Repo: repo, Products: products})
+		var tx database.TxRunner
+		svc := New(repo, tx, products, 0)
 
 		got, err := svc.Snapshot(context.Background(), userID)
 
@@ -537,7 +556,8 @@ func TestService_Snapshot(t *testing.T) {
 		products.EXPECT().GetInfoByIDs(mock.Anything, []uuid.UUID{productID}).
 			Return(map[uuid.UUID]product.Info{}, nil)
 
-		svc := New(Deps{Repo: repo, Products: products})
+		var tx database.TxRunner
+		svc := New(repo, tx, products, 0)
 
 		got, err := svc.Snapshot(context.Background(), userID)
 
@@ -553,7 +573,9 @@ func TestService_Clear(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var tx database.TxRunner
+		var products ProductLookup
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -568,7 +590,9 @@ func TestService_Clear(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var tx database.TxRunner
+		var products ProductLookup
+		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
 		userID := uuid.New()
@@ -591,7 +615,9 @@ func TestService_Lock(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var tx database.TxRunner
+		var products ProductLookup
+		svc := New(repo, tx, products, 0)
 
 		userID := uuid.New()
 		repo.EXPECT().GetCartForLock(mock.Anything, userID).Return(uuid.New(), nil)
@@ -604,7 +630,9 @@ func TestService_Lock(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var tx database.TxRunner
+		var products ProductLookup
+		svc := New(repo, tx, products, 0)
 
 		userID := uuid.New()
 		repo.EXPECT().GetCartForLock(mock.Anything, userID).Return(uuid.Nil, apperror.ErrNotFound)

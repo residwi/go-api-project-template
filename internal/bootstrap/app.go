@@ -85,9 +85,7 @@ func New(d Deps) (*App, error) {
 	userMod := user.New(userpg.New(d.DB), statusCache, d.Logger)
 	authMod := auth.New(d.Auth, userMod)
 
-	cartMod := cart.New(cart.Deps{
-		Repo: cartpg.New(d.DB), Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod,
-	})
+	cartMod := cart.New(cartpg.New(d.DB), txRunner, prod, d.Cart.MaxItems)
 
 	ordMod := order.New(order.Deps{
 		Repo: orderpg.New(d.DB), Tx: txRunner, Logger: d.Logger,
