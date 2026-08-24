@@ -14,6 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
+	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
@@ -187,7 +188,10 @@ func TestService_Place(t *testing.T) {
 		}).Return(nil)
 		d.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		d.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
-		d.notifications.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		d.notifications.EXPECT().
+			Create(mock.Anything, mock.MatchedBy(func(in notification.NewNotification) bool {
+				return in.UserID == userID
+			})).Return(nil)
 
 		resp, created, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
@@ -237,7 +241,10 @@ func TestService_Place(t *testing.T) {
 			Return(int64(1000), nil)
 		d.repo.EXPECT().UpdateTotals(mock.Anything, mock.Anything, int64(1000), int64(4000)).Return(nil)
 		d.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
-		d.notifications.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		d.notifications.EXPECT().
+			Create(mock.Anything, mock.MatchedBy(func(in notification.NewNotification) bool {
+				return in.UserID == userID
+			})).Return(nil)
 
 		resp, _, err := s.Place(ctx, userID, domain.NewOrder{CouponCode: &couponCode}, idempotencyKey)
 
@@ -383,7 +390,10 @@ func TestService_Place(t *testing.T) {
 			Return(nil)
 		d.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		d.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
-		d.notifications.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("queue full"))
+		d.notifications.EXPECT().
+			Create(mock.Anything, mock.MatchedBy(func(in notification.NewNotification) bool {
+				return in.UserID == userID
+			})).Return(errors.New("queue full"))
 
 		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
@@ -583,7 +593,10 @@ func TestService_Place(t *testing.T) {
 		d.inventory.EXPECT().
 			Deduct(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
-		d.notifications.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+		d.notifications.EXPECT().
+			Create(mock.Anything, mock.MatchedBy(func(in notification.NewNotification) bool {
+				return in.UserID == userID
+			})).Return(nil)
 
 		resp, _, err := s.Place(ctx, userID, domain.NewOrder{CouponCode: &couponCode}, idempotencyKey)
 
