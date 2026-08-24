@@ -169,11 +169,11 @@ method that performs an ownership check, the plain one does not.
 #### Ports
 
 **A cross-module port is declared in the consuming module's own `ports.go` —
-one file per module, nine files, 29 interfaces** (`grep -h '^type .* interface'
+one file per module, nine files, 16 interfaces** (`grep -h '^type .* interface'
 internal/modules/*/ports.go | wc -l`). The consumer names the interface;
 the producer never publishes it. `category/ports.go` declares `ProductCounter`
-(`CountPublished`, one method). `order/ports.go` declares eight and
-`payment/ports.go` seven. A module that reaches nothing outside itself has no
+(`CountPublished`, one method). `order/ports.go` declares four and
+`payment/ports.go` four. A module that reaches nothing outside itself has no
 `ports.go` at all — `dashboard inventory money notification promotion user
 wishlist`, seven of the sixteen.
 
@@ -185,16 +185,20 @@ the one place either is used:
   `order.CouponReserver` (`Reserve` + `Release`) and `payment.CouponReleaser`
   (`Release` alone) — two differently-shaped interfaces, one producer value,
   no adapter for either. `notification/jobs.Worker` satisfies
-  `platform/jobs.Processor` directly. `*order.Service` satisfies ten port
-  fields across four consumers.
+  `platform/jobs.Processor` directly. `*order.Service` satisfies four port
+  fields across four consumers — `payment.Orders`, `checkout.Orders`,
+  `shipping.Orders` and `review.PurchaseVerifier` — one port apiece now that
+  every port collapses to one per producer.
 - **A `contract.go` type**, when what crosses is a struct rather than a scalar
   or something a producer already satisfies by name.
 
-**One port per capability, not one wide port per producer.** `shipping`
-declares `OrderGetter`, `OrderShipper` and `OrderDeliverer` — three ports, all
-three wired to the same `*order.Service` — because a port names what its
-caller asks for, not what the producer happens to offer. No `Service` carries
-a forwarding method for another module's benefit.
+**One port per producer, not one per capability.** A module declares one
+interface for each other module it consumes, holding every method it needs
+from that producer. `order` declares `Cart`, `Inventory`, `CouponReserver`
+and `Notifications` — four ports for four producers, where it used to
+declare eight for the same four. The cost is legibility: a consumer's port
+now lists methods a given call path does not use, so reading `order.Cart` no
+longer tells you that `Place` needs exactly `Lock`, `Snapshot` and `Clear`.
 
 That has a price the sliced shape did not pay. Two ports bound to two
 *different* slice values, so the compiler checked each `Deps` field against the
@@ -291,10 +295,10 @@ see is in `ARCHITECTURE-LIMITATIONS.md`.
 
 Four carve-outs put a test outside the package it tests — two forced by an
 import cycle, one by preference, one because the thing under test is not Go —
-and together they are the whole exception: **13 external test files**
+and together they are the whole exception: **16 external test files**
 (`grep -rl '^package .*_test$' --include='*_test.go' . | wc -l`).
 
-- `test/e2e` (9 files, `package e2e_test`) imports `internal/bootstrap` and
+- `test/e2e` (12 files, `package e2e_test`) imports `internal/bootstrap` and
   `internal/server` to drive the real router end to end, plus `auth`, `cart`
   and `payment`'s root packages for their `LoadConfig`, and `payment/domain`
   for a type to assert on. No module's adapter: `bootstrap.New` is the one
@@ -534,23 +538,22 @@ compiler; they are all greps.
       (`Release` alone) directly — two differently-shaped interfaces, one
       producer value, no adapter for either. `notification/jobs.Worker`
       satisfies `platform/jobs.Processor` directly. `*order.Service` satisfies
-      ten port fields across four consumers — `payment`'s `OrderTransition`,
-      `OrderCanceller` and `OrderReader`, `checkout`'s `Orders`, `Snapshots`
-      and `Cancels`, `shipping`'s `OrderRead`, `OrderShip` and `OrderDeliver`,
-      and `review`'s `Purchase` — and `internal/bootstrap/app.go` hands the
-      same value to all ten. A consumer still declares one port per capability
-      rather than one wide one, because a port names what its caller asks for.
+      four port fields across four consumers — `payment.Orders`,
+      `checkout.Orders`, `shipping.Orders` and `review.PurchaseVerifier` — and
+      `internal/bootstrap/app.go` hands the same value to all four. A consumer
+      now declares one port per producer rather than one per capability, so
+      each of the four holds exactly one interface for `order`, not several.
     - **A `contract.go` type**, when what crosses is a struct rather than a
       scalar or an interface a producer already satisfies. The consumer's port
-      still names the type it needs (`checkout.OrderSnapshotReader.Snapshot`
-      returns `order.Snapshot`); `contract.go` supplies only the shape, never
-      the interface.
+      still names the type it needs (`checkout.Orders.Snapshot` returns
+      `order.Snapshot`); `contract.go` supplies only the shape, never the
+      interface.
 
     No shared ports package, and adding one would defeat the point.
 11. **Services take `database.TxRunner`, never `*pgxpool.Pool`.** Service needs atomicity, not DB handle. `TxRunner` declared once in `internal/platform/database` not per consumer — one deliberate exception to rule 10's consumer-declaration pattern, because modules already import `platform/database`. A module that opens no transaction takes no runner at all: five `Service`s hold one (`cart order payment promotion shipping`).
 12. **Money is `money.Money`, never an `int64` beside a `Currency string`.** Scope is four features: `order`, `payment`, `product`, `cart`. `promotion` and `dashboard` stay on `int64` for stated reasons — `ARCHITECTURE.md` §10 and `ARCHITECTURE-LIMITATIONS.md`. `Money` carries no `json` tag and implements no `sql.Scanner`: each adapter maps it explicit, because wire shapes genuinely differ per endpoint. No float constructor and no `Div`.
 13. **A `Service` runs no SQL and holds no pool.** Every read and write goes through the module's own `Repository` interface; `adapter/postgres` owns the pool and reaches it with `database.DB(ctx, pool)`, which returns the context's transaction if there is one. A `Service` composes several repository calls into one unit of work via its `TxRunner`, and the transaction propagates to every repository it touches — its own and other modules' — through `ctx`. **`internal/bootstrap` is what constructs the adapters**: `bootstrap.New` builds `orderpg.New(d.Pool)` and hands it to `order.New` as `Deps.Repo`, so the pool never reaches a `Service` and there is no `module.go` left to hide the wiring in. Two `Service`s take a raw `*pgxpool.Pool` anyway, and both are named exceptions: `payment.Deps.Pool` and `notification.Deps.Pool` exist so each can build its own job-queue adapter (`payment/jobs/postgres`, `notification/jobs/postgres`), which `bootstrap` does not name.
-14. **Order status changes only through `order.Service.Apply`.** Every guarded transition is a named `domain.Transition` value in `internal/modules/order/domain/transition.go` (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other modules depend on _intent_ methods on their own port interface (`payment.OrderTransition.MarkPaid`; `shipping.OrderShipper.MarkShipped` and `shipping.OrderDeliverer.MarkDelivered`, two ports rather than one because `Create` and `Deliver` are two different callers asking for two different intents), and every caller wires to `order.Service`, since `Apply` and the eight `Mark*` methods that forward to it live there and nowhere else. Never write an ad-hoc from/to status list at a call site.
+14. **Order status changes only through `order.Service.Apply`.** Every guarded transition is a named `domain.Transition` value in `internal/modules/order/domain/transition.go` (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other modules depend on _intent_ methods on their own port interface (`payment.Orders.MarkPaid`; `shipping.Orders.MarkShipped` and `shipping.Orders.MarkDelivered`, one port holding both intents), and every caller wires to `order.Service`, since `Apply` and the eight `Mark*` methods that forward to it live there and nowhere else. Never write an ad-hoc from/to status list at a call site.
 15. **Inventory reversal goes through `inventory.Service.Restore`.**
     `Restore(ctx, items map[uuid.UUID]int, prior StockState) error` decides
     whether that means releasing a reservation or restocking deducted goods;

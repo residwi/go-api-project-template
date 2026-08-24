@@ -84,7 +84,7 @@ func (s *Service) Place(
 
 `order.Service.Place` takes `orderdomain.NewOrder` and returns
 `*orderdomain.Order`, and `order/contract.go` publishes neither type. So
-`checkout.OrderWriter` cannot name what it has to name, and neither can
+`checkout.Orders` cannot name what it has to name, and neither can
 `checkout/adapter/http/handler.go`, which builds the input and serialises the
 result. Removing the exemption reports **7** violations — `checkout/service.go`,
 `checkout/ports.go`, `checkout/adapter/http/handler.go` and four test files —
@@ -167,6 +167,25 @@ reintroduce exactly the pass-through packages decision 4 rejects. A
 struct literal against itself. The mitigation that will matter on the day the
 second value arrives is `test/e2e`: a wrong value that changes behaviour on the
 paid-checkout path fails the saga, and one on a path e2e does not run does not.
+
+**Decision 17 spent the same fact a different way.** If nothing tells two
+fields wired to the same producer apart, splitting that producer's port by
+capability was not buying the compile-time safety it looked like it was
+buying, so `order`, `payment`, `checkout`, `shipping` and `product` collapsed
+their per-capability ports into one interface per producer. That closes the
+gap this entry describes — a consumer no longer has several fields for one
+producer to mismatch — but it opens a different one: a `ports.go` file used
+to double as documentation of the narrowest set of methods a given call path
+needed. `shipping.OrderShipper` was one method, and any reader could tell
+`MarkShipped` was all `shipping` asked of `order` for that path. `shipping`'s
+single `Orders` port now carries `Snapshot`, `MarkShipped` and
+`MarkDelivered` together, so the same reader has to open `shipping/service.go`
+and follow which method each caller actually invokes — the port itself no
+longer proves it. The same is true of `order.Cart` (`Lock`, `Snapshot`,
+`Clear` for what `order.Service.Place` alone needs) and every other port that
+used to be split by capability. Nothing but reading the `Service` method
+bodies recovers the narrowest-possible-dependency view a `ports.go` file used
+to give away for free.
 
 ## The public and admin response mappers now sit one identifier apart
 
@@ -299,7 +318,7 @@ ones. Half an hour, and not done here.
 
 **Where you hit it:** you try add `?in_stock=true` to `GET /api/products`.
 
-`products` owned by `product`, `inventory_levels` owned by `inventory` (decision 6, decision 7), so listing query cannot join them. Port is `product.InventoryReader.GetAvailability(ctx, ids)` (`internal/modules/product/ports.go`) — batch-shaped, asked _after_ page already selected. `product.Service.ListPublished` calls `repo.ListPublished` then `enrich`, that order, cannot be other order: enrich need ids page chose.
+`products` owned by `product`, `inventory_levels` owned by `inventory` (decision 6, decision 7), so listing query cannot join them. Port is `product.Inventory.GetAvailability(ctx, ids)` (`internal/modules/product/ports.go`) — batch-shaped, asked _after_ page already selected. `product.Service.ListPublished` calls `repo.ListPublished` then `enrich`, that order, cannot be other order: enrich need ids page chose.
 
 So filter apply only to rows already fetched, and that break pagination, not merely slow it. `ListPublished` keyset-paginated on `(created_at, id)`, fetch `Limit + 1` rows to decide `hasMore`. Ask 20, drop 8 out of stock, get page of 12 whose cursor claim client stopped at row 20. Repeat: page sizes wobble unpredictably while `hasMore` lies. Sort by stock worse: sort key not in table `ORDER BY` run against, so nothing to sort on until window chosen.
 
@@ -349,7 +368,7 @@ Trade is bounded — only reason acceptable: one extra query per _page_, not per
 
 **Where you hit it:** you `POST /api/admin/products` and product have no stock.
 
-`product` may not write `inventory_levels`, so create path can only ask `inventory` to materialise row via `product.InventoryRegistrar.EnsureLevel`. Setting actual quantity is separate call to `inventory`. No `stock_quantity` field on product's write DTOs — removed, and absence is the point.
+`product` may not write `inventory_levels`, so create path can only ask `inventory` to materialise row via `product.Inventory.EnsureLevel`. Setting actual quantity is separate call to `inventory`. No `stock_quantity` field on product's write DTOs — removed, and absence is the point.
 
 Alternative is `product` writing inventory's table inside own transaction — precisely the violation decision 6 exist to remove.
 
@@ -423,14 +442,14 @@ One of the 18 load-bearing in Go not merely defensive. `products.category_id` is
 | Module      | Inbound FKs | Inbound ports |
 | ----------- | ----------- | ------------- |
 | `user`      | 7           | **1**         |
-| `order`     | 6           | **10**        |
+| `order`     | 6           | **4**         |
 | `product`   | 6           | **2**         |
-| `inventory` | **0**       | **7**         |
+| `inventory` | **0**       | **3**         |
 | `category`  | 2           | 0             |
 
-Inbound FKs count constraints referencing table the module owns. Inbound ports count interfaces _other_ modules declare that this module's service satisfies — `auth.UserDirectory`, `payment.OrderReader`, `product.InventoryReader` and so on. Derive the port column with `grep -n 'type .* interface' internal/modules/*/ports.go` and attribute each name to the producer it asks for: `order`'s ten come from four modules (`payment` 3, `checkout` 3, `shipping` 3, `review` 1), `inventory`'s seven from three (`order` 3, `payment` 2, `product` 2).
+Inbound FKs count constraints referencing table the module owns. Inbound ports count interfaces _other_ modules declare that this module's service satisfies — `auth.UserDirectory`, `payment.Orders`, `product.Inventory` and so on. Derive the port column with `grep -n 'type .* interface' internal/modules/*/ports.go` and attribute each name to the producer it asks for: `order`'s four come from four modules (`payment` 1, `checkout` 1, `shipping` 1, `review` 1), `inventory`'s three from three (`order` 1, `payment` 1, `product` 1).
 
-`users` most-referenced table in schema and almost nothing call into `user`: seven tables carry `user_id`, and caller writing one already **has** the id, so nothing to ask. `inventory_levels` have no inbound foreign keys whatsoever and seven interfaces across three modules declare ports against `inventory`, because stock is answer that _changes_ and must be asked every time.
+`users` most-referenced table in schema and almost nothing call into `user`: seven tables carry `user_id`, and caller writing one already **has** the id, so nothing to ask. `inventory_levels` have no inbound foreign keys whatsoever and three interfaces across three modules declare ports against `inventory`, because stock is answer that _changes_ and must be asked every time.
 
 **Foreign-key fan-in measures how many tables carry an identity. Port fan-in
 measures how much behaviour other modules need.** Close to independent, and neither alone tell you what coupling costs.
@@ -724,7 +743,7 @@ Every batch method — `Reserve`, `ReleaseBatch`, `Deduct`, `RestockBatch`, `Res
 
 - `cart_items` carries `UNIQUE (cart_id, product_id)`, and `cart.Service.Add` upserts via `ON CONFLICT (cart_id, product_id) DO UPDATE` — a cart cannot hold two rows for one product.
 - `order.Service.Place` builds its reservation map one entry per cart-snapshot item, inheriting that guarantee directly — the map and the cart are keyed by the same product ids, one-for-one.
-- `order_items` — read back by `order.Service`'s own `finalizeFreeOrder`, `cancelWithReversal` and `releaseOrderHolds`, and by payment's refund and charge-success paths via `order.Service.ListItemQuantities` (which is what `payment.OrderReader`'s `ListItemQuantities` method names; `bootstrap` hands `payment.New` the one `*order.Service` value it built first, so payment gets no second copy) — has **no unique constraint on `(order_id, product_id)`**, only `PRIMARY KEY (id)` and a plain index on `order_id` (`db/migrations/20260424120005_create_orders.sql`). It is unique-per-product today only because the one write path that populates it (`order.Service.Place` → `repo.CreateItems`, one row per cart-snapshot item) already can't produce duplicates. The invariant holds one level removed from any enforcement of its own.
+- `order_items` — read back by `order.Service`'s own `finalizeFreeOrder`, `cancelWithReversal` and `releaseOrderHolds`, and by payment's refund and charge-success paths via `order.Service.ListItemQuantities` (which is what `payment.Orders`'s `ListItemQuantities` method names; `bootstrap` hands `payment.New` the one `*order.Service` value it built first, so payment gets no second copy) — has **no unique constraint on `(order_id, product_id)`**, only `PRIMARY KEY (id)` and a plain index on `order_id` (`db/migrations/20260424120005_create_orders.sql`). It is unique-per-product today only because the one write path that populates it (`order.Service.Place` → `repo.CreateItems`, one row per cart-snapshot item) already can't produce duplicates. The invariant holds one level removed from any enforcement of its own.
 
 **What it costs.** Nothing in `inventory`, nothing in the four call sites, and no database constraint enforces this. "No current caller can trigger it" is a fact about the callers, not about the map type — the type permits the duplicate write; it just resolves it wrong, silently, when one happens.
 

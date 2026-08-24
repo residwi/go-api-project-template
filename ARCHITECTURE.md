@@ -8,13 +8,16 @@ Read `./ARCHITECTURE-LIMITATIONS.md` for bills these decisions
 carry, and `./db/OWNERSHIP.md` for table ownership map — which
 `make check-boundaries` parses, so enforced not merely asserted.
 
-**Two of the seventeen decisions below are history, not current practice,
-and both say so at the top of their body.** Decision 14 — a module is a
+**Three of the eighteen decisions below are history, not current practice,
+and all three say so at the top of their body.** Decision 14 — a module is a
 boundary containing vertical slices — is **reversed**; decision 16 records
-what replaced it and what the reversal cost. Decision 15's rule still stands
-and is still machine-checked, but the mechanism inside it was revised. Both
-bodies are kept in the past tense rather than deleted: they are why the tree
-looked the way it did for a year, and a decision record that shows only the
+what replaced it and what the reversal cost. Decision 2 — one narrow port per
+capability — is also **reversed**; decision 17 records what replaced it and
+what the reversal cost. Decision 15's rule still stands and is still
+machine-checked, but the mechanism inside it was revised. All three bodies
+are kept in the past tense rather than deleted: they are why the tree looked
+the way it did for a year (in decision 14's case) or for the first two steps
+of this refactor (in decision 2's), and a decision record that shows only the
 answer that survived teaches nothing about the ones that were tried.
 
 ---
@@ -78,41 +81,53 @@ exceptions cannot be.
 
 ## 2. Ports live with the consumer
 
-The consumer is a module. `internal/modules/order/ports.go` declares
-`CartLocker`, `CartReader` and `CartClearer` — the three interfaces `order`
-alone needs from cart. `cart` publishes none of them; `order` names exactly
-what it needs and something else satisfies it. Nine modules have a
-`ports.go`; the other seven reach nothing outside themselves and have none.
-Every port file, in every module, is called `ports.go` — naming one after the
-dependency instead, which this decision once allowed, happens nowhere in the
-tree.
+> **REVERSED.** The one-narrow-port-per-capability split this decision
+> describes is gone: `order/ports.go` now declares one `Cart` interface where
+> it declared `CartLocker`, `CartReader` and `CartClearer` below, and every
+> other module's `ports.go` collapsed the same way. Decision 17 records what
+> replaced it and why. Kept in the past tense rather than deleted because the
+> last paragraph below predicted, before it happened, the exact cost that
+> triggered the reversal. The half of this decision that does not appear in
+> that last paragraph — a port lives with the consumer, is declared in its own
+> `ports.go`, and is never published by the producer — is not reversed at all;
+> decision 17 keeps it and only replaces the granularity.
 
-**Why:** no module imports another's implementation, so the dependency graph
-has no cycles by construction and each module's port list is exactly the API
-it would need if extracted. It pays off immediately: because interfaces are
-declared narrow at the consumer, `promotion.Service` satisfies both
+The consumer was a module. `internal/modules/order/ports.go` declared
+`CartLocker`, `CartReader` and `CartClearer` — the three interfaces `order`
+alone needed from cart. `cart` published none of them; `order` named exactly
+what it needed and something else satisfied it. Nine modules had a
+`ports.go`; the other seven reached nothing outside themselves and had none.
+Every port file, in every module, was called `ports.go` — naming one after
+the dependency instead, which this decision once allowed, happened nowhere in
+the tree.
+
+**Why:** no module imported another's implementation, so the dependency graph
+had no cycles by construction and each module's port list was exactly the API
+it would need if extracted. It paid off immediately: because interfaces were
+declared narrow at the consumer, `promotion.Service` satisfied both
 `order.CouponReserver` and `payment.CouponReleaser` directly, and
-`notification/jobs.Worker` satisfies `platform/jobs.Processor` directly — no
+`notification/jobs.Worker` satisfied `platform/jobs.Processor` directly — no
 adapter ever needed writing.
 
-**Cost accepted:** none, where a producer's own method already matches what
-the consumer's port asks for; that is free to declare. Where what crosses is
-a struct rather than something a `Service` already satisfies by name, decision
-13 (`contract.go`) is what pays for it, and what it pays is a published
-surface: adding a field to one is a cross-module change, not a local one.
+**Cost accepted:** none, where a producer's own method already matched what
+the consumer's port asked for; that was free to declare. Where what crossed
+was a struct rather than something a `Service` already satisfied by name,
+decision 13 (`contract.go`) paid for it, and what it paid was a published
+surface: adding a field to one was a cross-module change, not a local one.
 
-There is a second cost, but it is latent, not live. When a consumer declares
-three narrow ports over one producer — `shipping`'s `OrderGetter`,
-`OrderShipper` and `OrderDeliverer` — all three are satisfied by the same
-`*order.Service` value, so there is no wrong value to paste into a `Deps`
-field today: swap two field names and either nothing changes, or Go refuses
-the duplicate field. Under decision 14, `OrderShipper` and `OrderDeliverer`
-already shared one slice value; only `OrderGetter` differed, and pasting it
-over either sibling's field was a real compile error then. Narrow consumer
-ports are still the right shape; what is gone is the cross-check between a
-field and its value, and it is missed only the day this consumer needs two
-ports backed by two different values and someone wires the wrong one.
-`ARCHITECTURE-LIMITATIONS.md` counts what is exposed.
+There was a second cost, and it stayed latent right up to the day it did not.
+When a consumer declared three narrow ports over one producer — `shipping`'s
+`OrderGetter`, `OrderShipper` and `OrderDeliverer` — all three were satisfied
+by the same `*order.Service` value, so there was no wrong value to paste into
+a `Deps` field: swap two field names and either nothing changed, or Go
+refused the duplicate field. Under decision 14, `OrderShipper` and
+`OrderDeliverer` already shared one slice value; only `OrderGetter` differed,
+and pasting it over either sibling's field was a real compile error then.
+Narrow consumer ports were still the right shape by this decision's own
+argument; what had gone missing was the cross-check between a field and its
+value. Once every port a producer's `Service` satisfied was already wired to
+that one value no matter how many capabilities it was split across, decision
+17 asked what the split was still buying.
 
 ## 3. Adapters are subpackages named for their technology
 
@@ -225,7 +240,7 @@ instead of `GROUP BY` would be slower _and_ less correct.
 ## 7. Inventory owns stock; product does not
 
 `inventory_levels(product_id, available_stock, reserved_stock)`. `product` reads
-availability through batch `InventoryReader` port.
+availability through batch `product.Inventory` port.
 
 **Why:** product information and stock levels change at different rates and are
 edited by different roles. Checkout talks to inventory, never to product. Also
@@ -701,6 +716,38 @@ untouched — a module still owns its tables, still declares its own ports in
 its own package, and still names no URL. Decision 4 reads better than it did:
 `auth` having no store is more legible as one absent `adapter/postgres` than
 as four slices that each happened to have none.
+
+## 17. Ports collapse to one per producer, not one per capability
+
+`internal/modules/order/ports.go` now declares `Cart`, `Inventory`,
+`CouponReserver` and `Notifications` — one interface per producer it
+consumes, holding every method it needs from that producer — where decision 2
+had it declare eight interfaces for the same four producers. The same
+collapse ran across every module that had more than one port per producer:
+`payment/ports.go` went from seven interfaces to four (`Gateway`, `Orders`,
+`Inventory`, `CouponReleaser`), `checkout/ports.go` from six to two (`Orders`,
+`Payments`), `shipping/ports.go` from three to one (`Orders`), and
+`product/ports.go` from two to one (`Inventory`). The four modules whose port
+count was already one per producer — `auth`, `cart`, `category`, `review` —
+did not change. Nine `ports.go` files hold 16 interfaces in total today, down
+from 30 (`grep -h '^type .* interface' internal/modules/*/ports.go | wc -l`).
+
+**Why:** decision 2's own cost section had already found the case that made
+this worth doing. Once a module flattened to one `Service` (decision 16),
+that single value backed every port a consumer declared over its producer,
+whatever the split — `shipping`'s `OrderGetter`, `OrderShipper` and
+`OrderDeliverer` were three interfaces satisfied by one `*order.Service`, and
+pasting the wrong one into a `Deps` field either compiled clean or Go refused
+it as a duplicate field name. The compiler had already stopped telling the
+fields apart before this decision ran; the capability split was buying
+nothing but three interface names to read instead of one, three mocks to
+generate instead of one, and three lines in a `Deps` struct instead of one.
+
+**Cost accepted:** the port stops answering "what does this specific call
+path use." `order.Cart` carries `Lock`, `Snapshot` and `Clear` whether the
+caller is `Place`, which needs all three, or some future caller that needs
+only `Snapshot`; the file no longer proves the narrower claim by itself.
+`ARCHITECTURE-LIMITATIONS.md` prices what that costs.
 
 ---
 
