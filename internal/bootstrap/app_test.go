@@ -99,8 +99,8 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 		cancelOrderID,
 	).Scan(&paymentID))
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO payment_jobs (payment_id, order_id, action, status) VALUES ($1, $2, 'charge', 'pending')`,
-		paymentID, cancelOrderID,
+		`INSERT INTO job_queue (queue, kind, payload, group_key) VALUES ('payment', 'payment.refund', '{}', $1)`,
+		"order:"+cancelOrderID.String(),
 	)
 	require.NoError(t, err)
 
@@ -108,7 +108,7 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 
 	var jobStatus string
 	require.NoError(t, testPool.QueryRow(ctx,
-		`SELECT status FROM payment_jobs WHERE payment_id = $1`, paymentID,
+		`SELECT status FROM job_queue WHERE group_key = $1`, "order:"+cancelOrderID.String(),
 	).Scan(&jobStatus))
 	assert.Equal(t, "cancelled", jobStatus,
 		"checkout.Service.CancelOrder must be wired to both order.Service and payment.Service by New")

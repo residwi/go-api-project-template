@@ -24,7 +24,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testutil"
@@ -751,35 +750,18 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 			`UPDATE payments SET status = 'success', gateway_txn_id = 'txn_erradapt' WHERE id = $1`, paymentID)
 		require.NoError(t, err)
 
-		refundJobID := uuid.New()
-		_, err = testPool.Exec(ctx,
-			`INSERT INTO payment_jobs (id, payment_id, order_id, action, status, max_attempts, next_retry_at)
-			 VALUES ($1, $2, $3, 'refund', 'pending', 3, NOW())`,
-			refundJobID, paymentID, orderID)
-		require.NoError(t, err)
-
 		// Deleting both drives orderGetterAdapter and orderItemsGetterAdapter down their
 		// error paths.
 		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id = $1`, orderID)
 		testPool.Exec(ctx, `DELETE FROM orders WHERE id = $1`, orderID)
 
-		var job domain.Job
-		err = testPool.QueryRow(ctx,
-			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
-			        COALESCE(last_error, ''), locked_until, next_retry_at,
-			        created_at, updated_at
-			 FROM payment_jobs WHERE id = $1`, refundJobID).Scan(
-			&job.ID, &job.PaymentID, &job.OrderID, &job.Action, &job.Status,
-			&job.Attempts, &job.MaxAttempts, &job.LastError, &job.LockedUntil,
-			&job.NextRetryAt, &job.CreatedAt, &job.UpdatedAt,
-		)
-		require.NoError(t, err)
+		job := payment.NewRefundJob(newPaymentServiceForTest(t, mockServer.URL+"/mock/payment"))
+		job.PaymentID = paymentID
+		job.OrderID = uuid.MustParse(orderID)
 
 		// The outcome is not asserted: this exists to drive the order-facing adapters
 		// with an order whose items are gone.
-		_ = newPaymentServiceForTest(t, mockServer.URL+"/mock/payment").JobProcessor.Process(ctx, job)
-
-		testPool.Exec(ctx, `DELETE FROM payment_jobs WHERE id = $1`, refundJobID)
+		_ = job.Run(ctx)
 
 		testPool.Exec(ctx,
 			`INSERT INTO orders (id, user_id, status, subtotal_amount, total_amount, currency)
@@ -792,12 +774,8 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	setup(t)
 
 	// A missing order drives orderGetterAdapter.GetByID down its error path.
-	fakeJob := domain.Job{
-		ID:        uuid.New(),
-		PaymentID: uuid.New(),
-		OrderID:   uuid.New(), // does not exist in DB
-		Action:    domain.ActionCharge,
-	}
+	paymentID := uuid.New()
+	orderID := uuid.New() // does not exist in DB
 
 	// GatewayURL is the placeholder from TestMain (never a real listener):
 	// FinalizeSuccess fails inside orderGetterAdapter.GetByID before it
@@ -805,7 +783,7 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	err := newPaymentServiceForTest(
 		t,
 		testDeps.Payment.GatewayURL,
-	).FinalizeSuccess(context.Background(), fakeJob)
+	).FinalizeSuccess(context.Background(), paymentID, orderID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "getting order for verification")
 }

@@ -113,7 +113,7 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 
 // newPaymentService wires a whole App against a custom gateway URL (a local
 // httptest mock server) and hands back the payment service, so a saga test
-// can drive a job directly through its JobProcessor.
+// can drive a job directly through its NewRefundJob's Run.
 //
 // internal/server/router_test.go carries its own copy. Keep them in step.
 func newPaymentService(t *testing.T, gatewayURL string) *payment.Service {

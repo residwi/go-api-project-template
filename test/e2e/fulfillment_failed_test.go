@@ -16,7 +16,6 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/server"
 
@@ -173,21 +172,11 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		)
 		assert.Equal(t, "requires_review", paymentStatus)
 
-		// Proves less than it looks: nothing in production enqueues an action='charge'
-		// job, so this count is 0 before the webhook too. Kept as a guard for the day
-		// they are enqueued, not as evidence the bookkeeping runs.
-		var pendingCharges int
-		require.NoError(t, testPool.QueryRow(ctx,
-			`SELECT COUNT(*) FROM payment_jobs
-			 WHERE order_id = $1 AND action = 'charge' AND status IN ('pending','processing')`,
-			orderID).Scan(&pendingCharges))
-		assert.Equal(t, 0, pendingCharges)
-
 		var pendingRefunds int
 		require.NoError(t, testPool.QueryRow(ctx,
-			`SELECT COUNT(*) FROM payment_jobs
-			 WHERE order_id = $1 AND action = 'refund' AND status = 'pending'`,
-			orderID).Scan(&pendingRefunds))
+			`SELECT COUNT(*) FROM job_queue
+			 WHERE group_key = $1 AND kind = 'payment.refund' AND status = 'pending'`,
+			"order:"+orderID).Scan(&pendingRefunds))
 		assert.Equal(t, 1, pendingRefunds)
 	})
 
@@ -198,20 +187,11 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		require.Equal(t, 100, stockBefore)
 		require.Equal(t, 0, reservedBefore)
 
-		var job domain.Job
-		require.NoError(t, testPool.QueryRow(ctx,
-			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
-			        COALESCE(last_error, ''), locked_until, next_retry_at,
-			        created_at, updated_at
-			 FROM payment_jobs
-			 WHERE order_id = $1 AND action = 'refund' AND status = 'pending'
-			 LIMIT 1`, orderID).Scan(
-			&job.ID, &job.PaymentID, &job.OrderID, &job.Action, &job.Status,
-			&job.Attempts, &job.MaxAttempts, &job.LastError, &job.LockedUntil,
-			&job.NextRetryAt, &job.CreatedAt, &job.UpdatedAt,
-		))
+		job := payment.NewRefundJob(newPaymentService(t, mockServer.URL+"/mock/payment"))
+		job.PaymentID = paymentID
+		job.OrderID = uuid.MustParse(orderID)
 
-		require.NoError(t, newPaymentService(t, mockServer.URL+"/mock/payment").JobProcessor.Process(ctx, job))
+		require.NoError(t, job.Run(ctx))
 
 		var status string
 		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&status))

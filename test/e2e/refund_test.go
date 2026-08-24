@@ -16,7 +16,6 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/server"
 
@@ -171,34 +170,24 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 
 		var jobCount int
 		err := testPool.QueryRow(ctx,
-			`SELECT COUNT(*) FROM payment_jobs WHERE order_id = $1 AND action = 'refund'`, orderID).Scan(&jobCount)
+			`SELECT COUNT(*) FROM job_queue WHERE group_key = $1 AND kind = 'payment.refund'`,
+			"order:"+orderID).Scan(&jobCount)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, jobCount, 1)
 	})
 
 	t.Run("processing refund job restocks inventory and releases coupon", func(t *testing.T) {
-		var job domain.Job
-		err := testPool.QueryRow(ctx,
-			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
-			        COALESCE(last_error, ''), locked_until, next_retry_at,
-			        created_at, updated_at
-			 FROM payment_jobs
-			 WHERE order_id = $1 AND action = 'refund' AND status = 'pending'
-			 LIMIT 1`, orderID).Scan(
-			&job.ID, &job.PaymentID, &job.OrderID, &job.Action, &job.Status,
-			&job.Attempts, &job.MaxAttempts, &job.LastError, &job.LockedUntil,
-			&job.NextRetryAt, &job.CreatedAt, &job.UpdatedAt,
-		)
-		require.NoError(t, err)
-		assert.Equal(t, domain.ActionRefund, job.Action)
-
 		stockBefore, _ := inventoryLevelOf(t, prodID)
 
-		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").JobProcessor.Process(ctx, job)
+		job := payment.NewRefundJob(newPaymentService(t, mockServer.URL+"/mock/payment"))
+		job.PaymentID = paymentID
+		job.OrderID = uuid.MustParse(orderID)
+
+		processErr := job.Run(ctx)
 		require.NoError(t, processErr)
 
 		var orderStatus string
-		err = testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatus)
+		err := testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&orderStatus)
 		require.NoError(t, err)
 		assert.Equal(t, "refunded", orderStatus)
 
@@ -209,12 +198,6 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 
 		stockAfter, _ := inventoryLevelOf(t, prodID)
 		assert.Equal(t, stockBefore+1, stockAfter)
-
-		var jobStatus string
-		err = testPool.QueryRow(ctx,
-			`SELECT status FROM payment_jobs WHERE id = $1`, job.ID).Scan(&jobStatus)
-		require.NoError(t, err)
-		assert.Equal(t, "completed", jobStatus)
 	})
 }
 
@@ -357,13 +340,6 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		`UPDATE orders SET status = 'fulfillment_failed' WHERE id = $1`, orderID)
 	require.NoError(t, err)
 
-	refundJobID := uuid.New()
-	_, err = testPool.Exec(ctx,
-		`INSERT INTO payment_jobs (id, payment_id, order_id, action, status, max_attempts, next_retry_at)
-		 VALUES ($1, $2, $3, 'refund', 'pending', 3, NOW())`,
-		refundJobID, paymentID, orderID)
-	require.NoError(t, err)
-
 	t.Run("processing refund job restocks inventory and releases coupon", func(t *testing.T) {
 		// The synchronous charge already deducted this order's stock, so the refund must
 		// restock rather than release a reservation.
@@ -377,19 +353,11 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, usageBefore)
 
-		var job domain.Job
-		err = testPool.QueryRow(ctx,
-			`SELECT id, payment_id, order_id, action, status, attempts, max_attempts,
-			        COALESCE(last_error, ''), locked_until, next_retry_at,
-			        created_at, updated_at
-			 FROM payment_jobs WHERE id = $1`, refundJobID).Scan(
-			&job.ID, &job.PaymentID, &job.OrderID, &job.Action, &job.Status,
-			&job.Attempts, &job.MaxAttempts, &job.LastError, &job.LockedUntil,
-			&job.NextRetryAt, &job.CreatedAt, &job.UpdatedAt,
-		)
-		require.NoError(t, err)
+		job := payment.NewRefundJob(newPaymentService(t, mockServer.URL+"/mock/payment"))
+		job.PaymentID = paymentID
+		job.OrderID = uuid.MustParse(orderID)
 
-		processErr := newPaymentService(t, mockServer.URL+"/mock/payment").JobProcessor.Process(ctx, job)
+		processErr := job.Run(ctx)
 		require.NoError(t, processErr)
 
 		// Restocked, not released: available_stock returns to its seeded 100 and
