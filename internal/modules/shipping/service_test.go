@@ -23,11 +23,10 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 		orderID := uuid.New()
 
-		orders := NewMockOrderGetter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
-		shipper := NewMockOrderShipper(t)
-		shipper.EXPECT().MarkShipped(mock.Anything, orderID).Return(nil)
+		orders.EXPECT().MarkShipped(mock.Anything, orderID).Return(nil)
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(s *domain.Shipment) bool {
@@ -37,7 +36,7 @@ func TestService_Create(t *testing.T) {
 				s.Status == domain.StatusShipped
 		})).Return(nil)
 
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, OrderRead: orders, OrderShip: shipper})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Orders: orders})
 		got, err := svc.Create(t.Context(), orderID, "JNE", "JP123")
 
 		require.NoError(t, err)
@@ -48,14 +47,14 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 		orderID := uuid.New()
 
-		orders := NewMockOrderGetter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{ID: orderID, Status: "awaiting_payment"}, nil)
 
 		// Repository is never called: the guard runs before the transaction opens.
 		svc := New(Deps{
 			Repo: NewMockRepository(t), Tx: testutil.FakeTxRunner{},
-			OrderRead: orders, OrderShip: NewMockOrderShipper(t),
+			Orders: orders,
 		})
 		_, err := svc.Create(t.Context(), orderID, "JNE", "JP123")
 
@@ -66,13 +65,13 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 		orderID := uuid.New()
 
-		orders := NewMockOrderGetter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{}, apperror.ErrNotFound)
 
 		svc := New(Deps{
 			Repo: NewMockRepository(t), Tx: testutil.FakeTxRunner{},
-			OrderRead: orders, OrderShip: NewMockOrderShipper(t),
+			Orders: orders,
 		})
 		_, err := svc.Create(t.Context(), orderID, "DHL", "DHL456")
 
@@ -83,7 +82,7 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 		orderID := uuid.New()
 
-		orders := NewMockOrderGetter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
 
@@ -93,7 +92,7 @@ func TestService_Create(t *testing.T) {
 
 		svc := New(Deps{
 			Repo: repo, Tx: testutil.FakeTxRunner{},
-			OrderRead: orders, OrderShip: NewMockOrderShipper(t),
+			Orders: orders,
 		})
 		got, err := svc.Create(t.Context(), orderID, "FedEx", "TRACK123")
 
@@ -106,11 +105,10 @@ func TestService_Create(t *testing.T) {
 		orderID := uuid.New()
 		flipErr := errors.New("order is no longer shippable")
 
-		orders := NewMockOrderGetter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
-		shipper := NewMockOrderShipper(t)
-		shipper.EXPECT().MarkShipped(mock.Anything, orderID).Return(flipErr)
+		orders.EXPECT().MarkShipped(mock.Anything, orderID).Return(flipErr)
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Shipment")).Return(nil)
@@ -119,7 +117,7 @@ func TestService_Create(t *testing.T) {
 		// a non-nil return here is what rollback looks like from this level. The
 		// real rollback is covered in adapter/postgres/repository_test.go against a
 		// live transaction.
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, OrderRead: orders, OrderShip: shipper})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Orders: orders})
 		got, err := svc.Create(t.Context(), orderID, "FedEx", "TRACK123")
 
 		assert.Nil(t, got)
@@ -145,10 +143,10 @@ func TestService_Deliver(t *testing.T) {
 				Status: domain.StatusDelivered, DeliveredAt: &deliveredAt,
 			}, nil)
 
-		deliverer := NewMockOrderDeliverer(t)
-		deliverer.EXPECT().MarkDelivered(mock.Anything, orderID).Return(nil)
+		orders := NewMockOrders(t)
+		orders.EXPECT().MarkDelivered(mock.Anything, orderID).Return(nil)
 
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, OrderDeliver: deliverer})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Orders: orders})
 		got, err := svc.Deliver(t.Context(), shipmentID)
 
 		require.NoError(t, err)
@@ -164,7 +162,7 @@ func TestService_Deliver(t *testing.T) {
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
 
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, OrderDeliver: NewMockOrderDeliverer(t)})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Orders: NewMockOrders(t)})
 		_, err := svc.Deliver(t.Context(), shipmentID)
 
 		require.ErrorIs(t, err, apperror.ErrNotFound)
@@ -181,10 +179,10 @@ func TestService_Deliver(t *testing.T) {
 			Return(&domain.Shipment{ID: shipmentID, OrderID: orderID}, nil)
 		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).Return(nil, markErr)
 
-		// No EXPECT() on deliverer at all: the mock's own strictness is what proves
-		// deliverer.MarkDelivered is never called on this path, not just that the
+		// No EXPECT() on orders at all: the mock's own strictness is what proves
+		// orders.MarkDelivered is never called on this path, not just that the
 		// error we assert on happens to match.
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, OrderDeliver: NewMockOrderDeliverer(t)})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Orders: NewMockOrders(t)})
 		_, err := svc.Deliver(t.Context(), shipmentID)
 
 		require.ErrorIs(t, err, markErr)
@@ -202,10 +200,10 @@ func TestService_Deliver(t *testing.T) {
 		repo.EXPECT().MarkDelivered(mock.Anything, shipmentID).
 			Return(&domain.Shipment{ID: shipmentID, OrderID: orderID}, nil)
 
-		deliverer := NewMockOrderDeliverer(t)
-		deliverer.EXPECT().MarkDelivered(mock.Anything, orderID).Return(flipErr)
+		orders := NewMockOrders(t)
+		orders.EXPECT().MarkDelivered(mock.Anything, orderID).Return(flipErr)
 
-		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, OrderDeliver: deliverer})
+		svc := New(Deps{Repo: repo, Tx: testutil.FakeTxRunner{}, Orders: orders})
 		_, err := svc.Deliver(t.Context(), shipmentID)
 
 		require.ErrorIs(t, err, flipErr)
@@ -280,7 +278,7 @@ func TestService_GetForUser(t *testing.T) {
 		t.Parallel()
 		userID, orderID, shipmentID := uuid.New(), uuid.New(), uuid.New()
 
-		orders := NewMockOrderGetter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{ID: orderID, UserID: userID, Status: "shipped"}, nil)
 
@@ -288,7 +286,7 @@ func TestService_GetForUser(t *testing.T) {
 		repo.EXPECT().GetByOrderID(mock.Anything, orderID).
 			Return(&domain.Shipment{ID: shipmentID, OrderID: orderID, Status: domain.StatusShipped}, nil)
 
-		svc := New(Deps{Repo: repo, OrderRead: orders})
+		svc := New(Deps{Repo: repo, Orders: orders})
 		got, err := svc.GetForUser(t.Context(), userID, orderID)
 
 		require.NoError(t, err)
@@ -299,13 +297,13 @@ func TestService_GetForUser(t *testing.T) {
 		t.Parallel()
 		userID, orderID := uuid.New(), uuid.New()
 
-		orders := NewMockOrderGetter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "shipped"}, nil)
 
 		// Not ErrForbidden: a 403 would confirm the order exists to someone who
 		// does not own it.
-		svc := New(Deps{Repo: NewMockRepository(t), OrderRead: orders})
+		svc := New(Deps{Repo: NewMockRepository(t), Orders: orders})
 		_, err := svc.GetForUser(t.Context(), userID, orderID)
 
 		require.ErrorIs(t, err, apperror.ErrNotFound)
@@ -315,11 +313,11 @@ func TestService_GetForUser(t *testing.T) {
 		t.Parallel()
 		orderID := uuid.New()
 
-		orders := NewMockOrderGetter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{}, apperror.ErrNotFound)
 
-		svc := New(Deps{Repo: NewMockRepository(t), OrderRead: orders})
+		svc := New(Deps{Repo: NewMockRepository(t), Orders: orders})
 		_, err := svc.GetForUser(t.Context(), uuid.New(), orderID)
 
 		require.ErrorIs(t, err, apperror.ErrNotFound)
@@ -330,14 +328,14 @@ func TestService_GetForUser(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 		repoErr := errors.New("connection reset")
 
-		orders := NewMockOrderGetter(t)
+		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{ID: orderID, UserID: userID, Status: "shipped"}, nil)
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetByOrderID(mock.Anything, orderID).Return(nil, repoErr)
 
-		svc := New(Deps{Repo: repo, OrderRead: orders})
+		svc := New(Deps{Repo: repo, Orders: orders})
 		_, err := svc.GetForUser(t.Context(), userID, orderID)
 
 		require.ErrorIs(t, err, repoErr)

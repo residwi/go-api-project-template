@@ -25,8 +25,8 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		reg := NewMockInventoryRegistrar(t)
-		s := New(Deps{Repo: repo, InventoryRegistrar: reg})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Product")).
 			Run(func(_ context.Context, p *domain.Product) {
@@ -35,7 +35,7 @@ func TestService_Create(t *testing.T) {
 				p.UpdatedAt = time.Now()
 			}).
 			Return(nil)
-		reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
+		inv.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
 
 		result, err := s.Create(context.Background(), nil, "Cool Widget", nil, money.New(1999, ""), nil, nil, "")
 		require.NoError(t, err)
@@ -55,8 +55,8 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		reg := NewMockInventoryRegistrar(t)
-		s := New(Deps{Repo: repo, InventoryRegistrar: reg})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p *domain.Product) bool {
 			return p.Price.Currency == "EUR" && p.Status == domain.StatusPublished
@@ -65,7 +65,7 @@ func TestService_Create(t *testing.T) {
 			p.CreatedAt = time.Now()
 			p.UpdatedAt = time.Now()
 		}).Return(nil)
-		reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
+		inv.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
 
 		result, err := s.Create(
 			context.Background(), nil, "Widget", nil, money.New(1000, "EUR"), nil, nil, domain.StatusPublished,
@@ -87,8 +87,8 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		reg := NewMockInventoryRegistrar(t)
-		s := New(Deps{Repo: repo, InventoryRegistrar: reg})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
 
@@ -102,18 +102,18 @@ func TestService_Create_RegistersZeroInventoryLevel(t *testing.T) {
 	t.Parallel()
 
 	repo := NewMockRepository(t)
-	reg := NewMockInventoryRegistrar(t)
-	s := New(Deps{Repo: repo, InventoryRegistrar: reg})
+	inv := NewMockInventory(t)
+	s := New(Deps{Repo: repo, Inventory: inv})
 
 	repo.EXPECT().Create(mock.Anything, mock.Anything).RunAndReturn(
 		func(_ context.Context, p *domain.Product) error {
 			p.ID = uuid.New()
 			return nil
 		})
-	reg.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
-	// No GetAvailability expectation -- create depends only on InventoryRegistrar,
-	// so mockery fails the test if Create reads inventory back for a value it
-	// already knows by construction.
+	inv.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
+	// No GetAvailability expectation -- Create only calls EnsureLevel, so mockery
+	// fails the test if Create reads inventory back for a value it already knows
+	// by construction.
 
 	p, err := s.Create(context.Background(), nil, "Widget", nil, money.New(1500, ""), nil, nil, "")
 	require.NoError(t, err)
@@ -403,8 +403,8 @@ func TestService_GetBySlug(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		id := uuid.New()
 		repo.EXPECT().GetBySlug(mock.Anything, "cool-widget").
@@ -431,8 +431,8 @@ func TestService_GetBySlug(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").
 			Return(nil, apperror.ErrNotFound)
@@ -445,8 +445,8 @@ func TestService_GetBySlug(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		repo.EXPECT().GetBySlug(mock.Anything, "draft-item").
 			Return(&domain.Product{
@@ -463,8 +463,8 @@ func TestService_GetBySlug(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		id := uuid.New()
 		repo.EXPECT().GetBySlug(mock.Anything, "widget").
@@ -488,8 +488,8 @@ func TestService_GetByID(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -516,8 +516,8 @@ func TestService_GetByID(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
@@ -531,8 +531,8 @@ func TestService_GetByID(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -552,8 +552,8 @@ func TestService_ListPublished(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		id := uuid.New()
 		params := PublishedListParams{Limit: 10}
@@ -577,8 +577,8 @@ func TestService_ListPublished_EnrichesWithAvailability(t *testing.T) {
 	t.Parallel()
 
 	repo := NewMockRepository(t)
-	inv := NewMockInventoryReader(t)
-	s := New(Deps{Repo: repo, InventoryReader: inv})
+	inv := NewMockInventory(t)
+	s := New(Deps{Repo: repo, Inventory: inv})
 
 	id1, id2 := uuid.New(), uuid.New()
 	repo.EXPECT().ListPublished(mock.Anything, mock.Anything).
@@ -605,8 +605,8 @@ func TestService_ListAdmin(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		idA, idB := uuid.New(), uuid.New()
 		params := AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 20}}
@@ -633,8 +633,8 @@ func TestService_getByIDsIncludingDeleted(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		liveID, archivedID := uuid.New(), uuid.New()
 		ids := []uuid.UUID{liveID, archivedID}
@@ -660,8 +660,8 @@ func TestService_getByIDsIncludingDeleted(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, mock.Anything).
 			Return(nil, errors.New("db error"))
@@ -709,8 +709,8 @@ func TestService_GetInfoByIDs(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		liveID, archivedID := uuid.New(), uuid.New()
 		ids := []uuid.UUID{liveID, archivedID}
@@ -748,11 +748,11 @@ func TestService_GetInfoByIDs(t *testing.T) {
 				DeletedAt: &deletedAt,
 			}}, nil)
 
-		inv := NewMockInventoryReader(t)
+		inv := NewMockInventory(t)
 		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{productID}).
 			Return(map[uuid.UUID]inventory.Availability{productID: {OnHand: 5, Available: 5}}, nil)
 
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		got, err := s.GetInfoByIDs(context.Background(), []uuid.UUID{productID})
 
@@ -782,11 +782,11 @@ func TestService_GetInfoByIDs(t *testing.T) {
 				Status: domain.StatusPublished,
 			}}, nil)
 
-		inv := NewMockInventoryReader(t)
+		inv := NewMockInventory(t)
 		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{productID}).
 			Return(map[uuid.UUID]inventory.Availability{productID: {OnHand: 2, Available: 2}}, nil)
 
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		got, err := s.GetInfoByIDs(context.Background(), []uuid.UUID{productID})
 
@@ -798,8 +798,8 @@ func TestService_GetInfoByIDs(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		inv := NewMockInventoryReader(t)
-		s := New(Deps{Repo: repo, InventoryReader: inv})
+		inv := NewMockInventory(t)
+		s := New(Deps{Repo: repo, Inventory: inv})
 
 		ids := []uuid.UUID{uuid.New()}
 		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, ids).Return(nil, errors.New("db error"))

@@ -8,10 +8,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 )
 
-type InventoryRegistrar interface {
+type Inventory interface {
 	EnsureLevel(ctx context.Context, productID uuid.UUID) error
-}
-
-type InventoryReader interface {
 	GetAvailability(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]inventory.Availability, error)
 }

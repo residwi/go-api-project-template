@@ -18,19 +18,17 @@ const defaultCurrency = "USD"
 type Deps struct {
 	Repo Repository
 
-	InventoryReader    InventoryReader
-	InventoryRegistrar InventoryRegistrar
+	Inventory Inventory
 }
 
 type Service struct {
 	repo Repository
 
-	inv InventoryReader
-	reg InventoryRegistrar
+	inventory Inventory
 }
 
 func New(d Deps) *Service {
-	return &Service{repo: d.Repo, inv: d.InventoryReader, reg: d.InventoryRegistrar}
+	return &Service{repo: d.Repo, inventory: d.Inventory}
 }
 
 func denominateLike(amount *money.Money, price money.Money) *money.Money {
@@ -74,7 +72,7 @@ func (s *Service) Create(
 		return nil, err
 	}
 
-	if err := s.reg.EnsureLevel(ctx, prod.ID); err != nil {
+	if err := s.inventory.EnsureLevel(ctx, prod.ID); err != nil {
 		return nil, err
 	}
 
@@ -299,7 +297,7 @@ func (s *Service) enrich(ctx context.Context, products []domain.Product) error {
 	for i := range products {
 		ids[i] = products[i].ID
 	}
-	levels, err := s.inv.GetAvailability(ctx, ids)
+	levels, err := s.inventory.GetAvailability(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("reading availability: %w", err)
 	}

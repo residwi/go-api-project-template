@@ -15,27 +15,21 @@ type Deps struct {
 	Repo Repository
 	Tx   database.TxRunner
 
-	OrderRead    OrderGetter
-	OrderShip    OrderShipper
-	OrderDeliver OrderDeliverer
+	Orders Orders
 }
 
 type Service struct {
 	repo Repository
 	tx   database.TxRunner
 
-	orderRead    OrderGetter
-	orderShip    OrderShipper
-	orderDeliver OrderDeliverer
+	orders Orders
 }
 
 func New(d Deps) *Service {
 	return &Service{
-		repo:         d.Repo,
-		tx:           d.Tx,
-		orderRead:    d.OrderRead,
-		orderShip:    d.OrderShip,
-		orderDeliver: d.OrderDeliver,
+		repo:   d.Repo,
+		tx:     d.Tx,
+		orders: d.Orders,
 	}
 }
 
@@ -44,7 +38,7 @@ func (s *Service) Create(
 	orderID uuid.UUID,
 	carrier, trackingNumber string,
 ) (*domain.Shipment, error) {
-	order, err := s.orderRead.Snapshot(ctx, orderID)
+	order, err := s.orders.Snapshot(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +58,7 @@ func (s *Service) Create(
 		if err := s.repo.Create(txCtx, shipment); err != nil {
 			return err
 		}
-		return s.orderShip.MarkShipped(txCtx, orderID)
+		return s.orders.MarkShipped(txCtx, orderID)
 	}); err != nil {
 		return nil, err
 	}
@@ -85,7 +79,7 @@ func (s *Service) Deliver(ctx context.Context, shipmentID uuid.UUID) (*domain.Sh
 		if markErr != nil {
 			return markErr
 		}
-		return s.orderDeliver.MarkDelivered(txCtx, shipment.OrderID)
+		return s.orders.MarkDelivered(txCtx, shipment.OrderID)
 	}); err != nil {
 		return nil, err
 	}
@@ -118,7 +112,7 @@ func (s *Service) UpdateTracking(
 }
 
 func (s *Service) GetForUser(ctx context.Context, userID, orderID uuid.UUID) (*domain.Shipment, error) {
-	order, err := s.orderRead.Snapshot(ctx, orderID)
+	order, err := s.orders.Snapshot(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}

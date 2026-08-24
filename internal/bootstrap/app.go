@@ -70,7 +70,7 @@ func New(d Deps) (*App, error) {
 
 	inv := inventory.New(inventory.Deps{Repo: inventorypg.New(d.DB)})
 	prod := product.New(
-		product.Deps{Repo: productpg.New(d.DB), InventoryReader: inv, InventoryRegistrar: inv},
+		product.Deps{Repo: productpg.New(d.DB), Inventory: inv},
 	)
 	categoryMod := category.New(category.Deps{Repo: categorypg.New(d.DB), Products: prod})
 	promotionMod := promotion.New(promotion.Deps{Repo: promotionpg.New(d.DB), Tx: txRunner})
@@ -129,9 +129,7 @@ func New(d Deps) (*App, error) {
 
 	shippingMod := shipping.New(shipping.Deps{
 		Repo: shippingpg.New(d.DB), Tx: txRunner,
-		OrderRead:    ordMod,
-		OrderShip:    ordMod,
-		OrderDeliver: ordMod,
+		Orders: ordMod,
 	})
 	reviewMod := review.New(review.Deps{Repo: reviewpg.New(d.DB), Purchase: ordMod})
 
