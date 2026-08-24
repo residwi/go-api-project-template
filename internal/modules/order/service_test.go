@@ -1682,7 +1682,7 @@ func newTestService(t *testing.T) (*Service, testDeps) {
 	return newService(t, true)
 }
 
-// newTestServiceWithoutCoupons leaves Coupons nil, which is a supported
+// newTestServiceWithoutCoupons passes a nil CouponReserver, which is a supported
 // wiring: the cancel and expire paths guard on it before releasing, and this is
 // what exercises that guard rather than the has-no-coupon-code branch beside it.
 func newTestServiceWithoutCoupons(t *testing.T) (*Service, testDeps) {
@@ -1701,18 +1701,21 @@ func newService(t *testing.T, withCoupons bool) (*Service, testDeps) {
 		notifications: NewMockNotifications(t),
 	}
 
-	deps := Deps{
-		Repo:          d.repo,
-		Tx:            testutil.FakeTxRunner{},
-		Logger:        testutil.DiscardLogger(),
-		Cart:          d.cart,
-		Inventory:     d.inventory,
-		Coupons:       d.coupons,
-		Notifications: d.notifications,
-	}
+	var coupons CouponReserver = d.coupons
 	if !withCoupons {
-		deps.Coupons = nil
+		var absent CouponReserver
+		coupons = absent
 	}
 
-	return New(deps), d
+	svc := New(
+		d.repo,
+		testutil.FakeTxRunner{},
+		testutil.DiscardLogger(),
+		d.cart,
+		d.inventory,
+		coupons,
+		d.notifications,
+	)
+
+	return svc, d
 }

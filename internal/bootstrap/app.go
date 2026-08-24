@@ -83,13 +83,15 @@ func New(d Deps) (*App, error) {
 
 	cartMod := cart.New(cartpg.New(d.DB), txRunner, prod, d.Cart.MaxItems)
 
-	ordMod := order.New(order.Deps{
-		Repo: orderpg.New(d.DB), Tx: txRunner, Logger: d.Logger,
-		Cart:          cartMod,
-		Inventory:     inv,
-		Coupons:       promotionMod,
-		Notifications: notificationMod.Jobs,
-	})
+	ordMod := order.New(
+		orderpg.New(d.DB),
+		txRunner,
+		d.Logger,
+		cartMod,
+		inv,
+		promotionMod,
+		notificationMod.Jobs,
+	)
 
 	paymentMod := payment.New(
 		paymentpg.New(d.DB),

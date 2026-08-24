@@ -21,17 +21,6 @@ const (
 	housekeepingBatchLimit = 20
 )
 
-type Deps struct {
-	Repo   Repository
-	Tx     database.TxRunner
-	Logger *slog.Logger
-
-	Cart          Cart
-	Inventory     Inventory
-	Coupons       CouponReserver
-	Notifications Notifications
-}
-
 type Service struct {
 	repo   Repository
 	tx     database.TxRunner
@@ -43,15 +32,23 @@ type Service struct {
 	notifications Notifications
 }
 
-func New(d Deps) *Service {
+func New(
+	repo Repository,
+	tx database.TxRunner,
+	logger *slog.Logger,
+	cart Cart,
+	inventory Inventory,
+	coupons CouponReserver,
+	notifications Notifications,
+) *Service {
 	return &Service{
-		repo:          d.Repo,
-		tx:            d.Tx,
-		logger:        d.Logger,
-		cart:          d.Cart,
-		inventory:     d.Inventory,
-		coupons:       d.Coupons,
-		notifications: d.Notifications,
+		repo:          repo,
+		tx:            tx,
+		logger:        logger,
+		cart:          cart,
+		inventory:     inventory,
+		coupons:       coupons,
+		notifications: notifications,
 	}
 }
 
