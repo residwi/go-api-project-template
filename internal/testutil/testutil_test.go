@@ -105,9 +105,9 @@ func TestMustStartPostgresConcurrentCreateWaitsForMigration(t *testing.T) {
 // genuinely partial schema -- the one state a real crash can produce here,
 // since every migration in db/migrations runs in its own goose transaction
 // and so either fully applies or fully rolls back, never half of one. goose's
-// own Down produces that exact state: it reverts the last migration's SQL and
-// removes its goose_db_version row together, leaving the database indistinguishable
-// from a process that exited right before that migration committed.
+// own Down produces that exact state: it reverts each migration above the
+// target version, SQL and goose_db_version row together, leaving the database
+// indistinguishable from a process that exited right before the next one committed.
 func TestMustStartPostgresReattachRepairsPartialMigration(t *testing.T) {
 	const name = "test_helper_reattach"
 
