@@ -11,13 +11,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
-type Deps struct {
-	Repo Repository
-	Tx   database.TxRunner
-
-	Orders Orders
-}
-
 type Service struct {
 	repo Repository
 	tx   database.TxRunner
@@ -25,12 +18,8 @@ type Service struct {
 	orders Orders
 }
 
-func New(d Deps) *Service {
-	return &Service{
-		repo:   d.Repo,
-		tx:     d.Tx,
-		orders: d.Orders,
-	}
+func New(repo Repository, tx database.TxRunner, orders Orders) *Service {
+	return &Service{repo: repo, tx: tx, orders: orders}
 }
 
 func (s *Service) Create(

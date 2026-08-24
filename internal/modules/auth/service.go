@@ -33,11 +33,6 @@ type jwtClaims struct {
 	TokenVersion int
 }
 
-type Deps struct {
-	Config Config
-	Users  UserDirectory
-}
-
 type Service struct {
 	users      UserDirectory
 	dummyHash  []byte
@@ -48,16 +43,16 @@ type Service struct {
 	refreshTTL time.Duration
 }
 
-func New(d Deps) *Service {
+func New(cfg Config, users UserDirectory) *Service {
 	s := &Service{
-		users:      d.Users,
-		bcryptCost: d.Config.BcryptCost,
-		secret:     d.Config.Secret,
-		issuer:     d.Config.Issuer,
-		accessTTL:  d.Config.AccessTokenTTL,
-		refreshTTL: d.Config.RefreshTokenTTL,
+		users:      users,
+		bcryptCost: cfg.BcryptCost,
+		secret:     cfg.Secret,
+		issuer:     cfg.Issuer,
+		accessTTL:  cfg.AccessTokenTTL,
+		refreshTTL: cfg.RefreshTokenTTL,
 	}
-	s.dummyHash, _ = bcrypt.GenerateFromPassword([]byte(dummyPassword), d.Config.BcryptCost)
+	s.dummyHash, _ = bcrypt.GenerateFromPassword([]byte(dummyPassword), cfg.BcryptCost)
 	return s
 }
 

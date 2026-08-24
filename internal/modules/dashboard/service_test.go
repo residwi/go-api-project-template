@@ -30,7 +30,7 @@ func TestService_ListRevenueByDay(t *testing.T) {
 		}
 		repo.EXPECT().ListRevenueByDay(mock.Anything, from, to).Return(expected, nil)
 
-		result, err := New(Deps{Repo: repo}).ListRevenueByDay(t.Context(), from, to)
+		result, err := New(repo).ListRevenueByDay(t.Context(), from, to)
 
 		require.NoError(t, err)
 		assert.Equal(t, expected, result)
@@ -46,7 +46,7 @@ func TestService_ListRevenueByDay(t *testing.T) {
 
 		repo.EXPECT().ListRevenueByDay(mock.Anything, from, to).Return(nil, assert.AnError)
 
-		result, err := New(Deps{Repo: repo}).ListRevenueByDay(t.Context(), from, to)
+		result, err := New(repo).ListRevenueByDay(t.Context(), from, to)
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, assert.AnError)
@@ -77,7 +77,7 @@ func TestService_GetSummary(t *testing.T) {
 		repo.EXPECT().GetSalesSummary(mock.Anything, from, to).Return(expectedSales, nil)
 		repo.EXPECT().ListOrderStatusBreakdown(mock.Anything, from, to).Return(expectedBreakdown, nil)
 
-		sales, breakdown, err := New(Deps{Repo: repo}).GetSummary(t.Context(), from, to)
+		sales, breakdown, err := New(repo).GetSummary(t.Context(), from, to)
 
 		require.NoError(t, err)
 		assert.Equal(t, expectedSales, sales)
@@ -96,7 +96,7 @@ func TestService_GetSummary(t *testing.T) {
 		repo.EXPECT().ListOrderStatusBreakdown(mock.Anything, from, to).
 			Return(nil, nil).Maybe()
 
-		sales, breakdown, err := New(Deps{Repo: repo}).GetSummary(t.Context(), from, to)
+		sales, breakdown, err := New(repo).GetSummary(t.Context(), from, to)
 
 		require.ErrorIs(t, err, dbErr)
 		assert.Equal(t, domain.SalesSummary{}, sales)
@@ -113,7 +113,7 @@ func TestService_GetSummary(t *testing.T) {
 		repo.EXPECT().GetSalesSummary(mock.Anything, from, to).
 			Return(domain.SalesSummary{}, nil).Maybe()
 
-		sales, breakdown, err := New(Deps{Repo: repo}).GetSummary(t.Context(), from, to)
+		sales, breakdown, err := New(repo).GetSummary(t.Context(), from, to)
 
 		require.ErrorIs(t, err, dbErr)
 		assert.Equal(t, domain.SalesSummary{}, sales)
@@ -138,7 +138,7 @@ func TestService_ListTopProducts(t *testing.T) {
 		}
 		repo.EXPECT().ListTopProducts(mock.Anything, 10, from, to).Return(expected, nil)
 
-		result, err := New(Deps{Repo: repo}).ListTopProducts(t.Context(), 10, from, to)
+		result, err := New(repo).ListTopProducts(t.Context(), 10, from, to)
 
 		require.NoError(t, err)
 		assert.Equal(t, expected, result)
@@ -154,7 +154,7 @@ func TestService_ListTopProducts(t *testing.T) {
 
 		repo.EXPECT().ListTopProducts(mock.Anything, 10, from, to).Return(nil, assert.AnError)
 
-		result, err := New(Deps{Repo: repo}).ListTopProducts(t.Context(), 10, from, to)
+		result, err := New(repo).ListTopProducts(t.Context(), 10, from, to)
 
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, assert.AnError)

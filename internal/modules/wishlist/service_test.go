@@ -24,7 +24,7 @@ func TestService_Add(t *testing.T) {
 		repo.EXPECT().GetOrCreate(t.Context(), userID).Return(wishlistID, nil)
 		repo.EXPECT().AddItem(t.Context(), wishlistID, productID).Return(nil)
 
-		require.NoError(t, New(Deps{Repo: repo}).Add(t.Context(), userID, productID))
+		require.NoError(t, New(repo).Add(t.Context(), userID, productID))
 	})
 
 	t.Run("get or create fails", func(t *testing.T) {
@@ -35,7 +35,7 @@ func TestService_Add(t *testing.T) {
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetOrCreate(t.Context(), userID).Return(uuid.Nil, assert.AnError)
 
-		err := New(Deps{Repo: repo}).Add(t.Context(), userID, productID)
+		err := New(repo).Add(t.Context(), userID, productID)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
@@ -49,7 +49,7 @@ func TestService_Add(t *testing.T) {
 		repo.EXPECT().GetOrCreate(t.Context(), userID).Return(wishlistID, nil)
 		repo.EXPECT().AddItem(t.Context(), wishlistID, productID).Return(assert.AnError)
 
-		err := New(Deps{Repo: repo}).Add(t.Context(), userID, productID)
+		err := New(repo).Add(t.Context(), userID, productID)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
@@ -66,7 +66,7 @@ func TestService_Remove(t *testing.T) {
 		repo := NewMockRepository(t)
 		repo.EXPECT().RemoveItem(t.Context(), userID, productID).Return(nil)
 
-		require.NoError(t, New(Deps{Repo: repo}).Remove(t.Context(), userID, productID))
+		require.NoError(t, New(repo).Remove(t.Context(), userID, productID))
 	})
 
 	t.Run("not found", func(t *testing.T) {
@@ -77,7 +77,7 @@ func TestService_Remove(t *testing.T) {
 		repo := NewMockRepository(t)
 		repo.EXPECT().RemoveItem(t.Context(), userID, productID).Return(apperror.ErrNotFound)
 
-		err := New(Deps{Repo: repo}).Remove(t.Context(), userID, productID)
+		err := New(repo).Remove(t.Context(), userID, productID)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
@@ -90,7 +90,7 @@ func TestService_Remove(t *testing.T) {
 		repo := NewMockRepository(t)
 		repo.EXPECT().RemoveItem(t.Context(), userID, productID).Return(assert.AnError)
 
-		err := New(Deps{Repo: repo}).Remove(t.Context(), userID, productID)
+		err := New(repo).Remove(t.Context(), userID, productID)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
@@ -109,7 +109,7 @@ func TestService_List(t *testing.T) {
 		repo := NewMockRepository(t)
 		repo.EXPECT().ListItemsForUser(t.Context(), userID, cursor).Return(items, nil)
 
-		got, err := New(Deps{Repo: repo}).List(t.Context(), userID, cursor)
+		got, err := New(repo).List(t.Context(), userID, cursor)
 
 		require.NoError(t, err)
 		assert.Equal(t, items, got)
@@ -124,7 +124,7 @@ func TestService_List(t *testing.T) {
 		repo := NewMockRepository(t)
 		repo.EXPECT().ListItemsForUser(t.Context(), userID, cursor).Return([]domain.Item{}, nil)
 
-		got, err := New(Deps{Repo: repo}).List(t.Context(), userID, cursor)
+		got, err := New(repo).List(t.Context(), userID, cursor)
 		require.NoError(t, err)
 		assert.Empty(t, got)
 	})
@@ -138,7 +138,7 @@ func TestService_List(t *testing.T) {
 		repo := NewMockRepository(t)
 		repo.EXPECT().ListItemsForUser(t.Context(), userID, cursor).Return(nil, assert.AnError)
 
-		_, err := New(Deps{Repo: repo}).List(t.Context(), userID, cursor)
+		_, err := New(repo).List(t.Context(), userID, cursor)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
 }

@@ -22,7 +22,7 @@ func TestService_Create(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		svc := New(Deps{Repo: repo, Purchase: purchase})
+		svc := New(repo, purchase)
 
 		userID := uuid.New()
 		productID := uuid.New()
@@ -58,7 +58,7 @@ func TestService_Create(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		svc := New(Deps{Repo: repo, Purchase: purchase})
+		svc := New(repo, purchase)
 
 		userID := uuid.New()
 		productID := uuid.New()
@@ -76,7 +76,7 @@ func TestService_Create(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		svc := New(Deps{Repo: repo, Purchase: purchase})
+		svc := New(repo, purchase)
 
 		userID := uuid.New()
 		productID := uuid.New()
@@ -94,7 +94,7 @@ func TestService_Create(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		svc := New(Deps{Repo: repo, Purchase: purchase})
+		svc := New(repo, purchase)
 
 		userID := uuid.New()
 		productID := uuid.New()
@@ -113,7 +113,7 @@ func TestService_Create(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		svc := New(Deps{Repo: repo, Purchase: purchase})
+		svc := New(repo, purchase)
 
 		userID := uuid.New()
 		productID := uuid.New()
@@ -133,7 +133,7 @@ func TestService_Create(t *testing.T) {
 
 		repo := NewMockRepository(t)
 		purchase := NewMockPurchaseVerifier(t)
-		svc := New(Deps{Repo: repo, Purchase: purchase})
+		svc := New(repo, purchase)
 
 		userID := uuid.New()
 		productID := uuid.New()
@@ -157,7 +157,7 @@ func TestService_Create_PassesArgumentsInOrder(t *testing.T) {
 
 	repo := NewMockRepository(t)
 	purchase := NewMockPurchaseVerifier(t)
-	svc := New(Deps{Repo: repo, Purchase: purchase})
+	svc := New(repo, purchase)
 
 	userID := uuid.New()
 	productID := uuid.New()
@@ -176,7 +176,8 @@ func TestService_ListByProduct(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var purchase PurchaseVerifier
+		svc := New(repo, purchase)
 
 		productID := uuid.New()
 		cursor := paging.CursorPage{Limit: 20}
@@ -196,7 +197,8 @@ func TestService_ListByProduct(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var purchase PurchaseVerifier
+		svc := New(repo, purchase)
 
 		productID := uuid.New()
 		cursor := paging.CursorPage{Limit: 20}
@@ -217,7 +219,8 @@ func TestService_GetStats(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var purchase PurchaseVerifier
+		svc := New(repo, purchase)
 
 		productID := uuid.New()
 		expected := domain.Stats{AverageRating: 4.5, TotalReviews: 10}
@@ -233,7 +236,8 @@ func TestService_GetStats(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var purchase PurchaseVerifier
+		svc := New(repo, purchase)
 
 		productID := uuid.New()
 		dbErr := errors.New("stats query failed")
@@ -253,7 +257,8 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var purchase PurchaseVerifier
+		svc := New(repo, purchase)
 
 		id := uuid.New()
 
@@ -267,7 +272,8 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		svc := New(Deps{Repo: repo})
+		var purchase PurchaseVerifier
+		svc := New(repo, purchase)
 
 		id := uuid.New()
 

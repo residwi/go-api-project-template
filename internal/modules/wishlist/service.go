@@ -9,16 +9,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-type Deps struct {
-	Repo Repository
-}
-
 type Service struct {
 	repo Repository
 }
 
-func New(d Deps) *Service {
-	return &Service{repo: d.Repo}
+func New(repo Repository) *Service {
+	return &Service{repo: repo}
 }
 
 func (s *Service) Add(ctx context.Context, userID, productID uuid.UUID) error {

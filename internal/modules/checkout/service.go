@@ -18,24 +18,14 @@ type PlaceOrderInput struct {
 	IdempotencyKey  string
 }
 
-type Deps struct {
-	Orders   Orders
-	Payments Payments
-	Logger   *slog.Logger
-}
-
 type Service struct {
 	orders   Orders
 	payments Payments
 	logger   *slog.Logger
 }
 
-func New(d Deps) *Service {
-	return &Service{
-		orders:   d.Orders,
-		payments: d.Payments,
-		logger:   d.Logger,
-	}
+func New(orders Orders, payments Payments, logger *slog.Logger) *Service {
+	return &Service{orders: orders, payments: payments, logger: logger}
 }
 
 func (s *Service) PlaceOrder(

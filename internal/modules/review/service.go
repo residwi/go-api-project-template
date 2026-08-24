@@ -11,18 +11,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-type Deps struct {
-	Repo     Repository
-	Purchase PurchaseVerifier
-}
-
 type Service struct {
 	repo     Repository
 	purchase PurchaseVerifier
 }
 
-func New(d Deps) *Service {
-	return &Service{repo: d.Repo, purchase: d.Purchase}
+func New(repo Repository, purchase PurchaseVerifier) *Service {
+	return &Service{repo: repo, purchase: purchase}
 }
 
 func (s *Service) Create(

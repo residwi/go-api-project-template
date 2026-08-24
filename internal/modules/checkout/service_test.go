@@ -45,7 +45,7 @@ func TestService_PlaceOrder(t *testing.T) {
 			}).
 			Return(payment.ChargeResult{}, nil)
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
+		svc := New(orders, payments, testutil.DiscardLogger())
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
 			Order:           orderdomain.NewOrder{Notes: "leave at door"},
@@ -75,7 +75,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		payments.EXPECT().Charge(t.Context(), mock.Anything).
 			Return(payment.ChargeResult{}, errors.New("gateway down"))
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
+		svc := New(orders, payments, testutil.DiscardLogger())
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
 			Order:          orderdomain.NewOrder{},
@@ -103,7 +103,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		// No EXPECT on payments: mockery fails the test if Charge is called.
 		payments := NewMockPayments(t)
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
+		svc := New(orders, payments, testutil.DiscardLogger())
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
 			Order:          orderdomain.NewOrder{},
@@ -125,7 +125,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		payments := NewMockPayments(t)
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
+		svc := New(orders, payments, testutil.DiscardLogger())
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
 			Order:          orderdomain.NewOrder{},
@@ -158,7 +158,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		// No EXPECT on payments: mockery fails the test if Charge is called.
 		payments := NewMockPayments(t)
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
+		svc := New(orders, payments, testutil.DiscardLogger())
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
 			Order:           orderdomain.NewOrder{},
@@ -195,7 +195,7 @@ func TestService_RetryPayment(t *testing.T) {
 			PaymentMethodID: "pm_retry",
 		}).Return(payment.ChargeResult{PaymentURL: "https://pay.test/1"}, nil)
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
+		svc := New(orders, payments, testutil.DiscardLogger())
 
 		got, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
 
@@ -215,11 +215,7 @@ func TestService_RetryPayment(t *testing.T) {
 			Status: string(orderdomain.StatusAwaitingPayment),
 		}, nil)
 
-		svc := New(Deps{
-			Orders:   orders,
-			Payments: NewMockPayments(t),
-			Logger:   testutil.DiscardLogger(),
-		})
+		svc := New(orders, NewMockPayments(t), testutil.DiscardLogger())
 
 		_, err := svc.RetryPayment(t.Context(), uuid.New(), orderID, "pm_retry")
 
@@ -239,11 +235,7 @@ func TestService_RetryPayment(t *testing.T) {
 		}, nil)
 		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(apperror.ErrConflict)
 
-		svc := New(Deps{
-			Orders:   orders,
-			Payments: NewMockPayments(t),
-			Logger:   testutil.DiscardLogger(),
-		})
+		svc := New(orders, NewMockPayments(t), testutil.DiscardLogger())
 
 		_, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
 
@@ -266,11 +258,7 @@ func TestService_RetryPayment(t *testing.T) {
 		}, nil)
 		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(apperror.ErrConflict)
 
-		svc := New(Deps{
-			Orders:   orders,
-			Payments: NewMockPayments(t),
-			Logger:   testutil.DiscardLogger(),
-		})
+		svc := New(orders, NewMockPayments(t), testutil.DiscardLogger())
 
 		_, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
 
@@ -299,7 +287,7 @@ func TestService_RetryPayment(t *testing.T) {
 			PaymentMethodID: "pm_retry",
 		}).Return(payment.ChargeResult{}, errors.New("gateway down"))
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
+		svc := New(orders, payments, testutil.DiscardLogger())
 
 		_, err := svc.RetryPayment(t.Context(), userID, orderID, "pm_retry")
 
@@ -321,7 +309,7 @@ func TestService_CancelOrder(t *testing.T) {
 		payments := NewMockPayments(t)
 		payments.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(nil)
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
+		svc := New(orders, payments, testutil.DiscardLogger())
 
 		require.NoError(t, svc.CancelOrder(t.Context(), userID, orderID))
 	})
@@ -337,7 +325,7 @@ func TestService_CancelOrder(t *testing.T) {
 		payments := NewMockPayments(t)
 		payments.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(errors.New("db down"))
 
-		svc := New(Deps{Orders: orders, Payments: payments, Logger: testutil.DiscardLogger()})
+		svc := New(orders, payments, testutil.DiscardLogger())
 
 		require.NoError(t, svc.CancelOrder(t.Context(), userID, orderID))
 	})
@@ -350,11 +338,7 @@ func TestService_CancelOrder(t *testing.T) {
 		orders := NewMockOrders(t)
 		orders.EXPECT().CancelByUser(t.Context(), userID, orderID).Return(apperror.ErrOrderCharging)
 
-		svc := New(Deps{
-			Orders:   orders,
-			Payments: NewMockPayments(t),
-			Logger:   testutil.DiscardLogger(),
-		})
+		svc := New(orders, NewMockPayments(t), testutil.DiscardLogger())
 
 		require.ErrorIs(t, svc.CancelOrder(t.Context(), userID, orderID), apperror.ErrOrderCharging)
 	})

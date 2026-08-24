@@ -9,16 +9,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard/domain"
 )
 
-type Deps struct {
-	Repo Repository
-}
-
 type Service struct {
 	repo Repository
 }
 
-func New(d Deps) *Service {
-	return &Service{repo: d.Repo}
+func New(repo Repository) *Service {
+	return &Service{repo: repo}
 }
 
 func (s *Service) ListRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error) {

@@ -8,16 +8,12 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
 )
 
-type Deps struct {
-	Repo Repository
-}
-
 type Service struct {
 	repo Repository
 }
 
-func New(d Deps) *Service {
-	return &Service{repo: d.Repo}
+func New(repo Repository) *Service {
+	return &Service{repo: repo}
 }
 
 func (s *Service) Adjust(ctx context.Context, productID uuid.UUID, newQuantity int) (*domain.Stock, error) {

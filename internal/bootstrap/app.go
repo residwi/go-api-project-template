@@ -68,7 +68,7 @@ type App struct {
 func New(d Deps) (*App, error) {
 	txRunner := database.NewTxRunner(d.DB.Primary)
 
-	inv := inventory.New(inventory.Deps{Repo: inventorypg.New(d.DB)})
+	inv := inventory.New(inventorypg.New(d.DB))
 	prod := product.New(
 		product.Deps{Repo: productpg.New(d.DB), Inventory: inv},
 	)
@@ -85,7 +85,7 @@ func New(d Deps) (*App, error) {
 		statusCache = userredis.New(d.Cache)
 	}
 	userMod := user.New(user.Deps{Repo: userpg.New(d.DB), Cache: statusCache, Logger: d.Logger})
-	authMod := auth.New(auth.Deps{Config: d.Auth, Users: userMod})
+	authMod := auth.New(d.Auth, userMod)
 
 	cartMod := cart.New(cart.Deps{
 		Repo: cartpg.New(d.DB), Tx: txRunner, MaxItems: d.Cart.MaxItems, Products: prod,
@@ -110,17 +110,10 @@ func New(d Deps) (*App, error) {
 		Coupons:   promotionMod,
 	})
 
-	checkoutSvc := checkout.New(checkout.Deps{
-		Orders:   ordMod,
-		Payments: paymentMod,
-		Logger:   d.Logger,
-	})
+	checkoutSvc := checkout.New(ordMod, paymentMod, d.Logger)
 
-	shippingMod := shipping.New(shipping.Deps{
-		Repo: shippingpg.New(d.DB), Tx: txRunner,
-		Orders: ordMod,
-	})
-	reviewMod := review.New(review.Deps{Repo: reviewpg.New(d.DB), Purchase: ordMod})
+	shippingMod := shipping.New(shippingpg.New(d.DB), txRunner, ordMod)
+	reviewMod := review.New(reviewpg.New(d.DB), ordMod)
 
 	return &App{
 		Users:         userMod,
@@ -135,9 +128,9 @@ func New(d Deps) (*App, error) {
 		Shipping:      shippingMod,
 		Reviews:       reviewMod,
 		Promotions:    promotionMod,
-		Wishlists:     wishlist.New(wishlist.Deps{Repo: wishlistpg.New(d.DB)}),
+		Wishlists:     wishlist.New(wishlistpg.New(d.DB)),
 		Notifications: notificationMod,
-		Dashboard:     dashboard.New(dashboard.Deps{Repo: dashboardpg.New(d.DB)}),
+		Dashboard:     dashboard.New(dashboardpg.New(d.DB)),
 		TxRunner:      txRunner,
 	}, nil
 }

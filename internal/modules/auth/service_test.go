@@ -41,7 +41,7 @@ func TestService_Login(t *testing.T) {
 
 		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(creds, nil)
 
-		resp, err := New(Deps{Config: newTestConfig(), Users: users}).
+		resp, err := New(newTestConfig(), users).
 			Login(context.Background(), "test@example.com", "password123")
 
 		require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestService_Login(t *testing.T) {
 			Active:       false,
 		}, nil)
 
-		resp, err := New(Deps{Config: newTestConfig(), Users: users}).
+		resp, err := New(newTestConfig(), users).
 			Login(context.Background(), "inactive@example.com", "password123")
 
 		assert.Nil(t, resp)
@@ -91,7 +91,7 @@ func TestService_Login(t *testing.T) {
 			Active:       true,
 		}, nil)
 
-		resp, err := New(Deps{Config: newTestConfig(), Users: users}).
+		resp, err := New(newTestConfig(), users).
 			Login(context.Background(), "test@example.com", "wrong-password")
 
 		assert.Nil(t, resp)
@@ -106,7 +106,7 @@ func TestService_Login(t *testing.T) {
 		users.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").
 			Return(user.Credentials{}, errors.New("not found"))
 
-		resp, err := New(Deps{Config: newTestConfig(), Users: users}).
+		resp, err := New(newTestConfig(), users).
 			Login(context.Background(), "notfound@example.com", "password123")
 
 		assert.Nil(t, resp)
@@ -139,7 +139,7 @@ func TestService_Register(t *testing.T) {
 				bcrypt.CompareHashAndPassword([]byte(p.PasswordHash), []byte("password123")) == nil
 		})).Return(createdUser, nil)
 
-		resp, err := New(Deps{Config: newTestConfig(), Users: users}).
+		resp, err := New(newTestConfig(), users).
 			Register(context.Background(), "test@example.com", "password123", "John", "Doe")
 
 		require.NoError(t, err)
@@ -157,7 +157,7 @@ func TestService_Register(t *testing.T) {
 		users.EXPECT().Create(mock.Anything, mock.Anything).
 			Return(user.Profile{}, apperror.ErrConflict)
 
-		resp, err := New(Deps{Config: newTestConfig(), Users: users}).
+		resp, err := New(newTestConfig(), users).
 			Register(context.Background(), "dup@example.com", "password123", "John", "Doe")
 
 		assert.Nil(t, resp)
@@ -169,7 +169,8 @@ func TestService_Register(t *testing.T) {
 
 		longPassword := strings.Repeat("a", 73)
 
-		resp, err := New(Deps{Config: newTestConfig()}).
+		var users UserDirectory
+		resp, err := New(newTestConfig(), users).
 			Register(context.Background(), "test@example.com", longPassword, "John", "Doe")
 
 		assert.Nil(t, resp)
@@ -185,7 +186,7 @@ func TestService_Refresh(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(Deps{Config: newTestConfig(), Users: users})
+		svc := New(newTestConfig(), users)
 
 		userID := uuid.New()
 		user := user.Profile{
@@ -217,7 +218,8 @@ func TestService_Refresh(t *testing.T) {
 	t.Run("invalid token returns ErrInvalidToken", func(t *testing.T) {
 		t.Parallel()
 
-		svc := New(Deps{Config: newTestConfig()})
+		var users UserDirectory
+		svc := New(newTestConfig(), users)
 
 		resp, err := svc.Refresh(context.Background(), "not-a-token")
 
@@ -228,7 +230,8 @@ func TestService_Refresh(t *testing.T) {
 	t.Run("access token instead of refresh returns ErrInvalidToken", func(t *testing.T) {
 		t.Parallel()
 
-		svc := New(Deps{Config: newTestConfig()})
+		var users UserDirectory
+		svc := New(newTestConfig(), users)
 
 		pair, err := svc.BuildTokenPair(user.Profile{
 			ID: uuid.New(), Email: "test@example.com", Role: "customer", TokenVersion: 1,
@@ -245,7 +248,7 @@ func TestService_Refresh(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(Deps{Config: newTestConfig(), Users: users})
+		svc := New(newTestConfig(), users)
 
 		userID := uuid.New()
 		pair, err := svc.BuildTokenPair(user.Profile{
@@ -270,7 +273,7 @@ func TestService_Refresh(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(Deps{Config: newTestConfig(), Users: users})
+		svc := New(newTestConfig(), users)
 
 		userID := uuid.New()
 		pair, err := svc.BuildTokenPair(user.Profile{
@@ -295,7 +298,7 @@ func TestService_Refresh(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(Deps{Config: newTestConfig(), Users: users})
+		svc := New(newTestConfig(), users)
 
 		userID := uuid.New()
 		pair, err := svc.BuildTokenPair(user.Profile{
@@ -328,7 +331,8 @@ func TestService_BuildTokenPair(t *testing.T) {
 		t.Parallel()
 
 		cfg := newTestConfig()
-		svc := New(Deps{Config: cfg})
+		var users UserDirectory
+		svc := New(cfg, users)
 
 		pair, err := svc.BuildTokenPair(user)
 		require.NoError(t, err)
@@ -372,12 +376,13 @@ func TestService_ValidateToken(t *testing.T) {
 		t.Parallel()
 
 		cfg := newTestConfig()
-		pair, err := New(Deps{Config: cfg}).BuildTokenPair(user)
+		var users UserDirectory
+		pair, err := New(cfg, users).BuildTokenPair(user)
 		require.NoError(t, err)
 
 		wrongCfg := cfg
 		wrongCfg.Secret = "wrong-secret"
-		claims, err := New(Deps{Config: wrongCfg}).ValidateToken(pair.AccessToken)
+		claims, err := New(wrongCfg, users).ValidateToken(pair.AccessToken)
 		assert.Equal(t, ClaimsView{}, claims)
 		assert.Error(t, err)
 	})
@@ -387,7 +392,8 @@ func TestService_ValidateToken(t *testing.T) {
 
 		cfg := newTestConfig()
 		cfg.AccessTokenTTL = -1 * time.Second
-		svc := New(Deps{Config: cfg})
+		var users UserDirectory
+		svc := New(cfg, users)
 		pair, err := svc.BuildTokenPair(user)
 		require.NoError(t, err)
 
@@ -399,7 +405,8 @@ func TestService_ValidateToken(t *testing.T) {
 	t.Run("tampered token returns error", func(t *testing.T) {
 		t.Parallel()
 
-		svc := New(Deps{Config: newTestConfig()})
+		var users UserDirectory
+		svc := New(newTestConfig(), users)
 		pair, err := svc.BuildTokenPair(user)
 		require.NoError(t, err)
 
@@ -413,7 +420,8 @@ func TestService_ValidateToken(t *testing.T) {
 	t.Run("completely invalid token string", func(t *testing.T) {
 		t.Parallel()
 
-		svc := New(Deps{Config: newTestConfig()})
+		var users UserDirectory
+		svc := New(newTestConfig(), users)
 
 		claims, err := svc.ValidateToken("not-a-token")
 		assert.Equal(t, ClaimsView{}, claims)
@@ -423,7 +431,8 @@ func TestService_ValidateToken(t *testing.T) {
 	t.Run("unexpected signing method returns error", func(t *testing.T) {
 		t.Parallel()
 
-		svc := New(Deps{Config: newTestConfig()})
+		var users UserDirectory
+		svc := New(newTestConfig(), users)
 
 		tok := jwt.NewWithClaims(jwt.SigningMethodNone, jwt.MapClaims{
 			"user_id": uuid.New().String(),
