@@ -13,21 +13,15 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
-type Deps struct {
-	Repo   Repository
-	DB     database.DB
-	Logger *slog.Logger
-}
-
 type Service struct {
 	repo Repository
 	Jobs *jobs.Worker
 }
 
-func New(d Deps) *Service {
+func New(repo Repository, db database.DB, logger *slog.Logger) *Service {
 	return &Service{
-		repo: d.Repo,
-		Jobs: jobs.New(jobspg.New(d.DB), d.Logger),
+		repo: repo,
+		Jobs: jobs.New(jobspg.New(db), logger),
 	}
 }
 

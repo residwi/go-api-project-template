@@ -2361,8 +2361,8 @@ type testDeps struct {
 }
 
 // newTestService builds *Service directly rather than through New, because
-// New builds its JobRepository itself from Deps.DB (see jobs.go) and a
-// unit test needs a mock there instead of a real pool.
+// New builds its JobRepository itself from its db parameter (see jobs.go) and
+// a unit test needs a mock there instead of a real pool.
 func newTestService(t *testing.T) (*Service, testDeps) {
 	d := testDeps{
 		repo:      NewMockRepository(t),

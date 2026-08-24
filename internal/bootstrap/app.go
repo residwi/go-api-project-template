@@ -72,11 +72,7 @@ func New(d Deps) (*App, error) {
 	prod := product.New(productpg.New(d.DB), inv)
 	categoryMod := category.New(categorypg.New(d.DB), prod)
 	promotionMod := promotion.New(promotionpg.New(d.DB), txRunner)
-	notificationMod := notification.New(notification.Deps{
-		Repo:   notificationpg.New(d.DB),
-		DB:     d.DB,
-		Logger: d.Logger,
-	})
+	notificationMod := notification.New(notificationpg.New(d.DB), d.DB, d.Logger)
 
 	var statusCache user.StatusCache = user.NoCache{}
 	if d.Cache != nil {
@@ -95,16 +91,16 @@ func New(d Deps) (*App, error) {
 		Notifications: notificationMod.Jobs,
 	})
 
-	paymentMod := payment.New(payment.Deps{
-		Repo:      paymentpg.New(d.DB),
-		DB:        d.DB,
-		Tx:        txRunner,
-		Config:    d.Payment,
-		Logger:    d.Logger,
-		Orders:    ordMod,
-		Inventory: inv,
-		Coupons:   promotionMod,
-	})
+	paymentMod := payment.New(
+		paymentpg.New(d.DB),
+		d.DB,
+		txRunner,
+		d.Payment,
+		d.Logger,
+		ordMod,
+		inv,
+		promotionMod,
+	)
 
 	checkoutSvc := checkout.New(ordMod, paymentMod, d.Logger)
 

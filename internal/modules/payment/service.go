@@ -28,18 +28,6 @@ import (
 
 const jitterDivisor = 2
 
-type Deps struct {
-	Repo   Repository
-	DB     database.DB
-	Tx     database.TxRunner
-	Config Config
-	Logger *slog.Logger
-
-	Orders    Orders
-	Inventory Inventory
-	Coupons   CouponReleaser
-}
-
 type Service struct {
 	repo    Repository
 	tx      database.TxRunner
@@ -56,19 +44,28 @@ type Service struct {
 	JobProcessor *paymentjobs.Dispatcher
 }
 
-func New(d Deps) *Service {
+func New(
+	repo Repository,
+	db database.DB,
+	tx database.TxRunner,
+	cfg Config,
+	logger *slog.Logger,
+	orders Orders,
+	inventory Inventory,
+	coupons CouponReleaser,
+) *Service {
 	s := &Service{
-		repo:          d.Repo,
-		tx:            d.Tx,
-		gateway:       newGateway(d.Config),
-		jobs:          jobspg.New(d.DB),
-		logger:        d.Logger,
-		orders:        d.Orders,
-		inventory:     d.Inventory,
-		coupon:        d.Coupons,
-		webhookSecret: d.Config.WebhookSecret,
+		repo:          repo,
+		tx:            tx,
+		gateway:       newGateway(cfg),
+		jobs:          jobspg.New(db),
+		logger:        logger,
+		orders:        orders,
+		inventory:     inventory,
+		coupon:        coupons,
+		webhookSecret: cfg.WebhookSecret,
 	}
-	s.JobProcessor = paymentjobs.NewDispatcher(s, s, d.Logger)
+	s.JobProcessor = paymentjobs.NewDispatcher(s, s, logger)
 	return s
 }
 

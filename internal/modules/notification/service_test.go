@@ -1,6 +1,7 @@
 package notification
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/google/uuid"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -30,7 +32,9 @@ func TestService_List(t *testing.T) {
 
 		repo.EXPECT().ListByUser(mock.Anything, userID, cursor).Return(expected, nil)
 
-		result, err := New(Deps{Repo: repo}).List(t.Context(), userID, cursor)
+		var db database.DB
+		var logger *slog.Logger
+		result, err := New(repo, db, logger).List(t.Context(), userID, cursor)
 		require.NoError(t, err)
 		assert.Equal(t, expected, result)
 	})
@@ -45,7 +49,9 @@ func TestService_List(t *testing.T) {
 
 		repo.EXPECT().ListByUser(mock.Anything, userID, cursor).Return(nil, assert.AnError)
 
-		_, err := New(Deps{Repo: repo}).List(t.Context(), userID, cursor)
+		var db database.DB
+		var logger *slog.Logger
+		_, err := New(repo, db, logger).List(t.Context(), userID, cursor)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
 }
@@ -62,7 +68,9 @@ func TestService_CountUnread(t *testing.T) {
 
 		repo.EXPECT().CountUnread(mock.Anything, userID).Return(5, nil)
 
-		count, err := New(Deps{Repo: repo}).CountUnread(t.Context(), userID)
+		var db database.DB
+		var logger *slog.Logger
+		count, err := New(repo, db, logger).CountUnread(t.Context(), userID)
 		require.NoError(t, err)
 		assert.Equal(t, 5, count)
 	})
@@ -76,7 +84,9 @@ func TestService_CountUnread(t *testing.T) {
 
 		repo.EXPECT().CountUnread(mock.Anything, userID).Return(0, assert.AnError)
 
-		_, err := New(Deps{Repo: repo}).CountUnread(t.Context(), userID)
+		var db database.DB
+		var logger *slog.Logger
+		_, err := New(repo, db, logger).CountUnread(t.Context(), userID)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
 }
@@ -93,7 +103,9 @@ func TestService_MarkRead(t *testing.T) {
 
 		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(nil)
 
-		err := New(Deps{Repo: repo}).MarkRead(t.Context(), userID, id)
+		var db database.DB
+		var logger *slog.Logger
+		err := New(repo, db, logger).MarkRead(t.Context(), userID, id)
 		require.NoError(t, err)
 	})
 
@@ -106,7 +118,9 @@ func TestService_MarkRead(t *testing.T) {
 
 		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(apperror.ErrNotFound)
 
-		err := New(Deps{Repo: repo}).MarkRead(t.Context(), userID, id)
+		var db database.DB
+		var logger *slog.Logger
+		err := New(repo, db, logger).MarkRead(t.Context(), userID, id)
 		assert.ErrorIs(t, err, apperror.ErrNotFound)
 	})
 }
@@ -123,7 +137,9 @@ func TestService_MarkAllRead(t *testing.T) {
 
 		repo.EXPECT().MarkAllRead(mock.Anything, userID).Return(nil)
 
-		err := New(Deps{Repo: repo}).MarkAllRead(t.Context(), userID)
+		var db database.DB
+		var logger *slog.Logger
+		err := New(repo, db, logger).MarkAllRead(t.Context(), userID)
 		require.NoError(t, err)
 	})
 
@@ -136,7 +152,9 @@ func TestService_MarkAllRead(t *testing.T) {
 
 		repo.EXPECT().MarkAllRead(mock.Anything, userID).Return(assert.AnError)
 
-		err := New(Deps{Repo: repo}).MarkAllRead(t.Context(), userID)
+		var db database.DB
+		var logger *slog.Logger
+		err := New(repo, db, logger).MarkAllRead(t.Context(), userID)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
 }
