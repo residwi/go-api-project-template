@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/residwi/go-api-project-template/internal/modules/payment/gateway"
+	"github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway"
 )
 
 type Gateway struct {

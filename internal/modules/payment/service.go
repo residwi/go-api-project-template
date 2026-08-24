@@ -16,12 +16,12 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
+	"github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway"
+	gatewaymidtrans "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway/midtrans"
+	gatewaymock "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway/mock"
+	gatewaystripe "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway/stripe"
 	paymentjobs "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/jobs"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
-	"github.com/residwi/go-api-project-template/internal/modules/payment/gateway"
-	gatewaymidtrans "github.com/residwi/go-api-project-template/internal/modules/payment/gateway/midtrans"
-	gatewaymock "github.com/residwi/go-api-project-template/internal/modules/payment/gateway/mock"
-	gatewaystripe "github.com/residwi/go-api-project-template/internal/modules/payment/gateway/stripe"
 	jobspg "github.com/residwi/go-api-project-template/internal/modules/payment/jobs/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
@@ -46,7 +46,7 @@ type Deps struct {
 type Service struct {
 	repo    Repository
 	tx      database.TxRunner
-	gateway Gateway
+	gateway gateway.Gateway
 	jobs    JobRepository
 	logger  *slog.Logger
 

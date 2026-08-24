@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/modules/payment/gateway"
+	"github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway"
 )
 
 func TestGateway_Charge(t *testing.T) {

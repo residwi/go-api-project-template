@@ -201,7 +201,7 @@ importer_roots() {
 # rather than another anonymous `grep -v` so that adding an entry is an
 # obvious, reviewable act that shows up in a diff with its justification.
 #
-#   internal/modules/payment/gateway/gateway.go
+#   internal/modules/payment/adapter/gateway/gateway.go
 #     ChargeRequest / ChargeResponse / RefundRequest / RefundResponse are the
 #     *external* payment gateway's wire contract, not this system's. The tags
 #     describe someone else's API. Only this one file needs the exemption --
@@ -210,12 +210,13 @@ importer_roots() {
 #     whole gateway/ directory would exempt three files that carry zero json
 #     tags today, on the strength of one that does. This was a single file
 #     at the module root (payment/gateway.go) before payment was sliced into
-#     vertical slices; moving it under payment/gateway/ still narrows the
-#     exemption, because a json tag on a domain type in payment's own model
-#     can no longer land in the same file as this one by accident -- but the
-#     allowlist entry itself stays exactly as wide as the one file that
-#     earns it. An unexplained exemption in a lint rule is how the rule
-#     erodes, so this one carries its reason.
+#     vertical slices; moving it under payment/gateway/, then under
+#     payment/adapter/gateway/, still narrows the exemption, because a json
+#     tag on a domain type in payment's own model can no longer land in the
+#     same file as this one by accident -- but the allowlist entry itself
+#     stays exactly as wide as the one file that earns it. An unexplained
+#     exemption in a lint rule is how the rule erodes, so this one carries
+#     its reason.
 #
 #   internal/server/response/response.go
 #     Response and Error are the shared envelope every handler in every
@@ -228,7 +229,7 @@ importer_roots() {
 #     files in this package (bind.go, error_mapper.go, pagination_cursor.go)
 #     need no entry -- they carry no json tags today.
 JSON_TAG_ALLOWLIST='
-internal/modules/payment/gateway/gateway.go
+internal/modules/payment/adapter/gateway/gateway.go
 internal/server/response/response.go
 '
 

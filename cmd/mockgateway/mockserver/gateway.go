@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/modules/payment/gateway"
+	"github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway"
 )
 
 const statusSuccess = "success"
