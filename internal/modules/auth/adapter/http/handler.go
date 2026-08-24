@@ -4,8 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/google/uuid"
-
 	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/server/response"
@@ -24,52 +22,6 @@ type Handler struct {
 
 func NewHandler(service AuthManager, v *validator.Validator) *Handler {
 	return &Handler{service: service, validator: v}
-}
-
-type loginRequest struct {
-	Email    string `json:"email"    validate:"required,email"`
-	Password string `json:"password" validate:"required"`
-}
-
-type registerRequest struct {
-	Email     string `json:"email"      validate:"required,email"`
-	Password  string `json:"password"   validate:"required,min=8,max=72"`
-	FirstName string `json:"first_name" validate:"required,min=1,max=100"`
-	LastName  string `json:"last_name"  validate:"required,min=1,max=100"`
-}
-
-type refreshRequest struct {
-	RefreshToken string `json:"refresh_token" validate:"required"`
-}
-
-type authUserResponse struct {
-	ID        uuid.UUID `json:"id"`
-	Email     string    `json:"email"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Role      string    `json:"role"`
-}
-
-type tokenResponse struct {
-	AccessToken  string           `json:"access_token"`
-	RefreshToken string           `json:"refresh_token"`
-	ExpiresIn    int              `json:"expires_in"`
-	User         authUserResponse `json:"user"`
-}
-
-func toTokenResponse(tp *domain.TokenPair) tokenResponse {
-	return tokenResponse{
-		AccessToken:  tp.AccessToken,
-		RefreshToken: tp.RefreshToken,
-		ExpiresIn:    tp.ExpiresIn,
-		User: authUserResponse{
-			ID:        tp.User.ID,
-			Email:     tp.User.Email,
-			FirstName: tp.User.FirstName,
-			LastName:  tp.User.LastName,
-			Role:      tp.User.Role,
-		},
-	}
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {

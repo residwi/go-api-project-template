@@ -28,24 +28,6 @@ func NewHandler(service NotificationManager) *Handler {
 	return &Handler{service: service}
 }
 
-type notificationResponse struct {
-	ID        uuid.UUID `json:"id"`
-	Title     string    `json:"title"`
-	Body      string    `json:"body,omitempty"`
-	IsRead    bool      `json:"is_read"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-func toNotificationResponse(n domain.Notification) notificationResponse {
-	return notificationResponse{
-		ID:        n.ID,
-		Title:     n.Title,
-		Body:      n.Body,
-		IsRead:    n.IsRead,
-		CreatedAt: n.CreatedAt,
-	}
-}
-
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
@@ -68,10 +50,6 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	response.CursorPage(w, out, cursor.Limit, func(n notificationResponse) (time.Time, uuid.UUID) {
 		return n.CreatedAt, n.ID
 	})
-}
-
-type unreadCountResponse struct {
-	Count int `json:"count"`
 }
 
 func (h *Handler) UnreadCount(w http.ResponseWriter, r *http.Request) {

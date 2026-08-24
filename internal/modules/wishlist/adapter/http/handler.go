@@ -29,24 +29,6 @@ func NewHandler(service WishlistManager, v *validator.Validator) *Handler {
 	return &Handler{service: service, validator: v}
 }
 
-type addItemRequest struct {
-	ProductID uuid.UUID `json:"product_id" validate:"required"`
-}
-
-type itemResponse struct {
-	ID        uuid.UUID `json:"id"`
-	ProductID uuid.UUID `json:"product_id"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-func toItemResponse(it domain.Item) itemResponse {
-	return itemResponse{
-		ID:        it.ID,
-		ProductID: it.ProductID,
-		CreatedAt: it.CreatedAt,
-	}
-}
-
 func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
