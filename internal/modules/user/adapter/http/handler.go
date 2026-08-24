@@ -26,24 +26,6 @@ func NewHandler(service ProfileManager, v *validator.Validator) *Handler {
 	return &Handler{service: service, validator: v}
 }
 
-type userResponse struct {
-	ID        uuid.UUID `json:"id"`
-	Email     string    `json:"email"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Phone     string    `json:"phone,omitempty"`
-}
-
-func toUserResponse(u *domain.User) userResponse {
-	return userResponse{
-		ID:        u.ID,
-		Email:     u.Email,
-		FirstName: u.FirstName,
-		LastName:  u.LastName,
-		Phone:     u.Phone,
-	}
-}
-
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {
@@ -57,12 +39,6 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, toUserResponse(u))
-}
-
-type updateProfileRequest struct {
-	FirstName string  `json:"first_name" validate:"omitempty,min=1,max=100"`
-	LastName  string  `json:"last_name"  validate:"omitempty,min=1,max=100"`
-	Phone     *string `json:"phone"      validate:"omitempty,max=20"`
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {

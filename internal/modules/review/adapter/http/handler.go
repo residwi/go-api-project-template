@@ -33,33 +33,6 @@ func NewHandler(service ReviewManager, v *validator.Validator) *Handler {
 	return &Handler{service: service, validator: v}
 }
 
-type reviewResponse struct {
-	ID        uuid.UUID `json:"id"`
-	ProductID uuid.UUID `json:"product_id"`
-	Rating    int       `json:"rating"`
-	Title     string    `json:"title,omitempty"`
-	Body      string    `json:"body,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-func toReviewResponse(rv domain.Review) reviewResponse {
-	return reviewResponse{
-		ID:        rv.ID,
-		ProductID: rv.ProductID,
-		Rating:    rv.Rating,
-		Title:     rv.Title,
-		Body:      rv.Body,
-		CreatedAt: rv.CreatedAt,
-	}
-}
-
-type createReviewRequest struct {
-	OrderID uuid.UUID `json:"order_id" validate:"required"`
-	Rating  int       `json:"rating"   validate:"required,min=1,max=5"`
-	Title   string    `json:"title"    validate:"max=255"`
-	Body    string    `json:"body"`
-}
-
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	uc, ok := middleware.RequireUser(w, r)
 	if !ok {

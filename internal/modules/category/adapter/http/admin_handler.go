@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -42,40 +41,6 @@ func NewAdminHandler(service CategoryManager, v *validator.Validator) *AdminHand
 	return &AdminHandler{service: service, validator: v}
 }
 
-type adminCategoryResponse struct {
-	ID          uuid.UUID  `json:"id"`
-	Name        string     `json:"name"`
-	Slug        string     `json:"slug"`
-	Description *string    `json:"description,omitempty"`
-	ParentID    *uuid.UUID `json:"parent_id,omitempty"`
-	SortOrder   int        `json:"sort_order"`
-	Active      bool       `json:"active"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-}
-
-func toAdminCategoryResponse(c *domain.Category) adminCategoryResponse {
-	return adminCategoryResponse{
-		ID:          c.ID,
-		Name:        c.Name,
-		Slug:        c.Slug,
-		Description: c.Description,
-		ParentID:    c.ParentID,
-		SortOrder:   c.SortOrder,
-		Active:      c.Active,
-		CreatedAt:   c.CreatedAt,
-		UpdatedAt:   c.UpdatedAt,
-	}
-}
-
-type createCategoryRequest struct {
-	Name        string     `json:"name"        validate:"required,min=1,max=255"`
-	Description *string    `json:"description" validate:"omitempty"`
-	ParentID    *uuid.UUID `json:"parent_id"   validate:"omitempty"`
-	SortOrder   *int       `json:"sort_order"  validate:"omitempty,min=0"`
-	Active      *bool      `json:"active"`
-}
-
 func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 	req, ok := response.Bind[createCategoryRequest](w, r, h.validator)
 	if !ok {
@@ -89,14 +54,6 @@ func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Created(w, toAdminCategoryResponse(cat))
-}
-
-type updateCategoryRequest struct {
-	Name        *string    `json:"name"        validate:"omitempty,min=1,max=255"`
-	Description *string    `json:"description" validate:"omitempty"`
-	ParentID    *uuid.UUID `json:"parent_id"   validate:"omitempty"`
-	SortOrder   *int       `json:"sort_order"  validate:"omitempty,min=0"`
-	Active      *bool      `json:"active"`
 }
 
 func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {

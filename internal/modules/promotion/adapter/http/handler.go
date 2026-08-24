@@ -22,23 +22,6 @@ func NewHandler(service PromotionApplier, v *validator.Validator) *Handler {
 	return &Handler{service: service, validator: v}
 }
 
-type applyRequest struct {
-	Code     string `json:"code"     validate:"required"`
-	Subtotal int64  `json:"subtotal" validate:"required,min=1"`
-}
-
-type applyResponse struct {
-	Code     string `json:"code"`
-	Discount int64  `json:"discount"`
-}
-
-func toApplyResponse(code string, discount int64) applyResponse {
-	return applyResponse{
-		Code:     code,
-		Discount: discount,
-	}
-}
-
 func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
 	_, ok := middleware.RequireUser(w, r)
 	if !ok {

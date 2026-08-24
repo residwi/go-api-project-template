@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -51,42 +50,6 @@ type AdminHandler struct {
 
 func NewAdminHandler(service ProductManager, v *validator.Validator) *AdminHandler {
 	return &AdminHandler{service: service, validator: v}
-}
-
-type adminProductResponse struct {
-	ID             uuid.UUID       `json:"id"`
-	CategoryID     *uuid.UUID      `json:"category_id,omitempty"`
-	Name           string          `json:"name"`
-	Slug           string          `json:"slug"`
-	Description    *string         `json:"description,omitempty"`
-	Price          int64           `json:"price"`
-	CompareAtPrice *int64          `json:"compare_at_price,omitempty"`
-	Currency       string          `json:"currency"`
-	SKU            *string         `json:"sku,omitempty"`
-	Status         string          `json:"status"`
-	StockQuantity  int             `json:"stock_quantity"`
-	Images         []imageResponse `json:"images,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
-}
-
-func toAdminProductResponse(p *domain.Product) adminProductResponse {
-	return adminProductResponse{
-		ID:             p.ID,
-		CategoryID:     p.CategoryID,
-		Name:           p.Name,
-		Slug:           p.Slug,
-		Description:    p.Description,
-		Price:          p.Price.Amount,
-		CompareAtPrice: compareAtPriceAmount(p.CompareAtPrice),
-		Currency:       p.Price.Currency,
-		SKU:            p.SKU,
-		Status:         p.Status,
-		StockQuantity:  p.Availability.OnHand,
-		Images:         toImageResponses(p.Images),
-		CreatedAt:      p.CreatedAt,
-		UpdatedAt:      p.UpdatedAt,
-	}
 }
 
 func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -136,17 +99,6 @@ func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toAdminProductResponse(p))
 }
 
-type createProductRequest struct {
-	CategoryID     *uuid.UUID `json:"category_id"      validate:"omitempty"`
-	Name           string     `json:"name"             validate:"required,min=1,max=255"`
-	Description    *string    `json:"description"      validate:"omitempty"`
-	Price          int64      `json:"price"            validate:"required,min=0"`
-	CompareAtPrice *int64     `json:"compare_at_price" validate:"omitempty,min=0"`
-	Currency       string     `json:"currency"         validate:"omitempty,len=3"`
-	SKU            *string    `json:"sku"              validate:"omitempty,max=100"`
-	Status         string     `json:"status"           validate:"omitempty,oneof=draft published archived"`
-}
-
 func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 	req, ok := response.Bind[createProductRequest](w, r, h.validator)
 	if !ok {
@@ -169,17 +121,6 @@ func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Created(w, toAdminProductResponse(p))
-}
-
-type updateProductRequest struct {
-	CategoryID     *uuid.UUID `json:"category_id"      validate:"omitempty"`
-	Name           *string    `json:"name"             validate:"omitempty,min=1,max=255"`
-	Description    *string    `json:"description"      validate:"omitempty"`
-	Price          *int64     `json:"price"            validate:"omitempty,min=0"`
-	CompareAtPrice *int64     `json:"compare_at_price" validate:"omitempty,min=0"`
-	Currency       *string    `json:"currency"         validate:"omitempty,len=3"`
-	SKU            *string    `json:"sku"              validate:"omitempty,max=100"`
-	Status         *string    `json:"status"           validate:"omitempty,oneof=draft published archived"`
 }
 
 func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {

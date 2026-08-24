@@ -26,11 +26,6 @@ func NewAdminHandler(service ShipmentManager, v *validator.Validator) *AdminHand
 	return &AdminHandler{service: service, validator: v}
 }
 
-type createShipmentRequest struct {
-	Carrier        string `json:"carrier"         validate:"required"`
-	TrackingNumber string `json:"tracking_number" validate:"required"`
-}
-
 func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 	orderID, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
@@ -64,11 +59,6 @@ func (h *AdminHandler) Deliver(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, toShipmentResponse(shipment))
-}
-
-type updateTrackingRequest struct {
-	Carrier        string `json:"carrier"         validate:"required"`
-	TrackingNumber string `json:"tracking_number" validate:"required"`
 }
 
 func (h *AdminHandler) UpdateTracking(w http.ResponseWriter, r *http.Request) {

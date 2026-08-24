@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -32,32 +31,6 @@ type AdminHandler struct {
 
 func NewAdminHandler(service UserManager, v *validator.Validator) *AdminHandler {
 	return &AdminHandler{service: service, validator: v}
-}
-
-type adminUserResponse struct {
-	ID        uuid.UUID `json:"id"`
-	Email     string    `json:"email"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Phone     string    `json:"phone,omitempty"`
-	Role      string    `json:"role"`
-	Active    bool      `json:"active"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-func toAdminUserResponse(u *domain.User) adminUserResponse {
-	return adminUserResponse{
-		ID:        u.ID,
-		Email:     u.Email,
-		FirstName: u.FirstName,
-		LastName:  u.LastName,
-		Phone:     u.Phone,
-		Role:      u.Role,
-		Active:    u.Active,
-		CreatedAt: u.CreatedAt,
-		UpdatedAt: u.UpdatedAt,
-	}
 }
 
 func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -102,13 +75,6 @@ func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toAdminUserResponse(u))
 }
 
-type adminUpdateUserRequest struct {
-	FirstName string  `json:"first_name" validate:"omitempty,min=1,max=100"`
-	LastName  string  `json:"last_name"  validate:"omitempty,min=1,max=100"`
-	Phone     *string `json:"phone"      validate:"omitempty,max=20"`
-	Active    *bool   `json:"active"`
-}
-
 func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id, ok := response.ParseUUIDParam(w, r, "id")
 	if !ok {
@@ -127,10 +93,6 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, toAdminUserResponse(u))
-}
-
-type updateRoleRequest struct {
-	Role string `json:"role" validate:"required,oneof=user admin"`
 }
 
 func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {

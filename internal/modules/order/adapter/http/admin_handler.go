@@ -28,10 +28,6 @@ func NewAdminHandler(service OrderManager, v *validator.Validator) *AdminHandler
 	return &AdminHandler{service: service, validator: v}
 }
 
-type updateStatusRequest struct {
-	Status string `json:"status" validate:"required"`
-}
-
 func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := order.AdminListParams{
