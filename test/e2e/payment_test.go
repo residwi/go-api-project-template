@@ -332,8 +332,8 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 		var pendingJobs int
 		err = testPool.QueryRow(
 			ctx,
-			`SELECT COUNT(*) FROM payment_jobs WHERE order_id = $1 AND status IN ('pending','processing')`,
-			orderID,
+			`SELECT COUNT(*) FROM job_queue WHERE group_key = $1 AND status IN ('pending','processing')`,
+			"order:"+orderID,
 		).Scan(&pendingJobs)
 		require.NoError(t, err)
 		assert.Equal(t, 0, pendingJobs)
