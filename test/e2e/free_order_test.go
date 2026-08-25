@@ -18,9 +18,9 @@ import (
 // TestE2EFullyDiscountedOrder drives the zero-total path: a 100% coupon takes
 // the order total to nothing, so order.Service skips the payment tail entirely
 // and finalizes the order itself -- marking it paid and turning the reservation
-// into a deduction. That branch is the only reader of order.Deps.InventoryDeduct,
-// and deleting that assignment in internal/bootstrap/app.go used to leave every
-// e2e green.
+// into a deduction. That branch is the only caller of order.Inventory.Deduct,
+// so dropping that wiring in internal/bootstrap/app.go used to leave every
+// other e2e test green.
 func TestE2EFullyDiscountedOrder(t *testing.T) {
 	setup(t)
 

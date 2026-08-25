@@ -40,7 +40,8 @@ func TestMain(m *testing.M) {
 // projection and payment's own Charge port -- and the payment-job-cancel edge
 // that used to live on order.Deps.PaymentJobs has moved the same way:
 // order.Service.CancelByUser now only reverses stock and releases the coupon,
-// and checkout.Deps.PaymentJobs feeds checkout.Service.CancelOrder instead.
+// checkout.Payments.CancelPendingByOrderID feeds checkout.Service.CancelOrder
+// instead.
 // Order still feeds payment three ports, but order has no payment-shaped
 // dependency left, so New builds order.Service first and hands payment.New
 // that one value for all three -- the same instance order's own writes use,

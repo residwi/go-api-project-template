@@ -913,10 +913,8 @@ func setup(t *testing.T) {
 
 // newPaymentServiceForTest wires a whole App against a custom gateway URL (a
 // local httptest mock server) and hands back the payment service.
-// test/e2e carries its own copy in testmain_test.go, built against the old
-// shared *config.Config -- the two diverged in this task, since bootstrap.New
-// no longer takes a Deps struct with a field of that type. See task 8's
-// report.
+// test/e2e carries its own newPaymentService in testmain_test.go; the two are
+// separate because each package builds its App from its own test fixtures.
 func newPaymentServiceForTest(t *testing.T, gatewayURL string) *payment.Service {
 	t.Helper()
 
