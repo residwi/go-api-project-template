@@ -444,13 +444,11 @@ stale-order housekeeping sweep once per tick. The other claims the
 `notification` queue. Both use the same leased compare-and-set claim, bounded
 concurrency, per-job timeout and pruning; neither hand-rolls a ticker.
 
-Worker configuration via environment variables. `WORKER_BATCH_SIZE` and
-`WORKER_BATCH_SIZE` and the prune settings are shared; poll interval, lease and concurrency are
-otherwise per queue, since payment and notification jobs run at different
-rates:
+Worker configuration via environment variables. `WORKER_BATCH_SIZE` and the
+prune settings are shared; poll interval, lease and concurrency are per queue,
+since payment and notification jobs run at different rates:
 
 - `WORKER_BATCH_SIZE` — Jobs claimed per batch, both queues (default: 10)
-  `WORKER_NOTIFICATION_LEASE` below for what the runners actually use
 - `WORKER_PAYMENT_INTERVAL` — Payment queue poll interval (default: 10s)
 - `WORKER_PAYMENT_CONCURRENCY` — Payment queue concurrent processors (default: 5)
 - `WORKER_PAYMENT_LEASE` — Payment queue job lease duration (default: 2m)

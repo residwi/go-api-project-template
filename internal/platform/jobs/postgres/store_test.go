@@ -115,13 +115,14 @@ func TestClaimReclaimsExpiredLeases(t *testing.T) {
 
 	t.Run("leaves a processing record whose lease is still held", func(t *testing.T) {
 		held := claimOne(t, store, "dedup-held")
+		require.NoError(t, store.Insert(ctx, rec("payment", "payment.refund", "dedup-ready", "")))
 
 		claimed, err := store.Claim(ctx, "payment", 10, time.Minute)
 
 		require.NoError(t, err)
-		for _, c := range claimed {
-			assert.NotEqual(t, held, c.ID, "a live lease must not be reclaimed")
-		}
+		require.Len(t, claimed, 1, "the ready record must be claimed, so an empty result cannot pass this")
+		assert.Equal(t, "dedup-ready", claimed[0].DedupKey)
+		assert.NotEqual(t, held, claimed[0].ID, "a live lease must not be reclaimed")
 	})
 }
 
