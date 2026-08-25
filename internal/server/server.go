@@ -49,26 +49,26 @@ func RunContext(ctx context.Context) error {
 		return err
 	}
 
-	pool, err := database.NewPostgres(ctx, infra.Database)
+	pool, err := database.NewPrimaryPostgres(ctx, infra.Database)
 	if err != nil {
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
 		return fmt.Errorf("connecting to database: %w", err)
 	}
 	defer pool.Close()
 
-	readerPool, err := database.NewReaderPostgres(ctx, infra.Database)
+	replicaPool, err := database.NewReplicaPostgres(ctx, infra.Database)
 	if err != nil {
-		if !errors.Is(err, apperror.ErrReaderNotConfigured) {
+		if !errors.Is(err, apperror.ErrReplicaNotConfigured) {
 			appLog.WarnContext(
 				ctx,
-				"failed to connect reader database, using primary",
+				"failed to connect replica database, using primary",
 				slog.String("error", err.Error()),
 			)
 		}
-		readerPool = nil
+		replicaPool = nil
 	}
-	if readerPool != nil {
-		defer readerPool.Close()
+	if replicaPool != nil {
+		defer replicaPool.Close()
 	}
 
 	rdb, err := cache.NewRedis(ctx, infra.Redis)
@@ -83,7 +83,7 @@ func RunContext(ctx context.Context) error {
 		defer rdb.Close()
 	}
 
-	db := database.DB{Primary: pool, Replica: readerPool}
+	db := database.DB{Primary: pool, Replica: replicaPool}
 
 	app, err := bootstrap.New(authCfg, cartCfg, paymentCfg, db, rdb, appLog)
 	if err != nil {

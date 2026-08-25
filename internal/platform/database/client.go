@@ -11,7 +11,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 )
 
-func NewPostgres(ctx context.Context, cfg config.Database) (*pgxpool.Pool, error) {
+func NewPrimaryPostgres(ctx context.Context, cfg config.Database) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.DSN())
 	if err != nil {
 		return nil, fmt.Errorf("parsing database config: %w", err)
@@ -32,26 +32,26 @@ func NewPostgres(ctx context.Context, cfg config.Database) (*pgxpool.Pool, error
 	return pool, nil
 }
 
-func NewReaderPostgres(ctx context.Context, cfg config.Database) (*pgxpool.Pool, error) {
-	if cfg.ReaderURL == "" {
-		return nil, apperror.ErrReaderNotConfigured
+func NewReplicaPostgres(ctx context.Context, cfg config.Database) (*pgxpool.Pool, error) {
+	if cfg.ReplicaURL == "" {
+		return nil, apperror.ErrReplicaNotConfigured
 	}
 
-	poolCfg, err := pgxpool.ParseConfig(cfg.ReaderURL)
+	poolCfg, err := pgxpool.ParseConfig(cfg.ReplicaURL)
 	if err != nil {
-		return nil, fmt.Errorf("parsing reader database config: %w", err)
+		return nil, fmt.Errorf("parsing replica database config: %w", err)
 	}
 
 	applyPoolTuning(poolCfg, cfg)
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
-		return nil, fmt.Errorf("connecting to reader database: %w", err)
+		return nil, fmt.Errorf("connecting to replica database: %w", err)
 	}
 
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("pinging reader database: %w", err)
+		return nil, fmt.Errorf("pinging replica database: %w", err)
 	}
 
 	return pool, nil

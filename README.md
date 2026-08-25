@@ -565,7 +565,7 @@ Key variables:
 | `DB_MAX_CONN_IDLE_TIME`         | Max connection idle time                       | `30m`                                                     |
 | `DB_STATEMENT_TIMEOUT`          | Statement timeout                              | `30s`                                                     |
 | `DB_IDLE_IN_TX_SESSION_TIMEOUT` | Idle in transaction timeout                    | `60s`                                                     |
-| `READER_DATABASE_URL`           | Read replica URL — now load-bearing: set it and `dashboard`, plus the read-only paths of `order`, `product`, `promotion` and `user`, read from the replica instead of the primary | — |
+| `REPLICA_DATABASE_URL`           | Read replica URL — now load-bearing: set it and `dashboard`, plus the read-only paths of `order`, `product`, `promotion` and `user`, read from the replica instead of the primary | — |
 | `REDIS_HOST`                    | Redis host                                     | `localhost`                                               |
 | `REDIS_PORT`                    | Redis port                                     | `6379`                                                    |
 | `REDIS_PASSWORD`                | Redis password                                 | —                                                         |

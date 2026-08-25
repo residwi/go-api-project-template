@@ -757,7 +757,7 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	assert.Contains(t, err.Error(), "getting order for verification")
 }
 
-func TestServerRunReaderDBFailure(t *testing.T) {
+func TestServerRunReplicaDBFailure(t *testing.T) {
 	setup(t)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -765,13 +765,13 @@ func TestServerRunReaderDBFailure(t *testing.T) {
 	ln.Close()
 
 	serverRunEnv(t, port)
-	t.Setenv("READER_DATABASE_URL", "postgres://invalid:invalid@127.0.0.1:1/invalid?sslmode=disable")
+	t.Setenv("REPLICA_DATABASE_URL", "postgres://invalid:invalid@127.0.0.1:1/invalid?sslmode=disable")
 
 	runErr := startAndStopServer(t, fmt.Sprintf("http://127.0.0.1:%d", port))
 	assert.NoError(t, runErr)
 }
 
-func TestServerRunReaderDBSuccess(t *testing.T) {
+func TestServerRunReplicaDBSuccess(t *testing.T) {
 	setup(t)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -780,7 +780,7 @@ func TestServerRunReaderDBSuccess(t *testing.T) {
 
 	pgCfg := testPool.Config().ConnConfig
 	serverRunEnv(t, port)
-	t.Setenv("READER_DATABASE_URL", fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable",
+	t.Setenv("REPLICA_DATABASE_URL", fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable",
 		pgCfg.User, pgCfg.Password, net.JoinHostPort(pgCfg.Host, strconv.Itoa(int(pgCfg.Port))), pgCfg.Database))
 
 	runErr := startAndStopServer(t, fmt.Sprintf("http://127.0.0.1:%d", port))

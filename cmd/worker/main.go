@@ -79,7 +79,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := database.NewPostgres(ctx, infra.Database)
+	pool, err := database.NewPrimaryPostgres(ctx, infra.Database)
 	if err != nil {
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
 		return fmt.Errorf("connecting to database: %w", err)

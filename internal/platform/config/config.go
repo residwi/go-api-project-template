@@ -86,7 +86,7 @@ type Database struct {
 	MinConns                        int           `envconfig:"DB_MIN_CONNS"                  default:"5"`
 	MaxConnLifetime                 time.Duration `envconfig:"DB_MAX_CONN_LIFETIME"          default:"1h"`
 	MaxConnIdleTime                 time.Duration `envconfig:"DB_MAX_CONN_IDLE_TIME"         default:"30m"`
-	ReaderURL                       string        `envconfig:"READER_DATABASE_URL"           default:""`
+	ReplicaURL                      string        `envconfig:"REPLICA_DATABASE_URL"          default:""`
 	StatementTimeout                time.Duration `envconfig:"DB_STATEMENT_TIMEOUT"          default:"30s"`
 	IdleInTransactionSessionTimeout time.Duration `envconfig:"DB_IDLE_IN_TX_SESSION_TIMEOUT" default:"60s"`
 }
