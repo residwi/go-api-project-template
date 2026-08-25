@@ -93,8 +93,7 @@ check-boundaries: ## Check architectural boundaries (wire tags, table ownership,
 .PHONY: fmt
 fmt: ## Format code
 	@echo "Formatting..."
-	go fmt ./...
-	gofmt -s -w .
+	golangci-lint fmt ./...
 
 .PHONY: vet
 vet: ## Run go vet
