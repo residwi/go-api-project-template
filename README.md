@@ -445,13 +445,11 @@ stale-order housekeeping sweep once per tick. The other claims the
 concurrency, per-job timeout and pruning; neither hand-rolls a ticker.
 
 Worker configuration via environment variables. `WORKER_BATCH_SIZE` and
-`WORKER_LEASE_DURATION` are shared; poll interval, lease and concurrency are
+`WORKER_BATCH_SIZE` and the prune settings are shared; poll interval, lease and concurrency are
 otherwise per queue, since payment and notification jobs run at different
 rates:
 
 - `WORKER_BATCH_SIZE` — Jobs claimed per batch, both queues (default: 10)
-- `WORKER_LEASE_DURATION` — Lease used to validate module config at boot, not
-  the runner's own lease (default: 2m); see `WORKER_PAYMENT_LEASE` and
   `WORKER_NOTIFICATION_LEASE` below for what the runners actually use
 - `WORKER_PAYMENT_INTERVAL` — Payment queue poll interval (default: 10s)
 - `WORKER_PAYMENT_CONCURRENCY` — Payment queue concurrent processors (default: 5)
@@ -588,7 +586,6 @@ Key variables:
 | `CORS_ALLOWED_HEADERS`          | CORS allowed headers                           | `Content-Type,Authorization,X-Request-ID,Idempotency-Key` |
 | `CORS_MAX_AGE`                  | CORS max age (seconds)                         | `86400`                                                   |
 | `WORKER_BATCH_SIZE`             | Worker jobs per batch, both queues             | `10`                                                      |
-| `WORKER_LEASE_DURATION`         | Lease used to validate module config at boot   | `2m`                                                      |
 | `WORKER_PAYMENT_INTERVAL`       | Payment queue poll interval                    | `10s`                                                     |
 | `WORKER_PAYMENT_CONCURRENCY`    | Payment queue concurrent processors            | `5`                                                       |
 | `WORKER_PAYMENT_LEASE`          | Payment queue job lease duration                | `2m`                                                      |

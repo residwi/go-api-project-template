@@ -43,7 +43,9 @@ func (s *Store) Claim(ctx context.Context, queue string, batch int, lease time.D
 		`UPDATE job_queue SET status = 'processing', locked_until = NOW() + $1::interval, updated_at = NOW()
 		WHERE id IN (
 			SELECT id FROM job_queue
-			WHERE queue = $2 AND status = 'pending' AND run_at <= NOW()
+			WHERE queue = $2
+			  AND ((status = 'pending' AND run_at <= NOW())
+			    OR (status = 'processing' AND locked_until <= NOW()))
 			ORDER BY run_at
 			LIMIT $3
 			FOR UPDATE SKIP LOCKED

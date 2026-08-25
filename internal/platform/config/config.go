@@ -121,10 +121,9 @@ type CORS struct {
 }
 
 type Worker struct {
-	BatchSize     int           `envconfig:"WORKER_BATCH_SIZE"     default:"10"`
-	LeaseDuration time.Duration `envconfig:"WORKER_LEASE_DURATION" default:"2m"`
-	PruneAge      time.Duration `envconfig:"WORKER_PRUNE_AGE"      default:"168h"`
-	PruneLimit    int           `envconfig:"WORKER_PRUNE_LIMIT"    default:"100"`
+	BatchSize  int           `envconfig:"WORKER_BATCH_SIZE"  default:"10"`
+	PruneAge   time.Duration `envconfig:"WORKER_PRUNE_AGE"   default:"168h"`
+	PruneLimit int           `envconfig:"WORKER_PRUNE_LIMIT" default:"100"`
 
 	PaymentInterval      time.Duration `envconfig:"WORKER_PAYMENT_INTERVAL"    default:"10s"`
 	PaymentConcurrency   int           `envconfig:"WORKER_PAYMENT_CONCURRENCY" default:"5"`

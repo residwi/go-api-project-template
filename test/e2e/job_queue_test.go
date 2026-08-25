@@ -110,7 +110,7 @@ func TestRefundJobIsEnqueuedOnce(t *testing.T) {
 	ctx := context.Background()
 	env := newTestEnv(t)
 
-	orderID, paymentID := placeAndPayOrder(t, env)
+	_, paymentID := placeAndPayOrder(t, env)
 
 	require.NoError(t, env.app.Payments.Refund(ctx, paymentID))
 	require.Error(t, env.app.Payments.Refund(ctx, paymentID))
@@ -121,7 +121,6 @@ func TestRefundJobIsEnqueuedOnce(t *testing.T) {
 		"payment.refund:"+paymentID.String()).Scan(&count))
 
 	assert.Equal(t, 1, count)
-	_ = orderID
 }
 
 func TestCancellingAnOrderCancelsItsPaymentJobsOnly(t *testing.T) {
@@ -192,8 +191,8 @@ func TestRunnerClaimsAndRunsAnEnqueuedJob(t *testing.T) {
 		).Scan(&s); err != nil {
 			return false
 		}
-		return s == "completed" || s == "dead" || s == "cancelled"
-	}, 15*time.Second, 100*time.Millisecond, "the runner never settled the job")
+		return s == "completed"
+	}, 15*time.Second, 100*time.Millisecond, "the runner never ran the refund to completion")
 
 	stop()
 	<-done

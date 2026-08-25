@@ -97,6 +97,34 @@ func TestInsertAndClaim(t *testing.T) {
 	})
 }
 
+func TestClaimReclaimsExpiredLeases(t *testing.T) {
+	setup(t)
+	store := New(testDB)
+	ctx := context.Background()
+
+	t.Run("reclaims a processing record whose lease has lapsed", func(t *testing.T) {
+		id := claimOne(t, store, "dedup-lapsed")
+		expireLease(t, id)
+
+		claimed, err := store.Claim(ctx, "payment", 10, time.Minute)
+
+		require.NoError(t, err)
+		require.Len(t, claimed, 1)
+		assert.Equal(t, id, claimed[0].ID)
+	})
+
+	t.Run("leaves a processing record whose lease is still held", func(t *testing.T) {
+		held := claimOne(t, store, "dedup-held")
+
+		claimed, err := store.Claim(ctx, "payment", 10, time.Minute)
+
+		require.NoError(t, err)
+		for _, c := range claimed {
+			assert.NotEqual(t, held, c.ID, "a live lease must not be reclaimed")
+		}
+	})
+}
+
 func TestCancelByGroupKey(t *testing.T) {
 	setup(t)
 	store := New(testDB)
@@ -237,6 +265,14 @@ func fetch(t *testing.T, id uuid.UUID) jobs.Record {
 		r.LastError = *lastError
 	}
 	return r
+}
+
+func expireLease(t *testing.T, id uuid.UUID) {
+	t.Helper()
+
+	_, err := testDB.Primary.Exec(context.Background(),
+		`UPDATE job_queue SET locked_until = NOW() - INTERVAL '1 minute' WHERE id = $1`, id)
+	require.NoError(t, err)
 }
 
 func setup(t *testing.T) {

@@ -818,21 +818,37 @@ a test that sets either field `true`. That is an untested branch, not a
 type-safety hole — the fields are populated now, so the branch reads what the
 row actually says. It predates the flatten and is still worth a test.
 
-## Config load order is load-bearing and unchecked, and the value it validates is now the wrong one
+## Config load order is load-bearing, and nothing type-enforces which lease gets validated
 
-**Where you hit it:** `order.LoadConfig(jobsLease time.Duration)` and `payment.LoadConfig(appEnv string, jobsLease time.Duration)` each validate a timeout against a `jobsLease` parameter, not against any `infra.Worker` field directly. Both real call sites — `server.go`'s `loadModuleConfigs` helper and `cmd/worker/main.go`'s `run` — pass `infra.Worker.LeaseDuration`, the one lease field that is *shared* between the two queues, after `config.Load()` has already succeeded.
+**Where you hit it:** `order.LoadConfig(jobsLease time.Duration)` and
+`payment.LoadConfig(appEnv string, jobsLease time.Duration)` each validate a threshold against
+a bare `time.Duration` parameter rather than against an `infra.Worker` field directly.
+`order` refuses a lease at or above its stale-processing threshold, which would let the
+recovery sweep revert an order whose charge is still leased; `payment` refuses a lease below
+`3×PAYMENT_GATEWAY_TIMEOUT`, which would let the runner reclaim and re-run a charge the gateway
+has not finished.
 
-**The value that gets validated is no longer the value either runner leases with.** `order.LoadConfig` checks `jobsLease < StaleProcessingThreshold`, guarding against the payment runner's per-tick sweep reverting an order whose charge is still leased; `payment.LoadConfig` checks `jobsLease >= GatewayTimeout*3`, guarding against a lease so short the runner reclaims and re-runs a charge the gateway hasn't finished yet. Both guards were written when there was one worker-wide lease. There are now two, `WORKER_PAYMENT_LEASE` and `WORKER_NOTIFICATION_LEASE`, and `cmd/worker/main.go` builds its `paymentJobCfg.LeaseDuration` from `infra.Worker.PaymentLeaseDuration`, not from `infra.Worker.LeaseDuration`. So the number two `LoadConfig` calls validate at boot and the number the payment runner actually leases with are two different config fields, read from two different environment variables, with nothing anywhere comparing them. Set `WORKER_LEASE_DURATION` to a safe value and `WORKER_PAYMENT_LEASE` to an unsafe one — shorter than `3×PAYMENT_GATEWAY_TIMEOUT`, or longer than `order`'s stale-processing threshold — and boot succeeds having validated a number the worker never uses, while the number it does use goes unchecked in either direction.
+**The per-queue lease split broke this once already.** Both guards were written when one
+worker-wide `WORKER_LEASE_DURATION` fed every consumer. Splitting the worker settings per queue
+gave the payment runner `WORKER_PAYMENT_LEASE` while both `LoadConfig` call sites kept passing
+the old shared field — so for a while the guards validated a number the runner never used, and
+`WORKER_PAYMENT_LEASE=30m` against a 15-minute stale threshold booted clean. That is fixed:
+both call sites now pass `infra.Worker.PaymentLeaseDuration`, the three error messages name
+`WORKER_PAYMENT_LEASE`, and the dead shared field is gone.
 
-**Why it looked safe before this refactor's job-queue split.** Every real call site threaded the one `infra.Worker.LeaseDuration` value through unchanged from `Load` into both `LoadConfig`s and into the one job runner's config, so the value validated and the value used were provably the same field. The per-queue lease split broke that by construction, not by a mistake at a call site: `WORKER_PAYMENT_LEASE` and `WORKER_NOTIFICATION_LEASE` did not exist when these two guards were written, and adding them did not touch either `LoadConfig` signature.
+**What remains is structural.** The parameter is still a bare `time.Duration`, so nothing
+prevents a third call site passing a different one — a placeholder, a variable meant for
+something else, a value read before infra finished loading. If it happens to land inside the
+range both guards accept, boot succeeds having validated a number no runner uses, and the real
+lease goes unchecked in either direction. The compiler cannot tell the two apart, and there is
+no test that would notice.
 
-**What it costs today.** Nothing observable yet, because `WORKER_PAYMENT_LEASE`'s default (`2m`) happens to satisfy both guards against the other defaults (`PAYMENT_GATEWAY_TIMEOUT=10s`, `order`'s `StaleProcessingThreshold`). It costs real safety the day either default is overridden without also reasoning about the other: a short `WORKER_PAYMENT_LEASE` in a fast-gateway environment, or a long `StaleProcessingThreshold`, can now boot clean while carrying exactly the race each guard exists to prevent.
-
-**What you would do:** have `order.LoadConfig` and `payment.LoadConfig` take `infra.Worker.PaymentLeaseDuration` — the field the payment runner's `jobs.Config.LeaseDuration` is actually built from — instead of `infra.Worker.LeaseDuration`, and rename the parameter to say so. Every test in `internal/modules/order/config_test.go` / `payment/config_test.go` already passes an explicit literal duration and checks the error, so no test needs to change shape, only which `infra` field the two real call sites thread through — a smaller fix than it looks, and worth doing before the next person tunes `WORKER_PAYMENT_LEASE` and trusts the boot check that no longer looks at it.
-
-**What breaks it.** A future call site that passes a `time.Duration` other than `infra.Worker.LeaseDuration` — because it ran before infra finished loading, or reused a variable meant for something else — gets a validation result that says nothing about the lease the runner will actually use. If that placeholder value happens to land inside the range both `LoadConfig`s accept (above payment's 3×`PAYMENT_GATEWAY_TIMEOUT` floor, below order's `StaleProcessingThreshold` ceiling), boot succeeds having validated the wrong number, and the real `infra.Worker.LeaseDuration` — whatever it actually is, including a value outside that safe range — never gets checked against either threshold at all. That is how a worker ends up leasing jobs for longer than the recovery sweep waits before reverting them.
-
-**What you would do:** nothing speculative ahead of a second call site that gets this wrong — today there are exactly two, and both thread the same value through by construction. If a third ever appears, either have `Load` return a lease-bearing type that both `LoadConfig`s require as their parameter instead of a bare `time.Duration` — a compile-time guarantee that the validated value came from a successful infra load — or keep the load sequence in the one function per binary that already owns it (`loadModuleConfigs`, `cmd/worker/main.go`'s `run`) and never inline a module's `LoadConfig` at a new use site.
+**What you would do.** Nothing speculative ahead of a third call site — there are exactly two
+today and both thread the same field by construction. If a third appears, either have `Load`
+return a lease-bearing type that both `LoadConfig`s require, making the provenance a
+compile-time guarantee, or keep the load sequence in the one function per binary that already
+owns it (`server.go`'s `loadModuleConfigs`, `cmd/worker/main.go`'s `run`) and never inline a
+module's `LoadConfig` at a new use site.
 
 ## `contract.go` can grow into the shared domain model `internal/shared/` was rejected for being
 
