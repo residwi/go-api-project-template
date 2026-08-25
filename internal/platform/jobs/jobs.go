@@ -54,7 +54,6 @@ type Store interface {
 	Retry(ctx context.Context, id uuid.UUID, attempts int, lastErr string, runAt time.Time) error
 	Bury(ctx context.Context, id uuid.UUID, attempts int, lastErr string) error
 	Cancel(ctx context.Context, id uuid.UUID, lastErr string) error
-	CancelByDedupKey(ctx context.Context, dedupKey string) (int, error)
 	CancelByGroupKey(ctx context.Context, groupKey string) (int, error)
 	Prune(ctx context.Context, queue string, age time.Duration, limit int) (int, error)
 }

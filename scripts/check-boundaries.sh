@@ -245,7 +245,7 @@ is_json_tag_allowlisted() {
 # usecase/<slice>/http/, went with the slices; while it lasted it was the
 # only exemption in this script that could not be reached from any path in
 # the tree. This one arm carries every module: drop it and check 1 reports
-# 380 tags in fifteen adapters at once.
+# 294 tags in fifteen adapters at once.
 is_http_adapter() {
 	case "$1" in
 	"$MODULES_ROOT"/*/adapter/http/*.go) return 0 ;;

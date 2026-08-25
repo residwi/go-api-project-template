@@ -101,4 +101,13 @@ func TestLoad(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "WORKER_NOTIFICATION_CONCURRENCY must be at least 1")
 	})
+
+	t.Run("rejects a zero batch size that would halt both runners", func(t *testing.T) {
+		t.Setenv("WORKER_BATCH_SIZE", "0")
+
+		_, err := Load()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "WORKER_BATCH_SIZE must be at least 1")
+	})
 }

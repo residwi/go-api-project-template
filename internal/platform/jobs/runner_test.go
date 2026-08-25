@@ -365,7 +365,6 @@ func (f *fakeStore) Cancel(_ context.Context, id uuid.UUID, lastErr string) erro
 	return f.record(fmt.Sprintf("cancel:%s:%s", label(id), lastErr))
 }
 
-func (f *fakeStore) CancelByDedupKey(context.Context, string) (int, error) { return 0, nil }
 func (f *fakeStore) CancelByGroupKey(context.Context, string) (int, error) { return 0, nil }
 
 func (f *fakeStore) Prune(context.Context, string, time.Duration, int) (int, error) {

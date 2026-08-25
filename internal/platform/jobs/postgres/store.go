@@ -85,11 +85,6 @@ func (s *Store) Cancel(ctx context.Context, id uuid.UUID, lastErr string) error 
 		locked_until = NULL, updated_at = NOW() WHERE id = $1`, id, lastErr)
 }
 
-func (s *Store) CancelByDedupKey(ctx context.Context, dedupKey string) (int, error) {
-	return s.cancelWhere(ctx, `UPDATE job_queue SET status = 'cancelled', locked_until = NULL,
-		updated_at = NOW() WHERE dedup_key = $1 AND status = 'pending'`, dedupKey)
-}
-
 func (s *Store) CancelByGroupKey(ctx context.Context, groupKey string) (int, error) {
 	return s.cancelWhere(ctx, `UPDATE job_queue SET status = 'cancelled', locked_until = NULL,
 		updated_at = NOW() WHERE group_key = $1 AND status = 'pending'`, groupKey)

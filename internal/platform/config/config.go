@@ -52,6 +52,12 @@ func (s *Settings) validate() error {
 		)
 	}
 
+	if s.Worker.BatchSize < 1 {
+		return errors.New(
+			"WORKER_BATCH_SIZE must be at least 1 (0 makes every claim query LIMIT 0 and silently halts both runners)",
+		)
+	}
+
 	if s.Worker.PruneLimit < 1 {
 		return errors.New("WORKER_PRUNE_LIMIT must be at least 1")
 	}

@@ -772,7 +772,7 @@ only `Snapshot`; the file no longer proves the narrower claim by itself.
 `Kind() string` and `Run(ctx context.Context) error` — one `Record` (a row in
 the single `job_queue` table: queue, kind, JSON payload, dedup key, group
 key, status, attempts, lease) and one `Store` interface
-(`Insert`/`Claim`/`Complete`/`Retry`/`Bury`/`Cancel`/`CancelByDedupKey`/
+(`Insert`/`Claim`/`Complete`/`Retry`/`Bury`/`Cancel`/
 `CancelByGroupKey`/`Prune`), implemented once by
 `internal/platform/jobs/postgres` against that one table. A module declares
 its own job type in its own `job.go`, at module root, with an exported
