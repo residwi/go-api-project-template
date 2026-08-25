@@ -21,7 +21,7 @@ func LoadConfig(jobsLease time.Duration) (Config, error) {
 
 	if jobsLease >= StaleProcessingThreshold {
 		return Config{}, fmt.Errorf(
-			"WORKER_LEASE_DURATION (%s) must be less than the order stale-processing threshold (%s), or the recovery sweep can revert an order whose charge is still leased",
+			"WORKER_PAYMENT_LEASE (%s) must be less than the order stale-processing threshold (%s), or the recovery sweep can revert an order whose charge is still leased",
 			jobsLease,
 			StaleProcessingThreshold,
 		)

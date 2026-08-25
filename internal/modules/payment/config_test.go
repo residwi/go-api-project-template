@@ -58,7 +58,7 @@ func TestLoadConfig(t *testing.T) {
 		_, err := LoadConfig("development", 2*time.Minute)
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "WORKER_LEASE_DURATION must be at least 3")
+		assert.Contains(t, err.Error(), "WORKER_PAYMENT_LEASE must be at least 3")
 	})
 
 	t.Run("rejects a gateway timeout so large no valid lease exists", func(t *testing.T) {

@@ -44,13 +44,13 @@ func LoadConfig(appEnv string, jobsLease time.Duration) (Config, error) {
 
 	if jobsLease < cfg.GatewayTimeout*3 {
 		return Config{}, errors.New(
-			"WORKER_LEASE_DURATION must be at least 3× PAYMENT_GATEWAY_TIMEOUT to avoid duplicate gateway calls",
+			"WORKER_PAYMENT_LEASE must be at least 3× PAYMENT_GATEWAY_TIMEOUT to avoid duplicate gateway calls",
 		)
 	}
 
 	if cfg.GatewayTimeout*3 >= order.StaleProcessingThreshold {
 		return Config{}, fmt.Errorf(
-			"PAYMENT_GATEWAY_TIMEOUT (%s) is too large: 3× it must stay below the order stale-processing threshold (%s) so a valid WORKER_LEASE_DURATION range exists",
+			"PAYMENT_GATEWAY_TIMEOUT (%s) is too large: 3× it must stay below the order stale-processing threshold (%s) so a valid WORKER_PAYMENT_LEASE range exists",
 			cfg.GatewayTimeout,
 			order.StaleProcessingThreshold,
 		)

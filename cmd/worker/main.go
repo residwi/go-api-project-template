@@ -65,12 +65,12 @@ func run() error {
 		return err
 	}
 
-	if _, err = order.LoadConfig(infra.Worker.LeaseDuration); err != nil {
+	if _, err = order.LoadConfig(infra.Worker.PaymentLeaseDuration); err != nil {
 		appLog.Error("loading order config failed", slog.String("error", err.Error()))
 		return err
 	}
 
-	paymentCfg, err := payment.LoadConfig(infra.App.Env, infra.Worker.LeaseDuration)
+	paymentCfg, err := payment.LoadConfig(infra.App.Env, infra.Worker.PaymentLeaseDuration)
 	if err != nil {
 		appLog.Error("loading payment config failed", slog.String("error", err.Error()))
 		return err

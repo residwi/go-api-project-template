@@ -162,13 +162,13 @@ func loadModuleConfigs(
 		return authCfg, cartCfg, orderCfg, paymentCfg, err
 	}
 
-	orderCfg, err = order.LoadConfig(infra.Worker.LeaseDuration)
+	orderCfg, err = order.LoadConfig(infra.Worker.PaymentLeaseDuration)
 	if err != nil {
 		appLog.ErrorContext(ctx, "loading order config failed", slog.String("error", err.Error()))
 		return authCfg, cartCfg, orderCfg, paymentCfg, err
 	}
 
-	paymentCfg, err = payment.LoadConfig(infra.App.Env, infra.Worker.LeaseDuration)
+	paymentCfg, err = payment.LoadConfig(infra.App.Env, infra.Worker.PaymentLeaseDuration)
 	if err != nil {
 		appLog.ErrorContext(ctx, "loading payment config failed", slog.String("error", err.Error()))
 		return authCfg, cartCfg, orderCfg, paymentCfg, err
