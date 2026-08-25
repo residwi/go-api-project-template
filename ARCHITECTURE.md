@@ -8,7 +8,7 @@ Read `./ARCHITECTURE-LIMITATIONS.md` for bills these decisions
 carry, and `./db/OWNERSHIP.md` for table ownership map — which
 `make check-boundaries` parses, so enforced not merely asserted.
 
-**Three of the eighteen decisions below are history, not current practice,
+**Three of the nineteen decisions below are history, not current practice,
 and all three say so at the top of their body.** Decision 14 — a module is a
 boundary containing vertical slices — is **reversed**; decision 16 records
 what replaced it and what the reversal cost. Decision 2 — one narrow port per
@@ -33,8 +33,9 @@ Two consequences worth naming, since they look like mistakes otherwise:
 
 - The `adapter/postgres` / `adapter/http` split costs an import alias
   wherever an adapter is wired, and there are exactly two such files.
-  `internal/bootstrap/app.go` carries 14 (thirteen `*pg` plus `userredis`);
-  `internal/server/routes.go` carries 15, one per module that serves a route.
+  `internal/bootstrap/app.go` carries 16 (thirteen `*pg`, plus `userredis`,
+  `channellog` and `jobspg`); `internal/server/routes.go` carries 15, one
+  per module that serves a route.
   In a product codebase, hard to justify. Here it is the point: a physical
   boundary teaches the port/adapter distinction in a way a file-naming
   convention cannot.
@@ -133,32 +134,39 @@ that one value no matter how many capabilities it was split across, decision
 
 `internal/modules/order/adapter/postgres`,
 `internal/modules/order/adapter/http`, `internal/modules/user/adapter/redis`,
-`internal/modules/payment/adapter/jobs`. One directory level — `adapter/` —
+`internal/modules/payment/adapter/gateway`. One directory level — `adapter/` —
 groups them, so `ls internal/modules/order/` shows the module's own surface
-without an adapter in the way.
-`payment/gateway/stripe`, `payment/gateway/midtrans` and `payment/gateway/mock`
-are the exception that proves the rule at a different scope: an adapter family
-for one outbound port, still named for its technology, just not under
-`adapter/` — because `gateway.Gateway` is a port the module *calls* rather
-than one that answers a caller.
+without an adapter in the way. `payment/adapter/gateway/stripe`,
+`payment/adapter/gateway/midtrans` and `payment/adapter/gateway/mock` are an
+adapter family for one outbound port rather than one adapter per port, still
+named for their technology — because `gateway.Gateway` is a port the module
+*calls* rather than one that answers a caller, `payment.service.go`'s
+`newGateway` picks exactly one of the three from `Config.Gateway` at
+construction time. This family used to sit at `payment/gateway/`, one level
+above `adapter/`, on the argument that a port the module calls is a different
+kind of thing from a port that answers a caller; moving it under `adapter/`
+in this refactor removed that one exception, since a technology-named adapter
+family is exactly what `adapter/` already means regardless of which direction
+the call goes.
 
 **Why:** the dependency rule becomes a compile error, not a convention — a
 module cannot import its own `adapter/postgres` without a cycle, so SQL
 physically cannot leak into `service.go`.
 
-**Cost accepted:** 15 packages named `postgres` under `internal/modules`
+**Cost accepted:** 13 packages named `postgres` under `internal/modules`
 today, 15 named `http` and one named `redis` — re-run `find internal/modules
 -type d -name postgres | wc -l` (and `http`, `redis`) rather than trust these.
-Thirteen of the fifteen `postgres` packages are a module's own
-`adapter/postgres`; the other two are the job queues'
-(`notification/jobs/postgres`, `payment/jobs/postgres`), which decision 16
-leaves outside `adapter/` because they back a queue rather than the module's
-aggregate. Every adapter package is named for its technology, same as every
+All thirteen `postgres` packages are a module's own `adapter/postgres` now:
+the two that used to back a per-module job queue instead
+(`notification/jobs/postgres`, `payment/jobs/postgres`) are gone, replaced by
+one `internal/platform/jobs/postgres` outside the module tree entirely — see
+decision 18. Every adapter package is named for its technology, same as every
 other module's, so importing one needs an alias rather than merely permitting
-one — and both places that import them are single files: 14 aliases in
-`internal/bootstrap/app.go`, 15 in `internal/server/routes.go`. The cost is
-concentrated in two files for the whole binary, deliberately: adding a module
-touches each of them once.
+one — and both places that import them are single files: 16 aliases in
+`internal/bootstrap/app.go` (thirteen `*pg`, `userredis`, `channellog` for
+notification's log adapter, and `jobspg` for the shared job store), 15 in
+`internal/server/routes.go`. The cost is concentrated in two files for the
+whole binary, deliberately: adding a module touches each of them once.
 
 ## 4. Adapter subpackages exist only where adaptation is needed
 
@@ -170,11 +178,10 @@ at all, no `Service` and no store; it is a value object. `user` is the one
 module in the repo with two backing stores, `adapter/postgres` and
 `adapter/redis` — every other module has at most one. Seven modules have no
 `ports.go`, because nothing they do reaches outside the module.
-`notification` has **no** `worker/` package because its `jobs.Worker`
-satisfies `platform/jobs.Processor` directly — one value doing both roles —
-and `payment` needs even less: `Claim` and `Prune` are methods on
-`*payment.Service` itself, with no `Queue` type standing between them and the
-value `cmd/worker` hands `jobs.Runner`.
+`notification` and `payment` have **no** `worker/` package and no queue type
+of their own at all: each declares one `job.go` at its module root holding a
+job struct (`Kind()` plus `Run`) and nothing else, and the queue, store and
+runner that drain it are all `internal/platform/jobs` — decision 18.
 
 `contract.go` is not counted as an adapter — it adapts no technology,
 decision 13 covers it on its own terms, and a module gets one independently
@@ -257,9 +264,13 @@ two. Total on hand derived as `available + reserved`.
 
 ## 8. Foreign keys stay; cross-module cascades do not
 
-18 of schema's 25 foreign keys cross module boundaries, and all 18 kept.
-Six cross-module `ON DELETE CASCADE` clauses dropped. Counts verified
-against `pg_constraint` on migrated database; see `./db/OWNERSHIP.md`.
+16 of schema's 22 foreign keys cross module boundaries, and all 16 kept.
+Five cross-module `ON DELETE CASCADE` clauses dropped. The totals moved from
+18 of 25 and the dropped-cascade count from six to five since decision 18:
+`payment_jobs` and `notification_jobs` are gone, and one of the six original
+cascades (`notification_jobs.user_id`) belonged to a table that no longer
+exists. Counts verified against `pg_constraint` on migrated database; see
+`./db/OWNERSHIP.md`.
 
 **Why keep the FKs:** in single database, referential integrity Postgres
 enforces beats discipline code review enforces. `products.category_id`
@@ -306,9 +317,9 @@ module beyond its root package (check 4).
 
 Two exemptions, both deliberate and both allowlisted by name in the check:
 
-- **`internal/modules/payment/gateway/gateway.go`** — `ChargeRequest`/`ChargeResponse`/`RefundRequest`/
+- **`internal/modules/payment/adapter/gateway/gateway.go`** — `ChargeRequest`/`ChargeResponse`/`RefundRequest`/
   `RefundResponse` are the _external_ gateway's wire contract, not ours. Those tags
-  describe someone else's API, and `payment/gateway/stripe` and `payment/gateway/midtrans`
+  describe someone else's API, and `payment/adapter/gateway/stripe` and `payment/adapter/gateway/midtrans`
   marshal them on the way out. Mapping `Money` down to their plain `int64`+`string`
   fields in those adapters is a correct seam, not a leak.
 - **`internal/server/response/response.go`** — the shared envelope every
@@ -347,9 +358,9 @@ currency" unrepresentable, and collapses both hand-rolled checks into one
 `ErrCurrencyMismatch` from `Add`/`Equal`.
 
 Exactly **one** loose `Currency string` now survives outside adapter, and it
-the deliberate exemption in §9: `internal/modules/payment/gateway/gateway.go`, external
+the deliberate exemption in §9: `internal/modules/payment/adapter/gateway/gateway.go`, external
 gateway's own contract. `Money` maps down to its plain `int64`+`string` fields in
-`payment/gateway/stripe` and `payment/gateway/midtrans`, which correct seam.
+`payment/adapter/gateway/stripe` and `payment/adapter/gateway/midtrans`, which correct seam.
 
 **Scope: four features — `order`, `payment`, `product`, `cart`.** Those
 only ones whose data model carries currency at all. Two deliberately
@@ -454,9 +465,12 @@ installs the wrapper, so every logger in both binaries has it. Services
 keep their constructor-injected `*slog.Logger` and their existing
 `InfoContext(ctx, ...)` calls unchanged. Only the four edges that name an
 attribute carry a `logger.WithAttrs` line: `middleware.RequestID`,
-`middleware.Auth`, `jobs.Runner.Start`, and each queue-draining `Process`
+`middleware.Auth`, `jobs.Runner.Start`, and `Runner.processOne` — one method
+on the shared runner now, naming `job_id` for both queues, where it used to
+be named separately by each queue's own processor
 (`payment/adapter/jobs.Dispatcher.Process` and
-`notification/jobs.Worker.Process`). Every other call in every other module
+`notification/jobs.Worker.Process`, both gone along with the per-module
+queues). Every other call in every other module
 needed no change to start carrying the context's attributes.
 
 Two details are load-bearing rather than stylistic. `ContextHandler`
@@ -694,12 +708,15 @@ here is a guarantee the sliced tree had and this one does not:
   whole root package. Decision 13 records the detail.
 - **Consumer ports collapsed onto one value, so the compiler stopped
   cross-checking a `Deps` field against the value assigned to it.** Ten of
-  `order`'s port fields across four consumers now take the same
-  `*order.Service`, and every one of them already holds the value it should —
-  there is no swap to make until a consumer needs two of its fields backed by
-  different producers again. Under decision 14 most of those fields did, and
-  pasting one value into the other's field was a real compile error then.
-  `ARCHITECTURE-LIMITATIONS.md` counts the pairs.
+  `order`'s port fields across four consumers took the same `*order.Service`
+  at this point in the tree's history, and every one of them already held
+  the value it should — there was no swap to make until a consumer needed
+  two of its fields backed by different producers again. Under decision 14
+  most of those fields did, and pasting one value into the other's field was
+  a real compile error then. Decision 17 later collapsed those ten fields to
+  four — one per consumer — and removed the `Deps` struct they lived in
+  entirely a step after that, in favour of positional parameters to `New`.
+  `ARCHITECTURE-LIMITATIONS.md` counts the pairs as they stood here.
 - **One module of sixteen keeps a weaker boundary rule.** `checkout` alone may
   import a module's `domain/` -- any of the fifteen, since the grant names the
   importer and not the target -- because `order.Service.Place`'s signature names
@@ -748,6 +765,62 @@ path use." `order.Cart` carries `Lock`, `Snapshot` and `Clear` whether the
 caller is `Place`, which needs all three, or some future caller that needs
 only `Snapshot`; the file no longer proves the narrower claim by itself.
 `ARCHITECTURE-LIMITATIONS.md` prices what that costs.
+
+## 18. Background jobs share one platform-owned queue, not one per module
+
+`internal/platform/jobs` (`jobs.go`) declares one `Job` interface —
+`Kind() string` and `Run(ctx context.Context) error` — one `Record` (a row in
+the single `job_queue` table: queue, kind, JSON payload, dedup key, group
+key, status, attempts, lease) and one `Store` interface
+(`Insert`/`Claim`/`Complete`/`Retry`/`Bury`/`Cancel`/`CancelByDedupKey`/
+`CancelByGroupKey`/`Prune`), implemented once by
+`internal/platform/jobs/postgres` against that one table. A module declares
+its own job type in its own `job.go`, at module root, with an exported
+payload and an unexported dependency closing over its `Service`:
+`payment.RefundJob{PaymentID, OrderID; svc *Service}` and
+`notification.SendJob{NotificationID; svc *Service}` are the two that exist.
+`jobs.Enqueue[T Job]` marshals the job and inserts a `Record`; `queueOf`
+derives the queue name from the kind's prefix before its first dot, so
+`"payment.refund"` claims from the `payment` queue. `internal/bootstrap`
+builds one `jobs.Registry`, registers each job type once, and hands the
+shared registry and store to `cmd/worker`, which starts one `jobs.Runner` per
+queue name.
+
+This replaces what two modules used to do separately, without either ever
+having its own decision recorded here: `payment_jobs` and `notification_jobs`
+were two tables, `*payment.Service` itself was a queue (`Claim`/`Prune`
+methods with no separate `Queue` type), `notification/jobs.Worker` was queue
+and processor at once, and `payment/adapter/jobs.Dispatcher` routed a claimed
+job to `Service.RunChargeJob` or `Service.RunRefundJob` — decision 3's and
+decision 4's bodies described those mechanics in passing, and both have
+been rewritten to describe this decision instead.
+
+**Why:** the two queues had already converged on the same shape —
+poll, lease, claim, process, retry with backoff, prune — and were reading
+that shape off two different tables with two different `Store`-shaped
+adapters that happened to agree by convention rather than by a shared type.
+One `Store`, one runner type, and a module's only remaining job is to say
+what a job *is* (`Kind`, `Run`) and what it needs to run it.
+
+**Cost accepted:** the two tables' foreign keys are gone.
+`payment_jobs.payment_id` referenced `payments(id)` and
+`notification_jobs.user_id` cascaded from `users(id)`; `job_queue` has no
+foreign key to any module's rows at all, because it cannot — a platform-owned
+table naming `payments` or `users` in a constraint would be exactly the
+cross-module reach decision 6 forbids a module's own SQL. `users` are
+soft-deleted today, so nothing exercises this yet, but whatever eventually
+removes a user or a notification leaves any job still referencing it
+unreachable by any cascade — there is none to rely on. Job delivery is
+**at-least-once**, not exactly-once: if a handler
+succeeds but the follow-up `Complete` write fails, the row stays `processing`
+until its lease lapses and the runner reclaims and re-runs it. `payment.RefundJob`
+is idempotent twice over — its status guard refuses a payment that is neither
+`success` nor `requires_review`, and the transition beneath that is a guarded
+compare-and-set — so a re-run discards cleanly. `notification.SendJob` is not
+idempotent, and is accepted as at-least-once only because the one channel
+this template ships (`adapter/channel/log`) makes a duplicate send a
+duplicate log line. `ARCHITECTURE-LIMITATIONS.md` says what a real channel
+implementation owes because of this.
 
 ---
 
@@ -852,9 +925,10 @@ route group `internal/server/routes.go` mounts it on.
 
 ## `notification/worker/`
 
-**Rejected.** Notification's `jobs/` package's `Worker` satisfies
-`jobs.Processor` directly. Writing `worker.NewProcessor(w)` that returns `w`
-to fill slot would be ceremony teaching opposite of decision 4.
+**Rejected.** `notification`'s job type — `SendJob`, registered once with the
+shared `jobs.Registry` (decision 18) — is a `job.go` at the module root, not
+a package. Writing a `worker/` package to hold one struct with a `Kind` and a
+`Run` method would be ceremony teaching opposite of decision 4.
 
 ## `platform/uuid`
 

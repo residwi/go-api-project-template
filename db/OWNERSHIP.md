@@ -5,7 +5,7 @@ adapter may name it in SQL — in a `FROM`, a `JOIN`, an `INSERT INTO`, an
 `UPDATE`, a `TRUNCATE` or a `COPY`. Every other module reads it through a
 consumer-declared port.
 
-19 tables, 12 owning modules, one owner each. Nothing is unowned and nothing is
+18 tables, 13 owning modules, one owner each. Nothing is unowned and nothing is
 shared. `ARCHITECTURE.md` section 6 states the rule and what it costs; this file
 is the list, and `scripts/check-boundaries.sh` reads the list from here.
 
@@ -28,7 +28,7 @@ is the list, and `scripts/check-boundaries.sh` reads the list from here.
     * Moving a row outside the markers removes that table from the check
       entirely, which fails open for its owner and closed for everyone else.
 
-  Rows are sorted by owner, then by table, so the 12-way partition is visible
+  Rows are sorted by owner, then by table, so the 13-way partition is visible
   at a glance. The script does not depend on the order.
 
   An unparseable table fails `make check-boundaries` loudly rather than passing
@@ -171,19 +171,25 @@ column sums to all 22 rather than to a selection:
 | Table | Inbound FKs | Inbound ports |
 | --- | --- | --- |
 | `users` | 6 | 1 |
-| `orders` | 5 | 7 |
+| `orders` | 5 | 4 |
 | `products` | 6 | 2 |
 | `categories` | 2 | — |
-| `carts` | 1 | — |
-| `payments` | 0 | — |
-| `promotions` | 1 | — |
+| `carts` | 1 | 1 |
+| `payments` | 0 | 1 |
+| `promotions` | 1 | 2 |
 | `wishlists` | 1 | — |
-| `inventory_levels` | 0 | 5 |
+| `inventory_levels` | 0 | 3 |
 | **total** | **22** | |
 
-The three tables with a single inbound FK each have it from their *own* module's
-child table, which is why they carry no ports: nothing outside asks them
-anything.
+Only `categories` and `wishlists` carry no inbound port at all: nothing
+outside `category` or `wishlist` asks either module anything. Every other
+table with a single inbound FK — `carts`, `payments`, `promotions` — still
+has at least one port declared against it, which is why "single inbound FK"
+is not the same claim as "no inbound port": `carts` has one FK (from its own
+`cart_items`) and one port (`order.Cart`); `payments` has none of the former
+and one of the latter (`checkout.Payments`); `promotions` has one FK (from
+its own `coupon_usages`) and two ports (`order.CouponReserver`,
+`payment.CouponReleaser`).
 
 ("Inbound ports" counts interfaces other modules declare that this module's
 service satisfies — `auth.UserDirectory`, `payment.Orders`,
@@ -193,7 +199,7 @@ It is tempting to read the first column as a module dependency ranking. It is
 not one. `users` is among the most-referenced tables in the schema and almost
 nothing calls into `user`: six tables carry a `user_id`, and a caller writing one
 already has the id, so it has nothing to ask. `inventory_levels` has no inbound
-foreign keys at all and five interfaces across three modules (`order`,
+foreign keys at all and three interfaces across three modules (`order`,
 `payment`, `product`) declare ports against `inventory`, because
 stock is an answer that changes and must be asked for every time.
 
@@ -277,6 +283,15 @@ check trusted past its reach is worse than no check.
 
 * **`dashboard`, at all.** Exempt by name, per the carve-out. Nothing verifies
   it stays read-only or stays at two tables.
+* **`internal/platform`, entirely.** Check 3 loops over `internal/modules/*`
+  only, so nothing in `internal/platform` — including
+  `internal/platform/jobs/postgres`, which owns `job_queue` — is ever scanned
+  for a table reference at all. This is the same absence check 4's own
+  `WIRING_DIRS` exemption exploits for the wiring layer, and it is precisely
+  why `job_queue` can be a real table with a real owner in this document
+  and still be unreachable from every module's own SQL: a module's SQL is
+  checked against tables *it* does not own, but nothing checks that
+  `internal/platform`'s own SQL stays inside what `platform` owns.
 * **Table names that are not literals.** The check is a grep for the identifier
   after a SQL keyword. Every query today has its table name in the string
   literal, but `fmt.Sprintf` is already routine in these adapters for `WHERE`

@@ -4,7 +4,7 @@ Orientation for agents and humans in this repo. Describes tree as it actually is
 
 Three docs carry the reasoning; this one no duplicate:
 
-- **`ARCHITECTURE.md`** — seventeen decisions that shaped this codebase, fifteen things it deliberately not do, each with cost. Decision 14 is marked **reversed** and kept as history: it is why this tree held 226 packages of vertical slices for a year, and decision 16 records what replaced it.
+- **`ARCHITECTURE.md`** — nineteen decisions that shaped this codebase, fifteen things it deliberately not do, each with cost. Decision 14 is marked **reversed** and kept as history: it is why this tree held 226 packages of vertical slices for a year, and decision 16 records what replaced it.
 - **`ARCHITECTURE-LIMITATIONS.md`** — what those decisions make hard or impossible, and what you must build to get past each. Read before proposing feature that crosses module boundary.
 - **`db/OWNERSHIP.md`** — which module owns which table, parsed at run time by `make check-boundaries`, plus what that check cannot see.
 
@@ -90,21 +90,31 @@ internal/modules/<feature>/` tells the truth for any of the sixteen:
 
 ```text
 internal/modules/<feature>/
-  service.go         one exported Service, plus its Deps struct and New.
+  service.go         one exported Service, plus New. No Deps struct anywhere
+                     in the tree -- New takes its dependencies as positional
+                     parameters, so a forgotten one is a missing-argument
+                     compile error rather than a silently-nil struct field.
                      15 of 16 -- money has none, being a value object
   repository.go      the storage port adapter/postgres satisfies (13)
   ports.go           every cross-module port this module consumes, one file (9)
-  contract.go        the struct types another module may name (7)
+  contract.go        the struct types another module may name (8)
   config.go          this module's own env vars (4: auth cart order payment)
   domain/            aggregate types and rules -- private, and check 4
                      enforces it (14: all but checkout and money)
+  job.go             a background job's Kind, payload and Run -- payment
+                     (RefundJob) and notification (SendJob) only (2)
+  channel.go         the outbound Channel port -- notification only, paired
+                     with adapter/channel/log
   service_test.go    mock-driven tests, package <feature>
   mocks_test.go      mockery output, in-package, invisible outside the tests
   adapter/
     postgres/        SQL adapter, where the module has SQL (13)
-    http/            handlers plus their wire DTOs (15)
+    http/            handlers plus their wire types (15)
     redis/           user only -- the store behind its StatusCache port
-    jobs/            payment only -- the Dispatcher routing a claimed job
+    gateway/         payment only -- the outbound Gateway port and its three
+                     real implementations
+    channel/         notification only -- the outbound Channel port's log
+                     implementation
 ```
 
 Re-run the numbers rather than trust them:
@@ -114,27 +124,21 @@ ls -1 internal/modules | wc -l                 # 16 directories
 ls internal/modules/*/service.go | wc -l       # 15 services
 ls internal/modules/*/repository.go | wc -l    # 13 repository ports
 ls internal/modules/*/ports.go | wc -l         #  9 ports files
-ls internal/modules/*/contract.go | wc -l      #  7 contract files
+ls internal/modules/*/contract.go | wc -l      #  8 contract files
 ls -d internal/modules/*/adapter/http | wc -l  # 15 http adapters
 ```
 
-Three directories sit at a module root outside `adapter/`, and none of them
-adapts that module's own aggregate:
-
-- **`payment/gateway/`** — the outbound `Gateway` port and its three real
-  implementations (`stripe/ midtrans/ mock/`), picked once in
-  `payment/service.go`'s `newGateway` from `Config.Gateway`. Check 1's
-  json-tag allowlist names `gateway/gateway.go` alone, not the directory,
-  because none of the three implementations declares a json-tagged type.
-- **`payment/jobs/postgres/`** — the payment job queue's own store, and the
-  only Go under `payment/jobs/`. The port it satisfies (`JobRepository`) and
-  the `Claim`/`Prune` pair that make `*payment.Service` a
-  `platform/jobs.Queue` both live in `payment/jobs.go`, in the module's root
-  package.
-- **`notification/jobs/`** — `jobs.Worker`, queue and processor at once, plus
-  its own `postgres/`. `notification.Service.Jobs` exports it, because `order`
-  name-matches its port against it and `cmd/worker` hands it to `jobs.Runner`
-  as both halves.
+No module holds a directory at its root outside `domain/` and `adapter/` any
+more — zero (`find internal/modules -mindepth 2 -maxdepth 2 -type d ! -name
+domain ! -name adapter` prints nothing). This refactor moved the last two
+that did: `payment/gateway/` — the outbound `Gateway` port and its three real
+implementations (`stripe/ midtrans/ mock/`), picked once in
+`payment/service.go`'s `newGateway` from `Config.Gateway` — moved to
+`payment/adapter/gateway/`, and the two job-queue directories that used to
+sit beside it, `payment/jobs/postgres/` and `notification/jobs/`, are gone
+outright. The job store they each kept — a `JobRepository` port and a
+`jobs.Worker` respectively — collapsed into one `internal/platform/jobs/postgres`
+store the platform layer owns, not either module. See rule 16.
 
 #### Naming
 
@@ -184,8 +188,7 @@ the one place either is used:
   consumer's port asks for. `promotion.Service` satisfies both
   `order.CouponReserver` (`Reserve` + `Release`) and `payment.CouponReleaser`
   (`Release` alone) — two differently-shaped interfaces, one producer value,
-  no adapter for either. `notification/jobs.Worker` satisfies
-  `platform/jobs.Processor` directly. `*order.Service` satisfies four port
+  no adapter for either. `*order.Service` satisfies four port
   fields across four consumers — `payment.Orders`, `checkout.Orders`,
   `shipping.Orders` and `review.PurchaseVerifier` — one port apiece now that
   every port collapses to one per producer.
@@ -214,14 +217,16 @@ file that serialises them.
 
 #### `contract.go`
 
-**Seven of the sixteen have one** — `auth cart inventory order payment product
-user`. It holds the struct types another module's port names in a signature:
-`user.Profile` and `user.Credentials`, `cart.Snapshot`, `order.Snapshot`,
-`product.Info`, `inventory.Availability` and `inventory.StockState`,
-`auth.ClaimsView`, `payment.ChargeRequest`. A module earns one only when a
-*struct* has to cross a port — not a scalar, and not something a producer's
-`Service` already satisfies by name. The nine without one never pass a struct
-across, which is why they have nothing to show.
+**Eight of the sixteen have one** — `auth cart inventory notification order
+payment product user`. It holds the struct types another module's port names
+in a signature: `user.Profile` and `user.Credentials`, `cart.Snapshot`,
+`order.Snapshot`, `product.Info`, `inventory.Availability` and
+`inventory.StockState`, `auth.ClaimsView`, `payment.ChargeRequest`,
+`notification.NewNotification` (the payload `order.Notifications.Create`
+passes across). A module earns one only when a *struct* has to cross a port —
+not a scalar, and not something a producer's `Service` already satisfies by
+name. The eight without one never pass a struct across, which is why they
+have nothing to show.
 
 `contract.go` is a file in the module's root package now, not the separate
 `contract/` package it was, and that traded away a guarantee. Check 7
@@ -258,6 +263,21 @@ caller role (`category order product promotion review shipping user`);
 `payment`'s only public route is the gateway callback,
 so it has `admin_handler.go` and `webhook_handler.go` and no `handler.go` at
 all.
+
+Wire types split the same way, into up to four files: `request.go` and
+`response.go` hold the public/authed shapes, `admin_request.go` and
+`admin_response.go` hold the admin-only ones. **A type shared between roles
+goes in the unqualified file, not in both.** `order` and `shipping` are the
+two dual-role modules with no `admin_response.go` at all: `admin_handler.go`
+calls the same `toOrderResponse` / `toShipmentResponse` the public handler
+does, because an admin sees the same shape a caller with ownership does. The
+other four dual-role modules — `category`, `product`, `promotion`, `user` —
+each declare their own `admin_response.go`, because an admin response
+genuinely carries fields the public one omits (`toAdminUserResponse`'s nine
+fields against `toUserResponse`'s five is the example decision 9 and
+`ARCHITECTURE-LIMITATIONS.md` both use). `review`'s admin route needs no
+response type at all — `DELETE` returns `response.NoContent`, so nothing
+crosses the wire either way.
 
 **The route methods on those handlers are exported**, and that is not
 cosmetic: `internal/server/routes.go` is a different package in a different
@@ -403,8 +423,8 @@ here, and why it is not.
    an `adapter/http` (no exemption at all, tests included — there are **zero**
    in the tree today), and no file named `dto.go` may exist anywhere under
    `internal/`. Two paths are allowlisted by name _with a stated reason_ in
-   the script — `internal/modules/payment/gateway/gateway.go` (the external
-   gateway's wire contract, not ours) and
+   the script — `internal/modules/payment/adapter/gateway/gateway.go` (the
+   external gateway's wire contract, not ours) and
    `internal/server/response/response.go` (the shared envelope every handler
    writes through) — plus `internal/platform/` by location, which covers
    `internal/platform/config/`: those are `envconfig` tags, not `json`, but
@@ -536,8 +556,7 @@ compiler; they are all greps.
       the consumer's port asks for. `promotion.Service` satisfies both
       `order.CouponReserver` (`Reserve` + `Release`) and `payment.CouponReleaser`
       (`Release` alone) directly — two differently-shaped interfaces, one
-      producer value, no adapter for either. `notification/jobs.Worker`
-      satisfies `platform/jobs.Processor` directly. `*order.Service` satisfies
+      producer value, no adapter for either. `*order.Service` satisfies
       four port fields across four consumers — `payment.Orders`,
       `checkout.Orders`, `shipping.Orders` and `review.PurchaseVerifier` — and
       `internal/bootstrap/app.go` hands the same value to all four. A consumer
@@ -550,9 +569,9 @@ compiler; they are all greps.
       interface.
 
     No shared ports package, and adding one would defeat the point.
-11. **Services take `database.TxRunner`, never `*pgxpool.Pool`.** Service needs atomicity, not DB handle. `TxRunner` declared once in `internal/platform/database` not per consumer — one deliberate exception to rule 10's consumer-declaration pattern, because modules already import `platform/database`. A module that opens no transaction takes no runner at all: five `Service`s hold one (`cart order payment promotion shipping`).
+11. **Services take `database.TxRunner`, never `*pgxpool.Pool`.** Service needs atomicity, not DB handle. `TxRunner` declared once in `internal/platform/database` not per consumer — one deliberate exception to rule 10's consumer-declaration pattern, because modules already import `platform/database`. A module that opens no transaction takes no runner at all: six `Service`s hold one (`cart notification order payment promotion shipping`) — `notification` needs one to make writing its row and enqueueing its `SendJob` one unit of work.
 12. **Money is `money.Money`, never an `int64` beside a `Currency string`.** Scope is four features: `order`, `payment`, `product`, `cart`. `promotion` and `dashboard` stay on `int64` for stated reasons — `ARCHITECTURE.md` §10 and `ARCHITECTURE-LIMITATIONS.md`. `Money` carries no `json` tag and implements no `sql.Scanner`: each adapter maps it explicit, because wire shapes genuinely differ per endpoint. No float constructor and no `Div`.
-13. **A `Service` runs no SQL and holds no pool.** Every read and write goes through the module's own `Repository` interface; `adapter/postgres` owns the pool and reaches it with `database.DB(ctx, pool)`, which returns the context's transaction if there is one. A `Service` composes several repository calls into one unit of work via its `TxRunner`, and the transaction propagates to every repository it touches — its own and other modules' — through `ctx`. **`internal/bootstrap` is what constructs the adapters**: `bootstrap.New` builds `orderpg.New(d.Pool)` and hands it to `order.New` as `Deps.Repo`, so the pool never reaches a `Service` and there is no `module.go` left to hide the wiring in. Two `Service`s take a raw `*pgxpool.Pool` anyway, and both are named exceptions: `payment.Deps.Pool` and `notification.Deps.Pool` exist so each can build its own job-queue adapter (`payment/jobs/postgres`, `notification/jobs/postgres`), which `bootstrap` does not name.
+13. **A `Service` runs no SQL and holds no pool.** Every read and write goes through the module's own `Repository` interface; `adapter/postgres` owns the pool and reaches it with `database.PrimaryDB(ctx, db)` or `database.ReplicaDB(ctx, db)`, where `db` is a `database.DB{Primary, Replica *pgxpool.Pool}` value — both functions return the context's transaction if there is one, and `ReplicaDB` falls back to `Primary` when no replica is configured. Five adapters call `ReplicaDB` for their read-only methods (`order`, `product`, `promotion`, `user`, `dashboard`); every other read and every write goes through `PrimaryDB`. A `Service` composes several repository calls into one unit of work via its `TxRunner`, and the transaction propagates to every repository it touches — its own and other modules' — through `ctx`. **`internal/bootstrap` is what constructs the adapters**: `bootstrap.New` threads one `database.DB` value through every `xxxpg.New(db)` call and hands the result to each module's `New` as a positional argument, so the pool never reaches a `Service` and there is no `module.go` left to hide the wiring in. No `Service` takes a raw `*pgxpool.Pool` any more — `payment` and `notification` used to, to build their own job-queue adapter, but that adapter is now `internal/platform/jobs/postgres`, built once in `bootstrap` as `jobspg.New(db)` and handed to both as the same `jobs.Store` value.
 14. **Order status changes only through `order.Service.Apply`.** Every guarded transition is a named `domain.Transition` value in `internal/modules/order/domain/transition.go` (`PaidTransition`, `RefundTransition`, `CancelledTransition`, …). Other modules depend on _intent_ methods on their own port interface (`payment.Orders.MarkPaid`; `shipping.Orders.MarkShipped` and `shipping.Orders.MarkDelivered`, one port holding both intents), and every caller wires to `order.Service`, since `Apply` and the eight `Mark*` methods that forward to it live there and nowhere else. Never write an ad-hoc from/to status list at a call site.
 15. **Inventory reversal goes through `inventory.Service.Restore`.**
     `Restore(ctx, items map[uuid.UUID]int, prior StockState) error` decides
@@ -566,7 +585,7 @@ compiler; they are all greps.
     and `money`. The root package imports `inventory/domain` and declares
     `Service` and `Repository`, and no check holds it to a leaf-import rule.
     `ARCHITECTURE-LIMITATIONS.md` records what that costs.
-16. **Background job workers use `platform/jobs`.** The value draining a queue implements `jobs.Queue[T]` (`Claim` + `Prune`) and `jobs.Processor[T]` (`Process`) on whatever the binary hands `jobs.Runner[T]`, plus an optional `jobs.Sweeper` for per-tick housekeeping. Two queues exist: `*payment.Service` itself — `Claim` and `Prune` are methods on it, in `payment/jobs.go`, so no separate `Queue` type stands between the Service and the runner — and `notification/jobs.Worker`, which is queue and processor at once. `payment/adapter/jobs.Dispatcher` is payment's processor, routing a claimed job to `Service.RunChargeJob` or `Service.RunRefundJob`. The per-tick sweep that adds order's stale-order housekeeping on top of it is `cmd/worker/main.go`'s own unexported `paymentProcessor`, not a package under `payment`: the composition crosses payment and order, so it belongs at the root that already imports both. Never hand-roll a ticker/lease/poll loop — the runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
+16. **Background jobs share one platform-owned queue, one table, one store.** There is no per-module job queue any more: `payment/jobs.go`, `payment/adapter/jobs.Dispatcher` and `notification/jobs.Worker` are gone, and `payment_jobs` / `notification_jobs` are gone with them. In their place, `internal/platform/jobs` (`jobs.go`) declares one `Job` interface — `Kind() string` and `Run(ctx context.Context) error` — one `Record` (a `job_queue` row: queue, kind, JSON payload, dedup key, group key, status, attempts, lease), and one `Store` interface (`Insert`, `Claim`, `Complete`, `Retry`, `Bury`, `Cancel`, `CancelByDedupKey`, `CancelByGroupKey`, `Prune`) that `internal/platform/jobs/postgres` implements against that one table. A module declares its own job type in its own `job.go`, at module root, with an exported payload and an unexported dependency: `payment.RefundJob{PaymentID, OrderID; svc *Service}` and `notification.SendJob{NotificationID; svc *Service}` are the two that exist today. `jobs.Enqueue[T Job](ctx, e Enqueuer, job T, keys Keys, opts...)` marshals the job to JSON and inserts a `Record`; `queueOf` derives the queue name from the kind's prefix before its first dot, so `"payment.refund"` claims from the `payment` queue and `"notification.send"` from `notification`. `internal/bootstrap` builds one `jobs.Registry`, calls `jobs.Register` once per job type to map a `Kind()` to its handler, and hands the same `*jobs.Registry` and shared `jobs.Store` to `cmd/worker`. An unregistered kind is discarded via the `jobs.ErrDiscard` sentinel rather than retried. `cmd/worker` starts one `jobs.Runner` per queue name: the `payment` runner wraps the registry in its own small `paymentProcessor`, which also implements `jobs.Sweeper` for the per-tick order-recovery-and-expiry sweep — that composition crosses `payment` and `order`, so it stays `cmd/worker/main.go`'s own unexported type rather than living in either module — and the `notification` runner hands the registry to `jobs.Runner` directly, with no sweep. Never hand-roll a ticker/lease/poll loop — the runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
 17. **Repository reads use `pgx.CollectRows`**, never a hand-rolled `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and build keyset predicates with `database.KeysetCursor()`.
 18. **Handlers use the shared helpers.** Decode and validate with `response.Bind[T](w, r, h.validator)`; read caller with `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks.
 18a. **An `adapter/http` port is named for the role it plays, never for the
@@ -604,12 +623,42 @@ compiler; they are all greps.
     merges them into every record below, so no function grows a parameter
     to carry `request_id`. Four edges do this: `middleware.RequestID`
     (`request_id`), `middleware.Auth` (`user_id`), `jobs.Runner.Start`
-    (`runner`), and each queue-draining `Process` (`job_id`).
+    (`runner`), and `Runner.processOne` (`job_id`) — one method on the shared
+    runner now, not one per queue's own `Process`, since both queues drain
+    through the same `Runner` type.
 21. **An attribute may only be named at an edge that owns exactly one
     value.** `order_id` and `payment_id` stay written at the call site
     because a command loops over batches of orders — one context
     cannot hold fifty. Naming an attribute at two points on the same path
     emits the key twice; slog does not deduplicate.
+22. **Exported `type`, `var` and `const` declarations come before unexported
+    ones in a file.** Two exemptions, and only two: a
+    `var _ Iface = (*T)(nil)` compile assertion stays adjacent to the type it
+    asserts about — `internal/modules/order/adapter/postgres/repository.go`'s
+    `var _ order.Repository = (*Repository)(nil)` sits immediately above
+    `type Repository`, not at the bottom with every other exported
+    declaration, because moving it away separates a two-line proof from the
+    thing it proves — and a context-key type stays beside the functions that
+    read it rather than at the end of the file:
+    `internal/platform/database/transaction.go`'s `txCtxKey` sits between
+    `DBTX` and `WithTx`, its only reader; `logger/context.go`'s `ctxKey`
+    beside `WithAttrs`; `middleware/auth.go`'s `userCtxKey` beside
+    `SetUserContext`/`GetUserContext`. Do not chase this past what it covers:
+    the rule is about `type`/`var`/`const` declarations, not every
+    identifier, and it is not violated by an unexported type that carries an
+    *exported* method moving down with that method — `funcorder`'s
+    `struct-method` check already requires a struct's methods to follow its
+    own declaration, so eleven unexported types with an exported method
+    (`poolTxRunner.Run`, `paymentProcessor.Process`/`Sweep`,
+    `recoverWriter.Write`/`WriteHeader`, `statusRecorder.WriteHeader`, and
+    others — `grep -rhoE '^func \(\w+ \*?[a-z][A-Za-z]*\) [A-Z][A-Za-z]*'
+    --include='*.go' internal cmd | sort -u` finds them) sit below the
+    exported types they serve, and that is correct, not a gap to fix.
+    `.golangci.yml`'s `funcorder.function: true` is meant to enforce ordering
+    on free functions too, but a golangci-lint v2.12.2 bug means it never
+    actually fires there — confirmed against the standalone `funcorder`
+    binary, which does flag it — so this rule is a convention to read for,
+    not yet something `make lint` catches on its own.
 
 ## Code style
 
@@ -618,7 +667,7 @@ compiler; they are all greps.
 - Errors: sentinels in `internal/apperror`. Wrap with `fmt.Errorf("%w: ...", apperror.ErrBadRequest)` to add context.
 - Packages are short singular nouns (`user`, `product`, `cart`).
 - `gofmt -s`, enforced by `make fmt` and golangci-lint. Import groups: stdlib, blank line, third-party, blank line, local (`github.com/residwi/go-api-project-template/...`).
-- Comments explain _why_, not _how_. Write one where reader would otherwise read code as mistake. Two patterns to avoid: comment restating what code plainly does, and comment repeating function's doc comment at call site — reason belongs on declaration, never on consumers. When unsure, leave it out.
+- **No comments in Go source, except directives and two named exceptions.** This is narrower than "explain why, not how": a comment strip removed every prose comment in the tree, and nothing has been allowed back in since except what earns its place by name, not by category. Directives always stay — every `//nolint:` (with its justification on the same line; see Guardrails) and every `//go:` — because those are instructions to the toolchain, not prose for a reader. Two specific comments survive because deleting them lets a future edit reopen a bug this refactor already paid to close: `internal/platform/jobs/runner.go`'s doc comment above `leaseSafetyDivisor` (without it, `lease - lease/5` reads as arithmetic to tidy away, and tidying it reopens a window where two workers run the same job), and `internal/modules/checkout/service.go`'s comment above `if created && order.Total.Amount > 0` (without it, the `created &&` guard reads as redundant, and deleting it reintroduces the double-charge `6c8bc0f` fixed). Do not add a third by analogy — a comment earns a place here by naming a specific regression it prevents, not by resembling one of these two.
 - Prefer duplication over abstraction that does not quite fit.
 - Commit messages: conventional-commit prefixes in use on this branch (`refactor(cart): …`, `docs(db): …`, `test(e2e): …`). Match surrounding history.
 
@@ -636,19 +685,19 @@ History stays linear. No `Merge branch …` commit — it says nothing about the
 ## Testing
 
 - `testing` + `stretchr/testify`. `require` when test cannot continue without value, `assert` for soft checks.
-- **Docker is required.** No build tags, no short mode. `internal/testutil` starts two long-lived containers by fixed name (`go-api-test-postgres`, `go-api-test-redis`) and every test binary attaches to whichever already exists. Remove them with `make test-clean`.
+- **Docker is required.** No build tags, no short mode. `internal/testutil` starts two long-lived containers by fixed name (`go-api-test-postgres`, `go-api-test-redis`) and every test binary attaches to whichever already exists. Remove them with `make test-clean`. **Every package binary races for the same container name**, and `getOrCreateContainer` decides who wins: the loser polls until the winner's container reports running with a bound port, and a container still not running after a grace period (`transientGrace`) is treated as abandoned and purged, so a container wedged mid-start does not wedge every other test binary with it.
 - **SQL semantics stay in the adapter's own test.** Recursive CTEs, keyset pagination, unique constraints — anything only the database can prove — belong in `internal/modules/<feature>/adapter/postgres/repository_test.go` (or `adapter/redis/cache_test.go`) against a real container. Anything a mock can express — a `Service`'s reaction to a value, an error branch — belongs in that module's `service_test.go` instead, and a saga spanning tables no single module owns goes to `test/e2e/`. No module starts its own container. `go test ./...` runs package binaries concurrently; collapsing per-package tests into one `test/integration` package would make them sequential. `ARCHITECTURE.md` decision 11 rejects that directory explicitly.
 - **`test/e2e/` is for sagas no single module can own** — checkout, payment, refund, fulfilment failure, admin flows — driven through the real `server.NewRouter`, real Postgres, and the mock gateway on an `httptest.Server`.
-- **Postgres databases are per module, created once under an advisory lock, and never dropped; Redis indices are still a slot you claim.** `MustStartPostgres(dbName)` creates and migrates `dbName` the first time any caller asks for it — the lock covers the migration too, so a second caller that finds the database already there finds it at the latest schema — and every later caller, same test binary or a different one, just connects. **25 packages call `testutil.MustStart*` today** (`grep -rl 'testutil.MustStart' --include='*_test.go' . | xargs -n1 dirname | sort -u | wc -l`), and the mapping is one database per module: `test_cart`, `test_order`, `test_payment`, and so on (`grep -rn 'MustStartPostgres(' --include='*_test.go' internal/modules` is the live mapping). Two modules still put two test packages on one name — `notification` and `payment` each have an `adapter/postgres` and a `jobs/postgres` test package sharing `test_notification` / `test_payment`. Packages sharing a name never tear each other down, but they get no clean table between them either: seed the rows your subtest asserts on and never `TRUNCATE`. **`ResetDB` is safe only for a package that owns its database outright, and nothing under `internal/modules` does.** Three callers today: `internal/bootstrap/app_test.go` (`test_bootstrap`), `internal/server/router_test.go` (`test_server`) and `test/e2e/testmain_test.go` (`test_e2e`). `ResetDB` takes a `*pgxpool.Pool`, not a package name, so nothing stops a fourth caller inside a module adding it — check before copying a `setup` helper that calls it. `MustStartRedis(dbIndex)` takes an index the caller picks by hand against the registry comment above that function in `internal/testutil/testutil.go`. Indices 0, 1, 3, 5 and 6 are claimed (`platform/cache`, `server/middleware`, `server`, `test/e2e`, `modules/user/adapter/redis`); 2 and 4 are free. Nothing enforces a claim — a collision compiles, passes review, and fails as a flake in an unrelated package — so update that comment in the same commit that takes an index, and cross-check it against `grep -rn 'MustStartRedis(' --include='*_test.go' .`, which is the only record that cannot drift.
+- **Postgres databases are per module, created once under an advisory lock, and never dropped; Redis indices are still a slot you claim.** `MustStartPostgres(dbName)` creates and migrates `dbName` the first time any caller asks for it — the lock covers the migration too, so a second caller that finds the database already there finds it at the latest schema — and every later caller, same test binary or a different one, just connects. It holds one raw `pgx.Conn`, not a pool, across the exists-check and the `CREATE DATABASE`: every package binary dials the admin database at once when the suite starts, so a single dial routinely comes back "connection reset by peer" and needs the retry `MustStartPostgres` already wraps it in, where a pool would acquire lazily and `Ping` would only prove one connection out of many had worked. **24 packages call `testutil.MustStart*` today** (`grep -rl 'testutil.MustStart' --include='*_test.go' . | xargs -n1 dirname | sort -u | wc -l`), and the mapping is one database per module: `test_cart`, `test_order`, `test_payment`, and so on (`grep -rn 'MustStartPostgres(' --include='*_test.go' internal/modules` is the live mapping). `notification` and `payment` no longer share a database name with a second test package — their old `jobs/postgres` packages are gone along with the per-module job queues, so every Postgres-claiming package today owns its database name outright. **`ResetDB` is safe only for a package that owns its database outright.** Four callers today: `internal/bootstrap/app_test.go` (`test_bootstrap`), `internal/server/router_test.go` (`test_server`), `test/e2e/testmain_test.go` (`test_e2e`) and `internal/platform/jobs/postgres/store_test.go` (`test_platform_jobs`) — the new package added when the job queue moved to `platform`. `ResetDB` also never truncates `goose_db_version`: migrations run unconditionally on every `MustStartPostgres` call, so truncating the version table would make the next caller see zero applied versions and fail against a schema that is already fully migrated. `ResetDB` takes a `*pgxpool.Pool`, not a package name, so nothing stops a fifth caller inside a module adding it — check before copying a `setup` helper that calls it. `MustStartRedis(dbIndex)` takes an index the caller picks by hand — the registry used to be tracked in a comment above that function in `internal/testutil/testutil.go`, but the comment strip removed it, so the list below and `grep -rn 'MustStartRedis(' --include='*_test.go' .` are what's left to check against. Indices 0, 1, 3, 5 and 6 are claimed (`platform/cache`, `server/middleware`, `server`, `test/e2e`, `modules/user/adapter/redis`); 2 and 4 are free. Nothing enforces a claim — a collision compiles, passes review, and fails as a flake in an unrelated package — so update this list in the same commit that takes an index.
 - **`t.Parallel()` buys nothing in a package that owns a database or a Redis
-  index**, because everything in that package shares one connection and `ResetDB` TRUNCATEs every table in it. Those packages excluded from `paralleltest` wholesale in `.golangci.yml` -- per package, never per file, because parallel sibling gets its rows deleted mid-assertion even when that sibling never calls reset itself. That exclusion's `path:` regex is **mixed**: seven of its nine alternatives are anchored to the repo root (`^db/(migrations|seeds)/`, `^test/e2e/`, `^internal/testutil/`, and four more), two are not (`/postgres/`, `/redis/`). Only an anchored alternative dies silently when the directory it names moves, and the anchored seven carry most of the weight -- 70 of the 102 files this pattern matches are reached by an anchored alternative and nothing else -- so check those against `git ls-files` after any structural change. `/postgres/` is the single widest alternative in the file at 30 files and needs no such check: it follows `adapter/postgres` wherever that goes. Nothing given up: `go test` already runs packages concurrently and each owns own database. Have each subtest seed own data instead.
+  index**, because everything in that package shares one connection and `ResetDB` TRUNCATEs every table in it. Those packages excluded from `paralleltest` wholesale in `.golangci.yml` -- per package, never per file, because parallel sibling gets its rows deleted mid-assertion even when that sibling never calls reset itself. That exclusion's `path:` regex is **mixed**: seven of its nine alternatives are anchored to the repo root (`^db/(migrations|seeds)/`, `^test/e2e/`, `^internal/testutil/`, and four more), two are not (`/postgres/`, `/redis/`). Only an anchored alternative dies silently when the directory it names moves, and the anchored seven carry most of the weight -- 77 of the 107 files this pattern matches are reached by an anchored alternative and nothing else -- so check those against `git ls-files` after any structural change. `/postgres/` is the single widest alternative in the file at 28 files and needs no such check: it follows `adapter/postgres` wherever that goes, and it picked up `internal/platform/jobs/postgres/` — the one new database-owning package this refactor added — with no edit to the exclusion at all. Nothing given up: `go test` already runs packages concurrently and each owns own database. Have each subtest seed own data instead.
 - **Everywhere else `t.Parallel()` is mandatory**, and `paralleltest` enforces it on both test function and every `t.Run` closure. If you add test package claiming database or Redis slot, add it to that exclusion list in same commit.
 - **Order a test file so the tests come first.** Package-level `var`s and `TestMain` at top, then every `func TestXxx`, then stub types with their own methods grouped under them, then plain helpers last. `internal/platform/jobs/runner_test.go` is the shape. Someone opening file came for scenarios, not fakes that serve them. `funcorder` only orders methods against their struct, so nothing lints the rest — on you.
 - **Prefer subtests over table-driven tests.** One logical scenario per subtest, descriptive name, own setup. Break large scenarios up; no monolithic tests.
 - **Compare whole objects, not field by field.** `assert.Equal(t, expected,
 result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — Postgres normalises whitespace.
 - **Test behaviour, not wiring.** Verify returned value, error, or side effect.
-- **Mocks are generated** by mockery v3 from `.mockery.yml` **in-package**, as `mocks_test.go` beside the interface they mock. A `_test.go` file never enters its package's importable `GoFiles`, so a mock is private to that package and cannot cycle back — which lets a module's own `service_test.go` stay `package <feature>` and its `handler_test.go` stay `package http`, each mocking only the interfaces declared in its own package, and keeps every `Mock*` name out of the module's exported API. 38 `mocks_test.go` files exist (`find internal -name mocks_test.go | wc -l`). `.mockery.yml` is one recursive rule rooted at `internal/`, `all: true`, no per-interface `configs:` list — every interface gets exactly one mock, in its own package. This is why an `adapter/http` handler declares its own narrow port locally rather than importing one from the module's root package: mockery cannot write a private mock into a package that does not declare the interface, so an interface consumed across a package boundary has to be declared on the consumer's side either way. Run `make mocks`; never hand-edit the generated file. Use the expecter API (`repo.EXPECT().GetByID(mock.Anything, id).Return(...)`), never `repo.On("GetByID", ...)`.
+- **Mocks are generated** by mockery v3 from `.mockery.yml` **in-package**, as `mocks_test.go` beside the interface they mock. A `_test.go` file never enters its package's importable `GoFiles`, so a mock is private to that package and cannot cycle back — which lets a module's own `service_test.go` stay `package <feature>` and its `handler_test.go` stay `package http`, each mocking only the interfaces declared in its own package, and keeps every `Mock*` name out of the module's exported API. 36 `mocks_test.go` files exist (`find internal -name mocks_test.go | wc -l`). `.mockery.yml` is one recursive rule rooted at `internal/`, `all: true`, no per-interface `configs:` list — every interface gets exactly one mock, in its own package. This is why an `adapter/http` handler declares its own narrow port locally rather than importing one from the module's root package: mockery cannot write a private mock into a package that does not declare the interface, so an interface consumed across a package boundary has to be declared on the consumer's side either way. Run `make mocks`; never hand-edit the generated file. Use the expecter API (`repo.EXPECT().GetByID(mock.Anything, id).Return(...)`), never `repo.On("GetByID", ...)`.
 - **Keep tests fast.** Use `bcrypt.MinCost` for password hashes in tests (`DefaultCost` costs ~250ms per hash) and group tests exercising real `Register` path. Use `testing/synctest` for ticker- and timeout-driven code — `internal/platform/jobs/runner_test.go` does. Note `synctest` cannot wrap `pgxpool` acquire, so test holding real pool must shrink intervals and timeouts instead. Give intentionally-broken clients short timeouts (`MaxRetries: 0`, `DialTimeout: 200 * time.Millisecond`) so error paths fail in milliseconds not seconds.
 
 ## Security
@@ -656,7 +705,7 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 - Secrets come from env vars or gitignored `.env`. Never commit real secrets. `.env.example` lists every supported variable.
 - JWT auth with configurable expiry; bcrypt password hashes; RBAC via admin middleware.
 - Middleware in `internal/server/middleware/`: panic recovery, request-ID injection, structured request logging, CORS, rate limiting, auth, admin. `NewRouter` chains four of them around the whole mux and mounts the two rate limiters per group; `ARCHITECTURE-LIMITATIONS.md` records what no test proves about either.
-- Field exposure controlled by DTO omission, not by `json:"-"`. **There are zero `json:"-"` tags under `internal/`, and check 1b keeps it that way.** Fourteen of them used to be load-bearing security controls (`user.PasswordHash`, `payment.GatewayResponse`, `order.RequestHash`) where deleting two characters published a password hash. Rule 1 exists for that reason: adding a field to a response now means naming it in a DTO deliberately. The failure mode that replaced it is naming the *wrong* DTO — see `ARCHITECTURE-LIMITATIONS.md` on the two response mappers that now sit one identifier apart in the same package.
+- Field exposure controlled by DTO omission, not by `json:"-"`. **There are zero `json:"-"` tags under `internal/`, and check 1b keeps it that way.** Fourteen of them used to be load-bearing security controls (`user.PasswordHash`, `payment.GatewayResponse`, `order.RequestHash`) where deleting two characters published a password hash. Rule 1 exists for that reason: adding a field to a response now means naming it in a DTO deliberately. The failure mode that replaced it is naming the *wrong* DTO — see `ARCHITECTURE-LIMITATIONS.md` on the public and admin response mappers that live in separate, differently-named files (`response.go`, `admin_response.go`) in the same package: the risk narrowed from mistyping an adjacent identifier to reaching for the wrong file, but a handler can still call either mapper and compile.
 
 ## Guardrails
 
@@ -664,7 +713,7 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 - Never commit `.env`, secrets or API keys.
 - Run `make check-boundaries`, `make vet` and `make test` before calling change complete. `make all` does all three plus lint and build.
 - Do not add third-party router.
-- Do not suppress lint or vet findings with `//nolint` without a justification comment on the same line — see `internal/modules/order/service.go:70` (`//nolint:gocognit // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`) for the expected form. Five methods carry one: `order.Service.Place` and `order.Service.cancelWithReversal`, and `payment.Service.FinalizeSuccess`, `RunRefundJob` and `HandleWebhook`. `internal/server/routes.go` carries a `//nolint:funlen` for the same kind of reason — one flat wiring list, not nested logic.
+- Do not suppress lint or vet findings with `//nolint` without a justification comment on the same line — see `internal/modules/order/service.go:56` (`//nolint:gocognit,funlen // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`) for the expected form. Five methods carry one: `order.Service.Place` and `order.Service.cancelWithReversal`, and `payment.Service.FinalizeSuccess`, `runRefund` (unexported now — it runs from `RefundJob.Run`, not a dispatcher) and `HandleWebhook`. `internal/server/routes.go` carries a `//nolint:funlen` for the same kind of reason — one flat wiring list, not nested logic.
 - Do not make subpackage tree uniform, and do not add pass-through adapter package to fill slot.
 - Backward compatibility explicitly **not** a goal here. API shapes may change where better design demands — but say so when they do.
 - When adding a module: create `internal/modules/<feature>/` per the shape under "Inside a module" above — `domain/` for its aggregate, `service.go` declaring one exported `Service` with its `Deps` and `New`, `repository.go` for the storage port, `adapter/postgres/` where it has SQL, `adapter/http/` where it has a route, `ports.go` only if it consumes something from another module, `contract.go` only if a struct of its own has to cross a port. Add a row per owned table to `db/OWNERSHIP.md`. Wire it into `internal/bootstrap/app.go` — one line to build it, one field on `App` — by name-match if an existing port already fits. Mount its routes in `internal/server/routes.go`, and add a line per route to `internal/server/testdata/routes.golden`.

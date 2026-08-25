@@ -1,6 +1,6 @@
 # Limitations this architecture creates
 
-`ARCHITECTURE.md` record seventeen decisions and fifteen things this codebase deliberately not do. Every one bought something and charged for it. This file the invoice.
+`ARCHITECTURE.md` record nineteen decisions and fifteen things this codebase deliberately not do. Every one bought something and charged for it. This file the invoice.
 
 Exist because this repo a **template**: structure is product, someone about to copy into real system. Doc listing only what design make easy teach nothing — design never in danger of blame there. Reader need list of moments where they hit wall, so they recognize wall as this design's, not own mistake.
 
@@ -90,6 +90,21 @@ result. Removing the exemption reports **7** violations — `checkout/service.go
 `checkout/ports.go`, `checkout/adapter/http/handler.go` and four test files —
 not zero.
 
+**The middle return value is the whole replay contract, and there is no other
+signal to read it from.** A repeated `idempotencyKey` makes `Place` return the
+previously-stored order with `created=false`; a fresh key returns the new
+order with `created=true`. The order itself looks identical either way — same
+fields, same status, same items — so any caller that needs to tell "this
+request built a new order" from "this request replayed one" has to branch on
+`created` directly. `checkout.Service.PlaceOrder` does exactly that: it only calls
+`payments.Charge` when `created` is `true` and the order carries a balance,
+precisely because inferring a replay from the order's status would have
+nothing to distinguish a fresh `awaiting_payment` order from a replayed one
+in that same status — both look identical on the wire. Any future caller with
+replay-must-not-repeat logic of its own has to branch on the bool the same
+way — there is nothing else on the returned `*domain.Order` that says which
+call created it.
+
 The grant is pinned on one axis and open on the other. It covers `domain/`
 only -- never an adapter -- and `scripts/boundaries_test.go` holds it there from
 both sides: one subtest asserts `checkout` importing `order/adapter/postgres` is
@@ -116,9 +131,12 @@ those two.
 
 ## One flat `Service` satisfying several of a consumer's ports leaves the compiler nothing to check
 
-> **Describes the tree before decision 17.** Every `Deps` struct below has
-> since collapsed to one field per producer, so the "two fields, one value"
-> case this entry counts cannot occur any more. The 18 pairs and the
+> **Describes the tree before decision 17, and before positional parameters.**
+> Every `Deps` struct below has since collapsed to one field per producer, so
+> the "two fields, one value" case this entry counts cannot occur any more.
+> The `Deps` struct itself is gone one step further than that: every module's
+> `New` now takes positional parameters, so there is no struct literal left
+> for a field name to be pasted over in the first place. The 18 pairs and the
 > ten-port-fields figure are kept as a record of what decision 17 closed; the
 > "Decision 17 spent the same fact a different way" paragraph after the table
 > says what replaced it.
@@ -150,8 +168,8 @@ Go refuses it — `duplicate field name OrderShip in struct literal`. Delete the
 `OrderDeliver` line instead of duplicating it and you have a *dropped* field,
 not a swap: a struct literal compiles with a field left unset, the result is a
 `nil` port, and nothing caught that before the flatten either — see
-[`order.Deps.InventoryDeduct` is wired to a path e2e never
-runs](#orderdepsinventorydeduct-is-wired-to-a-path-e2e-never-runs).
+[RESOLVED: a dropped constructor argument used to be silently
+`nil`](#resolved-a-dropped-constructor-argument-used-to-be-silently-nil).
 
 So the flatten introduced no bug. It removed a guarantee, and the guarantee
 was real. Under decision 14 most of those pairs were compile errors.
@@ -194,7 +212,7 @@ used to be split by capability. Nothing but reading the `Service` method
 bodies recovers the narrowest-possible-dependency view a `ports.go` file used
 to give away for free.
 
-## The public and admin response mappers now sit one identifier apart
+## The public and admin response mappers are one wrong import away from each other
 
 **Where you hit it:** you never do, which is the problem.
 
@@ -222,7 +240,14 @@ through:
 (`toCategoryResponse`/`toAdminCategoryResponse`,
 `toProductResponse`/`toAdminProductResponse`). Under decision 14 the two
 mappers lived in different packages — one per slice — so the wrong one was not
-in scope at the call site.
+in scope at the call site. The http split narrowed this some: each pair now
+lives in two differently-named files, `response.go` and `admin_response.go`,
+rather than side by side in one file. Both are still in the same package and
+both compile in `response.OK(w, ...)` regardless of which file declared them,
+so the risk moved from mistyping an adjacent identifier to reaching for the
+wrong file — smaller, since a reviewer scanning the diff sees which file
+changed, but not gone, since `admin_response.go`'s mapper is still one import
+away from any handler in the package.
 
 This matters here specifically because this codebase controls field exposure
 by **DTO omission** rather than by `json:"-"` (decision 9). The point of that
@@ -434,11 +459,11 @@ Two things soften it, both deliberate: `Total()` fold **sellable lines only**, s
 
 **Where you hit it:** you decide to pull `order` out into own service and discover Go part is easy half.
 
-Code boundaries genuinely clean — no module import another, every cross-module call go through interface the _consumer_ declared, so each module's port list already the API its service would expose. Database is one schema with **25 foreign keys, 18 of which cross a module boundary** (measured against `pg_constraint` on migrated database; full list and the 7 internal ones in `db/OWNERSHIP.md`).
+Code boundaries genuinely clean — no module import another, every cross-module call go through interface the _consumer_ declared, so each module's port list already the API its service would expose. Database is one schema with **22 foreign keys, 16 of which cross a module boundary** (measured against `pg_constraint` on migrated database; full list and the 6 internal ones in `db/OWNERSHIP.md`).
 
-Those 18 exactly what make split a data problem. Cannot put `orders` and `products` in separate databases while `order_items.product_id` carry foreign key. Step one of any extraction is dropping 18 constraints and re-expressing each as application-level check _with explicit answer for the race the constraint used to close_ — because port check at different moment than the one the write commits in, and constraint have no such window. That a migration with correctness argument attached, not a refactor.
+Those 16 exactly what make split a data problem. Cannot put `orders` and `products` in separate databases while `order_items.product_id` carry foreign key. Step one of any extraction is dropping 16 constraints and re-expressing each as application-level check _with explicit answer for the race the constraint used to close_ — because port check at different moment than the one the write commits in, and constraint have no such window. That a migration with correctness argument attached, not a refactor.
 
-One of the 18 load-bearing in Go not merely defensive. `products.category_id` is only cross-module constraint that can fire in normal operation, because `categories` is only hard-deleted table another module reference; `category`'s adapter catch violation as backstop behind `category.ProductCounter`'s friendlier pre-check. Drop that constraint and backstop go with it.
+One of the 16 load-bearing in Go not merely defensive. `products.category_id` is only cross-module constraint that can fire in normal operation, because `categories` is only hard-deleted table another module reference; `category`'s adapter catch violation as backstop behind `category.ProductCounter`'s friendlier pre-check. Drop that constraint and backstop go with it.
 
 **What you would do:** budget data split as own project. Every port declared in this refactor make code side cheap; none of them touch this side.
 
@@ -448,15 +473,15 @@ One of the 18 load-bearing in Go not merely defensive. `products.category_id` is
 
 | Module      | Inbound FKs | Inbound ports |
 | ----------- | ----------- | ------------- |
-| `user`      | 7           | **1**         |
-| `order`     | 6           | **4**         |
+| `user`      | 6           | **1**         |
+| `order`     | 5           | **4**         |
 | `product`   | 6           | **2**         |
 | `inventory` | **0**       | **3**         |
 | `category`  | 2           | 0             |
 
-Inbound FKs count constraints referencing table the module owns. Inbound ports count interfaces _other_ modules declare that this module's service satisfies — `auth.UserDirectory`, `payment.Orders`, `product.Inventory` and so on. Derive the port column with `grep -n 'type .* interface' internal/modules/*/ports.go` and attribute each name to the producer it asks for: `order`'s four come from four modules (`payment` 1, `checkout` 1, `shipping` 1, `review` 1), `inventory`'s three from three (`order` 1, `payment` 1, `product` 1).
+Inbound FKs count constraints referencing table the module owns. Inbound ports count interfaces _other_ modules declare that this module's service satisfies — `auth.UserDirectory`, `payment.Orders`, `product.Inventory` and so on. Derive the port column with `grep -n 'type .* interface' internal/modules/*/ports.go` and attribute each name to the producer it asks for: `order`'s four come from four modules (`payment` 1, `checkout` 1, `shipping` 1, `review` 1), `inventory`'s three from three (`order` 1, `payment` 1, `product` 1). Both FK counts read one lower than they used to: the retired `notification_jobs.user_id` referenced `users`, and the retired `payment_jobs.order_id` referenced `orders`, so `user`'s count dropped from 7 to 6 and `order`'s from 6 to 5 when those two tables went — decision 18 in `ARCHITECTURE.md`.
 
-`users` most-referenced table in schema and almost nothing call into `user`: seven tables carry `user_id`, and caller writing one already **has** the id, so nothing to ask. `inventory_levels` have no inbound foreign keys whatsoever and three interfaces across three modules declare ports against `inventory`, because stock is answer that _changes_ and must be asked every time.
+`users` most-referenced table in schema and almost nothing call into `user`: six tables carry `user_id`, and caller writing one already **has** the id, so nothing to ask. `inventory_levels` have no inbound foreign keys whatsoever and three interfaces across three modules declare ports against `inventory`, because stock is answer that _changes_ and must be asked every time.
 
 **Foreign-key fan-in measures how many tables carry an identity. Port fan-in
 measures how much behaviour other modules need.** Close to independent, and neither alone tell you what coupling costs.
@@ -543,33 +568,44 @@ Check 3 scans every non-test `.go` file under a module, so SQL in `service.go` i
 
 **What you would do:** nothing cheap. A real fix parses Go. The literal-only scan catches every violation anyone has written by accident, and none written on purpose — which is the trade every grep-based check in this script makes, not a gap unique to this one.
 
-## The read-replica seam is built, configured, and unused
+## The read replica is wired up, with no protection against reading your own write
 
-**Where you hit it:** you set `READER_DATABASE_URL`, expect read load to move, nothing change.
+**Where you hit it:** you create a promotion through `POST /api/admin/promotions`, immediately `GET /api/admin/promotions`, and the row is missing — or you set `READER_DATABASE_URL` for the first time and a report changes by a few seconds' worth of orders.
 
-Everything except last link exist. `READER_DATABASE_URL` in `.env.example` and README's environment table. `database.NewReaderPostgres` build second pool. `internal/server/server.go` construct it at boot, store as `Deps.ReaderPool`. `database.ReadDB(ctx, primary, reader)` pick reader unless request marked by `database.WithRecentWrite`.
+This used to be a dead seam — configured and unused. It is not any more. `database.NewReaderPostgres` builds a second pool from `READER_DATABASE_URL`; `internal/server/server.go` and `cmd/worker/main.go` both construct it at boot (falling back to `nil`, logged as a warning, if it fails to connect or the variable is unset) and pass `database.DB{Primary: pool, Replica: readerPool}` — one value — through `bootstrap.New` to every module's postgres adapter. `database.PrimaryDB(ctx, db)` and `database.ReplicaDB(ctx, db)` both check the context for an open transaction first; `ReplicaDB` falls back to `Primary` when no replica is configured, so the seam degrades to today's single-pool behaviour by default rather than failing.
 
-**No repository calls it.** Every adapter constructor is `New(pool
-*pgxpool.Pool)` — one pool — and `Deps.ReaderPool` read by nothing outside `internal/server/server.go`. Grep for `ReadDB` outside `internal/platform/database` and you find only that package's own tests. `WithRecentWrite` have no production caller either.
+**Five read-only methods across five adapters call `ReplicaDB`:** `order.ListAdmin`, `product.ListAdmin`, `promotion.ListAdmin`, `user.ListAdmin`, and all four of `dashboard`'s (`GetSalesSummary`, `ListOrderStatusBreakdown`, `ListRevenueByDay`, `ListTopProducts`). Every other read and every write goes through `PrimaryDB`.
 
-So setting variable open connection pool to replica that receive no queries. This the failure mode `ARCHITECTURE.md` warn about under multi-warehouse — knob that look wired and is not — in different place.
+**Nothing marks a request as having just written, so nothing routes a read-your-own-write back to the primary.** The mechanism this limitation used to say was missing — a `WithRecentWrite` context marker, applied by middleware after a non-`GET` — was never built, and nothing replaced it. `order.ListAdmin` and the other four `ListAdmin` methods can read a replica that has not yet caught up with a write the same admin just made, and there is no code path that would notice or compensate. Today's blast radius is small — admin list views, not the checkout path, and replication lag is normally milliseconds — but it is a real, live gap now, not a hypothetical one behind an unused flag: setting `READER_DATABASE_URL` for the first time is the day this starts being observable.
 
-**What you would do:** either finish it or remove it. Finishing mean each `postgres` adapter taking both pools and routing genuinely read-only methods through `ReadDB`, plus deciding where `WithRecentWrite` applied (middleware after any non-GET, most likely) so read-your-own-write not hit lagging replica. Removing mean deleting config field, pool, `Deps` field, and two helpers. Leaving as-is mean next person to hit read-throughput problem will believe they already have replica.
+**What you would do:** either accept the gap and document the lag it can show (an admin who just created something and lists it back may briefly not see it — say so at the two call sites most likely to be driven by a human clicking immediately after a write, `promotion` and `product`), or add the `WithRecentWrite` marker this entry used to describe as missing and thread it through the four admin-write routes ahead of their sibling list routes.
 
-## The charge job is dispatched but never enqueued
+## RESOLVED: the charge job was dispatched but never enqueued
 
-**Where you hit it:** you read `payment/adapter/jobs.Dispatcher.Process`, see it switch on `job.Action` with `case domain.ActionCharge: return d.charge.RunChargeJob(ctx, job)`, and reasonably conclude charges run through the job queue like refunds do. They do not. **No production code ever creates a `payment_jobs` row with
-`action='charge'`** — all three call sites that create a job (`Service.FinalizeSuccess` and `Service.CompensateRefund` in `payment/service.go`, `Service.Refund`) go through `Service.enqueueRefund` (`payment/jobs.go`), which hardcodes `domain.ActionRefund`. So `Service.RunChargeJob` is unreachable outside tests, even though the dispatcher routes to it correctly.
+**What it was.** `payment/adapter/jobs.Dispatcher.Process` switched on `job.Action` with a `case domain.ActionCharge: return d.charge.RunChargeJob(ctx, job)`, and reasonably read as though charges ran through the job queue the way refunds did. No production code ever created a `payment_jobs` row with `action='charge'` — every call site that created a job went through `Service.enqueueRefund`, which hardcoded `domain.ActionRefund` — so `Service.RunChargeJob` was unreachable outside tests even though the dispatcher routed to it correctly. Charging happened inline instead, and `FinalizeSuccess` ran a `MarkJobCompleted` against a synthetic, zero-`ID` `Job` for both of its inline callers, silently matching zero rows every time.
 
-**Why it looks otherwise.** Charging happens inline instead, on two paths: `Service.Charge` finalises synchronously when the gateway captures funds immediately, and `Service.HandleWebhook`'s callback finalises when it does not. Both call `Service.FinalizeSuccess` with a **synthetic** `Job` carrying only `PaymentID`, `OrderID` and `Action` — no `ID`, because no row exists. Three consequences, individually invisible:
+**Why it is gone.** The whole mechanism this entry described no longer exists. `payment/adapter/jobs.Dispatcher`, `domain.ActionCharge`, `Service.RunChargeJob` and `payment_jobs` are all deleted — decision 18 in `ARCHITECTURE.md`. Payment now declares exactly one job type, `RefundJob` (`payment/job.go`), registered once with the shared `jobs.Registry`; there is no charge job to dispatch and nothing pretending there is. Charging is still inline, on the same two paths (`Service.Charge` when the gateway captures synchronously, `Service.HandleWebhook` when it does not) — that part of the design was never wrong, only the appearance of a second path through the queue that no caller took. There is no longer a `RunChargeJob` for anyone to read `Dispatcher.Process` and mistake for one.
 
-- `MarkJobCompleted(job.ID)` inside `FinalizeSuccess` runs `WHERE id = '00000000-0000-0000-0000-000000000000'` for those two callers. Deliberate no-op, not a lost write — but `MarkJobCompleted` discards its rows-affected count, so nothing at runtime distinguishes that from success.
-- The webhook's follow-up `MarkJobCompletedByPaymentID(p.ID, ActionCharge)` also matches zero rows, always.
-- A test asserting "no pending charge job remains" passes whether or not the bookkeeping ran, because the count is zero either way. `test/e2e/fulfillment_failed_test.go` says so in a comment instead of implying coverage it does not have.
+## Job delivery is at-least-once, and only one of the two jobs is idempotent
 
-**What you would do about it.** If charges should be queued — the honest reading of `Dispatcher.Process` — then `Service.Charge` needs to enqueue an `ActionCharge` job and inline finalisation becomes the worker's job, which also gets you retry and backoff free on the most failure-prone call in the system. If they should not, delete `RunChargeJob`, the `ActionCharge` case in `Dispatcher.Process`, and the two `MarkJobCompleted*` calls that can only ever match nothing. Either is half a day. What costs more is the current state, where the reader must trace three call sites across two files to discover a queue path they can see is not used.
+**Where you hit it:** a job's handler succeeds, but the process dies or loses its database connection before the follow-up `Store.Complete` write lands. The row stays `processing` until its lease lapses, and `jobs.Runner` reclaims and re-runs it — by design, not by accident. Nothing in `internal/platform/jobs` promises exactly-once; it promises the job runs *at least* once, and hands the difference to whoever writes `Run`.
 
-Same shape as read-replica seam above: mechanism that exist, compile, is dispatched, and never run.
+**This is a design decision, not an oversight**, and the two jobs that exist today sit on opposite sides of it:
+
+- **`payment.RefundJob` is idempotent twice over.** `runRefund` refuses any payment whose status is neither `success` nor `requires_review` before it calls the gateway, so a normal re-run against an already-refunded payment discards at the guard rather than refunding twice. The gateway call itself also carries `IdempotencyKey: p.ID.String()`, which is what actually stops a genuinely concurrent double-execution — two runners racing the same reclaimed row before either has updated the row — from refunding twice at the gateway; the guard alone cannot see that race, since both would read `success` before either writes. Underneath both, the status write to `refunded` is a compare-and-set naming its allowed predecessors (`success`, `requires_review`), so at most one of the two concurrent runs can also win the database update.
+- **`notification.SendJob` is not idempotent**, and is accepted as at-least-once anyway, because the only channel this template ships, `notification/adapter/channel/log`, turns a duplicate send into a duplicate log line. Nothing downstream of `Channel.Send` de-duplicates.
+
+**What a real channel implementation owes.** Swapping `adapter/channel/log` for an email or SMS sender inherits the at-least-once guarantee whether it wants to or not — the runner does not change, only the channel does. A production channel needs one of two things before it ships: idempotent delivery at the provider (many transactional-email APIs accept a client-supplied message ID for exactly this), or a delivered marker `SendJob.Run` checks before calling `Channel.Send` and sets after. Shipping neither means the first lease-timeout retry, database blip, or `cmd/worker` restart mid-tick sends the same email or SMS twice. Learn this here, not from a support ticket about duplicate mail.
+
+**`checkout.Service.CancelPendingByOrderID`'s failure is logged, not propagated, for the same reason.** A job that fires against an order already cancelled is refused by `payment`'s own status guard — the same guard `RefundJob` leans on — which is what makes best-effort safe there: the worst a swallowed cancellation error does is leave a refund job that will simply no-op against a payment that already moved past `success`/`requires_review`, not double-refund or lose a cancellation that mattered.
+
+## What the shared job table gave up
+
+**Where you hit it:** three separate ways, all a consequence of one `job_queue` table replacing two per-module ones.
+
+- **No foreign key ties a job row to the thing it is about.** `payment_jobs.payment_id` referenced `payments(id)` and `notification_jobs.user_id` cascaded from `users(id)`; neither can exist on `job_queue`, because a platform-owned table naming `payments` or `users` in a constraint would be exactly the cross-module reach decision 6 forbids a module's own SQL from making, and `job_queue` is no exception to that just because it sits in `platform`. `users` and `notifications` are both soft-deleted today, so nothing currently exercises the gap — but a deleted user's pending `notification.send` jobs are not cleaned up by any constraint the way `notification_jobs.user_id`'s old cascade would have done it. Whatever eventually removes a `notifications` row — a hard-delete path, a retention job, GDPR erasure — leaves any job still referencing it to fail `SendJob.Run`'s `j.svc.repo.Get(ctx, j.NotificationID)` on a missing row, on every attempt, until the job exhausts its retries and is buried.
+- **A job payload is JSON matched by field name, and nothing checks it against the struct that will decode it.** `jobs.Enqueue` marshals a `Job` value with `encoding/json`; `jobs.Register` unmarshals a claimed `Record`'s payload back into a zero value of the same type. Renaming an exported field on `payment.RefundJob` or `notification.SendJob` is silent for every row already sitting in `job_queue` at the moment of deploy — the old field name in the stored JSON simply has nowhere to land, and the Go field keeps its zero value with no error from `json.Unmarshal`. No compiler sees this, because the write side and the read side are decades of wall-clock time apart, not two call sites in one build.
+- **`jobs.ErrDiscard` is a sentinel, not a type, and `errors.Is` is what decides whether a job is buried or discarded as intentionally cancelled.** A handler that returns an error from a library that happens to wrap `jobs.ErrDiscard` internally — unlikely today, since neither `RefundJob.Run` nor `SendJob.Run` imports anything that could — would be silently treated as "this job should never run," the same as a genuine not-refundable guard, rather than retried. Nothing today constructs that error by accident, so the cost is latent rather than active.
 
 ## The test suite shares one Postgres and one Redis, and slots are hand-assigned
 
@@ -577,8 +613,8 @@ Same shape as read-replica seam above: mechanism that exist, compile, is dispatc
 
 `internal/testutil` start two long-lived containers by fixed name — `go-api-test-postgres` and `go-api-test-redis` — and every test binary attach to whichever already exist. Isolation by **claimed slot**, not by container:
 
-- **Postgres: one database per module.** `MustStartPostgres(dbName)` create and migrate `dbName` once, under an advisory lock, and nothing ever drop it — `"test_cart"`, `"test_order"`, `"test_payment"`, and so on (`grep -rn 'MustStartPostgres(' --include='*_test.go' internal/modules` is the live mapping). After the flatten most modules have exactly one test package on their name; two — `notification` and `payment` — still have two, because each has a `jobs/postgres` beside its `adapter/postgres`. See [Two test packages on one database never get a clean table](#two-test-packages-on-one-database-never-get-a-clean-table) for the cost that trades in for.
-- **Redis: a hand-assigned integer, tracked by a comment nothing checks.** `MustStartRedis(dbIndex)` take an index the caller picks against the registry comment above that function in `internal/testutil/testutil.go`: 0, 1, 3, 5 and 6 claimed (`platform/cache`, `server/middleware`, `server`, `test/e2e`, `modules/user/adapter/redis`); 2 and 4 free. The comment is prose — it drifts the moment someone forgets it, and `grep -rn 'MustStartRedis(' --include='*_test.go' .` is the only record that cannot. `ResetRedis` call `FlushDB`, so reusing index flush other package's fixtures.
+- **Postgres: one database per module.** `MustStartPostgres(dbName)` create and migrate `dbName` once, under an advisory lock, and nothing ever drop it — `"test_cart"`, `"test_order"`, `"test_payment"`, and so on (`grep -rn 'MustStartPostgres(' --include='*_test.go' internal/modules` is the live mapping). Every module owns its database name outright now: `notification` and `payment` used to have a second `jobs/postgres` test package sharing their name, but that package is gone along with the per-module job queue, and the [two-test-packages entry below](#resolved-two-test-packages-on-one-database-never-got-a-clean-table) is the record of it.
+- **Redis: a hand-assigned integer, and no comment tracks it any more.** `MustStartRedis(dbIndex)` takes an index the caller picks by hand; the list below and `grep -rn 'MustStartRedis(' --include='*_test.go' .` are the only record — a comment above the function in `internal/testutil/testutil.go` used to carry this too, but the comment strip removed it, so it is not there to check against even by accident. Indices 0, 1, 3, 5 and 6 are claimed (`platform/cache`, `server/middleware`, `server`, `test/e2e`, `modules/user/adapter/redis`); 2 and 4 are free. `ResetRedis` calls `FlushDB`, so reusing an index flushes another package's fixtures.
 
 Nothing enforce either claim, and losing the comment removed the one place a reader would have looked before guessing. Duplicate name or index compile, pass review, and fail as flake in unrelated package — worst possible signal, because failure nowhere near the change.
 
@@ -589,15 +625,13 @@ Two further consequences worth knowing before writing tests:
 
 **What you would do:** when adding test package, pass the owning module's existing database name, and (if it need Redis) grep the five call sites above for a free index before taking one. If suite grow much past 15 Redis-using packages, index space run out and allocation must become dynamic.
 
-## Two test packages on one database never get a clean table
+## RESOLVED: two test packages on one database never got a clean table
 
-**Where you hit it:** you write an adapter test asserting `SELECT count(*)`, and it pass alone and fail under `go test ./...`.
+**What it was.** `notification` and `payment` each had a second `jobs/postgres` test package sharing `test_notification` / `test_payment` with their own `adapter/postgres` package. `MustStartPostgres` creates and migrates a database once, under an advisory lock, and never drops it — dropping it mid-run would tear down whichever sibling package still held it open — so there was no `ResetDB` between those two packages and no clean table to assume, even though `go test ./...` ran them concurrently against the one database.
 
-Two modules put two test packages on one database name: `notification` and `payment`, each with a `jobs/postgres` test package beside its `adapter/postgres` one. `MustStartPostgres` create and migrate a database once, under an advisory lock, and never drop it — dropping it mid-run would tear down whichever sibling package still hold it open — so there is no `ResetDB` between those two packages and no clean table to assume, even though `go test ./...` runs them concurrently against the one database.
+The flatten had already shrunk this from a general problem to a two-module one: before it, `order` spread `test_order` across **nine** test packages and `payment` spread `test_payment` across **five** (`git grep -l 'MustStartPostgres("test_order")' 0ee2cc5 -- internal/modules`), and 75 packages in the repo called `testhelper.MustStart*`.
 
-The flatten shrank this from a general problem to a two-module one. Before it, every module was in this position: `order` spread `test_order` across **nine** test packages and `payment` spread `test_payment` across **five** (`git grep -l 'MustStartPostgres("test_order")' 0ee2cc5 -- internal/modules`), and 75 packages in the repo called `testhelper.MustStart*`. It is 25 now, 15 of them Postgres-claiming packages across 13 modules, and **11 of those 13 modules own their database outright**.
-
-**Do not read that as permission to `TRUNCATE`.** A module that owns its database today gains a second test package the moment someone adds one, and `ResetDB` would then delete a sibling's rows from a file that never mentions it. Seed the rows your subtest owns and scope every assertion to them — by a freshly generated `uuid.New()`, the way shipping's own tests do (`seedOrder`, `seedShipment`). Nothing enforces this; the failure look like a flake in a package you never touched.
+**Why it is gone.** `payment/jobs/postgres` and `notification/jobs/postgres` no longer exist — the job queue they backed moved to `internal/platform/jobs/postgres`, one shared package with its own database, `test_platform_jobs` — so neither module has a second test package to share a name with any more. **24 packages call `testutil.MustStart*` today, 21 of them Postgres-claiming, 13 of those inside `internal/modules` — one package per module, every one of the 13 owning its database outright.** No module needs the caution this entry used to state: seed the rows your subtest owns and scope assertions to them regardless, the way `shipping`'s tests do (`seedOrder`, `seedShipment`), because a *second* test package can still land on any of these names in the future and nothing would stop it.
 
 ## What the route golden proves, and the three things it still cannot
 
@@ -670,23 +704,25 @@ trading a fast unit test for a slower, more honest one. Not done here.
 ## The composition site is deliberately tedious
 
 **Where you hit it:** you open `internal/bootstrap/app.go` expecting the pile
-of adapter aliases a template this size usually carries, and find fourteen —
+of adapter aliases a template this size usually carries, and find sixteen —
 `cartpg`, `categorypg`, `dashboardpg`, `inventorypg`, `notificationpg`,
 `orderpg`, `paymentpg`, `productpg`, `promotionpg`, `reviewpg`, `shippingpg`,
-`userpg`, `wishlistpg` and `userredis`.
+`userpg`, `wishlistpg`, `userredis`, `channellog` and `jobspg`.
 
 That is one alias per adapter package, not one per module: `auth`, `checkout`
-and `money` own no store and cost none, `user` costs two. `func New` is 88
-lines (`internal/bootstrap/app.go:70`-`157`) and builds every module in
+and `money` own no store and cost none, `user` costs two. `func New` is 83
+lines (`internal/bootstrap/app.go:64`-`146`) and builds every module in
 dependency order — `inventory` first because `product` needs it, `order`
-before `payment` because `payment`'s three order-facing ports all take the one
+before `payment` because `payment`'s single `Orders` port takes the one
 `*order.Service`, and `checkout` after both because it orchestrates them.
 
-`payment` reopens only `paymentpg`, even though `payment.Deps` carries a raw
-`Pool` field beside `Repo` — that field is for the job queue's own postgres
-adapter, which `payment.New` builds itself (see the charge-job entry above),
-not for `bootstrap` to alias a second time. `notification.Deps` carries a
-`Pool` for the same reason.
+There is no `Deps` struct left to carry a raw `*pgxpool.Pool` field any more:
+`New` builds one `database.DB{Primary, Replica}` value, threads it into every
+`xxxpg.New(db)` call — including `jobspg.New(db)`, once — and hands the
+resulting adapters to each module's `New` as positional arguments. `payment`
+and `notification` used to reopen a second pool each to build their own
+job-queue adapter; both now take the same shared `jobs.Store` value every
+other consumer of the queue gets, built once and named nowhere but `jobspg`.
 
 The tedium has moved three times, and the history is the interesting part.
 Phase 0 made `bootstrap.New` the single composition root. Slicing moved most
@@ -720,32 +756,21 @@ wiring graph, and a single readable list of every module and what it depends
 on is worth more than diff conflicts. If it becomes unbearable, split by
 _layer_ (build every module's dependencies, then every module) not by module.
 
-## `order.Deps.InventoryDeduct` is wired to a path e2e never runs
+## RESOLVED: a dropped constructor argument used to be silently `nil`
 
-> **Stale, pending a rewrite.** `order.Deps` no longer has `InventoryDeduct`,
-> `CartLock`, `CartRead`, `CartClear`, `InventoryReserve` or `InventoryRestore`
-> fields — decision 17 collapsed them into one `Cart` and one `Inventory`
-> field each — so the field names, `NewMockInventoryDeductor` and the line
-> numbers below are all wrong. Left unrewritten because a later step turning
-> `Deps` into positional parameters may moot the section entirely.
+**What it was.** `order.Deps` — before decision 17 collapsed its cart and inventory fields, and before `New` moved to positional parameters at all — held separate `InventoryReserve`, `InventoryDeduct` and `InventoryRestore` fields in a struct literal built by `internal/bootstrap/app.go`. Dropping one line from that literal, say `InventoryDeduct: inv`, compiled fine: a struct literal with a field left unset just leaves it at its zero value, so `order.Deps.InventoryDeduct` went silently `nil`, and `make check-boundaries`, `make lint`, `make test` and every `test/e2e` saga still passed, because the only method that called it — `finalizeFreeOrder`, reached only by a 100%-discount or entirely-free order — had no saga exercising it against the real wiring. This entry used to price exactly that gap, and flagged itself as due for a rewrite once `Deps` became positional parameters, on the chance that change closed it outright.
 
-**Where you hit it:** you drop the `InventoryDeduct: inv` line at `internal/bootstrap/app.go:102` — a struct literal compiles fine with a field left unset, so `order.Deps.InventoryDeduct` is silently `nil` — and `make check-boundaries`, `make lint`, `make test` and every `test/e2e` saga still pass.
+**Why it is closed.** It did. `order.New` now takes `inventory Inventory` (along with every other dependency) as a plain positional parameter, not a struct literal field, and `order.Service` holds one `inventory Inventory` field — the three-way split into `Reserve`/`Deduct`/`Restore` fields collapsed to one `Inventory` port under decision 17, before positional parameters removed the struct literal entirely. Omitting an argument from `order.New(orderpg.New(db), txRunner, logger, cartMod, inv, promotionMod, notificationMod)` is now `not enough arguments in call to order.New` — a build failure, not a silently zero-valued field. The specific gap this entry counted — a dropped dependency that compiles clean and only misbehaves against a rarely-exercised path — cannot occur through a constructor call any more, for any module, since none of the sixteen takes a `Deps` struct today.
 
-**Why it is safe today.** `order` has a `Deps.InventoryDeduct` field, wired at `app.go:102` to the same `inv` value `payment.Deps.InventoryDeduct` already gets at `app.go:117`. Inside `order`, that field lands on `Service.inventoryDeduct` (`internal/modules/order/service.go:63`), and exactly one method calls it — `finalizeFreeOrder` (`internal/modules/order/service.go:421`), reached only when `order.Total.Amount == 0`, a 100%-discount coupon or an entirely free line. `order/service_test.go`'s "zero total finalizes order without payment" subtest (line 539) exercises that branch, but against `NewMockInventoryDeductor`, which proves `finalizeFreeOrder` calls whatever it is handed, not that `app.go` handed it the right thing. `test/e2e/checkout_test.go`'s only coupon saga, `TestE2ECouponOrderFlow` (`checkout_test.go:224`), applies a 10% discount and asserts a 999 total (`checkout_test.go:360`); no `test/e2e` file builds an order whose total lands at zero.
+**What remains.** Swapping two arguments of the *same* type at the same call site still compiles and still is not a bug a check would catch — that risk is [priced separately](#one-flat-service-satisfying-several-of-a-consumers-ports-leaves-the-compiler-nothing-to-check) and positional parameters do not touch it, since a same-typed transposition is legal in a positional call exactly as it was in a struct literal.
 
-**What it costs.** The other five cart/inventory fields on `order.Deps` (`CartLock`, `CartRead`, `CartClear`, `InventoryReserve`, `InventoryRestore`) are reached by every paid checkout `test/e2e/checkout_test.go` runs, so a mis-wire on any of those fails the suite immediately. `InventoryDeduct` is the one exception: dropping it from the block at `app.go:96`-`106` passes every check this repo runs and only misbehaves the first time a customer places a 100%-discount order in production.
+## Every keyset cursor depends on one unenforced date layout agreeing with itself
 
-**This entry is about a *dropped* field, not a swapped one.** The swap has
-its own entry — [One flat `Service` satisfying several of a consumer's ports
-leaves the compiler nothing to check](#one-flat-service-satisfying-several-of-a-consumers-ports-leaves-the-compiler-nothing-to-check)
-— and it used to be a compile error here: `InventoryReserve`, `InventoryDeduct`
-and `InventoryRestore` were wired to three different slice values with three
-different method names, so pasting one into the wrong field did not build. The
-dropped field was never caught, before or after: a struct literal compiles
-with a field left unset, the result is a `nil` port, and nothing in this repo
-looks for one.
+**Where you hit it:** a cursor a client sends back from a previous page decodes to a different instant than the one that produced it, and pagination silently returns the wrong rows — never an error, just a page that quietly skips or repeats.
 
-**What you would do:** seed one zero-total order in `test/e2e/checkout_test.go` — a 100%-off coupon against a real product, asserting the order lands `paid` with inventory actually deducted — or accept that this one field's wiring is proven only by reading `app.go`, and say so, which is what this entry does. Not done here: the checkout saga already covers nine order/payment/inventory wiring points, and adding a tenth for one narrow field is a call for whoever owns the next e2e pass, not a correctness bug today.
+`internal/server/response/pagination_cursor.go` formats the timestamp half of a keyset cursor with one unexported constant, `cursorTimeFormat`, and every call site that builds a cursor for `CursorPage[T]` has to agree with it implicitly, by never formatting a cursor's timestamp any other way. Nothing enforces that agreement beyond there being exactly one constant and one function that reads it. A second encoder — a different endpoint hand-rolling its own cursor, a future refactor that inlines the format string somewhere convenient — would drift the moment it used a layout with different precision or a different timezone offset, and the failure mode is a mis-decoded timestamp, not a parse error: `time.Parse` with a mismatched-but-plausible layout can still succeed on the wrong value.
+
+**What you would do:** keep every cursor-producing call site routed through `CursorPage[T]` rather than formatting a timestamp directly, and if a second encoder is ever genuinely needed, export `cursorTimeFormat` (or an equivalent constant) rather than letting a second literal format string exist anywhere in the tree.
 
 ## A duplicate product id in a stock-adjustment map is silently dropped, not summed
 
@@ -793,13 +818,17 @@ a test that sets either field `true`. That is an untested branch, not a
 type-safety hole — the fields are populated now, so the branch reads what the
 row actually says. It predates the flatten and is still worth a test.
 
-## Config load order is load-bearing and unchecked
+## Config load order is load-bearing and unchecked, and the value it validates is now the wrong one
 
-**Where you hit it:** `order.LoadConfig(jobsLease time.Duration)` and `payment.LoadConfig(appEnv string, jobsLease time.Duration)` each validate their own timeout against a `jobsLease` parameter, not against `infra.Worker.LeaseDuration` directly. Both real call sites — `server.go`'s `loadModuleConfigs` helper and `cmd/worker/main.go`'s `run` — pass `infra.Worker.LeaseDuration` after `config.Load()` has already succeeded. Only `cmd/worker/main.go` goes on to drain a queue: it separately sets `jobCfg.LeaseDuration = infra.Worker.LeaseDuration` for the job runner itself (`server.go` builds no `jobs.Runner` and has no `jobCfg` — the API binary validates the lease but never runs one). In the worker, those two reads of `infra.Worker.LeaseDuration` — one that gets validated, one that actually runs — agree only because both are read from the same `infra` value in the same function. Nothing in either `LoadConfig`'s signature ties the parameter it validates to the value the runner will actually use: pass a different `time.Duration` — a leftover local, a value computed before infra finished loading, another config's default — and `LoadConfig` validates that number while the runner keeps using whatever `infra.Worker.LeaseDuration` actually resolved to. The two can diverge with neither `LoadConfig` nor the runner ever comparing them.
+**Where you hit it:** `order.LoadConfig(jobsLease time.Duration)` and `payment.LoadConfig(appEnv string, jobsLease time.Duration)` each validate a timeout against a `jobsLease` parameter, not against any `infra.Worker` field directly. Both real call sites — `server.go`'s `loadModuleConfigs` helper and `cmd/worker/main.go`'s `run` — pass `infra.Worker.LeaseDuration`, the one lease field that is *shared* between the two queues, after `config.Load()` has already succeeded.
 
-**Why it is safe today.** Both real call sites thread the same `infra.Worker.LeaseDuration` value through unchanged from `Load` to both `LoadConfig`s; `cmd/worker/main.go` threads it on into `jobCfg` as well, since it is the only one of the two that builds a runner. Every test in `internal/modules/order/config_test.go` / `payment/config_test.go` passes an explicit literal duration and checks the error, not the interaction with a separately-loaded infra value.
+**The value that gets validated is no longer the value either runner leases with.** `order.LoadConfig` checks `jobsLease < StaleProcessingThreshold`, guarding against the payment runner's per-tick sweep reverting an order whose charge is still leased; `payment.LoadConfig` checks `jobsLease >= GatewayTimeout*3`, guarding against a lease so short the runner reclaims and re-runs a charge the gateway hasn't finished yet. Both guards were written when there was one worker-wide lease. There are now two, `WORKER_PAYMENT_LEASE` and `WORKER_NOTIFICATION_LEASE`, and `cmd/worker/main.go` builds its `paymentJobCfg.LeaseDuration` from `infra.Worker.PaymentLeaseDuration`, not from `infra.Worker.LeaseDuration`. So the number two `LoadConfig` calls validate at boot and the number the payment runner actually leases with are two different config fields, read from two different environment variables, with nothing anywhere comparing them. Set `WORKER_LEASE_DURATION` to a safe value and `WORKER_PAYMENT_LEASE` to an unsafe one — shorter than `3×PAYMENT_GATEWAY_TIMEOUT`, or longer than `order`'s stale-processing threshold — and boot succeeds having validated a number the worker never uses, while the number it does use goes unchecked in either direction.
 
-**What it costs.** Nothing today. Both call sites get it right, and a comment near each names why: `server.go`'s doc comment on `loadModuleConfigs` and `cmd/worker/main.go`'s inline comment above `auth.LoadConfig` both say "infra must load first" in roughly those words. A comment is not a compiler.
+**Why it looked safe before this refactor's job-queue split.** Every real call site threaded the one `infra.Worker.LeaseDuration` value through unchanged from `Load` into both `LoadConfig`s and into the one job runner's config, so the value validated and the value used were provably the same field. The per-queue lease split broke that by construction, not by a mistake at a call site: `WORKER_PAYMENT_LEASE` and `WORKER_NOTIFICATION_LEASE` did not exist when these two guards were written, and adding them did not touch either `LoadConfig` signature.
+
+**What it costs today.** Nothing observable yet, because `WORKER_PAYMENT_LEASE`'s default (`2m`) happens to satisfy both guards against the other defaults (`PAYMENT_GATEWAY_TIMEOUT=10s`, `order`'s `StaleProcessingThreshold`). It costs real safety the day either default is overridden without also reasoning about the other: a short `WORKER_PAYMENT_LEASE` in a fast-gateway environment, or a long `StaleProcessingThreshold`, can now boot clean while carrying exactly the race each guard exists to prevent.
+
+**What you would do:** have `order.LoadConfig` and `payment.LoadConfig` take `infra.Worker.PaymentLeaseDuration` — the field the payment runner's `jobs.Config.LeaseDuration` is actually built from — instead of `infra.Worker.LeaseDuration`, and rename the parameter to say so. Every test in `internal/modules/order/config_test.go` / `payment/config_test.go` already passes an explicit literal duration and checks the error, so no test needs to change shape, only which `infra` field the two real call sites thread through — a smaller fix than it looks, and worth doing before the next person tunes `WORKER_PAYMENT_LEASE` and trusts the boot check that no longer looks at it.
 
 **What breaks it.** A future call site that passes a `time.Duration` other than `infra.Worker.LeaseDuration` — because it ran before infra finished loading, or reused a variable meant for something else — gets a validation result that says nothing about the lease the runner will actually use. If that placeholder value happens to land inside the range both `LoadConfig`s accept (above payment's 3×`PAYMENT_GATEWAY_TIMEOUT` floor, below order's `StaleProcessingThreshold` ceiling), boot succeeds having validated the wrong number, and the real `infra.Worker.LeaseDuration` — whatever it actually is, including a value outside that safe range — never gets checked against either threshold at all. That is how a worker ends up leasing jobs for longer than the recovery sweep waits before reverting them.
 
@@ -819,7 +848,7 @@ row actually says. It predates the flatten and is still worth a test.
 
 `logger.WithAttrs` stores a `[]slog.Attr` under an unexported key and only `ContextHandler.Handle` reads it. There is no accessor, and `middleware.GetRequestID` was deleted once nothing needed it. Both uses above need the value itself, not a log record.
 
-**A second, sharper limit: nothing checks the single-naming invariant.** An attribute named at two points on one code path is emitted twice, and slog does not deduplicate keys. `payment/adapter/jobs.Dispatcher.Process` names `job_id` for the whole worker path; `Service.FinalizeSuccess` and `Service.CompensateRefund` are also reached from `Service.Charge` and `Service.HandleWebhook`, which pass a `Job` literal with no `ID` and so deliberately name nothing. Add a fourth caller that names `job_id` itself and the worker path start emitting the key twice, with no test or linter to catch it. The check is a grep of the callers, run by hand.
+**A second, sharper limit: nothing checks the single-naming invariant.** An attribute named at two points on one code path is emitted twice, and slog does not deduplicate keys. `Runner.processOne` is the one place `job_id` is named today, for every job either queue drains — a simpler shape than before this refactor's job-queue split, when a queue's own processor named it and an inline caller with no job row had to remember to deliberately name nothing. That collapse to one caller closed one way this could go wrong, but the invariant itself is still unchecked: any handler's own `Run` method — `payment.RefundJob.Run`, `notification.SendJob.Run`, or a third job type added later — that called `logger.WithAttrs(ctx, slog.String("job_id", ...))` itself would start emitting the key twice, with no test or linter to catch it. The check is a grep of the callers, run by hand.
 
 This is not hypothetical. Naming `user_id` at the auth edge immediately collided with an `invalidateStatusCache` helper that logged its own `user_id` — the user being acted upon, not the caller. On an admin role change the record carried both, and a last-wins parser kept the admin's id while silently dropping the target's. The fix was to rename the inner one to `target_user_id`, because the two values answer different questions. That helper was duplicated three times while `user` was sliced — one private copy per slice that needed it (`remove`, `adminupdate`, `updaterole`), each logging `target_user_id` the same way — and the collision this paragraph describes had to be fixed in each copy independently. One `invalidateStatusCache` method on `user.Service` (`internal/modules/user/service.go`) replaced all three, which is the shape of what decision 16 bought: three copies of one fix became one.
 
@@ -836,7 +865,7 @@ Do not copy this if:
 - **You have one domain.** Sixteen module directories for one bounded context give you aliased imports, ports, mapper functions and an ownership check with nothing on the other side of the ledger. A single package with a `handler`/`service`/`repository` split is the right shape.
 - **You need cross-module queries more often than not.** Every join across boundary become two queries and a port, and reporting is the _only_ carve-out. If most reads are aggregates over many entities, you want schema you can join, or read model from start — not dozen ownership fences and one exception.
 - **You are prototyping.** Rules cost most at beginning, when boundaries still guesses. Ports declared around domain you not understand yet are wrong ports, and harder to move than functions.
-- **You want to extract services soon.** This structure make _code_ side of extraction cheap and leave data side entirely undone — 18 cross-module foreign keys in one schema. If service split imminent, separate data first; module boundaries will follow more easily than reverse.
+- **You want to extract services soon.** This structure make _code_ side of extraction cheap and leave data side entirely undone — 16 cross-module foreign keys in one schema. If service split imminent, separate data first; module boundaries will follow more easily than reverse.
 - **You need multi-currency or multi-warehouse on day one.** Both named above as redesigns. Starting from design that rejected them mean undoing ratified decisions before writing first feature.
 
 Do copy it if you want boundaries checkable not aspirational, and willing to pay two queries, a mapper and an import alias for that. That the whole trade, and every section above a line item in it.
@@ -845,6 +874,6 @@ Do copy it if you want boundaries checkable not aspirational, and willing to pay
 
 Read alongside:
 
-- `ARCHITECTURE.md` — the seventeen decisions and fifteen rejections these are the shadow of. Decision 14 is marked reversed and decision 16 is what replaced it; the first six sections above are its bill.
+- `ARCHITECTURE.md` — the nineteen decisions and fifteen rejections these are the shadow of. Decision 14 is marked reversed and decision 16 is what replaced it; the first six sections above are its bill.
 - `db/OWNERSHIP.md` — table-ownership map, foreign-key inventory, and full blind-spot list for `make check-boundaries`.
 - `AGENTS.md` — working rules, and which of them machine-checked.
