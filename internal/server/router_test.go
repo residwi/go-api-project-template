@@ -23,6 +23,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -32,12 +33,24 @@ import (
 var (
 	testPool  *pgxpool.Pool
 	testRedis *redis.Client
-	testDeps  *Deps
 	testApp   *bootstrap.App
 
 	// Fixed across every App this file builds, so a token minted by one is still
 	// valid against another -- the only config every existing call site actually
 	// varies is Payment's gateway URL, pointed at a local httptest mock server.
+	testInfra = &config.Settings{
+		App: config.App{
+			Name: "test",
+			Env:  "development",
+			Port: 8080,
+		},
+		CORS: config.CORS{
+			AllowedOrigins: []string{"*"},
+			AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
+			AllowedHeaders: []string{"Content-Type", "Authorization"},
+			MaxAge:         86400,
+		},
+	}
 	testAuthCfg = auth.Config{
 		Secret:          "test-secret-key-at-least-32-chars-long",
 		AccessTokenTTL:  15 * time.Minute,
@@ -45,6 +58,7 @@ var (
 		Issuer:          "test",
 	}
 	testCartCfg    = cart.Config{MaxItems: 50}
+	testOrderCfg   order.Config
 	testPaymentCfg = payment.Config{
 		Gateway:        "mock",
 		GatewayURL:     "http://localhost:19999",
@@ -60,27 +74,6 @@ func TestMain(m *testing.M) {
 	rdb, cleanupRedis := testutil.MustStartRedis(3)
 	defer cleanupRedis()
 	testRedis = rdb
-
-	testDeps = &Deps{
-		Infra: &config.Settings{
-			App: config.App{
-				Name: "test",
-				Env:  "development",
-				Port: 8080,
-			},
-			CORS: config.CORS{
-				AllowedOrigins: []string{"*"},
-				AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
-				AllowedHeaders: []string{"Content-Type", "Authorization"},
-				MaxAge:         86400,
-			},
-		},
-		Auth:    testAuthCfg,
-		Payment: testPaymentCfg,
-		DB:      database.DB{Primary: pool},
-		Cache:   rdb,
-		Logger:  testutil.DiscardLogger(),
-	}
 
 	testApp = newTestApp(testPaymentCfg)
 
@@ -106,17 +99,39 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 	return app
 }
 
+// newTestRouter builds a router for a given payment config against a
+// freshly wired app -- the common case, where nothing but Payment varies
+// between call sites.
+func newTestRouter(paymentCfg payment.Config) http.Handler {
+	return NewRouter(
+		testInfra, testAuthCfg, testOrderCfg, paymentCfg,
+		database.DB{Primary: testPool}, testRedis, testutil.DiscardLogger(),
+		newTestApp(paymentCfg),
+	)
+}
+
+// newTestRouterWithCache builds a router against testApp with every field
+// fixed except Cache, for the health-check tests that need a down or nil
+// redis client.
+func newTestRouterWithCache(cache *redis.Client) http.Handler {
+	return NewRouter(
+		testInfra, testAuthCfg, testOrderCfg, testPaymentCfg,
+		database.DB{Primary: testPool}, cache, testutil.DiscardLogger(),
+		testApp,
+	)
+}
+
 func TestNewRouter(t *testing.T) {
 	setup(t)
 	t.Run("initializes without error", func(t *testing.T) {
-		handler := NewRouter(testDeps, testApp)
+		handler := newTestRouter(testPaymentCfg)
 		require.NotNil(t, handler)
 	})
 }
 
 func TestHealthHandler(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 
 	t.Run("returns healthy status", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -141,16 +156,11 @@ func TestHealthHandler(t *testing.T) {
 		}
 		defer badPool.Close()
 
-		badDeps := &Deps{
-			Infra:   testDeps.Infra,
-			Auth:    testDeps.Auth,
-			Order:   testDeps.Order,
-			Payment: testDeps.Payment,
-			DB:      database.DB{Primary: badPool},
-			Cache:   testRedis,
-			Logger:  testutil.DiscardLogger(),
-		}
-		h := NewRouter(badDeps, testApp)
+		h := NewRouter(
+			testInfra, testAuthCfg, testOrderCfg, testPaymentCfg,
+			database.DB{Primary: badPool}, testRedis, testutil.DiscardLogger(),
+			testApp,
+		)
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -175,16 +185,7 @@ func TestHealthHandler(t *testing.T) {
 		})
 		defer badRedis.Close()
 
-		badDeps := &Deps{
-			Infra:   testDeps.Infra,
-			Auth:    testDeps.Auth,
-			Order:   testDeps.Order,
-			Payment: testDeps.Payment,
-			DB:      database.DB{Primary: testPool},
-			Cache:   badRedis,
-			Logger:  testutil.DiscardLogger(),
-		}
-		h := NewRouter(badDeps, testApp)
+		h := newTestRouterWithCache(badRedis)
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -201,16 +202,7 @@ func TestHealthHandler(t *testing.T) {
 	})
 
 	t.Run("returns not configured when redis is nil", func(t *testing.T) {
-		nilRedisDeps := &Deps{
-			Infra:   testDeps.Infra,
-			Auth:    testDeps.Auth,
-			Order:   testDeps.Order,
-			Payment: testDeps.Payment,
-			DB:      database.DB{Primary: testPool},
-			Cache:   nil,
-			Logger:  testutil.DiscardLogger(),
-		}
-		h := NewRouter(nilRedisDeps, testApp)
+		h := newTestRouterWithCache(nil)
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
@@ -229,7 +221,7 @@ func TestHealthHandler(t *testing.T) {
 
 func TestPublicEndpoints(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 
 	t.Run("GET /api/categories returns list", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/categories", nil)
@@ -269,7 +261,7 @@ func TestPublicEndpoints(t *testing.T) {
 
 func TestAuthEndpoints(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 	ctx := context.Background()
 
 	t.Run("POST /api/auth/register creates user", func(t *testing.T) {
@@ -385,7 +377,7 @@ func TestAuthEndpoints(t *testing.T) {
 
 func TestProtectedEndpointsRequireAuth(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 
 	endpoints := []struct {
 		method string
@@ -410,7 +402,7 @@ func TestProtectedEndpointsRequireAuth(t *testing.T) {
 
 func TestAdminEndpointsRequireAuth(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 
 	endpoints := []struct {
 		method string
@@ -438,7 +430,7 @@ func TestAdminEndpointsRequireAuth(t *testing.T) {
 
 func TestAuthenticatedEndpoints(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 	ctx := context.Background()
 
 	regBody := `{"email":"test-authed@example.com","password":"Password123!","first_name":"Authed","last_name":"User"}`
@@ -508,7 +500,7 @@ func TestAuthenticatedEndpoints(t *testing.T) {
 
 func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 	ctx := context.Background()
 
 	regBody := `{"email":"test-nonadmin@example.com","password":"Password123!","first_name":"Regular","last_name":"User"}`
@@ -554,16 +546,7 @@ func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 
 func TestHealthHandler_NilRedis(t *testing.T) {
 	setup(t)
-	nilRedisDeps := &Deps{
-		Infra:   testDeps.Infra,
-		Auth:    testDeps.Auth,
-		Order:   testDeps.Order,
-		Payment: testDeps.Payment,
-		DB:      testDeps.DB,
-		Cache:   nil,
-		Logger:  testutil.DiscardLogger(),
-	}
-	handler := NewRouter(nilRedisDeps, testApp)
+	handler := newTestRouterWithCache(nil)
 
 	t.Run("returns healthy with redis not configured", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -581,7 +564,7 @@ func TestHealthHandler_NilRedis(t *testing.T) {
 
 func TestCORSHeaders(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 
 	t.Run("OPTIONS preflight returns CORS headers", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodOptions, "/api/products", nil)
@@ -596,7 +579,7 @@ func TestCORSHeaders(t *testing.T) {
 
 func TestAdapterErrorPaths(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 	ctx := context.Background()
 
 	email := "adapter-err@example.com"
@@ -651,16 +634,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		GatewayURL:     mockServer.URL + "/mock/payment",
 		GatewayTimeout: 5 * time.Second,
 	}
-	deps := &Deps{
-		Infra:   testDeps.Infra,
-		Auth:    testDeps.Auth,
-		Order:   testDeps.Order,
-		Payment: customPaymentCfg,
-		DB:      database.DB{Primary: testPool},
-		Cache:   testRedis,
-		Logger:  testutil.DiscardLogger(),
-	}
-	handler := NewRouter(deps, newTestApp(customPaymentCfg))
+	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -777,7 +751,7 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	// ever reaches the gateway, so no URL here is actually dialled.
 	err := newPaymentServiceForTest(
 		t,
-		testDeps.Payment.GatewayURL,
+		testPaymentCfg.GatewayURL,
 	).FinalizeSuccess(context.Background(), paymentID, orderID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "getting order for verification")

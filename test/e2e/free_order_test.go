@@ -13,8 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/server"
 )
 
 // TestE2EFullyDiscountedOrder drives the zero-total path: a 100% coupon takes
@@ -27,7 +25,7 @@ func TestE2EFullyDiscountedOrder(t *testing.T) {
 	setup(t)
 
 	// Default gateway config points at a dead port: nothing here may charge.
-	handler := server.NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 	ctx := context.Background()
 
 	catID := uuid.New()

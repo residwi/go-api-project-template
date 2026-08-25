@@ -85,23 +85,13 @@ func RunContext(ctx context.Context) error {
 
 	db := database.DB{Primary: pool, Replica: readerPool}
 
-	deps := &Deps{
-		Infra:   infra,
-		Auth:    authCfg,
-		Order:   orderCfg,
-		Payment: paymentCfg,
-		DB:      db,
-		Cache:   rdb,
-		Logger:  appLog,
-	}
-
 	app, err := bootstrap.New(authCfg, cartCfg, paymentCfg, db, rdb, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
 		return fmt.Errorf("wiring services: %w", err)
 	}
 
-	handler := NewRouter(deps, app)
+	handler := NewRouter(infra, authCfg, orderCfg, paymentCfg, db, rdb, appLog, app)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", infra.App.Port),
@@ -177,23 +167,19 @@ func loadModuleConfigs(
 	return authCfg, cartCfg, orderCfg, paymentCfg, nil
 }
 
-type Deps struct {
-	Infra   *config.Settings
-	Auth    auth.Config
-	Order   order.Config
-	Payment payment.Config
-	DB      database.DB
-	Cache   *redis.Client
-	Logger  *slog.Logger
-}
-
 func NewRouter(
-	deps *Deps,
+	infra *config.Settings,
+	authCfg auth.Config,
+	orderCfg order.Config,
+	paymentCfg payment.Config,
+	db database.DB,
+	cache *redis.Client,
+	logger *slog.Logger,
 	app *bootstrap.App,
 ) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /health", healthHandler(deps.Logger, deps.DB, deps.Cache))
+	mux.HandleFunc("GET /health", healthHandler(logger, db, cache))
 
 	v := validator.New()
 
@@ -205,35 +191,35 @@ func NewRouter(
 	admin := middleware.NewRouteGroup(mux, "/api/admin", authMiddleware, adminMiddleware)
 
 	authLimiter := middleware.RateLimit(
-		deps.Logger,
-		deps.Cache,
-		deps.Auth.RateLimit,
-		deps.Auth.RateWindow,
+		logger,
+		cache,
+		authCfg.RateLimit,
+		authCfg.RateWindow,
 	)
 	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
 
 	orderWriteLimiter := middleware.RateLimit(
-		deps.Logger,
-		deps.Cache,
-		deps.Order.RateLimit,
-		deps.Order.RateWindow,
+		logger,
+		cache,
+		orderCfg.RateLimit,
+		orderCfg.RateWindow,
 	)
 
-	registerRoutes(app, v, deps.Logger, api, authed, admin, authPublic, orderWriteLimiter)
+	registerRoutes(app, v, logger, api, authed, admin, authPublic, orderWriteLimiter)
 
-	if deps.Infra.App.Env == "development" {
+	if infra.App.Env == "development" {
 		mockgatewayserver.RegisterRoutes(
 			mux,
-			deps.Logger,
-			mockgatewayserver.WithWebhookSecret(deps.Payment.WebhookSecret),
+			logger,
+			mockgatewayserver.WithWebhookSecret(paymentCfg.WebhookSecret),
 		)
 	}
 
 	return middleware.Chain(
 		middleware.RequestID,
-		middleware.Logging(deps.Logger),
-		middleware.Recovery(deps.Logger),
-		middleware.CORS(deps.Infra.CORS),
+		middleware.Logging(logger),
+		middleware.Recovery(logger),
+		middleware.CORS(infra.CORS),
 	)(mux)
 }
 

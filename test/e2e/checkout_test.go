@@ -16,15 +16,13 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
-	"github.com/residwi/go-api-project-template/internal/server"
 
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestE2EOrderFlow(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -127,7 +125,7 @@ func TestE2EOrderFlow(t *testing.T) {
 
 func TestE2ECancelOrderFlow(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -225,16 +223,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 		GatewayURL:     mockServer.URL + "/mock/payment",
 		GatewayTimeout: 5 * time.Second,
 	}
-	deps := &server.Deps{
-		Infra:   testDeps.Infra,
-		Auth:    testDeps.Auth,
-		Order:   testDeps.Order,
-		Payment: customPaymentCfg,
-		DB:      database.DB{Primary: testPool},
-		Cache:   testRedis,
-		Logger:  testutil.DiscardLogger(),
-	}
-	handler := server.NewRouter(deps, newTestApp(customPaymentCfg))
+	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
 	catID := uuid.New()
@@ -386,16 +375,7 @@ func TestE2ERetryPayment(t *testing.T) {
 		GatewayURL:     mockServer.URL + "/mock/payment",
 		GatewayTimeout: 5 * time.Second,
 	}
-	deps := &server.Deps{
-		Infra:   testDeps.Infra,
-		Auth:    testDeps.Auth,
-		Order:   testDeps.Order,
-		Payment: customPaymentCfg,
-		DB:      database.DB{Primary: testPool},
-		Cache:   testRedis,
-		Logger:  testutil.DiscardLogger(),
-	}
-	handler := server.NewRouter(deps, newTestApp(customPaymentCfg))
+	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
 	ownerID, ownerToken := registerE2EUser(t, handler, "retry-owner@example.com")

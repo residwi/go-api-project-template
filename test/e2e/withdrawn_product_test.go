@@ -11,13 +11,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/server"
 )
 
 func TestE2ECheckoutRejectsWithdrawnProduct(t *testing.T) {
 	setup(t)
-	handler := server.NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 	ctx := context.Background()
 
 	catID := uuid.New()

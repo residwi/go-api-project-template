@@ -42,16 +42,12 @@ func newTestEnv(t *testing.T) jobQueueEnv {
 		GatewayTimeout: 5 * time.Second,
 	}
 	app := newTestApp(paymentCfg)
-	deps := &server.Deps{
-		Infra:   testDeps.Infra,
-		Auth:    testDeps.Auth,
-		Order:   testDeps.Order,
-		Payment: paymentCfg,
-		DB:      database.DB{Primary: testPool},
-		Cache:   testRedis,
-		Logger:  testutil.DiscardLogger(),
-	}
-	return jobQueueEnv{app: app, handler: server.NewRouter(deps, app)}
+	handler := server.NewRouter(
+		testInfra, testAuthCfg, testOrderCfg, paymentCfg,
+		database.DB{Primary: testPool}, testRedis, testutil.DiscardLogger(),
+		app,
+	)
+	return jobQueueEnv{app: app, handler: handler}
 }
 
 func placeAndPayOrder(t *testing.T, env jobQueueEnv) (orderID, paymentID uuid.UUID) {

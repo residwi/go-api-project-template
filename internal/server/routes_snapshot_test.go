@@ -20,7 +20,7 @@ import (
 // status code or body, but never text/plain.
 func TestRouteSnapshot(t *testing.T) {
 	setup(t)
-	handler := NewRouter(testDeps, testApp)
+	handler := newTestRouter(testPaymentCfg)
 	token := registerProbeUser(t, handler)
 
 	for _, r := range loadGoldenRoutes(t) {

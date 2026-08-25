@@ -7,6 +7,7 @@ package e2e_test
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -29,12 +31,24 @@ import (
 var (
 	testPool  *pgxpool.Pool
 	testRedis *redis.Client
-	testDeps  *server.Deps
 	testApp   *bootstrap.App
 
 	// Fixed across every App this package builds, so a token minted by one is
 	// still valid against another -- the only config any e2e test actually
 	// varies is Payment's gateway URL, pointed at a local httptest mock server.
+	testInfra = &config.Settings{
+		App: config.App{
+			Name: "test",
+			Env:  "development",
+			Port: 8080,
+		},
+		CORS: config.CORS{
+			AllowedOrigins: []string{"*"},
+			AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
+			AllowedHeaders: []string{"Content-Type", "Authorization"},
+			MaxAge:         86400,
+		},
+	}
 	testAuthCfg = auth.Config{
 		Secret:          "test-secret-key-at-least-32-chars-long",
 		AccessTokenTTL:  15 * time.Minute,
@@ -42,6 +56,7 @@ var (
 		Issuer:          "test",
 	}
 	testCartCfg    = cart.Config{MaxItems: 50}
+	testOrderCfg   order.Config
 	testPaymentCfg = payment.Config{
 		Gateway:        "mock",
 		GatewayURL:     "http://localhost:19999",
@@ -57,27 +72,6 @@ func TestMain(m *testing.M) {
 	rdb, cleanupRedis := testutil.MustStartRedis(5)
 	defer cleanupRedis()
 	testRedis = rdb
-
-	testDeps = &server.Deps{
-		Infra: &config.Settings{
-			App: config.App{
-				Name: "test",
-				Env:  "development",
-				Port: 8080,
-			},
-			CORS: config.CORS{
-				AllowedOrigins: []string{"*"},
-				AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
-				AllowedHeaders: []string{"Content-Type", "Authorization"},
-				MaxAge:         86400,
-			},
-		},
-		Auth:    testAuthCfg,
-		Payment: testPaymentCfg,
-		DB:      database.DB{Primary: pool},
-		Cache:   rdb,
-		Logger:  testutil.DiscardLogger(),
-	}
 
 	testApp = newTestApp(testPaymentCfg)
 
@@ -109,6 +103,19 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 		panic(err)
 	}
 	return app
+}
+
+// newTestRouter builds a router for a given payment config against a
+// freshly wired app -- the common case, where nothing but Payment varies
+// between call sites.
+//
+// internal/server/router_test.go carries its own copy. Keep them in step.
+func newTestRouter(paymentCfg payment.Config) http.Handler {
+	return server.NewRouter(
+		testInfra, testAuthCfg, testOrderCfg, paymentCfg,
+		database.DB{Primary: testPool}, testRedis, testutil.DiscardLogger(),
+		newTestApp(paymentCfg),
+	)
 }
 
 // newPaymentService wires a whole App against a custom gateway URL (a local
