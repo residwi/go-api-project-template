@@ -25,7 +25,7 @@ func Load() (*Settings, error) {
 
 	var settings Settings
 	if err := envconfig.Process("", &settings); err != nil {
-		return nil, fmt.Errorf("loading infra config: %w", err)
+		return nil, fmt.Errorf("loading app config: %w", err)
 	}
 
 	return &settings, settings.validate()

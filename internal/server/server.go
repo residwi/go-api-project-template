@@ -36,27 +36,27 @@ func Run() error {
 }
 
 func RunContext(ctx context.Context) error {
-	infra, err := config.Load()
+	appCfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "loading infra config failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "loading app config failed: %v\n", err)
 		return err
 	}
 
-	appLog := logger.Setup(infra.Log.Level, infra.Log.Format)
+	appLog := logger.Setup(appCfg.Log.Level, appCfg.Log.Format)
 
-	authCfg, cartCfg, orderCfg, paymentCfg, err := loadModuleConfigs(ctx, infra, appLog)
+	authCfg, cartCfg, orderCfg, paymentCfg, err := loadModuleConfigs(ctx, appCfg, appLog)
 	if err != nil {
 		return err
 	}
 
-	primaryDB, err := database.NewPrimaryPostgres(ctx, infra.Database)
+	primaryDB, err := database.NewPrimaryPostgres(ctx, appCfg.Database)
 	if err != nil {
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
 		return fmt.Errorf("connecting to database: %w", err)
 	}
 	defer primaryDB.Close()
 
-	replicaDB, err := database.NewReplicaPostgres(ctx, infra.Database)
+	replicaDB, err := database.NewReplicaPostgres(ctx, appCfg.Database)
 	if err != nil {
 		if !errors.Is(err, apperror.ErrReplicaNotConfigured) {
 			appLog.WarnContext(
@@ -71,7 +71,7 @@ func RunContext(ctx context.Context) error {
 		defer replicaDB.Close()
 	}
 
-	rdb, err := cache.NewRedis(ctx, infra.Redis)
+	rdb, err := cache.NewRedis(ctx, appCfg.Redis)
 	if err != nil {
 		appLog.WarnContext(
 			ctx,
@@ -91,20 +91,25 @@ func RunContext(ctx context.Context) error {
 		return fmt.Errorf("wiring services: %w", err)
 	}
 
-	handler := NewRouter(infra, authCfg, orderCfg, paymentCfg, rdb, appLog, app)
+	handler := NewRouter(appCfg, authCfg, orderCfg, paymentCfg, rdb, appLog, app)
 
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", infra.App.Port),
+		Addr:         fmt.Sprintf(":%d", appCfg.App.Port),
 		Handler:      handler,
-		ReadTimeout:  infra.App.ReadTimeout,
-		WriteTimeout: infra.App.WriteTimeout,
-		IdleTimeout:  infra.App.IdleTimeout,
+		ReadTimeout:  appCfg.App.ReadTimeout,
+		WriteTimeout: appCfg.App.WriteTimeout,
+		IdleTimeout:  appCfg.App.IdleTimeout,
 		ErrorLog:     slog.NewLogLogger(appLog.Handler(), slog.LevelError),
 	}
 
 	serveErr := make(chan error, 1)
 	go func() {
-		appLog.InfoContext(ctx, "server starting", slog.Int("port", infra.App.Port), slog.String("env", infra.App.Env))
+		appLog.InfoContext(
+			ctx,
+			"server starting",
+			slog.Int("port", appCfg.App.Port),
+			slog.String("env", appCfg.App.Env),
+		)
 		serveErr <- srv.ListenAndServe()
 	}()
 
@@ -119,7 +124,7 @@ func RunContext(ctx context.Context) error {
 
 	appLog.InfoContext(ctx, "shutting down server")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), infra.App.ShutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), appCfg.App.ShutdownTimeout)
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
@@ -133,7 +138,7 @@ func RunContext(ctx context.Context) error {
 
 func loadModuleConfigs(
 	ctx context.Context,
-	infra *config.Settings,
+	appCfg *config.Settings,
 	appLog *slog.Logger,
 ) (auth.Config, cart.Config, order.Config, payment.Config, error) {
 	var cartCfg cart.Config
@@ -152,13 +157,13 @@ func loadModuleConfigs(
 		return authCfg, cartCfg, orderCfg, paymentCfg, err
 	}
 
-	orderCfg, err = order.LoadConfig(infra.Worker.PaymentLeaseDuration)
+	orderCfg, err = order.LoadConfig(appCfg.Worker.PaymentLeaseDuration)
 	if err != nil {
 		appLog.ErrorContext(ctx, "loading order config failed", slog.String("error", err.Error()))
 		return authCfg, cartCfg, orderCfg, paymentCfg, err
 	}
 
-	paymentCfg, err = payment.LoadConfig(infra.App.Env, infra.Worker.PaymentLeaseDuration)
+	paymentCfg, err = payment.LoadConfig(appCfg.App.Env, appCfg.Worker.PaymentLeaseDuration)
 	if err != nil {
 		appLog.ErrorContext(ctx, "loading payment config failed", slog.String("error", err.Error()))
 		return authCfg, cartCfg, orderCfg, paymentCfg, err
@@ -168,7 +173,7 @@ func loadModuleConfigs(
 }
 
 func NewRouter(
-	infra *config.Settings,
+	appCfg *config.Settings,
 	authCfg auth.Config,
 	orderCfg order.Config,
 	paymentCfg payment.Config,
@@ -206,7 +211,7 @@ func NewRouter(
 
 	registerRoutes(app, v, logger, api, authed, admin, authPublic, orderWriteLimiter)
 
-	if infra.App.Env == "development" {
+	if appCfg.App.Env == "development" {
 		mockgatewayserver.RegisterRoutes(
 			mux,
 			logger,
@@ -218,7 +223,7 @@ func NewRouter(
 		middleware.RequestID,
 		middleware.Logging(logger),
 		middleware.Recovery(logger),
-		middleware.CORS(infra.CORS),
+		middleware.CORS(appCfg.CORS),
 	)(mux)
 }
 

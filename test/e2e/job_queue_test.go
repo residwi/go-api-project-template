@@ -42,7 +42,7 @@ func newTestEnv(t *testing.T) jobQueueEnv {
 	}
 	app := newTestApp(paymentCfg)
 	handler := server.NewRouter(
-		testInfra, testAuthCfg, testOrderCfg, paymentCfg,
+		testAppCfg, testAuthCfg, testOrderCfg, paymentCfg,
 		testRedis, testutil.DiscardLogger(),
 		app,
 	)
@@ -157,7 +157,8 @@ func TestRunnerClaimsAndRunsAnEnqueuedJob(t *testing.T) {
 	}, jobs.Keys{Dedup: "runner-claims:" + paymentID.String()}))
 
 	var queue, status string
-	require.NoError(t, testPool.QueryRow(ctx,
+	require.NoError(t, testPool.QueryRow(
+		ctx,
 		`SELECT queue, status FROM job_queue WHERE dedup_key = $1`,
 		"runner-claims:"+paymentID.String(),
 	).Scan(&queue, &status))
@@ -184,7 +185,8 @@ func TestRunnerClaimsAndRunsAnEnqueuedJob(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		var s string
-		if err := testPool.QueryRow(ctx,
+		if err := testPool.QueryRow(
+			ctx,
 			`SELECT status FROM job_queue WHERE dedup_key = $1`,
 			"runner-claims:"+paymentID.String(),
 		).Scan(&s); err != nil {

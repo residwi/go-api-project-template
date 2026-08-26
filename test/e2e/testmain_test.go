@@ -36,7 +36,7 @@ var (
 	// Fixed across every App this package builds, so a token minted by one is
 	// still valid against another -- the only config any e2e test actually
 	// varies is Payment's gateway URL, pointed at a local httptest mock server.
-	testInfra = &config.Settings{
+	testAppCfg = &config.Settings{
 		App: config.App{
 			Name: "test",
 			Env:  "development",
@@ -112,7 +112,7 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 // internal/server/router_test.go carries its own copy. Keep them in step.
 func newTestRouter(paymentCfg payment.Config) http.Handler {
 	return server.NewRouter(
-		testInfra, testAuthCfg, testOrderCfg, paymentCfg,
+		testAppCfg, testAuthCfg, testOrderCfg, paymentCfg,
 		testRedis, testutil.DiscardLogger(),
 		newTestApp(paymentCfg),
 	)

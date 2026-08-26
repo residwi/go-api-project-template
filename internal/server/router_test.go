@@ -38,7 +38,7 @@ var (
 	// Fixed across every App this file builds, so a token minted by one is still
 	// valid against another -- the only config every existing call site actually
 	// varies is Payment's gateway URL, pointed at a local httptest mock server.
-	testInfra = &config.Settings{
+	testAppCfg = &config.Settings{
 		App: config.App{
 			Name: "test",
 			Env:  "development",
@@ -104,7 +104,7 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 // between call sites.
 func newTestRouter(paymentCfg payment.Config) http.Handler {
 	return NewRouter(
-		testInfra, testAuthCfg, testOrderCfg, paymentCfg,
+		testAppCfg, testAuthCfg, testOrderCfg, paymentCfg,
 		testRedis, testutil.DiscardLogger(),
 		newTestApp(paymentCfg),
 	)
@@ -465,7 +465,7 @@ func TestNewRouterWithNilCache(t *testing.T) {
 
 	t.Run("builds and serves when no redis is configured", func(t *testing.T) {
 		handler := NewRouter(
-			testInfra, testAuthCfg, testOrderCfg, testPaymentCfg,
+			testAppCfg, testAuthCfg, testOrderCfg, testPaymentCfg,
 			nil, testutil.DiscardLogger(),
 			testApp,
 		)

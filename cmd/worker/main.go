@@ -45,13 +45,13 @@ func main() {
 }
 
 func run() error {
-	infra, err := config.Load()
+	appCfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "loading infra config failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "loading app config failed: %v\n", err)
 		return err
 	}
 
-	appLog := logger.Setup(infra.Log.Level, infra.Log.Format)
+	appLog := logger.Setup(appCfg.Log.Level, appCfg.Log.Format)
 
 	authCfg, err := auth.LoadConfig()
 	if err != nil {
@@ -65,12 +65,12 @@ func run() error {
 		return err
 	}
 
-	if _, err = order.LoadConfig(infra.Worker.PaymentLeaseDuration); err != nil {
+	if _, err = order.LoadConfig(appCfg.Worker.PaymentLeaseDuration); err != nil {
 		appLog.Error("loading order config failed", slog.String("error", err.Error()))
 		return err
 	}
 
-	paymentCfg, err := payment.LoadConfig(infra.App.Env, infra.Worker.PaymentLeaseDuration)
+	paymentCfg, err := payment.LoadConfig(appCfg.App.Env, appCfg.Worker.PaymentLeaseDuration)
 	if err != nil {
 		appLog.Error("loading payment config failed", slog.String("error", err.Error()))
 		return err
@@ -79,7 +79,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	primaryDB, err := database.NewPrimaryPostgres(ctx, infra.Database)
+	primaryDB, err := database.NewPrimaryPostgres(ctx, appCfg.Database)
 	if err != nil {
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
 		return fmt.Errorf("connecting to database: %w", err)
@@ -100,21 +100,21 @@ func run() error {
 	}
 
 	paymentJobCfg := jobs.Config{
-		Interval:      infra.Worker.PaymentInterval,
-		BatchSize:     infra.Worker.BatchSize,
-		LeaseDuration: infra.Worker.PaymentLeaseDuration,
-		Concurrency:   infra.Worker.PaymentConcurrency,
-		PruneAge:      infra.Worker.PruneAge,
-		PruneLimit:    infra.Worker.PruneLimit,
+		Interval:      appCfg.Worker.PaymentInterval,
+		BatchSize:     appCfg.Worker.BatchSize,
+		LeaseDuration: appCfg.Worker.PaymentLeaseDuration,
+		Concurrency:   appCfg.Worker.PaymentConcurrency,
+		PruneAge:      appCfg.Worker.PruneAge,
+		PruneLimit:    appCfg.Worker.PruneLimit,
 	}
 
 	notificationJobCfg := jobs.Config{
-		Interval:      infra.Worker.NotificationInterval,
-		BatchSize:     infra.Worker.BatchSize,
-		LeaseDuration: infra.Worker.NotificationLease,
-		Concurrency:   infra.Worker.NotificationConcurrency,
-		PruneAge:      infra.Worker.PruneAge,
-		PruneLimit:    infra.Worker.PruneLimit,
+		Interval:      appCfg.Worker.NotificationInterval,
+		BatchSize:     appCfg.Worker.BatchSize,
+		LeaseDuration: appCfg.Worker.NotificationLease,
+		Concurrency:   appCfg.Worker.NotificationConcurrency,
+		PruneAge:      appCfg.Worker.PruneAge,
+		PruneLimit:    appCfg.Worker.PruneLimit,
 	}
 
 	proc := paymentProcessor{
@@ -127,7 +127,7 @@ func run() error {
 	paymentRunner := jobs.NewRunner("payment", app.JobStore, proc, paymentJobCfg, appLog)
 	notificationRunner := jobs.NewRunner("notification", app.JobStore, app.Jobs, notificationJobCfg, appLog)
 
-	appLog.InfoContext(ctx, "worker starting", slog.String("env", infra.App.Env))
+	appLog.InfoContext(ctx, "worker starting", slog.String("env", appCfg.App.Env))
 	var wg sync.WaitGroup
 	for _, start := range []func(context.Context){paymentRunner.Start, notificationRunner.Start} {
 		wg.Go(func() {
