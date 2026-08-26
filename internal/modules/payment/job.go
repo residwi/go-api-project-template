@@ -24,7 +24,7 @@ func (j RefundJob) Run(ctx context.Context) error {
 	return j.svc.runRefund(ctx, j.PaymentID, j.OrderID)
 }
 
-func (s *Service) enqueueRefund(ctx context.Context, paymentID, orderID uuid.UUID) error {
+func (s *Service) enqueueRefundJob(ctx context.Context, paymentID, orderID uuid.UUID) error {
 	return jobs.Enqueue(ctx, s.queue, RefundJob{PaymentID: paymentID, OrderID: orderID}, jobs.Keys{
 		Dedup: "payment.refund:" + paymentID.String(),
 		Group: "order:" + orderID.String(),

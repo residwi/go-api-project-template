@@ -219,7 +219,7 @@ func (s *Service) FinalizeSuccess(ctx context.Context, paymentID, orderID uuid.U
 				)
 			}
 
-			if createErr := s.enqueueRefund(txCtx, paymentID, orderID); createErr != nil {
+			if createErr := s.enqueueRefundJob(txCtx, paymentID, orderID); createErr != nil {
 				s.logger.ErrorContext(
 					txCtx,
 					"failed to create refund job",
@@ -263,7 +263,7 @@ func (s *Service) CompensateRefund(ctx context.Context, paymentID, orderID uuid.
 			)
 		}
 
-		return s.enqueueRefund(txCtx, paymentID, orderID)
+		return s.enqueueRefundJob(txCtx, paymentID, orderID)
 	})
 	if txErr != nil {
 		s.logger.ErrorContext(ctx, "compensating refund failed",
@@ -288,7 +288,7 @@ func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
 		return fmt.Errorf("%w: payment is not refundable", apperror.ErrBadRequest)
 	}
 
-	return s.enqueueRefund(ctx, paymentID, p.OrderID)
+	return s.enqueueRefundJob(ctx, paymentID, p.OrderID)
 }
 
 //nolint:gocognit // resolves the payment then dispatches success/failed/cancelled/expired event branches
