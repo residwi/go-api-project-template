@@ -466,8 +466,8 @@ keep their constructor-injected `*slog.Logger` and their existing
 `InfoContext(ctx, ...)` calls unchanged. Only the four edges that name an
 attribute carry a `logger.WithAttrs` line: `middleware.RequestID`,
 `middleware.Auth`, `jobs.Runner.Start`, and `Runner.processOne` — one method
-on the shared runner now, naming `job_id` for both queues, where it used to
-be named separately by each queue's own processor
+on the shared runner now, naming `job_id` for all three queues, where it used
+to be named separately by each queue's own processor
 (`payment/adapter/jobs.Dispatcher.Process` and
 `notification/jobs.Worker.Process`, both gone along with the per-module
 queues). Every other call in every other module
@@ -484,10 +484,10 @@ overwrite each other.
 **The cost:** you can no longer read a single log call and know everything
 it emits. `order.Service.ExpireStale`'s
 `s.logger.ErrorContext(ctx, "failed to expire order", slog.String("order_id", o.ID.String()), slog.String("error", err.Error()))`
-also emits `runner`, because it runs inside the payment runner's per-tick
-sweep, and nothing at that line names it. In exchange, 32 repeated
-attributes are gone and `request_id` reaches code that has never heard of
-HTTP.
+also emits `runner=order`, because it runs inside `order.ExpireStaleJob.Run`
+on the `order` queue's own runner, and nothing at that line names it. In
+exchange, 32 repeated attributes are gone and `request_id` reaches code that
+has never heard of HTTP.
 
 ## 13. `contract.go` publishes the structs that cross a boundary
 
@@ -777,14 +777,19 @@ key, status, attempts, lease) and one `Store` interface
 `internal/platform/jobs/postgres` against that one table. A module declares
 its own job type in its own `job.go`, at module root, with an exported
 payload and an unexported dependency closing over its `Service`:
-`payment.RefundJob{PaymentID, OrderID; svc *Service}` and
-`notification.SendJob{NotificationID; svc *Service}` are the two that exist.
+`payment.RefundJob{PaymentID, OrderID; svc *Service}`,
+`notification.SendJob{NotificationID; svc *Service}` and
+`order.ExpireStaleJob{At, Every; svc *Service}` are the three that exist.
 `jobs.Enqueue[T Job]` marshals the job and inserts a `Record`; `queueOf`
 derives the queue name from the kind's prefix before its first dot, so
 `"payment.refund"` claims from the `payment` queue. `internal/bootstrap`
 builds one `jobs.Registry`, registers each job type once, and hands the
 shared registry and store to `cmd/worker`, which starts one `jobs.Runner` per
-queue name.
+queue name — three today. `order.ExpireStaleJob` replaced a `jobs.Sweeper`
+interface the runner used to type-assert its processor against for per-tick
+housekeeping, which forced a small wrapper type in `cmd/worker/main.go` to
+carry both the payment registry and the sweep; an ordinary self-scheduling
+job needed neither the interface nor the wrapper.
 
 This replaces what two modules used to do separately, without either ever
 having its own decision recorded here: `payment_jobs` and `notification_jobs`

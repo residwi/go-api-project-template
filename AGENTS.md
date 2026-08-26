@@ -12,7 +12,7 @@ If this file ever disagree with code, code wins — say so and fix file.
 
 ## What this is
 
-Go 1.26 ecommerce API template. REST endpoints under `/api` for auth, users, categories, products, inventory, cart, orders, payments, shipping, reviews, promotions, wishlists, notifications, admin dashboard, plus separate worker process draining payment and notification job queues. PostgreSQL via `pgx/v5`, Redis via `go-redis/v9`, routing on stdlib `net/http` `ServeMux` — no third-party router.
+Go 1.26 ecommerce API template. REST endpoints under `/api` for auth, users, categories, products, inventory, cart, orders, payments, shipping, reviews, promotions, wishlists, notifications, admin dashboard, plus separate worker process draining payment, notification and order job queues. PostgreSQL via `pgx/v5`, Redis via `go-redis/v9`, routing on stdlib `net/http` `ServeMux` — no third-party router.
 
 Structure is product. Others copy template, so boundary compiler or CI can enforce beats boundary code review must.
 
@@ -20,7 +20,7 @@ Structure is product. Others copy template, so boundary compiler or CI can enfor
 
 ```text
 cmd/api/                  API server binary
-cmd/worker/               payment + notification job worker binary
+cmd/worker/               payment + notification + order job worker binary
 cmd/mockgateway/          dev-only fake payment gateway binary
   mockserver/             its handlers, importable so internal/server can mount them in-process
 internal/
@@ -102,7 +102,8 @@ internal/modules/<feature>/
   domain/            aggregate types and rules -- private, and check 4
                      enforces it (14: all but checkout and money)
   job.go             a background job's Kind, payload and Run -- payment
-                     (RefundJob) and notification (SendJob) only (2)
+                     (RefundJob), notification (SendJob) and order
+                     (ExpireStaleJob) only (3)
   channel.go         the outbound Channel port -- notification only, paired
                      with adapter/channel/log
   service_test.go    mock-driven tests, package <feature>
@@ -585,7 +586,7 @@ compiler; they are all greps.
     and `money`. The root package imports `inventory/domain` and declares
     `Service` and `Repository`, and no check holds it to a leaf-import rule.
     `ARCHITECTURE-LIMITATIONS.md` records what that costs.
-16. **Background jobs share one platform-owned queue, one table, one store.** There is no per-module job queue any more: `payment/jobs.go`, `payment/adapter/jobs.Dispatcher` and `notification/jobs.Worker` are gone, and `payment_jobs` / `notification_jobs` are gone with them. In their place, `internal/platform/jobs` (`jobs.go`) declares one `Job` interface — `Kind() string` and `Run(ctx context.Context) error` — one `Record` (a `job_queue` row: queue, kind, JSON payload, dedup key, group key, status, attempts, lease), and one `Store` interface (`Insert`, `Claim`, `Complete`, `Retry`, `Bury`, `Cancel`, `CancelByGroupKey`, `Prune`) that `internal/platform/jobs/postgres` implements against that one table. A module declares its own job type in its own `job.go`, at module root, with an exported payload and an unexported dependency: `payment.RefundJob{PaymentID, OrderID; svc *Service}` and `notification.SendJob{NotificationID; svc *Service}` are the two that exist today. `jobs.Enqueue[T Job](ctx, e Enqueuer, job T, keys Keys, opts...)` marshals the job to JSON and inserts a `Record`; `queueOf` derives the queue name from the kind's prefix before its first dot, so `"payment.refund"` claims from the `payment` queue and `"notification.send"` from `notification`. `internal/bootstrap` builds one `jobs.Registry`, calls `jobs.Register` once per job type to map a `Kind()` to its handler, and hands the same `*jobs.Registry` and shared `jobs.Store` to `cmd/worker`. An unregistered kind is discarded via the `jobs.ErrDiscard` sentinel rather than retried. `cmd/worker` starts one `jobs.Runner` per queue name: the `payment` runner wraps the registry in its own small `paymentProcessor`, which also implements `jobs.Sweeper` for the per-tick order-recovery-and-expiry sweep — that composition crosses `payment` and `order`, so it stays `cmd/worker/main.go`'s own unexported type rather than living in either module — and the `notification` runner hands the registry to `jobs.Runner` directly, with no sweep. Never hand-roll a ticker/lease/poll loop — the runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
+16. **Background jobs share one platform-owned queue, one table, one store.** There is no per-module job queue any more: `payment/jobs.go`, `payment/adapter/jobs.Dispatcher` and `notification/jobs.Worker` are gone, and `payment_jobs` / `notification_jobs` are gone with them. In their place, `internal/platform/jobs` (`jobs.go`) declares one `Job` interface — `Kind() string` and `Run(ctx context.Context) error` — one `Record` (a `job_queue` row: queue, kind, JSON payload, dedup key, group key, status, attempts, lease), and one `Store` interface (`Insert`, `Claim`, `Complete`, `Retry`, `Bury`, `Cancel`, `CancelByGroupKey`, `Prune`) that `internal/platform/jobs/postgres` implements against that one table. A module declares its own job type in its own `job.go`, at module root, with an exported payload and an unexported dependency: `payment.RefundJob{PaymentID, OrderID; svc *Service}`, `notification.SendJob{NotificationID; svc *Service}` and `order.ExpireStaleJob{At, Every; svc *Service}` are the three that exist today. `jobs.Enqueue[T Job](ctx, e Enqueuer, job T, keys Keys, opts...)` marshals the job to JSON and inserts a `Record`; `queueOf` derives the queue name from the kind's prefix before its first dot, so `"payment.refund"` claims from the `payment` queue, `"notification.send"` from `notification`, and `"order.expire-stale"` from `order`. `internal/bootstrap` builds one `jobs.Registry`, calls `jobs.Register` once per job type to map a `Kind()` to its handler, and hands the same `*jobs.Registry` and shared `jobs.Store` to `cmd/worker`. An unregistered kind is discarded via the `jobs.ErrDiscard` sentinel rather than retried. `cmd/worker` starts one `jobs.Runner` per queue name, all three handed the same `*jobs.Registry` directly with no wrapper type. The order/payment recovery sweep that used to run as a `jobs.Sweeper` type-asserted onto the payment runner is gone: `order.ExpireStaleJob.Run` now recovers stale payment-processing orders and expires stale awaiting-payment orders itself, and enqueues its own successor *before* doing either, so a run that gets buried after exhausting its retries never breaks the recurrence -- the dedup key names the target timestamp (`"order.expire-stale:" + at.UTC().Format(time.RFC3339)`) rather than a fixed string, so scheduling the successor while the current occurrence is still `processing` never collides with `ux_job_queue_active`. `bootstrap` registers it by name-match (`jobs.Register(reg, order.NewExpireStaleJob(ordMod))`) and `cmd/worker` seeds the first occurrence once at boot via `order.Service.ScheduleExpireStale`, using the order runner's own poll interval as the recurrence period. Never hand-roll a ticker/lease/poll loop — the runner owns polling, leased compare-and-set claim, bounded concurrency, per-job timeouts and pruning.
 17. **Repository reads use `pgx.CollectRows`**, never a hand-rolled `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and build keyset predicates with `database.KeysetCursor()`.
 18. **Handlers use the shared helpers.** Decode and validate with `response.Bind[T](w, r, h.validator)`; read caller with `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks.
 18a. **An `adapter/http` port is named for the role it plays, never for the
@@ -648,10 +649,10 @@ compiler; they are all greps.
     identifier, and it is not violated by an unexported type that carries an
     *exported* method moving down with that method — `funcorder`'s
     `struct-method` check already requires a struct's methods to follow its
-    own declaration, so eleven unexported types with an exported method
-    (`poolTxRunner.Run`, `paymentProcessor.Process`/`Sweep`,
-    `recoverWriter.Write`/`WriteHeader`, `statusRecorder.WriteHeader`, and
-    others — `grep -rhoE '^func \(\w+ \*?[a-z][A-Za-z]*\) [A-Z][A-Za-z]*'
+    own declaration, so seven unexported types with an exported method
+    (`poolTxRunner.Run`, `recoverWriter.Write`/`WriteHeader`,
+    `statusRecorder.WriteHeader`, and others — `grep -rhoE
+    '^func \(\w+ \*?[a-z][A-Za-z]*\) [A-Z][A-Za-z]*'
     --include='*.go' internal cmd | sort -u` finds them) sit below the
     exported types they serve, and that is correct, not a gap to fix.
     `.golangci.yml`'s `funcorder.function: true` is meant to enforce ordering

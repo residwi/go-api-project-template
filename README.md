@@ -425,9 +425,9 @@ Include the JWT token in the Authorization header:
 Authorization: Bearer <access_token>
 ```
 
-## Worker (payment + notification job queues)
+## Worker (payment + notification + order job queues)
 
-The project includes a separate worker binary that drains two job queues:
+The project includes a separate worker binary that drains three job queues:
 
 ```bash
 # Build worker
@@ -437,24 +437,30 @@ make build-worker
 make run-worker
 ```
 
-The worker runs two `platform/jobs.Runner` loops side by side, both draining
+The worker runs three `platform/jobs.Runner` loops side by side, all draining
 the shared `job_queue` table, one per queue name. One claims the `payment`
-queue, dispatches each claimed job to a charge or a refund, and runs order's
-stale-order housekeeping sweep once per tick. The other claims the
-`notification` queue. Both use the same leased compare-and-set claim, bounded
-concurrency, per-job timeout and pruning; neither hand-rolls a ticker.
+queue and dispatches each claimed job to a charge or a refund. Another claims
+the `notification` queue. The third claims the `order` queue, running a single
+self-scheduling `order.ExpireStaleJob`: each run recovers stale
+payment-processing orders, expires stale awaiting-payment orders, and
+enqueues its own successor before doing either, so a buried run never breaks
+the recurrence. All three use the same leased compare-and-set claim, bounded
+concurrency, per-job timeout and pruning; none hand-rolls a ticker.
 
 Worker configuration via environment variables. `WORKER_BATCH_SIZE` and the
 prune settings are shared; poll interval, lease and concurrency are per queue,
-since payment and notification jobs run at different rates:
+since payment, notification and order jobs run at different rates:
 
-- `WORKER_BATCH_SIZE` — Jobs claimed per batch, both queues (default: 10)
+- `WORKER_BATCH_SIZE` — Jobs claimed per batch, all queues (default: 10)
 - `WORKER_PAYMENT_INTERVAL` — Payment queue poll interval (default: 10s)
 - `WORKER_PAYMENT_CONCURRENCY` — Payment queue concurrent processors (default: 5)
 - `WORKER_PAYMENT_LEASE` — Payment queue job lease duration (default: 2m)
 - `WORKER_NOTIFICATION_INTERVAL` — Notification queue poll interval (default: 5s)
 - `WORKER_NOTIFICATION_CONCURRENCY` — Notification queue concurrent processors (default: 10)
 - `WORKER_NOTIFICATION_LEASE` — Notification queue job lease duration (default: 30s)
+- `WORKER_ORDER_INTERVAL` — Order queue poll interval (default: 1m)
+- `WORKER_ORDER_CONCURRENCY` — Order queue concurrent processors (default: 1)
+- `WORKER_ORDER_LEASE` — Order queue job lease duration (default: 2m)
 
 ## Available Make Commands
 
@@ -583,13 +589,16 @@ Key variables:
 | `CORS_ALLOWED_METHODS`          | CORS allowed methods                           | `GET,POST,PUT,DELETE,OPTIONS`                             |
 | `CORS_ALLOWED_HEADERS`          | CORS allowed headers                           | `Content-Type,Authorization,X-Request-ID,Idempotency-Key` |
 | `CORS_MAX_AGE`                  | CORS max age (seconds)                         | `86400`                                                   |
-| `WORKER_BATCH_SIZE`             | Worker jobs per batch, both queues             | `10`                                                      |
+| `WORKER_BATCH_SIZE`             | Worker jobs per batch, all queues              | `10`                                                      |
 | `WORKER_PAYMENT_INTERVAL`       | Payment queue poll interval                    | `10s`                                                     |
 | `WORKER_PAYMENT_CONCURRENCY`    | Payment queue concurrent processors            | `5`                                                       |
 | `WORKER_PAYMENT_LEASE`          | Payment queue job lease duration                | `2m`                                                      |
 | `WORKER_NOTIFICATION_INTERVAL`  | Notification queue poll interval               | `5s`                                                      |
 | `WORKER_NOTIFICATION_CONCURRENCY` | Notification queue concurrent processors     | `10`                                                      |
 | `WORKER_NOTIFICATION_LEASE`     | Notification queue job lease duration          | `30s`                                                     |
+| `WORKER_ORDER_INTERVAL`         | Order queue poll interval                      | `1m`                                                      |
+| `WORKER_ORDER_CONCURRENCY`      | Order queue concurrent processors              | `1`                                                       |
+| `WORKER_ORDER_LEASE`            | Order queue job lease duration                  | `2m`                                                      |
 | `PAYMENT_GATEWAY`               | Payment gateway provider                       | `mock`                                                    |
 | `PAYMENT_GATEWAY_URL`           | Payment gateway URL                            | —                                                         |
 | `PAYMENT_GATEWAY_TIMEOUT`       | Payment gateway timeout                        | `10s`                                                     |

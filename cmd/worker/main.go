@@ -20,24 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
-type paymentProcessor struct {
-	registry jobs.Processor
-	recover  func(context.Context) error
-	expire   func(context.Context) error
-	logger   *slog.Logger
-}
-
-func (p paymentProcessor) Process(ctx context.Context, rec jobs.Record) error {
-	return p.registry.Process(ctx, rec)
-}
-
-func (p paymentProcessor) Sweep(ctx context.Context) error {
-	if err := p.recover(ctx); err != nil {
-		p.logger.ErrorContext(ctx, "recover stale processing orders failed", slog.String("error", err.Error()))
-	}
-	return p.expire(ctx)
-}
-
 func main() {
 	if err := run(); err != nil {
 		os.Exit(1)
@@ -117,19 +99,27 @@ func run() error {
 		PruneLimit:    appCfg.Worker.PruneLimit,
 	}
 
-	proc := paymentProcessor{
-		registry: app.Jobs,
-		recover:  app.Orders.RecoverStale,
-		expire:   app.Orders.ExpireStale,
-		logger:   appLog,
+	orderJobCfg := jobs.Config{
+		Interval:      appCfg.Worker.OrderInterval,
+		BatchSize:     appCfg.Worker.BatchSize,
+		LeaseDuration: appCfg.Worker.OrderLease,
+		Concurrency:   appCfg.Worker.OrderConcurrency,
+		PruneAge:      appCfg.Worker.PruneAge,
+		PruneLimit:    appCfg.Worker.PruneLimit,
 	}
 
-	paymentRunner := jobs.NewRunner("payment", app.JobStore, proc, paymentJobCfg, appLog)
+	if err := app.Orders.ScheduleExpireStale(ctx, orderJobCfg.Interval); err != nil {
+		appLog.ErrorContext(ctx, "scheduling order expiry sweep failed", slog.String("error", err.Error()))
+		return fmt.Errorf("scheduling order expiry sweep: %w", err)
+	}
+
+	paymentRunner := jobs.NewRunner("payment", app.JobStore, app.Jobs, paymentJobCfg, appLog)
 	notificationRunner := jobs.NewRunner("notification", app.JobStore, app.Jobs, notificationJobCfg, appLog)
+	orderRunner := jobs.NewRunner("order", app.JobStore, app.Jobs, orderJobCfg, appLog)
 
 	appLog.InfoContext(ctx, "worker starting", slog.String("env", appCfg.App.Env))
 	var wg sync.WaitGroup
-	for _, start := range []func(context.Context){paymentRunner.Start, notificationRunner.Start} {
+	for _, start := range []func(context.Context){paymentRunner.Start, notificationRunner.Start, orderRunner.Start} {
 		wg.Go(func() {
 			start(ctx)
 		})

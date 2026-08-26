@@ -77,31 +77,6 @@ func TestRunner(t *testing.T) {
 		})
 	})
 
-	t.Run("sweeps when the processor implements Sweeper", func(t *testing.T) {
-		t.Parallel()
-
-		synctest.Test(t, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-
-			store := newFakeStore()
-			proc := &fakeSweepProcessor{processorFunc: func(context.Context, Record) error { return nil }}
-			r := NewRunner("payment", store, proc, testConfig(), slog.New(slog.DiscardHandler))
-
-			go r.Start(ctx)
-
-			time.Sleep(1500 * time.Millisecond)
-			synctest.Wait()
-
-			proc.sweepMu.Lock()
-			calls := proc.sweepCalls
-			proc.sweepMu.Unlock()
-			assert.Equal(t, 1, calls)
-
-			cancel()
-			synctest.Wait()
-		})
-	})
-
 	t.Run("bounds each job's context to a fraction of the lease", func(t *testing.T) {
 		t.Parallel()
 
@@ -310,20 +285,6 @@ func TestBackoff(t *testing.T) {
 type processorFunc func(context.Context, Record) error
 
 func (f processorFunc) Process(ctx context.Context, rec Record) error { return f(ctx, rec) }
-
-type fakeSweepProcessor struct {
-	processorFunc
-
-	sweepMu    sync.Mutex
-	sweepCalls int
-}
-
-func (p *fakeSweepProcessor) Sweep(context.Context) error {
-	p.sweepMu.Lock()
-	defer p.sweepMu.Unlock()
-	p.sweepCalls++
-	return nil
-}
 
 type fakeStore struct {
 	mu            sync.Mutex

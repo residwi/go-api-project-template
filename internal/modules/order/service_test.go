@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -1605,6 +1606,70 @@ func TestService_RecoverStale(t *testing.T) {
 	})
 }
 
+func TestExpireStaleJob_Run(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	at := time.Date(2026, 8, 23, 12, 0, 0, 0, time.UTC)
+	every := time.Minute
+	next := at.Add(every)
+
+	t.Run("enqueues the next occurrence keyed on its own target time", func(t *testing.T) {
+		t.Parallel()
+
+		s, d := newTestService(t)
+		d.repo.EXPECT().
+			GetStaleProcessingOrders(mock.Anything, StaleProcessingThreshold, mock.Anything).
+			Return(nil, nil)
+		d.repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return(nil, nil)
+
+		job := ExpireStaleJob{At: at, Every: every, svc: s}
+		err := job.Run(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, d.queue.Inserted, 1)
+		assert.Equal(t, "order.expire-stale", d.queue.Inserted[0].Kind)
+		assert.Equal(t, "order.expire-stale:"+next.UTC().Format(time.RFC3339), d.queue.Inserted[0].DedupKey)
+		assert.Equal(t, next, d.queue.Inserted[0].RunAt)
+	})
+
+	t.Run("two chains scheduling the same slot converge on one dedup key", func(t *testing.T) {
+		t.Parallel()
+
+		s, d := newTestService(t)
+		d.repo.EXPECT().
+			GetStaleProcessingOrders(mock.Anything, StaleProcessingThreshold, mock.Anything).
+			Return(nil, nil).Twice()
+		d.repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return(nil, nil).Twice()
+
+		early := ExpireStaleJob{At: at.Add(3 * time.Second), Every: every, svc: s}
+		late := ExpireStaleJob{At: at.Add(41 * time.Second), Every: every, svc: s}
+		require.NoError(t, early.Run(ctx))
+		require.NoError(t, late.Run(ctx))
+
+		require.Len(t, d.queue.Inserted, 2)
+		assert.Equal(t, d.queue.Inserted[0].DedupKey, d.queue.Inserted[1].DedupKey,
+			"offset boots must target the same slot, so the unique index drops the duplicate")
+	})
+
+	t.Run("still enqueues the next occurrence when the expiry sweep fails", func(t *testing.T) {
+		t.Parallel()
+
+		s, d := newTestService(t)
+		d.repo.EXPECT().
+			GetStaleProcessingOrders(mock.Anything, StaleProcessingThreshold, mock.Anything).
+			Return(nil, nil)
+		dbErr := errors.New("database error")
+		d.repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return(nil, dbErr)
+
+		job := ExpireStaleJob{At: at, Every: every, svc: s}
+		err := job.Run(ctx)
+
+		require.ErrorIs(t, err, dbErr)
+		require.Len(t, d.queue.Inserted, 1)
+	})
+}
+
 func TestService_Apply(t *testing.T) {
 	t.Parallel()
 
@@ -1686,6 +1751,7 @@ type testDeps struct {
 	inventory     *MockInventory
 	coupons       *MockCouponReserver
 	notifications *MockNotifications
+	queue         *testutil.FakeQueue
 }
 
 func newTestService(t *testing.T) (*Service, testDeps) {
@@ -1710,6 +1776,7 @@ func newService(t *testing.T, withCoupons bool) (*Service, testDeps) {
 		inventory:     NewMockInventory(t),
 		coupons:       NewMockCouponReserver(t),
 		notifications: NewMockNotifications(t),
+		queue:         &testutil.FakeQueue{},
 	}
 
 	var coupons CouponReserver = d.coupons
@@ -1726,6 +1793,7 @@ func newService(t *testing.T, withCoupons bool) (*Service, testDeps) {
 		d.inventory,
 		coupons,
 		d.notifications,
+		d.queue,
 	)
 
 	return svc, d

@@ -16,10 +16,6 @@ type Processor interface {
 	Process(ctx context.Context, rec Record) error
 }
 
-type Sweeper interface {
-	Sweep(ctx context.Context) error
-}
-
 type Config struct {
 	Interval      time.Duration
 	BatchSize     int
@@ -72,12 +68,6 @@ func (r *Runner) tick(ctx context.Context) {
 			r.logger.ErrorContext(ctx, "tick panicked", slog.String("panic", fmt.Sprint(rec)))
 		}
 	}()
-
-	if sweeper, ok := r.proc.(Sweeper); ok {
-		if err := sweeper.Sweep(ctx); err != nil {
-			r.logger.ErrorContext(ctx, "sweep failed", slog.String("error", err.Error()))
-		}
-	}
 
 	if _, err := r.store.Prune(ctx, r.queue, r.cfg.PruneAge, r.cfg.PruneLimit); err != nil {
 		r.logger.ErrorContext(ctx, "prune jobs failed", slog.String("error", err.Error()))

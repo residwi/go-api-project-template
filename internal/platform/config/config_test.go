@@ -102,6 +102,24 @@ func TestLoad(t *testing.T) {
 		assert.Contains(t, err.Error(), "WORKER_NOTIFICATION_CONCURRENCY must be at least 1")
 	})
 
+	t.Run("rejects an order worker interval that would hammer the database", func(t *testing.T) {
+		t.Setenv("WORKER_ORDER_INTERVAL", "1s")
+
+		_, err := Load()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "WORKER_ORDER_INTERVAL must be at least 5s")
+	})
+
+	t.Run("rejects a zero order concurrency that would deadlock the runner", func(t *testing.T) {
+		t.Setenv("WORKER_ORDER_CONCURRENCY", "0")
+
+		_, err := Load()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "WORKER_ORDER_CONCURRENCY must be at least 1")
+	})
+
 	t.Run("rejects a zero batch size that would halt both runners", func(t *testing.T) {
 		t.Setenv("WORKER_BATCH_SIZE", "0")
 

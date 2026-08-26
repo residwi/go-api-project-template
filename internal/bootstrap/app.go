@@ -101,6 +101,7 @@ func New(
 		inv,
 		promotionMod,
 		notificationMod,
+		jobStore,
 	)
 
 	paymentMod := payment.New(
@@ -122,6 +123,7 @@ func New(
 	reg := jobs.NewRegistry()
 	jobs.Register(reg, payment.NewRefundJob(paymentMod))
 	jobs.Register(reg, notification.NewSendJob(notificationMod))
+	jobs.Register(reg, order.NewExpireStaleJob(ordMod))
 
 	return &App{
 		Users:         userMod,

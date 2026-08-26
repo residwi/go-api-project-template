@@ -52,6 +52,16 @@ func (s *Settings) validate() error {
 		)
 	}
 
+	if s.Worker.OrderInterval < 5*time.Second {
+		return errors.New("WORKER_ORDER_INTERVAL must be at least 5s to avoid database polling overhead")
+	}
+
+	if s.Worker.OrderConcurrency < 1 {
+		return errors.New(
+			"WORKER_ORDER_CONCURRENCY must be at least 1 (0 deadlocks the worker on its unbuffered semaphore)",
+		)
+	}
+
 	if s.Worker.BatchSize < 1 {
 		return errors.New(
 			"WORKER_BATCH_SIZE must be at least 1 (0 makes every claim query LIMIT 0 and silently halts both runners)",
@@ -138,4 +148,8 @@ type Worker struct {
 	NotificationInterval    time.Duration `envconfig:"WORKER_NOTIFICATION_INTERVAL"    default:"5s"`
 	NotificationConcurrency int           `envconfig:"WORKER_NOTIFICATION_CONCURRENCY" default:"10"`
 	NotificationLease       time.Duration `envconfig:"WORKER_NOTIFICATION_LEASE"       default:"30s"`
+
+	OrderInterval    time.Duration `envconfig:"WORKER_ORDER_INTERVAL"    default:"1m"`
+	OrderConcurrency int           `envconfig:"WORKER_ORDER_CONCURRENCY" default:"1"`
+	OrderLease       time.Duration `envconfig:"WORKER_ORDER_LEASE"       default:"2m"`
 }
