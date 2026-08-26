@@ -105,19 +105,8 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 func newTestRouter(paymentCfg payment.Config) http.Handler {
 	return NewRouter(
 		testInfra, testAuthCfg, testOrderCfg, paymentCfg,
-		database.DB{Primary: testPool}, testRedis, testutil.DiscardLogger(),
+		testRedis, testutil.DiscardLogger(),
 		newTestApp(paymentCfg),
-	)
-}
-
-// newTestRouterWithCache builds a router against testApp with every field
-// fixed except Cache, for the health-check tests that need a down or nil
-// redis client.
-func newTestRouterWithCache(cache *redis.Client) http.Handler {
-	return NewRouter(
-		testInfra, testAuthCfg, testOrderCfg, testPaymentCfg,
-		database.DB{Primary: testPool}, cache, testutil.DiscardLogger(),
-		testApp,
 	)
 }
 
@@ -133,89 +122,16 @@ func TestHealthHandler(t *testing.T) {
 	setup(t)
 	handler := newTestRouter(testPaymentCfg)
 
-	t.Run("returns healthy status", func(t *testing.T) {
+	t.Run("reports healthy once the process is serving", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		var body map[string]any
+		var body map[string]string
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
-		assert.Equal(t, "healthy", body["status"])
-		details, ok := body["details"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "up", details["postgres"])
-		assert.Equal(t, "up", details["redis"])
-	})
-
-	t.Run("returns unhealthy when postgres is down", func(t *testing.T) {
-		badPool, err := pgxpool.New(context.Background(), "postgres://invalid:invalid@127.0.0.1:1/invalid")
-		if err != nil {
-			t.Skip("could not create bad pool")
-		}
-		defer badPool.Close()
-
-		h := NewRouter(
-			testInfra, testAuthCfg, testOrderCfg, testPaymentCfg,
-			database.DB{Primary: badPool}, testRedis, testutil.DiscardLogger(),
-			testApp,
-		)
-
-		req := httptest.NewRequest(http.MethodGet, "/health", nil)
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
-
-		var body map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
-		assert.Equal(t, "unhealthy", body["status"])
-		details := body["details"].(map[string]any)
-		assert.Equal(t, "down", details["postgres"])
-	})
-
-	t.Run("returns degraded when redis is down", func(t *testing.T) {
-		badRedis := redis.NewClient(&redis.Options{
-			Addr:         "127.0.0.1:1",
-			MaxRetries:   0,
-			DialTimeout:  200 * time.Millisecond,
-			PoolSize:     1,
-			MinIdleConns: 0,
-		})
-		defer badRedis.Close()
-
-		h := newTestRouterWithCache(badRedis)
-
-		req := httptest.NewRequest(http.MethodGet, "/health", nil)
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
-
-		var body map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
-		assert.Equal(t, "degraded", body["status"])
-		details := body["details"].(map[string]any)
-		assert.Equal(t, "up", details["postgres"])
-		assert.Equal(t, "down", details["redis"])
-	})
-
-	t.Run("returns not configured when redis is nil", func(t *testing.T) {
-		h := newTestRouterWithCache(nil)
-
-		req := httptest.NewRequest(http.MethodGet, "/health", nil)
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var body map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
-		assert.Equal(t, "healthy", body["status"])
-		details := body["details"].(map[string]any)
-		assert.Equal(t, "up", details["postgres"])
-		assert.Equal(t, "not configured", details["redis"])
+		assert.Equal(t, map[string]string{"status": "healthy"}, body)
 	})
 }
 
@@ -544,21 +460,21 @@ func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 	})
 }
 
-func TestHealthHandler_NilRedis(t *testing.T) {
+func TestNewRouterWithNilCache(t *testing.T) {
 	setup(t)
-	handler := newTestRouterWithCache(nil)
 
-	t.Run("returns healthy with redis not configured", func(t *testing.T) {
+	t.Run("builds and serves when no redis is configured", func(t *testing.T) {
+		handler := NewRouter(
+			testInfra, testAuthCfg, testOrderCfg, testPaymentCfg,
+			nil, testutil.DiscardLogger(),
+			testApp,
+		)
+
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		var body map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
-		assert.Equal(t, "healthy", body["status"])
-		details := body["details"].(map[string]any)
-		assert.Equal(t, "not configured", details["redis"])
 	})
 }
 

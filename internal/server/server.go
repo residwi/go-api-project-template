@@ -49,14 +49,14 @@ func RunContext(ctx context.Context) error {
 		return err
 	}
 
-	pool, err := database.NewPrimaryPostgres(ctx, infra.Database)
+	primaryDB, err := database.NewPrimaryPostgres(ctx, infra.Database)
 	if err != nil {
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
 		return fmt.Errorf("connecting to database: %w", err)
 	}
-	defer pool.Close()
+	defer primaryDB.Close()
 
-	replicaPool, err := database.NewReplicaPostgres(ctx, infra.Database)
+	replicaDB, err := database.NewReplicaPostgres(ctx, infra.Database)
 	if err != nil {
 		if !errors.Is(err, apperror.ErrReplicaNotConfigured) {
 			appLog.WarnContext(
@@ -65,10 +65,10 @@ func RunContext(ctx context.Context) error {
 				slog.String("error", err.Error()),
 			)
 		}
-		replicaPool = nil
+		replicaDB = nil
 	}
-	if replicaPool != nil {
-		defer replicaPool.Close()
+	if replicaDB != nil {
+		defer replicaDB.Close()
 	}
 
 	rdb, err := cache.NewRedis(ctx, infra.Redis)
@@ -83,7 +83,7 @@ func RunContext(ctx context.Context) error {
 		defer rdb.Close()
 	}
 
-	db := database.DB{Primary: pool, Replica: replicaPool}
+	db := database.DB{Primary: primaryDB, Replica: replicaDB}
 
 	app, err := bootstrap.New(authCfg, cartCfg, paymentCfg, db, rdb, appLog)
 	if err != nil {
@@ -91,7 +91,7 @@ func RunContext(ctx context.Context) error {
 		return fmt.Errorf("wiring services: %w", err)
 	}
 
-	handler := NewRouter(infra, authCfg, orderCfg, paymentCfg, db, rdb, appLog, app)
+	handler := NewRouter(infra, authCfg, orderCfg, paymentCfg, rdb, appLog, app)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", infra.App.Port),
@@ -172,14 +172,13 @@ func NewRouter(
 	authCfg auth.Config,
 	orderCfg order.Config,
 	paymentCfg payment.Config,
-	db database.DB,
 	cache *redis.Client,
 	logger *slog.Logger,
 	app *bootstrap.App,
 ) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /health", healthHandler(logger, db, cache))
+	mux.HandleFunc("GET /health", healthHandler())
 
 	v := validator.New()
 
@@ -223,54 +222,10 @@ func NewRouter(
 	)(mux)
 }
 
-func healthHandler(log *slog.Logger, db database.DB, rdb *redis.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		status := "healthy"
-		httpStatus := http.StatusOK
-		details := make(map[string]string)
-
-		if err := db.Primary.Ping(r.Context()); err != nil {
-			status = "unhealthy"
-			httpStatus = http.StatusServiceUnavailable
-			details["postgres"] = "down"
-			log.ErrorContext(r.Context(), "health check: postgres down", slog.String("error", err.Error()))
-		} else {
-			details["postgres"] = "up"
-		}
-
-		checkRedis(r.Context(), log, rdb, &status, &httpStatus, details)
-
+func healthHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(httpStatus)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"status":  status,
-			"details": details,
-		})
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
 	}
-}
-
-func checkRedis(
-	ctx context.Context,
-	log *slog.Logger,
-	rdb *redis.Client,
-	status *string,
-	httpStatus *int,
-	details map[string]string,
-) {
-	if rdb == nil {
-		details["redis"] = "not configured"
-		return
-	}
-
-	if err := rdb.Ping(ctx).Err(); err != nil {
-		if *status == "healthy" {
-			*status = "degraded"
-			*httpStatus = http.StatusServiceUnavailable
-		}
-		details["redis"] = "down"
-		log.WarnContext(ctx, "health check: redis down", slog.String("error", err.Error()))
-		return
-	}
-
-	details["redis"] = "up"
 }

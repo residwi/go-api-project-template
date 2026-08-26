@@ -17,7 +17,6 @@ import (
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/server"
 	"github.com/residwi/go-api-project-template/internal/testutil"
@@ -44,7 +43,7 @@ func newTestEnv(t *testing.T) jobQueueEnv {
 	app := newTestApp(paymentCfg)
 	handler := server.NewRouter(
 		testInfra, testAuthCfg, testOrderCfg, paymentCfg,
-		database.DB{Primary: testPool}, testRedis, testutil.DiscardLogger(),
+		testRedis, testutil.DiscardLogger(),
 		app,
 	)
 	return jobQueueEnv{app: app, handler: handler}

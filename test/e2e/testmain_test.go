@@ -113,7 +113,7 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 func newTestRouter(paymentCfg payment.Config) http.Handler {
 	return server.NewRouter(
 		testInfra, testAuthCfg, testOrderCfg, paymentCfg,
-		database.DB{Primary: testPool}, testRedis, testutil.DiscardLogger(),
+		testRedis, testutil.DiscardLogger(),
 		newTestApp(paymentCfg),
 	)
 }

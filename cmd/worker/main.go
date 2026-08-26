@@ -79,18 +79,18 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := database.NewPrimaryPostgres(ctx, infra.Database)
+	primaryDB, err := database.NewPrimaryPostgres(ctx, infra.Database)
 	if err != nil {
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
 		return fmt.Errorf("connecting to database: %w", err)
 	}
-	defer pool.Close()
+	defer primaryDB.Close()
 
 	app, err := bootstrap.New(
 		authCfg,
 		cartCfg,
 		paymentCfg,
-		database.DB{Primary: pool},
+		database.DB{Primary: primaryDB},
 		nil,
 		appLog,
 	)
