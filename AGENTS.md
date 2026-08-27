@@ -27,9 +27,9 @@ internal/
   apperror/               error vocabulary (ErrNotFound, ErrBadRequest, ...); no feature deps
   bootstrap/              the composition root: builds every Service and wires every
                           cross-module port by name-match
-  server/                 server.go (Run, NewRouter, health), routes.go, middleware/,
-                          response/. routes.go holds every URL in the system -- all 64
-                          of them, in one function
+  server/                 server.go (Run), router.go (NewRouter, health, routes),
+                          middleware/, response/. router.go holds every URL in the
+                          system -- all 64 of them, in one function
   platform/               generic infrastructure, no feature deps:
                           cache/ config/ database/ jobs/ logger/ paging/ slug/ storage/ validator/
   testutil/               shared dockertest harness (Postgres + Redis containers)
@@ -258,7 +258,7 @@ Inside `adapter/http`, files split by **handler role**. Unqualified
 several routes: `checkout`'s three — place, retry, cancel — are one `Handler`
 in one file, because they are the same caller role acting on the same order.
 `routes.go` never appears here, or anywhere under `internal/modules/` — every
-URL lives in `internal/server/routes.go`, see rule 10. Seven modules carry an
+URL lives in `internal/server/router.go`, see rule 10. Seven modules carry an
 `admin_handler.go` beside a `handler.go` because they split their own routes by
 caller role (`category order product promotion review shipping user`);
 `payment`'s only public route is the gateway callback,
@@ -281,7 +281,7 @@ response type at all — `DELETE` returns `response.NoContent`, so nothing
 crosses the wire either way.
 
 **The route methods on those handlers are exported**, and that is not
-cosmetic: `internal/server/routes.go` is a different package in a different
+cosmetic: `internal/server/router.go` is a different package in a different
 tree, and it can only mount `orderHandler.List`, `userAdminHandler.Get`,
 `checkoutHandler.Place` if it can name them.
 
@@ -545,9 +545,9 @@ compiler; they are all greps.
 
     **The arrow runs the other way for URLs: the transport imports modules,
     and a module names no URL.** Every route lives in
-    `internal/server/routes.go` — one `registerRoutes` function, 64 routes,
-    fifteen labelled blocks — which `NewRouter` in `internal/server/server.go`
-    calls once. A module supplies a handler with exported route methods; the
+    `internal/server/router.go` — inside `NewRouter` itself, 64 routes in
+    fifteen labelled blocks, mounted on the route groups that same function
+    builds. A module supplies a handler with exported route methods; the
     transport decides the verb, the path, and which `middleware.RouteGroup` it
     lands on. Check 6 enforces the direction; `ARCHITECTURE.md` decision 15 is
     why, and its cost.
@@ -714,11 +714,11 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 - Never commit `.env`, secrets or API keys.
 - Run `make check-boundaries`, `make vet` and `make test` before calling change complete. `make all` does all three plus lint and build.
 - Do not add third-party router.
-- Do not suppress lint or vet findings with `//nolint` without a justification comment on the same line — see `internal/modules/order/service.go:56` (`//nolint:gocognit,funlen // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`) for the expected form. Five methods carry one: `order.Service.Place` and `order.Service.cancelWithReversal`, and `payment.Service.FinalizeSuccess`, `runRefund` (unexported now — it runs from `RefundJob.Run`, not a dispatcher) and `HandleWebhook`. `internal/server/routes.go` carries a `//nolint:funlen` for the same kind of reason — one flat wiring list, not nested logic.
+- Do not suppress lint or vet findings with `//nolint` without a justification comment on the same line — see `internal/modules/order/service.go:56` (`//nolint:gocognit,funlen // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`) for the expected form. Five methods carry one: `order.Service.Place` and `order.Service.cancelWithReversal`, and `payment.Service.FinalizeSuccess`, `runRefund` (unexported now — it runs from `RefundJob.Run`, not a dispatcher) and `HandleWebhook`. `internal/server/router.go`'s `NewRouter` carries a `//nolint:funlen` for the same kind of reason — one flat wiring list, not nested logic.
 - Do not make subpackage tree uniform, and do not add pass-through adapter package to fill slot.
 - Backward compatibility explicitly **not** a goal here. API shapes may change where better design demands — but say so when they do.
-- When adding a module: create `internal/modules/<feature>/` per the shape under "Inside a module" above — `domain/` for its aggregate, `service.go` declaring one exported `Service` with its `Deps` and `New`, `repository.go` for the storage port, `adapter/postgres/` where it has SQL, `adapter/http/` where it has a route, `ports.go` only if it consumes something from another module, `contract.go` only if a struct of its own has to cross a port. Add a row per owned table to `db/OWNERSHIP.md`. Wire it into `internal/bootstrap/app.go` — one line to build it, one field on `App` — by name-match if an existing port already fits. Mount its routes in `internal/server/routes.go`, and add a line per route to `internal/server/testdata/routes.golden`.
-- **Adding one route touches three files**: the module's `adapter/http` for the handler, `internal/server/routes.go` for the URL, and `internal/server/testdata/routes.golden` for the proof. The golden is not generated: `TestRouteSnapshot` iterates the golden and probes each line, so a route you mount and forget to add is untested rather than failing. Then run `make check-boundaries` — a new module with an `adapter/postgres` and no ownership row fails it by design.
+- When adding a module: create `internal/modules/<feature>/` per the shape under "Inside a module" above — `domain/` for its aggregate, `service.go` declaring one exported `Service` with its `Deps` and `New`, `repository.go` for the storage port, `adapter/postgres/` where it has SQL, `adapter/http/` where it has a route, `ports.go` only if it consumes something from another module, `contract.go` only if a struct of its own has to cross a port. Add a row per owned table to `db/OWNERSHIP.md`. Wire it into `internal/bootstrap/app.go` — one line to build it, one field on `App` — by name-match if an existing port already fits. Mount its routes in `internal/server/router.go`, and add a line per route to `internal/server/testdata/routes.golden`.
+- **Adding one route touches three files**: the module's `adapter/http` for the handler, `internal/server/router.go` for the URL, and `internal/server/testdata/routes.golden` for the proof. The golden is not generated: `TestRouteSnapshot` iterates the golden and probes each line, so a route you mount and forget to add is untested rather than failing. Then run `make check-boundaries` — a new module with an `adapter/postgres` and no ownership row fails it by design.
 
 ## Further reading
 

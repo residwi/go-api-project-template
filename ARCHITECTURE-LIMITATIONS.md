@@ -270,14 +270,14 @@ route group to the wrong limiter, and the whole suite stays green.
 `internal/server/middleware` tests each middleware in isolation —
 `recover_test.go`, `requestid_test.go`, `logging_test.go` and
 `ratelimit_test.go` all exist. Nothing tests the composition.
-`internal/server/server.go`'s `NewRouter` ends with:
+`internal/server/router.go`'s `NewRouter` ends with:
 
 ```go
 return middleware.Chain(
 	middleware.RequestID,
-	middleware.Logging(deps.Logger),
-	middleware.Recovery(deps.Logger),
-	middleware.CORS(deps.Infra.CORS),
+	middleware.Logging(logger),
+	middleware.Recovery(logger),
+	middleware.CORS(appCfg.CORS),
 )(mux)
 ```
 
@@ -636,7 +636,7 @@ The flatten had already shrunk this from a general problem to a two-module one: 
 ## What the route golden proves, and the three things it still cannot
 
 **Where you hit it:** you move a route to the wrong `middleware.RouteGroup` in
-`internal/server/routes.go` — admin instead of authed, or the reverse — and
+`internal/server/router.go` — admin instead of authed, or the reverse — and
 you want to know whether a test catches it. It does now.
 
 `internal/server/routes_snapshot_test.go` reads
@@ -735,21 +735,21 @@ and dissolved those six at the same time: `checkout` took the cycle, so
 `order.New` runs first and hands `payment.New` one value for all three of its
 order-facing ports.
 
-`internal/server/routes.go` keeps the other pile: 15 aliased `*http` imports,
-one per module that serves a route, inside one `registerRoutes` function. It
+`internal/server/router.go` keeps the other pile: 15 aliased `*http` imports,
+one per module that serves a route, inside `NewRouter` itself. It
 was 3 to 5 aliases in each of 14 files under `internal/transport/http/routes/`
-before the collapse — 53 in total, plus one in `router.go` for the dev-only
+before the collapse — 53 in total, plus one in the router file for the dev-only
 mock gateway registrar. The honest description is that this pile has been
 redistributed twice and never paid off. What each move bought is different:
 decision 15 bought "every URL in one directory", and the flatten bought "every
 URL in one file, in one function, in the order the router mounts them".
 
 **What it costs beyond ugliness:** adding a module means touching `app.go`
-once — one line to build it, one field on `App` — and `routes.go` once. Adding
-a route to an existing module touches `routes.go` and the route golden.
-Neither `New` nor `NewRouter` carries a `//nolint:funlen`; `registerRoutes`
-does, and its justification says why — one flat wiring list mounting fifteen
-modules' routes, not nested logic.
+once — one line to build it, one field on `App` — and `router.go` once. Adding
+a route to an existing module touches `router.go` and the route golden.
+`New` carries no `//nolint:funlen`; `NewRouter` does, and its justification
+says why — one flat wiring list mounting fifteen modules' routes, not nested
+logic.
 
 **What you would do:** leave it. Splitting `New` per module scatters the
 wiring graph, and a single readable list of every module and what it depends

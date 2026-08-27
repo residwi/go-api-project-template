@@ -34,7 +34,7 @@ Two consequences worth naming, since they look like mistakes otherwise:
 - The `adapter/postgres` / `adapter/http` split costs an import alias
   wherever an adapter is wired, and there are exactly two such files.
   `internal/bootstrap/app.go` carries 16 (thirteen `*pg`, plus `userredis`,
-  `channellog` and `jobspg`); `internal/server/routes.go` carries 15, one
+  `channellog` and `jobspg`); `internal/server/router.go` carries 15, one
   per module that serves a route.
   In a product codebase, hard to justify. Here it is the point: a physical
   boundary teaches the port/adapter distinction in a way a file-naming
@@ -165,7 +165,7 @@ other module's, so importing one needs an alias rather than merely permitting
 one — and both places that import them are single files: 16 aliases in
 `internal/bootstrap/app.go` (thirteen `*pg`, `userredis`, `channellog` for
 notification's log adapter, and `jobspg` for the shared job store), 15 in
-`internal/server/routes.go`. The cost is concentrated in two files for the
+`internal/server/router.go`. The cost is concentrated in two files for the
 whole binary, deliberately: adding a module touches each of them once.
 
 ## 4. Adapter subpackages exist only where adaptation is needed
@@ -295,7 +295,7 @@ which therefore has no `handler.go` at all. Each has a `_test.go` beside it,
 `package http`, holding both route-level tests and tests that reach unexported
 mappers directly. **No module has a root `http/`, and none names a URL**: the
 `routes.go` that used to sit at a feature root is gone, and every URL lives in
-`internal/server/routes.go` — decision 15.
+`internal/server/router.go` — decision 15.
 
 **Response DTOs are duplicated across modules on purpose.** `order` and
 `checkout` each declare their own `orderResponse`, `orderItemResponse` and
@@ -597,15 +597,15 @@ not.
 
 > **The rule stands and is machine-checked (check 6). The mechanism inside it
 > was revised.** Where this decision put fourteen files each exporting one
-> function, there is now one `registerRoutes` function in
-> `internal/server/routes.go`. The four bullets below are still the reasoning
+> function, there is now one `NewRouter` function in
+> `internal/server/router.go`. The four bullets below are still the reasoning
 > for why routes left the modules; only the shape of the destination changed.
 > Decision 16 says why it collapsed.
 
-Every route in the system is declared in `internal/server/routes.go` — one
-unexported `registerRoutes` function, 64 routes, fifteen labelled blocks —
-which `NewRouter` in `internal/server/server.go` calls once, handing it the
-four route groups and the order-write rate limiter. A module supplies a
+Every route in the system is declared in `internal/server/router.go` — inside
+`NewRouter` itself, 64 routes in fifteen labelled blocks, mounted on the four
+route groups and the order-write rate limiter the same function builds a few
+lines above them. A module supplies a
 handler with exported route methods and nothing else: no `routes.go`, no
 `RegisterRoutes`, no `middleware.RouteGroup` in its signature, no string
 beginning with `/`.
@@ -640,10 +640,10 @@ decision `cart` is qualified to make, and all of it is a decision the person
 adding a second transport would have to make again. Keeping it in one tree
 means the day a `grpc/` arrives, no module moves: a module grows an
 `adapter/grpc` beside its `adapter/http`, and a second route file beside
-`internal/server/routes.go` names its methods.
+`internal/server/router.go` names its methods.
 
 **Cost accepted, and it is real.** Adding a route touches **two trees**: the
-module for the handler, `internal/server/routes.go` for the URL. The two can
+module for the handler, `internal/server/router.go` for the URL. The two can
 be edited apart — an `adapter/http` method that no route mounts compiles
 clean, passes every check, and serves nothing, with no `go build` failure to
 say so. **A module is also no longer copy-pasteable with its routes
@@ -683,7 +683,7 @@ originally described, one directory deeper.
 - **The counts were the argument.** 226 Go packages and 655 Go files under
   `internal/modules` became **67 and 217**. 66 slices became 15 `Service`s. 26
   `ports.go` files became 9. Fourteen route files and a `router.go` became one
-  `routes.go` plus a `NewRouter` in `server.go`. Every one of those is a
+  `NewRouter` in `internal/server/router.go`. Every one of those is a
   directory or a file someone has to open to answer a question.
 - **Duplication that served nothing.** `updatetracking.Repository` and
   `deliver.Repository` both declared `GetByID` because neither could import
@@ -915,7 +915,7 @@ breakdown.
 Empty `grpc/` directory in template is dead scaffolding readers copy and
 never fill. Add when there is proto. Decision 15 is what makes that cheap
 when it happens: a module grows an `adapter/grpc` beside its `adapter/http`,
-and a second route file beside `internal/server/routes.go` names its
+and a second route file beside `internal/server/router.go` names its
 methods — no module moves.
 
 ## `x/webhook/` as a package
@@ -926,7 +926,7 @@ callback lives in `payment`'s own adapter now, not a bolt-on file at the
 feature root. Webhook _is_ HTTP; splitting it out fragments the handler across two
 packages for one use case. Things that actually need protecting — no JWT
 middleware, raw body access, signature verification — already handled by the
-route group `internal/server/routes.go` mounts it on.
+route group `internal/server/router.go` mounts it on.
 
 ## `notification/worker/`
 

@@ -34,7 +34,7 @@ tree is deliberately **non-uniform** — `auth` has no store at all, `user` has
 two.
 
 **A module names no URL.** Every route in the system is declared in
-`/internal/server/routes.go` — one function, 64 routes, fifteen labelled
+`/internal/server/router.go` — one function, 64 routes, fifteen labelled
 blocks. A module supplies a handler with exported route methods; the transport
 decides the verb, the path and the middleware group.
 
@@ -68,7 +68,7 @@ decides the verb, the path and the middleware group.
 │   ├── /apperror               # Error vocabulary (ErrNotFound, ErrBadRequest, ...)
 │   ├── /bootstrap              # The composition root: builds every Service,
 │   │                           # wires every cross-module port by name-match
-│   ├── /server                 # server.go (Run, NewRouter, health), routes.go,
+│   ├── /server                 # server.go (Run), router.go (NewRouter, health, routes),
 │   │   ├── /middleware         # recovery, request ID, logging, CORS, rate limit,
 │   │   │                       # auth, admin
 │   │   ├── /response           # the shared JSON envelope + Bind + error mapping

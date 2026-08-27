@@ -1,10 +1,15 @@
 package server
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 
+	"github.com/redis/go-redis/v9"
+
+	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
+	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	authhttp "github.com/residwi/go-api-project-template/internal/modules/auth/adapter/http"
 	carthttp "github.com/residwi/go-api-project-template/internal/modules/cart/adapter/http"
 	categoryhttp "github.com/residwi/go-api-project-template/internal/modules/category/adapter/http"
@@ -12,7 +17,9 @@ import (
 	dashboardhttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/adapter/http"
 	inventoryhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/adapter/http"
 	notificationhttp "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/http"
+	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderhttp "github.com/residwi/go-api-project-template/internal/modules/order/adapter/http"
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	paymenthttp "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/http"
 	producthttp "github.com/residwi/go-api-project-template/internal/modules/product/adapter/http"
 	promotionhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/adapter/http"
@@ -20,17 +27,41 @@ import (
 	shippinghttp "github.com/residwi/go-api-project-template/internal/modules/shipping/adapter/http"
 	userhttp "github.com/residwi/go-api-project-template/internal/modules/user/adapter/http"
 	wishlisthttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/adapter/http"
+	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
 
-func registerRoutes( //nolint:funlen // one wiring function mounting all 15 features' routes in router.go's original order; each block is a flat HandleFunc list, not nested logic
+func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, the four route groups and all 64 routes in the order the router mounts them
+	appCfg *config.Settings,
+	authCfg auth.Config,
+	orderCfg order.Config,
+	paymentCfg payment.Config,
+	cache *redis.Client,
+	logger *slog.Logger,
 	app *bootstrap.App,
-	v *validator.Validator,
-	log *slog.Logger,
-	api, authed, admin, authPublic *middleware.RouteGroup,
-	orderWriteLimiter middleware.Middleware,
-) {
+) http.Handler {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /health", healthHandler())
+
+	v := validator.New()
+
+	authMiddleware := middleware.Auth(app.Auth, app.Users)
+	adminMiddleware := middleware.RequireAdmin
+
+	api := middleware.NewRouteGroup(mux, "/api")
+	authed := middleware.NewRouteGroup(mux, "/api", authMiddleware)
+	admin := middleware.NewRouteGroup(mux, "/api/admin", authMiddleware, adminMiddleware)
+
+	authLimiter := middleware.RateLimit(
+		logger,
+		cache,
+		authCfg.RateLimit,
+		authCfg.RateWindow,
+	)
+	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
+
 	authHandler := authhttp.NewHandler(app.Auth, v)
 	authPublic.HandleFunc("POST /auth/register", authHandler.Register)
 	authPublic.HandleFunc("POST /auth/login", authHandler.Login)
@@ -88,12 +119,18 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	admin.HandleFunc("GET /orders/{id}", orderAdminHandler.Get)
 	admin.HandleFunc("PUT /orders/{id}/status", orderAdminHandler.UpdateStatus)
 
+	orderWriteLimiter := middleware.RateLimit(
+		logger,
+		cache,
+		orderCfg.RateLimit,
+		orderCfg.RateWindow,
+	)
 	checkoutHandler := checkouthttp.NewHandler(app.Checkout, v)
 	authed.Handle("POST /orders", orderWriteLimiter(http.HandlerFunc(checkoutHandler.Place)))
 	authed.Handle("POST /orders/{id}/pay", orderWriteLimiter(http.HandlerFunc(checkoutHandler.Retry)))
 	authed.HandleFunc("POST /orders/{id}/cancel", checkoutHandler.Cancel)
 
-	api.HandleFunc("POST /payments/webhook", paymenthttp.NewWebhookHandler(app.Payments, log).HandleWebhook)
+	api.HandleFunc("POST /payments/webhook", paymenthttp.NewWebhookHandler(app.Payments, logger).HandleWebhook)
 
 	paymentAdminHandler := paymenthttp.NewAdminHandler(app.Payments)
 	admin.HandleFunc("GET /payments", paymentAdminHandler.List)
@@ -136,4 +173,27 @@ func registerRoutes( //nolint:funlen // one wiring function mounting all 15 feat
 	admin.HandleFunc("GET /dashboard/summary", dashboardHandler.Summary)
 	admin.HandleFunc("GET /dashboard/top-products", dashboardHandler.TopProducts)
 	admin.HandleFunc("GET /dashboard/revenue", dashboardHandler.Revenue)
+
+	if appCfg.App.Env == "development" {
+		mockgatewayserver.RegisterRoutes(
+			mux,
+			logger,
+			mockgatewayserver.WithWebhookSecret(paymentCfg.WebhookSecret),
+		)
+	}
+
+	return middleware.Chain(
+		middleware.RequestID,
+		middleware.Logging(logger),
+		middleware.Recovery(logger),
+		middleware.CORS(appCfg.CORS),
+	)(mux)
+}
+
+func healthHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
+	}
 }

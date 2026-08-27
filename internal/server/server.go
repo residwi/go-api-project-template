@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,9 +10,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/redis/go-redis/v9"
-
-	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
@@ -24,8 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
 
 func Run() error {
@@ -170,67 +164,4 @@ func loadModuleConfigs(
 	}
 
 	return authCfg, cartCfg, orderCfg, paymentCfg, nil
-}
-
-func NewRouter(
-	appCfg *config.Settings,
-	authCfg auth.Config,
-	orderCfg order.Config,
-	paymentCfg payment.Config,
-	cache *redis.Client,
-	logger *slog.Logger,
-	app *bootstrap.App,
-) http.Handler {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("GET /health", healthHandler())
-
-	v := validator.New()
-
-	authMiddleware := middleware.Auth(app.Auth, app.Users)
-	adminMiddleware := middleware.RequireAdmin
-
-	api := middleware.NewRouteGroup(mux, "/api")
-	authed := middleware.NewRouteGroup(mux, "/api", authMiddleware)
-	admin := middleware.NewRouteGroup(mux, "/api/admin", authMiddleware, adminMiddleware)
-
-	authLimiter := middleware.RateLimit(
-		logger,
-		cache,
-		authCfg.RateLimit,
-		authCfg.RateWindow,
-	)
-	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
-
-	orderWriteLimiter := middleware.RateLimit(
-		logger,
-		cache,
-		orderCfg.RateLimit,
-		orderCfg.RateWindow,
-	)
-
-	registerRoutes(app, v, logger, api, authed, admin, authPublic, orderWriteLimiter)
-
-	if appCfg.App.Env == "development" {
-		mockgatewayserver.RegisterRoutes(
-			mux,
-			logger,
-			mockgatewayserver.WithWebhookSecret(paymentCfg.WebhookSecret),
-		)
-	}
-
-	return middleware.Chain(
-		middleware.RequestID,
-		middleware.Logging(logger),
-		middleware.Recovery(logger),
-		middleware.CORS(appCfg.CORS),
-	)(mux)
-}
-
-func healthHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
-	}
 }
