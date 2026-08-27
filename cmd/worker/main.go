@@ -10,10 +10,6 @@ import (
 	"syscall"
 
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	"github.com/residwi/go-api-project-template/internal/modules/cart"
-	"github.com/residwi/go-api-project-template/internal/modules/order"
-	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
@@ -35,26 +31,9 @@ func run() error {
 
 	appLog := logger.Setup(appCfg.Log.Level, appCfg.Log.Format)
 
-	authCfg, err := auth.LoadConfig()
+	modCfg, err := bootstrap.LoadConfig(appCfg)
 	if err != nil {
-		appLog.Error("loading auth config failed", slog.String("error", err.Error()))
-		return err
-	}
-
-	cartCfg, err := cart.LoadConfig()
-	if err != nil {
-		appLog.Error("loading cart config failed", slog.String("error", err.Error()))
-		return err
-	}
-
-	if _, err = order.LoadConfig(appCfg.Worker.PaymentLeaseDuration); err != nil {
-		appLog.Error("loading order config failed", slog.String("error", err.Error()))
-		return err
-	}
-
-	paymentCfg, err := payment.LoadConfig(appCfg.App.Env, appCfg.Worker.PaymentLeaseDuration)
-	if err != nil {
-		appLog.Error("loading payment config failed", slog.String("error", err.Error()))
+		appLog.Error("loading module config failed", slog.String("error", err.Error()))
 		return err
 	}
 
@@ -68,42 +47,35 @@ func run() error {
 	}
 	defer primaryDB.Close()
 
-	app, err := bootstrap.New(
-		authCfg,
-		cartCfg,
-		paymentCfg,
-		database.DB{Primary: primaryDB},
-		nil,
-		appLog,
-	)
+	app, err := bootstrap.New(modCfg, database.DB{Primary: primaryDB}, nil, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
 		return fmt.Errorf("wiring services: %w", err)
 	}
 
 	paymentJobCfg := jobs.Config{
-		Interval:      appCfg.Worker.PaymentInterval,
+		Interval:      modCfg.Payment.JobInterval,
 		BatchSize:     appCfg.Worker.BatchSize,
-		LeaseDuration: appCfg.Worker.PaymentLeaseDuration,
-		Concurrency:   appCfg.Worker.PaymentConcurrency,
+		LeaseDuration: modCfg.Payment.JobLease,
+		Concurrency:   modCfg.Payment.JobConcurrency,
 		PruneAge:      appCfg.Worker.PruneAge,
 		PruneLimit:    appCfg.Worker.PruneLimit,
 	}
 
 	notificationJobCfg := jobs.Config{
-		Interval:      appCfg.Worker.NotificationInterval,
+		Interval:      modCfg.Notification.JobInterval,
 		BatchSize:     appCfg.Worker.BatchSize,
-		LeaseDuration: appCfg.Worker.NotificationLease,
-		Concurrency:   appCfg.Worker.NotificationConcurrency,
+		LeaseDuration: modCfg.Notification.JobLease,
+		Concurrency:   modCfg.Notification.JobConcurrency,
 		PruneAge:      appCfg.Worker.PruneAge,
 		PruneLimit:    appCfg.Worker.PruneLimit,
 	}
 
 	orderJobCfg := jobs.Config{
-		Interval:      appCfg.Worker.OrderInterval,
+		Interval:      modCfg.Order.JobInterval,
 		BatchSize:     appCfg.Worker.BatchSize,
-		LeaseDuration: appCfg.Worker.OrderLease,
-		Concurrency:   appCfg.Worker.OrderConcurrency,
+		LeaseDuration: modCfg.Order.JobLease,
+		Concurrency:   modCfg.Order.JobConcurrency,
 		PruneAge:      appCfg.Worker.PruneAge,
 		PruneLimit:    appCfg.Worker.PruneLimit,
 	}

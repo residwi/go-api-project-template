@@ -20,7 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
-	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -49,18 +48,20 @@ var (
 			MaxAge:         86400,
 		},
 	}
-	testAuthCfg = auth.Config{
-		Secret:          "test-secret-key-at-least-32-chars-long",
-		AccessTokenTTL:  15 * time.Minute,
-		RefreshTokenTTL: 168 * time.Hour,
-		Issuer:          "test",
-	}
-	testCartCfg    = cart.Config{MaxItems: 50}
-	testOrderCfg   order.Config
 	testPaymentCfg = payment.Config{
 		Gateway:        "mock",
 		GatewayURL:     "http://localhost:19999",
 		GatewayTimeout: 5 * time.Second,
+	}
+	testModCfg = bootstrap.Config{
+		Auth: auth.Config{
+			Secret:          "test-secret-key-at-least-32-chars-long",
+			AccessTokenTTL:  15 * time.Minute,
+			RefreshTokenTTL: 168 * time.Hour,
+			Issuer:          "test",
+		},
+		Cart:    cart.Config{MaxItems: 50},
+		Payment: testPaymentCfg,
 	}
 )
 
@@ -90,11 +91,17 @@ func setup(t *testing.T) {
 // payment.Config and call this instead.
 //
 // internal/server/router_test.go carries its own copy. Keep them in step.
+// withPayment returns the shared module config with only Payment replaced --
+// the one field any call site varies.
+func withPayment(paymentCfg payment.Config) bootstrap.Config {
+	cfg := testModCfg
+	cfg.Payment = paymentCfg
+	return cfg
+}
+
 func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 	app, err := bootstrap.New(
-		testAuthCfg,
-		testCartCfg,
-		paymentCfg,
+		withPayment(paymentCfg),
 		database.DB{Primary: testPool},
 		testRedis,
 		testutil.DiscardLogger(),
@@ -112,7 +119,7 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 // internal/server/router_test.go carries its own copy. Keep them in step.
 func newTestRouter(paymentCfg payment.Config) http.Handler {
 	return server.NewRouter(
-		testAppCfg, testAuthCfg, testOrderCfg, paymentCfg,
+		testAppCfg, withPayment(paymentCfg),
 		testRedis, testutil.DiscardLogger(),
 		newTestApp(paymentCfg),
 	)

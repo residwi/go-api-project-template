@@ -42,7 +42,7 @@ func newTestEnv(t *testing.T) jobQueueEnv {
 	}
 	app := newTestApp(paymentCfg)
 	handler := server.NewRouter(
-		testAppCfg, testAuthCfg, testOrderCfg, paymentCfg,
+		testAppCfg, withPayment(paymentCfg),
 		testRedis, testutil.DiscardLogger(),
 		app,
 	)

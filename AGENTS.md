@@ -98,7 +98,8 @@ internal/modules/<feature>/
   repository.go      the storage port adapter/postgres satisfies (13)
   ports.go           every cross-module port this module consumes, one file (9)
   contract.go        the struct types another module may name (8)
-  config.go          this module's own env vars (4: auth cart order payment)
+  config.go          this module's own env vars (5: auth cart notification
+                     order payment)
   domain/            aggregate types and rules -- private, and check 4
                      enforces it (14: all but checkout and money)
   job.go             a background job's Kind, payload and Run -- payment
@@ -614,8 +615,9 @@ compiler; they are all greps.
 19. **New config invariants go in the owning type's own loader.** Infra-level
     invariants go in `Infra.validate()` (`internal/platform/config/config.go`);
     module-owned invariants are checked inline inside that module's own
-    `LoadConfig` (`auth.LoadConfig`, `cart.LoadConfig`, `order.LoadConfig`,
-    `payment.LoadConfig`), since each module loads its own env vars now and
+    `LoadConfig` (`auth.LoadConfig`, `cart.LoadConfig`,
+    `notification.LoadConfig`, `order.LoadConfig`, `payment.LoadConfig`),
+    since each module loads its own env vars now and
     there is no longer one central `Config.validate()` for every invariant to
     share. Either way, misconfiguration aborts boot instead of surfacing later
     as a runtime error. Do not guard per use site.
@@ -722,7 +724,7 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 
 ## Further reading
 
-- `README.md` — endpoint reference and quick start. Its "Project Structure" section agrees with this file; both rewritten against real tree. Its environment table is **curated subset** — 8 variables absent, including the whole Redis pool group (`REDIS_POOL_SIZE`, `REDIS_MIN_IDLE_CONNS`, `REDIS_DIAL_TIMEOUT`, `REDIS_READ_TIMEOUT`, `REDIS_WRITE_TIMEOUT`, `REDIS_POOL_TIMEOUT`) and the worker's prune settings (`WORKER_PRUNE_AGE`, `WORKER_PRUNE_LIMIT`). `.env.example` is the exhaustive list; verified against `envconfig` tags across `internal/platform/config/config.go` (infra) plus each module's own `config.go` (`auth`, `cart`, `order`, `payment` — the four with env vars of their own).
+- `README.md` — endpoint reference and quick start. Its "Project Structure" section agrees with this file; both rewritten against real tree. Its environment table is **curated subset** — 8 variables absent, including the whole Redis pool group (`REDIS_POOL_SIZE`, `REDIS_MIN_IDLE_CONNS`, `REDIS_DIAL_TIMEOUT`, `REDIS_READ_TIMEOUT`, `REDIS_WRITE_TIMEOUT`, `REDIS_POOL_TIMEOUT`) and the worker's prune settings (`WORKER_PRUNE_AGE`, `WORKER_PRUNE_LIMIT`). `.env.example` is the exhaustive list; verified against `envconfig` tags across `internal/platform/config/config.go` (infra) plus each module's own `config.go` (`auth`, `cart`, `notification`, `order`, `payment` — the five with env vars of their own).
 - `ARCHITECTURE.md`, `ARCHITECTURE-LIMITATIONS.md`, `db/OWNERSHIP.md` — as above.
 - `db/migrations/` — goose SQL migrations.
 - `.env.example`, `.mockery.yml`, `.golangci.yml`.

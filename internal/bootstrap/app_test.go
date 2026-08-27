@@ -17,8 +17,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testutil"
@@ -65,13 +63,13 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 
 	var cache *redis.Client
 	app, err := bootstrap.New(
-		auth.Config{},
-		cart.Config{},
-		payment.Config{
-			// Port 1 is reserved and never listens, so the dial fails immediately
-			// with a real error -- proof the port is wired, not a slow timeout.
-			GatewayURL:     "http://127.0.0.1:1",
-			GatewayTimeout: time.Second,
+		bootstrap.Config{
+			Payment: payment.Config{
+				// Port 1 is reserved and never listens, so the dial fails immediately
+				// with a real error -- proof the port is wired, not a slow timeout.
+				GatewayURL:     "http://127.0.0.1:1",
+				GatewayTimeout: time.Second,
+			},
 		},
 		database.DB{Primary: testPool},
 		cache,

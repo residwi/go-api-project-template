@@ -19,6 +19,24 @@ func TestLoadConfig(t *testing.T) {
 		assert.Contains(t, err.Error(), "must be less than the order stale-processing threshold")
 	})
 
+	t.Run("rejects a job interval that would hammer the database", func(t *testing.T) {
+		t.Setenv("ORDER_JOB_INTERVAL", "1s")
+
+		_, err := LoadConfig(2 * time.Minute)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "ORDER_JOB_INTERVAL must be at least 5s")
+	})
+
+	t.Run("rejects a zero job concurrency that would deadlock the runner", func(t *testing.T) {
+		t.Setenv("ORDER_JOB_CONCURRENCY", "0")
+
+		_, err := LoadConfig(2 * time.Minute)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "ORDER_JOB_CONCURRENCY must be at least 1")
+	})
+
 	t.Run("rejects a sub-second rate window that would divide by zero in the limiter", func(t *testing.T) {
 		t.Setenv("ORDER_RATE_WINDOW", "500ms")
 

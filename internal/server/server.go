@@ -12,10 +12,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	"github.com/residwi/go-api-project-template/internal/modules/cart"
-	"github.com/residwi/go-api-project-template/internal/modules/order"
-	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/cache"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -38,8 +34,9 @@ func RunContext(ctx context.Context) error {
 
 	appLog := logger.Setup(appCfg.Log.Level, appCfg.Log.Format)
 
-	authCfg, cartCfg, orderCfg, paymentCfg, err := loadModuleConfigs(ctx, appCfg, appLog)
+	modCfg, err := bootstrap.LoadConfig(appCfg)
 	if err != nil {
+		appLog.ErrorContext(ctx, "loading module config failed", slog.String("error", err.Error()))
 		return err
 	}
 
@@ -79,13 +76,13 @@ func RunContext(ctx context.Context) error {
 
 	db := database.DB{Primary: primaryDB, Replica: replicaDB}
 
-	app, err := bootstrap.New(authCfg, cartCfg, paymentCfg, db, rdb, appLog)
+	app, err := bootstrap.New(modCfg, db, rdb, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
 		return fmt.Errorf("wiring services: %w", err)
 	}
 
-	handler := NewRouter(appCfg, authCfg, orderCfg, paymentCfg, rdb, appLog, app)
+	handler := NewRouter(appCfg, modCfg, rdb, appLog, app)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", appCfg.App.Port),
@@ -128,40 +125,4 @@ func RunContext(ctx context.Context) error {
 
 	appLog.InfoContext(ctx, "server stopped gracefully")
 	return nil
-}
-
-func loadModuleConfigs(
-	ctx context.Context,
-	appCfg *config.Settings,
-	appLog *slog.Logger,
-) (auth.Config, cart.Config, order.Config, payment.Config, error) {
-	var cartCfg cart.Config
-	var orderCfg order.Config
-	var paymentCfg payment.Config
-
-	authCfg, err := auth.LoadConfig()
-	if err != nil {
-		appLog.ErrorContext(ctx, "loading auth config failed", slog.String("error", err.Error()))
-		return authCfg, cartCfg, orderCfg, paymentCfg, err
-	}
-
-	cartCfg, err = cart.LoadConfig()
-	if err != nil {
-		appLog.ErrorContext(ctx, "loading cart config failed", slog.String("error", err.Error()))
-		return authCfg, cartCfg, orderCfg, paymentCfg, err
-	}
-
-	orderCfg, err = order.LoadConfig(appCfg.Worker.PaymentLeaseDuration)
-	if err != nil {
-		appLog.ErrorContext(ctx, "loading order config failed", slog.String("error", err.Error()))
-		return authCfg, cartCfg, orderCfg, paymentCfg, err
-	}
-
-	paymentCfg, err = payment.LoadConfig(appCfg.App.Env, appCfg.Worker.PaymentLeaseDuration)
-	if err != nil {
-		appLog.ErrorContext(ctx, "loading payment config failed", slog.String("error", err.Error()))
-		return authCfg, cartCfg, orderCfg, paymentCfg, err
-	}
-
-	return authCfg, cartCfg, orderCfg, paymentCfg, nil
 }

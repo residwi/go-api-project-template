@@ -563,10 +563,10 @@ linters:
       # t.Setenv panics when the test, or an ancestor, calls t.Parallel.
       # paralleltest already knows that and skips the test doing the Setenv, so
       # what this covers is the tests *beside* it: the process environment is
-      # global, so a parallel sibling races a Setenv it never calls. Two of the
-      # five files have such a sibling today (platform/config, modules/order);
-      # the other three are listed for the same whole-file reason the exclusion
-      # above states -- naming only the files that currently report is what made
-      # that list wrong the first time.
-      - path: ^internal/(platform/(config/config_test|logger/logger_test)|modules/(payment|order|auth)/config_test)\.go
+      # global, so a parallel sibling races a Setenv it never calls. Five of the
+      # six files have such a sibling today -- every one but platform/config,
+      # whose package holds no other test file. It is listed for the same
+      # whole-file reason the exclusion above states: naming only the files that
+      # currently report is what made that list wrong the first time.
+      - path: ^internal/(platform/(config/config_test|logger/logger_test)|modules/(payment|order|auth|notification)/config_test)\.go
         linters: [paralleltest]

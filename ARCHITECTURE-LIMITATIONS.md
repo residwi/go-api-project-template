@@ -820,28 +820,33 @@ row actually says. It predates the flatten and is still worth a test.
 
 ## Config load order is load-bearing, and nothing type-enforces which lease gets validated
 
-**Where you hit it:** `order.LoadConfig(jobsLease time.Duration)` and
-`payment.LoadConfig(appEnv string, jobsLease time.Duration)` each validate a threshold against
-a bare `time.Duration` parameter rather than against an `infra.Worker` field directly.
-`order` refuses a lease at or above its stale-processing threshold, which would let the
-recovery sweep revert an order whose charge is still leased; `payment` refuses a lease below
-`3×PAYMENT_GATEWAY_TIMEOUT`, which would let the runner reclaim and re-run a charge the gateway
-has not finished.
+**Where you hit it:** `order.LoadConfig(paymentJobLease time.Duration)` validates a threshold
+against a bare `time.Duration` parameter rather than against the field the payment runner
+actually uses. `order` refuses a lease at or above its stale-processing threshold, which would
+let the recovery sweep revert an order whose charge is still leased; `payment` refuses a lease
+below `3×PAYMENT_GATEWAY_TIMEOUT`, which would let the runner reclaim and re-run a charge the
+gateway has not finished.
 
 **The per-queue lease split broke this once already.** Both guards were written when one
 worker-wide `WORKER_LEASE_DURATION` fed every consumer. Splitting the worker settings per queue
-gave the payment runner `WORKER_PAYMENT_LEASE` while both `LoadConfig` call sites kept passing
-the old shared field — so for a while the guards validated a number the runner never used, and
-`WORKER_PAYMENT_LEASE=30m` against a 15-minute stale threshold booted clean. That is fixed:
-both call sites now pass `infra.Worker.PaymentLeaseDuration`, the three error messages name
-`WORKER_PAYMENT_LEASE`, and the dead shared field is gone.
+gave the payment runner its own lease while both `LoadConfig` call sites kept passing the old
+shared field — so for a while the guards validated a number the runner never used, and a 30m
+lease against a 15-minute stale threshold booted clean.
 
-**What remains is structural.** The parameter is still a bare `time.Duration`, so nothing
-prevents a third call site passing a different one — a placeholder, a variable meant for
-something else, a value read before infra finished loading. If it happens to land inside the
-range both guards accept, boot succeeds having validated a number no runner uses, and the real
-lease goes unchecked in either direction. The compiler cannot tell the two apart, and there is
-no test that would notice.
+**Half of that is closed now.** `PAYMENT_JOB_LEASE` is a field on `payment.Config`, so
+`payment.LoadConfig` validates the exact value `cmd/worker` hands its payment runner — there is
+no parameter left to pass wrongly. `order.LoadConfig` still takes the lease as a
+`time.Duration`, because the invariant it enforces belongs to `order` while the value belongs
+to `payment`.
+
+**What remains is structural, and now confined to `order`.** That parameter is still a bare
+`time.Duration`, so nothing prevents a second call site passing a different one — a
+placeholder, a variable meant for something else, a value read before payment's config
+loaded. `internal/bootstrap/config.go` is the only caller today and passes
+`paymentCfg.JobLease`, which is why the load order there is load-bearing: payment must load
+before order. If a wrong value happens to land inside the range the guard accepts, boot
+succeeds having validated a number no runner uses. The compiler cannot tell the two apart, and
+no test would notice.
 
 **What you would do.** Nothing speculative ahead of a third call site — there are exactly two
 today and both thread the same field by construction. If a third appears, either have `Load`

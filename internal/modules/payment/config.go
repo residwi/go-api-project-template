@@ -16,9 +16,15 @@ type Config struct {
 	GatewayTimeout time.Duration `envconfig:"PAYMENT_GATEWAY_TIMEOUT" default:"10s"`
 	GatewayAPIKey  string        `envconfig:"PAYMENT_GATEWAY_API_KEY" default:""`
 	WebhookSecret  string        `envconfig:"PAYMENT_WEBHOOK_SECRET"  default:"webhook-secret"`
+
+	JobInterval    time.Duration `envconfig:"PAYMENT_JOB_INTERVAL"    default:"10s"`
+	JobConcurrency int           `envconfig:"PAYMENT_JOB_CONCURRENCY" default:"5"`
+	JobLease       time.Duration `envconfig:"PAYMENT_JOB_LEASE"       default:"2m"`
 }
 
 const defaultWebhookSecret = "webhook-secret"
+
+const minJobInterval = 5 * time.Second
 
 const (
 	gatewayMock     = "mock"
@@ -26,7 +32,7 @@ const (
 	gatewayMidtrans = "midtrans"
 )
 
-func LoadConfig(appEnv string, jobsLease time.Duration) (Config, error) {
+func LoadConfig(appEnv string) (Config, error) {
 	var cfg Config
 	if err := envconfig.Process("", &cfg); err != nil {
 		return Config{}, fmt.Errorf("loading payment config: %w", err)
@@ -42,15 +48,25 @@ func LoadConfig(appEnv string, jobsLease time.Duration) (Config, error) {
 		return Config{}, errors.New("PAYMENT_WEBHOOK_SECRET must be set in non-development environments")
 	}
 
-	if jobsLease < cfg.GatewayTimeout*3 {
+	if cfg.JobInterval < minJobInterval {
+		return Config{}, errors.New("PAYMENT_JOB_INTERVAL must be at least 5s to avoid database polling overhead")
+	}
+
+	if cfg.JobConcurrency < 1 {
 		return Config{}, errors.New(
-			"WORKER_PAYMENT_LEASE must be at least 3× PAYMENT_GATEWAY_TIMEOUT to avoid duplicate gateway calls",
+			"PAYMENT_JOB_CONCURRENCY must be at least 1 (0 deadlocks the worker on its unbuffered semaphore)",
+		)
+	}
+
+	if cfg.JobLease < cfg.GatewayTimeout*3 {
+		return Config{}, errors.New(
+			"PAYMENT_JOB_LEASE must be at least 3× PAYMENT_GATEWAY_TIMEOUT to avoid duplicate gateway calls",
 		)
 	}
 
 	if cfg.GatewayTimeout*3 >= order.StaleProcessingThreshold {
 		return Config{}, fmt.Errorf(
-			"PAYMENT_GATEWAY_TIMEOUT (%s) is too large: 3× it must stay below the order stale-processing threshold (%s) so a valid WORKER_PAYMENT_LEASE range exists",
+			"PAYMENT_GATEWAY_TIMEOUT (%s) is too large: 3× it must stay below the order stale-processing threshold (%s) so a valid PAYMENT_JOB_LEASE range exists",
 			cfg.GatewayTimeout,
 			order.StaleProcessingThreshold,
 		)

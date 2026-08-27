@@ -9,7 +9,6 @@ import (
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	authhttp "github.com/residwi/go-api-project-template/internal/modules/auth/adapter/http"
 	carthttp "github.com/residwi/go-api-project-template/internal/modules/cart/adapter/http"
 	categoryhttp "github.com/residwi/go-api-project-template/internal/modules/category/adapter/http"
@@ -17,9 +16,7 @@ import (
 	dashboardhttp "github.com/residwi/go-api-project-template/internal/modules/dashboard/adapter/http"
 	inventoryhttp "github.com/residwi/go-api-project-template/internal/modules/inventory/adapter/http"
 	notificationhttp "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/http"
-	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderhttp "github.com/residwi/go-api-project-template/internal/modules/order/adapter/http"
-	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	paymenthttp "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/http"
 	producthttp "github.com/residwi/go-api-project-template/internal/modules/product/adapter/http"
 	promotionhttp "github.com/residwi/go-api-project-template/internal/modules/promotion/adapter/http"
@@ -34,9 +31,7 @@ import (
 
 func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, the four route groups and all 64 routes in the order the router mounts them
 	appCfg *config.Settings,
-	authCfg auth.Config,
-	orderCfg order.Config,
-	paymentCfg payment.Config,
+	modCfg bootstrap.Config,
 	cache *redis.Client,
 	logger *slog.Logger,
 	app *bootstrap.App,
@@ -57,8 +52,8 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	authLimiter := middleware.RateLimit(
 		logger,
 		cache,
-		authCfg.RateLimit,
-		authCfg.RateWindow,
+		modCfg.Auth.RateLimit,
+		modCfg.Auth.RateWindow,
 	)
 	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
 
@@ -122,8 +117,8 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	orderWriteLimiter := middleware.RateLimit(
 		logger,
 		cache,
-		orderCfg.RateLimit,
-		orderCfg.RateWindow,
+		modCfg.Order.RateLimit,
+		modCfg.Order.RateWindow,
 	)
 	checkoutHandler := checkouthttp.NewHandler(app.Checkout, v)
 	authed.Handle("POST /orders", orderWriteLimiter(http.HandlerFunc(checkoutHandler.Place)))
@@ -178,7 +173,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 		mockgatewayserver.RegisterRoutes(
 			mux,
 			logger,
-			mockgatewayserver.WithWebhookSecret(paymentCfg.WebhookSecret),
+			mockgatewayserver.WithWebhookSecret(modCfg.Payment.WebhookSecret),
 		)
 	}
 

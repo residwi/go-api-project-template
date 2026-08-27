@@ -448,19 +448,21 @@ the recurrence. All three use the same leased compare-and-set claim, bounded
 concurrency, per-job timeout and pruning; none hand-rolls a ticker.
 
 Worker configuration via environment variables. `WORKER_BATCH_SIZE` and the
-prune settings are shared; poll interval, lease and concurrency are per queue,
-since payment, notification and order jobs run at different rates:
+prune settings are shared across every queue, so they live in
+`internal/platform/config`. Poll interval, lease and concurrency are per queue
+— payment, notification and order jobs run at different rates — so each is
+declared and validated in that module's own `config.go`:
 
 - `WORKER_BATCH_SIZE` — Jobs claimed per batch, all queues (default: 10)
-- `WORKER_PAYMENT_INTERVAL` — Payment queue poll interval (default: 10s)
-- `WORKER_PAYMENT_CONCURRENCY` — Payment queue concurrent processors (default: 5)
-- `WORKER_PAYMENT_LEASE` — Payment queue job lease duration (default: 2m)
-- `WORKER_NOTIFICATION_INTERVAL` — Notification queue poll interval (default: 5s)
-- `WORKER_NOTIFICATION_CONCURRENCY` — Notification queue concurrent processors (default: 10)
-- `WORKER_NOTIFICATION_LEASE` — Notification queue job lease duration (default: 30s)
-- `WORKER_ORDER_INTERVAL` — Order queue poll interval (default: 1m)
-- `WORKER_ORDER_CONCURRENCY` — Order queue concurrent processors (default: 1)
-- `WORKER_ORDER_LEASE` — Order queue job lease duration (default: 2m)
+- `PAYMENT_JOB_INTERVAL` — Payment queue poll interval (default: 10s)
+- `PAYMENT_JOB_CONCURRENCY` — Payment queue concurrent processors (default: 5)
+- `PAYMENT_JOB_LEASE` — Payment queue job lease duration (default: 2m)
+- `NOTIFICATION_JOB_INTERVAL` — Notification queue poll interval (default: 5s)
+- `NOTIFICATION_JOB_CONCURRENCY` — Notification queue concurrent processors (default: 10)
+- `NOTIFICATION_JOB_LEASE` — Notification queue job lease duration (default: 30s)
+- `ORDER_JOB_INTERVAL` — Order queue poll interval (default: 1m)
+- `ORDER_JOB_CONCURRENCY` — Order queue concurrent processors (default: 1)
+- `ORDER_JOB_LEASE` — Order queue job lease duration (default: 2m)
 
 ## Available Make Commands
 
@@ -590,15 +592,15 @@ Key variables:
 | `CORS_ALLOWED_HEADERS`          | CORS allowed headers                           | `Content-Type,Authorization,X-Request-ID,Idempotency-Key` |
 | `CORS_MAX_AGE`                  | CORS max age (seconds)                         | `86400`                                                   |
 | `WORKER_BATCH_SIZE`             | Worker jobs per batch, all queues              | `10`                                                      |
-| `WORKER_PAYMENT_INTERVAL`       | Payment queue poll interval                    | `10s`                                                     |
-| `WORKER_PAYMENT_CONCURRENCY`    | Payment queue concurrent processors            | `5`                                                       |
-| `WORKER_PAYMENT_LEASE`          | Payment queue job lease duration                | `2m`                                                      |
-| `WORKER_NOTIFICATION_INTERVAL`  | Notification queue poll interval               | `5s`                                                      |
-| `WORKER_NOTIFICATION_CONCURRENCY` | Notification queue concurrent processors     | `10`                                                      |
-| `WORKER_NOTIFICATION_LEASE`     | Notification queue job lease duration          | `30s`                                                     |
-| `WORKER_ORDER_INTERVAL`         | Order queue poll interval                      | `1m`                                                      |
-| `WORKER_ORDER_CONCURRENCY`      | Order queue concurrent processors              | `1`                                                       |
-| `WORKER_ORDER_LEASE`            | Order queue job lease duration                  | `2m`                                                      |
+| `PAYMENT_JOB_INTERVAL`       | Payment queue poll interval                    | `10s`                                                     |
+| `PAYMENT_JOB_CONCURRENCY`    | Payment queue concurrent processors            | `5`                                                       |
+| `PAYMENT_JOB_LEASE`          | Payment queue job lease duration                | `2m`                                                      |
+| `NOTIFICATION_JOB_INTERVAL`  | Notification queue poll interval               | `5s`                                                      |
+| `NOTIFICATION_JOB_CONCURRENCY` | Notification queue concurrent processors     | `10`                                                      |
+| `NOTIFICATION_JOB_LEASE`     | Notification queue job lease duration          | `30s`                                                     |
+| `ORDER_JOB_INTERVAL`         | Order queue poll interval                      | `1m`                                                      |
+| `ORDER_JOB_CONCURRENCY`      | Order queue concurrent processors              | `1`                                                       |
+| `ORDER_JOB_LEASE`            | Order queue job lease duration                  | `2m`                                                      |
 | `PAYMENT_GATEWAY`               | Payment gateway provider                       | `mock`                                                    |
 | `PAYMENT_GATEWAY_URL`           | Payment gateway URL                            | —                                                         |
 | `PAYMENT_GATEWAY_TIMEOUT`       | Payment gateway timeout                        | `10s`                                                     |
@@ -646,9 +648,9 @@ This template puts one module per feature and one `Service` per module:
 - Configuration is validated at startup and boot aborts on failure:
   infra-level settings in `Infra.validate()` (`internal/platform/config`),
   module-owned settings (a sub-second `AUTH_RATE_WINDOW`, a
-  `WORKER_CONCURRENCY < 1`) inline in that module's own `LoadConfig`
-  (`auth.LoadConfig`, `cart.LoadConfig`, `order.LoadConfig`,
-  `payment.LoadConfig`).
+  `PAYMENT_JOB_CONCURRENCY < 1`) inline in that module's own `LoadConfig`
+  (`auth.LoadConfig`, `cart.LoadConfig`, `notification.LoadConfig`,
+  `order.LoadConfig`, `payment.LoadConfig`).
 - The error vocabulary lives in `internal/apperror`; generic utilities
   (`paging`, `slug`, `validator`) live in `internal/platform`; the JSON
   envelope and request binding live in `internal/server/response`.

@@ -62,9 +62,7 @@ type App struct {
 }
 
 func New(
-	authCfg auth.Config,
-	cartCfg cart.Config,
-	paymentCfg payment.Config,
+	cfg Config,
 	db database.DB,
 	cache *redis.Client,
 	logger *slog.Logger,
@@ -89,9 +87,9 @@ func New(
 		statusCache = userredis.New(cache)
 	}
 	userMod := user.New(userpg.New(db), statusCache, logger)
-	authMod := auth.New(authCfg, userMod)
+	authMod := auth.New(cfg.Auth, userMod)
 
-	cartMod := cart.New(cartpg.New(db), txRunner, prod, cartCfg.MaxItems)
+	cartMod := cart.New(cartpg.New(db), txRunner, prod, cfg.Cart.MaxItems)
 
 	ordMod := order.New(
 		orderpg.New(db),
@@ -107,7 +105,7 @@ func New(
 	paymentMod := payment.New(
 		paymentpg.New(db),
 		txRunner,
-		paymentCfg,
+		cfg.Payment,
 		logger,
 		jobStore,
 		ordMod,
