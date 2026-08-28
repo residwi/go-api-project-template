@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -56,7 +56,7 @@ func TestPostgresRepository_Get(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.Get(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -179,7 +179,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		err := repo.MarkRead(context.Background(), otherUserID, id)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("returns not found for a missing notification id", func(t *testing.T) {
@@ -187,7 +187,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		err := repo.MarkRead(context.Background(), userID, uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("is idempotent: re-marking an already-read notification succeeds", func(t *testing.T) {

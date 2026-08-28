@@ -15,13 +15,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 )
 
 func TestHandler_List(t *testing.T) {
@@ -229,7 +229,7 @@ func TestHandler_GetBySlug(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		service.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
+		service.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/products/nonexistent", nil)
@@ -311,7 +311,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockProductReader) {
 	service := NewMockProductReader(t)
 
 	mux := http.NewServeMux()
-	api := middleware.NewRouteGroup(mux, "/api/v1")
+	api := web.NewRouteGroup(mux, "/api/v1")
 
 	h := NewHandler(service)
 	api.HandleFunc("GET /products", h.List)

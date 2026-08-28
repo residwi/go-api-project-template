@@ -1,23 +1,17 @@
 package apperror
 
-import "errors"
+import (
+	"fmt"
+
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+)
 
 var (
-	ErrNotFound             = errors.New("not found")
-	ErrConflict             = errors.New("already exists")
-	ErrBadRequest           = errors.New("bad request")
-	ErrUnauthorized         = errors.New("unauthorized")
-	ErrForbidden            = errors.New("forbidden")
-	ErrInvalidCredentials   = errors.New("invalid credentials")
-	ErrTokenExpired         = errors.New("token expired")
-	ErrInvalidToken         = errors.New("invalid token")
-	ErrInsufficientStock    = errors.New("insufficient stock")
-	ErrCartEmpty            = errors.New("cart is empty")
-	ErrOrderNotPayable      = errors.New("order is not in payable state")
-	ErrOrderCharging        = errors.New("order has an in-flight payment, cannot cancel")
-	ErrAmountMismatch       = errors.New("payment amount does not match order total")
-	ErrCouponExhausted      = errors.New("coupon usage limit reached")
-	ErrFulfillmentFailed    = errors.New("fulfillment failed, refund required")
-	ErrAlreadyFinalized     = errors.New("payment already finalized")
-	ErrReplicaNotConfigured = errors.New("replica database not configured")
+	ErrInsufficientStock = fmt.Errorf("%w: insufficient stock", errs.ErrConflict)
+	ErrCartEmpty         = fmt.Errorf("%w: cart is empty", errs.ErrBadRequest)
+	ErrOrderNotPayable   = fmt.Errorf("%w: order is not in payable state", errs.ErrBadRequest)
+	ErrOrderCharging     = fmt.Errorf("%w: order has an in-flight payment, cannot cancel", errs.ErrConflict)
+	ErrAmountMismatch    = fmt.Errorf("%w: payment amount does not match order total", errs.ErrConflict)
+	ErrCouponExhausted   = fmt.Errorf("%w: coupon usage limit reached", errs.ErrConflict)
+	ErrAlreadyFinalized  = fmt.Errorf("%w: payment already finalized", errs.ErrConflict)
 )

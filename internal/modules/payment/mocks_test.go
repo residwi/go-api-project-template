@@ -8,11 +8,12 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	mock "github.com/stretchr/testify/mock"
+
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
-	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockGateway creates a new instance of MockGateway. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

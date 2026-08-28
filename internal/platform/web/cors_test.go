@@ -1,4 +1,4 @@
-package middleware
+package web
 
 import (
 	"net/http"
@@ -11,6 +11,8 @@ import (
 )
 
 func TestCORS_SetsHeadersFromConfig(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.CORS{
 		AllowedOrigins: []string{"https://example.com"},
 		AllowedMethods: []string{"GET", "POST"},
@@ -34,6 +36,8 @@ func TestCORS_SetsHeadersFromConfig(t *testing.T) {
 }
 
 func TestCORS_Returns204OnOptionsPreflight(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.CORS{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -56,6 +60,8 @@ func TestCORS_Returns204OnOptionsPreflight(t *testing.T) {
 }
 
 func TestCORS_PassesThroughNonOptionsRequests(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.CORS{
 		AllowedOrigins: []string{"https://example.com"},
 		AllowedMethods: []string{"GET"},

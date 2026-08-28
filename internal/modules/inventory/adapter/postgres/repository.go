@@ -13,6 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 var _ inventory.Repository = (*Repository)(nil)
@@ -88,7 +89,7 @@ func (r *Repository) AdjustStock(ctx context.Context, productID uuid.UUID, newQu
 	).Scan(&available, &reserved)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("%w: cannot set stock below reserved quantity", apperror.ErrBadRequest)
+			return nil, fmt.Errorf("%w: cannot set stock below reserved quantity", errs.ErrBadRequest)
 		}
 		return nil, fmt.Errorf("adjusting stock: %w", err)
 	}
@@ -106,7 +107,7 @@ func (r *Repository) Restock(ctx context.Context, productID uuid.UUID, qty int) 
 	).Scan(&available, &reserved)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("restocking: %w", err)
 	}
@@ -133,7 +134,7 @@ func (r *Repository) GetStock(ctx context.Context, productID uuid.UUID) (*domain
 	).Scan(&available, &reserved)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting stock: %w", err)
 	}
@@ -209,7 +210,7 @@ func (r *Repository) Deduct(ctx context.Context, items map[uuid.UUID]int) error 
 		return fmt.Errorf("deducting stock batch: %w", err)
 	}
 	if int(tag.RowsAffected()) != len(ids) {
-		return fmt.Errorf("%w: cannot deduct more than reserved", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: cannot deduct more than reserved", errs.ErrBadRequest)
 	}
 	return nil
 }
@@ -235,7 +236,7 @@ func (r *Repository) ReleaseBatch(ctx context.Context, items map[uuid.UUID]int) 
 		return fmt.Errorf("releasing stock batch: %w", err)
 	}
 	if int(tag.RowsAffected()) != len(ids) {
-		return fmt.Errorf("%w: cannot release more than reserved", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: cannot release more than reserved", errs.ErrBadRequest)
 	}
 	return nil
 }

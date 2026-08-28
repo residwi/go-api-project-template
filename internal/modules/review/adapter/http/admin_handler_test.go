@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 )
 
 func TestAdminHandler_Delete(t *testing.T) {
@@ -59,7 +59,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 		mux, service := setupAdminMux(t)
 
 		reviewID := uuid.New()
-		service.EXPECT().Delete(mock.Anything, reviewID).Return(apperror.ErrNotFound)
+		service.EXPECT().Delete(mock.Anything, reviewID).Return(errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/reviews/"+reviewID.String(), nil)
@@ -76,7 +76,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockReviewDeleter) {
 	service := NewMockReviewDeleter(t)
 
 	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+	admin := web.NewRouteGroup(mux, "/api/v1/admin")
 	admin.HandleFunc("DELETE /reviews/{id}", NewAdminHandler(service).Delete)
 
 	return mux, service

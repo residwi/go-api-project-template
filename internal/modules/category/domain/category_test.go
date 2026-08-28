@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 func TestValidateParentSelf(t *testing.T) {
@@ -20,7 +20,7 @@ func TestValidateParentSelf(t *testing.T) {
 
 		err := ValidateParentSelf(selfID, selfID)
 
-		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		require.ErrorIs(t, err, errs.ErrBadRequest)
 		assert.ErrorContains(t, err, "cannot be its own parent")
 	})
 
@@ -53,7 +53,7 @@ func TestValidateParentDepth(t *testing.T) {
 
 		err := ValidateParentDepth(0, false)
 
-		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		require.ErrorIs(t, err, errs.ErrBadRequest)
 		assert.ErrorContains(t, err, "parent category not found")
 	})
 
@@ -62,7 +62,7 @@ func TestValidateParentDepth(t *testing.T) {
 
 		err := ValidateParentDepth(2, true)
 
-		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		require.ErrorIs(t, err, errs.ErrBadRequest)
 		assert.ErrorContains(t, err, "circular parent reference")
 	})
 
@@ -71,7 +71,7 @@ func TestValidateParentDepth(t *testing.T) {
 
 		err := ValidateParentDepth(MaxDepth, false)
 
-		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		require.ErrorIs(t, err, errs.ErrBadRequest)
 		assert.ErrorContains(t, err, "depth exceeds maximum of 5")
 	})
 

@@ -7,13 +7,13 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 type ProductManager interface {
@@ -140,7 +140,7 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 	case req.Price == nil || req.Currency == nil:
 		response.HandleErr(w, fmt.Errorf(
 			"%w: price and currency must be supplied together, and compare_at_price requires both",
-			apperror.ErrBadRequest))
+			errs.ErrBadRequest))
 		return
 	default:
 		pr := money.New(*req.Price, *req.Currency)

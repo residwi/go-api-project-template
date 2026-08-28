@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -55,7 +55,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 		mux, service := setupWebhookMux(t)
 
 		body := []byte(`{"event":"success"}`)
-		service.EXPECT().HandleWebhook(mock.Anything, body, "").Return(apperror.ErrUnauthorized)
+		service.EXPECT().HandleWebhook(mock.Anything, body, "").Return(errs.ErrUnauthorized)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", bytes.NewReader(body))
@@ -70,7 +70,7 @@ func setupWebhookMux(t *testing.T) (*http.ServeMux, *MockWebhookProcessor) {
 	service := NewMockWebhookProcessor(t)
 
 	mux := http.NewServeMux()
-	api := middleware.NewRouteGroup(mux, "/api")
+	api := web.NewRouteGroup(mux, "/api")
 	api.HandleFunc("POST /payments/webhook", NewWebhookHandler(service, testutil.DiscardLogger()).HandleWebhook)
 
 	return mux, service

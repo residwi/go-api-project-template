@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard/domain"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 )
 
 type Reporter interface {

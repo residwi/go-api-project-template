@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -196,11 +196,11 @@ func TestService_MarkRead(t *testing.T) {
 
 		userID, id := uuid.New(), uuid.New()
 
-		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(apperror.ErrNotFound)
+		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(errs.ErrNotFound)
 
 		svc := New(repo, testutil.FakeTxRunner{}, &testutil.FakeQueue{}, NewMockChannel(t), testutil.DiscardLogger())
 		err := svc.MarkRead(t.Context(), userID, id)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 

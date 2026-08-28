@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -90,11 +90,11 @@ func TestService_Create(t *testing.T) {
 		inv := NewMockInventory(t)
 		s := New(repo, inv)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
+		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(errs.ErrConflict)
 
 		p, err := s.Create(context.Background(), nil, "Widget", nil, money.New(1000, ""), nil, nil, "")
 		assert.Nil(t, p)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -209,10 +209,10 @@ func TestService_Update(t *testing.T) {
 		s := New(repo, inv)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		_, err := s.Update(context.Background(), uuid.New(), nil, nil, nil, nil, nil, nil, nil)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
@@ -231,12 +231,12 @@ func TestService_Update(t *testing.T) {
 				Price:  money.New(1000, "USD"),
 				Status: domain.StatusDraft,
 			}, nil)
-		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
+		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(errs.ErrConflict)
 
 		newName := "New"
 		p, err := s.Update(context.Background(), id, nil, &newName, nil, nil, nil, nil, nil)
 		assert.Nil(t, p)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -304,10 +304,10 @@ func TestService_Delete(t *testing.T) {
 		s := New(repo, inv)
 
 		repo.EXPECT().Delete(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(apperror.ErrNotFound)
+			Return(errs.ErrNotFound)
 
 		err := s.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -350,10 +350,10 @@ func TestService_AddImage(t *testing.T) {
 		s := New(repo, inv)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		_, err := s.AddImage(context.Background(), uuid.New(), "https://img.example.com/x.jpg", nil, nil)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("add image repo error", func(t *testing.T) {
@@ -401,10 +401,10 @@ func TestService_DeleteImage(t *testing.T) {
 		s := New(repo, inv)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		err := s.DeleteImage(context.Background(), uuid.New(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -447,10 +447,10 @@ func TestService_GetBySlug(t *testing.T) {
 		s := New(repo, inv)
 
 		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		_, err := s.GetBySlug(context.Background(), "nonexistent")
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("draft product returns ErrNotFound", func(t *testing.T) {
@@ -468,7 +468,7 @@ func TestService_GetBySlug(t *testing.T) {
 			}, nil)
 
 		_, err := s.GetBySlug(context.Background(), "draft-item")
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("images fetch error", func(t *testing.T) {
@@ -532,11 +532,11 @@ func TestService_GetByID(t *testing.T) {
 		s := New(repo, inv)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, errs.ErrNotFound)
 
 		p, err := s.GetByID(context.Background(), id)
 		assert.Nil(t, p)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("images fetch error", func(t *testing.T) {

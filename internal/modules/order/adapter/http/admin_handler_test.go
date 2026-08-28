@@ -14,12 +14,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 )
 
 func TestAdminHandler_List(t *testing.T) {
@@ -125,7 +125,7 @@ func TestAdminHandler_Get(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 		orderID := uuid.New()
-		service.EXPECT().Get(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
+		service.EXPECT().Get(mock.Anything, orderID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/orders/"+orderID.String(), nil)
@@ -218,7 +218,7 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 		mux, service := setupAdminMux(t)
 
 		orderID := uuid.New()
-		service.EXPECT().ChangeStatus(mock.Anything, orderID, mock.Anything).Return(apperror.ErrNotFound)
+		service.EXPECT().ChangeStatus(mock.Anything, orderID, mock.Anything).Return(errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		body := `{"status":"processing"}`
@@ -238,7 +238,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockOrderManager) {
 	service := NewMockOrderManager(t)
 
 	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+	admin := web.NewRouteGroup(mux, "/api/v1/admin")
 
 	h := NewAdminHandler(service, validator.New())
 	admin.HandleFunc("GET /orders", h.List)

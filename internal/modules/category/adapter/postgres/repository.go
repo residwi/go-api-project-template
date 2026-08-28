@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/category"
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 var _ category.Repository = (*Repository)(nil)
@@ -41,7 +41,7 @@ func (r *Repository) Create(ctx context.Context, cat *domain.Category) error {
 	).Scan(&cat.ID, &cat.CreatedAt, &cat.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("creating category: %w", err)
 	}
@@ -58,7 +58,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Categor
 		&c.SortOrder, &c.Active, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting category by id: %w", err)
 	}
@@ -75,7 +75,7 @@ func (r *Repository) GetBySlug(ctx context.Context, slug string) (*domain.Catego
 		&c.SortOrder, &c.Active, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting category by slug: %w", err)
 	}
@@ -108,12 +108,12 @@ func (r *Repository) Update(ctx context.Context, cat *domain.Category) error {
 	)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("updating category: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }
@@ -125,12 +125,12 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 	)
 	if err != nil {
 		if database.IsForeignKeyViolation(err) {
-			return fmt.Errorf("%w: category still has products or subcategories", apperror.ErrConflict)
+			return fmt.Errorf("%w: category still has products or subcategories", errs.ErrConflict)
 		}
 		return fmt.Errorf("deleting category: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }

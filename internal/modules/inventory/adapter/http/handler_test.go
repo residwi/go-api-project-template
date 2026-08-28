@@ -15,11 +15,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 )
 
 func TestHandler_GetStock(t *testing.T) {
@@ -88,7 +88,7 @@ func TestHandler_GetStock(t *testing.T) {
 		service := NewMockInventoryManager(t)
 
 		productID := uuid.New()
-		service.EXPECT().GetStock(mock.Anything, productID).Return(nil, apperror.ErrNotFound)
+		service.EXPECT().GetStock(mock.Anything, productID).Return(nil, errs.ErrNotFound)
 
 		mux := setupMux(t, service)
 
@@ -235,7 +235,7 @@ func TestHandler_Restock(t *testing.T) {
 		productID := uuid.New()
 		service.EXPECT().
 			Restock(mock.Anything, productID, 50).
-			Return(nil, fmt.Errorf("%w: product not found", apperror.ErrNotFound))
+			Return(nil, fmt.Errorf("%w: product not found", errs.ErrNotFound))
 
 		mux := setupMux(t, service)
 
@@ -389,7 +389,7 @@ func TestHandler_Adjust(t *testing.T) {
 		productID := uuid.New()
 		service.EXPECT().
 			Adjust(mock.Anything, productID, 200).
-			Return(nil, fmt.Errorf("%w: cannot set stock below reserved quantity", apperror.ErrBadRequest))
+			Return(nil, fmt.Errorf("%w: cannot set stock below reserved quantity", errs.ErrBadRequest))
 
 		mux := setupMux(t, service)
 
@@ -440,7 +440,7 @@ func setupMux(t *testing.T, service InventoryManager) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/admin")
+	admin := web.NewRouteGroup(mux, "/api/admin")
 	h := NewHandler(service, validator.New())
 	admin.HandleFunc("GET /inventory/{product_id}", h.GetStock)
 	admin.HandleFunc("PUT /inventory/{product_id}/restock", h.Restock)

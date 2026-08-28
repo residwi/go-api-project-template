@@ -16,11 +16,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 func TestHandler_Add(t *testing.T) {
@@ -259,7 +260,7 @@ func TestHandler_Remove(t *testing.T) {
 		mux, service, uc := setupMux(t)
 
 		productID := uuid.New()
-		service.EXPECT().Remove(mock.Anything, uc.UserID, productID).Return(apperror.ErrNotFound)
+		service.EXPECT().Remove(mock.Anything, uc.UserID, productID).Return(errs.ErrNotFound)
 
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlist/items/"+productID.String(), nil)
 		r = withAuth(r, uc)
@@ -301,7 +302,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockWishlistManager, middleware.Us
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	authed := middleware.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouteGroup(mux, "/api/v1")
 
 	h := NewHandler(service, v)
 	authed.HandleFunc("GET /wishlist", h.List)

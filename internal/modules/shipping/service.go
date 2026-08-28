@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 type Service struct {
@@ -33,7 +33,7 @@ func (s *Service) Create(
 	}
 
 	if !domain.CanShipOrder(order.Status) {
-		return nil, fmt.Errorf("%w: order must be in paid or processing status", apperror.ErrBadRequest)
+		return nil, fmt.Errorf("%w: order must be in paid or processing status", errs.ErrBadRequest)
 	}
 
 	shipment := &domain.Shipment{
@@ -107,7 +107,7 @@ func (s *Service) GetForUser(ctx context.Context, userID, orderID uuid.UUID) (*d
 	}
 
 	if order.UserID != userID {
-		return nil, apperror.ErrNotFound
+		return nil, errs.ErrNotFound
 	}
 
 	return s.repo.GetByOrderID(ctx, orderID)

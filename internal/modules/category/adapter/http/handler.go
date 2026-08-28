@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 )
 
 type CategoryReader interface {

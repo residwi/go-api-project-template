@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/review/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -81,7 +81,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 			Status:    "published",
 		}
 		err = repo.Create(ctx, second)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -223,7 +223,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		err := repo.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 

@@ -8,10 +8,11 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	mock "github.com/stretchr/testify/mock"
+
 	"github.com/residwi/go-api-project-template/internal/modules/checkout"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockCheckout creates a new instance of MockCheckout. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

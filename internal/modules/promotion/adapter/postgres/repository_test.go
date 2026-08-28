@@ -15,6 +15,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -41,7 +42,7 @@ func TestPostgresRepository_GetByCode(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		_, err := repo.GetByCode(context.Background(), "NONEXISTENT-"+uuid.New().String()[:8])
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -59,7 +60,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -85,7 +86,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 
 		dup := newPromotion(existing.Code)
 		err := repo.Create(context.Background(), dup)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -107,7 +108,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		p := newPromotion("NOPE-" + uuid.New().String()[:8])
 		p.ID = uuid.New()
 		err := repo.Update(context.Background(), p)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("returns conflict on duplicate code", func(t *testing.T) {
@@ -117,7 +118,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 		p2.Code = p1.Code
 		err := repo.Update(context.Background(), p2)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 
 	t.Run("keeping its own code is not a conflict", func(t *testing.T) {
@@ -148,7 +149,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		err := repo.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -278,7 +279,7 @@ func TestPostgresRepository_CreateUsage(t *testing.T) {
 			CouponID: p.ID, UserID: userID, OrderID: orderID, Discount: 50,
 		}
 		err := repo.CreateUsage(ctx, dup)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -308,7 +309,7 @@ func TestPostgresRepository_DeleteUsageByOrderID(t *testing.T) {
 	t.Run("returns ErrNotFound when no usage exists", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		result, err := repo.DeleteUsageByOrderID(context.Background(), uuid.New())
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 		assert.Nil(t, result)
 	})
 }

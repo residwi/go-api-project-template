@@ -14,10 +14,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 func TestHandler_Get(t *testing.T) {
@@ -120,7 +121,7 @@ func TestHandler_Get(t *testing.T) {
 		orderID := uuid.New()
 
 		service := NewMockShipmentReader(t)
-		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, errs.ErrNotFound)
 
 		mux := setupMux(t, service)
 
@@ -135,7 +136,7 @@ func TestHandler_Get(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 
-	// Service.GetForUser turns an ownership mismatch into apperror.ErrNotFound
+	// Service.GetForUser turns an ownership mismatch into errs.ErrNotFound
 	// itself (see service_test.go) -- from this handler's side of the port,
 	// that looks identical to any other not-found.
 	t.Run("not owned by user", func(t *testing.T) {
@@ -145,7 +146,7 @@ func TestHandler_Get(t *testing.T) {
 		orderID := uuid.New()
 
 		service := NewMockShipmentReader(t)
-		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, errs.ErrNotFound)
 
 		mux := setupMux(t, service)
 
@@ -167,7 +168,7 @@ func TestHandler_Get(t *testing.T) {
 		orderID := uuid.New()
 
 		service := NewMockShipmentReader(t)
-		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, apperror.ErrNotFound)
+		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, errs.ErrNotFound)
 
 		mux := setupMux(t, service)
 
@@ -250,7 +251,7 @@ func setupMux(t *testing.T, service ShipmentReader) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
-	authed := middleware.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouteGroup(mux, "/api/v1")
 	authed.HandleFunc("GET /orders/{id}/shipping", NewHandler(service).Get)
 
 	return mux

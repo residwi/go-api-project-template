@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -50,7 +50,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 		dup := newOrder(userID)
 		dup.IdempotencyKey = o.IdempotencyKey
 		err := repo.Create(context.Background(), dup)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -104,7 +104,7 @@ func TestPostgresRepository_GetByUserIDAndIdempotencyKey(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByUserIDAndIdempotencyKey(context.Background(), userID, "nonexistent-key")
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 		assert.Nil(t, got)
 	})
 
@@ -159,7 +159,7 @@ func TestPostgresRepository_UpdateTotals(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		err := repo.UpdateTotals(context.Background(), uuid.New(), 0, 0)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -223,7 +223,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	// Create always writes non-empty values into these three nullable columns, so
@@ -582,7 +582,7 @@ func TestPostgresRepository_Apply(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		err := repo.Apply(context.Background(), orderID, domain.PaidTransition)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 
 	t.Run("sets the stock flags the transition carries", func(t *testing.T) {
@@ -622,7 +622,7 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 
 		// paid is the wrong from-status for an awaiting_payment order.
 		err := repo.UpdateStatus(context.Background(), orderID, domain.StatusPaid, domain.StatusProcessing)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 

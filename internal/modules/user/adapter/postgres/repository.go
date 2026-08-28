@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 var _ user.Repository = (*Repository)(nil)
@@ -42,7 +42,7 @@ func (r *Repository) Create(ctx context.Context, user *domain.User) error {
 	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("creating user: %w", err)
 	}
@@ -61,7 +61,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, e
 		&u.Phone, &u.Role, &u.Active, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting user by id: %w", err)
 	}
@@ -80,7 +80,7 @@ func (r *Repository) GetByEmail(ctx context.Context, email string) (*domain.User
 		&u.Phone, &u.Role, &u.Active, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting user by email: %w", err)
 	}
@@ -96,7 +96,7 @@ func (r *Repository) GetStatusByID(ctx context.Context, id uuid.UUID) (bool, int
 	).Scan(&active, &tokenVersion)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return false, 0, apperror.ErrNotFound
+			return false, 0, errs.ErrNotFound
 		}
 		return false, 0, fmt.Errorf("getting user status by id: %w", err)
 	}
@@ -168,7 +168,7 @@ func (r *Repository) Update(ctx context.Context, u *domain.User) error {
 		return fmt.Errorf("updating user: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }
@@ -182,7 +182,7 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("deleting user: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }
@@ -208,7 +208,7 @@ func (r *Repository) IncrementTokenVersion(ctx context.Context, id uuid.UUID) er
 		return fmt.Errorf("incrementing token version: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }

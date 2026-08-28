@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 type Service struct {
@@ -121,7 +121,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	if count > 0 {
-		return fmt.Errorf("%w: category has %d published products", apperror.ErrBadRequest, count)
+		return fmt.Errorf("%w: category has %d published products", errs.ErrBadRequest, count)
 	}
 
 	return s.repo.Delete(ctx, id)

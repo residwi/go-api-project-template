@@ -13,6 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -51,7 +52,7 @@ func TestPostgresRepository_AdjustStock(t *testing.T) {
 		arrangeReservation(t, productID, 5)
 
 		_, err := repo.AdjustStock(ctx, productID, 3)
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	// GetStock and Restock both 404 on a missing level row, so AdjustStock's
@@ -104,7 +105,7 @@ func TestPostgresRepository_Restock(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.Restock(context.Background(), uuid.New(), 5)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -184,7 +185,7 @@ func TestPostgresRepository_GetStock(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetStock(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -320,7 +321,7 @@ func TestPostgresRepository_Deduct_RejectsOverDeduction(t *testing.T) {
 	arrangeReservation(t, productID, 2)
 
 	err := repo.Deduct(ctx, map[uuid.UUID]int{productID: 5})
-	require.ErrorIs(t, err, apperror.ErrBadRequest)
+	require.ErrorIs(t, err, errs.ErrBadRequest)
 
 	_, reserved := levelOf(t, productID)
 	assert.Equal(t, 2, reserved, "a rejected batch must leave the reservation intact")
@@ -355,7 +356,7 @@ func TestPostgresRepository_ReleaseBatch(t *testing.T) {
 
 		err := repo.ReleaseBatch(ctx, map[uuid.UUID]int{productID: 3})
 
-		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		require.ErrorIs(t, err, errs.ErrBadRequest)
 		assert.Equal(t, 2, reservedOf(t, productID), "the reservation must be left intact")
 	})
 

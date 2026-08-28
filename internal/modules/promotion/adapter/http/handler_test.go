@@ -15,10 +15,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 func TestHandler_Apply_ServiceError(t *testing.T) {
@@ -29,7 +30,7 @@ func TestHandler_Apply_ServiceError(t *testing.T) {
 
 		mux, service := setupApplyMux(t)
 
-		service.EXPECT().Apply(mock.Anything, "NOTEXIST", int64(5000)).Return(int64(0), apperror.ErrNotFound)
+		service.EXPECT().Apply(mock.Anything, "NOTEXIST", int64(5000)).Return(int64(0), errs.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{
 			"code":     "NOTEXIST",
@@ -54,7 +55,7 @@ func TestHandler_Apply_ServiceError(t *testing.T) {
 		mux, service := setupApplyMux(t)
 
 		service.EXPECT().Apply(mock.Anything, "INACTIVE", int64(5000)).
-			Return(int64(0), apperror.ErrBadRequest)
+			Return(int64(0), errs.ErrBadRequest)
 
 		body, _ := json.Marshal(map[string]any{
 			"code":     "INACTIVE",
@@ -172,7 +173,7 @@ func setupApplyMux(t *testing.T) (*http.ServeMux, *MockPromotionApplier) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	authed := middleware.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouteGroup(mux, "/api/v1")
 	authed.HandleFunc("POST /promotions/apply", NewHandler(service, v).Apply)
 
 	return mux, service

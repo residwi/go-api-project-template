@@ -16,14 +16,14 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 )
 
 func TestAdminHandler_Get(t *testing.T) {
@@ -74,7 +74,7 @@ func TestAdminHandler_Get(t *testing.T) {
 		mux, service := setupAdminMux(t)
 
 		prodID := uuid.New()
-		service.EXPECT().GetByID(mock.Anything, prodID).Return(nil, apperror.ErrNotFound)
+		service.EXPECT().GetByID(mock.Anything, prodID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/products/"+prodID.String(), nil)
@@ -267,7 +267,7 @@ func TestAdminHandler_Create(t *testing.T) {
 		service.EXPECT().
 			Create(mock.Anything, mock.Anything, "Duplicate", mock.Anything, mock.Anything, mock.Anything,
 				mock.Anything, mock.Anything).
-			Return(nil, apperror.ErrConflict)
+			Return(nil, errs.ErrConflict)
 
 		body, _ := json.Marshal(map[string]any{
 			"name":  "Duplicate",
@@ -523,7 +523,7 @@ func TestAdminHandler_Update(t *testing.T) {
 		service.EXPECT().
 			Update(mock.Anything, prodID, mock.Anything, mock.Anything, mock.Anything, mock.Anything,
 				mock.Anything, mock.Anything, mock.Anything).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		newName := "Updated"
 		body, _ := json.Marshal(map[string]any{
@@ -583,7 +583,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 		mux, service := setupAdminMux(t)
 
 		prodID := uuid.New()
-		service.EXPECT().Delete(mock.Anything, prodID).Return(apperror.ErrNotFound)
+		service.EXPECT().Delete(mock.Anything, prodID).Return(errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/products/"+prodID.String(), nil)
@@ -656,7 +656,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockProductManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+	admin := web.NewRouteGroup(mux, "/api/v1/admin")
 
 	ah := NewAdminHandler(service, v)
 	admin.HandleFunc("GET /products", ah.List)

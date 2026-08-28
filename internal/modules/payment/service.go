@@ -20,6 +20,7 @@ import (
 	gatewaystripe "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway/stripe"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 )
 
@@ -73,12 +74,12 @@ func newGateway(cfg Config) Gateway {
 
 func (s *Service) Charge(ctx context.Context, req ChargeRequest) (ChargeResult, error) {
 	existing, err := s.repo.GetActiveByOrderID(ctx, req.OrderID)
-	if err != nil && !errors.Is(err, apperror.ErrNotFound) {
+	if err != nil && !errors.Is(err, errs.ErrNotFound) {
 		return ChargeResult{}, err
 	}
 
 	var p *domain.Payment
-	if !errors.Is(err, apperror.ErrNotFound) {
+	if !errors.Is(err, errs.ErrNotFound) {
 		p = existing
 	} else {
 		p = &domain.Payment{
@@ -153,7 +154,7 @@ func (s *Service) Charge(ctx context.Context, req ChargeRequest) (ChargeResult, 
 			slog.String("order_id", req.OrderID.String()),
 			slog.String("gateway_status", resp.Status),
 		)
-		return result, fmt.Errorf("%w: payment was declined", apperror.ErrBadRequest)
+		return result, fmt.Errorf("%w: payment was declined", errs.ErrBadRequest)
 	}
 
 	return result, nil
@@ -285,7 +286,7 @@ func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
 	}
 
 	if p.Status != domain.StatusSuccess && p.Status != domain.StatusRequiresReview {
-		return fmt.Errorf("%w: payment is not refundable", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: payment is not refundable", errs.ErrBadRequest)
 	}
 
 	return s.enqueueRefundJob(ctx, paymentID, p.OrderID)
@@ -295,7 +296,7 @@ func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
 func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature string) error {
 	if s.webhookSecret != "" && !verifySignature(s.webhookSecret, payload, signature) {
 		s.logger.WarnContext(ctx, "webhook: invalid or missing signature")
-		return fmt.Errorf("%w: invalid webhook signature", apperror.ErrUnauthorized)
+		return fmt.Errorf("%w: invalid webhook signature", errs.ErrUnauthorized)
 	}
 
 	var body map[string]any
@@ -332,7 +333,7 @@ func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature s
 	if p == nil && txnID != "" {
 		found, getErr := s.repo.GetByGatewayTxnID(ctx, txnID)
 		if getErr != nil {
-			if !errors.Is(getErr, apperror.ErrNotFound) {
+			if !errors.Is(getErr, errs.ErrNotFound) {
 				s.logger.ErrorContext(
 					ctx,
 					"webhook: failed to get payment by gateway txn id",
@@ -398,7 +399,7 @@ func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature s
 				slog.String("error", err.Error()),
 			)
 		}
-		if err := s.orders.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, apperror.ErrBadRequest) {
+		if err := s.orders.CancelUnpaid(ctx, p.OrderID); err != nil && !errors.Is(err, errs.ErrBadRequest) {
 			s.logger.ErrorContext(
 				ctx,
 				"webhook: failed to cancel order after payment failure",

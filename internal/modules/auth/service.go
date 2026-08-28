@@ -10,9 +10,9 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 type Service struct {
@@ -42,15 +42,15 @@ func (s *Service) Login(ctx context.Context, email, password string) (*domain.To
 	creds, err := s.users.GetByEmail(ctx, email)
 	if err != nil {
 		_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(password))
-		return nil, apperror.ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
 	if !creds.Active {
-		return nil, apperror.ErrUnauthorized
+		return nil, errs.ErrUnauthorized
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(creds.PasswordHash), []byte(password)); err != nil {
-		return nil, apperror.ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 
 	return s.BuildTokenPair(user.Profile{
@@ -69,7 +69,7 @@ func (s *Service) Register(
 	email, password, firstName, lastName string,
 ) (*domain.TokenPair, error) {
 	if len(password) > maxPasswordBytes {
-		return nil, fmt.Errorf("%w: password must not exceed %d bytes", apperror.ErrBadRequest, maxPasswordBytes)
+		return nil, fmt.Errorf("%w: password must not exceed %d bytes", errs.ErrBadRequest, maxPasswordBytes)
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), s.bcryptCost)
@@ -93,11 +93,11 @@ func (s *Service) Register(
 func (s *Service) Refresh(ctx context.Context, refreshToken string) (*domain.TokenPair, error) {
 	claims, err := s.ValidateToken(refreshToken)
 	if err != nil {
-		return nil, apperror.ErrInvalidToken
+		return nil, ErrInvalidToken
 	}
 
 	if claims.Type != "refresh" {
-		return nil, apperror.ErrInvalidToken
+		return nil, ErrInvalidToken
 	}
 
 	user, err := s.users.GetByID(ctx, claims.UserID)
@@ -106,11 +106,11 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (*domain.Tok
 	}
 
 	if !user.Active {
-		return nil, apperror.ErrUnauthorized
+		return nil, errs.ErrUnauthorized
 	}
 
 	if user.TokenVersion != claims.TokenVersion {
-		return nil, apperror.ErrInvalidToken
+		return nil, ErrInvalidToken
 	}
 
 	return s.BuildTokenPair(user)

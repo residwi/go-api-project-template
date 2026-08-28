@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/modules/dashboard/domain"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 )
 
 func TestHandler_Summary(t *testing.T) {
@@ -527,7 +527,7 @@ func TestToSummaryResponse_ExposesExactFieldSet(t *testing.T) {
 func setupMux(t *testing.T) (*http.ServeMux, *MockReporter) {
 	service := NewMockReporter(t)
 	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/admin")
+	admin := web.NewRouteGroup(mux, "/api/admin")
 
 	h := NewHandler(service)
 	admin.HandleFunc("GET /dashboard/summary", h.Summary)

@@ -1,4 +1,4 @@
-package middleware
+package web
 
 import (
 	"bytes"
@@ -15,6 +15,8 @@ import (
 )
 
 func TestRequestID_GeneratesUUIDWhenNoHeader(t *testing.T) {
+	t.Parallel()
+
 	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -29,6 +31,8 @@ func TestRequestID_GeneratesUUIDWhenNoHeader(t *testing.T) {
 }
 
 func TestRequestID_UsesExistingHeader(t *testing.T) {
+	t.Parallel()
+
 	existingID := "my-custom-request-id"
 
 	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -44,6 +48,8 @@ func TestRequestID_UsesExistingHeader(t *testing.T) {
 }
 
 func TestRequestID_DownstreamLogsCarryTheSameIDAsTheResponseHeader(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	log := slog.New(logger.ContextHandler{Handler: slog.NewJSONHandler(&buf, nil)})
 

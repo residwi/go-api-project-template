@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 const StatusPublished = "published"
@@ -54,7 +54,7 @@ func (c *Cart) Total() (money.Money, error) {
 		}
 		sum, err := total.Add(it.Product.Price.MulQty(it.Quantity))
 		if err != nil {
-			return money.Money{}, fmt.Errorf("%w: cart contains mixed currencies: %w", apperror.ErrBadRequest, err)
+			return money.Money{}, fmt.Errorf("%w: cart contains mixed currencies: %w", errs.ErrBadRequest, err)
 		}
 		total = sum
 	}

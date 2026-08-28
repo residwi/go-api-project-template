@@ -2,14 +2,16 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 )
+
+var ErrReplicaNotConfigured = errors.New("replica database not configured")
 
 func NewPrimaryPostgres(ctx context.Context, cfg config.Database) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.DSN())
@@ -34,7 +36,7 @@ func NewPrimaryPostgres(ctx context.Context, cfg config.Database) (*pgxpool.Pool
 
 func NewReplicaPostgres(ctx context.Context, cfg config.Database) (*pgxpool.Pool, error) {
 	if cfg.ReplicaURL == "" {
-		return nil, apperror.ErrReplicaNotConfigured
+		return nil, ErrReplicaNotConfigured
 	}
 
 	poolCfg, err := pgxpool.ParseConfig(cfg.ReplicaURL)

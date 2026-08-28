@@ -7,8 +7,9 @@ package http
 import (
 	"context"
 
-	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
 )
 
 // NewMockAuthManager creates a new instance of MockAuthManager. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 type Service struct {
@@ -103,7 +103,7 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (AccountSta
 
 	active, tokenVersion, err := s.repo.GetStatusByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, apperror.ErrNotFound) {
+		if errors.Is(err, errs.ErrNotFound) {
 			return AccountStatus{Active: false}, nil
 		}
 		return AccountStatus{}, err
@@ -181,7 +181,7 @@ func (s *Service) AdminUpdate(
 
 func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUID, role string) error {
 	if requesterID == targetID {
-		return fmt.Errorf("%w: cannot change own role", apperror.ErrForbidden)
+		return fmt.Errorf("%w: cannot change own role", errs.ErrForbidden)
 	}
 
 	u, err := s.repo.GetByID(ctx, targetID)
@@ -195,7 +195,7 @@ func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUI
 			return err
 		}
 		if count <= 1 {
-			return fmt.Errorf("%w: cannot remove last admin", apperror.ErrBadRequest)
+			return fmt.Errorf("%w: cannot remove last admin", errs.ErrBadRequest)
 		}
 	}
 
@@ -214,7 +214,7 @@ func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUI
 
 func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) error {
 	if requesterID == targetID {
-		return fmt.Errorf("%w: cannot delete own account", apperror.ErrForbidden)
+		return fmt.Errorf("%w: cannot delete own account", errs.ErrForbidden)
 	}
 
 	u, err := s.repo.GetByID(ctx, targetID)
@@ -228,7 +228,7 @@ func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) e
 			return err
 		}
 		if count <= 1 {
-			return fmt.Errorf("%w: cannot delete last admin", apperror.ErrBadRequest)
+			return fmt.Errorf("%w: cannot delete last admin", errs.ErrBadRequest)
 		}
 	}
 

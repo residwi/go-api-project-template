@@ -16,11 +16,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 )
 
 func TestAdminHandler_Create(t *testing.T) {
@@ -78,7 +78,7 @@ func TestAdminHandler_Create(t *testing.T) {
 		mux, service := setupAdminMux(t)
 
 		service.EXPECT().Create(mock.Anything, "Duplicate", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Return(nil, apperror.ErrConflict)
+			Return(nil, errs.ErrConflict)
 
 		body, _ := json.Marshal(map[string]any{
 			"name": "Duplicate",
@@ -254,7 +254,7 @@ func TestAdminHandler_Update(t *testing.T) {
 		catID := uuid.New()
 		service.EXPECT().
 			Update(mock.Anything, catID, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		newName := "Updated"
 		body, _ := json.Marshal(map[string]any{
@@ -314,7 +314,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 		mux, service := setupAdminMux(t)
 
 		catID := uuid.New()
-		service.EXPECT().Delete(mock.Anything, catID).Return(apperror.ErrNotFound)
+		service.EXPECT().Delete(mock.Anything, catID).Return(errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/categories/"+catID.String(), nil)
@@ -372,7 +372,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockCategoryManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+	admin := web.NewRouteGroup(mux, "/api/v1/admin")
 	h := NewAdminHandler(service, v)
 	admin.HandleFunc("POST /categories", h.Create)
 	admin.HandleFunc("PUT /categories/{id}", h.Update)

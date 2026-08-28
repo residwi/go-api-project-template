@@ -24,14 +24,19 @@ cmd/worker/               payment + notification + order job worker binary
 cmd/mockgateway/          dev-only fake payment gateway binary
   mockserver/             its handlers, importable so internal/server can mount them in-process
 internal/
-  apperror/               error vocabulary (ErrNotFound, ErrBadRequest, ...); no feature deps
+  apperror/               seven cross-module business sentinels
+                          (ErrInsufficientStock, ErrCartEmpty, ...), each declared as
+                          a wrap of a platform/errs kind; no feature deps
   bootstrap/              the composition root: builds every Service and wires every
                           cross-module port by name-match
-  server/                 server.go (Run), router.go (NewRouter, health, routes),
-                          middleware/, response/. router.go holds every URL in the
-                          system -- all 64 of them, in one function
-  platform/               generic infrastructure, no feature deps:
-                          cache/ config/ database/ jobs/ logger/ paging/ slug/ storage/ validator/
+  server/                 server.go (Run), router.go (NewRouter, health, routes) and
+                          middleware/, which is down to the three files that know a
+                          caller identity -- auth.go, admin.go, ratelimit.go.
+                          router.go holds every URL in the system -- all 64 of them,
+                          in one function
+  platform/               generic infrastructure, no feature deps: cache/ config/
+                          database/ errs/ jobs/ logger/ paging/ response/ slug/
+                          storage/ validator/ web/
   testutil/               shared dockertest harness (Postgres + Redis containers)
   modules/<feature>/      16 directories: the 14 features, plus checkout and money
 db/migrations/            goose SQL migrations
@@ -65,9 +70,15 @@ The two directories that are not features:
   `internal/modules/` because it is a **value object** — a domain type — and
   check 4 makes any module's root package importable, so `cart`, `order`,
   `payment` and `product` name `money.Money` with no exemption anywhere.
-  `internal/apperror` stayed above the module tree for the opposite reason: it
-  is an error **vocabulary**, used by `platform` and `server` too, so it is no
-  module's to own.
+  `internal/apperror` stays above the module tree for a narrower reason than it
+  once had. It used to hold the whole error vocabulary and be named by
+  `platform` and `server` as well, which made it nobody's to own. Those five
+  generic kinds are `internal/platform/errs` now, and `internal/server` imports
+  `apperror` nowhere at all — every importer today is a module
+  (`cart checkout inventory order payment promotion`). What is left is seven
+  business sentinels that several modules raise and several others match, and
+  no one module has the better claim to them, so they sit above rather than
+  inside any of the seven.
 
 Everything else under `internal/` is infrastructure — `apperror bootstrap
 platform server testutil`. Being infrastructure exempts a directory from
@@ -315,9 +326,9 @@ drive the real `NewRouter`**, and only the first enumerates the whole table:
 of `method<TAB>path<TAB>group` — and probes every one. What it still cannot
 see is in `ARCHITECTURE-LIMITATIONS.md`.
 
-Four carve-outs put a test outside the package it tests — two forced by an
-import cycle, one by preference, one because the thing under test is not Go —
-and together they are the whole exception: **16 external test files**
+Five carve-outs put a test outside the package it tests — two forced by an
+import cycle, two by preference, one because the thing under test is not Go —
+and together they are the whole exception: **17 external test files**
 (`grep -rl '^package .*_test$' --include='*_test.go' . | wc -l`).
 
 - `test/e2e` (12 files, `package e2e_test`) imports `internal/bootstrap` and
@@ -340,6 +351,14 @@ and together they are the whole exception: **16 external test files**
 - `scripts/boundaries_test.go` (`package scripts_test`) shells out to
   `scripts/check-boundaries.sh`, plants a probe file in a real module and
   asserts the script reports it. There is no Go package for it to be inside.
+- `internal/apperror/apperror_test.go` (`package apperror_test`) is a second
+  preference carve-out. It asserts that each of the seven business sentinels
+  unwraps to its `errs` kind, which is the view a consumer has, and
+  `internal/apperror` declares nothing unexported for it to reach.
+  `internal/modules/auth/errors_test.go` makes the same two assertions about
+  the two auth sentinels and is `package auth`, because `modules/auth` already
+  has in-package tests and a second package clause in that directory would buy
+  nothing.
 
 A module's `service_test.go` is never among them: mocks generate in-package,
 so a mock never imports the package it mocks, and every one is `package
@@ -404,10 +423,10 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 
 `make check-boundaries` runs `scripts/check-boundaries.sh` and fails build on any of these. This part worth memorising — these rules you cannot violate quiet.
 
-`scripts/check-boundaries.sh` registers **five** checks, and every rule below
+`scripts/check-boundaries.sh` registers **six** checks, and every rule below
 names the function that enforces it so the two cannot drift apart by name
-alone. **They are numbered 1, 2, 3, 4 and 6. The gaps are deliberate.** Checks
-5 and 7 were retired, and renumbering the survivors would falsify every
+alone. **They are numbered 1, 2, 3, 4, 6 and 8. The gaps are deliberate.**
+Checks 5 and 7 were retired, and renumbering the survivors would falsify every
 by-number citation here, in `ARCHITECTURE.md` and in `db/OWNERSHIP.md` at
 once. A gap also states something a closed list would hide: a check used to be
 here, and why it is not.
@@ -424,13 +443,17 @@ here, and why it is not.
    Also checked: `json:"-"` must not appear anywhere under `internal/` outside
    an `adapter/http` (no exemption at all, tests included — there are **zero**
    in the tree today), and no file named `dto.go` may exist anywhere under
-   `internal/`. Two paths are allowlisted by name _with a stated reason_ in
-   the script — `internal/modules/payment/adapter/gateway/gateway.go` (the
-   external gateway's wire contract, not ours) and
-   `internal/server/response/response.go` (the shared envelope every handler
-   writes through) — plus `internal/platform/` by location, which covers
-   `internal/platform/config/`: those are `envconfig` tags, not `json`, but
-   the exemption matters so that adding one is not mistaken for a domain leak.
+   `internal/`. One path is allowlisted by name _with a stated reason_ in the
+   script — `internal/modules/payment/adapter/gateway/gateway.go`, the
+   external gateway's wire contract rather than ours — plus
+   `internal/platform/` by location. That location arm covers two things at
+   once: `internal/platform/config/`, whose tags are `envconfig` and not
+   `json` but whose exemption matters so that adding one is not mistaken for a
+   domain leak, and `internal/platform/response/response.go`, the shared
+   envelope every handler writes through. The envelope used to need a name of
+   its own, at `internal/server/response/response.go`; that entry was deleted
+   when the package moved under `internal/platform`, where it is exempt by
+   location like everything else there.
 2. **`check_ownership_doc`: `db/OWNERSHIP.md` itself has no duplicate row, no
    row for a table no migration creates, and no table with no owning row.**
    Parsed out of the document at run time, between the BEGIN/END OWNERSHIP
@@ -477,10 +500,17 @@ here, and why it is not.
    coupling it prevented needed two peer packages inside one module, and there
    is one `Service` per module now. The number is left vacant on purpose.
 6. **`check_transport_direction`: a module may not import `internal/server`,
-   except its own `adapter/http`.** That is the one exempt location, and it is
-   load-bearing rather than decorative: every module's `adapter/http` calls
-   `response.Bind` and `middleware.RequireUser` (rule 18), so removing the arm
-   reports **85** imports across **fifteen** modules in one run. The check
+   except its own `adapter/http`.** That is the one exempt location, and it
+   still carries real weight, though much less than it used to: removing the
+   arm reports **20** imports across **nine** modules in one run — `cart
+   checkout notification order promotion review shipping user wishlist`. It
+   used to report 85 across all fifteen, and the drop is the measure of what
+   moved: `response.Bind` is `internal/platform/response` now, so the only
+   reason left to import `internal/server` is `middleware.RequireUser`,
+   `SetUserContext` and `UserContext` (rule 18) — caller identity, which is
+   exactly what stayed. The other six `adapter/http` packages — `auth
+   category dashboard inventory payment product` — serve routes that never
+   name a caller and import `internal/server` nowhere at all. The check
    catches a `Service` returning a transport type, and a module that would
    register its own routes — either would make every binary constructing the
    module link HTTP, including the worker, which serves nothing. A module that
@@ -494,25 +524,50 @@ here, and why it is not.
    in each module's root package, which imports `domain/` by design, so the
    rule had nothing left to be true of. What it guaranteed is genuinely gone
    — see `ARCHITECTURE-LIMITATIONS.md`.
+8. **`check_platform_leaf`: nothing under `internal/platform` may import a
+   local package outside `internal/platform`.** The point is portability:
+   `cp -r internal/platform` into a fresh module has to compile with no edits,
+   and one import reaching upward ends that silently, in a diff that reads as
+   obviously fine. The test is written the other way round from every other
+   import check here — it matches **every** import of this repository's own
+   code and then subtracts what is allowed, rather than naming the trees that
+   are forbidden. That is deliberate: the first version named
+   `internal/modules`, `internal/server` and `internal/apperror`, and so said
+   nothing about `internal/bootstrap` or `cmd/mockgateway/mockserver`, either
+   of which would end the property just as completely. A closed list also only
+   covers a tree added later on the day someone remembers to extend it.
+   **`internal/testutil` is the one exemption**, named in the script with its
+   reason: three platform test packages import it for the shared dockertest
+   harness (`platform/database`, `platform/cache`, `platform/jobs/postgres`).
+   It is a hole rather than a tidy carve-out, and it is why the copy property
+   holds for `go build` on a copied `internal/platform` and **not** for `go
+   test` — `internal/testutil` does not live under `internal/platform` and so
+   does not travel with it. Closing it means moving `internal/testutil` down
+   there; until someone does, it is a stated limitation, recorded here, in the
+   script and in `ARCHITECTURE-LIMITATIONS.md`.
 
 `scripts/boundaries_test.go` is what keeps a path-keyed check from dying
 quietly. It plants a probe file in a real module — a json tag, a `dto.go`, a
 foreign `FROM orders`, a `domain/` import, an adapter import, an
-`internal/server` import — and asserts the script reports each one. It also
+`internal/server` import, an upward import from `internal/platform` — and
+asserts the script reports each one. It also
 probes from the other side, asserting that a module's root-package import, the
-wiring layer's adapter import and `checkout`'s `order/domain` import all stay
+wiring layer's adapter import, `checkout`'s `order/domain` import and an
+intra-platform import all stay
 clean, so an exemption that has stopped matching anything fails a test instead
 of printing `Boundaries OK`. Run it with `go test ./scripts/`.
 
 Two more rules are machine-checked, but by `make lint` rather than
 `make check-boundaries` — which means `make ci` catches them and
-`check-boundaries` does not:
+`check-boundaries` does not. They share the number 9 because 8 is now a
+boundary check and the conventions below start at 10, and moving either would
+falsify a citation somewhere:
 
-8. **No stdlib `log`, anywhere.** `depguard` denies `pkg: log$` across
+9a. **No stdlib `log`, anywhere.** `depguard` denies `pkg: log$` across
    `$all`. There is no `main.go` carve-out: `Run` and `run` report their own
    failures, so `main` needs no logger of its own and holds only the exit
    code.
-9. **No `slog.Any`, anywhere.** `forbidigo` denies the identifier. Every
+9b. **No `slog.Any`, anywhere.** `forbidigo` denies the identifier. Every
    attribute names its type. An error is
    `slog.String("error", err.Error())` — byte-identical output, because
    slog's JSONHandler already special-cases `error` by calling `Error()`.
@@ -667,7 +722,26 @@ compiler; they are all greps.
 
 - Go 1.26. stdlib `net/http` `ServeMux` — do not add third-party router.
 - `encoding/json` for JSON. `log/slog` for logging. `go-playground/validator/v10` for validation. `godotenv` + `kelseyhightower/envconfig` for config.
-- Errors: sentinels in `internal/apperror`. Wrap with `fmt.Errorf("%w: ...", apperror.ErrBadRequest)` to add context.
+- Errors: five generic kinds in `internal/platform/errs` (`ErrNotFound`,
+  `ErrConflict`, `ErrBadRequest`, `ErrUnauthorized`, `ErrForbidden`), seven
+  cross-module business sentinels in `internal/apperror`. Wrap with
+  `fmt.Errorf("%w: ...", errs.ErrBadRequest)` to add context.
+- **A business sentinel is declared as a wrap of a generic kind, never with a
+  bare `errors.New`.** `response.HandleErr` is five rows long and matches
+  nothing but the five `errs` kinds, so a sentinel that unwraps to none of
+  them is a 500 with no way for a caller to tell it from a database outage.
+  Nothing catches that: `internal/apperror/apperror_test.go`'s table is
+  hand-written, so an eighth sentinel added without an eighth row fails no
+  test. The declaration is the only place this can be got right —
+  `apperror.ErrOrderCharging` is a 409 because it wraps `errs.ErrConflict`,
+  not because any transport file says so.
+- **`errors.Is(err, errs.ErrConflict)` now matches every business sentinel
+  that wraps it**, where `errors.Is(err, apperror.ErrConflict)` used to match
+  only the generic one. Nothing in the tree relies on the old narrowness —
+  all twelve `errors.Is(..., errs.*)` call sites were traced when the split
+  landed — but a new `errors.Is` against a generic kind is now a broader
+  question than it looks. Match the business sentinel when you mean the
+  business case.
 - Packages are short singular nouns (`user`, `product`, `cart`).
 - `gofmt -s`, enforced by `make fmt` and golangci-lint. Import groups: stdlib, blank line, third-party, blank line, local (`github.com/residwi/go-api-project-template/...`).
 - **No comments in Go source, except directives and two named exceptions.** This is narrower than "explain why, not how": a comment strip removed every prose comment in the tree, and nothing has been allowed back in since except what earns its place by name, not by category. Directives always stay — every `//nolint:` (with its justification on the same line; see Guardrails) and every `//go:` — because those are instructions to the toolchain, not prose for a reader. Two specific comments survive because deleting them lets a future edit reopen a bug this refactor already paid to close: `internal/platform/jobs/runner.go`'s doc comment above `leaseSafetyDivisor` (without it, `lease - lease/5` reads as arithmetic to tidy away, and tidying it reopens a window where two workers run the same job), and `internal/modules/checkout/service.go`'s comment above `if created && order.Total.Amount > 0` (without it, the `created &&` guard reads as redundant, and deleting it reintroduces the double-charge `6c8bc0f` fixed). Do not add a third by analogy — a comment earns a place here by naming a specific regression it prevents, not by resembling one of these two.
@@ -707,7 +781,25 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 
 - Secrets come from env vars or gitignored `.env`. Never commit real secrets. `.env.example` lists every supported variable.
 - JWT auth with configurable expiry; bcrypt password hashes; RBAC via admin middleware.
-- Middleware in `internal/server/middleware/`: panic recovery, request-ID injection, structured request logging, CORS, rate limiting, auth, admin. `NewRouter` chains four of them around the whole mux and mounts the two rate limiters per group; `ARCHITECTURE-LIMITATIONS.md` records what no test proves about either.
+- Middleware lives in two packages. `internal/platform/web` holds panic
+  recovery, request-ID injection, structured request logging and CORS, plus
+  `Middleware`, `Chain` and `RouteGroup`. `internal/server/middleware` holds
+  auth, admin and rate limiting. `NewRouter` chains the four `web` ones around
+  the whole mux and mounts the two rate limiters per group;
+  `ARCHITECTURE-LIMITATIONS.md` records what no test proves about either.
+
+  **The line between the two packages is whether the middleware knows a caller
+  identity or a feature module.** `web` may import `platform/config`,
+  `platform/logger` and `platform/response` and nothing else of ours — check 8
+  enforces that, and it is what makes the package copyable into a fresh
+  project. Anything that reads or writes the user in the request context, or
+  names a module type, belongs in `internal/server/middleware`.
+  `ratelimit.go` is the instructive case: it looks entirely generic — a Redis
+  counter and a window — but it calls `GetUserContext` to key the limit per
+  user, so it stays on the server side. A new compression or timeout
+  middleware would go in `web`; a new one that reads a role, a tenant or a
+  module's config goes beside `auth.go`. If a middleware would need an import
+  `web` may not have, that is the answer, not a reason to widen check 8.
 - Field exposure controlled by DTO omission, not by `json:"-"`. **There are zero `json:"-"` tags under `internal/`, and check 1b keeps it that way.** Fourteen of them used to be load-bearing security controls (`user.PasswordHash`, `payment.GatewayResponse`, `order.RequestHash`) where deleting two characters published a password hash. Rule 1 exists for that reason: adding a field to a response now means naming it in a DTO deliberately. The failure mode that replaced it is naming the *wrong* DTO — see `ARCHITECTURE-LIMITATIONS.md` on the public and admin response mappers that live in separate, differently-named files (`response.go`, `admin_response.go`) in the same package: the risk narrowed from mistyping an adjacent identifier to reaching for the wrong file, but a handler can still call either mapper and compile.
 
 ## Guardrails

@@ -264,20 +264,24 @@ other twelve manufactures a consistency that is not there.
 
 ## Nothing tests the middleware chain `NewRouter` builds, or either rate limiter's binding
 
-**Where you hit it:** you reorder `middleware.Chain`'s arguments, or bind a
+**Where you hit it:** you reorder `web.Chain`'s arguments, or bind a
 route group to the wrong limiter, and the whole suite stays green.
 
-`internal/server/middleware` tests each middleware in isolation —
-`recover_test.go`, `requestid_test.go`, `logging_test.go` and
-`ratelimit_test.go` all exist. Nothing tests the composition.
-`internal/server/router.go`'s `NewRouter` ends with:
+Both middleware packages test each middleware in isolation —
+`internal/platform/web`'s `recover_test.go`, `requestid_test.go`,
+`logging_test.go` and `cors_test.go`, and `internal/server/middleware`'s
+`auth_test.go`, `admin_test.go` and `ratelimit_test.go` all exist. Nothing
+tests the composition, and the split makes that slightly worse: the chain
+`NewRouter` builds now spans two packages, so neither package's tests can
+cover it even in principle. `internal/server/router.go`'s `NewRouter` ends
+with:
 
 ```go
-return middleware.Chain(
-	middleware.RequestID,
-	middleware.Logging(logger),
-	middleware.Recovery(logger),
-	middleware.CORS(appCfg.CORS),
+return web.Chain(
+	web.RequestID,
+	web.Logging(logger),
+	web.Recovery(logger),
+	web.CORS(appCfg.CORS),
 )(mux)
 ```
 
@@ -314,15 +318,90 @@ assert the header round-trips on a normal request. For the limiters, drive
 for `POST /api/orders` against `ORDER_RATE_LIMIT`. Both can use the
 Redis-backed router test that already exists. Neither is done here.
 
+## A sentinel's HTTP status is fixed where the sentinel is declared
+
+**Where you hit it:** you want to know why `POST /api/orders/{id}/cancel`
+answers 409, and you open `internal/platform/response/error_mapper.go` to find
+out. It does not say.
+
+`HandleErr` is five rows long. It matches `errs.ErrNotFound`,
+`errs.ErrConflict`, `errs.ErrBadRequest`, `errs.ErrUnauthorized` and
+`errs.ErrForbidden`, in that order, and returns 500 for anything else. The
+status for `apperror.ErrOrderCharging` is decided one line earlier than you
+would look, in `internal/apperror/apperror.go`:
+
+```go
+ErrOrderCharging = fmt.Errorf("%w: order has an in-flight payment, cannot cancel", errs.ErrConflict)
+```
+
+That inversion is the price of the thing it bought, and the trade is a good
+one: the mapper carries no business knowledge at all, which is what let it
+move below `internal/modules/` into `internal/platform` and stop being a file
+every new sentinel had to be registered in. The old fifteen-row table was a
+second place to remember, and `ErrAlreadyFinalized` is the proof it did not
+work — it was missing from that table and returned 500 on a live route until
+this split gave it a wrap.
+
+What you give up is the single readable index. There is no file that lists
+"these errors are 409", and answering the question means grepping for the
+sentinel and reading its declaration. There is also no compiler help for the
+mistake that replaced the old one: a sentinel declared with a bare
+`errors.New` unwraps to none of the five kinds, so it 500s, and
+`internal/apperror/apperror_test.go`'s hand-written table does not grow a row
+on its own. `AGENTS.md`'s code-style section states the rule; nothing enforces
+it.
+
+**What you would do:** an `apperror` test that reflects over the package's
+exported `error` variables and asserts each one matches one of the five kinds
+would close the gap without a table to maintain. It needs `reflect` over a
+package's own top-level vars, which Go does not offer directly — the practical
+form is a small `go:generate`d list or a `go/ast` walk in the test. Neither is
+done here, and with seven sentinels the table is still cheaper than the
+machinery.
+
+## The copy property `internal/platform` is checked for holds for `go build`, not `go test`
+
+**Where you hit it:** you `cp -r internal/platform` into a fresh module, as
+check 8 exists to guarantee you can, and `go build ./...` passes and `go test
+./...` does not compile.
+
+Check 8 forbids every import of local code from under `internal/platform`
+except `internal/platform` itself — and `internal/testutil`, its one
+exemption. That exemption is not decorative: `platform/database`,
+`platform/cache` and `platform/jobs/postgres` each import `internal/testutil`
+from a `_test.go` file, for the shared dockertest harness that starts the two
+fixed-name containers. `internal/testutil` does not live under
+`internal/platform`, so it does not travel with a copy of it, and those three
+test packages fail to build in the fresh module.
+
+The non-test build is genuinely a leaf, which is what the goal was worth
+stating. The test build never was, and was not made worse by the split — the
+three imports predate it. The reason it is written down rather than quietly
+tolerated is that check 8's exemption list would otherwise read as a closed
+set with an unexplained hole in it, and the next person to widen the check
+would remove the exemption, break three test packages and learn this the
+expensive way.
+
+**What you would do:** move `internal/testutil` to
+`internal/platform/testutil` and drop the exemption. It is a mechanical move —
+one directory, 24 calling test packages, an import-path rewrite — and it makes
+the leaf property true for `go test` as well. The argument against is that
+`internal/testutil` is a test harness rather than infrastructure the running
+binaries use, and putting it under `internal/platform` says otherwise. Not
+done here.
+
 ## `cmd/` and `test/` are outside every boundary check
 
 **Where you hit it:** you look for the check that stops a binary reaching into
 a module's `domain/`, and there is not one.
 
-All five checks walk `internal/` and nothing else. Check 1 finds its files
+All six checks walk `internal/` and nothing else. Check 1 finds its files
 with `find internal -type f -name '*.go'`; check 4's `importer_roots` iterates
-`internal/*/`; check 6 iterates `internal/modules/*`. So `cmd/` and `test/`
-are never scanned, and both use the freedom: `cmd/worker/main.go` imports
+`internal/*/`; check 6 iterates `internal/modules/*`; check 8 walks
+`internal/platform`. Check 8 is the only one that so much as names `cmd/`, and
+only as a *target* — it reports a platform file importing
+`cmd/mockgateway/mockserver`, never anything `cmd/` itself does. So `cmd/` and
+`test/` are never scanned as importers, and both use the freedom: `cmd/worker/main.go` imports
 `payment/domain` for the `Job` type its processor's methods take, `test/e2e`
 imports it to assert on, and `cmd/mockgateway/mockserver` imports
 `payment/gateway` and declares three `json` tags of its own. None of it is
@@ -433,7 +512,7 @@ Behaviour change, and chosen. Previous implementation drop line with `JOIN … A
 
 **Where you hit it:** cart contain items priced in different currencies, endpoint that used to return 200 now return 400.
 
-`money.Money.Add` refuse to sum across currencies, so `cart.Cart.Total()` return `(money.Money, error)`, and `internal/modules/cart/adapter/http/handler.go`'s `Get` propagate that error instead of publishing total it could not compute. Error wrap `apperror.ErrBadRequest` alongside `money.ErrCurrencyMismatch`, because `ErrCurrencyMismatch` alone match no case in `response.HandleErr` and would surface as 500 for what is plainly user input.
+`money.Money.Add` refuse to sum across currencies, so `cart.Cart.Total()` return `(money.Money, error)`, and `internal/modules/cart/adapter/http/handler.go`'s `Get` propagate that error instead of publishing total it could not compute. Error wrap `errs.ErrBadRequest` alongside `money.ErrCurrencyMismatch`, because `ErrCurrencyMismatch` alone match no case in `response.HandleErr` and would surface as 500 for what is plainly user input.
 
 **Nothing prevents such a cart existing.** Prices per-product and `cart.AddItem` not constrain them, so catalogue with mixed currencies will produce this. Checkout already reject it; this change make `GET /api/cart` agree with `PlaceOrder` instead of showing number denominated in nothing.
 
@@ -768,7 +847,7 @@ _layer_ (build every module's dependencies, then every module) not by module.
 
 **Where you hit it:** a cursor a client sends back from a previous page decodes to a different instant than the one that produced it, and pagination silently returns the wrong rows — never an error, just a page that quietly skips or repeats.
 
-`internal/server/response/pagination_cursor.go` formats the timestamp half of a keyset cursor with one unexported constant, `cursorTimeFormat`, and every call site that builds a cursor for `CursorPage[T]` has to agree with it implicitly, by never formatting a cursor's timestamp any other way. Nothing enforces that agreement beyond there being exactly one constant and one function that reads it. A second encoder — a different endpoint hand-rolling its own cursor, a future refactor that inlines the format string somewhere convenient — would drift the moment it used a layout with different precision or a different timezone offset, and the failure mode is a mis-decoded timestamp, not a parse error: `time.Parse` with a mismatched-but-plausible layout can still succeed on the wrong value.
+`internal/platform/response/pagination_cursor.go` formats the timestamp half of a keyset cursor with one unexported constant, `cursorTimeFormat`, and every call site that builds a cursor for `CursorPage[T]` has to agree with it implicitly, by never formatting a cursor's timestamp any other way. Nothing enforces that agreement beyond there being exactly one constant and one function that reads it. A second encoder — a different endpoint hand-rolling its own cursor, a future refactor that inlines the format string somewhere convenient — would drift the moment it used a layout with different precision or a different timezone offset, and the failure mode is a mis-decoded timestamp, not a parse error: `time.Parse` with a mismatched-but-plausible layout can still succeed on the wrong value.
 
 **What you would do:** keep every cursor-producing call site routed through `CursorPage[T]` rather than formatting a timestamp directly, and if a second encoder is ever genuinely needed, export `cursorTimeFormat` (or an equivalent constant) rather than letting a second literal format string exist anywhere in the tree.
 

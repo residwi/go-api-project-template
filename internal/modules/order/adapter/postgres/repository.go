@@ -10,11 +10,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -78,7 +78,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Order, 
 		&notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting order by id: %w", err)
 	}
@@ -231,7 +231,7 @@ func (r *Repository) Create(ctx context.Context, o *domain.Order) error {
 	).Scan(&o.ID, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("creating order: %w", err)
 	}
@@ -317,7 +317,7 @@ func (r *Repository) GetByUserIDAndIdempotencyKey(
 		&notes, &o.StockDeducted, &o.StockReversed, &o.CreatedAt, &o.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting order by idempotency key: %w", err)
 	}
@@ -344,7 +344,7 @@ func (r *Repository) UpdateTotals(ctx context.Context, id uuid.UUID, discount, t
 		return fmt.Errorf("updating order totals: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }
@@ -401,7 +401,7 @@ func (r *Repository) Apply(ctx context.Context, id uuid.UUID, t domain.Transitio
 	).Scan(&returnedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("applying order transition: %w", err)
 	}
@@ -417,7 +417,7 @@ func (r *Repository) UpdateStatus(ctx context.Context, id uuid.UUID, from, to do
 	).Scan(&returnedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("updating order status: %w", err)
 	}

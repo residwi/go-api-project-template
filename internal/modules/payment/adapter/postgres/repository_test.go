@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -75,7 +75,7 @@ func TestPostgresRepository_GetActiveByOrderID(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetActiveByOrderID(context.Background(), orderID)
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 		assert.Nil(t, got)
 	})
 }
@@ -99,7 +99,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -127,7 +127,7 @@ func TestPostgresRepository_MarkPaid(t *testing.T) {
 		p := seedPayment(t, repo, orderID)
 
 		err := repo.MarkPaid(context.Background(), p.ID, []domain.Status{domain.StatusFailed})
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -159,7 +159,7 @@ func TestPostgresRepository_UpdateStatus(t *testing.T) {
 			domain.StatusRequiresReview,
 			[]domain.Status{domain.StatusFailed},
 		)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -265,7 +265,7 @@ func TestPostgresRepository_GetByGatewayTxnID(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		got, err := repo.GetByGatewayTxnID(context.Background(), "nonexistent-txn-id")
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 		assert.Nil(t, got)
 	})
 }

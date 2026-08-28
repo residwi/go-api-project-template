@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -93,7 +92,7 @@ func TestNewPrimaryPostgres(t *testing.T) {
 func TestNewReplicaPostgres(t *testing.T) {
 	t.Run("empty url returns ErrReplicaNotConfigured", func(t *testing.T) {
 		pool, err := NewReplicaPostgres(context.Background(), config.Database{ReplicaURL: ""})
-		require.ErrorIs(t, err, apperror.ErrReplicaNotConfigured)
+		require.ErrorIs(t, err, ErrReplicaNotConfigured)
 		assert.Nil(t, pool)
 	})
 

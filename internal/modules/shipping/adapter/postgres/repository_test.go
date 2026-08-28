@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -131,7 +131,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("cancelled context returns error", func(t *testing.T) {
@@ -162,7 +162,7 @@ func TestPostgresRepository_GetByOrderID(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByOrderID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("cancelled context returns error", func(t *testing.T) {
@@ -192,7 +192,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.MarkDelivered(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("cancelled context returns error", func(t *testing.T) {
@@ -237,7 +237,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 			Status:  domain.StatusPending,
 		}
 		err := repo.Update(context.Background(), s)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("cancelled context returns error", func(t *testing.T) {

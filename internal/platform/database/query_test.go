@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -49,7 +49,7 @@ func TestKeysetCursor(t *testing.T) {
 	t.Run("malformed cursor yields ErrBadRequest and leaves inputs unchanged", func(t *testing.T) {
 		where, args, argIdx, err := KeysetCursor("user_id = $1", []any{"u"}, 2, "created_at, id", "not-base64!!")
 
-		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		require.ErrorIs(t, err, errs.ErrBadRequest)
 		assert.Equal(t, "user_id = $1", where)
 		assert.Equal(t, []any{"u"}, args)
 		assert.Equal(t, 2, argIdx)

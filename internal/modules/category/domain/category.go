@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
 
@@ -30,20 +30,20 @@ func Slugify(name, fallbackSeed string) string {
 
 func ValidateParentSelf(parentID, selfID uuid.UUID) error {
 	if parentID == selfID && selfID != uuid.Nil {
-		return fmt.Errorf("%w: category cannot be its own parent", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: category cannot be its own parent", errs.ErrBadRequest)
 	}
 	return nil
 }
 
 func ValidateParentDepth(depth int, formsCycle bool) error {
 	if depth == 0 {
-		return fmt.Errorf("%w: parent category not found", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: parent category not found", errs.ErrBadRequest)
 	}
 	if formsCycle {
-		return fmt.Errorf("%w: circular parent reference", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: circular parent reference", errs.ErrBadRequest)
 	}
 	if depth+1 > MaxDepth {
-		return fmt.Errorf("%w: category depth exceeds maximum of %d", apperror.ErrBadRequest, MaxDepth)
+		return fmt.Errorf("%w: category depth exceeds maximum of %d", errs.ErrBadRequest, MaxDepth)
 	}
 
 	return nil

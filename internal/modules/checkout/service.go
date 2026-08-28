@@ -10,6 +10,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 type PlaceOrderInput struct {
@@ -66,10 +67,10 @@ func (s *Service) RetryPayment(
 		return payment.ChargeResult{}, err
 	}
 	if order.UserID != userID {
-		return payment.ChargeResult{}, apperror.ErrNotFound
+		return payment.ChargeResult{}, errs.ErrNotFound
 	}
 	if claimErr := s.orders.BeginPaymentAttempt(ctx, orderID); claimErr != nil {
-		if errors.Is(claimErr, apperror.ErrConflict) {
+		if errors.Is(claimErr, errs.ErrConflict) {
 			return payment.ChargeResult{}, apperror.ErrOrderNotPayable
 		}
 		return payment.ChargeResult{}, claimErr

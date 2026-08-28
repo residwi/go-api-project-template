@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 type Type string
@@ -44,22 +45,22 @@ type CouponUsage struct {
 
 func ValidatePercentageValue(promoType Type, value int64) error {
 	if promoType == TypePercentage && value > 100 {
-		return fmt.Errorf("%w: percentage discount value cannot exceed 100", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: percentage discount value cannot exceed 100", errs.ErrBadRequest)
 	}
 	return nil
 }
 
 func ValidatePromotion(promo *Promotion, orderAmount int64) error {
 	if !promo.Active {
-		return fmt.Errorf("%w: promotion is not active", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: promotion is not active", errs.ErrBadRequest)
 	}
 
 	now := time.Now()
 	if now.Before(promo.StartsAt) {
-		return fmt.Errorf("%w: promotion has not started yet", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: promotion has not started yet", errs.ErrBadRequest)
 	}
 	if now.After(promo.ExpiresAt) {
-		return fmt.Errorf("%w: promotion has expired", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: promotion has expired", errs.ErrBadRequest)
 	}
 
 	if promo.MaxUses != nil && promo.UsedCount >= *promo.MaxUses {
@@ -67,7 +68,7 @@ func ValidatePromotion(promo *Promotion, orderAmount int64) error {
 	}
 
 	if orderAmount < promo.MinOrderAmount {
-		return fmt.Errorf("%w: order amount below minimum", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: order amount below minimum", errs.ErrBadRequest)
 	}
 
 	return nil

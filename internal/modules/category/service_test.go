@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 func TestService_Create(t *testing.T) {
@@ -54,12 +54,12 @@ func TestService_Create(t *testing.T) {
 		var products ProductCounter
 		svc := New(repo, products)
 
-		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
+		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(errs.ErrConflict)
 
 		result, err := svc.Create(t.Context(), "Electronics", nil, nil, nil, nil)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 
 	t.Run("sets sort order and active from request", func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestService_Create_ValidatesParent(t *testing.T) {
 
 		_, err := svc.Create(t.Context(), "Orphan", nil, &parentID, nil, nil)
 
-		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		require.ErrorIs(t, err, errs.ErrBadRequest)
 		assert.ErrorContains(t, err, "parent category not found")
 	})
 
@@ -128,7 +128,7 @@ func TestService_Create_ValidatesParent(t *testing.T) {
 
 		_, err := svc.Create(t.Context(), "L6", nil, &parentID, nil, nil)
 
-		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		require.ErrorIs(t, err, errs.ErrBadRequest)
 		assert.ErrorContains(t, err, "depth exceeds maximum of 5")
 	})
 
@@ -211,13 +211,13 @@ func TestService_Update(t *testing.T) {
 		svc := New(repo, products)
 
 		id := uuid.New()
-		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, apperror.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, errs.ErrNotFound)
 
 		newName := "Gadgets"
 		result, err := svc.Update(t.Context(), id, &newName, nil, nil, nil, nil)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("update repo error", func(t *testing.T) {
@@ -235,13 +235,13 @@ func TestService_Update(t *testing.T) {
 			Active: true,
 		}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
-		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(apperror.ErrConflict)
+		repo.EXPECT().Update(mock.Anything, mock.Anything).Return(errs.ErrConflict)
 
 		newName := "Gadgets"
 		result, err := svc.Update(t.Context(), id, &newName, nil, nil, nil, nil)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 
 	t.Run("updates all optional fields", func(t *testing.T) {
@@ -301,7 +301,7 @@ func TestService_Update_ValidatesParent(t *testing.T) {
 
 		_, err := svc.Update(t.Context(), selfID, nil, nil, &parentID, nil, nil)
 
-		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		require.ErrorIs(t, err, errs.ErrBadRequest)
 		assert.ErrorContains(t, err, "circular parent reference")
 	})
 
@@ -319,7 +319,7 @@ func TestService_Update_ValidatesParent(t *testing.T) {
 
 		_, err := svc.Update(t.Context(), selfID, nil, nil, &selfID, nil, nil)
 
-		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		require.ErrorIs(t, err, errs.ErrBadRequest)
 		assert.ErrorContains(t, err, "cannot be its own parent")
 	})
 
@@ -374,11 +374,11 @@ func TestService_Delete(t *testing.T) {
 
 		id := uuid.New()
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
-		repo.EXPECT().Delete(mock.Anything, id).Return(apperror.ErrNotFound)
+		repo.EXPECT().Delete(mock.Anything, id).Return(errs.ErrNotFound)
 
 		err := svc.Delete(t.Context(), id)
 
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("has published products returns ErrBadRequest", func(t *testing.T) {
@@ -393,7 +393,7 @@ func TestService_Delete(t *testing.T) {
 
 		err := svc.Delete(t.Context(), id)
 
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("count published products error", func(t *testing.T) {
@@ -444,7 +444,7 @@ func TestService_Delete_RefusesCategoryWithPublishedProducts(t *testing.T) {
 	counter.EXPECT().CountPublished(mock.Anything, categoryID).Return(3, nil)
 
 	err := svc.Delete(t.Context(), categoryID)
-	require.ErrorIs(t, err, apperror.ErrBadRequest)
+	require.ErrorIs(t, err, errs.ErrBadRequest)
 }
 
 func TestService_List(t *testing.T) {
@@ -514,11 +514,11 @@ func TestService_GetBySlug(t *testing.T) {
 		var products ProductCounter
 		svc := New(repo, products)
 
-		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, apperror.ErrNotFound)
+		repo.EXPECT().GetBySlug(mock.Anything, "nonexistent").Return(nil, errs.ErrNotFound)
 
 		result, err := svc.GetBySlug(t.Context(), "nonexistent")
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }

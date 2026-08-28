@@ -14,6 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
@@ -65,7 +66,7 @@ func (s *Service) Place(
 	idempotencyKey string,
 ) (*domain.Order, bool, error) {
 	existing, err := s.repo.GetByUserIDAndIdempotencyKey(ctx, userID, idempotencyKey)
-	if err != nil && !errors.Is(err, apperror.ErrNotFound) {
+	if err != nil && !errors.Is(err, errs.ErrNotFound) {
 		return nil, false, err
 	}
 	if existing != nil {
@@ -91,7 +92,7 @@ func (s *Service) Place(
 
 	err = s.tx.Run(ctx, func(txCtx context.Context) error {
 		if txErr := s.cart.Lock(txCtx, userID); txErr != nil {
-			if errors.Is(txErr, apperror.ErrNotFound) {
+			if errors.Is(txErr, errs.ErrNotFound) {
 				return apperror.ErrCartEmpty
 			}
 			return txErr
@@ -110,11 +111,11 @@ func (s *Service) Place(
 		subtotal := money.New(0, snapshot.Items[0].Price.Currency)
 		for _, item := range snapshot.Items {
 			if item.Status != productStatusPublished {
-				return fmt.Errorf("%w: product %s is not available", apperror.ErrBadRequest, item.Name)
+				return fmt.Errorf("%w: product %s is not available", errs.ErrBadRequest, item.Name)
 			}
 			sum, addErr := subtotal.Add(item.Price.MulQty(item.Quantity))
 			if addErr != nil {
-				return fmt.Errorf("%w: cart contains mixed currencies: %w", apperror.ErrBadRequest, addErr)
+				return fmt.Errorf("%w: cart contains mixed currencies: %w", errs.ErrBadRequest, addErr)
 			}
 			subtotal = sum
 			reservations[item.ProductID] = item.Quantity
@@ -199,7 +200,7 @@ func (s *Service) GetForUser(ctx context.Context, userID, orderID uuid.UUID) (*d
 		return nil, err
 	}
 	if order.UserID != userID {
-		return nil, apperror.ErrNotFound
+		return nil, errs.ErrNotFound
 	}
 
 	items, err := s.repo.ListItemsByOrderID(ctx, orderID)
@@ -280,7 +281,7 @@ func (s *Service) CancelByUser(ctx context.Context, userID, orderID uuid.UUID) e
 		return err
 	}
 	if order.UserID != userID {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 
 	if order.Status == domain.StatusPaymentProcessing {
@@ -304,7 +305,7 @@ func (s *Service) ChangeStatus(ctx context.Context, orderID uuid.UUID, toStatus 
 		domain.StatusExpired, domain.StatusRefunded, domain.StatusFulfillmentFailed:
 		return fmt.Errorf(
 			"%w: status %s is managed by the payment, cancel, or refund flow and cannot be set with a direct status update",
-			apperror.ErrBadRequest,
+			errs.ErrBadRequest,
 			toStatus,
 		)
 	case domain.StatusAwaitingPayment, domain.StatusProcessing, domain.StatusShipped, domain.StatusDelivered:
@@ -316,7 +317,7 @@ func (s *Service) ChangeStatus(ctx context.Context, orderID uuid.UUID, toStatus 
 	}
 
 	if !domain.CanTransition(order.Status, toStatus) {
-		return fmt.Errorf("%w: cannot transition from %s to %s", apperror.ErrBadRequest, order.Status, toStatus)
+		return fmt.Errorf("%w: cannot transition from %s to %s", errs.ErrBadRequest, order.Status, toStatus)
 	}
 
 	return s.UpdateStatus(ctx, orderID, order.Status, toStatus)
@@ -347,7 +348,7 @@ func (s *Service) RecoverStale(ctx context.Context) error {
 	}
 	for _, o := range orders {
 		if err := s.Apply(ctx, o.ID, domain.AwaitingPaymentTransition); err != nil {
-			if errors.Is(err, apperror.ErrConflict) {
+			if errors.Is(err, errs.ErrConflict) {
 				continue
 			}
 			s.logger.ErrorContext(
@@ -422,8 +423,8 @@ func (s *Service) finalizeFreeOrder(ctx context.Context, order *domain.Order) er
 func (s *Service) cancelWithReversal(ctx context.Context, order *domain.Order) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
 		if txErr := s.Apply(txCtx, order.ID, domain.CancelledTransition); txErr != nil {
-			if errors.Is(txErr, apperror.ErrConflict) {
-				return fmt.Errorf("%w: cannot cancel order in status %s", apperror.ErrBadRequest, order.Status)
+			if errors.Is(txErr, errs.ErrConflict) {
+				return fmt.Errorf("%w: cannot cancel order in status %s", errs.ErrBadRequest, order.Status)
 			}
 			return txErr
 		}
@@ -460,7 +461,7 @@ func (s *Service) cancelWithReversal(ctx context.Context, order *domain.Order) e
 func (s *Service) expireOne(ctx context.Context, o domain.Order) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
 		if err := s.Apply(txCtx, o.ID, domain.ExpiredTransition); err != nil {
-			if errors.Is(err, apperror.ErrConflict) {
+			if errors.Is(err, errs.ErrConflict) {
 				return nil
 			}
 			return err

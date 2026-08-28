@@ -20,9 +20,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 func TestHandler_PlaceOrder(t *testing.T) {
@@ -123,7 +125,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 	})
 
 	// money.ErrCurrencyMismatch is not a case in response.HandleErr, so alone it
-	// would be a 500. The wrapped apperror.ErrBadRequest is what makes the 400, and
+	// would be a 500. The wrapped errs.ErrBadRequest is what makes the 400, and
 	// only a mux-level assertion can see that.
 	t.Run("mixed-currency cart is a 400, not a 500", func(t *testing.T) {
 		t.Parallel()
@@ -132,7 +134,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 		userID := uuid.New()
 		usecase.EXPECT().PlaceOrder(mock.Anything, userID, mock.Anything).
-			Return(nil, errors.Join(apperror.ErrBadRequest, errors.New("cart contains mixed currencies")))
+			Return(nil, errors.Join(errs.ErrBadRequest, errors.New("cart contains mixed currencies")))
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`
@@ -343,7 +345,7 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 		userID := uuid.New()
 		orderID := uuid.New()
 		service.EXPECT().RetryPayment(mock.Anything, userID, orderID, mock.Anything).
-			Return(payment.ChargeResult{}, apperror.ErrNotFound)
+			Return(payment.ChargeResult{}, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`
@@ -437,7 +439,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCheckout) {
 	h := NewHandler(service, validator.New())
 
 	mux := http.NewServeMux()
-	authed := middleware.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouteGroup(mux, "/api/v1")
 
 	authed.HandleFunc("POST /orders", h.Place)
 	authed.HandleFunc("POST /orders/{id}/pay", h.Retry)

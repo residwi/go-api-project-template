@@ -14,6 +14,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -219,7 +220,7 @@ func TestService_RetryPayment(t *testing.T) {
 
 		_, err := svc.RetryPayment(t.Context(), uuid.New(), orderID, "pm_retry")
 
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("refuses an order that is not awaiting payment", func(t *testing.T) {
@@ -233,7 +234,7 @@ func TestService_RetryPayment(t *testing.T) {
 			UserID: userID,
 			Status: string(orderdomain.StatusPaid),
 		}, nil)
-		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(apperror.ErrConflict)
+		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(errs.ErrConflict)
 
 		svc := New(orders, NewMockPayments(t), testutil.DiscardLogger())
 
@@ -256,7 +257,7 @@ func TestService_RetryPayment(t *testing.T) {
 			Total:  money.New(4000, "USD"),
 			Status: string(orderdomain.StatusAwaitingPayment),
 		}, nil)
-		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(apperror.ErrConflict)
+		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(errs.ErrConflict)
 
 		svc := New(orders, NewMockPayments(t), testutil.DiscardLogger())
 

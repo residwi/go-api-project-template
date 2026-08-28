@@ -26,6 +26,7 @@ import (
 	wishlisthttp "github.com/residwi/go-api-project-template/internal/modules/wishlist/adapter/http"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
 
@@ -45,9 +46,9 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	authMiddleware := middleware.Auth(app.Auth, app.Users)
 	adminMiddleware := middleware.RequireAdmin
 
-	api := middleware.NewRouteGroup(mux, "/api")
-	authed := middleware.NewRouteGroup(mux, "/api", authMiddleware)
-	admin := middleware.NewRouteGroup(mux, "/api/admin", authMiddleware, adminMiddleware)
+	api := web.NewRouteGroup(mux, "/api")
+	authed := web.NewRouteGroup(mux, "/api", authMiddleware)
+	admin := web.NewRouteGroup(mux, "/api/admin", authMiddleware, adminMiddleware)
 
 	authLimiter := middleware.RateLimit(
 		logger,
@@ -55,7 +56,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 		modCfg.Auth.RateLimit,
 		modCfg.Auth.RateWindow,
 	)
-	authPublic := middleware.NewRouteGroup(mux, "/api", authLimiter)
+	authPublic := web.NewRouteGroup(mux, "/api", authLimiter)
 
 	authHandler := authhttp.NewHandler(app.Auth, v)
 	authPublic.HandleFunc("POST /auth/register", authHandler.Register)
@@ -177,11 +178,11 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 		)
 	}
 
-	return middleware.Chain(
-		middleware.RequestID,
-		middleware.Logging(logger),
-		middleware.Recovery(logger),
-		middleware.CORS(appCfg.CORS),
+	return web.Chain(
+		web.RequestID,
+		web.Logging(logger),
+		web.Recovery(logger),
+		web.CORS(appCfg.CORS),
 	)(mux)
 }
 

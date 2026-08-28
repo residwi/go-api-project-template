@@ -12,6 +12,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 var _ promotion.Repository = (*Repository)(nil)
@@ -37,7 +38,7 @@ func (r *Repository) GetByCode(ctx context.Context, code string) (*domain.Promot
 		&p.Active, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting promotion by code: %w", err)
 	}
@@ -57,7 +58,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Promoti
 		&p.Active, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting promotion by id: %w", err)
 	}
@@ -83,7 +84,7 @@ func (r *Repository) Create(ctx context.Context, promo *domain.Promotion) error 
 	).Scan(&promo.ID, &promo.UsedCount, &promo.CreatedAt, &promo.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("creating promotion: %w", err)
 	}
@@ -109,12 +110,12 @@ func (r *Repository) Update(ctx context.Context, promo *domain.Promotion) error 
 	)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("updating promotion: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }
@@ -126,7 +127,7 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("deleting promotion: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }
@@ -204,7 +205,7 @@ func (r *Repository) CreateUsage(ctx context.Context, usage *domain.CouponUsage)
 	).Scan(&usage.ID, &usage.CreatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("creating coupon usage: %w", err)
 	}
@@ -220,7 +221,7 @@ func (r *Repository) DeleteUsageByOrderID(ctx context.Context, orderID uuid.UUID
 	).Scan(&usage.CouponID, &usage.Discount)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("deleting coupon usage by order: %w", err)
 	}

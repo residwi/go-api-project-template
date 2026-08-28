@@ -14,11 +14,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 )
 
 func TestAdminHandler_Create(t *testing.T) {
@@ -148,7 +148,7 @@ func TestAdminHandler_Create(t *testing.T) {
 		mux, service := setupAdminMux(t)
 		service.EXPECT().
 			Create(mock.Anything, orderID, "FedEx", "TRACK123").
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{
 			"carrier":         "FedEx",
@@ -377,7 +377,7 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 		mux, service := setupAdminMux(t)
 		service.EXPECT().
 			UpdateTracking(mock.Anything, shipmentID, "UPS", "TRACK789").
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{
 			"carrier":         "UPS",
@@ -405,7 +405,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockShipmentManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+	admin := web.NewRouteGroup(mux, "/api/v1/admin")
 	h := NewAdminHandler(service, v)
 	admin.HandleFunc("POST /orders/{id}/ship", h.Create)
 	admin.HandleFunc("PUT /shipments/{id}/tracking", h.UpdateTracking)

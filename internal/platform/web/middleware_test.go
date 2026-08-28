@@ -1,32 +1,16 @@
-package middleware
+package web
 
 import (
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
-var testRedis *redis.Client
-
-func TestMain(m *testing.M) {
-	rdb, cleanup := testutil.MustStartRedis(1)
-	defer cleanup()
-	testRedis = rdb
-	os.Exit(m.Run())
-}
-
-func testLogger() *slog.Logger {
-	return slog.New(slog.DiscardHandler)
-}
-
 func TestChain_AppliesMiddlewareInCorrectOrder(t *testing.T) {
+	t.Parallel()
+
 	var order []string
 
 	mw1 := func(next http.Handler) http.Handler {
@@ -60,6 +44,8 @@ func TestChain_AppliesMiddlewareInCorrectOrder(t *testing.T) {
 }
 
 func TestNewRouteGroup_NoMiddlewareRegistersRoute(t *testing.T) {
+	t.Parallel()
+
 	mux := http.NewServeMux()
 	group := NewRouteGroup(mux, "/api")
 
@@ -78,6 +64,8 @@ func TestNewRouteGroup_NoMiddlewareRegistersRoute(t *testing.T) {
 }
 
 func TestNewRouteGroup_WithMiddlewareWrapsHandler(t *testing.T) {
+	t.Parallel()
+
 	mux := http.NewServeMux()
 
 	mwCalled := false
@@ -106,6 +94,8 @@ func TestNewRouteGroup_WithMiddlewareWrapsHandler(t *testing.T) {
 }
 
 func TestRouteGroup_HandleFuncDelegatesToHandle(t *testing.T) {
+	t.Parallel()
+
 	mux := http.NewServeMux()
 	group := NewRouteGroup(mux, "/api")
 

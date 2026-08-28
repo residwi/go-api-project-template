@@ -138,9 +138,35 @@ func TestCheckBoundaries(t *testing.T) {
 	})
 
 	// Check 6's exempt arm needs no probe of its own: every module's
-	// adapter/http imports internal/server/response and
-	// internal/server/middleware already, so "clean tree passes" above fails
-	// the moment that exemption stops matching.
+	// adapter/http imports internal/server/middleware already, so "clean
+	// tree passes" above fails the moment that exemption stops matching.
+
+	// Check 8 protects the one property this refactor bought: internal/platform
+	// copies into a fresh module and compiles. Nothing else proves it -- an
+	// import of a module, of internal/server or of internal/apperror from
+	// anywhere under platform compiles cleanly and passes every other check.
+	t.Run("check 8 catches platform importing a module", func(t *testing.T) {
+		probe := "package errs\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order\"\n"
+		out := runCheckWithProbe(t, filepath.Join("internal", "platform", "errs", "probe_platform.go"), probe)
+		assert.Contains(t, out, "platform must not import")
+	})
+
+	// The same probe pointed at internal/bootstrap. Check 8 used to name three
+	// trees it forbade -- modules, server, apperror -- which left bootstrap and
+	// cmd/mockgateway/mockserver able to end the leaf property in silence. The
+	// test is inverted now, so this subtest is what proves the widening is real
+	// and not just a reworded comment.
+	t.Run("check 8 catches platform importing the wiring layer", func(t *testing.T) {
+		probe := "package errs\n\nimport _ \"github.com/residwi/go-api-project-template/internal/bootstrap\"\n"
+		out := runCheckWithProbe(t, filepath.Join("internal", "platform", "errs", "probe_platform_wiring.go"), probe)
+		assert.Contains(t, out, "platform must not import")
+	})
+
+	t.Run("check 8 permits platform importing platform", func(t *testing.T) {
+		probe := "package errs\n\nimport _ \"github.com/residwi/go-api-project-template/internal/platform/paging\"\n"
+		out := runCheckWithoutError(t, filepath.Join("internal", "platform", "errs", "probe_platform_ok.go"), probe)
+		assert.Contains(t, out, "Boundaries OK")
+	})
 }
 
 func repoRoot(t *testing.T) string {

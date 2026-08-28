@@ -15,11 +15,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 func TestHandler_Me(t *testing.T) {
@@ -98,7 +99,7 @@ func TestHandler_Me(t *testing.T) {
 
 		mux, usecase := setupHandlerMux(t)
 		userID := uuid.New()
-		usecase.EXPECT().GetUser(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().GetUser(mock.Anything, userID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/users/me", nil)
@@ -233,7 +234,7 @@ func TestHandler_Update(t *testing.T) {
 		mux, usecase := setupHandlerMux(t)
 		userID := uuid.New()
 		usecase.EXPECT().UpdateProfile(mock.Anything, userID, "Jane", "", (*string)(nil)).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{"first_name": "Jane"})
 		w := httptest.NewRecorder()
@@ -317,7 +318,7 @@ func setupHandlerMux(t *testing.T) (*http.ServeMux, *MockProfileManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	authed := middleware.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouteGroup(mux, "/api/v1")
 
 	h := NewHandler(usecase, v)
 	authed.HandleFunc("GET /users/me", h.Me)

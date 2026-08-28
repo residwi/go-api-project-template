@@ -24,6 +24,7 @@ import (
 	gatewaymock "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway/mock"
 	gatewaystripe "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway/stripe"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -80,7 +81,7 @@ func TestService_Charge(t *testing.T) {
 		svc, d := newTestService(t)
 
 		d.repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		var capturedPayment *domain.Payment
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
@@ -204,7 +205,7 @@ func TestService_Charge(t *testing.T) {
 		svc, d := newTestService(t)
 
 		d.repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		var createdID uuid.UUID
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
@@ -242,7 +243,7 @@ func TestService_Charge(t *testing.T) {
 		svc, d := newTestService(t)
 
 		d.repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
 			Run(func(_ context.Context, p *domain.Payment) {
@@ -272,7 +273,7 @@ func TestService_Charge(t *testing.T) {
 		svc, d := newTestService(t)
 
 		d.repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		var createdID uuid.UUID
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
@@ -313,7 +314,7 @@ func TestService_Charge(t *testing.T) {
 		svc, d := newTestService(t)
 
 		d.repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
 			Return(errors.New("insert failed"))
@@ -342,7 +343,7 @@ func TestService_Charge_UpdateGatewayError(t *testing.T) {
 		svc, d := newTestService(t)
 
 		d.repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		var capturedPayment *domain.Payment
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
@@ -398,7 +399,7 @@ func TestService_Charge_UpdateGatewayError(t *testing.T) {
 		svc, d := newTestService(t)
 
 		d.repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
 			Run(func(_ context.Context, p *domain.Payment) {
@@ -917,7 +918,7 @@ func TestService_Refund(t *testing.T) {
 		err := svc.Refund(ctx, paymentID)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("payment not refundable - cancelled status", func(t *testing.T) {
@@ -938,7 +939,7 @@ func TestService_Refund(t *testing.T) {
 		err := svc.Refund(ctx, paymentID)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("payment not found", func(t *testing.T) {
@@ -949,12 +950,12 @@ func TestService_Refund(t *testing.T) {
 		paymentID := uuid.New()
 
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		err := svc.Refund(ctx, paymentID)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -1496,7 +1497,7 @@ func TestService_HandleWebhook(t *testing.T) {
 		unknownID := uuid.New()
 
 		d.repo.EXPECT().GetByID(mock.Anything, unknownID).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		payload := marshal(t, map[string]any{
 			"event": "success",
@@ -1673,7 +1674,7 @@ func TestService_HandleWebhook_SignatureVerification(t *testing.T) {
 		// enough to prove the signature check passed and the body reached the
 		// rest of the method.
 		unknownID := uuid.New()
-		d.repo.EXPECT().GetByID(mock.Anything, unknownID).Return(nil, apperror.ErrNotFound)
+		d.repo.EXPECT().GetByID(mock.Anything, unknownID).Return(nil, errs.ErrNotFound)
 
 		body := marshal(t, map[string]any{
 			"event":    "success",
@@ -1695,7 +1696,7 @@ func TestService_HandleWebhook_SignatureVerification(t *testing.T) {
 
 		err := svc.HandleWebhook(context.Background(), body, "")
 
-		require.ErrorIs(t, err, apperror.ErrUnauthorized)
+		require.ErrorIs(t, err, errs.ErrUnauthorized)
 	})
 
 	t.Run("wrong signature is rejected", func(t *testing.T) {
@@ -1708,7 +1709,7 @@ func TestService_HandleWebhook_SignatureVerification(t *testing.T) {
 
 		err := svc.HandleWebhook(context.Background(), body, "deadbeef")
 
-		require.ErrorIs(t, err, apperror.ErrUnauthorized)
+		require.ErrorIs(t, err, errs.ErrUnauthorized)
 	})
 }
 

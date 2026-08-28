@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -75,11 +75,11 @@ func TestService_Remove(t *testing.T) {
 		userID, productID := uuid.New(), uuid.New()
 
 		repo := NewMockRepository(t)
-		repo.EXPECT().RemoveItem(t.Context(), userID, productID).Return(apperror.ErrNotFound)
+		repo.EXPECT().RemoveItem(t.Context(), userID, productID).Return(errs.ErrNotFound)
 
 		err := New(repo).Remove(t.Context(), userID, productID)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("repo error propagates", func(t *testing.T) {

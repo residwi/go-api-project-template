@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/review/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -68,7 +68,7 @@ func TestService_Create(t *testing.T) {
 		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 4, "Good", "")
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("purchase verifier error propagates", func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestService_Create(t *testing.T) {
 		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 3, "OK", "")
 		require.Error(t, err)
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -166,7 +166,7 @@ func TestService_Create_PassesArgumentsInOrder(t *testing.T) {
 	purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, orderID, productID).Return(false, nil)
 
 	_, err := svc.Create(t.Context(), userID, productID, orderID, 5, "Great", "Worked well")
-	require.ErrorIs(t, err, apperror.ErrBadRequest, "a non-delivered purchase must be rejected")
+	require.ErrorIs(t, err, errs.ErrBadRequest, "a non-delivered purchase must be rejected")
 }
 
 func TestService_ListByProduct(t *testing.T) {
@@ -277,9 +277,9 @@ func TestService_Delete(t *testing.T) {
 
 		id := uuid.New()
 
-		repo.EXPECT().Delete(mock.Anything, id).Return(apperror.ErrNotFound)
+		repo.EXPECT().Delete(mock.Anything, id).Return(errs.ErrNotFound)
 
 		err := svc.Delete(t.Context(), id)
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }

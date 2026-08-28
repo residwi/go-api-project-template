@@ -1,4 +1,4 @@
-package middleware
+package web
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 )
 
 func Recovery(log *slog.Logger) Middleware {

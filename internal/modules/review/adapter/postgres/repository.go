@@ -7,10 +7,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/review"
 	"github.com/residwi/go-api-project-template/internal/modules/review/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -51,7 +51,7 @@ func (r *Repository) Create(ctx context.Context, rv *domain.Review) error {
 	).Scan(&rv.ID, &rv.CreatedAt, &rv.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("creating review: %w", err)
 	}
@@ -129,7 +129,7 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("deleting review: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }

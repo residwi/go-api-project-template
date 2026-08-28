@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 type Response struct {
@@ -88,9 +88,9 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dst); err != nil {
 		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
-			return fmt.Errorf("%w: request body too large", apperror.ErrBadRequest)
+			return fmt.Errorf("%w: request body too large", errs.ErrBadRequest)
 		}
-		return fmt.Errorf("%w: %s", apperror.ErrBadRequest, err.Error())
+		return fmt.Errorf("%w: %s", errs.ErrBadRequest, err.Error())
 	}
 	return nil
 }

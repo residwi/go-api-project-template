@@ -16,12 +16,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 )
 
 func TestAdminHandler_List(t *testing.T) {
@@ -173,7 +173,7 @@ func TestAdminHandler_Get(t *testing.T) {
 		mux, service := setupAdminMux(t)
 
 		paymentID := uuid.New()
-		service.EXPECT().GetByID(mock.Anything, paymentID).Return(nil, apperror.ErrNotFound)
+		service.EXPECT().GetByID(mock.Anything, paymentID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/admin/payments/"+paymentID.String(), nil)
@@ -248,7 +248,7 @@ func TestAdminHandler_Refund(t *testing.T) {
 		paymentID := uuid.New()
 
 		service.EXPECT().Refund(mock.Anything, paymentID).
-			Return(apperror.ErrBadRequest)
+			Return(errs.ErrBadRequest)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/admin/payments/"+paymentID.String()+"/refund", nil)
@@ -309,7 +309,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockPaymentManager) {
 	service := NewMockPaymentManager(t)
 
 	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/admin")
+	admin := web.NewRouteGroup(mux, "/api/admin")
 	h := NewAdminHandler(service)
 	admin.HandleFunc("GET /payments", h.List)
 	admin.HandleFunc("GET /payments/{id}", h.Get)

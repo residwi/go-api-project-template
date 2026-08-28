@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -43,7 +43,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	// Both handlers serialise CompareAtPrice as *int64 with omitempty, so a
@@ -94,7 +94,7 @@ func TestPostgresRepository_GetBySlug(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetBySlug(context.Background(), "nonexistent-slug")
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -239,7 +239,7 @@ func TestPostgresRepository_ListPublished_InvalidCursor(t *testing.T) {
 			Limit:  10,
 		})
 		require.Error(t, err)
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 }
 
@@ -488,7 +488,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 			Status: domain.StatusDraft,
 		}
 		err := repo.Create(context.Background(), dup)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -551,7 +551,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 			Status: domain.StatusDraft,
 		}
 		err := repo.Update(context.Background(), p)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("returns conflict on duplicate slug", func(t *testing.T) {
@@ -561,7 +561,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 		p2.Slug = p1.Slug
 		err := repo.Update(context.Background(), p2)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -600,13 +600,13 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, p.ID))
 
 		err := repo.Delete(ctx, p.ID)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("returns not found for nonexistent product", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		err := repo.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -643,7 +643,7 @@ func TestPostgresRepository_Images(t *testing.T) {
 		assert.Equal(t, 0, count)
 
 		err = repo.DeleteImage(ctx, img.ID)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 

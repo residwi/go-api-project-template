@@ -16,11 +16,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/review/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 func TestHandler_Create(t *testing.T) {
@@ -207,7 +208,7 @@ func TestHandler_Create(t *testing.T) {
 		orderID := uuid.New()
 
 		service.EXPECT().Create(mock.Anything, userID, productID, orderID, 5, "Great", "Love it").
-			Return(nil, apperror.ErrBadRequest)
+			Return(nil, errs.ErrBadRequest)
 
 		body, _ := json.Marshal(map[string]any{
 			"order_id": orderID,
@@ -418,7 +419,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockReviewManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	group := middleware.NewRouteGroup(mux, "/api/v1")
+	group := web.NewRouteGroup(mux, "/api/v1")
 	h := NewHandler(service, v)
 	group.HandleFunc("GET /products/{id}/reviews", h.List)
 	group.HandleFunc("POST /products/{id}/reviews", h.Create)

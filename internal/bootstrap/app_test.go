@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -123,8 +123,8 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 	_, err = app.Checkout.RetryPayment(ctx, userID, retryOrderID, "card")
 
 	// A nil Snapshots or Payments port would panic; an ownership check that
-	// still lost against the real caller would return apperror.ErrNotFound
+	// still lost against the real caller would return errs.ErrNotFound
 	// instead. Reaching the closed-port dial failure proves both legs wired.
 	require.Error(t, err)
-	require.NotErrorIs(t, err, apperror.ErrNotFound)
+	require.NotErrorIs(t, err, errs.ErrNotFound)
 }

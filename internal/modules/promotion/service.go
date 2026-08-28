@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 type Service struct {
@@ -174,7 +174,7 @@ func (s *Service) Release(ctx context.Context, orderID uuid.UUID) error {
 	return s.tx.Run(ctx, func(ctx context.Context) error {
 		usage, err := s.repo.DeleteUsageByOrderID(ctx, orderID)
 		if err != nil {
-			if errors.Is(err, apperror.ErrNotFound) {
+			if errors.Is(err, errs.ErrNotFound) {
 				return nil
 			}
 			return err

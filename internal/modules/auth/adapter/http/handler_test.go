@@ -14,12 +14,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 )
 
 func TestHandler_Login(t *testing.T) {
@@ -109,7 +110,7 @@ func TestHandler_Login(t *testing.T) {
 		mux, service := newTestMux(t)
 
 		service.EXPECT().Login(mock.Anything, "notfound@example.com", "password123").
-			Return(nil, apperror.ErrInvalidCredentials)
+			Return(nil, auth.ErrInvalidCredentials)
 
 		body, _ := json.Marshal(map[string]any{
 			"email":    "notfound@example.com",
@@ -239,7 +240,7 @@ func TestHandler_Register(t *testing.T) {
 		mux, service := newTestMux(t)
 
 		service.EXPECT().Register(mock.Anything, "test@example.com", "password123", "John", "Doe").
-			Return(nil, apperror.ErrConflict)
+			Return(nil, errs.ErrConflict)
 
 		body, _ := json.Marshal(map[string]any{
 			"email":      "test@example.com",
@@ -344,7 +345,7 @@ func TestHandler_Refresh(t *testing.T) {
 
 		mux, service := newTestMux(t)
 
-		service.EXPECT().Refresh(mock.Anything, "invalid-token").Return(nil, apperror.ErrInvalidToken)
+		service.EXPECT().Refresh(mock.Anything, "invalid-token").Return(nil, auth.ErrInvalidToken)
 
 		body, _ := json.Marshal(map[string]any{"refresh_token": "invalid-token"})
 
@@ -419,7 +420,7 @@ func newTestMux(t *testing.T) (http.Handler, *MockAuthManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	api := middleware.NewRouteGroup(mux, "/api")
+	api := web.NewRouteGroup(mux, "/api")
 	h := NewHandler(service, v)
 	api.HandleFunc("POST /auth/login", h.Login)
 	api.HandleFunc("POST /auth/register", h.Register)

@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/review/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -33,7 +33,7 @@ func (s *Service) Create(
 	if !delivered {
 		return nil, fmt.Errorf(
 			"%w: order must be a delivered order of yours containing this product",
-			apperror.ErrBadRequest,
+			errs.ErrBadRequest,
 		)
 	}
 
@@ -42,7 +42,7 @@ func (s *Service) Create(
 		return nil, err
 	}
 	if reviewed {
-		return nil, apperror.ErrConflict
+		return nil, errs.ErrConflict
 	}
 
 	rv := &domain.Review{

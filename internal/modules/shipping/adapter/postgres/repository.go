@@ -9,10 +9,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 var _ shipping.Repository = (*Repository)(nil)
@@ -42,7 +42,7 @@ func (r *Repository) Create(ctx context.Context, shipment *domain.Shipment) erro
 	).Scan(&shipment.ID, &shipment.ShippedAt, &shipment.CreatedAt, &shipment.UpdatedAt)
 	if err != nil {
 		if database.IsUniqueViolation(err) {
-			return fmt.Errorf("%w: shipment already exists for this order", apperror.ErrConflict)
+			return fmt.Errorf("%w: shipment already exists for this order", errs.ErrConflict)
 		}
 		return fmt.Errorf("creating shipment: %w", err)
 	}
@@ -59,7 +59,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Shipmen
 		&s.ShippedAt, &s.DeliveredAt, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting shipment by id: %w", err)
 	}
@@ -78,7 +78,7 @@ func (r *Repository) MarkDelivered(ctx context.Context, id uuid.UUID) (*domain.S
 		&s.ShippedAt, &s.DeliveredAt, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("marking shipment as delivered: %w", err)
 	}
@@ -95,7 +95,7 @@ func (r *Repository) GetByOrderID(ctx context.Context, orderID uuid.UUID) (*doma
 		&s.ShippedAt, &s.DeliveredAt, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting shipment by order id: %w", err)
 	}
@@ -113,7 +113,7 @@ func (r *Repository) Update(ctx context.Context, shipment *domain.Shipment) erro
 		return fmt.Errorf("updating shipment: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }

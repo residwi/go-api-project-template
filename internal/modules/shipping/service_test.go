@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -56,7 +56,7 @@ func TestService_Create(t *testing.T) {
 		svc := New(NewMockRepository(t), testutil.FakeTxRunner{}, orders)
 		_, err := svc.Create(t.Context(), orderID, "JNE", "JP123")
 
-		require.ErrorIs(t, err, apperror.ErrBadRequest)
+		require.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("propagates the order lookup failure unchanged", func(t *testing.T) {
@@ -65,12 +65,12 @@ func TestService_Create(t *testing.T) {
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{}, apperror.ErrNotFound)
+			Return(order.Snapshot{}, errs.ErrNotFound)
 
 		svc := New(NewMockRepository(t), testutil.FakeTxRunner{}, orders)
 		_, err := svc.Create(t.Context(), orderID, "DHL", "DHL456")
 
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("repository failure prevents the order flip", func(t *testing.T) {
@@ -152,12 +152,12 @@ func TestService_Deliver(t *testing.T) {
 		shipmentID := uuid.New()
 
 		repo := NewMockRepository(t)
-		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, errs.ErrNotFound)
 
 		svc := New(repo, testutil.FakeTxRunner{}, NewMockOrders(t))
 		_, err := svc.Deliver(t.Context(), shipmentID)
 
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("never flips the order when marking the shipment delivered fails", func(t *testing.T) {
@@ -258,14 +258,14 @@ func TestService_UpdateTracking(t *testing.T) {
 		shipmentID := uuid.New()
 
 		repo := NewMockRepository(t)
-		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, apperror.ErrNotFound)
+		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, errs.ErrNotFound)
 
 		var tx database.TxRunner
 		var orders Orders
 		svc := New(repo, tx, orders)
 		_, err := svc.UpdateTracking(t.Context(), shipmentID, "JNE", "")
 
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -306,7 +306,7 @@ func TestService_GetForUser(t *testing.T) {
 		svc := New(NewMockRepository(t), tx, orders)
 		_, err := svc.GetForUser(t.Context(), userID, orderID)
 
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("propagates the order lookup failure unchanged", func(t *testing.T) {
@@ -315,13 +315,13 @@ func TestService_GetForUser(t *testing.T) {
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{}, apperror.ErrNotFound)
+			Return(order.Snapshot{}, errs.ErrNotFound)
 
 		var tx database.TxRunner
 		svc := New(NewMockRepository(t), tx, orders)
 		_, err := svc.GetForUser(t.Context(), uuid.New(), orderID)
 
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("propagates the shipment lookup failure unchanged when ownership checks out", func(t *testing.T) {

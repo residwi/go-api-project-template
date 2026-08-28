@@ -3,8 +3,8 @@
 # check-boundaries.sh -- turn Phase 4's module boundaries into a build failure
 # instead of a paragraph in a plan document.
 #
-# Five checks run, numbered 1, 2, 3, 4 and 6. The gaps are where checks 5 and
-# 7 were retired and are deliberate: renumbering would falsify every
+# Six checks run, numbered 1, 2, 3, 4, 6 and 8. The gaps are where checks 5
+# and 7 were retired and are deliberate: renumbering would falsify every
 # by-number citation in AGENTS.md, ARCHITECTURE.md and db/OWNERSHIP.md at
 # once, and a gap states something true -- a check used to be here -- that a
 # closed list would hide.
@@ -28,6 +28,11 @@
 #            those held are declared in contract.go in the module's own root
 #            package, which imports domain/ by design, so there is nothing
 #            left for the rule to be true of.
+#   Check 8  internal/platform may import no local package but
+#            internal/platform itself, because it is the bottom ring and
+#            must compile on its own in a fresh module. internal/testutil is
+#            the one exemption, and check 8's own comment says what that
+#            costs.
 #
 # Run via `make check-boundaries`. Exits 0 and prints "Boundaries OK" when
 # clean; on failure it prints every violation as file:line and exits 1.
@@ -60,6 +65,12 @@ report() { printf '%s\n' "$*" >>"$VIOLATIONS"; }
 # denylist is wrong every time someone adds a directory and forgets; a directory
 # is right by construction.
 MODULES_ROOT='internal/modules'
+
+# The bottom ring, walked by check 8. Held in a variable for the same reason
+# MODULES_ROOT is: check 8 names this path three times -- the directory it
+# walks, the prefix that makes an import intra-platform and therefore legal,
+# and the advice it prints -- and three literals drift where one does not.
+PLATFORM_ROOT='internal/platform'
 
 # The directories whose entire job is to import adapters and wire them together.
 # Only these are exempt from check 4 as importers. This one stays a list because
@@ -218,19 +229,14 @@ importer_roots() {
 #     exemption in a lint rule is how the rule erodes, so this one carries
 #     its reason.
 #
-#   internal/server/response/response.go
+#   internal/server/response/response.go used to need an entry here too:
 #     Response and Error are the shared envelope every handler in every
-#     module writes through -- the same role internal/platform/paging's
-#     cursor/offset envelope plays, just one layer up in the wiring tier
-#     instead of platform. It used to be exempt for free, as a side effect
-#     of the old */http/* glob matching any path containing "/http/"
-#     (the router's own transport/http/ qualified); narrowing that glob to
-#     a module's adapter/http dropped it, so it is named here instead. The other three
-#     files in this package (bind.go, error_mapper.go, pagination_cursor.go)
-#     need no entry -- they carry no json tags today.
+#     module writes through. Task 3 of the platform/transport split moved the
+#     file to internal/platform/response/response.go, which is exempt by
+#     location already -- internal/platform/ above -- so the allowlist entry
+#     is gone with it rather than pointing at a path nothing owns any more.
 JSON_TAG_ALLOWLIST='
 internal/modules/payment/adapter/gateway/gateway.go
-internal/server/response/response.go
 '
 
 is_json_tag_allowlisted() {
@@ -994,12 +1000,98 @@ check_transport_direction() {
 }
 
 # ---------------------------------------------------------------------------
+# Check 8. internal/platform is the bottom ring: it must copy into a fresh
+# module and compile. That holds only while nothing under it reaches upward,
+# so any import of this repository's own code from a platform file is a
+# violation unless the target is platform itself. Numbering continues at 8
+# because 5 and 7 were retired and renumbering would falsify every by-number
+# citation.
+#
+# The test is deliberately inverted -- match every local import, then subtract
+# what is allowed -- rather than naming the trees that must not be imported.
+# The first version of this check named three (internal/modules,
+# internal/server, internal/apperror) and so said nothing about
+# internal/bootstrap or cmd/mockgateway/mockserver, either of which would end
+# the leaf property just as completely while passing silently. A closed list
+# also has to be remembered: it covers a tree added later only on the day
+# someone thinks to extend it. Subtracting from "everything local" covers that
+# tree the day it exists.
+#
+# internal/testutil is the single exemption, and it is a real hole rather than
+# a tidy one. Three platform test packages import it for the shared dockertest
+# harness -- platform/database, platform/cache and platform/jobs/postgres --
+# and internal/testutil does not live under internal/platform, so it does not
+# travel with a copy of it. That is why the copy property this check defends
+# holds for `go build` on a copied internal/platform but NOT for `go test`:
+# the non-test build is a leaf, the test build is not. Pre-existing, not
+# introduced by the split that added this check, and closing it means moving
+# internal/testutil under internal/platform. Until someone does, it is a stated
+# limitation rather than an oversight -- which is the whole reason it is
+# written down here instead of being an unexplained gap in a pattern.
+check_platform_leaf() {
+	local module files file rc hits hit path
+
+	module="$(awk '/^module /{print $2; exit}' go.mod)"
+	if [ -z "$module" ]; then
+		report 'could not read the module path from go.mod'
+		return 0
+	fi
+
+	files="$(find "$PLATFORM_ROOT" -type f -name '*.go' | sort)"
+	if [ -z "$files" ]; then
+		report "check 8 found no files under $PLATFORM_ROOT -- the check could not run, which is not the same as it passing"
+		return 0
+	fi
+
+	while IFS= read -r file; do
+		[ -f "$file" ] || continue
+
+		# Matched as a fixed string, not a regex: the module path is the whole
+		# left-hand side here, so there is nothing to escape and nothing an
+		# unescaped metacharacter could quietly widen. Every import of local
+		# code is a hit; the case block below decides which ones are legal.
+		rc=0
+		hits="$(grep -nF "\"${module}/" "$file")" || rc=$?
+		if [ "$rc" -gt 1 ]; then
+			report "grep exited $rc scanning $file for upward imports -- the check could not run on this file, which is not the same as it passing"
+			continue
+		fi
+		[ -n "$hits" ] || continue
+
+		while IFS= read -r hit; do
+			[ -n "$hit" ] || continue
+
+			# Whole matching lines, not -o matches: the import path has to be
+			# read out to decide whether it is legal, and the quoted string on
+			# the line is exactly that path, alias or no alias.
+			path="${hit#*:}"
+			path="${path#*\"}"
+			path="${path%%\"*}"
+			path="${path#"$module"/}"
+
+			case "$path" in
+			"$PLATFORM_ROOT" | "$PLATFORM_ROOT"/*) continue ;;
+			internal/testutil | internal/testutil/*) continue ;;
+			esac
+
+			report "platform must not import upward: ${file}:${hit%%:*} imports ${path}
+    ${PLATFORM_ROOT} is the bottom ring and must compile on its own in a
+    fresh module, so it may import stdlib, third-party packages and
+    ${PLATFORM_ROOT} itself, and nothing else of this repository's.
+    Declare what you need inside ${PLATFORM_ROOT}, or move the consumer up
+    into internal/server."
+		done <<<"$hits"
+	done <<<"$files"
+}
+
+# ---------------------------------------------------------------------------
 
 check_wire_tags
 check_ownership_doc
 check_table_ownership
 check_cross_module_imports
 check_transport_direction
+check_platform_leaf
 
 if [ -s "$VIOLATIONS" ]; then
 	echo "Architectural boundary violations found:" >&2

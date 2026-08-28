@@ -17,6 +17,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -88,7 +89,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID:    uuid.New(),
@@ -109,7 +110,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID: uuid.New(),
@@ -127,7 +128,7 @@ func TestService_Place(t *testing.T) {
 		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("GetCart error propagates", func(t *testing.T) {
@@ -138,7 +139,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		cartErr := errors.New("cart service error")
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(nil, cartErr)
@@ -160,7 +161,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID: uuid.New(),
@@ -217,7 +218,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID: uuid.New(),
@@ -265,7 +266,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID: uuid.New(),
@@ -290,7 +291,7 @@ func TestService_Place(t *testing.T) {
 		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("idempotent replay propagates ListItemsByOrderID error", func(t *testing.T) {
@@ -330,7 +331,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID: uuid.New(),
@@ -370,7 +371,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID: uuid.New(),
@@ -413,7 +414,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID: uuid.New(),
@@ -446,7 +447,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID: uuid.New(),
@@ -482,7 +483,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID: uuid.New(),
@@ -519,7 +520,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID: uuid.New(),
@@ -558,7 +559,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 			ID: uuid.New(),
@@ -618,7 +619,7 @@ func TestService_Place_RejectsWithdrawnProduct(t *testing.T) {
 
 	d.repo.EXPECT().
 		GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-		Return(nil, apperror.ErrNotFound)
+		Return(nil, errs.ErrNotFound)
 	d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 	d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 		ID: uuid.New(),
@@ -632,7 +633,7 @@ func TestService_Place_RejectsWithdrawnProduct(t *testing.T) {
 
 	_, _, err := s.Place(context.Background(), userID, domain.NewOrder{}, idempotencyKey)
 
-	require.ErrorIs(t, err, apperror.ErrBadRequest)
+	require.ErrorIs(t, err, errs.ErrBadRequest)
 	assert.Contains(t, err.Error(), "Withdrawn Widget",
 		"the error must name the product so the customer can fix their cart")
 	// Direct and intentional, rather than incidental: the guard must reject
@@ -650,7 +651,7 @@ func TestService_Place_RejectsUnavailableProduct(t *testing.T) {
 
 	d.repo.EXPECT().
 		GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
-		Return(nil, apperror.ErrNotFound)
+		Return(nil, errs.ErrNotFound)
 	d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 	d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 		ID: uuid.New(),
@@ -662,7 +663,7 @@ func TestService_Place_RejectsUnavailableProduct(t *testing.T) {
 	}, nil)
 
 	_, _, err := s.Place(context.Background(), userID, domain.NewOrder{}, idempotencyKey)
-	require.ErrorIs(t, err, apperror.ErrBadRequest)
+	require.ErrorIs(t, err, errs.ErrBadRequest)
 	// Direct and intentional, rather than incidental: the guard must reject
 	// before any stock is reserved, not merely happen to fail elsewhere first.
 	d.inventory.AssertNotCalled(t, "Reserve", mock.Anything, mock.Anything)
@@ -682,7 +683,7 @@ func TestService_Place_RejectsMixedCurrencyCart(t *testing.T) {
 	userID := uuid.New()
 
 	d.repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, "idem-mixed-1").
-		Return(nil, apperror.ErrNotFound)
+		Return(nil, errs.ErrNotFound)
 	d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 	d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
 		ID: uuid.New(),
@@ -695,7 +696,7 @@ func TestService_Place_RejectsMixedCurrencyCart(t *testing.T) {
 	_, _, err := s.Place(context.Background(), userID, domain.NewOrder{}, "idem-mixed-1")
 	require.Error(t, err)
 	require.ErrorIs(t, err, money.ErrCurrencyMismatch, "the cause must be identifiable")
-	require.ErrorIs(t, err, apperror.ErrBadRequest, "a mixed-currency cart is user input -- 400, not 500")
+	require.ErrorIs(t, err, errs.ErrBadRequest, "a mixed-currency cart is user input -- 400, not 500")
 }
 
 func TestService_ListByUser(t *testing.T) {
@@ -782,12 +783,12 @@ func TestService_GetForUser(t *testing.T) {
 
 		s, d := newTestService(t)
 
-		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
+		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, errs.ErrNotFound)
 
 		result, err := s.GetForUser(ctx, userID, orderID)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("not owned by user", func(t *testing.T) {
@@ -807,7 +808,7 @@ func TestService_GetForUser(t *testing.T) {
 		result, err := s.GetForUser(ctx, userID, orderID)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("list items error", func(t *testing.T) {
@@ -919,12 +920,12 @@ func TestService_Get(t *testing.T) {
 
 		s, d := newTestService(t)
 
-		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
+		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, errs.ErrNotFound)
 
 		result, err := s.Get(ctx, orderID)
 
 		assert.Nil(t, result)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("ListItemsByOrderID error propagates", func(t *testing.T) {
@@ -1007,11 +1008,11 @@ func TestService_Snapshot(t *testing.T) {
 		orderID := uuid.New()
 		s, d := newTestService(t)
 
-		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
+		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, errs.ErrNotFound)
 
 		got, err := s.Snapshot(context.Background(), orderID)
 
-		require.ErrorIs(t, err, apperror.ErrNotFound)
+		require.ErrorIs(t, err, errs.ErrNotFound)
 		assert.Equal(t, Snapshot{}, got)
 	})
 }
@@ -1065,11 +1066,11 @@ func TestService_CancelByUser(t *testing.T) {
 
 		s, d := newTestServiceWithoutCoupons(t)
 
-		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
+		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, errs.ErrNotFound)
 
 		err := s.CancelByUser(ctx, userID, orderID)
 
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("not owned by user", func(t *testing.T) {
@@ -1088,7 +1089,7 @@ func TestService_CancelByUser(t *testing.T) {
 
 		err := s.CancelByUser(ctx, userID, orderID)
 
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("payment processing returns ErrOrderCharging", func(t *testing.T) {
@@ -1121,11 +1122,11 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(apperror.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(errs.ErrConflict)
 
 		err := s.CancelByUser(ctx, userID, orderID)
 
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("invalid transition from paid", func(t *testing.T) {
@@ -1140,11 +1141,11 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(apperror.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(errs.ErrConflict)
 
 		err := s.CancelByUser(ctx, userID, orderID)
 
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("invalid transition from shipped", func(t *testing.T) {
@@ -1159,11 +1160,11 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(apperror.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(errs.ErrConflict)
 
 		err := s.CancelByUser(ctx, userID, orderID)
 
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("success cancels awaiting_payment order", func(t *testing.T) {
@@ -1391,11 +1392,11 @@ func TestService_CancelUnpaid(t *testing.T) {
 
 		existingOrder := &domain.Order{ID: orderID, UserID: uuid.New(), Status: domain.StatusPaid}
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(apperror.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(errs.ErrConflict)
 
 		err := s.CancelUnpaid(ctx, orderID)
 
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 }
 
@@ -1448,7 +1449,7 @@ func TestService_ChangeStatus(t *testing.T) {
 
 		err := s.ChangeStatus(ctx, orderID, domain.StatusDelivered)
 
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("rejects managed status cancelled without a direct write", func(t *testing.T) {
@@ -1460,7 +1461,7 @@ func TestService_ChangeStatus(t *testing.T) {
 
 		err := s.ChangeStatus(ctx, orderID, domain.StatusCancelled)
 
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("rejects managed status refunded without a direct write", func(t *testing.T) {
@@ -1470,7 +1471,7 @@ func TestService_ChangeStatus(t *testing.T) {
 
 		err := s.ChangeStatus(ctx, orderID, domain.StatusRefunded)
 
-		assert.ErrorIs(t, err, apperror.ErrBadRequest)
+		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 
 	t.Run("not found", func(t *testing.T) {
@@ -1478,11 +1479,11 @@ func TestService_ChangeStatus(t *testing.T) {
 
 		s, d := newTestService(t)
 
-		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, apperror.ErrNotFound)
+		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, errs.ErrNotFound)
 
 		err := s.ChangeStatus(ctx, orderID, domain.StatusProcessing)
 
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("update status repo error", func(t *testing.T) {
@@ -1495,11 +1496,11 @@ func TestService_ChangeStatus(t *testing.T) {
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
 		d.repo.EXPECT().
 			UpdateStatus(mock.Anything, orderID, domain.StatusPaid, domain.StatusProcessing).
-			Return(apperror.ErrConflict)
+			Return(errs.ErrConflict)
 
 		err := s.ChangeStatus(ctx, orderID, domain.StatusProcessing)
 
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -1537,7 +1538,7 @@ func TestService_ExpireStale(t *testing.T) {
 
 		expired := domain.Order{ID: uuid.New()}
 		d.repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return([]domain.Order{expired}, nil)
-		d.repo.EXPECT().Apply(mock.Anything, expired.ID, domain.ExpiredTransition).Return(apperror.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, expired.ID, domain.ExpiredTransition).Return(errs.ErrConflict)
 
 		err := s.ExpireStale(ctx)
 		require.NoError(t, err)
@@ -1586,7 +1587,7 @@ func TestService_RecoverStale(t *testing.T) {
 			Return([]domain.Order{stale}, nil)
 		d.repo.EXPECT().
 			Apply(mock.Anything, stale.ID, domain.AwaitingPaymentTransition).
-			Return(apperror.ErrConflict)
+			Return(errs.ErrConflict)
 
 		require.NoError(t, s.RecoverStale(ctx))
 	})
@@ -1691,11 +1692,11 @@ func TestService_Apply(t *testing.T) {
 		t.Parallel()
 
 		s, d := newTestService(t)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.RefundTransition).Return(apperror.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.RefundTransition).Return(errs.ErrConflict)
 
 		err := s.Apply(ctx, orderID, domain.RefundTransition)
 
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -1722,11 +1723,11 @@ func TestService_UpdateStatus(t *testing.T) {
 		s, d := newTestService(t)
 		d.repo.EXPECT().
 			UpdateStatus(mock.Anything, orderID, domain.StatusPaid, domain.StatusProcessing).
-			Return(apperror.ErrConflict)
+			Return(errs.ErrConflict)
 
 		err := s.UpdateStatus(ctx, orderID, domain.StatusPaid, domain.StatusProcessing)
 
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 

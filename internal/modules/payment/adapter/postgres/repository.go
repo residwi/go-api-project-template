@@ -8,11 +8,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 var _ payment.Repository = (*Repository)(nil)
@@ -62,7 +62,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Payment
 		&p.PaidAt, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting payment by id: %w", err)
 	}
@@ -94,7 +94,7 @@ func (r *Repository) GetActiveByOrderID(ctx context.Context, orderID uuid.UUID) 
 		&p.PaidAt, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting active payment for order: %w", err)
 	}
@@ -125,7 +125,7 @@ func (r *Repository) UpdateStatus(
 	).Scan(&returnedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("updating payment status: %w", err)
 	}
@@ -165,7 +165,7 @@ func (r *Repository) MarkPaid(ctx context.Context, id uuid.UUID, fromStatuses []
 	).Scan(&returnedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return apperror.ErrConflict
+			return errs.ErrConflict
 		}
 		return fmt.Errorf("marking payment paid: %w", err)
 	}
@@ -186,7 +186,7 @@ func (r *Repository) GetByGatewayTxnID(ctx context.Context, txnID string) (*doma
 		&p.PaidAt, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperror.ErrNotFound
+			return nil, errs.ErrNotFound
 		}
 		return nil, fmt.Errorf("getting payment by gateway txn id: %w", err)
 	}

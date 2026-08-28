@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -54,7 +54,7 @@ func (r *Repository) Get(ctx context.Context, id uuid.UUID) (domain.Notification
 		`SELECT id, user_id, title, body, is_read, created_at FROM notifications WHERE id = $1`, id,
 	).Scan(&n.ID, &n.UserID, &n.Title, &n.Body, &n.IsRead, &n.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return domain.Notification{}, apperror.ErrNotFound
+		return domain.Notification{}, errs.ErrNotFound
 	}
 	if err != nil {
 		return domain.Notification{}, fmt.Errorf("getting notification: %w", err)
@@ -121,7 +121,7 @@ func (r *Repository) MarkRead(ctx context.Context, userID, id uuid.UUID) error {
 		return fmt.Errorf("marking notification read: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }

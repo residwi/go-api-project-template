@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
 	"github.com/residwi/go-api-project-template/internal/platform/cache"
 	"github.com/residwi/go-api-project-template/internal/platform/config"
@@ -49,7 +48,7 @@ func RunContext(ctx context.Context) error {
 
 	replicaDB, err := database.NewReplicaPostgres(ctx, appCfg.Database)
 	if err != nil {
-		if !errors.Is(err, apperror.ErrReplicaNotConfigured) {
+		if !errors.Is(err, database.ErrReplicaNotConfigured) {
 			appLog.WarnContext(
 				ctx,
 				"failed to connect replica database, using primary",

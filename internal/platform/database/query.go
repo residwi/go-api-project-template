@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -17,7 +17,7 @@ func EscapeLike(s string) string {
 func KeysetCursor(where string, args []any, argIdx int, columns, cursor string) (string, []any, int, error) {
 	createdAt, id, err := paging.DecodeCursor(cursor)
 	if err != nil {
-		return where, args, argIdx, fmt.Errorf("%w: invalid cursor", apperror.ErrBadRequest)
+		return where, args, argIdx, fmt.Errorf("%w: invalid cursor", errs.ErrBadRequest)
 	}
 	where += fmt.Sprintf(" AND (%s) < ($%d, $%d)", columns, argIdx, argIdx+1)
 	args = append(args, createdAt, id)

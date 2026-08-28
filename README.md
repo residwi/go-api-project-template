@@ -65,19 +65,23 @@ decides the verb, the path and the middleware group.
 │   │           ├── redis/           # user only: its StatusCache port's store
 │   │           ├── gateway/         # payment only: the outbound Gateway port
 │   │           └── channel/         # notification only: the outbound Channel port
-│   ├── /apperror               # Error vocabulary (ErrNotFound, ErrBadRequest, ...)
+│   ├── /apperror               # Seven cross-module business sentinels, each a
+│   │                           # wrap of a platform/errs kind
 │   ├── /bootstrap              # The composition root: builds every Service,
 │   │                           # wires every cross-module port by name-match
 │   ├── /server                 # server.go (Run), router.go (NewRouter, health, routes),
-│   │   ├── /middleware         # recovery, request ID, logging, CORS, rate limit,
-│   │   │                       # auth, admin
-│   │   ├── /response           # the shared JSON envelope + Bind + error mapping
+│   │   ├── /middleware         # auth, admin, rate limit -- the three that know
+│   │   │                       # a caller identity
 │   │   └── /testdata           # routes.golden -- 64 routes, method/path/group
 │   ├── /platform               # Infrastructure, no domain knowledge
 │   │   ├── /config             # Infra config (godotenv + envconfig) -- module-owned
 │   │   │                       # config (JWT, cart limits, payment gateway, ...)
 │   │   │                       # lives in each module's own config.go instead
 │   │   ├── /database           # Postgres pools, transactions, TxRunner
+│   │   ├── /errs               # The five status-carrying generic error kinds
+│   │   ├── /response           # The shared JSON envelope + Bind + error mapping
+│   │   ├── /web                # Chain, RouteGroup, and the transport-generic
+│   │   │                       # middleware: recovery, request ID, logging, CORS
 │   │   └── /cache /jobs /logger /paging /slug /storage /validator
 │   └── /testutil               # Shared container plumbing for tests
 ├── /test/e2e                   # Cross-module sagas through the real router
@@ -651,9 +655,11 @@ This template puts one module per feature and one `Service` per module:
   `PAYMENT_JOB_CONCURRENCY < 1`) inline in that module's own `LoadConfig`
   (`auth.LoadConfig`, `cart.LoadConfig`, `notification.LoadConfig`,
   `order.LoadConfig`, `payment.LoadConfig`).
-- The error vocabulary lives in `internal/apperror`; generic utilities
-  (`paging`, `slug`, `validator`) live in `internal/platform`; the JSON
-  envelope and request binding live in `internal/server/response`.
+- The five generic error kinds live in `internal/platform/errs` and the seven
+  cross-module business sentinels in `internal/apperror`, each declared as a
+  wrap of one of the five; generic utilities (`paging`, `slug`, `validator`)
+  live in `internal/platform`; the JSON envelope and request binding live in
+  `internal/platform/response`.
 
 **Read `ARCHITECTURE-LIMITATIONS.md` before copying this.** It lists what the
 shape makes hard, including the guarantees the flat-module shape gave up — a

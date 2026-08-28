@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -66,7 +66,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 			Active:       true,
 		}
 		err := repo.Create(context.Background(), dup)
-		assert.ErrorIs(t, err, apperror.ErrConflict)
+		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -85,7 +85,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -104,7 +104,7 @@ func TestPostgresRepository_GetByEmail(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, err := repo.GetByEmail(context.Background(), "nobody-"+uuid.New().String()+"@nowhere.example")
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -123,7 +123,7 @@ func TestPostgresRepository_GetStatusByID(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		_, _, err := repo.GetStatusByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -248,7 +248,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 			Active:    true,
 		}
 		err := repo.Update(context.Background(), u)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -269,13 +269,13 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, id))
 
 		_, err := repo.GetByID(ctx, id)
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("returns not found for nonexistent user", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		err := repo.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -330,7 +330,7 @@ func TestPostgresRepository_IncrementTokenVersion(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		err := repo.IncrementTokenVersion(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, apperror.ErrNotFound)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
@@ -350,25 +350,25 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		}
 		err := repo.Create(ctx, u)
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, apperror.ErrConflict)
+		assert.NotErrorIs(t, err, errs.ErrConflict)
 	})
 
 	t.Run("GetByID returns error on cancelled context", func(t *testing.T) {
 		_, err := repo.GetByID(ctx, uuid.New())
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, apperror.ErrNotFound)
+		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("GetByEmail returns error on cancelled context", func(t *testing.T) {
 		_, err := repo.GetByEmail(ctx, "test@example.com")
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, apperror.ErrNotFound)
+		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("GetStatusByID returns error on cancelled context", func(t *testing.T) {
 		_, _, err := repo.GetStatusByID(ctx, uuid.New())
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, apperror.ErrNotFound)
+		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("ListAdmin returns error on cancelled context", func(t *testing.T) {
@@ -386,13 +386,13 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 		}
 		err := repo.Update(ctx, u)
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, apperror.ErrNotFound)
+		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("Delete returns error on cancelled context", func(t *testing.T) {
 		err := repo.Delete(ctx, uuid.New())
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, apperror.ErrNotFound)
+		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("CountAdmins returns error on cancelled context", func(t *testing.T) {
@@ -403,7 +403,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	t.Run("IncrementTokenVersion returns error on cancelled context", func(t *testing.T) {
 		err := repo.IncrementTokenVersion(ctx, uuid.New())
 		require.Error(t, err)
-		assert.NotErrorIs(t, err, apperror.ErrNotFound)
+		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 

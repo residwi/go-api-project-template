@@ -6,10 +6,10 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/inventory"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
 )
 
@@ -165,7 +165,7 @@ func (s *Service) GetBySlug(ctx context.Context, productSlug string) (*domain.Pr
 	}
 
 	if p.Status != domain.StatusPublished {
-		return nil, apperror.ErrNotFound
+		return nil, errs.ErrNotFound
 	}
 
 	images, err := s.repo.GetImagesByProductID(ctx, p.ID)

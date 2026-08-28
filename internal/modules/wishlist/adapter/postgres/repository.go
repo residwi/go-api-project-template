@@ -7,10 +7,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -48,7 +48,7 @@ func (r *Repository) AddItem(ctx context.Context, wishlistID, productID uuid.UUI
 	)
 	if err != nil {
 		if database.IsForeignKeyViolation(err) {
-			return fmt.Errorf("%w: product not found", apperror.ErrNotFound)
+			return fmt.Errorf("%w: product not found", errs.ErrNotFound)
 		}
 		return fmt.Errorf("adding wishlist item: %w", err)
 	}
@@ -67,7 +67,7 @@ func (r *Repository) RemoveItem(ctx context.Context, userID, productID uuid.UUID
 		return fmt.Errorf("removing wishlist item: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }

@@ -14,13 +14,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 )
 
 func TestAdminHandler_Create(t *testing.T) {
@@ -69,7 +69,7 @@ func TestAdminHandler_Create(t *testing.T) {
 		service.EXPECT().
 			Create(mock.Anything, "DUP", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
 				mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Return(nil, apperror.ErrConflict)
+			Return(nil, errs.ErrConflict)
 
 		startsAt := time.Now().Truncate(time.Second)
 		expiresAt := time.Now().Add(24 * time.Hour).Truncate(time.Second)
@@ -216,7 +216,7 @@ func TestAdminHandler_Update(t *testing.T) {
 		service.EXPECT().
 			Update(mock.Anything, id, "UPDATED", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
 				mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]string{"code": "UPDATED"})
 
@@ -312,7 +312,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 		mux, service := setupAdminMux(t)
 
 		id := uuid.New()
-		service.EXPECT().Delete(mock.Anything, id).Return(apperror.ErrNotFound)
+		service.EXPECT().Delete(mock.Anything, id).Return(errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/promotions/"+id.String(), nil)
@@ -347,7 +347,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockPromotionManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+	admin := web.NewRouteGroup(mux, "/api/v1/admin")
 
 	ah := NewAdminHandler(service, v)
 	admin.HandleFunc("GET /promotions", ah.List)

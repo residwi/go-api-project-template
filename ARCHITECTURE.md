@@ -322,13 +322,17 @@ Two exemptions, both deliberate and both allowlisted by name in the check:
   describe someone else's API, and `payment/adapter/gateway/stripe` and `payment/adapter/gateway/midtrans`
   marshal them on the way out. Mapping `Money` down to their plain `int64`+`string`
   fields in those adapters is a correct seam, not a leak.
-- **`internal/server/response/response.go`** — the shared envelope every
+- **`internal/platform/response/response.go`** — the shared envelope every
   handler in every module writes through: transport infrastructure, not a
   domain model, the same role `internal/platform/paging/`'s cursor/offset
-  envelope plays one layer down.
+  envelope plays one layer down. This one is no longer allowlisted by name.
+  It used to be, at `internal/server/response/response.go`; the package moved
+  under `internal/platform`, which check 1 exempts by location, so the named
+  entry was deleted rather than left as a path pointing at nothing.
 
-An unexplained exemption in a lint rule is how the rule erodes, so each one is
-named in `scripts/check-boundaries.sh` with its reason next to it. Drop check
+An unexplained exemption in a lint rule is how the rule erodes, so the one
+that is still named is named in `scripts/check-boundaries.sh` with its reason
+next to it. Drop check
 1's `adapter/http` arm and it reports 295 tags in fifteen adapters at once,
 which is what makes the arm load-bearing rather than decorative.
 
@@ -415,7 +419,7 @@ returns **400** from `GET /cart`; previously returned 200 with amounts added
 together, denominated in nothing. Nothing prevents such cart — prices
 per-product and `AddItem` does not constrain them — and checkout already rejected
 it, so this makes `GET /cart` agree with `PlaceOrder`. Error wraps
-`apperror.ErrBadRequest` alongside `money.ErrCurrencyMismatch`, because
+`errs.ErrBadRequest` alongside `money.ErrCurrencyMismatch`, because
 `ErrCurrencyMismatch` alone matches no case in `response.HandleErr` and would
 surface as 500 for what plainly user input. `Total()` folds **sellable lines
 only**, so archived line in another currency still yields clean 200 — and
@@ -843,8 +847,13 @@ Stronger reason: **`shared` is one directory name that attracts entropy.**
 Folder with no owner, so everything eventually lands there. Template
 shipping `shared/` with "keep this small!" comment hands reader loaded
 gun with warning label. Absent directory cannot be filled. `money` lives at
-`internal/modules/money`, and `apperror` stayed where it was — moving it would have
-touched nearly every file for nothing.
+`internal/modules/money`, and `apperror` was split along the seam that
+mattered rather than pooled into a shared namespace: its five generic kinds
+are `internal/platform/errs`, the two auth sentinels moved to `modules/auth`
+where their only raiser is, `ErrReplicaNotConfigured` moved to
+`platform/database`, two dead ones were deleted, and the seven business
+sentinels left over stayed put above the module tree because several modules
+raise them and no one module owns them.
 
 The rejection has a sharper answer than "introduce it when a third type
 needs it": a producing module's own `contract.go` is where a cross-module

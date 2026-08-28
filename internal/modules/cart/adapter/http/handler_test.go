@@ -15,12 +15,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/cart/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 func TestHandler_Get(t *testing.T) {
@@ -93,7 +94,7 @@ func TestHandler_Get(t *testing.T) {
 	//
 	// Asserted at the mux: money.ErrCurrencyMismatch is not a case in
 	// response.HandleErr, so alone it would be a 500. The wrapped
-	// apperror.ErrBadRequest is what makes the 400.
+	// errs.ErrBadRequest is what makes the 400.
 	t.Run("mixed-currency cart returns 400", func(t *testing.T) {
 		t.Parallel()
 
@@ -166,7 +167,7 @@ func TestHandler_Get(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		service.EXPECT().Get(mock.Anything, uc.UserID).Return(nil, apperror.ErrNotFound)
+		service.EXPECT().Get(mock.Anything, uc.UserID).Return(nil, errs.ErrNotFound)
 
 		r := withAuth(httptest.NewRequest(http.MethodGet, "/api/v1/cart", nil), uc)
 		w := httptest.NewRecorder()
@@ -253,7 +254,7 @@ func TestHandler_Add(t *testing.T) {
 		mux, service, uc := setupMux(t)
 
 		productID := uuid.New()
-		service.EXPECT().Add(mock.Anything, uc.UserID, productID, 1).Return(apperror.ErrNotFound)
+		service.EXPECT().Add(mock.Anything, uc.UserID, productID, 1).Return(errs.ErrNotFound)
 
 		body := `{"product_id":"` + productID.String() + `","quantity":1}`
 		r := withAuth(httptest.NewRequest(http.MethodPost, "/api/v1/cart/items", strings.NewReader(body)), uc)
@@ -356,7 +357,7 @@ func TestHandler_Update(t *testing.T) {
 		mux, service, uc := setupMux(t)
 
 		productID := uuid.New()
-		service.EXPECT().UpdateQuantity(mock.Anything, uc.UserID, productID, 3).Return(apperror.ErrNotFound)
+		service.EXPECT().UpdateQuantity(mock.Anything, uc.UserID, productID, 3).Return(errs.ErrNotFound)
 
 		r := withAuth(httptest.NewRequest(
 			http.MethodPut,
@@ -422,7 +423,7 @@ func TestHandler_Remove(t *testing.T) {
 		mux, service, uc := setupMux(t)
 
 		productID := uuid.New()
-		service.EXPECT().Remove(mock.Anything, uc.UserID, productID).Return(apperror.ErrNotFound)
+		service.EXPECT().Remove(mock.Anything, uc.UserID, productID).Return(errs.ErrNotFound)
 
 		r := withAuth(httptest.NewRequest(http.MethodDelete, "/api/v1/cart/items/"+productID.String(), nil), uc)
 		w := httptest.NewRecorder()
@@ -578,7 +579,7 @@ func TestToCartResponse_MixedCurrenciesRefusesToTotal(t *testing.T) {
 	out, err := toCartResponse(c)
 
 	require.Error(t, err)
-	require.ErrorIs(t, err, apperror.ErrBadRequest,
+	require.ErrorIs(t, err, errs.ErrBadRequest,
 		"a cart's contents are user input, so an unsummable cart is a 400 and not a 500")
 	require.ErrorIs(t, err, money.ErrCurrencyMismatch,
 		"the cause must stay matchable, not be flattened into a generic bad request")
@@ -616,7 +617,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCartManager, middleware.UserCo
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	authed := middleware.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouteGroup(mux, "/api/v1")
 
 	h := NewHandler(service, v)
 	authed.HandleFunc("GET /cart", h.Get)

@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/cart"
 	"github.com/residwi/go-api-project-template/internal/modules/cart/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 var _ cart.Repository = (*Repository)(nil)
@@ -91,7 +91,7 @@ func (r *Repository) RemoveItem(ctx context.Context, cartID, productID uuid.UUID
 		return fmt.Errorf("removing cart item: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }
@@ -106,7 +106,7 @@ func (r *Repository) UpdateItemQuantity(ctx context.Context, cartID, productID u
 		return fmt.Errorf("updating cart item quantity: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return apperror.ErrNotFound
+		return errs.ErrNotFound
 	}
 	return nil
 }
@@ -165,7 +165,7 @@ func (r *Repository) GetCartForLock(ctx context.Context, userID uuid.UUID) (uuid
 	).Scan(&cartID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return uuid.Nil, apperror.ErrNotFound
+			return uuid.Nil, errs.ErrNotFound
 		}
 		return uuid.Nil, fmt.Errorf("locking cart: %w", err)
 	}

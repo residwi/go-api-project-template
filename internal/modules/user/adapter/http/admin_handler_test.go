@@ -16,12 +16,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/response"
 )
 
 func TestAdminHandler_ListUsers(t *testing.T) {
@@ -247,7 +248,7 @@ func TestAdminHandler_GetUser(t *testing.T) {
 
 		mux, usecase := setupAdminHandlerMux(t)
 		userID := uuid.New()
-		usecase.EXPECT().GetUser(mock.Anything, userID).Return(nil, apperror.ErrNotFound)
+		usecase.EXPECT().GetUser(mock.Anything, userID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/"+userID.String(), nil)
@@ -360,7 +361,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		userID := uuid.New()
 		usecase.EXPECT().AdminUpdate(mock.Anything, userID, "Test", "", (*string)(nil), (*bool)(nil)).
-			Return(nil, apperror.ErrNotFound)
+			Return(nil, errs.ErrNotFound)
 
 		body, _ := json.Marshal(map[string]any{"first_name": "Test"})
 
@@ -526,7 +527,7 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 
 		sameID := uuid.New()
 		usecase.EXPECT().UpdateRole(mock.Anything, sameID, sameID, "user").
-			Return(apperror.ErrForbidden)
+			Return(errs.ErrForbidden)
 		body, _ := json.Marshal(map[string]any{"role": "user"})
 
 		w := httptest.NewRecorder()
@@ -653,7 +654,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 		mux, usecase := setupAdminHandlerMux(t)
 
 		sameID := uuid.New()
-		usecase.EXPECT().Delete(mock.Anything, sameID, sameID).Return(apperror.ErrForbidden)
+		usecase.EXPECT().Delete(mock.Anything, sameID, sameID).Return(errs.ErrForbidden)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/users/"+sameID.String(), nil)
@@ -717,7 +718,7 @@ func setupAdminHandlerMux(t *testing.T) (*http.ServeMux, *MockUserManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	admin := middleware.NewRouteGroup(mux, "/api/v1/admin")
+	admin := web.NewRouteGroup(mux, "/api/v1/admin")
 
 	h := NewAdminHandler(usecase, v)
 	admin.HandleFunc("GET /users", h.List)

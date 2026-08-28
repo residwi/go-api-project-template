@@ -8,8 +8,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 )
 
 // NewMockShipmentManager creates a new instance of MockShipmentManager. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

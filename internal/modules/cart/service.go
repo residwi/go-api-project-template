@@ -9,6 +9,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/modules/cart/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 type Service struct {
@@ -34,7 +35,7 @@ func (s *Service) Add(ctx context.Context, userID, productID uuid.UUID, quantity
 	}
 
 	if info.Status != domain.StatusPublished {
-		return fmt.Errorf("%w: product is not available", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: product is not available", errs.ErrBadRequest)
 	}
 	if info.Available < quantity {
 		return apperror.ErrInsufficientStock
@@ -51,7 +52,7 @@ func (s *Service) Add(ctx context.Context, userID, productID uuid.UUID, quantity
 			return err
 		}
 		if !hasItem && count >= s.maxCartItems {
-			return fmt.Errorf("%w: cart cannot have more than %d items", apperror.ErrBadRequest, s.maxCartItems)
+			return fmt.Errorf("%w: cart cannot have more than %d items", errs.ErrBadRequest, s.maxCartItems)
 		}
 
 		return s.repo.AddItem(txCtx, cartID, productID, quantity)
@@ -73,7 +74,7 @@ func (s *Service) UpdateQuantity(ctx context.Context, userID, productID uuid.UUI
 		return err
 	}
 	if info.Status != domain.StatusPublished {
-		return fmt.Errorf("%w: product is not available", apperror.ErrBadRequest)
+		return fmt.Errorf("%w: product is not available", errs.ErrBadRequest)
 	}
 	if info.Available < quantity {
 		return apperror.ErrInsufficientStock
