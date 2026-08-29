@@ -14,6 +14,8 @@ require (
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/pressly/goose/v3 v3.27.3
 	github.com/redis/go-redis/v9 v9.22.0
+	github.com/riverqueue/river v0.45.0
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.45.0
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/crypto v0.55.0
 	golang.org/x/sync v0.22.0
@@ -54,6 +56,9 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/opencontainers/runc v1.3.6 // indirect
+	github.com/riverqueue/river/riverdriver v0.45.0 // indirect
+	github.com/riverqueue/river/rivershared v0.45.0 // indirect
+	github.com/riverqueue/river/rivertype v0.45.0 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect

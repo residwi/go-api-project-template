@@ -179,3 +179,18 @@ func hasStockQuantityColumn(t *testing.T, pool *pgxpool.Pool) bool {
 	).Scan(&present))
 	return present
 }
+
+func TestMustStartPostgresAppliesRiverSchema(t *testing.T) {
+	t.Parallel()
+
+	pool, cleanup := testutil.MustStartPostgres("test_testutil")
+	t.Cleanup(cleanup)
+
+	var exists bool
+	err := pool.QueryRow(t.Context(),
+		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'river_job')`,
+	).Scan(&exists)
+
+	require.NoError(t, err)
+	assert.True(t, exists, "river_job must exist: the worker cannot run without River's schema")
+}

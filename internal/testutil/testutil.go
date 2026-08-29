@@ -18,6 +18,8 @@ import (
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivermigrate"
 )
 
 const (
@@ -278,4 +280,15 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) {
 		os.Exit(1)
 	}
 	_ = db.Close()
+
+	migrator, err := rivermigrate.New(riverpgxv5.New(pool), nil)
+	if err != nil {
+		harnessLogger().ErrorContext(ctx, "testutil: rivermigrate.New", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	if _, err := migrator.Migrate(ctx, rivermigrate.DirectionUp, nil); err != nil {
+		harnessLogger().ErrorContext(ctx, "testutil: rivermigrate.Migrate", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
 }

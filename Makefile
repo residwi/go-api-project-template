@@ -5,6 +5,7 @@ VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 GOPATH := $(shell go env GOPATH)
 GOOSE := $(GOPATH)/bin/goose
+RIVER := $(GOPATH)/bin/river
 
 DB_HOST ?= localhost
 DB_PORT ?= 5432
@@ -136,11 +137,17 @@ db-drop: ## Drop the database
 migrate-install: ## Install goose CLI
 	@echo "Installing goose..."
 	go install github.com/pressly/goose/v3/cmd/goose@latest
+	@echo "Installing river..."
+	go install github.com/riverqueue/river/cmd/river@latest
 
 .PHONY: migrate-up
 migrate-up: ## Run all pending migrations
 	@echo "Running migrations..."
 	$(GOOSE) -dir ./db/migrations postgres "$(DATABASE_URL)" up
+
+.PHONY: migrate-jobs
+migrate-jobs: ## Run River's own migrations
+	$(RIVER) migrate-up --database-url "$(DATABASE_URL)"
 
 .PHONY: migrate-down
 migrate-down: ## Rollback the last migration
