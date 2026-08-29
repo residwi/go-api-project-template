@@ -11,7 +11,7 @@ import (
 type Config struct {
 	JobInterval    time.Duration `envconfig:"NOTIFICATION_JOB_INTERVAL"    default:"5s"`
 	JobConcurrency int           `envconfig:"NOTIFICATION_JOB_CONCURRENCY" default:"10"`
-	JobLease       time.Duration `envconfig:"NOTIFICATION_JOB_LEASE"       default:"30s"`
+	JobTimeout     time.Duration `envconfig:"NOTIFICATION_JOB_TIMEOUT"     default:"30s"`
 }
 
 const minJobInterval = 5 * time.Second

@@ -65,7 +65,7 @@ func run() error {
 	notificationJobCfg := jobs.Config{
 		Interval:      modCfg.Notification.JobInterval,
 		BatchSize:     appCfg.Worker.BatchSize,
-		LeaseDuration: modCfg.Notification.JobLease,
+		LeaseDuration: modCfg.Notification.JobTimeout,
 		Concurrency:   modCfg.Notification.JobConcurrency,
 		PruneAge:      appCfg.Worker.PruneAge,
 		PruneLimit:    appCfg.Worker.PruneLimit,

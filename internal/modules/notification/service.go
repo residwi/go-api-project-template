@@ -2,20 +2,20 @@ package notification
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 type Service struct {
 	repo    Repository
 	tx      database.TxRunner
-	queue   jobs.Enqueuer
+	queue   SendQueue
 	channel Channel
 	logger  *slog.Logger
 }
@@ -23,7 +23,7 @@ type Service struct {
 func New(
 	repo Repository,
 	tx database.TxRunner,
-	queue jobs.Enqueuer,
+	queue SendQueue,
 	channel Channel,
 	logger *slog.Logger,
 ) *Service {
@@ -37,10 +37,16 @@ func (s *Service) Create(ctx context.Context, in NewNotification) error {
 			return err
 		}
 
-		return jobs.Enqueue(txCtx, s.queue, SendJob{NotificationID: n.ID}, jobs.Keys{
-			Dedup: "notification.send:" + n.ID.String(),
-		})
+		return s.queue.EnqueueSend(txCtx, n.ID)
 	})
+}
+
+func (s *Service) Send(ctx context.Context, notificationID uuid.UUID) error {
+	n, err := s.repo.Get(ctx, notificationID)
+	if err != nil {
+		return fmt.Errorf("getting notification %s: %w", notificationID, err)
+	}
+	return s.channel.Send(ctx, n)
 }
 
 func (s *Service) List(ctx context.Context, userID uuid.UUID, cursor paging.CursorPage) ([]domain.Notification, error) {

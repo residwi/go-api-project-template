@@ -151,6 +151,6 @@ func TestCancellingAnOrderCancelsItsPaymentJobsOnly(t *testing.T) {
 
 	var sendPending int
 	require.NoError(t, testPool.QueryRow(ctx,
-		`SELECT COUNT(*) FROM job_queue WHERE queue = 'notification' AND status = 'pending'`).Scan(&sendPending))
+		`SELECT COUNT(*) FROM river_job WHERE kind = 'notification.send' AND state = 'available'`).Scan(&sendPending))
 	assert.Positive(t, sendPending)
 }

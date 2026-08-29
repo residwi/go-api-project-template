@@ -18,6 +18,7 @@ import (
 	inventorypg "github.com/residwi/go-api-project-template/internal/modules/inventory/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/notification"
 	channellog "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/channel/log"
+	notificationjobs "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/jobs"
 	notificationpg "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres"
@@ -73,6 +74,11 @@ func New(
 	txRunner := database.NewTxRunner(db.Primary)
 	jobStore := jobspg.New(db)
 
+	insertClient, err := queue.NewInsertClient(db)
+	if err != nil {
+		return nil, fmt.Errorf("building job insert client: %w", err)
+	}
+
 	inv := inventory.New(inventorypg.New(db))
 	prod := product.New(productpg.New(db), inv)
 	categoryMod := category.New(categorypg.New(db), prod)
@@ -80,7 +86,7 @@ func New(
 	notificationMod := notification.New(
 		notificationpg.New(db),
 		txRunner,
-		jobStore,
+		notificationjobs.NewQueue(insertClient, db),
 		channellog.New(logger),
 		logger,
 	)
@@ -105,11 +111,6 @@ func New(
 		jobStore,
 	)
 
-	insertClient, err := queue.NewInsertClient(db)
-	if err != nil {
-		return nil, fmt.Errorf("building job insert client: %w", err)
-	}
-
 	paymentMod := payment.New(
 		paymentpg.New(db),
 		txRunner,
@@ -127,7 +128,6 @@ func New(
 	reviewMod := review.New(reviewpg.New(db), ordMod)
 
 	reg := jobs.NewRegistry()
-	jobs.Register(reg, notification.NewSendJob(notificationMod))
 	jobs.Register(reg, order.NewExpireStaleJob(ordMod))
 
 	return &App{
