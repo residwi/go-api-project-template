@@ -15,7 +15,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
@@ -28,7 +27,6 @@ type Service struct {
 	repo   Repository
 	tx     database.TxRunner
 	logger *slog.Logger
-	queue  jobs.Enqueuer
 
 	cart          Cart
 	inventory     Inventory
@@ -44,13 +42,11 @@ func New(
 	inventory Inventory,
 	coupons CouponReserver,
 	notifications Notifications,
-	queue jobs.Enqueuer,
 ) *Service {
 	return &Service{
 		repo:          repo,
 		tx:            tx,
 		logger:        logger,
-		queue:         queue,
 		cart:          cart,
 		inventory:     inventory,
 		coupons:       coupons,

@@ -37,14 +37,14 @@ func LoadConfig(appCfg *config.Settings) (Config, error) {
 		return cfg, fmt.Errorf("loading notification config: %w", err)
 	}
 
+	orderCfg, err := order.LoadConfig()
+	if err != nil {
+		return cfg, fmt.Errorf("loading order config: %w", err)
+	}
+
 	paymentCfg, err := payment.LoadConfig(appCfg.App.Env)
 	if err != nil {
 		return cfg, fmt.Errorf("loading payment config: %w", err)
-	}
-
-	orderCfg, err := order.LoadConfig(paymentCfg.JobTimeout)
-	if err != nil {
-		return cfg, fmt.Errorf("loading order config: %w", err)
 	}
 
 	return Config{

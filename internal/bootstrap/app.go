@@ -39,8 +39,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist"
 	wishlistpg "github.com/residwi/go-api-project-template/internal/modules/wishlist/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	"github.com/residwi/go-api-project-template/internal/platform/jobs"
-	jobspg "github.com/residwi/go-api-project-template/internal/platform/jobs/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/queue"
 )
 
@@ -61,8 +59,6 @@ type App struct {
 	Notifications *notification.Service
 	Dashboard     *dashboard.Service
 	TxRunner      database.TxRunner
-	Jobs          *jobs.Registry
-	JobStore      jobs.Store
 }
 
 func New(
@@ -72,7 +68,6 @@ func New(
 	logger *slog.Logger,
 ) (*App, error) {
 	txRunner := database.NewTxRunner(db.Primary)
-	jobStore := jobspg.New(db)
 
 	insertClient, err := queue.NewInsertClient(db)
 	if err != nil {
@@ -108,7 +103,6 @@ func New(
 		inv,
 		promotionMod,
 		notificationMod,
-		jobStore,
 	)
 
 	paymentMod := payment.New(
@@ -127,9 +121,6 @@ func New(
 	shippingMod := shipping.New(shippingpg.New(db), txRunner, ordMod)
 	reviewMod := review.New(reviewpg.New(db), ordMod)
 
-	reg := jobs.NewRegistry()
-	jobs.Register(reg, order.NewExpireStaleJob(ordMod))
-
 	return &App{
 		Users:         userMod,
 		Auth:          authMod,
@@ -147,7 +138,5 @@ func New(
 		Notifications: notificationMod,
 		Dashboard:     dashboard.New(dashboardpg.New(db)),
 		TxRunner:      txRunner,
-		Jobs:          reg,
-		JobStore:      jobStore,
 	}, nil
 }
