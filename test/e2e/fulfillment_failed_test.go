@@ -158,9 +158,9 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 
 		var pendingRefunds int
 		require.NoError(t, testPool.QueryRow(ctx,
-			`SELECT COUNT(*) FROM job_queue
-			 WHERE group_key = $1 AND kind = 'payment.refund' AND status = 'pending'`,
-			"order:"+orderID).Scan(&pendingRefunds))
+			`SELECT COUNT(*) FROM river_job
+			 WHERE kind = 'payment.refund' AND $1 = ANY(tags) AND state = 'available'`,
+			"order-"+orderID).Scan(&pendingRefunds))
 		assert.Equal(t, 1, pendingRefunds)
 	})
 
@@ -171,11 +171,9 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		require.Equal(t, 100, stockBefore)
 		require.Equal(t, 0, reservedBefore)
 
-		job := payment.NewRefundJob(newPaymentService(t, mockServer.URL+"/mock/payment"))
-		job.PaymentID = paymentID
-		job.OrderID = uuid.MustParse(orderID)
+		svc := newPaymentService(t, mockServer.URL+"/mock/payment")
 
-		require.NoError(t, job.Run(ctx))
+		require.NoError(t, svc.SettleRefund(ctx, paymentID, uuid.MustParse(orderID)))
 
 		var status string
 		require.NoError(t, testPool.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, orderID).Scan(&status))

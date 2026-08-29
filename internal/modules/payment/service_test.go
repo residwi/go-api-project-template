@@ -613,10 +613,10 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		d.orders.EXPECT().MarkFulfillmentFailedAfterCharge(mock.Anything, orderID).
 			Return(nil)
 
+		assertRefundEnqueued(t, d.queue, paymentID, orderID)
+
 		err := svc.FinalizeSuccess(ctx, paymentID, orderID)
 		require.NoError(t, err)
-
-		assertRefundEnqueued(t, d.queue, paymentID, orderID)
 	})
 
 	t.Run("inventory deduction error propagates", func(t *testing.T) {
@@ -748,10 +748,10 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		d.orders.EXPECT().MarkFulfillmentFailedAfterCharge(mock.Anything, orderID).
 			Return(nil)
 
+		assertRefundEnqueued(t, d.queue, paymentID, orderID)
+
 		err := svc.FinalizeSuccess(ctx, paymentID, orderID)
 		require.NoError(t, err)
-
-		assertRefundEnqueued(t, d.queue, paymentID, orderID)
 	})
 
 	t.Run("listing order items error propagates", func(t *testing.T) {
@@ -871,10 +871,11 @@ func TestService_Refund(t *testing.T) {
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).
 			Return(p, nil)
 
+		assertRefundEnqueued(t, d.queue, paymentID, orderID)
+
 		err := svc.Refund(ctx, paymentID)
 
 		require.NoError(t, err)
-		assertRefundEnqueued(t, d.queue, paymentID, orderID)
 	})
 
 	t.Run("success enqueues a pending refund job from a requires-review payment", func(t *testing.T) {
@@ -894,10 +895,11 @@ func TestService_Refund(t *testing.T) {
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).
 			Return(p, nil)
 
+		assertRefundEnqueued(t, d.queue, paymentID, orderID)
+
 		err := svc.Refund(ctx, paymentID)
 
 		require.NoError(t, err)
-		assertRefundEnqueued(t, d.queue, paymentID, orderID)
 	})
 
 	t.Run("payment not refundable - wrong status", func(t *testing.T) {
@@ -959,7 +961,7 @@ func TestService_Refund(t *testing.T) {
 	})
 }
 
-func TestService_RunRefund(t *testing.T) {
+func TestService_SettleRefund(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success with release inventory", func(t *testing.T) {
@@ -1009,7 +1011,7 @@ func TestService_RunRefund(t *testing.T) {
 		d.coupon.EXPECT().Release(mock.Anything, orderID).
 			Return(nil)
 
-		err := svc.runRefund(ctx, paymentID, orderID)
+		err := svc.SettleRefund(ctx, paymentID, orderID)
 		assert.NoError(t, err)
 	})
 
@@ -1057,7 +1059,7 @@ func TestService_RunRefund(t *testing.T) {
 		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Deducted).
 			Return(nil)
 
-		err := svc.runRefund(ctx, paymentID, orderID)
+		err := svc.SettleRefund(ctx, paymentID, orderID)
 		assert.NoError(t, err)
 	})
 
@@ -1077,7 +1079,7 @@ func TestService_RunRefund(t *testing.T) {
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).
 			Return(p, nil)
 
-		err := svc.runRefund(context.Background(), paymentID, orderID)
+		err := svc.SettleRefund(context.Background(), paymentID, orderID)
 		require.ErrorIs(t, err, jobs.ErrDiscard)
 	})
 
@@ -1097,7 +1099,7 @@ func TestService_RunRefund(t *testing.T) {
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).
 			Return(p, nil)
 
-		err := svc.runRefund(context.Background(), paymentID, orderID)
+		err := svc.SettleRefund(context.Background(), paymentID, orderID)
 		require.ErrorIs(t, err, jobs.ErrDiscard)
 	})
 
@@ -1112,7 +1114,7 @@ func TestService_RunRefund(t *testing.T) {
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).
 			Return(nil, errors.New("not found"))
 
-		err := svc.runRefund(context.Background(), paymentID, orderID)
+		err := svc.SettleRefund(context.Background(), paymentID, orderID)
 		assert.Error(t, err)
 	})
 
@@ -1137,7 +1139,7 @@ func TestService_RunRefund(t *testing.T) {
 		d.gateway.EXPECT().Refund(mock.Anything, mock.Anything).
 			Return(gateway.RefundResponse{}, errors.New("gateway timeout"))
 
-		err := svc.runRefund(context.Background(), paymentID, orderID)
+		err := svc.SettleRefund(context.Background(), paymentID, orderID)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "gateway timeout")
 	})
@@ -1178,7 +1180,7 @@ func TestService_RunRefund(t *testing.T) {
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(nil, errors.New("db error"))
 
-		err := svc.runRefund(ctx, paymentID, orderID)
+		err := svc.SettleRefund(ctx, paymentID, orderID)
 		assert.Error(t, err)
 	})
 
@@ -1223,7 +1225,7 @@ func TestService_RunRefund(t *testing.T) {
 		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
 			Return(nil)
 
-		err := svc.runRefund(ctx, paymentID, orderID)
+		err := svc.SettleRefund(ctx, paymentID, orderID)
 		assert.NoError(t, err)
 	})
 
@@ -1267,7 +1269,7 @@ func TestService_RunRefund(t *testing.T) {
 		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
 			Return(errors.New("release failed"))
 
-		err := svc.runRefund(ctx, paymentID, orderID)
+		err := svc.SettleRefund(ctx, paymentID, orderID)
 		assert.NoError(t, err)
 	})
 
@@ -1311,7 +1313,7 @@ func TestService_RunRefund(t *testing.T) {
 		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Deducted).
 			Return(errors.New("restock failed"))
 
-		err := svc.runRefund(ctx, paymentID, orderID)
+		err := svc.SettleRefund(ctx, paymentID, orderID)
 		assert.NoError(t, err)
 	})
 
@@ -1358,7 +1360,7 @@ func TestService_RunRefund(t *testing.T) {
 		d.coupon.EXPECT().Release(mock.Anything, orderID).
 			Return(errors.New("coupon release failed"))
 
-		err := svc.runRefund(ctx, paymentID, orderID)
+		err := svc.SettleRefund(ctx, paymentID, orderID)
 		assert.NoError(t, err)
 	})
 }
@@ -1433,6 +1435,9 @@ func TestService_HandleWebhook(t *testing.T) {
 		d.orders.EXPECT().CancelUnpaid(mock.Anything, orderID).
 			Return(nil)
 
+		d.queue.EXPECT().CancelPendingForOrder(mock.Anything, orderID).
+			Return(nil)
+
 		payload := marshal(t, map[string]any{
 			"event":          "failed",
 			"transaction_id": "txn_456",
@@ -1444,7 +1449,6 @@ func TestService_HandleWebhook(t *testing.T) {
 		err := svc.HandleWebhook(ctx, payload, "")
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"order:" + orderID.String()}, d.queue.Cancelled)
 	})
 
 	t.Run("expired event cancels payment", func(t *testing.T) {
@@ -1475,6 +1479,9 @@ func TestService_HandleWebhook(t *testing.T) {
 		d.orders.EXPECT().CancelUnpaid(mock.Anything, orderID).
 			Return(nil)
 
+		d.queue.EXPECT().CancelPendingForOrder(mock.Anything, orderID).
+			Return(nil)
+
 		payload := marshal(t, map[string]any{
 			"event":          "expired",
 			"transaction_id": "txn_789",
@@ -1486,7 +1493,6 @@ func TestService_HandleWebhook(t *testing.T) {
 		err := svc.HandleWebhook(ctx, payload, "")
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"order:" + orderID.String()}, d.queue.Cancelled)
 	})
 
 	t.Run("unknown payment returns nil", func(t *testing.T) {
@@ -1645,6 +1651,8 @@ func TestService_HandleWebhook(t *testing.T) {
 		d.orders.EXPECT().MarkFulfillmentFailedCompensating(mock.Anything, orderID).
 			Return(nil)
 
+		assertRefundEnqueued(t, d.queue, paymentID, orderID)
+
 		payload := marshal(t, map[string]any{
 			"event": "success",
 			"metadata": map[string]any{
@@ -1655,7 +1663,6 @@ func TestService_HandleWebhook(t *testing.T) {
 		err := svc.HandleWebhook(ctx, payload, "")
 
 		require.NoError(t, err)
-		assertRefundEnqueued(t, d.queue, paymentID, orderID)
 	})
 }
 
@@ -1719,7 +1726,7 @@ type testDeps struct {
 	orders    *MockOrders
 	inventory *MockInventory
 	coupon    *MockCouponReleaser
-	queue     *testutil.FakeQueue
+	queue     *MockRefundQueue
 }
 
 // newTestService builds *Service directly rather than through New, because
@@ -1732,7 +1739,7 @@ func newTestService(t *testing.T) (*Service, testDeps) {
 		orders:    NewMockOrders(t),
 		inventory: NewMockInventory(t),
 		coupon:    NewMockCouponReleaser(t),
-		queue:     &testutil.FakeQueue{},
+		queue:     NewMockRefundQueue(t),
 	}
 
 	svc := &Service{
@@ -1749,13 +1756,10 @@ func newTestService(t *testing.T) (*Service, testDeps) {
 	return svc, d
 }
 
-func assertRefundEnqueued(t *testing.T, queue *testutil.FakeQueue, paymentID, orderID uuid.UUID) {
+func assertRefundEnqueued(t *testing.T, queue *MockRefundQueue, paymentID, orderID uuid.UUID) {
 	t.Helper()
 
-	require.Len(t, queue.Inserted, 1)
-	assert.Equal(t, "payment.refund", queue.Inserted[0].Kind)
-	assert.Equal(t, "payment.refund:"+paymentID.String(), queue.Inserted[0].DedupKey)
-	assert.Equal(t, "order:"+orderID.String(), queue.Inserted[0].GroupKey)
+	queue.EXPECT().EnqueueRefund(mock.Anything, paymentID, orderID).Return(nil)
 }
 
 func sign(secret string, body []byte) string {

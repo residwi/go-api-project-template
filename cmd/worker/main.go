@@ -56,7 +56,7 @@ func run() error {
 	paymentJobCfg := jobs.Config{
 		Interval:      modCfg.Payment.JobInterval,
 		BatchSize:     appCfg.Worker.BatchSize,
-		LeaseDuration: modCfg.Payment.JobLease,
+		LeaseDuration: modCfg.Payment.JobTimeout,
 		Concurrency:   modCfg.Payment.JobConcurrency,
 		PruneAge:      appCfg.Worker.PruneAge,
 		PruneLimit:    appCfg.Worker.PruneLimit,

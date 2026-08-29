@@ -75,17 +75,17 @@ func TestLoadConfig(t *testing.T) {
 		_, err := LoadConfig("development")
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "PAYMENT_JOB_LEASE must be at least 3")
+		assert.Contains(t, err.Error(), "PAYMENT_JOB_TIMEOUT must be at least 3")
 	})
 
 	t.Run("rejects a gateway timeout so large no valid lease exists", func(t *testing.T) {
-		// PAYMENT_JOB_LEASE must clear the lease-vs-3x-timeout check on its own
+		// PAYMENT_JOB_TIMEOUT must clear the lease-vs-3x-timeout check on its own
 		// (3x6m=18m) so this isolates the threshold check instead of tripping both
 		// at once -- the brief's own 5m draft trips both, and the lease error's
 		// text also contains "PAYMENT_GATEWAY_TIMEOUT", so it would pass for the
 		// wrong reason.
 		t.Setenv("PAYMENT_GATEWAY_TIMEOUT", "6m")
-		t.Setenv("PAYMENT_JOB_LEASE", "20m")
+		t.Setenv("PAYMENT_JOB_TIMEOUT", "20m")
 
 		_, err := LoadConfig("development")
 

@@ -154,8 +154,8 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 
 		var jobCount int
 		err := testPool.QueryRow(ctx,
-			`SELECT COUNT(*) FROM job_queue WHERE group_key = $1 AND kind = 'payment.refund'`,
-			"order:"+orderID).Scan(&jobCount)
+			`SELECT COUNT(*) FROM river_job WHERE kind = 'payment.refund' AND $1 = ANY(tags)`,
+			"order-"+orderID).Scan(&jobCount)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, jobCount, 1)
 	})
@@ -163,11 +163,9 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	t.Run("processing refund job restocks inventory and releases coupon", func(t *testing.T) {
 		stockBefore, _ := inventoryLevelOf(t, prodID)
 
-		job := payment.NewRefundJob(newPaymentService(t, mockServer.URL+"/mock/payment"))
-		job.PaymentID = paymentID
-		job.OrderID = uuid.MustParse(orderID)
+		svc := newPaymentService(t, mockServer.URL+"/mock/payment")
 
-		processErr := job.Run(ctx)
+		processErr := svc.SettleRefund(ctx, paymentID, uuid.MustParse(orderID))
 		require.NoError(t, processErr)
 
 		var orderStatus string
@@ -323,11 +321,9 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, usageBefore)
 
-		job := payment.NewRefundJob(newPaymentService(t, mockServer.URL+"/mock/payment"))
-		job.PaymentID = paymentID
-		job.OrderID = uuid.MustParse(orderID)
+		svc := newPaymentService(t, mockServer.URL+"/mock/payment")
 
-		processErr := job.Run(ctx)
+		processErr := svc.SettleRefund(ctx, paymentID, uuid.MustParse(orderID))
 		require.NoError(t, processErr)
 
 		// Restocked, not released: available_stock returns to its seeded 100 and

@@ -647,13 +647,11 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM order_items WHERE order_id = $1`, orderID)
 		testPool.Exec(ctx, `DELETE FROM orders WHERE id = $1`, orderID)
 
-		job := payment.NewRefundJob(newPaymentServiceForTest(t, mockServer.URL+"/mock/payment"))
-		job.PaymentID = paymentID
-		job.OrderID = uuid.MustParse(orderID)
+		svc := newPaymentServiceForTest(t, mockServer.URL+"/mock/payment")
 
 		// The outcome is not asserted: this exists to drive the order-facing adapters
 		// with an order whose items are gone.
-		_ = job.Run(ctx)
+		_ = svc.SettleRefund(ctx, paymentID, uuid.MustParse(orderID))
 
 		testPool.Exec(ctx,
 			`INSERT INTO orders (id, user_id, status, subtotal_amount, total_amount, currency)

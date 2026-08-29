@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/redis/go-redis/v9"
@@ -21,6 +22,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	orderpg "github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	paymentjobs "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/jobs"
 	paymentpg "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	productpg "github.com/residwi/go-api-project-template/internal/modules/product/adapter/postgres"
@@ -38,6 +40,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	jobspg "github.com/residwi/go-api-project-template/internal/platform/jobs/postgres"
+	"github.com/residwi/go-api-project-template/internal/platform/queue"
 )
 
 type App struct {
@@ -102,12 +105,17 @@ func New(
 		jobStore,
 	)
 
+	insertClient, err := queue.NewInsertClient(db)
+	if err != nil {
+		return nil, fmt.Errorf("building job insert client: %w", err)
+	}
+
 	paymentMod := payment.New(
 		paymentpg.New(db),
 		txRunner,
 		cfg.Payment,
 		logger,
-		jobStore,
+		paymentjobs.NewQueue(insertClient, db),
 		ordMod,
 		inv,
 		promotionMod,
@@ -119,7 +127,6 @@ func New(
 	reviewMod := review.New(reviewpg.New(db), ordMod)
 
 	reg := jobs.NewRegistry()
-	jobs.Register(reg, payment.NewRefundJob(paymentMod))
 	jobs.Register(reg, notification.NewSendJob(notificationMod))
 	jobs.Register(reg, order.NewExpireStaleJob(ordMod))
 

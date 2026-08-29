@@ -98,18 +98,19 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 		cancelOrderID,
 	).Scan(&paymentID))
 	_, err = testPool.Exec(ctx,
-		`INSERT INTO job_queue (queue, kind, payload, group_key) VALUES ('payment', 'payment.refund', '{}', $1)`,
-		"order:"+cancelOrderID.String(),
+		`INSERT INTO river_job (kind, queue, max_attempts, args, tags)
+		 VALUES ('payment.refund', 'payment', 3, '{}', ARRAY[$1])`,
+		"order-"+cancelOrderID.String(),
 	)
 	require.NoError(t, err)
 
 	require.NoError(t, app.Checkout.CancelOrder(ctx, userID, cancelOrderID))
 
-	var jobStatus string
+	var jobState string
 	require.NoError(t, testPool.QueryRow(ctx,
-		`SELECT status FROM job_queue WHERE group_key = $1`, "order:"+cancelOrderID.String(),
-	).Scan(&jobStatus))
-	assert.Equal(t, "cancelled", jobStatus,
+		`SELECT state FROM river_job WHERE $1 = ANY(tags)`, "order-"+cancelOrderID.String(),
+	).Scan(&jobState))
+	assert.Equal(t, "cancelled", jobState,
 		"checkout.Service.CancelOrder must be wired to both order.Service and payment.Service by New")
 
 	// checkout.Service.Snapshots is new in this refactor: order.Service.Snapshot

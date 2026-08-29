@@ -19,7 +19,7 @@ type Config struct {
 
 	JobInterval    time.Duration `envconfig:"PAYMENT_JOB_INTERVAL"    default:"10s"`
 	JobConcurrency int           `envconfig:"PAYMENT_JOB_CONCURRENCY" default:"5"`
-	JobLease       time.Duration `envconfig:"PAYMENT_JOB_LEASE"       default:"2m"`
+	JobTimeout     time.Duration `envconfig:"PAYMENT_JOB_TIMEOUT"     default:"2m"`
 }
 
 const defaultWebhookSecret = "webhook-secret"
@@ -58,15 +58,15 @@ func LoadConfig(appEnv string) (Config, error) {
 		)
 	}
 
-	if cfg.JobLease < cfg.GatewayTimeout*3 {
+	if cfg.JobTimeout < cfg.GatewayTimeout*3 {
 		return Config{}, errors.New(
-			"PAYMENT_JOB_LEASE must be at least 3× PAYMENT_GATEWAY_TIMEOUT to avoid duplicate gateway calls",
+			"PAYMENT_JOB_TIMEOUT must be at least 3× PAYMENT_GATEWAY_TIMEOUT to avoid duplicate gateway calls",
 		)
 	}
 
 	if cfg.GatewayTimeout*3 >= order.StaleProcessingThreshold {
 		return Config{}, fmt.Errorf(
-			"PAYMENT_GATEWAY_TIMEOUT (%s) is too large: 3× it must stay below the order stale-processing threshold (%s) so a valid PAYMENT_JOB_LEASE range exists",
+			"PAYMENT_GATEWAY_TIMEOUT (%s) is too large: 3× it must stay below the order stale-processing threshold (%s) so a valid PAYMENT_JOB_TIMEOUT range exists",
 			cfg.GatewayTimeout,
 			order.StaleProcessingThreshold,
 		)

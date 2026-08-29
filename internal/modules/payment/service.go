@@ -28,7 +28,7 @@ type Service struct {
 	repo    Repository
 	tx      database.TxRunner
 	gateway Gateway
-	queue   jobs.Queue
+	queue   RefundQueue
 	logger  *slog.Logger
 
 	orders    Orders
@@ -43,7 +43,7 @@ func New(
 	tx database.TxRunner,
 	cfg Config,
 	logger *slog.Logger,
-	queue jobs.Queue,
+	queue RefundQueue,
 	orders Orders,
 	inventory Inventory,
 	coupons CouponReleaser,
@@ -220,7 +220,7 @@ func (s *Service) FinalizeSuccess(ctx context.Context, paymentID, orderID uuid.U
 				)
 			}
 
-			if createErr := s.enqueueRefundJob(txCtx, paymentID, orderID); createErr != nil {
+			if createErr := s.queue.EnqueueRefund(txCtx, paymentID, orderID); createErr != nil {
 				s.logger.ErrorContext(
 					txCtx,
 					"failed to create refund job",
@@ -264,7 +264,7 @@ func (s *Service) CompensateRefund(ctx context.Context, paymentID, orderID uuid.
 			)
 		}
 
-		return s.enqueueRefundJob(txCtx, paymentID, orderID)
+		return s.queue.EnqueueRefund(txCtx, paymentID, orderID)
 	})
 	if txErr != nil {
 		s.logger.ErrorContext(ctx, "compensating refund failed",
@@ -289,7 +289,7 @@ func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
 		return fmt.Errorf("%w: payment is not refundable", errs.ErrBadRequest)
 	}
 
-	return s.enqueueRefundJob(ctx, paymentID, p.OrderID)
+	return s.queue.EnqueueRefund(ctx, paymentID, p.OrderID)
 }
 
 //nolint:gocognit // resolves the payment then dispatches success/failed/cancelled/expired event branches
@@ -423,7 +423,7 @@ func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]doma
 }
 
 //nolint:gocognit // not-refundable guard, gateway call, and the finalize transaction's dispatched/restock/coupon branches
-func (s *Service) runRefund(ctx context.Context, paymentID, orderID uuid.UUID) error {
+func (s *Service) SettleRefund(ctx context.Context, paymentID, orderID uuid.UUID) error {
 	p, err := s.repo.GetByID(ctx, paymentID)
 	if err != nil {
 		s.logger.ErrorContext(
@@ -528,6 +528,13 @@ func (s *Service) runRefund(ctx context.Context, paymentID, orderID uuid.UUID) e
 
 	if txErr != nil {
 		return fmt.Errorf("refund finalization failed: %w", txErr)
+	}
+	return nil
+}
+
+func (s *Service) CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) error {
+	if err := s.queue.CancelPendingForOrder(ctx, orderID); err != nil {
+		return fmt.Errorf("cancelling payment jobs for order %s: %w", orderID, err)
 	}
 	return nil
 }
