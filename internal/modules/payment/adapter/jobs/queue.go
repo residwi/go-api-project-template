@@ -31,6 +31,7 @@ func (q *Queue) EnqueueRefund(ctx context.Context, paymentID, orderID uuid.UUID)
 
 func (q *Queue) CancelPendingForOrder(ctx context.Context, orderID uuid.UUID) error {
 	res, err := q.client.JobList(ctx, river.NewJobListParams().
+		Kinds(RefundArgs{}.Kind()).
 		TagsAny(orderTag(orderID)).
 		States(
 			rivertype.JobStateAvailable,

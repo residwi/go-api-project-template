@@ -128,6 +128,12 @@ func TestCancellingAnOrderCancelsItsPaymentJobsOnly(t *testing.T) {
 	orderID, paymentID := placeAndPayOrder(t, env)
 	require.NoError(t, env.app.Payments.Refund(ctx, paymentID))
 
+	_, err := testPool.Exec(ctx,
+		`INSERT INTO river_job (kind, queue, max_attempts, args, tags)
+		 VALUES ('test.foreign', 'default', 1, '{}', ARRAY[$1])`,
+		"order-"+orderID.String())
+	require.NoError(t, err)
+
 	require.NoError(t, env.app.Payments.CancelPendingByOrderID(ctx, orderID))
 
 	var jobState string
@@ -135,6 +141,13 @@ func TestCancellingAnOrderCancelsItsPaymentJobsOnly(t *testing.T) {
 		`SELECT state FROM river_job WHERE kind = 'payment.refund' AND args->>'PaymentID' = $1`,
 		paymentID.String()).Scan(&jobState))
 	assert.Equal(t, "cancelled", jobState)
+
+	var foreignJobState string
+	require.NoError(t, testPool.QueryRow(ctx,
+		`SELECT state FROM river_job WHERE kind = 'test.foreign' AND $1 = ANY(tags)`,
+		"order-"+orderID.String()).Scan(&foreignJobState))
+	assert.Equal(t, "available", foreignJobState,
+		"CancelPendingByOrderID must only cancel payment's own kind, not every job tagged for this order")
 
 	var sendPending int
 	require.NoError(t, testPool.QueryRow(ctx,
