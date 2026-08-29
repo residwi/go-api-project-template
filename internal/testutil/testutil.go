@@ -198,7 +198,7 @@ func ResetDB(t testing.TB, pool *pgxpool.Pool) {
 	err := pool.QueryRow(ctx, `
 		SELECT string_agg(quote_ident(tablename), ', ')
 		FROM pg_tables
-		WHERE schemaname = 'public' AND tablename != 'goose_db_version'
+		WHERE schemaname = 'public' AND tablename NOT IN ('goose_db_version', 'river_migration')
 	`).Scan(&tableList)
 	if err != nil || tableList == "" {
 		return

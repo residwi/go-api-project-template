@@ -194,3 +194,24 @@ func TestMustStartPostgresAppliesRiverSchema(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, exists, "river_job must exist: the worker cannot run without River's schema")
 }
+
+func TestResetDBSurvivesASecondMustStartPostgresCall(t *testing.T) {
+	pool, cleanup := testutil.MustStartPostgres("test_testutil")
+	t.Cleanup(cleanup)
+
+	testutil.ResetDB(t, pool)
+
+	var riverMigrationRows int
+	require.NoError(t, pool.QueryRow(t.Context(),
+		`SELECT count(*) FROM river_migration`).Scan(&riverMigrationRows))
+	assert.NotZero(t, riverMigrationRows,
+		"ResetDB must not wipe river_migration: it is a migration ledger, like goose_db_version")
+
+	pool2, cleanup2 := testutil.MustStartPostgres("test_testutil")
+	t.Cleanup(cleanup2)
+
+	require.NoError(t, pool2.QueryRow(t.Context(),
+		`SELECT count(*) FROM river_migration`).Scan(&riverMigrationRows))
+	assert.NotZero(t, riverMigrationRows,
+		"a second MustStartPostgres call must not re-run River's migration against a table that already exists")
+}
