@@ -138,7 +138,7 @@ migrate-install: ## Install goose CLI
 	@echo "Installing goose..."
 	go install github.com/pressly/goose/v3/cmd/goose@latest
 	@echo "Installing river..."
-	go install github.com/riverqueue/river/cmd/river@latest
+	go install github.com/riverqueue/river/cmd/river@v0.45.0
 
 .PHONY: migrate-up
 migrate-up: ## Run all pending migrations
