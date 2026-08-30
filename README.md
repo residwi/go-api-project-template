@@ -457,7 +457,7 @@ make run-worker
 ```
 
 Payment and notification enqueue through their own outbound port
-(`payment.RefundQueue`, `notification.SendQueue`), each implemented in the
+(`payment.Queue`, `notification.Queue`), each implemented in the
 module's own `adapter/jobs` package against
 `internal/platform/queue.Insert` — which joins the caller's open transaction
 when there is one (type-asserting `database.PrimaryDB` to `pgx.Tx`), so an
