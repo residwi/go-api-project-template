@@ -182,14 +182,15 @@ func TestRunnerClaimsAndRunsAnEnqueuedJob(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		var state string
-		if err := testPool.QueryRow(ctx,
+		if queryErr := testPool.QueryRow(ctx,
 			`SELECT state FROM river_job WHERE kind = 'payment.refund' AND args->>'PaymentID' = $1`,
 			paymentID.String(),
-		).Scan(&state); err != nil {
+		).Scan(&state); queryErr != nil {
 			return false
 		}
 		return state == "completed"
-	}, 5*time.Second, 25*time.Millisecond, "a real river.Client with a registered worker must claim and run the enqueued job")
+	}, 5*time.Second, 25*time.Millisecond,
+		"a real river.Client with a registered worker must claim and run the enqueued job")
 }
 
 func TestOrderExpireStaleSweepRunsAgainAfterCompleting(t *testing.T) {
@@ -215,16 +216,20 @@ func TestOrderExpireStaleSweepRunsAgainAfterCompleting(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		var state string
-		if err := testPool.QueryRow(ctx,
+		if queryErr := testPool.QueryRow(ctx,
 			`SELECT state FROM river_job WHERE id = $1`, first.Job.ID,
-		).Scan(&state); err != nil {
+		).Scan(&state); queryErr != nil {
 			return false
 		}
 		return state == "completed"
-	}, 5*time.Second, 25*time.Millisecond, "the first sweep must complete before the recurrence assertion below means anything")
+	}, 5*time.Second, 25*time.Millisecond,
+		"the first sweep must complete before the recurrence assertion below means anything")
 
 	second, err := client.Insert(ctx, orderjobs.ExpireStaleArgs{}, nil)
 	require.NoError(t, err)
-	assert.False(t, second.UniqueSkippedAsDuplicate,
-		"the periodic sweep must run again after its previous occurrence completes, not be silently skipped as a duplicate")
+	assert.False(
+		t,
+		second.UniqueSkippedAsDuplicate,
+		"the periodic sweep must run again after its previous occurrence completes, not be silently skipped as a duplicate",
+	)
 }
