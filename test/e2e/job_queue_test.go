@@ -10,12 +10,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/bootstrap"
+	orderjobs "github.com/residwi/go-api-project-template/internal/modules/order/adapter/jobs"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
+	paymentjobs "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/jobs"
 	"github.com/residwi/go-api-project-template/internal/server"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -153,4 +157,74 @@ func TestCancellingAnOrderCancelsItsPaymentJobsOnly(t *testing.T) {
 	require.NoError(t, testPool.QueryRow(ctx,
 		`SELECT COUNT(*) FROM river_job WHERE kind = 'notification.send' AND state = 'available'`).Scan(&sendPending))
 	assert.Positive(t, sendPending)
+}
+
+func TestRunnerClaimsAndRunsAnEnqueuedJob(t *testing.T) {
+	setup(t)
+	ctx := context.Background()
+	env := newTestEnv(t)
+
+	_, paymentID := placeAndPayOrder(t, env)
+
+	workers := river.NewWorkers()
+	river.AddWorker(workers, paymentjobs.NewRefundWorker(env.app.Payments, time.Minute))
+
+	client, err := river.NewClient(riverpgxv5.New(testPool), &river.Config{
+		Workers: workers,
+		Queues:  map[string]river.QueueConfig{"payment": {MaxWorkers: 2}},
+		Logger:  testutil.DiscardLogger(),
+	})
+	require.NoError(t, err)
+	require.NoError(t, client.Start(ctx))
+	t.Cleanup(func() { _ = client.Stop(context.Background()) })
+
+	require.NoError(t, env.app.Payments.Refund(ctx, paymentID))
+
+	require.Eventually(t, func() bool {
+		var state string
+		if err := testPool.QueryRow(ctx,
+			`SELECT state FROM river_job WHERE kind = 'payment.refund' AND args->>'PaymentID' = $1`,
+			paymentID.String(),
+		).Scan(&state); err != nil {
+			return false
+		}
+		return state == "completed"
+	}, 5*time.Second, 25*time.Millisecond, "a real river.Client with a registered worker must claim and run the enqueued job")
+}
+
+func TestOrderExpireStaleSweepRunsAgainAfterCompleting(t *testing.T) {
+	setup(t)
+	ctx := context.Background()
+	env := newTestEnv(t)
+
+	workers := river.NewWorkers()
+	river.AddWorker(workers, orderjobs.NewExpireStaleWorker(env.app.Orders, testutil.DiscardLogger(), time.Minute))
+
+	client, err := river.NewClient(riverpgxv5.New(testPool), &river.Config{
+		Workers: workers,
+		Queues:  map[string]river.QueueConfig{"order": {MaxWorkers: 2}},
+		Logger:  testutil.DiscardLogger(),
+	})
+	require.NoError(t, err)
+	require.NoError(t, client.Start(ctx))
+	t.Cleanup(func() { _ = client.Stop(context.Background()) })
+
+	first, err := client.Insert(ctx, orderjobs.ExpireStaleArgs{}, nil)
+	require.NoError(t, err)
+	require.False(t, first.UniqueSkippedAsDuplicate)
+
+	require.Eventually(t, func() bool {
+		var state string
+		if err := testPool.QueryRow(ctx,
+			`SELECT state FROM river_job WHERE id = $1`, first.Job.ID,
+		).Scan(&state); err != nil {
+			return false
+		}
+		return state == "completed"
+	}, 5*time.Second, 25*time.Millisecond, "the first sweep must complete before the recurrence assertion below means anything")
+
+	second, err := client.Insert(ctx, orderjobs.ExpireStaleArgs{}, nil)
+	require.NoError(t, err)
+	assert.False(t, second.UniqueSkippedAsDuplicate,
+		"the periodic sweep must run again after its previous occurrence completes, not be silently skipped as a duplicate")
 }

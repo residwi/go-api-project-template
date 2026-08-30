@@ -16,7 +16,6 @@ func (ExpireStaleArgs) InsertOpts() river.InsertOpts {
 	return river.InsertOpts{
 		Queue:       "order",
 		MaxAttempts: 1,
-		UniqueOpts:  river.UniqueOpts{ByArgs: true, ByQueue: true},
 	}
 }
 
