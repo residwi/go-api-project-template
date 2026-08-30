@@ -368,7 +368,7 @@ check 8 exists to guarantee you can, and `go build ./...` passes and `go test
 Check 8 forbids every import of local code from under `internal/platform`
 except `internal/platform` itself — and `internal/testutil`, its one
 exemption. That exemption is not decorative: `platform/database`,
-`platform/cache` and `platform/jobs/postgres` each import `internal/testutil`
+`platform/cache` and `platform/queue` each import `internal/testutil`
 from a `_test.go` file, for the shared dockertest harness that starts the two
 fixed-name containers. `internal/testutil` does not live under
 `internal/platform`, so it does not travel with a copy of it, and those three
@@ -384,7 +384,7 @@ expensive way.
 
 **What you would do:** move `internal/testutil` to
 `internal/platform/testutil` and drop the exemption. It is a mechanical move —
-one directory, 24 calling test packages, an import-path rewrite — and it makes
+one directory, 25 calling test packages, an import-path rewrite — and it makes
 the leaf property true for `go test` as well. The argument against is that
 `internal/testutil` is a test harness rather than infrastructure the running
 binaries use, and putting it under `internal/platform` says otherwise. Not
@@ -663,28 +663,29 @@ This used to be a dead seam — configured and unused. It is not any more. `data
 
 **What it was.** `payment/adapter/jobs.Dispatcher.Process` switched on `job.Action` with a `case domain.ActionCharge: return d.charge.RunChargeJob(ctx, job)`, and reasonably read as though charges ran through the job queue the way refunds did. No production code ever created a `payment_jobs` row with `action='charge'` — every call site that created a job went through `Service.enqueueRefund`, which hardcoded `domain.ActionRefund` — so `Service.RunChargeJob` was unreachable outside tests even though the dispatcher routed to it correctly. Charging happened inline instead, and `FinalizeSuccess` ran a `MarkJobCompleted` against a synthetic, zero-`ID` `Job` for both of its inline callers, silently matching zero rows every time.
 
-**Why it is gone.** The whole mechanism this entry described no longer exists. `payment/adapter/jobs.Dispatcher`, `domain.ActionCharge`, `Service.RunChargeJob` and `payment_jobs` are all deleted — decision 18 in `ARCHITECTURE.md`. Payment now declares exactly one job type, `RefundJob` (`payment/job.go`), registered once with the shared `jobs.Registry`; there is no charge job to dispatch and nothing pretending there is. Charging is still inline, on the same two paths (`Service.Charge` when the gateway captures synchronously, `Service.HandleWebhook` when it does not) — that part of the design was never wrong, only the appearance of a second path through the queue that no caller took. There is no longer a `RunChargeJob` for anyone to read `Dispatcher.Process` and mistake for one.
+**Why it is gone.** The whole mechanism this entry described no longer exists. `payment/adapter/jobs.Dispatcher`, `domain.ActionCharge`, `Service.RunChargeJob` and `payment_jobs` are all deleted — decision 18 in `ARCHITECTURE.md`. Payment now declares exactly one job type, `RefundArgs` (`payment/adapter/jobs/refund.go`), registered as a `river.Worker` in `internal/worker`; there is no charge job to dispatch and nothing pretending there is. Charging is still inline, on the same two paths (`Service.Charge` when the gateway captures synchronously, `Service.HandleWebhook` when it does not) — that part of the design was never wrong, only the appearance of a second path through the queue that no caller took. There is no longer a `RunChargeJob` for anyone to read `Dispatcher.Process` and mistake for one.
 
 ## Job delivery is at-least-once, and only one of the two jobs is idempotent
 
-**Where you hit it:** a job's handler succeeds, but the process dies or loses its database connection before the follow-up `Store.Complete` write lands. The row stays `processing` until its lease lapses, and `jobs.Runner` reclaims and re-runs it — by design, not by accident. Nothing in `internal/platform/jobs` promises exactly-once; it promises the job runs *at least* once, and hands the difference to whoever writes `Run`.
+**Where you hit it:** a job's handler succeeds, but the process dies or loses its database connection before the follow-up commit lands. The job stays `running` until `WORKER_RESCUE_AFTER` lapses, and River's own rescuer reclaims and re-runs it — by design, not by accident. River promises at-least-once delivery, not exactly-once, and hands the difference to whoever writes `Work`.
 
-**This is a design decision, not an oversight**, and the two jobs that exist today sit on opposite sides of it:
+**This is a design decision, not an oversight**, and the two jobs that matter here sit on opposite sides of it:
 
-- **`payment.RefundJob` is idempotent twice over.** `runRefund` refuses any payment whose status is neither `success` nor `requires_review` before it calls the gateway, so a normal re-run against an already-refunded payment discards at the guard rather than refunding twice. The gateway call itself also carries `IdempotencyKey: p.ID.String()`, which is what actually stops a genuinely concurrent double-execution — two runners racing the same reclaimed row before either has updated the row — from refunding twice at the gateway; the guard alone cannot see that race, since both would read `success` before either writes. Underneath both, the status write to `refunded` is a compare-and-set naming its allowed predecessors (`success`, `requires_review`), so at most one of the two concurrent runs can also win the database update.
-- **`notification.SendJob` is not idempotent**, and is accepted as at-least-once anyway, because the only channel this template ships, `notification/adapter/channel/log`, turns a duplicate send into a duplicate log line. Nothing downstream of `Channel.Send` de-duplicates.
+- **`payment.RefundWorker` is idempotent twice over.** `SettleRefund` refuses any payment whose status is neither `success` nor `requires_review` before it calls the gateway — returning `payment.ErrNotRefundable`, which `RefundWorker.Work` translates into `river.JobCancel` so a re-run against an already-refunded payment is cancelled outright rather than retried or refunded twice. The gateway call itself also carries `IdempotencyKey: p.ID.String()`, which is what actually stops a genuinely concurrent double-execution — two workers racing the same reclaimed job before either has updated the row — from refunding twice at the gateway; the guard alone cannot see that race, since both would read `success` before either writes. Underneath both, the status write to `refunded` is a compare-and-set naming its allowed predecessors (`success`, `requires_review`), so at most one of the two concurrent runs can also win the database update.
+- **`notification.SendWorker` is not idempotent**, and is accepted as at-least-once anyway, because the only channel this template ships, `notification/adapter/channel/log`, turns a duplicate send into a duplicate log line. Nothing downstream of `Channel.Send` de-duplicates.
 
-**What a real channel implementation owes.** Swapping `adapter/channel/log` for an email or SMS sender inherits the at-least-once guarantee whether it wants to or not — the runner does not change, only the channel does. A production channel needs one of two things before it ships: idempotent delivery at the provider (many transactional-email APIs accept a client-supplied message ID for exactly this), or a delivered marker `SendJob.Run` checks before calling `Channel.Send` and sets after. Shipping neither means the first lease-timeout retry, database blip, or `cmd/worker` restart mid-tick sends the same email or SMS twice. Learn this here, not from a support ticket about duplicate mail.
+**What a real channel implementation owes.** Swapping `adapter/channel/log` for an email or SMS sender inherits the at-least-once guarantee whether it wants to or not — River does not change, only the channel does. A production channel needs one of two things before it ships: idempotent delivery at the provider (many transactional-email APIs accept a client-supplied message ID for exactly this), or a delivered marker `SendWorker.Work` checks before calling `Channel.Send` and sets after. Shipping neither means the first rescued retry, database blip, or `cmd/worker` restart mid-job sends the same email or SMS twice. Learn this here, not from a support ticket about duplicate mail.
 
-**`checkout.Service.CancelPendingByOrderID`'s failure is logged, not propagated, for the same reason.** A job that fires against an order already cancelled is refused by `payment`'s own status guard — the same guard `RefundJob` leans on — which is what makes best-effort safe there: the worst a swallowed cancellation error does is leave a refund job that will simply no-op against a payment that already moved past `success`/`requires_review`, not double-refund or lose a cancellation that mattered.
+**`checkout.Service.CancelPendingByOrderID`'s failure is logged, not propagated, for the same reason.** It now does two things where the old system did one: `payment.Service.CancelPendingByOrderID` calls `payment/adapter/jobs.Queue.CancelPendingForOrder`, which lists every pending, scheduled or retryable refund job tagged with the order and cancels each via `river.Client.JobCancel` — an active step the old system never had. But if that call itself fails and the error is swallowed, the fallback is the same guard `RefundWorker` leans on: a refund job that eventually runs against a payment already moved past `success`/`requires_review` simply no-ops. The worst a swallowed cancellation error does is leave that no-op job sitting in the queue, not double-refund or lose a cancellation that mattered.
 
-## What the shared job table gave up
+## What the shared job table gives up
 
-**Where you hit it:** three separate ways, all a consequence of one `job_queue` table replacing two per-module ones.
+**Where you hit it:** two separate ways, and both survived the move from a hand-rolled `job_queue` to River's own `river_job` — a shared job table gives these up regardless of who built it.
 
-- **No foreign key ties a job row to the thing it is about.** `payment_jobs.payment_id` referenced `payments(id)` and `notification_jobs.user_id` cascaded from `users(id)`; neither can exist on `job_queue`, because a platform-owned table naming `payments` or `users` in a constraint would be exactly the cross-module reach decision 6 forbids a module's own SQL from making, and `job_queue` is no exception to that just because it sits in `platform`. `users` and `notifications` are both soft-deleted today, so nothing currently exercises the gap — but a deleted user's pending `notification.send` jobs are not cleaned up by any constraint the way `notification_jobs.user_id`'s old cascade would have done it. Whatever eventually removes a `notifications` row — a hard-delete path, a retention job, GDPR erasure — leaves any job still referencing it to fail `SendJob.Run`'s `j.svc.repo.Get(ctx, j.NotificationID)` on a missing row, on every attempt, until the job exhausts its retries and is buried.
-- **A job payload is JSON matched by field name, and nothing checks it against the struct that will decode it.** `jobs.Enqueue` marshals a `Job` value with `encoding/json`; `jobs.Register` unmarshals a claimed `Record`'s payload back into a zero value of the same type. Renaming an exported field on `payment.RefundJob` or `notification.SendJob` is silent for every row already sitting in `job_queue` at the moment of deploy — the old field name in the stored JSON simply has nowhere to land, and the Go field keeps its zero value with no error from `json.Unmarshal`. No compiler sees this, because the write side and the read side are decades of wall-clock time apart, not two call sites in one build.
-- **`jobs.ErrDiscard` is a sentinel, not a type, and `errors.Is` is what decides whether a job is buried or discarded as intentionally cancelled.** A handler that returns an error from a library that happens to wrap `jobs.ErrDiscard` internally — unlikely today, since neither `RefundJob.Run` nor `SendJob.Run` imports anything that could — would be silently treated as "this job should never run," the same as a genuine not-refundable guard, rather than retried. Nothing today constructs that error by accident, so the cost is latent rather than active.
+- **No foreign key ties a job row to the thing it is about.** `payment_jobs.payment_id` referenced `payments(id)` and `notification_jobs.user_id` cascaded from `users(id)`; `river_job` has neither, verified against `\d river_job` on a migrated test database — no `Foreign-key constraints` section at all. A table naming `payments` or `users` in a constraint would be exactly the cross-module reach decision 6 forbids a module's own SQL from making, and `river_job` is not this repository's table to add one to even if that reach were allowed. `users` and `notifications` are both soft-deleted today, so nothing currently exercises the gap — but a deleted user's pending `notification.send` jobs are not cleaned up by any constraint the way `notification_jobs.user_id`'s old cascade would have done it. Whatever eventually removes a `notifications` row — a hard-delete path, a retention job, GDPR erasure — leaves any job still referencing it to fail `SendWorker.Work`'s notification lookup on a missing row, on every attempt, until River discards it after `MaxAttempts`.
+- **A job's args are JSON matched by field name, and nothing checks it against the struct that will decode it.** `river_job.args` is `jsonb`; River marshals a `river.JobArgs` value into it with `encoding/json` on enqueue and unmarshals it back into a zero value of the registered `Kind()`'s args type when a worker claims it. Renaming an exported field on `payment/adapter/jobs.RefundArgs` or `notification/adapter/jobs.SendArgs` is silent for every row already sitting in `river_job` at the moment of deploy — the old field name in the stored JSON simply has nowhere to land, and the Go field keeps its zero value with no error from `json.Unmarshal`. No compiler sees this, because the write side and the read side are decades of wall-clock time apart, not two call sites in one build.
+
+**One old cost is gone rather than merely renamed.** `jobs.ErrDiscard` was a bare sentinel, and `errors.Is` decided whether an error meant "discard this job, do not retry it" — a handler returning an error from a library that happened to wrap `jobs.ErrDiscard` internally would have been silently treated the same way, with nothing to tell the two apart. River's equivalent, `river.JobCancel(err)`, returns `*rivertype.JobCancelError`, a distinct type River's own executor detects with `errors.As`, not `errors.Is` (`internal/jobexecutor/job_executor.go` in the `river` module) — an unrelated library's error would have to construct that exact concrete type to be mistaken for one, not merely wrap a shared value. `payment.RefundWorker.Work` is the one caller today, translating `payment.ErrNotRefundable` into it.
 
 ## The test suite shares one Postgres and one Redis, and slots are hand-assigned
 
@@ -710,7 +711,7 @@ Two further consequences worth knowing before writing tests:
 
 The flatten had already shrunk this from a general problem to a two-module one: before it, `order` spread `test_order` across **nine** test packages and `payment` spread `test_payment` across **five** (`git grep -l 'MustStartPostgres("test_order")' 0ee2cc5 -- internal/modules`), and 75 packages in the repo called `testhelper.MustStart*`.
 
-**Why it is gone.** `payment/jobs/postgres` and `notification/jobs/postgres` no longer exist — the job queue they backed moved to `internal/platform/jobs/postgres`, one shared package with its own database, `test_platform_jobs` — so neither module has a second test package to share a name with any more. **24 packages call `testutil.MustStart*` today, 21 of them Postgres-claiming, 13 of those inside `internal/modules` — one package per module, every one of the 13 owning its database outright.** No module needs the caution this entry used to state: seed the rows your subtest owns and scope assertions to them regardless, the way `shipping`'s tests do (`seedOrder`, `seedShipment`), because a *second* test package can still land on any of these names in the future and nothing would stop it.
+**Why it is gone.** `payment/jobs/postgres` and `notification/jobs/postgres` no longer exist — the job queue they backed moved to `internal/platform/jobs/postgres`, one shared package with its own database, `test_platform_jobs` — so neither module has a second test package to share a name with any more. That platform-owned package is gone in its turn now: jobs run on River, and `internal/platform/queue` (`test_platform_jobs_insert`) and `internal/worker` (`test_worker`) are the two Postgres-claiming packages that replaced it, each with its own database and no sibling to share it with. **25 packages call `testutil.MustStart*` today, 22 of them Postgres-claiming, 13 of those inside `internal/modules` — one package per module, every one of the 13 owning its database outright.** No module needs the caution this entry used to state: seed the rows your subtest owns and scope assertions to them regardless, the way `shipping`'s tests do (`seedOrder`, `seedShipment`), because a *second* test package can still land on any of these names in the future and nothing would stop it.
 
 ## What the route golden proves, and the three things it still cannot
 
@@ -783,25 +784,28 @@ trading a fast unit test for a slower, more honest one. Not done here.
 ## The composition site is deliberately tedious
 
 **Where you hit it:** you open `internal/bootstrap/app.go` expecting the pile
-of adapter aliases a template this size usually carries, and find sixteen —
+of adapter aliases a template this size usually carries, and find seventeen —
 `cartpg`, `categorypg`, `dashboardpg`, `inventorypg`, `notificationpg`,
 `orderpg`, `paymentpg`, `productpg`, `promotionpg`, `reviewpg`, `shippingpg`,
-`userpg`, `wishlistpg`, `userredis`, `channellog` and `jobspg`.
+`userpg`, `wishlistpg`, `userredis`, `channellog`, `notificationjobs` and
+`paymentjobs`.
 
 That is one alias per adapter package, not one per module: `auth`, `checkout`
-and `money` own no store and cost none, `user` costs two. `func New` is 83
-lines (`internal/bootstrap/app.go:64`-`146`) and builds every module in
+and `money` own no store and cost none, `user` costs two. `func New` is 79
+lines (`internal/bootstrap/app.go:64`-`142`) and builds every module in
 dependency order — `inventory` first because `product` needs it, `order`
 before `payment` because `payment`'s single `Orders` port takes the one
 `*order.Service`, and `checkout` after both because it orchestrates them.
 
 There is no `Deps` struct left to carry a raw `*pgxpool.Pool` field any more:
 `New` builds one `database.DB{Primary, Replica}` value, threads it into every
-`xxxpg.New(db)` call — including `jobspg.New(db)`, once — and hands the
-resulting adapters to each module's `New` as positional arguments. `payment`
-and `notification` used to reopen a second pool each to build their own
-job-queue adapter; both now take the same shared `jobs.Store` value every
-other consumer of the queue gets, built once and named nowhere but `jobspg`.
+`xxxpg.New(db)` call, and hands the resulting adapters to each module's `New`
+as positional arguments. `payment` and `notification` used to reopen a
+second pool each to build their own job-queue adapter; both now take an
+`adapter/jobs.Queue` built from the same insert-only `river.Client`
+(`queue.NewInsertClient(db)`, built once) and the same `database.DB` value
+every other adapter gets: `notificationjobs.NewQueue(insertClient, db)` and
+`paymentjobs.NewQueue(insertClient, db)`.
 
 The tedium has moved three times, and the history is the interesting part.
 Phase 0 made `bootstrap.New` the single composition root. Slicing moved most
@@ -890,49 +894,51 @@ no subset to get wrong. The two-types fix this entry used to recommend
 (`contract.Snapshot` plus `contract.Info`) is moot: one type with one
 producer needs no split.
 
-**What stayed open.** `Service.RunRefundJob`'s finalize step
-(`internal/modules/payment/service.go:540` and `:543`) branches on
+**What stayed open.** `Service.SettleRefund`
+(`internal/modules/payment/service.go:501` and `:504`) branches on
 `orderSnap.Dispatched` and `orderSnap.StockReversed`, and neither branch has
 a test that sets either field `true`. That is an untested branch, not a
 type-safety hole — the fields are populated now, so the branch reads what the
 row actually says. It predates the flatten and is still worth a test.
 
-## Config load order is load-bearing, and nothing type-enforces which lease gets validated
+## `RescueStuckJobsAfter` is client-wide, so a per-queue rescue window is not expressible
 
-**Where you hit it:** `order.LoadConfig(paymentJobLease time.Duration)` validates a threshold
-against a bare `time.Duration` parameter rather than against the field the payment runner
-actually uses. `order` refuses a lease at or above its stale-processing threshold, which would
-let the recovery sweep revert an order whose charge is still leased; `payment` refuses a lease
-below `3×PAYMENT_GATEWAY_TIMEOUT`, which would let the runner reclaim and re-run a charge the
-gateway has not finished.
+**The problem this section used to describe is resolved by construction, not by convention.**
+`order.LoadConfig(paymentJobLease time.Duration)` used to validate a cross-module threshold
+against a bare `time.Duration` parameter threaded in from `payment`'s own config, and nothing
+type-enforced that the two `LoadConfig` calls ran in the right order or passed the right field
+— a real incident followed when a shared worker-wide lease split into per-queue fields and both
+guards kept validating a value the runner no longer used. That path is gone: `payment.LoadConfig`
+validates `JobTimeout`, a field it owns, against `GatewayTimeout`, a field it also owns — no
+parameter, no cross-module thread. The one guard that spans `order` and the worker,
+`WORKER_RESCUE_AFTER` against `order.StaleProcessingThreshold`, is not in any `LoadConfig`
+either: `internal/worker`'s `newClient` imports `order.StaleProcessingThreshold` as a
+compile-time constant and compares it to `appCfg.Worker.RescueAfter` inline, before building the
+`river.Client`. There is no load order to get wrong, because there is no second `LoadConfig`
+call on this path.
 
-**The per-queue lease split broke this once already.** Both guards were written when one
-worker-wide `WORKER_LEASE_DURATION` fed every consumer. Splitting the worker settings per queue
-gave the payment runner its own lease while both `LoadConfig` call sites kept passing the old
-shared field — so for a while the guards validated a number the runner never used, and a 30m
-lease against a 15-minute stale threshold booted clean.
+**What is true instead:** River's `RescueStuckJobsAfter` (`WORKER_RESCUE_AFTER`) is one field on
+`river.Config`, shared by every queue the client runs — `payment`, `notification` and `order`
+alike (verified against `github.com/riverqueue/river@v0.45.0/client.go`: the field is declared
+once, with no per-`QueueConfig` equivalent). Each worker's own `Timeout()` —
+`PAYMENT_JOB_TIMEOUT`, `NOTIFICATION_JOB_TIMEOUT`, `ORDER_JOB_TIMEOUT` — is validated against
+that queue's own constraints (payment's must be at least 3× its gateway timeout), but nothing
+validates any of the three against `WORKER_RESCUE_AFTER` itself. River only checks its own
+client-wide fallback `JobTimeout` against `RescueStuckJobsAfter` (`client.go`'s
+`RescueStuckJobsAfter cannot be less than JobTimeout`), and this template never sets that
+client-wide fallback, so the check passes trivially regardless of what any individual worker's
+`Timeout()` is set to. Set `PAYMENT_JOB_TIMEOUT` above `WORKER_RESCUE_AFTER` and nothing stops
+it at boot: a refund still genuinely running when the client-wide rescue window lapses gets
+reclaimed and re-run out from under itself — the same double-execution risk
+`payment.RefundWorker`'s idempotency guards exist to absorb, but for a config mistake this
+template does not catch.
 
-**Half of that is closed now.** `PAYMENT_JOB_LEASE` is a field on `payment.Config`, so
-`payment.LoadConfig` validates the exact value `cmd/worker` hands its payment runner — there is
-no parameter left to pass wrongly. `order.LoadConfig` still takes the lease as a
-`time.Duration`, because the invariant it enforces belongs to `order` while the value belongs
-to `payment`.
-
-**What remains is structural, and now confined to `order`.** That parameter is still a bare
-`time.Duration`, so nothing prevents a second call site passing a different one — a
-placeholder, a variable meant for something else, a value read before payment's config
-loaded. `internal/bootstrap/config.go` is the only caller today and passes
-`paymentCfg.JobLease`, which is why the load order there is load-bearing: payment must load
-before order. If a wrong value happens to land inside the range the guard accepts, boot
-succeeds having validated a number no runner uses. The compiler cannot tell the two apart, and
-no test would notice.
-
-**What you would do.** Nothing speculative ahead of a third call site — there are exactly two
-today and both thread the same field by construction. If a third appears, either have `Load`
-return a lease-bearing type that both `LoadConfig`s require, making the provenance a
-compile-time guarantee, or keep the load sequence in the one function per binary that already
-owns it (`server.go`'s `loadModuleConfigs`, `cmd/worker/main.go`'s `run`) and never inline a
-module's `LoadConfig` at a new use site.
+**What you would do.** Validate the missing invariant explicitly — either in `internal/worker`'s
+`newClient` (it already has every value it needs in scope: `modCfg.Payment.JobTimeout`,
+`modCfg.Notification.JobTimeout`, `modCfg.Order.JobTimeout` and `rescueAfter`, right where it
+validates `rescueAfter` against `order.StaleProcessingThreshold` today), or by widening that
+one function's check to all three. A per-queue rescue window is not a gap this template can
+close by rearranging config: River does not expose one as of the version pinned in `go.mod`.
 
 ## `contract.go` can grow into the shared domain model `internal/shared/` was rejected for being
 
@@ -948,7 +954,7 @@ module's `LoadConfig` at a new use site.
 
 `logger.WithAttrs` stores a `[]slog.Attr` under an unexported key and only `ContextHandler.Handle` reads it. There is no accessor, and `middleware.GetRequestID` was deleted once nothing needed it. Both uses above need the value itself, not a log record.
 
-**A second, sharper limit: nothing checks the single-naming invariant.** An attribute named at two points on one code path is emitted twice, and slog does not deduplicate keys. `Runner.processOne` is the one place `job_id` is named today, for every job either queue drains — a simpler shape than before this refactor's job-queue split, when a queue's own processor named it and an inline caller with no job row had to remember to deliberately name nothing. That collapse to one caller closed one way this could go wrong, but the invariant itself is still unchecked: any handler's own `Run` method — `payment.RefundJob.Run`, `notification.SendJob.Run`, or a third job type added later — that called `logger.WithAttrs(ctx, slog.String("job_id", ...))` itself would start emitting the key twice, with no test or linter to catch it. The check is a grep of the callers, run by hand.
+**A second, sharper limit: nothing checks the single-naming invariant.** An attribute named at two points on one code path is emitted twice, and slog does not deduplicate keys. This used to have a job-side example: `Runner.processOne` named `job_id` for every job either queue drained, and any handler's own `Run` method that also called `logger.WithAttrs(ctx, slog.String("job_id", ...))` would have started emitting the key twice, with no test or linter to catch it. That edge is gone along with `internal/platform/jobs` — River jobs do not run through `logger.WithAttrs` at all now (decision 12), so there is one fewer place this invariant could quietly break. The two edges that remain, `middleware.RequestID` and `middleware.Auth`, are singular by construction: a request carries exactly one of each. The invariant itself is still unchecked in general, though — nothing stops a future edge from repeating a key an earlier one already named. The check is a grep of the callers, run by hand.
 
 This is not hypothetical. Naming `user_id` at the auth edge immediately collided with an `invalidateStatusCache` helper that logged its own `user_id` — the user being acted upon, not the caller. On an admin role change the record carried both, and a last-wins parser kept the admin's id while silently dropping the target's. The fix was to rename the inner one to `target_user_id`, because the two values answer different questions. That helper was duplicated three times while `user` was sliced — one private copy per slice that needed it (`remove`, `adminupdate`, `updaterole`), each logging `target_user_id` the same way — and the collision this paragraph describes had to be fixed in each copy independently. One `invalidateStatusCache` method on `user.Service` (`internal/modules/user/service.go`) replaced all three, which is the shape of what decision 16 bought: three copies of one fix became one.
 

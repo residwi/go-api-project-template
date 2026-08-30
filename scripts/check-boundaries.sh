@@ -1019,7 +1019,7 @@ check_transport_direction() {
 #
 # internal/testutil is the single exemption, and it is a real hole rather than
 # a tidy one. Three platform test packages import it for the shared dockertest
-# harness -- platform/database, platform/cache and platform/jobs/postgres --
+# harness -- platform/database, platform/cache and platform/queue --
 # and internal/testutil does not live under internal/platform, so it does not
 # travel with a copy of it. That is why the copy property this check defends
 # holds for `go build` on a copied internal/platform but NOT for `go test`:

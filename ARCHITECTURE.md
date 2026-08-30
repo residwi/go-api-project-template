@@ -33,9 +33,9 @@ Two consequences worth naming, since they look like mistakes otherwise:
 
 - The `adapter/postgres` / `adapter/http` split costs an import alias
   wherever an adapter is wired, and there are exactly two such files.
-  `internal/bootstrap/app.go` carries 16 (thirteen `*pg`, plus `userredis`,
-  `channellog` and `jobspg`); `internal/server/router.go` carries 15, one
-  per module that serves a route.
+  `internal/bootstrap/app.go` carries 17 (thirteen `*pg`, plus `userredis`,
+  `channellog`, `paymentjobs` and `notificationjobs`); `internal/server/router.go`
+  carries 15, one per module that serves a route.
   In a product codebase, hard to justify. Here it is the point: a physical
   boundary teaches the port/adapter distinction in a way a file-naming
   convention cannot.
@@ -107,7 +107,7 @@ had no cycles by construction and each module's port list was exactly the API
 it would need if extracted. It paid off immediately: because interfaces were
 declared narrow at the consumer, `promotion.Service` satisfied both
 `order.CouponReserver` and `payment.CouponReleaser` directly, and
-`notification/jobs.Worker` satisfied `platform/jobs.Processor` directly — no
+`*payment.Service` satisfied `payment/adapter/jobs.Refunder` directly — no
 adapter ever needed writing.
 
 **Cost accepted:** none, where a producer's own method already matched what
@@ -156,15 +156,18 @@ physically cannot leak into `service.go`.
 **Cost accepted:** 13 packages named `postgres` under `internal/modules`
 today, 15 named `http` and one named `redis` — re-run `find internal/modules
 -type d -name postgres | wc -l` (and `http`, `redis`) rather than trust these.
-All thirteen `postgres` packages are a module's own `adapter/postgres` now:
-the two that used to back a per-module job queue instead
-(`notification/jobs/postgres`, `payment/jobs/postgres`) are gone, replaced by
-one `internal/platform/jobs/postgres` outside the module tree entirely — see
-decision 18. Every adapter package is named for its technology, same as every
-other module's, so importing one needs an alias rather than merely permitting
-one — and both places that import them are single files: 16 aliases in
-`internal/bootstrap/app.go` (thirteen `*pg`, `userredis`, `channellog` for
-notification's log adapter, and `jobspg` for the shared job store), 15 in
+All thirteen `postgres` packages are a module's own `adapter/postgres`: the
+two that used to back a per-module job queue instead
+(`notification/jobs/postgres`, `payment/jobs/postgres`) were already gone,
+collapsed into one `internal/platform/jobs/postgres` outside the module tree
+— and that platform-owned one is gone too now, since background jobs run on
+River. `payment`, `notification` and `order` each keep an `adapter/jobs`
+instead, naming no technology this decision counts. Every adapter package is
+named for its technology, same as every other module's, so importing one
+needs an alias rather than merely permitting one — and both places that
+import them are single files: 17 aliases in `internal/bootstrap/app.go`
+(thirteen `*pg`, `userredis`, `channellog` for notification's log adapter,
+and `paymentjobs` / `notificationjobs` for their queue adapters), 15 in
 `internal/server/router.go`. The cost is concentrated in two files for the
 whole binary, deliberately: adding a module touches each of them once.
 
@@ -178,10 +181,13 @@ at all, no `Service` and no store; it is a value object. `user` is the one
 module in the repo with two backing stores, `adapter/postgres` and
 `adapter/redis` — every other module has at most one. Seven modules have no
 `ports.go`, because nothing they do reaches outside the module.
-`notification` and `payment` have **no** `worker/` package and no queue type
-of their own at all: each declares one `job.go` at its module root holding a
-job struct (`Kind()` plus `Run`) and nothing else, and the queue, store and
-runner that drain it are all `internal/platform/jobs` — decision 18.
+`notification` and `payment` each have an `adapter/jobs` package — job args,
+`InsertOpts()` and a `river.Worker` — but no queue, store or runner of their
+own: the one `river.Client` that drains every queue lives in `internal/worker`
+instead, shared with `order`. `order`'s `adapter/jobs` is the odd one of the
+three: it holds a worker and nothing an outbound port would name, since its
+stale sweep runs as a `river.PeriodicJob` rather than something it enqueues
+— decision 18.
 
 `contract.go` is not counted as an adapter — it adapts no technology,
 decision 13 covers it on its own terms, and a module gets one independently
@@ -467,15 +473,15 @@ So `logger.WithAttrs(ctx, ...)` stores attributes in the context and
 `logger.ContextHandler` merges them into every record. `logger.Setup`
 installs the wrapper, so every logger in both binaries has it. Services
 keep their constructor-injected `*slog.Logger` and their existing
-`InfoContext(ctx, ...)` calls unchanged. Only the four edges that name an
-attribute carry a `logger.WithAttrs` line: `middleware.RequestID`,
-`middleware.Auth`, `jobs.Runner.Start`, and `Runner.processOne` — one method
-on the shared runner now, naming `job_id` for all three queues, where it used
-to be named separately by each queue's own processor
-(`payment/adapter/jobs.Dispatcher.Process` and
-`notification/jobs.Worker.Process`, both gone along with the per-module
-queues). Every other call in every other module
-needed no change to start carrying the context's attributes.
+`InfoContext(ctx, ...)` calls unchanged. Only the two edges that name an
+attribute carry a `logger.WithAttrs` line: `middleware.RequestID` and
+`middleware.Auth`. A job used to be a third kind of edge here —
+`jobs.Runner.Start` naming `runner`, `Runner.processOne` naming `job_id` — but
+both are gone along with `internal/platform/jobs`: `internal/worker` hands
+River's own `Logger` field the same `*slog.Logger`, and River names its own
+attributes around a job rather than through this mechanism. Every other call
+in every other module needed no change to start carrying the context's
+attributes.
 
 Two details are load-bearing rather than stylistic. `ContextHandler`
 overrides `WithAttrs` and `WithGroup`, because the methods promoted from
@@ -486,10 +492,11 @@ derived from one parent would otherwise share a backing array and
 overwrite each other.
 
 **The cost:** you can no longer read a single log call and know everything
-it emits. `order.Service.ExpireStale`'s
-`s.logger.ErrorContext(ctx, "failed to expire order", slog.String("order_id", o.ID.String()), slog.String("error", err.Error()))`
-also emits `runner=order`, because it runs inside `order.ExpireStaleJob.Run`
-on the `order` queue's own runner, and nothing at that line names it. In
+it emits. `payment.Service.Charge`'s
+`s.logger.ErrorContext(ctx, "failed to update gateway info", slog.String("error", err.Error()))`
+also emits `request_id` and, on the authenticated path that reaches it,
+`user_id` — because it runs on a call chain `middleware.RequestID` and
+`middleware.Auth` both touched, and nothing at that line names either. In
 exchange, 32 repeated attributes are gone and `request_id` reaches code that
 has never heard of HTTP.
 
@@ -772,28 +779,26 @@ only `Snapshot`; the file no longer proves the narrower claim by itself.
 
 ## 18. Background jobs share one platform-owned queue, not one per module
 
-`internal/platform/jobs` (`jobs.go`) declares one `Job` interface —
-`Kind() string` and `Run(ctx context.Context) error` — one `Record` (a row in
-the single `job_queue` table: queue, kind, JSON payload, dedup key, group
-key, status, attempts, lease) and one `Store` interface
-(`Insert`/`Claim`/`Complete`/`Retry`/`Bury`/`Cancel`/
-`CancelByGroupKey`/`Prune`), implemented once by
-`internal/platform/jobs/postgres` against that one table. A module declares
-its own job type in its own `job.go`, at module root, with an exported
-payload and an unexported dependency closing over its `Service`:
-`payment.RefundJob{PaymentID, OrderID; svc *Service}`,
-`notification.SendJob{NotificationID; svc *Service}` and
-`order.ExpireStaleJob{At, Every; svc *Service}` are the three that exist.
-`jobs.Enqueue[T Job]` marshals the job and inserts a `Record`; `queueOf`
-derives the queue name from the kind's prefix before its first dot, so
-`"payment.refund"` claims from the `payment` queue. `internal/bootstrap`
-builds one `jobs.Registry`, registers each job type once, and hands the
-shared registry and store to `cmd/worker`, which starts one `jobs.Runner` per
-queue name — three today. `order.ExpireStaleJob` replaced a `jobs.Sweeper`
-interface the runner used to type-assert its processor against for per-tick
-housekeeping, which forced a small wrapper type in `cmd/worker/main.go` to
-carry both the payment registry and the sweep; an ordinary self-scheduling
-job needed neither the interface nor the wrapper.
+Background jobs run on [River](https://riverqueue.com) now, but the decision
+this heading names outlived the mechanism: one shared queue beats one per
+module, whichever implementation provides it.
+
+`internal/platform/queue` holds exactly two functions: `NewInsertClient(db
+database.DB) (*river.Client[pgx.Tx], error)`, an insert-only client, and
+`Insert(ctx, client, db, args, opts) error`, which type-asserts
+`database.PrimaryDB(ctx, db)` to `pgx.Tx` and calls `InsertTx` when the
+caller is inside one — the whole reason the function exists, since a missed
+assertion would enqueue outside the caller's transaction and let an enqueue
+outlive a business write that rolled back. A module declares its own job
+type in its own `adapter/jobs` package — the only place in the module naming
+`river` — with an exported args type, an `InsertOpts()` (queue, max
+attempts, uniqueness) and a `river.Worker`: `payment/adapter/jobs.RefundArgs`
++ `RefundWorker`, `notification/adapter/jobs.SendArgs` + `SendWorker`, and
+`order/adapter/jobs.ExpireStaleArgs` + `ExpireStaleWorker` are the three that
+exist. `internal/worker` builds the one `river.Client` for the process,
+registers all three workers against three queues (`payment`, `notification`,
+`order`), and leaves `cmd/worker/main.go` nothing to do but call
+`worker.Run()`.
 
 This replaces what two modules used to do separately, without either ever
 having its own decision recorded here: `payment_jobs` and `notification_jobs`
@@ -802,30 +807,52 @@ methods with no separate `Queue` type), `notification/jobs.Worker` was queue
 and processor at once, and `payment/adapter/jobs.Dispatcher` routed a claimed
 job to `Service.RunChargeJob` or `Service.RunRefundJob` — decision 3's and
 decision 4's bodies described those mechanics in passing, and both have
-been rewritten to describe this decision instead.
+been rewritten to describe this decision instead. That first consolidation
+landed as a hand-rolled `internal/platform/jobs` — one `Job` interface, one
+`job_queue` table, one `Store`, one `Runner` — and it is this hand-rolled
+layer, not the two per-module ones, that River replaced next.
 
-**Why:** the two queues had already converged on the same shape —
-poll, lease, claim, process, retry with backoff, prune — and were reading
-that shape off two different tables with two different `Store`-shaped
-adapters that happened to agree by convention rather than by a shared type.
-One `Store`, one runner type, and a module's only remaining job is to say
-what a job *is* (`Kind`, `Run`) and what it needs to run it.
+**Why:** the two queues had already converged on the same shape — poll,
+lease, claim, process, retry with backoff, prune — and were reading that
+shape off two different tables with two different `Store`-shaped adapters
+that happened to agree by convention rather than by a shared type. One
+`Store`, one runner type closed that gap the first time; moving to River
+closes a different one — a maintained queue's own fetch batching, retry
+backoff and maintenance sweep, in place of this repository's own
+reimplementation of all three.
 
-**Cost accepted:** the two tables' foreign keys are gone.
+**Two behaviour changes came with the move.** The stale sweep's schedule is
+no longer a durable row: `order.ExpireStaleJob`, `ScheduleExpireStale` and
+the timestamp dedup key that let a buried run reschedule its own successor
+are gone, replaced by a `river.PeriodicJob` `internal/worker` declares and
+the client re-derives on every start. The accepted consequence is that a
+long outage now yields one sweep on restart rather than a backlog of missed
+ones, where the old dedup-keyed row would have queued exactly the runs that
+were missed. And a per-queue lease became a client-wide
+`RescueStuckJobsAfter` (`WORKER_RESCUE_AFTER`) plus a per-worker `Timeout()`
+(`PAYMENT_JOB_TIMEOUT`, `NOTIFICATION_JOB_TIMEOUT`, `ORDER_JOB_TIMEOUT`, each
+validated in its own module's `LoadConfig`): a rescue window is no longer
+expressible per queue, only for the client as a whole, so widening one
+queue's rescue window now widens every queue's.
+
+**Cost accepted:** the two tables' foreign keys are still gone.
 `payment_jobs.payment_id` referenced `payments(id)` and
-`notification_jobs.user_id` cascaded from `users(id)`; `job_queue` has no
-foreign key to any module's rows at all, because it cannot — a platform-owned
-table naming `payments` or `users` in a constraint would be exactly the
-cross-module reach decision 6 forbids a module's own SQL. `users` are
-soft-deleted today, so nothing exercises this yet, but whatever eventually
-removes a user or a notification leaves any job still referencing it
-unreachable by any cascade — there is none to rely on. Job delivery is
-**at-least-once**, not exactly-once: if a handler
-succeeds but the follow-up `Complete` write fails, the row stays `processing`
-until its lease lapses and the runner reclaims and re-runs it. `payment.RefundJob`
-is idempotent twice over — its status guard refuses a payment that is neither
-`success` nor `requires_review`, and the transition beneath that is a guarded
-compare-and-set — so a re-run discards cleanly. `notification.SendJob` is not
+`notification_jobs.user_id` cascaded from `users(id)`; River's own
+`river_job` table has no foreign key to any module's rows at all, for the
+same reason `job_queue` could not — a table naming `payments` or `users` in
+a constraint would be exactly the cross-module reach decision 6 forbids a
+module's own SQL, and `river_job` is not even this repository's table to add
+one to. `users` are soft-deleted today, so nothing exercises this yet, but
+whatever eventually removes a user or a notification leaves any job still
+referencing it unreachable by any cascade — there is none to rely on. Job
+delivery is still **at-least-once**, not exactly-once: if a handler succeeds
+but the follow-up commit fails, River's own rescuer reclaims and re-runs the
+job once `WORKER_RESCUE_AFTER` lapses. `payment.RefundWorker` is idempotent
+twice over — its status guard refuses a payment that is neither `success`
+nor `requires_review`, and the transition beneath that is a guarded
+compare-and-set — so a re-run discards cleanly, and a payment that fails the
+guard with `payment.ErrNotRefundable` is translated to `river.JobCancel` and
+cancelled outright rather than retried. `notification.SendWorker` is not
 idempotent, and is accepted as at-least-once only because the one channel
 this template ships (`adapter/channel/log`) makes a duplicate send a
 duplicate log line. `ARCHITECTURE-LIMITATIONS.md` says what a real channel
@@ -939,10 +966,19 @@ route group `internal/server/router.go` mounts it on.
 
 ## `notification/worker/`
 
-**Rejected.** `notification`'s job type — `SendJob`, registered once with the
-shared `jobs.Registry` (decision 18) — is a `job.go` at the module root, not
-a package. Writing a `worker/` package to hold one struct with a `Kind` and a
-`Run` method would be ceremony teaching opposite of decision 4.
+**Rejected, then partly overtaken.** The original argument: `notification`'s
+job type — `SendJob`, a `Kind`+`Run` struct at the module root, registered
+once with the shared `jobs.Registry` — needed no package of its own; writing
+a `worker/` package to hold one struct would be ceremony teaching the
+opposite of decision 4. `SendJob` is gone now — `notification` moved to
+River, and its send job lives in `adapter/jobs` (`SendArgs` + `SendWorker`),
+a package after all. The reason is not the one this entry rejected: it isn't
+ceremony around one struct, it is keeping the `river` import to one place per
+module (rule 16, decision 18), the same reason `payment` and `order` also
+gained an `adapter/jobs`. A bespoke top-level `notification/worker/` package,
+named for the role rather than the technology, is still rejected for the
+reason decision 3 gives every other adapter: technology-named, one level
+under `adapter/`, same as every sibling.
 
 ## `platform/uuid`
 
