@@ -91,7 +91,7 @@ PLATFORM_ROOT='internal/platform'
 # works the same way an entry naming a top-level directory does, without a
 # depth-specific comparison. Nothing in $MODULES_ROOT sits on this list
 # today -- see the checkout paragraph above.
-WIRING_DIRS='internal/bootstrap internal/server'
+WIRING_DIRS='internal/bootstrap internal/server internal/worker'
 
 is_wiring() {
 	case " $WIRING_DIRS " in

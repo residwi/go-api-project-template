@@ -106,6 +106,15 @@ func TestCheckBoundaries(t *testing.T) {
 		assert.Contains(t, out, "Boundaries OK")
 	})
 
+	// internal/worker is the third WIRING_DIRS entry: it constructs each
+	// module's adapter/jobs worker directly, the same way bootstrap
+	// constructs adapter/postgres.
+	t.Run("check 4 exempts internal/worker as an importer", func(t *testing.T) {
+		probe := "package worker\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres\"\n"
+		out := runCheckWithoutError(t, filepath.Join("internal", "worker", "probe_wiring.go"), probe)
+		assert.Contains(t, out, "Boundaries OK")
+	})
+
 	// checkout is the script's only per-target grant: it alone may import
 	// order/domain, because order.Service.Place's signature names
 	// order/domain.NewOrder and order/domain.Order directly. Both subtests

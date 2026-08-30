@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -32,16 +31,6 @@ func Load() (*Settings, error) {
 }
 
 func (s *Settings) validate() error {
-	if s.Worker.BatchSize < 1 {
-		return errors.New(
-			"WORKER_BATCH_SIZE must be at least 1 (0 makes every claim query LIMIT 0 and silently halts both runners)",
-		)
-	}
-
-	if s.Worker.PruneLimit < 1 {
-		return errors.New("WORKER_PRUNE_LIMIT must be at least 1")
-	}
-
 	return nil
 }
 
@@ -107,7 +96,5 @@ type CORS struct {
 }
 
 type Worker struct {
-	BatchSize  int           `envconfig:"WORKER_BATCH_SIZE"  default:"10"`
-	PruneAge   time.Duration `envconfig:"WORKER_PRUNE_AGE"   default:"168h"`
-	PruneLimit int           `envconfig:"WORKER_PRUNE_LIMIT" default:"100"`
+	RescueAfter time.Duration `envconfig:"WORKER_RESCUE_AFTER" default:"5m"`
 }
