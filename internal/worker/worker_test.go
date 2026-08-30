@@ -38,3 +38,17 @@ func TestNewClientRejectsARescueWindowThatOutlivesTheStaleThreshold(t *testing.T
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "WORKER_RESCUE_AFTER")
 }
+
+func TestNewClientRejectsAZeroRescueWindow(t *testing.T) {
+	_, err := newClient(
+		database.DB{Primary: testPool},
+		bootstrap.Config{},
+		&bootstrap.App{},
+		0,
+		time.Minute,
+		slog.New(slog.DiscardHandler),
+	)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "WORKER_RESCUE_AFTER")
+}

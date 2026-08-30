@@ -99,7 +99,7 @@ func newClient(
 	softStop time.Duration,
 	appLog *slog.Logger,
 ) (*river.Client[pgx.Tx], error) {
-	if rescueAfter >= order.StaleProcessingThreshold {
+	if rescueAfter <= 0 || rescueAfter >= order.StaleProcessingThreshold {
 		return nil, errors.New(
 			"WORKER_RESCUE_AFTER must be less than the order stale-processing threshold, " +
 				"or the sweep can revert an order whose charge is still running",
@@ -117,9 +117,15 @@ func newClient(
 		SoftStopTimeout:      softStop,
 		Logger:               appLog,
 		Queues: map[string]river.QueueConfig{
-			"payment":      {MaxWorkers: modCfg.Payment.JobConcurrency},
-			"notification": {MaxWorkers: modCfg.Notification.JobConcurrency},
-			"order":        {MaxWorkers: modCfg.Order.JobConcurrency},
+			"payment": {
+				MaxWorkers:        modCfg.Payment.JobConcurrency,
+				FetchPollInterval: modCfg.Payment.JobInterval,
+			},
+			"notification": {
+				MaxWorkers:        modCfg.Notification.JobConcurrency,
+				FetchPollInterval: modCfg.Notification.JobInterval,
+			},
+			"order": {MaxWorkers: modCfg.Order.JobConcurrency},
 		},
 		PeriodicJobs: []*river.PeriodicJob{
 			river.NewPeriodicJob(
