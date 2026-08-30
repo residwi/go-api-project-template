@@ -268,7 +268,7 @@ other twelve manufactures a consistency that is not there.
 route group to the wrong limiter, and the whole suite stays green.
 
 Both middleware packages test each middleware in isolation —
-`internal/platform/web`'s `recover_test.go`, `requestid_test.go`,
+`internal/platform/web`'s `recovery_test.go`, `requestid_test.go`,
 `logging_test.go` and `cors_test.go`, and `internal/server/middleware`'s
 `auth_test.go`, `admin_test.go` and `ratelimit_test.go` all exist. Nothing
 tests the composition, and the split makes that slightly worse: the chain
