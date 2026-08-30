@@ -54,7 +54,7 @@ func LoadConfig(appEnv string) (Config, error) {
 
 	if cfg.JobConcurrency < 1 {
 		return Config{}, errors.New(
-			"PAYMENT_JOB_CONCURRENCY must be at least 1 (0 deadlocks the worker on its unbuffered semaphore)",
+			"PAYMENT_JOB_CONCURRENCY must be at least 1 (River requires QueueConfig.MaxWorkers to be at least 1)",
 		)
 	}
 

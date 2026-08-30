@@ -65,4 +65,13 @@ func TestLoad(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, Log{Level: "warn", Format: "text"}, appConfig.Log)
 	})
+
+	t.Run("rejects a zero APP_SHUTDOWN_TIMEOUT", func(t *testing.T) {
+		t.Setenv("APP_SHUTDOWN_TIMEOUT", "0")
+
+		_, err := Load()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "APP_SHUTDOWN_TIMEOUT")
+	})
 }

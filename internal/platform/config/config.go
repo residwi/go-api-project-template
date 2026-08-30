@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -31,6 +32,12 @@ func Load() (*Settings, error) {
 }
 
 func (s *Settings) validate() error {
+	if s.App.ShutdownTimeout <= 0 {
+		return errors.New(
+			"APP_SHUTDOWN_TIMEOUT must be greater than 0 (0 undoes SoftStopTimeout and forces a hard cancel on signal)",
+		)
+	}
+
 	return nil
 }
 
