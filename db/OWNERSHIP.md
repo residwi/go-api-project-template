@@ -5,7 +5,7 @@ adapter may name it in SQL — in a `FROM`, a `JOIN`, an `INSERT INTO`, an
 `UPDATE`, a `TRUNCATE` or a `COPY`. Every other module reads it through a
 consumer-declared port.
 
-18 tables, 13 owning modules, one owner each. Nothing is unowned and nothing is
+17 tables, 12 owning modules, one owner each. Nothing is unowned and nothing is
 shared. `ARCHITECTURE.md` section 6 states the rule and what it costs; this file
 is the list, and `scripts/check-boundaries.sh` reads the list from here.
 
@@ -28,7 +28,7 @@ is the list, and `scripts/check-boundaries.sh` reads the list from here.
     * Moving a row outside the markers removes that table from the check
       entirely, which fails open for its owner and closed for everyone else.
 
-  Rows are sorted by owner, then by table, so the 13-way partition is visible
+  Rows are sorted by owner, then by table, so the 12-way partition is visible
   at a glance. The script does not depend on the order.
 
   An unparseable table fails `make check-boundaries` loudly rather than passing
@@ -47,7 +47,6 @@ is the list, and `scripts/check-boundaries.sh` reads the list from here.
 | `order_items` | `order` |
 | `orders` | `order` |
 | `payments` | `payment` |
-| `job_queue` | `platform` |
 | `product_images` | `product` |
 | `products` | `product` |
 | `coupon_usages` | `promotion` |
@@ -68,15 +67,6 @@ by `user`. Nothing about `auth` is checked here because there is nothing to
 check.
 
 `dashboard` is the interesting one, and it is a deliberate exception.
-
-## The infrastructure owner
-
-`platform` owns `job_queue`, the shared queue drained by the generic job
-runner in `internal/platform/jobs`. `job_queue` is the only table owned
-by infrastructure rather than by a module. `scripts/check-boundaries.sh`
-check 3 loops over `internal/modules/*` only, so no module may name
-`job_queue` in SQL — it is inaccessible to modules by design and readable
-only by the platform layer's own `postgres` adapter.
 
 ## The reporting carve-out
 
@@ -284,14 +274,11 @@ check trusted past its reach is worse than no check.
 * **`dashboard`, at all.** Exempt by name, per the carve-out. Nothing verifies
   it stays read-only or stays at two tables.
 * **`internal/platform`, entirely.** Check 3 loops over `internal/modules/*`
-  only, so nothing in `internal/platform` — including
-  `internal/platform/jobs/postgres`, which owns `job_queue` — is ever scanned
-  for a table reference at all. This is the same absence check 4's own
-  `WIRING_DIRS` exemption exploits for the wiring layer, and it is precisely
-  why `job_queue` can be a real table with a real owner in this document
-  and still be unreachable from every module's own SQL: a module's SQL is
-  checked against tables *it* does not own, but nothing checks that
-  `internal/platform`'s own SQL stays inside what `platform` owns.
+  only, so nothing in `internal/platform` is ever scanned for a table
+  reference at all. This is the same absence check 4's own `WIRING_DIRS`
+  exemption exploits for the wiring layer. `platform` owns no table today, so
+  nothing currently depends on that absence, but the check would stay quiet
+  the day it did.
 * **Table names that are not literals.** The check is a grep for the identifier
   after a SQL keyword. Every query today has its table name in the string
   literal, but `fmt.Sprintf` is already routine in these adapters for `WHERE`
