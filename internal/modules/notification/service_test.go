@@ -32,7 +32,7 @@ func TestCreate(t *testing.T) {
 				return nil
 			})
 
-		queue := NewMockSendQueue(t)
+		queue := NewMockQueue(t)
 		queue.EXPECT().EnqueueSend(mock.Anything, mock.AnythingOfType("uuid.UUID")).Return(nil)
 
 		svc := New(repo, testutil.FakeTxRunner{}, queue, NewMockChannel(t), testutil.DiscardLogger())
@@ -52,7 +52,7 @@ func TestCreate(t *testing.T) {
 		repo := NewMockRepository(t)
 		repo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("boom"))
 
-		svc := New(repo, testutil.FakeTxRunner{}, NewMockSendQueue(t), NewMockChannel(t), testutil.DiscardLogger())
+		svc := New(repo, testutil.FakeTxRunner{}, NewMockQueue(t), NewMockChannel(t), testutil.DiscardLogger())
 
 		err := svc.Create(context.Background(), NewNotification{UserID: uuid.New(), Title: "t"})
 
@@ -75,7 +75,7 @@ func TestSend(t *testing.T) {
 		ch := NewMockChannel(t)
 		ch.EXPECT().Send(mock.Anything, n).Return(nil)
 
-		svc := New(repo, testutil.FakeTxRunner{}, NewMockSendQueue(t), ch, testutil.DiscardLogger())
+		svc := New(repo, testutil.FakeTxRunner{}, NewMockQueue(t), ch, testutil.DiscardLogger())
 
 		err := svc.Send(context.Background(), id)
 
@@ -100,7 +100,7 @@ func TestService_List(t *testing.T) {
 
 		repo.EXPECT().ListByUser(mock.Anything, userID, cursor).Return(expected, nil)
 
-		svc := New(repo, testutil.FakeTxRunner{}, NewMockSendQueue(t), NewMockChannel(t), testutil.DiscardLogger())
+		svc := New(repo, testutil.FakeTxRunner{}, NewMockQueue(t), NewMockChannel(t), testutil.DiscardLogger())
 		result, err := svc.List(t.Context(), userID, cursor)
 		require.NoError(t, err)
 		assert.Equal(t, expected, result)
@@ -116,7 +116,7 @@ func TestService_List(t *testing.T) {
 
 		repo.EXPECT().ListByUser(mock.Anything, userID, cursor).Return(nil, assert.AnError)
 
-		svc := New(repo, testutil.FakeTxRunner{}, NewMockSendQueue(t), NewMockChannel(t), testutil.DiscardLogger())
+		svc := New(repo, testutil.FakeTxRunner{}, NewMockQueue(t), NewMockChannel(t), testutil.DiscardLogger())
 		_, err := svc.List(t.Context(), userID, cursor)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
@@ -134,7 +134,7 @@ func TestService_CountUnread(t *testing.T) {
 
 		repo.EXPECT().CountUnread(mock.Anything, userID).Return(5, nil)
 
-		svc := New(repo, testutil.FakeTxRunner{}, NewMockSendQueue(t), NewMockChannel(t), testutil.DiscardLogger())
+		svc := New(repo, testutil.FakeTxRunner{}, NewMockQueue(t), NewMockChannel(t), testutil.DiscardLogger())
 		count, err := svc.CountUnread(t.Context(), userID)
 		require.NoError(t, err)
 		assert.Equal(t, 5, count)
@@ -149,7 +149,7 @@ func TestService_CountUnread(t *testing.T) {
 
 		repo.EXPECT().CountUnread(mock.Anything, userID).Return(0, assert.AnError)
 
-		svc := New(repo, testutil.FakeTxRunner{}, NewMockSendQueue(t), NewMockChannel(t), testutil.DiscardLogger())
+		svc := New(repo, testutil.FakeTxRunner{}, NewMockQueue(t), NewMockChannel(t), testutil.DiscardLogger())
 		_, err := svc.CountUnread(t.Context(), userID)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
@@ -167,7 +167,7 @@ func TestService_MarkRead(t *testing.T) {
 
 		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(nil)
 
-		svc := New(repo, testutil.FakeTxRunner{}, NewMockSendQueue(t), NewMockChannel(t), testutil.DiscardLogger())
+		svc := New(repo, testutil.FakeTxRunner{}, NewMockQueue(t), NewMockChannel(t), testutil.DiscardLogger())
 		err := svc.MarkRead(t.Context(), userID, id)
 		require.NoError(t, err)
 	})
@@ -181,7 +181,7 @@ func TestService_MarkRead(t *testing.T) {
 
 		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(errs.ErrNotFound)
 
-		svc := New(repo, testutil.FakeTxRunner{}, NewMockSendQueue(t), NewMockChannel(t), testutil.DiscardLogger())
+		svc := New(repo, testutil.FakeTxRunner{}, NewMockQueue(t), NewMockChannel(t), testutil.DiscardLogger())
 		err := svc.MarkRead(t.Context(), userID, id)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
@@ -199,7 +199,7 @@ func TestService_MarkAllRead(t *testing.T) {
 
 		repo.EXPECT().MarkAllRead(mock.Anything, userID).Return(nil)
 
-		svc := New(repo, testutil.FakeTxRunner{}, NewMockSendQueue(t), NewMockChannel(t), testutil.DiscardLogger())
+		svc := New(repo, testutil.FakeTxRunner{}, NewMockQueue(t), NewMockChannel(t), testutil.DiscardLogger())
 		err := svc.MarkAllRead(t.Context(), userID)
 		require.NoError(t, err)
 	})
@@ -213,7 +213,7 @@ func TestService_MarkAllRead(t *testing.T) {
 
 		repo.EXPECT().MarkAllRead(mock.Anything, userID).Return(assert.AnError)
 
-		svc := New(repo, testutil.FakeTxRunner{}, NewMockSendQueue(t), NewMockChannel(t), testutil.DiscardLogger())
+		svc := New(repo, testutil.FakeTxRunner{}, NewMockQueue(t), NewMockChannel(t), testutil.DiscardLogger())
 		err := svc.MarkAllRead(t.Context(), userID)
 		assert.ErrorIs(t, err, assert.AnError)
 	})

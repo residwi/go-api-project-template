@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type RefundQueue interface {
+type Queue interface {
 	EnqueueRefund(ctx context.Context, paymentID, orderID uuid.UUID) error
 	CancelPendingForOrder(ctx context.Context, orderID uuid.UUID) error
 }

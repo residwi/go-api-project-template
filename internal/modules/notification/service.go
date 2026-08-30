@@ -15,7 +15,7 @@ import (
 type Service struct {
 	repo    Repository
 	tx      database.TxRunner
-	queue   SendQueue
+	queue   Queue
 	channel Channel
 	logger  *slog.Logger
 }
@@ -23,7 +23,7 @@ type Service struct {
 func New(
 	repo Repository,
 	tx database.TxRunner,
-	queue SendQueue,
+	queue Queue,
 	channel Channel,
 	logger *slog.Logger,
 ) *Service {
