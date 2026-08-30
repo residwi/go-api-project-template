@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 )
 
 func TestRefundWorkerCallsSettleRefund(t *testing.T) {
@@ -26,6 +28,24 @@ func TestRefundWorkerCallsSettleRefund(t *testing.T) {
 	})
 
 	require.NoError(t, err)
+}
+
+func TestRefundWorkerCancelsWhenPaymentNotRefundable(t *testing.T) {
+	t.Parallel()
+
+	paymentID, orderID := uuid.New(), uuid.New()
+	svc := NewMockRefunder(t)
+	svc.EXPECT().SettleRefund(mock.Anything, paymentID, orderID).Return(payment.ErrNotRefundable)
+
+	w := NewRefundWorker(svc, time.Minute)
+	err := w.Work(t.Context(), &river.Job[RefundArgs]{
+		JobRow: &rivertype.JobRow{Kind: "payment.refund"},
+		Args:   RefundArgs{PaymentID: paymentID, OrderID: orderID},
+	})
+
+	var cancelErr *river.JobCancelError
+	require.ErrorAs(t, err, &cancelErr)
+	assert.ErrorIs(t, err, payment.ErrNotRefundable)
 }
 
 func TestRefundArgsRouteToThePaymentQueue(t *testing.T) {

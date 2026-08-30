@@ -25,7 +25,6 @@ import (
 	gatewaystripe "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway/stripe"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -1080,7 +1079,7 @@ func TestService_SettleRefund(t *testing.T) {
 			Return(p, nil)
 
 		err := svc.SettleRefund(context.Background(), paymentID, orderID)
-		require.ErrorIs(t, err, jobs.ErrDiscard)
+		require.ErrorIs(t, err, ErrNotRefundable)
 	})
 
 	t.Run("already refunded payment is discarded, not re-run", func(t *testing.T) {
@@ -1100,7 +1099,7 @@ func TestService_SettleRefund(t *testing.T) {
 			Return(p, nil)
 
 		err := svc.SettleRefund(context.Background(), paymentID, orderID)
-		require.ErrorIs(t, err, jobs.ErrDiscard)
+		require.ErrorIs(t, err, ErrNotRefundable)
 	})
 
 	t.Run("payment not found", func(t *testing.T) {

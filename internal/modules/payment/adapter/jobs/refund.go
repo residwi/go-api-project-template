@@ -2,10 +2,13 @@ package jobs
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/riverqueue/river"
+
+	"github.com/residwi/go-api-project-template/internal/modules/payment"
 )
 
 type RefundArgs struct {
@@ -41,5 +44,9 @@ func NewRefundWorker(service Refunder, timeout time.Duration) *RefundWorker {
 func (w *RefundWorker) Timeout(*river.Job[RefundArgs]) time.Duration { return w.timeout }
 
 func (w *RefundWorker) Work(ctx context.Context, job *river.Job[RefundArgs]) error {
-	return w.service.SettleRefund(ctx, job.Args.PaymentID, job.Args.OrderID)
+	err := w.service.SettleRefund(ctx, job.Args.PaymentID, job.Args.OrderID)
+	if errors.Is(err, payment.ErrNotRefundable) {
+		return river.JobCancel(err)
+	}
+	return err
 }

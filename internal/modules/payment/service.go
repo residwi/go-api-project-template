@@ -21,7 +21,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/jobs"
 )
 
 type Service struct {
@@ -437,7 +436,7 @@ func (s *Service) SettleRefund(ctx context.Context, paymentID, orderID uuid.UUID
 	if p.Status != domain.StatusSuccess && p.Status != domain.StatusRequiresReview {
 		s.logger.WarnContext(ctx, "refund job cancelled: payment not refundable",
 			slog.String("payment_id", paymentID.String()))
-		return fmt.Errorf("payment %s not refundable: %w", paymentID, jobs.ErrDiscard)
+		return fmt.Errorf("payment %s not refundable: %w", paymentID, ErrNotRefundable)
 	}
 
 	s.logger.InfoContext(
