@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +31,7 @@ func TestNewClientRejectsARescueWindowThatOutlivesTheStaleThreshold(t *testing.T
 		bootstrap.Config{},
 		&bootstrap.App{},
 		order.StaleProcessingThreshold,
+		time.Minute,
 		slog.New(slog.DiscardHandler),
 	)
 

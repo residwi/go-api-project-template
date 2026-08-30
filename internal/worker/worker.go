@@ -24,6 +24,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
 
+const softStopDivisor = 2
+
 func Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -61,7 +63,9 @@ func RunContext(ctx context.Context) error {
 		return fmt.Errorf("wiring services: %w", err)
 	}
 
-	client, err := newClient(db, modCfg, app, appCfg.Worker.RescueAfter, appLog)
+	softStop := appCfg.App.ShutdownTimeout / softStopDivisor
+
+	client, err := newClient(db, modCfg, app, appCfg.Worker.RescueAfter, softStop, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "building job client failed", slog.String("error", err.Error()))
 		return err
@@ -92,6 +96,7 @@ func newClient(
 	modCfg bootstrap.Config,
 	app *bootstrap.App,
 	rescueAfter time.Duration,
+	softStop time.Duration,
 	appLog *slog.Logger,
 ) (*river.Client[pgx.Tx], error) {
 	if rescueAfter >= order.StaleProcessingThreshold {
@@ -109,6 +114,7 @@ func newClient(
 	return river.NewClient(riverpgxv5.New(db.Primary), &river.Config{
 		Workers:              workers,
 		RescueStuckJobsAfter: rescueAfter,
+		SoftStopTimeout:      softStop,
 		Logger:               appLog,
 		Queues: map[string]river.QueueConfig{
 			"payment":      {MaxWorkers: modCfg.Payment.JobConcurrency},
