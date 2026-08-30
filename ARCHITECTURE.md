@@ -821,7 +821,7 @@ closes a different one — a maintained queue's own fetch batching, retry
 backoff and maintenance sweep, in place of this repository's own
 reimplementation of all three.
 
-**Two behaviour changes came with the move.** The stale sweep's schedule is
+**Three behaviour changes came with the move.** The stale sweep's schedule is
 no longer a durable row: `order.ExpireStaleJob`, `ScheduleExpireStale` and
 the timestamp dedup key that let a buried run reschedule its own successor
 are gone, replaced by a `river.PeriodicJob` `internal/worker` declares and
@@ -834,6 +834,17 @@ were missed. And a per-queue lease became a client-wide
 validated in its own module's `LoadConfig`): a rescue window is no longer
 expressible per queue, only for the client as a whole, so widening one
 queue's rescue window now widens every queue's.
+
+And a duplicate enqueue is no longer an error. The old queue's dedup-key
+insert raised a unique-constraint violation that `payment.Service.Refund`
+propagated to its caller; River's `Insert` instead reports
+`UniqueSkippedAsDuplicate` on the result and returns no error, so a second
+`Refund` call for the same payment now succeeds silently rather than
+failing, and the admin refund endpoint answers `{"status":
+"refund_enqueued"}` for a request that enqueued nothing. Accepted as an
+improvement — refunding is idempotent either way, and the caller never
+needed the error to behave correctly — but it is a genuine change in what
+the second call returns, not merely an implementation detail.
 
 **Cost accepted:** the two tables' foreign keys are still gone.
 `payment_jobs.payment_id` referenced `payments(id)` and
