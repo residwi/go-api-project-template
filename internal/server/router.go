@@ -45,7 +45,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	v := validator.New()
 
 	authMiddleware := middleware.Auth(app.Auth, app.Users)
-	adminMiddleware := middleware.RequireAdmin
+	adminMiddleware := webmw.RequireRole("admin")
 
 	router := web.NewRouter(mux)
 
@@ -53,7 +53,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	authed := router.Group("/api", authMiddleware)
 	admin := authed.Group("/admin", adminMiddleware)
 
-	authLimiter := middleware.RateLimit(
+	authLimiter := webmw.RateLimit(
 		logger,
 		cache,
 		modCfg.Auth.RateLimit,
@@ -118,7 +118,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	admin.HandleFunc("GET /orders/{id}", orderAdminHandler.Get)
 	admin.HandleFunc("PUT /orders/{id}/status", orderAdminHandler.UpdateStatus)
 
-	orderWriteLimiter := middleware.RateLimit(
+	orderWriteLimiter := webmw.RateLimit(
 		logger,
 		cache,
 		modCfg.Order.RateLimit,

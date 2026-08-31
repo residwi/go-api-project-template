@@ -9,8 +9,6 @@ import (
 )
 
 func TestLogging_CallsNextHandler(t *testing.T) {
-	t.Parallel()
-
 	called := false
 	handler := Logging(testLogger())(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
@@ -26,8 +24,6 @@ func TestLogging_CallsNextHandler(t *testing.T) {
 }
 
 func TestLogging_StatusRecorderRecordsStatusCode(t *testing.T) {
-	t.Parallel()
-
 	handler := Logging(testLogger())(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))

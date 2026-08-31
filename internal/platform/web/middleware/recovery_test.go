@@ -9,8 +9,6 @@ import (
 )
 
 func TestRecovery_CatchesPanicAndReturns500(t *testing.T) {
-	t.Parallel()
-
 	handler := Recovery(testLogger())(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		panic("something went wrong")
 	}))
@@ -23,8 +21,6 @@ func TestRecovery_CatchesPanicAndReturns500(t *testing.T) {
 }
 
 func TestRecovery_PassesThroughNormalRequest(t *testing.T) {
-	t.Parallel()
-
 	called := false
 	handler := Recovery(testLogger())(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		called = true

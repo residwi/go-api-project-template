@@ -17,8 +17,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
+	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
 
 func TestHandler_List_Success(t *testing.T) {

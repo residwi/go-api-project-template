@@ -10,7 +10,6 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -29,7 +28,12 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
-func RateLimit(log *slog.Logger, rdb *redis.Client, maxRequests int, window time.Duration) web.Middleware {
+func RateLimit(
+	log *slog.Logger,
+	rdb *redis.Client,
+	maxRequests int,
+	window time.Duration,
+) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if rdb == nil || maxRequests <= 0 || window <= 0 {

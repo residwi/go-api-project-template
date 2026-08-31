@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
 
 type PromotionApplier interface {
