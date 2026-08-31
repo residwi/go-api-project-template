@@ -8,27 +8,19 @@ dir: "{{.InterfaceDir}}"
 pkgname: "{{.SrcPackageName}}"
 filename: "mocks_test.go"
 
-# One recursive rule instead of an entry per interface: every interface gets
-# exactly one mock, written into the package that declares it. A port has one
-# consumer -- the package that declares it, and its own tests -- so that is
-# always the right destination, and the per-interface `configs:` fan-out that
-# had to be kept in step by hand no longer exists to drift.
-#
-# Nothing in the tree is exempt or frozen. A module declares its service-level
-# ports in <feature>/ports.go and its handler ports in <feature>/adapter/http,
-# two packages, so both get their own mocks_test.go and mockery rewrites every
-# one of them on each run: the count of "Writing template to file" lines a run
-# logs equals `find internal -name mocks_test.go | wc -l`, and the tree is byte
-# clean afterwards. Never hand-edit one -- the next `make mocks` overwrites it.
-#
-# Rooted at internal/ rather than internal/modules and internal/platform
-# separately: internal/server's auth_test.go calls NewMockTokenValidator and
-# NewMockUserStatusChecker, so a narrower root would silently stop
-# regenerating that package's mocks. internal/platform/web/request also
-# declares an interface (Validator), but nothing consumes MockValidator --
-# request_test.go uses hand-rolled fakes -- it just comes along for free at
-# no cost from rooting one level up for internal/server.
 packages:
   github.com/residwi/go-api-project-template/internal:
     config:
       recursive: true
+  github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway:
+    config:
+      all: false
+  github.com/residwi/go-api-project-template/internal/platform/database:
+    config:
+      all: false
+  github.com/residwi/go-api-project-template/internal/platform/storage:
+    config:
+      all: false
+  github.com/residwi/go-api-project-template/internal/platform/web/request:
+    config:
+      all: false
