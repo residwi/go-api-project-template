@@ -1,4 +1,4 @@
-package web
+package middleware
 
 import (
 	"log/slog"
@@ -17,7 +17,7 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
-func Logging(log *slog.Logger) Middleware {
+func Logging(log *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()

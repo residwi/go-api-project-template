@@ -1,4 +1,4 @@
-package web
+package middleware
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
-func Recovery(log *slog.Logger) Middleware {
+func Recovery(log *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			rw := &recoveryWriter{ResponseWriter: w}

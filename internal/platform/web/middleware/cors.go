@@ -1,4 +1,4 @@
-package web
+package middleware
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 )
 
-func CORS(cfg config.CORS) Middleware {
+func CORS(cfg config.CORS) func(http.Handler) http.Handler {
 	allowMethods := strings.Join(cfg.AllowedMethods, ",")
 	allowHeaders := strings.Join(cfg.AllowedHeaders, ",")
 	maxAge := strconv.Itoa(cfg.MaxAge)

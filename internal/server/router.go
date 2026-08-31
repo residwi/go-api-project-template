@@ -27,6 +27,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
+	webmw "github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
 
@@ -181,10 +182,10 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	}
 
 	return web.Chain(
-		web.RequestID,
-		web.Logging(logger),
-		web.Recovery(logger),
-		web.CORS(appCfg.CORS),
+		webmw.RequestID,
+		webmw.Logging(logger),
+		webmw.Recovery(logger),
+		webmw.CORS(appCfg.CORS),
 	)(mux)
 }
 
