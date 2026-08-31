@@ -34,7 +34,7 @@ tree is deliberately **non-uniform** — `auth` has no store at all, `user` has
 two.
 
 **A module names no URL.** Every route in the system is declared in
-`/internal/server/router.go` — one function, 64 routes, fifteen labelled
+`/internal/server/router.go` — one function, 65 routes, fifteen labelled
 blocks. A module supplies a handler with exported route methods; the transport
 decides the verb, the path and the middleware group.
 

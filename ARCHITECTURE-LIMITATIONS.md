@@ -754,14 +754,14 @@ the real admin group at `/api/admin`, with no `/v1` anywhere in production.
 The test passes either way, because it never touches the real router.
 `router_test.go` still samples rather than enumerates: 24 distinct `/api…`
 paths appear in the whole file (`grep -oE '"/api[^"]*"'
-internal/server/router_test.go | sort -u | wc -l`) against 64 routes, and
-several of those 24 only assert a 401 or a 403 rather than the handler behind
-them.
+internal/server/router_test.go | sort -u | wc -l`) against the 64 `/api`
+routes, and several of those 24 only assert a 401 or a 403 rather than the
+handler behind them.
 
 **What decision 15 still costs:** nothing links the two halves. An
 `adapter/http` method that no route mounts compiles, lints, passes
 `check-boundaries`, and serves nothing, and no check says so. What decision 15
-bought is that all 64 URLs are in one file — which is what makes
+bought is that all 65 URLs are in one file — which is what makes
 `TestRouteAccess` cheap enough to enumerate them at all.
 
 ## A repository write can leak outside its own transaction with no test failing

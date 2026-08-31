@@ -614,8 +614,8 @@ compiler; they are all greps.
 
     **The arrow runs the other way for URLs: the transport imports modules,
     and a module names no URL.** Every route lives in
-    `internal/server/router.go` — inside `NewRouter` itself, 64 routes in
-    fifteen labelled blocks, mounted on the route groups that same function
+    `internal/server/router.go` — inside the unexported `newRouter`, 65 routes
+    in fifteen labelled blocks, mounted on the route groups that same function
     builds. A module supplies a handler with exported route methods; the
     transport decides the verb, the path, and which `web.Router` group it
     lands on. Check 6 enforces the direction; `ARCHITECTURE.md` decision 15 is

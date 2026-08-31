@@ -614,9 +614,9 @@ not.
 > Decision 16 says why it collapsed.
 
 Every route in the system is declared in `internal/server/router.go` — inside
-`NewRouter` itself, 64 routes in fifteen labelled blocks, mounted on the four
-route groups and the order-write rate limiter the same function builds a few
-lines above them. A module supplies a
+the unexported `newRouter`, 65 routes in fifteen labelled blocks, mounted on
+the four route groups and the order-write rate limiter the same function
+builds a few lines above them. A module supplies a
 handler with exported route methods and nothing else: no `routes.go`, no
 `RegisterRoutes`, no route-group type from `middleware` in its signature, no
 string beginning with `/`.
@@ -672,7 +672,7 @@ proves nothing about the URL. What closed half of that gap is
 `internal/server/routes_access_test.go`: `TestRouteAccess` calls
 `newRouter`, which returns what `web.Router.Routes()` recorded as it
 mounted — 65 entries — and probes every one against the real `NewRouter`,
-which is the test this decision made cheap by putting all 64 routes in one
+which is the test this decision made cheap by putting all 65 routes in one
 place. There is no golden file: a route mounted and left off a list now
 fails rather than going untested. What it still cannot see is in
 `ARCHITECTURE-LIMITATIONS.md`.
