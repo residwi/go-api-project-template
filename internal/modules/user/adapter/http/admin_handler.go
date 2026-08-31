@@ -10,6 +10,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
@@ -61,7 +62,7 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
@@ -76,12 +77,12 @@ func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
 
-	req, ok := response.Bind[adminUpdateUserRequest](w, r, h.validator)
+	req, ok := request.Bind[adminUpdateUserRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -96,7 +97,7 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
@@ -106,7 +107,7 @@ func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[updateRoleRequest](w, r, h.validator)
+	req, ok := request.Bind[updateRoleRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -120,7 +121,7 @@ func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}

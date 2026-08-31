@@ -8,6 +8,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -27,7 +28,7 @@ func NewHandler(service InventoryManager, v *validator.Validator) *Handler {
 }
 
 func (h *Handler) GetStock(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "product_id")
+	id, ok := request.ParseUUIDParam(w, r, "product_id")
 	if !ok {
 		return
 	}
@@ -42,12 +43,12 @@ func (h *Handler) GetStock(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Restock(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "product_id")
+	id, ok := request.ParseUUIDParam(w, r, "product_id")
 	if !ok {
 		return
 	}
 
-	req, ok := response.Bind[restockRequest](w, r, h.validator)
+	req, ok := request.Bind[restockRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -62,12 +63,12 @@ func (h *Handler) Restock(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Adjust(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "product_id")
+	id, ok := request.ParseUUIDParam(w, r, "product_id")
 	if !ok {
 		return
 	}
 
-	req, ok := response.Bind[adjustRequest](w, r, h.validator)
+	req, ok := request.Bind[adjustRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

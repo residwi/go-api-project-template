@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
@@ -28,7 +29,7 @@ func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[applyRequest](w, r, h.validator)
+	req, ok := request.Bind[applyRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

@@ -4,13 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 func TestOK(t *testing.T) {
@@ -171,47 +168,4 @@ func TestValidationErr(t *testing.T) {
 		Message: "validation failed",
 		Details: map[string]any{"email": "required"},
 	}, body.Error)
-}
-
-func TestDecodeJSON(t *testing.T) {
-	t.Parallel()
-
-	t.Run("valid JSON", func(t *testing.T) {
-		t.Parallel()
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"test"}`))
-		var dst struct {
-			Name string `json:"name"`
-		}
-		err := DecodeJSON(w, r, &dst)
-		require.NoError(t, err)
-		assert.Equal(t, "test", dst.Name)
-	})
-
-	t.Run("invalid JSON", func(t *testing.T) {
-		t.Parallel()
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{invalid`))
-		var dst struct{}
-		err := DecodeJSON(w, r, &dst)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, errs.ErrBadRequest)
-	})
-
-	t.Run("body too large", func(t *testing.T) {
-		t.Parallel()
-
-		w := httptest.NewRecorder()
-		bigBody := `{"name":"` + strings.Repeat("a", (1<<20)+1) + `"}`
-		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(bigBody))
-		var dst struct {
-			Name string `json:"name"`
-		}
-		err := DecodeJSON(w, r, &dst)
-		require.Error(t, err)
-		require.ErrorIs(t, err, errs.ErrBadRequest)
-		assert.Contains(t, err.Error(), "request body too large")
-	})
 }

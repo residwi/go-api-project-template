@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
@@ -29,7 +30,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orderID, ok := response.ParseUUIDParam(w, r, "id")
+	orderID, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}

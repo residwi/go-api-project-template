@@ -8,6 +8,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -42,7 +43,7 @@ func NewAdminHandler(service CategoryManager, v *validator.Validator) *AdminHand
 }
 
 func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := response.Bind[createCategoryRequest](w, r, h.validator)
+	req, ok := request.Bind[createCategoryRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -57,12 +58,12 @@ func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
 
-	req, ok := response.Bind[updateCategoryRequest](w, r, h.validator)
+	req, ok := request.Bind[updateCategoryRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -77,7 +78,7 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}

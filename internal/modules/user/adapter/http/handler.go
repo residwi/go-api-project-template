@@ -8,6 +8,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
@@ -47,7 +48,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[updateProfileRequest](w, r, h.validator)
+	req, ok := request.Bind[updateProfileRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

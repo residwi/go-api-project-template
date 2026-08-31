@@ -2,13 +2,7 @@ package response
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
-
-	"github.com/google/uuid"
-
-	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 type Response struct {
@@ -71,28 +65,6 @@ func InternalError(w http.ResponseWriter) {
 
 func ValidationErr(w http.ResponseWriter, details map[string]any) {
 	Err(w, http.StatusUnprocessableEntity, "validation failed", details)
-}
-
-func ParseUUIDParam(w http.ResponseWriter, r *http.Request, name string) (uuid.UUID, bool) {
-	id, err := uuid.Parse(r.PathValue(name))
-	if err != nil {
-		BadRequest(w, "invalid "+name)
-		return uuid.Nil, false
-	}
-	return id, true
-}
-
-func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(dst); err != nil {
-		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
-			return fmt.Errorf("%w: request body too large", errs.ErrBadRequest)
-		}
-		return fmt.Errorf("%w: %s", errs.ErrBadRequest, err.Error())
-	}
-	return nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

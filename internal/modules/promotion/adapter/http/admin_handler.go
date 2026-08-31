@@ -11,6 +11,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -54,7 +55,7 @@ func NewAdminHandler(service PromotionManager, v *validator.Validator) *AdminHan
 }
 
 func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := response.Bind[createPromotionRequest](w, r, h.validator)
+	req, ok := request.Bind[createPromotionRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -90,12 +91,12 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
 
-	req, ok := response.Bind[updatePromotionRequest](w, r, h.validator)
+	req, ok := request.Bind[updatePromotionRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -113,7 +114,7 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}

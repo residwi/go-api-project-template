@@ -8,6 +8,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -27,12 +28,12 @@ func NewAdminHandler(service ShipmentManager, v *validator.Validator) *AdminHand
 }
 
 func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	orderID, ok := response.ParseUUIDParam(w, r, "id")
+	orderID, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
 
-	req, ok := response.Bind[createShipmentRequest](w, r, h.validator)
+	req, ok := request.Bind[createShipmentRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -47,7 +48,7 @@ func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) Deliver(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
@@ -62,12 +63,12 @@ func (h *AdminHandler) Deliver(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) UpdateTracking(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
 
-	req, ok := response.Bind[updateTrackingRequest](w, r, h.validator)
+	req, ok := request.Bind[updateTrackingRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/notification/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
@@ -73,7 +74,7 @@ func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}

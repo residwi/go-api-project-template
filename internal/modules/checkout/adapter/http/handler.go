@@ -10,6 +10,7 @@ import (
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
@@ -47,7 +48,7 @@ func (h *Handler) Place(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[placeOrderRequest](w, r, h.validator)
+	req, ok := request.Bind[placeOrderRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -73,12 +74,12 @@ func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
 
-	req, ok := response.Bind[payRequest](w, r, h.validator)
+	req, ok := request.Bind[payRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -98,7 +99,7 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -50,7 +51,7 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
@@ -65,12 +66,12 @@ func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
-	id, ok := response.ParseUUIDParam(w, r, "id")
+	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
 
-	req, ok := response.Bind[updateStatusRequest](w, r, h.validator)
+	req, ok := request.Bind[updateStatusRequest](w, r, h.validator)
 	if !ok {
 		return
 	}

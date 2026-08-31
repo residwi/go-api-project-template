@@ -10,6 +10,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/review/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
@@ -39,12 +40,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	productID, ok := response.ParseUUIDParam(w, r, "id")
+	productID, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
 
-	req, ok := response.Bind[createReviewRequest](w, r, h.validator)
+	req, ok := request.Bind[createReviewRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -59,7 +60,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	productID, ok := response.ParseUUIDParam(w, r, "id")
+	productID, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}

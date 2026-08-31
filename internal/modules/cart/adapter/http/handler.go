@@ -8,6 +8,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/cart/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
@@ -56,7 +57,7 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := response.Bind[addItemRequest](w, r, h.validator)
+	req, ok := request.Bind[addItemRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -75,12 +76,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	productID, ok := response.ParseUUIDParam(w, r, "product_id")
+	productID, ok := request.ParseUUIDParam(w, r, "product_id")
 	if !ok {
 		return
 	}
 
-	req, ok := response.Bind[updateQuantityRequest](w, r, h.validator)
+	req, ok := request.Bind[updateQuantityRequest](w, r, h.validator)
 	if !ok {
 		return
 	}
@@ -99,7 +100,7 @@ func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	productID, ok := response.ParseUUIDParam(w, r, "product_id")
+	productID, ok := request.ParseUUIDParam(w, r, "product_id")
 	if !ok {
 		return
 	}
