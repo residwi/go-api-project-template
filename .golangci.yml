@@ -558,7 +558,7 @@ linters:
       # but still seeds and deletes its own rows by id rather than calling
       # ResetDB. Either way, the only concurrency t.Parallel could add within
       # one package is the unsafe kind.
-      - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testutil/|^internal/platform/(cache|database)/|^internal/platform/queue/|/redis/|^internal/server/([^/]+_test\.go|middleware/)|^internal/bootstrap/|^scripts/|^internal/worker/)
+      - path: (^db/(migrations|seeds)/|/postgres/|^test/e2e/|^internal/testutil/|^internal/platform/(cache|database)/|^internal/platform/queue/|^internal/platform/web/middleware/|/redis/|^internal/server/[^/]+_test\.go|^internal/bootstrap/|^scripts/|^internal/worker/)
         linters: [paralleltest]
       # t.Setenv panics when the test, or an ancestor, calls t.Parallel.
       # paralleltest already knows that and skips the test doing the Setenv, so

@@ -22,12 +22,12 @@ filename: "mocks_test.go"
 # clean afterwards. Never hand-edit one -- the next `make mocks` overwrites it.
 #
 # Rooted at internal/ rather than internal/modules and internal/platform
-# separately: internal/server/middleware's auth_test.go calls
-# NewMockTokenValidator and NewMockUserStatusChecker, so a narrower root would
-# silently stop regenerating that package's mocks. internal/server/response
-# also declares an interface (Validator), but nothing consumes
-# MockValidator -- bind_test.go uses a hand-rolled fakeValidator -- it just
-# comes along for free at no cost from rooting one level up for middleware.
+# separately: internal/server's auth_test.go calls NewMockTokenValidator and
+# NewMockUserStatusChecker, so a narrower root would silently stop
+# regenerating that package's mocks. internal/platform/web/request also
+# declares an interface (Validator), but nothing consumes MockValidator --
+# request_test.go uses hand-rolled fakes -- it just comes along for free at
+# no cost from rooting one level up for internal/server.
 packages:
   github.com/residwi/go-api-project-template/internal:
     config:
