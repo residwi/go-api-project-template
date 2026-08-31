@@ -141,14 +141,10 @@ func TestCheckBoundaries(t *testing.T) {
 
 	t.Run("check 6 catches a module importing internal/server", func(t *testing.T) {
 		probe := "package wishlist\n\n" +
-			"import _ \"github.com/residwi/go-api-project-template/internal/server/middleware\"\n"
+			"import _ \"github.com/residwi/go-api-project-template/internal/server\"\n"
 		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_transport.go"), probe)
 		assert.Contains(t, out, "imports internal/server")
 	})
-
-	// Check 6's exempt arm needs no probe of its own: every module's
-	// adapter/http imports internal/server/middleware already, so "clean
-	// tree passes" above fails the moment that exemption stops matching.
 
 	// Check 8 protects the one property this refactor bought: internal/platform
 	// copies into a fresh module and compiles. Nothing else proves it -- an

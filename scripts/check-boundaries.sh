@@ -962,15 +962,11 @@ check_transport_direction() {
 		while IFS= read -r file; do
 			[ -f "$file" ] || continue
 
-			# A module's own http adapter
-			# (internal/modules/<feature>/adapter/http/) is the one legitimate
-			# importer -- it speaks HTTP by design. The feature route tables
-			# that used to be a second exemption are gone: every URL now lives
-			# in internal/server/routes.go, so no file under a module names a
-			# route or needs middleware.RouteGroup.
-			case "$file" in
-			"$MODULES_ROOT/$feature"/adapter/http/*.go) continue ;;
-			esac
+			# No exemption. Every middleware a handler needs -- RequireUser,
+			# the user context, RequireRole, RateLimit -- lives in
+			# internal/platform/web/middleware now, so no file under a module
+			# has a reason to name internal/server at all. The arm that used to
+			# exempt adapter/http matched nothing once that move landed.
 
 			# A status-checked assignment, not `done < <(grep ...)` -- the shape
 			# that once made BSD grep exit via SIGTRAP while a downstream process
