@@ -296,8 +296,9 @@ unproven:
   fixed here, but it is exactly the class of bug a chain-level test catches and
   nothing in this repo would.
 - **Neither rate limiter's binding is visible to any test.** `NewRouter`
-  builds two: `authLimiter`, mounted as a group middleware on `authPublic`,
-  and `orderWriteLimiter`, wrapped around two handlers individually
+  builds two, and both are group middleware: `authLimiter` on `authPublic`,
+  and `orderLimiter` on `orderWrites`, a group derived from `authed`
+  with an empty prefix so it adds a limiter without adding a path segment
   (`POST /api/orders`, `POST /api/orders/{id}/pay`).
   `TestRouteAccess` classifies a route by whether an anonymous request gets
   401 and an authed one gets 403 — which a limiter does not change. Detach

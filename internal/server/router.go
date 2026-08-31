@@ -127,15 +127,16 @@ func newRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	admin.HandleFunc("GET /orders/{id}", orderAdminHandler.Get)
 	admin.HandleFunc("PUT /orders/{id}/status", orderAdminHandler.UpdateStatus)
 
-	orderWriteLimiter := middleware.RateLimit(
+	orderLimiter := middleware.RateLimit(
 		logger,
 		cache,
 		modCfg.Order.RateLimit,
 		modCfg.Order.RateWindow,
 	)
 	checkoutHandler := checkouthttp.NewHandler(app.Checkout, v)
-	authed.Handle("POST /orders", orderWriteLimiter(http.HandlerFunc(checkoutHandler.Place)))
-	authed.Handle("POST /orders/{id}/pay", orderWriteLimiter(http.HandlerFunc(checkoutHandler.Retry)))
+	orderWrites := authed.Group("", orderLimiter)
+	orderWrites.HandleFunc("POST /orders", checkoutHandler.Place)
+	orderWrites.HandleFunc("POST /orders/{id}/pay", checkoutHandler.Retry)
 	authed.HandleFunc("POST /orders/{id}/cancel", checkoutHandler.Cancel)
 
 	api.HandleFunc("POST /payments/webhook", paymenthttp.NewWebhookHandler(app.Payments, logger).HandleWebhook)
