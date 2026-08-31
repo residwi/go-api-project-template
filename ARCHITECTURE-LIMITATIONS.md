@@ -233,8 +233,8 @@ through:
   handler;
 - **`router_test.go`'s `GET /api/users/me` subtest passes**: it asserts `200`
   and nothing about the body;
-- **`TestRouteSnapshot` passes**: it asserts the route is mounted on the
-  `authed` group.
+- **`TestRouteAccess` passes**: it asserts the route 401s an anonymous caller
+  and does not 403 a user, which says nothing about the body.
 
 `category/adapter/http` and `product/adapter/http` carry the same pair
 (`toCategoryResponse`/`toAdminCategoryResponse`,
@@ -267,21 +267,22 @@ other twelve manufactures a consistency that is not there.
 **Where you hit it:** you reorder `web.Chain`'s arguments, or bind a
 route group to the wrong limiter, and the whole suite stays green.
 
-Both middleware packages test each middleware in isolation —
-`internal/platform/web`'s `recovery_test.go`, `requestid_test.go`,
-`logging_test.go` and `cors_test.go`, and `internal/server/middleware`'s
-`auth_test.go`, `admin_test.go` and `ratelimit_test.go` all exist. Nothing
-tests the composition, and the split makes that slightly worse: the chain
-`NewRouter` builds now spans two packages, so neither package's tests can
-cover it even in principle. `internal/server/router.go`'s `NewRouter` ends
-with:
+Both pieces test each middleware in isolation —
+`internal/platform/web/middleware`'s `recovery_test.go`, `requestid_test.go`,
+`logging_test.go`, `cors_test.go`, `role_test.go` and `ratelimit_test.go`,
+and `internal/server`'s `auth_test.go` — all exist. Nothing tests the
+composition, and the split still costs the same thing: the chain
+`NewRouter` builds spans two packages, `internal/platform/web` (`Chain`
+itself) and `internal/platform/web/middleware` (every argument passed to
+it), so neither package's tests can cover it even in principle.
+`internal/server/router.go`'s `NewRouter` ends with:
 
 ```go
 return web.Chain(
-	web.RequestID,
-	web.Logging(logger),
-	web.Recovery(logger),
-	web.CORS(appCfg.CORS),
+	middleware.RequestID,
+	middleware.Logging(logger),
+	middleware.Recovery(logger),
+	middleware.CORS(appCfg.CORS),
 )(mux)
 ```
 
@@ -297,12 +298,12 @@ unproven:
 - **Neither rate limiter's binding is visible to any test.** `NewRouter`
   builds two: `authLimiter`, mounted as a group middleware on `authPublic`,
   and `orderWriteLimiter`, wrapped around two handlers individually
-  (`POST /api/orders`, `POST /api/orders/{id}/pay`). The 64-route golden
-  labels the three `/api/auth/*` routes' group `api` and both order-write
-  routes' group `authed`, because `TestRouteSnapshot` classifies a route by
-  whether an anonymous request gets 401 and an authed one gets 403 — which a
-  limiter does not change. Detach either limiter from what it guards and not
-  one golden line moves and not one test fails.
+  (`POST /api/orders`, `POST /api/orders/{id}/pay`).
+  `TestRouteAccess` classifies a route by whether an anonymous request gets
+  401 and an authed one gets 403 — which a limiter does not change. Detach
+  either limiter from what it guards and not one assertion fails. Deleting
+  the golden did not cost this: the golden's group column was chosen to
+  match what the probe observes, so it never saw a limiter either.
 
 The near-miss is worth recording, because it was real. Before the fourteen
 route files collapsed into one, `routes.Auth`'s first parameter was named
@@ -321,8 +322,8 @@ Redis-backed router test that already exists. Neither is done here.
 ## A sentinel's HTTP status is fixed where the sentinel is declared
 
 **Where you hit it:** you want to know why `POST /api/orders/{id}/cancel`
-answers 409, and you open `internal/platform/response/error_mapper.go` to find
-out. It does not say.
+answers 409, and you open `internal/platform/web/response/error_mapper.go`
+to find out. It does not say.
 
 `HandleErr` is five rows long. It matches `errs.ErrNotFound`,
 `errs.ErrConflict`, `errs.ErrBadRequest`, `errs.ErrUnauthorized` and
@@ -694,7 +695,7 @@ This used to be a dead seam — configured and unused. It is not any more. `data
 `internal/testutil` start two long-lived containers by fixed name — `go-api-test-postgres` and `go-api-test-redis` — and every test binary attach to whichever already exist. Isolation by **claimed slot**, not by container:
 
 - **Postgres: one database per module.** `MustStartPostgres(dbName)` create and migrate `dbName` once, under an advisory lock, and nothing ever drop it — `"test_cart"`, `"test_order"`, `"test_payment"`, and so on (`grep -rn 'MustStartPostgres(' --include='*_test.go' internal/modules` is the live mapping). Every module owns its database name outright now: `notification` and `payment` used to have a second `jobs/postgres` test package sharing their name, but that package is gone along with the per-module job queue, and the [two-test-packages entry below](#resolved-two-test-packages-on-one-database-never-got-a-clean-table) is the record of it.
-- **Redis: a hand-assigned integer, and no comment tracks it any more.** `MustStartRedis(dbIndex)` takes an index the caller picks by hand; the list below and `grep -rn 'MustStartRedis(' --include='*_test.go' .` are the only record — a comment above the function in `internal/testutil/testutil.go` used to carry this too, but the comment strip removed it, so it is not there to check against even by accident. Indices 0, 1, 3, 5 and 6 are claimed (`platform/cache`, `server/middleware`, `server`, `test/e2e`, `modules/user/adapter/redis`); 2 and 4 are free. `ResetRedis` calls `FlushDB`, so reusing an index flushes another package's fixtures.
+- **Redis: a hand-assigned integer, and no comment tracks it any more.** `MustStartRedis(dbIndex)` takes an index the caller picks by hand; the list below and `grep -rn 'MustStartRedis(' --include='*_test.go' .` are the only record — a comment above the function in `internal/testutil/testutil.go` used to carry this too, but the comment strip removed it, so it is not there to check against even by accident. Indices 0, 1, 3, 5 and 6 are claimed (`platform/cache`, `platform/web/middleware`, `server`, `test/e2e`, `modules/user/adapter/redis`); 2 and 4 are free. `ResetRedis` calls `FlushDB`, so reusing an index flushes another package's fixtures.
 
 Nothing enforce either claim, and losing the comment removed the one place a reader would have looked before guessing. Duplicate name or index compile, pass review, and fail as flake in unrelated package — worst possible signal, because failure nowhere near the change.
 
@@ -713,43 +714,44 @@ The flatten had already shrunk this from a general problem to a two-module one: 
 
 **Why it is gone.** `payment/jobs/postgres` and `notification/jobs/postgres` no longer exist — the job queue they backed moved to `internal/platform/jobs/postgres`, one shared package with its own database, `test_platform_jobs` — so neither module has a second test package to share a name with any more. That platform-owned package is gone in its turn now: jobs run on River, and `internal/platform/queue` (`test_platform_jobs_insert`) and `internal/worker` (`test_worker`) are the two Postgres-claiming packages that replaced it, each with its own database and no sibling to share it with. **25 packages call `testutil.MustStart*` today, 22 of them Postgres-claiming, 13 of those inside `internal/modules` — one package per module, every one of the 13 owning its database outright.** No module needs the caution this entry used to state: seed the rows your subtest owns and scope assertions to them regardless, the way `shipping`'s tests do (`seedOrder`, `seedShipment`), because a *second* test package can still land on any of these names in the future and nothing would stop it.
 
-## What the route golden proves, and the three things it still cannot
+## What `TestRouteAccess` proves, and what it still cannot see
 
-**Where you hit it:** you move a route to the wrong `middleware.RouteGroup` in
-`internal/server/router.go` — admin instead of authed, or the reverse — and
-you want to know whether a test catches it. It does now.
+**Where you hit it:** an `/api/admin/` route no longer requires an admin
+token — the `admin` group's middleware got dropped somewhere along the way —
+and you want to know whether a test catches it. It does.
 
-`internal/server/routes_snapshot_test.go` reads
-`internal/server/testdata/routes.golden` — 64 lines of
-`method<TAB>path<TAB>group` — builds the real `NewRouter`, and probes every
-line: an anonymous request, plus a real-token request for the two
-authenticated groups. A route that moved from `authed` to `admin` fails,
-because the authed probe gets 403 where the golden says it should not. A route
-that stopped being mounted fails too: `http.ServeMux` exposes no route table,
-so the test detects "not mounted" by the mux falling through to Go's default
-404, which writes `text/plain` where every real handler writes JSON. Before
-this test existed, `router_test.go` and `test/e2e` sampled the table and
-nothing enumerated it.
+`TestRouteAccess` (`internal/server/routes_access_test.go`) calls
+`newRouter`, which returns what `web.Router.Routes()` recorded as it mounted
+the real `NewRouter` — 65 entries, `method<TAB>path` — and runs a subtest per
+entry: an anonymous probe for every route, plus a real-token probe for
+everything not named in the ten-line `publicRoutes` allowlist. A route whose
+path starts with `/api/admin/` must 401 anonymously and 403 the non-admin
+token; anything else not in `publicRoutes` must 401 anonymously and must not
+403 the token; anything in `publicRoutes` must not 401 at all. Before this
+test existed, `router_test.go` and `test/e2e` sampled the table and nothing
+enumerated it.
 
-**Three things it still cannot see:**
+**What it still cannot see:**
 
-- **A route that was *added* and never written into the golden.** The test
-  iterates the golden and probes each line; it does not enumerate the mux and
-  compare the other way. So the golden proves nothing was removed or moved,
-  and says nothing about what is mounted that it does not list. Adding a route
-  and forgetting the golden line leaves that route untested, silently.
+- **A route *removed* from `router.go`.** `mounted` is whatever
+  `web.Router.Routes()` actually recorded, not a separate list of what should
+  exist, so a deleted route just stops appearing and gets no subtest —
+  nothing in this file notices it is gone. The golden this replaced caught
+  exactly that case and missed the opposite one, a route added and left off
+  the list: `TestRouteAccess` trades one blind spot for the other. Adding is
+  now automatic and safe; removing is invisible.
 - **Which rate limiter, if any, guards a route.** Its own entry above.
 - **Anything about the handler behind the route.** A mounted route may answer
-  any status; the snapshot only refuses the default-404 signature.
+  any status once past the auth and admin checks; the test proves who is let
+  through, never what happens after.
 
-The rest of the picture is unchanged by the flatten. A module's own
-`handler_test.go` builds its own `middleware.NewRouteGroup` and writes the
-prefix itself rather than importing anything from the real router — and it is
-not even the same prefix:
-`internal/modules/category/adapter/http/admin_handler_test.go:375` builds
-`middleware.NewRouteGroup(mux, "/api/v1/admin")` while `NewRouter` mounts the
-real admin group at `/api/admin`, with no `/v1` anywhere in production. The
-test passes either way, because it never touches the real router.
+The rest of the picture is unchanged. A module's own `handler_test.go` builds
+its own `web.NewRouter(mux).Group(...)` and writes the prefix itself rather
+than importing anything from the real router — and it is not even the same
+prefix: `internal/modules/category/adapter/http/admin_handler_test.go:375`
+builds `web.NewRouter(mux).Group("/api/v1/admin")` while `NewRouter` mounts
+the real admin group at `/api/admin`, with no `/v1` anywhere in production.
+The test passes either way, because it never touches the real router.
 `router_test.go` still samples rather than enumerates: 24 distinct `/api…`
 paths appear in the whole file (`grep -oE '"/api[^"]*"'
 internal/server/router_test.go | sort -u | wc -l`) against 64 routes, and
@@ -759,8 +761,8 @@ them.
 **What decision 15 still costs:** nothing links the two halves. An
 `adapter/http` method that no route mounts compiles, lints, passes
 `check-boundaries`, and serves nothing, and no check says so. What decision 15
-bought is that all 64 URLs are in one file — which is what made the golden
-cheap enough to exist at all.
+bought is that all 64 URLs are in one file — which is what makes
+`TestRouteAccess` cheap enough to enumerate them at all.
 
 ## A repository write can leak outside its own transaction with no test failing
 
@@ -851,7 +853,7 @@ _layer_ (build every module's dependencies, then every module) not by module.
 
 **Where you hit it:** a cursor a client sends back from a previous page decodes to a different instant than the one that produced it, and pagination silently returns the wrong rows — never an error, just a page that quietly skips or repeats.
 
-`internal/platform/response/pagination_cursor.go` formats the timestamp half of a keyset cursor with one unexported constant, `cursorTimeFormat`, and every call site that builds a cursor for `CursorPage[T]` has to agree with it implicitly, by never formatting a cursor's timestamp any other way. Nothing enforces that agreement beyond there being exactly one constant and one function that reads it. A second encoder — a different endpoint hand-rolling its own cursor, a future refactor that inlines the format string somewhere convenient — would drift the moment it used a layout with different precision or a different timezone offset, and the failure mode is a mis-decoded timestamp, not a parse error: `time.Parse` with a mismatched-but-plausible layout can still succeed on the wrong value.
+`internal/platform/web/response/pagination_cursor.go` formats the timestamp half of a keyset cursor with one unexported constant, `cursorTimeFormat`, and every call site that builds a cursor for `CursorPage[T]` has to agree with it implicitly, by never formatting a cursor's timestamp any other way. Nothing enforces that agreement beyond there being exactly one constant and one function that reads it. A second encoder — a different endpoint hand-rolling its own cursor, a future refactor that inlines the format string somewhere convenient — would drift the moment it used a layout with different precision or a different timezone offset, and the failure mode is a mis-decoded timestamp, not a parse error: `time.Parse` with a mismatched-but-plausible layout can still succeed on the wrong value.
 
 **What you would do:** keep every cursor-producing call site routed through `CursorPage[T]` rather than formatting a timestamp directly, and if a second encoder is ever genuinely needed, export `cursorTimeFormat` (or an equivalent constant) rather than letting a second literal format string exist anywhere in the tree.
 

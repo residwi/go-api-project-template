@@ -70,10 +70,9 @@ decides the verb, the path and the middleware group.
 │   │                           # wrap of a platform/errs kind
 │   ├── /bootstrap              # The composition root: builds every Service,
 │   │                           # wires every cross-module port by name-match
-│   ├── /server                 # server.go (Run), router.go (NewRouter, health, routes),
-│   │   ├── /middleware         # auth, admin, rate limit -- the three that know
-│   │   │                       # a caller identity
-│   │   └── /testdata           # routes.golden -- 64 routes, method/path/group
+│   ├── /server                 # server.go (Run), router.go (NewRouter, health, routes)
+│   │                           # and auth.go, which holds authMiddleware -- the one
+│   │                           # middleware naming a feature module
 │   ├── /worker                 # The river.Client analogue of internal/server: owns
 │   │                           # the one working client, the queue map, and the
 │   │                           # order stale-sweep's river.PeriodicJob
@@ -84,9 +83,11 @@ decides the verb, the path and the middleware group.
 │   │   ├── /database           # Postgres pools, transactions, TxRunner
 │   │   ├── /errs               # The five status-carrying generic error kinds
 │   │   ├── /queue              # NewInsertClient + a transaction-aware Insert
-│   │   ├── /response           # The shared JSON envelope + Bind + error mapping
-│   │   ├── /web                # Chain, RouteGroup, and the transport-generic
-│   │   │                       # middleware: recovery, request ID, logging, CORS
+│   │   ├── /web                # Middleware, Chain, Router -- a tree of its own:
+│   │   │   ├── /request        #   Bind, ParseUUIDParam
+│   │   │   ├── /response       #   the envelope, HandleErr, CursorPage
+│   │   │   └── /middleware     #   CORS, Logging, Recovery, RequestID, the user
+│   │   │                       #   context, RequireRole, RateLimit
 │   │   └── /cache /logger /paging /slug /storage /validator
 │   └── /testutil               # Shared container plumbing for tests
 ├── /test/e2e                   # Cross-module sagas through the real router
@@ -685,8 +686,9 @@ This template puts one module per feature and one `Service` per module:
 - The five generic error kinds live in `internal/platform/errs` and the seven
   cross-module business sentinels in `internal/apperror`, each declared as a
   wrap of one of the five; generic utilities (`paging`, `slug`, `validator`)
-  live in `internal/platform`; the JSON envelope and request binding live in
-  `internal/platform/response`.
+  live in `internal/platform`; the JSON envelope lives in
+  `internal/platform/web/response` and request binding in
+  `internal/platform/web/request`.
 
 **Read `ARCHITECTURE-LIMITATIONS.md` before copying this.** It lists what the
 shape makes hard, including the guarantees the flat-module shape gave up — a

@@ -29,14 +29,18 @@ internal/
                           a wrap of a platform/errs kind; no feature deps
   bootstrap/              the composition root: builds every Service and wires every
                           cross-module port by name-match
-  server/                 server.go (Run), router.go (NewRouter, health, routes) and
-                          middleware/, which is down to the three files that know a
-                          caller identity -- auth.go, admin.go, ratelimit.go.
-                          router.go holds every URL in the system -- all 64 of them,
-                          in one function
-  platform/               generic infrastructure, no feature deps: cache/ config/
-                          database/ errs/ logger/ paging/ queue/ response/ slug/
-                          storage/ validator/ web/
+  server/                   server.go (Run), router.go (NewRouter, health, routes)
+                            and auth.go, which holds authMiddleware -- the one
+                            middleware naming a feature module. There is no
+                            middleware/ subdirectory any more
+  platform/                 generic infrastructure, no feature deps: cache/ config/
+                            database/ errs/ logger/ paging/ queue/ slug/ storage/
+                            validator/ and web/, which is a tree of its own:
+                            web/           Middleware, Chain, Router
+                            web/request/   Bind, ParseUUIDParam
+                            web/response/  the envelope, HandleErr, CursorPage
+                            web/middleware/ CORS, Logging, Recovery, RequestID,
+                                            the user context, RequireRole, RateLimit
   testutil/               shared dockertest harness (Postgres + Redis containers)
   worker/                 the jobs analogue of server/: owns the one working
                           river.Client, its queue map, and the order stale-sweep's
@@ -323,15 +327,20 @@ white-box tests without preventing black-box ones, so one file does both.
 
 **A handler test writes its own URL, and that URL is not the production one.**
 Every test file under `internal/modules/*/adapter/http/` builds its own
-`middleware.NewRouteGroup` and registers the handler on a prefix it picks;
-several write `/api/v1/...`, which production has never served. None imports
-`internal/server`. So a handler test proves the handler, never the URL nor the
-group it lands on. **`internal/server/routes_snapshot_test.go`,
+`web.NewRouter(mux).Group(...)` and registers the handler on a prefix it
+picks; several write `/api/v1/...`, which production has never served. None
+imports `internal/server`. So a handler test proves the handler, never the
+URL nor the group it lands on. **`internal/server/routes_access_test.go`,
 `internal/server/router_test.go` and `test/e2e/` are the only things that
-drive the real `NewRouter`**, and only the first enumerates the whole table:
-`TestRouteSnapshot` reads `internal/server/testdata/routes.golden` — 64 lines
-of `method<TAB>path<TAB>group` — and probes every one. What it still cannot
-see is in `ARCHITECTURE-LIMITATIONS.md`.
+drive the real `NewRouter`**, and only the first enumerates the whole table.
+`TestRouteAccess` calls `newRouter`, which returns what
+`web.Router.Routes()` recorded as it mounted — 65 entries — and probes every
+one. There is no golden file: a route mounted and left off a list now fails
+rather than going untested. What is hand-written instead is `publicRoutes`,
+ten entries naming the routes that must answer an anonymous caller;
+everything else is derived, with `/api/admin/` required to 403 a non-admin.
+Adding a line to `publicRoutes` opens a route to the internet, which is the
+one edit in that file needing a second reader.
 
 Five carve-outs put a test outside the package it tests — two forced by an
 import cycle, two by preference, one because the thing under test is not Go —
@@ -456,7 +465,7 @@ here, and why it is not.
    `internal/platform/` by location. That location arm covers two things at
    once: `internal/platform/config/`, whose tags are `envconfig` and not
    `json` but whose exemption matters so that adding one is not mistaken for a
-   domain leak, and `internal/platform/response/response.go`, the shared
+   domain leak, and `internal/platform/web/response/response.go`, the shared
    envelope every handler writes through. The envelope used to need a name of
    its own, at `internal/server/response/response.go`; that entry was deleted
    when the package moved under `internal/platform`, where it is exempt by
@@ -507,24 +516,19 @@ here, and why it is not.
    pass, so it was deleted along with its probe. Nothing replaces it: the
    coupling it prevented needed two peer packages inside one module, and there
    is one `Service` per module now. The number is left vacant on purpose.
-6. **`check_transport_direction`: a module may not import `internal/server`,
-   except its own `adapter/http`.** That is the one exempt location, and it
-   still carries real weight, though much less than it used to: removing the
-   arm reports **20** imports across **nine** modules in one run — `cart
-   checkout notification order promotion review shipping user wishlist`. It
-   used to report 85 across all fifteen, and the drop is the measure of what
-   moved: `response.Bind` is `internal/platform/response` now, so the only
-   reason left to import `internal/server` is `middleware.RequireUser`,
-   `SetUserContext` and `UserContext` (rule 18) — caller identity, which is
-   exactly what stayed. The other six `adapter/http` packages — `auth
-   category dashboard inventory payment product` — serve routes that never
-   name a caller and import `internal/server` nowhere at all. The check
-   catches a `Service` returning a transport type, and a module that would
-   register its own routes — either would make every binary constructing the
-   module link HTTP, including the worker, which serves nothing. A module that
-   needs to describe something the transport also describes puts the type in
-   its own `contract.go` and lets middleware import the module root instead:
-   `user.AccountStatus` and `auth.ClaimsView` are what that looks like.
+6. **`check_transport_direction`: a module may not import `internal/server`.
+   No exemption.** The `adapter/http` arm that used to exempt a module's own
+   HTTP adapter is gone: every middleware a handler needs — `RequireUser`,
+   `UserContext`, `SetUserContext`, `RequireRole`, `RateLimit` — lives in
+   `internal/platform/web/middleware` now, so no file under a module has a
+   reason to name `internal/server` at all. Removing the arm reports **0**
+   violations, which is why it was removed. The check catches a `Service`
+   returning a transport type, and a module that would register its own
+   routes — either would make every binary constructing the module link
+   HTTP, including the worker, which serves nothing. A module that needs to
+   describe something the transport also describes puts the type in its own
+   `contract.go`: `user.AccountStatus` and `auth.ClaimsView` are what that
+   looks like, and `internal/server/auth.go` is their one consumer.
 7. **RETIRED — `check_contract_leaf`.** It held every `contract/` package to
    stdlib, `uuid` and `internal/modules/money` only, so that importing a
    module's published types could never drag its `domain/` along. Zero
@@ -545,8 +549,9 @@ here, and why it is not.
    of which would end the property just as completely. A closed list also only
    covers a tree added later on the day someone remembers to extend it.
    **`internal/testutil` is the one exemption**, named in the script with its
-   reason: three platform test packages import it for the shared dockertest
-   harness (`platform/database`, `platform/cache`, `platform/queue`).
+   reason: four platform test packages import it for the shared dockertest
+   harness (`platform/database`, `platform/cache`, `platform/queue`,
+   `platform/web/middleware`).
    It is a hole rather than a tidy carve-out, and it is why the copy property
    holds for `go build` on a copied `internal/platform` and **not** for `go
    test` — `internal/testutil` does not live under `internal/platform` and so
@@ -612,7 +617,7 @@ compiler; they are all greps.
     `internal/server/router.go` — inside `NewRouter` itself, 64 routes in
     fifteen labelled blocks, mounted on the route groups that same function
     builds. A module supplies a handler with exported route methods; the
-    transport decides the verb, the path, and which `middleware.RouteGroup` it
+    transport decides the verb, the path, and which `web.Router` group it
     lands on. Check 6 enforces the direction; `ARCHITECTURE.md` decision 15 is
     why, and its cost.
 
@@ -658,7 +663,13 @@ compiler; they are all greps.
 
     Per-queue leases became a client-wide `RescueStuckJobsAfter` (`WORKER_RESCUE_AFTER`, one value for every queue) plus a per-worker `Timeout()` (`PAYMENT_JOB_TIMEOUT`, `NOTIFICATION_JOB_TIMEOUT`, `ORDER_JOB_TIMEOUT`, each validated in its own module's `LoadConfig`) — a rescue window is no longer expressible per queue, only for the client as a whole. `payment` gained `ErrNotRefundable` in its own `errors.go`, wrapping an `errs` kind the way `auth`'s sentinels do; `RefundWorker.Work` translates it into `river.JobCancel` so a non-refundable payment is cancelled rather than retried. Never hand-roll a ticker/lease/poll loop — River owns polling, the leased claim, bounded concurrency, per-job timeouts and its own maintenance.
 17. **Repository reads use `pgx.CollectRows`**, never a hand-rolled `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and build keyset predicates with `database.KeysetCursor()`.
-18. **Handlers use the shared helpers.** Decode and validate with `response.Bind[T](w, r, h.validator)`; read caller with `middleware.RequireUser(w, r)`; return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks.
+18. **Handlers use the shared helpers.** Decode and validate with
+    `request.Bind[T](w, r, h.validator)` from
+    `internal/platform/web/request`; read the caller with
+    `middleware.RequireUser(w, r)` from
+    `internal/platform/web/middleware`; return errors through
+    `response.HandleErr` from `internal/platform/web/response`. Do not
+    hand-roll decode/validate or auth-context blocks.
 18a. **An `adapter/http` port is named for the role it plays, never for the
     pattern.** `CartManager`, `ProductReader`, `WebhookProcessor`,
     `PromotionApplier`, `Reporter` — 23 ports across the 15 `adapter/http`
@@ -782,7 +793,7 @@ History stays linear. No `Merge branch …` commit — it says nothing about the
 - **Docker is required.** No build tags, no short mode. `internal/testutil` starts two long-lived containers by fixed name (`go-api-test-postgres`, `go-api-test-redis`) and every test binary attaches to whichever already exists. Remove them with `make test-clean`. **Every package binary races for the same container name**, and `getOrCreateContainer` decides who wins: the loser polls until the winner's container reports running with a bound port, and a container still not running after a grace period (`transientGrace`) is treated as abandoned and purged, so a container wedged mid-start does not wedge every other test binary with it.
 - **SQL semantics stay in the adapter's own test.** Recursive CTEs, keyset pagination, unique constraints — anything only the database can prove — belong in `internal/modules/<feature>/adapter/postgres/repository_test.go` (or `adapter/redis/cache_test.go`) against a real container. Anything a mock can express — a `Service`'s reaction to a value, an error branch — belongs in that module's `service_test.go` instead, and a saga spanning tables no single module owns goes to `test/e2e/`. No module starts its own container. `go test ./...` runs package binaries concurrently; collapsing per-package tests into one `test/integration` package would make them sequential. `ARCHITECTURE.md` decision 11 rejects that directory explicitly.
 - **`test/e2e/` is for sagas no single module can own** — checkout, payment, refund, fulfilment failure, admin flows — driven through the real `server.NewRouter`, real Postgres, and the mock gateway on an `httptest.Server`.
-- **Postgres databases are per module, created once under an advisory lock, and never dropped; Redis indices are still a slot you claim.** `MustStartPostgres(dbName)` creates and migrates `dbName` the first time any caller asks for it — the lock covers the migration too, so a second caller that finds the database already there finds it at the latest schema — and every later caller, same test binary or a different one, just connects. It holds one raw `pgx.Conn`, not a pool, across the exists-check and the `CREATE DATABASE`: every package binary dials the admin database at once when the suite starts, so a single dial routinely comes back "connection reset by peer" and needs the retry `MustStartPostgres` already wraps it in, where a pool would acquire lazily and `Ping` would only prove one connection out of many had worked. **25 packages call `testutil.MustStart*` today** (`grep -rl 'testutil.MustStart' --include='*_test.go' . | xargs -n1 dirname | sort -u | wc -l`), and the mapping is one database per module: `test_cart`, `test_order`, `test_payment`, and so on (`grep -rn 'MustStartPostgres(' --include='*_test.go' internal/modules` is the live mapping). `notification` and `payment` no longer share a database name with a second test package — their old `jobs/postgres` packages are gone along with the per-module job queues, so every Postgres-claiming package today owns its database name outright. The platform-owned successor those two per-module packages first collapsed into, `internal/platform/jobs/postgres` (`test_platform_jobs`), is gone in its turn: jobs run on River now, and `internal/platform/queue` (`test_platform_jobs_insert`) and `internal/worker` (`test_worker`) are the two new Postgres-claiming packages this migration added in its place. **`ResetDB` is safe only for a package that owns its database outright.** Five callers today: `internal/bootstrap/app_test.go` (`test_bootstrap`), `internal/server/router_test.go` (`test_server`), `test/e2e/testmain_test.go` (`test_e2e`), `internal/platform/queue/insert_test.go` (`test_platform_jobs_insert`) and `internal/testutil/testutil_test.go` (`test_testutil`) — the last one added to prove `ResetDB` spares `river_migration` the same way it always spared `goose_db_version`. `ResetDB` also never truncates `goose_db_version` or `river_migration`: migrations run unconditionally on every `MustStartPostgres` call, so truncating either version table would make the next caller see zero applied versions and fail against a schema that is already fully migrated — or, for `river_migration`, send `rivermigrate` back over tables it already thinks exist. `ResetDB` takes a `*pgxpool.Pool`, not a package name, so nothing stops a sixth caller inside a module adding it — check before copying a `setup` helper that calls it. `MustStartRedis(dbIndex)` takes an index the caller picks by hand — the registry used to be tracked in a comment above that function in `internal/testutil/testutil.go`, but the comment strip removed it, so the list below and `grep -rn 'MustStartRedis(' --include='*_test.go' .` are what's left to check against. Indices 0, 1, 3, 5 and 6 are claimed (`platform/cache`, `server/middleware`, `server`, `test/e2e`, `modules/user/adapter/redis`); 2 and 4 are free. Nothing enforces a claim — a collision compiles, passes review, and fails as a flake in an unrelated package — so update this list in the same commit that takes an index.
+- **Postgres databases are per module, created once under an advisory lock, and never dropped; Redis indices are still a slot you claim.** `MustStartPostgres(dbName)` creates and migrates `dbName` the first time any caller asks for it — the lock covers the migration too, so a second caller that finds the database already there finds it at the latest schema — and every later caller, same test binary or a different one, just connects. It holds one raw `pgx.Conn`, not a pool, across the exists-check and the `CREATE DATABASE`: every package binary dials the admin database at once when the suite starts, so a single dial routinely comes back "connection reset by peer" and needs the retry `MustStartPostgres` already wraps it in, where a pool would acquire lazily and `Ping` would only prove one connection out of many had worked. **25 packages call `testutil.MustStart*` today** (`grep -rl 'testutil.MustStart' --include='*_test.go' . | xargs -n1 dirname | sort -u | wc -l`), and the mapping is one database per module: `test_cart`, `test_order`, `test_payment`, and so on (`grep -rn 'MustStartPostgres(' --include='*_test.go' internal/modules` is the live mapping). `notification` and `payment` no longer share a database name with a second test package — their old `jobs/postgres` packages are gone along with the per-module job queues, so every Postgres-claiming package today owns its database name outright. The platform-owned successor those two per-module packages first collapsed into, `internal/platform/jobs/postgres` (`test_platform_jobs`), is gone in its turn: jobs run on River now, and `internal/platform/queue` (`test_platform_jobs_insert`) and `internal/worker` (`test_worker`) are the two new Postgres-claiming packages this migration added in its place. **`ResetDB` is safe only for a package that owns its database outright.** Five callers today: `internal/bootstrap/app_test.go` (`test_bootstrap`), `internal/server/router_test.go` (`test_server`), `test/e2e/testmain_test.go` (`test_e2e`), `internal/platform/queue/insert_test.go` (`test_platform_jobs_insert`) and `internal/testutil/testutil_test.go` (`test_testutil`) — the last one added to prove `ResetDB` spares `river_migration` the same way it always spared `goose_db_version`. `ResetDB` also never truncates `goose_db_version` or `river_migration`: migrations run unconditionally on every `MustStartPostgres` call, so truncating either version table would make the next caller see zero applied versions and fail against a schema that is already fully migrated — or, for `river_migration`, send `rivermigrate` back over tables it already thinks exist. `ResetDB` takes a `*pgxpool.Pool`, not a package name, so nothing stops a sixth caller inside a module adding it — check before copying a `setup` helper that calls it. `MustStartRedis(dbIndex)` takes an index the caller picks by hand — the registry used to be tracked in a comment above that function in `internal/testutil/testutil.go`, but the comment strip removed it, so the list below and `grep -rn 'MustStartRedis(' --include='*_test.go' .` are what's left to check against. Indices 0, 1, 3, 5 and 6 are claimed (`platform/cache`, `platform/web/middleware`, `server`, `test/e2e`, `modules/user/adapter/redis`); 2 and 4 are free. Nothing enforces a claim — a collision compiles, passes review, and fails as a flake in an unrelated package — so update this list in the same commit that takes an index.
 - **`t.Parallel()` buys nothing in a package that owns a database or a Redis
   index**, because everything in that package shares one connection and `ResetDB` TRUNCATEs every table in it. Those packages excluded from `paralleltest` wholesale in `.golangci.yml` -- per package, never per file, because parallel sibling gets its rows deleted mid-assertion even when that sibling never calls reset itself. That exclusion's `path:` regex is **mixed**: nine of its eleven alternatives are anchored to the repo root (`^db/(migrations|seeds)/`, `^test/e2e/`, `^internal/testutil/`, and six more), two are not (`/postgres/`, `/redis/`). Only an anchored alternative dies silently when the directory it names moves, and the anchored nine carry most of the weight -- 75 of the 103 files this pattern matches are reached by an anchored alternative and nothing else -- so check those against `git ls-files` after any structural change. `/postgres/` is the single widest alternative in the file at 26 files and needs no such check: it follows `adapter/postgres` wherever that goes. It briefly picked up `internal/platform/jobs/postgres/` when the per-module job queues first collapsed into one platform-owned store, with no edit to the exclusion needed then either — and lost that same directory with no edit needed now that jobs run on River instead: `^internal/platform/queue/` and `^internal/worker/`, the two anchored alternatives this migration added, cover what replaced it. Nothing given up: `go test` already runs packages concurrently and each owns own database. Have each subtest seed own data instead.
 - **Everywhere else `t.Parallel()` is mandatory**, and `paralleltest` enforces it on both test function and every `t.Run` closure. If you add test package claiming database or Redis slot, add it to that exclusion list in same commit.
@@ -798,25 +809,27 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 
 - Secrets come from env vars or gitignored `.env`. Never commit real secrets. `.env.example` lists every supported variable.
 - JWT auth with configurable expiry; bcrypt password hashes; RBAC via admin middleware.
-- Middleware lives in two packages. `internal/platform/web` holds panic
-  recovery, request-ID injection, structured request logging and CORS, plus
-  `Middleware`, `Chain` and `RouteGroup`. `internal/server/middleware` holds
-  auth, admin and rate limiting. `NewRouter` chains the four `web` ones around
-  the whole mux and mounts the two rate limiters per group;
-  `ARCHITECTURE-LIMITATIONS.md` records what no test proves about either.
+- Middleware lives in two places, and the line between them is **whether the
+  middleware names a feature module**. Check 8 enforces it: nothing under
+  `internal/platform` may import `internal/modules`, so the question is
+  answered by reading the imports rather than by judgment — which is why this
+  sentence replaced one about "knowing a caller identity". That older rule
+  broke the moment `RequireUser`, `RequireRole` and `RateLimit` moved down:
+  all three know exactly who the caller is, and all three are platform now.
 
-  **The line between the two packages is whether the middleware knows a caller
-  identity or a feature module.** `web` may import `platform/config`,
-  `platform/logger` and `platform/response` and nothing else of ours — check 8
-  enforces that, and it is what makes the package copyable into a fresh
-  project. Anything that reads or writes the user in the request context, or
-  names a module type, belongs in `internal/server/middleware`.
-  `ratelimit.go` is the instructive case: it looks entirely generic — a Redis
-  counter and a window — but it calls `GetUserContext` to key the limit per
-  user, so it stays on the server side. A new compression or timeout
-  middleware would go in `web`; a new one that reads a role, a tenant or a
-  module's config goes beside `auth.go`. If a middleware would need an import
-  `web` may not have, that is the answer, not a reason to widen check 8.
+  `internal/platform/web/middleware` holds panic recovery, request-ID
+  injection, structured request logging, CORS, the user context
+  (`UserContext`, `SetUserContext`, `GetUserContext`, `RequireUser`),
+  `RequireRole` and rate limiting. `internal/server/auth.go` holds
+  `authMiddleware` and nothing else, because it alone names
+  `auth.ClaimsView` and `user.AccountStatus`. `internal/server` has no
+  `middleware/` subdirectory any more.
+
+  A new compression or timeout middleware goes in
+  `internal/platform/web/middleware`. One that needs a module's type goes
+  beside `authMiddleware` in `internal/server`. If a middleware would need an
+  import `platform` may not have, that is the answer, not a reason to widen
+  check 8.
 - Field exposure controlled by DTO omission, not by `json:"-"`. **There are zero `json:"-"` tags under `internal/`, and check 1b keeps it that way.** Fourteen of them used to be load-bearing security controls (`user.PasswordHash`, `payment.GatewayResponse`, `order.RequestHash`) where deleting two characters published a password hash. Rule 1 exists for that reason: adding a field to a response now means naming it in a DTO deliberately. The failure mode that replaced it is naming the *wrong* DTO — see `ARCHITECTURE-LIMITATIONS.md` on the public and admin response mappers that live in separate, differently-named files (`response.go`, `admin_response.go`) in the same package: the risk narrowed from mistyping an adjacent identifier to reaching for the wrong file, but a handler can still call either mapper and compile.
 
 ## Guardrails
@@ -828,8 +841,14 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 - Do not suppress lint or vet findings with `//nolint` without a justification comment on the same line — see `internal/modules/order/service.go:56` (`//nolint:gocognit,funlen // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`) for the expected form. Five methods carry one: `order.Service.Place` and `order.Service.cancelWithReversal`, and `payment.Service.FinalizeSuccess`, `runRefund` (unexported now — it runs from `RefundJob.Run`, not a dispatcher) and `HandleWebhook`. `internal/server/router.go`'s `NewRouter` carries a `//nolint:funlen` for the same kind of reason — one flat wiring list, not nested logic.
 - Do not make subpackage tree uniform, and do not add pass-through adapter package to fill slot.
 - Backward compatibility explicitly **not** a goal here. API shapes may change where better design demands — but say so when they do.
-- When adding a module: create `internal/modules/<feature>/` per the shape under "Inside a module" above — `domain/` for its aggregate, `service.go` declaring one exported `Service` with its `Deps` and `New`, `repository.go` for the storage port, `adapter/postgres/` where it has SQL, `adapter/http/` where it has a route, `ports.go` only if it consumes something from another module, `contract.go` only if a struct of its own has to cross a port. Add a row per owned table to `db/OWNERSHIP.md`. Wire it into `internal/bootstrap/app.go` — one line to build it, one field on `App` — by name-match if an existing port already fits. Mount its routes in `internal/server/router.go`, and add a line per route to `internal/server/testdata/routes.golden`.
-- **Adding one route touches three files**: the module's `adapter/http` for the handler, `internal/server/router.go` for the URL, and `internal/server/testdata/routes.golden` for the proof. The golden is not generated: `TestRouteSnapshot` iterates the golden and probes each line, so a route you mount and forget to add is untested rather than failing. Then run `make check-boundaries` — a new module with an `adapter/postgres` and no ownership row fails it by design.
+- When adding a module: create `internal/modules/<feature>/` per the shape under "Inside a module" above — `domain/` for its aggregate, `service.go` declaring one exported `Service` with its `Deps` and `New`, `repository.go` for the storage port, `adapter/postgres/` where it has SQL, `adapter/http/` where it has a route, `ports.go` only if it consumes something from another module, `contract.go` only if a struct of its own has to cross a port. Add a row per owned table to `db/OWNERSHIP.md`. Wire it into `internal/bootstrap/app.go` — one line to build it, one field on `App` — by name-match if an existing port already fits. Mount its routes in `internal/server/router.go`.
+- **Adding one route touches two files**: the module's `adapter/http` for the
+  handler, and `internal/server/router.go` for the URL. `TestRouteAccess`
+  picks it up automatically from `web.Router.Routes()` and asserts its auth
+  class from its path — you only edit a test if the route is meant to be
+  public, in which case add one line to `publicRoutes`. Then run
+  `make check-boundaries` — a new module with an `adapter/postgres` and no
+  ownership row fails it by design.
 
 ## Further reading
 

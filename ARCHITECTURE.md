@@ -328,7 +328,7 @@ Two exemptions, both deliberate and both allowlisted by name in the check:
   describe someone else's API, and `payment/adapter/gateway/stripe` and `payment/adapter/gateway/midtrans`
   marshal them on the way out. Mapping `Money` down to their plain `int64`+`string`
   fields in those adapters is a correct seam, not a leak.
-- **`internal/platform/response/response.go`** — the shared envelope every
+- **`internal/platform/web/response/response.go`** — the shared envelope every
   handler in every module writes through: transport infrastructure, not a
   domain model, the same role `internal/platform/paging/`'s cursor/offset
   envelope plays one layer down. This one is no longer allowlisted by name.
@@ -618,8 +618,8 @@ Every route in the system is declared in `internal/server/router.go` — inside
 route groups and the order-write rate limiter the same function builds a few
 lines above them. A module supplies a
 handler with exported route methods and nothing else: no `routes.go`, no
-`RegisterRoutes`, no `middleware.RouteGroup` in its signature, no string
-beginning with `/`.
+`RegisterRoutes`, no route-group type from `middleware` in its signature, no
+string beginning with `/`.
 
 **This reversed what decision 9 first said.** That decision put a
 `http/routes.go` at each feature root, holding `RouteDeps` and
@@ -628,11 +628,12 @@ attached. Four things went wrong with that, and none is stylistic:
 
 - **The module became the router's peer instead of its supplier.** A feature
   root `http/` imported the transport's `middleware` package to name a
-  `RouteGroup`, so check 6 (`check_transport_direction`) needed a second
+  route-group type, so check 6 (`check_transport_direction`) needed a second
   exempt location on top of the module's own handler package. The arrow
   between the two trees pointed both ways, and a rule with two exemptions is a
-  rule that argues with itself. Check 6 has exactly one exempt location today:
-  `internal/modules/<feature>/adapter/http/`.
+  rule that argues with itself. Check 6 has no exempt location at all today:
+  importing `internal/server` from anywhere under `internal/modules` fails,
+  full stop.
 - **No one could read the API.** The 64 routes were spread over 14 files in 14
   different modules, each mounting handlers by a `RouteDeps` struct. Answering
   "what does `/api/admin/orders/{id}` do" meant knowing which module to open
@@ -665,14 +666,15 @@ feature is a thing readers actually do — that is the sharpest edge of this
 decision, not a footnote to it.
 
 **What it does not cost:** no test moved. A handler test builds its own
-`middleware.NewRouteGroup` and always did, so it never depended on a route
-table it now cannot see. The flip side is that a handler test still proves
-nothing about the URL. What closed half of that gap is
-`internal/server/routes_snapshot_test.go`: `TestRouteSnapshot` reads
-`internal/server/testdata/routes.golden` — 64 lines of
-`method<TAB>path<TAB>group` — and probes every one against the real
-`NewRouter`, which is the test this decision made cheap by putting all 64
-routes in one place. What it still cannot see is in
+`web.NewRouter(mux).Group(...)` and always did, so it never depended on a
+route table it now cannot see. The flip side is that a handler test still
+proves nothing about the URL. What closed half of that gap is
+`internal/server/routes_access_test.go`: `TestRouteAccess` calls
+`newRouter`, which returns what `web.Router.Routes()` recorded as it
+mounted — 65 entries — and probes every one against the real `NewRouter`,
+which is the test this decision made cheap by putting all 64 routes in one
+place. There is no golden file: a route mounted and left off a list now
+fails rather than going untested. What it still cannot see is in
 `ARCHITECTURE-LIMITATIONS.md`.
 
 ## 16. A module is one flat package with an `adapter/` directory
