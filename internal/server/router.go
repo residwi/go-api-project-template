@@ -30,23 +30,33 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 )
 
-func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, the four route groups and all 64 routes in the order the router mounts them
+func NewRouter(
 	appCfg *config.Settings,
 	modCfg bootstrap.Config,
 	cache *redis.Client,
 	logger *slog.Logger,
 	app *bootstrap.App,
 ) http.Handler {
+	handler, _ := newRouter(appCfg, modCfg, cache, logger, app)
+	return handler
+}
+
+func newRouter( //nolint:funlen // one flat wiring list: the middleware chain, the four route groups and all 65 routes in the order the router mounts them
+	appCfg *config.Settings,
+	modCfg bootstrap.Config,
+	cache *redis.Client,
+	logger *slog.Logger,
+	app *bootstrap.App,
+) (http.Handler, []string) {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /health", healthHandler())
+	router := web.NewRouter(mux)
+	router.HandleFunc("GET /health", healthHandler())
 
 	v := validator.New()
 
 	authMW := authMiddleware(app.Auth, app.Users)
 	adminMW := middleware.RequireRole("admin")
-
-	router := web.NewRouter(mux)
 
 	api := router.Group("/api")
 	authed := router.Group("/api", authMW)
@@ -185,7 +195,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 		middleware.Logging(logger),
 		middleware.Recovery(logger),
 		middleware.CORS(appCfg.CORS),
-	)(mux)
+	)(mux), router.Routes()
 }
 
 func healthHandler() http.HandlerFunc {
