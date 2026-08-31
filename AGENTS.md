@@ -333,14 +333,15 @@ imports `internal/server`. So a handler test proves the handler, never the
 URL nor the group it lands on. **`internal/server/routes_access_test.go`,
 `internal/server/router_test.go` and `test/e2e/` are the only things that
 drive the real `NewRouter`**, and only the first enumerates the whole table.
-`TestRouteAccess` calls `newRouter`, which returns what
-`web.Router.Routes()` recorded as it mounted — 65 entries — and probes every
-one. There is no golden file: a route mounted and left off a list now fails
-rather than going untested. What is hand-written instead is `publicRoutes`,
-ten entries naming the routes that must answer an anonymous caller;
-everything else is derived, with `/api/admin/` required to 403 a non-admin.
-Adding a line to `publicRoutes` opens a route to the internet, which is the
-one edit in that file needing a second reader.
+`TestRouteAccess` drives the real `NewRouter` and probes every entry in
+`allRoutes`, a hand-written table of 65 `method<TAB>path` lines. Two other
+hand-written things sit beside it: `publicRoutes`, ten entries naming the
+routes that must answer an anonymous caller, and the `/api/admin/` prefix
+rule that requires a 403 for a non-admin. `web.Router` records nothing, so
+`allRoutes` is the list — mount a route in `router.go` and leave it out of
+`allRoutes` and it simply goes unprobed. Adding a line to `publicRoutes`
+opens a route to the internet, which is the one edit in that file needing a
+second reader.
 
 Five carve-outs put a test outside the package it tests — two forced by an
 import cycle, two by preference, one because the thing under test is not Go —
@@ -614,7 +615,7 @@ compiler; they are all greps.
 
     **The arrow runs the other way for URLs: the transport imports modules,
     and a module names no URL.** Every route lives in
-    `internal/server/router.go` — inside the unexported `newRouter`, 65 routes
+    `internal/server/router.go` — inside `NewRouter` itself, 65 routes
     in fifteen labelled blocks, mounted on the route groups that same function
     builds. A module supplies a handler with exported route methods; the
     transport decides the verb, the path, and which `web.Router` group it
@@ -847,10 +848,11 @@ result)` on full struct or slice. For JSONB round-trips use `assert.JSONEq` — 
 - Backward compatibility explicitly **not** a goal here. API shapes may change where better design demands — but say so when they do.
 - When adding a module: create `internal/modules/<feature>/` per the shape under "Inside a module" above — `domain/` for its aggregate, `service.go` declaring one exported `Service` with its `Deps` and `New`, `repository.go` for the storage port, `adapter/postgres/` where it has SQL, `adapter/http/` where it has a route, `ports.go` only if it consumes something from another module, `contract.go` only if a struct of its own has to cross a port. Add a row per owned table to `db/OWNERSHIP.md`. Wire it into `internal/bootstrap/app.go` — one line to build it, one field on `App` — by name-match if an existing port already fits. Mount its routes in `internal/server/router.go`.
 - **Adding one route touches two files**: the module's `adapter/http` for the
-  handler, and `internal/server/router.go` for the URL. `TestRouteAccess`
-  picks it up automatically from `web.Router.Routes()` and asserts its auth
-  class from its path — you only edit a test if the route is meant to be
-  public, in which case add one line to `publicRoutes`. Then run
+  handler, and `internal/server/router.go` for the URL — plus a line in
+  `allRoutes` in `internal/server/routes_access_test.go`, without which the
+  route is never probed. `TestRouteAccess` asserts its auth class from its
+  path, so a second line in `publicRoutes` is needed only when the route is
+  meant to answer anonymous callers. Then run
   `make check-boundaries` — a new module with an `adapter/postgres` and no
   ownership row fails it by design.
 

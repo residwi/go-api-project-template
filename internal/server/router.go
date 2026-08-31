@@ -30,24 +30,13 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 )
 
-func NewRouter(
+func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, the four route groups and all 65 routes in the order the router mounts them
 	appCfg *config.Settings,
 	modCfg bootstrap.Config,
 	cache *redis.Client,
 	logger *slog.Logger,
 	app *bootstrap.App,
 ) http.Handler {
-	handler, _ := newRouter(appCfg, modCfg, cache, logger, app)
-	return handler
-}
-
-func newRouter( //nolint:funlen // one flat wiring list: the middleware chain, the four route groups and all 65 routes in the order the router mounts them
-	appCfg *config.Settings,
-	modCfg bootstrap.Config,
-	cache *redis.Client,
-	logger *slog.Logger,
-	app *bootstrap.App,
-) (http.Handler, []string) {
 	mux := http.NewServeMux()
 
 	router := web.NewRouter(mux)
@@ -196,7 +185,7 @@ func newRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 		middleware.Logging(logger),
 		middleware.Recovery(logger),
 		middleware.CORS(appCfg.CORS),
-	)(mux), router.Routes()
+	)(mux)
 }
 
 func healthHandler() http.HandlerFunc {

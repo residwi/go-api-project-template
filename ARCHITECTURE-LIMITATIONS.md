@@ -721,10 +721,9 @@ The flatten had already shrunk this from a general problem to a two-module one: 
 token — the `admin` group's middleware got dropped somewhere along the way —
 and you want to know whether a test catches it. It does.
 
-`TestRouteAccess` (`internal/server/routes_access_test.go`) calls
-`newRouter`, which returns what `web.Router.Routes()` recorded as it mounted
-the real `NewRouter` — 65 entries, `method<TAB>path` — and runs a subtest per
-entry: an anonymous probe for every route, plus a real-token probe for
+`TestRouteAccess` (`internal/server/routes_access_test.go`) drives the real
+`NewRouter` and walks `allRoutes`, a hand-written table of 65
+`method<TAB>path` lines, running a subtest per entry: an anonymous probe for every route, plus a real-token probe for
 everything not named in the ten-line `publicRoutes` allowlist. A route whose
 path starts with `/api/admin/` must 401 anonymously and 403 the non-admin
 token; anything else not in `publicRoutes` must 401 anonymously and must not
@@ -734,12 +733,12 @@ enumerated it.
 
 **What it still cannot see:**
 
-- **A route *removed* from `router.go`.** `mounted` is whatever
-  `web.Router.Routes()` actually recorded, not a separate list of what should
-  exist, so a deleted route just stops appearing and gets no subtest —
-  nothing in this file notices it is gone. The golden this replaced caught
-  exactly that case and missed the opposite one, a route added and left off
-  the list: `TestRouteAccess` trades one blind spot for the other. Adding is
+- **A route mounted in `router.go` and left out of `allRoutes`.** The table
+  is hand-written, so an unlisted route is simply never probed and its auth
+  class is never asserted. `web.Router` deliberately records nothing — it
+  once exposed a `Routes()` accessor that made the table derivable, and that
+  was removed because production never read it. The cost is this blind spot,
+  which is the golden file's blind spot returning. Removal is
   now automatic and safe; removing is invisible.
 - **Which rate limiter, if any, guards a route.** Its own entry above.
 - **Anything about the handler behind the route.** A mounted route may answer
@@ -834,9 +833,9 @@ URL in one file, in one function, in the order the router mounts them".
 once — one line to build it, one field on `App` — and `router.go` once. Adding
 a route to an existing module touches the module's `adapter/http` for the
 handler and `router.go` for the URL — `TestRouteAccess` picks the route up
-automatically from `web.Router.Routes()`, so the only hand-edit left is a
+from its path once its line is in `allRoutes`, so the only other hand-edit is a
 `publicRoutes` line when the route must be public.
-`New` carries no `//nolint:funlen`; `newRouter` does, and its justification
+`New` carries no `//nolint:funlen`; `NewRouter` does, and its justification
 says why — one flat wiring list mounting fifteen modules' routes, not nested
 logic.
 

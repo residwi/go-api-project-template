@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestRouterGroup(t *testing.T) {
@@ -91,64 +90,5 @@ func TestRouterGroup(t *testing.T) {
 		mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/health", nil))
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
-	})
-}
-
-func TestRouterRoutes(t *testing.T) {
-	t.Parallel()
-
-	t.Run("records every route mounted through the root and its derived groups", func(t *testing.T) {
-		t.Parallel()
-
-		noop := func(http.ResponseWriter, *http.Request) {}
-
-		router := NewRouter(http.NewServeMux())
-		router.HandleFunc("GET /health", noop)
-		api := router.Group("/api")
-		api.HandleFunc("GET /products", noop)
-		admin := api.Group("/admin")
-		admin.HandleFunc("DELETE /products/{id}", noop)
-
-		assert.Equal(t, []string{
-			"GET\t/health",
-			"GET\t/api/products",
-			"DELETE\t/api/admin/products/{id}",
-		}, router.Routes())
-	})
-
-	t.Run("a derived group reports the whole table, not only its own routes", func(t *testing.T) {
-		t.Parallel()
-
-		noop := func(http.ResponseWriter, *http.Request) {}
-
-		router := NewRouter(http.NewServeMux())
-		api := router.Group("/api")
-		api.HandleFunc("GET /a", noop)
-		admin := api.Group("/admin")
-		admin.HandleFunc("GET /b", noop)
-
-		assert.Equal(t, router.Routes(), admin.Routes())
-	})
-
-	t.Run("the returned slice is a copy", func(t *testing.T) {
-		t.Parallel()
-
-		router := NewRouter(http.NewServeMux())
-		router.HandleFunc("GET /a", func(http.ResponseWriter, *http.Request) {})
-
-		got := router.Routes()
-		require.Len(t, got, 1)
-		got[0] = "mutated"
-
-		assert.Equal(t, []string{"GET\t/a"}, router.Routes())
-	})
-
-	t.Run("Handle registers the same pattern HandleFunc does", func(t *testing.T) {
-		t.Parallel()
-
-		router := NewRouter(http.NewServeMux())
-		router.Group("/api").Handle("POST /orders", http.NotFoundHandler())
-
-		assert.Equal(t, []string{"POST\t/api/orders"}, router.Routes())
 	})
 }
