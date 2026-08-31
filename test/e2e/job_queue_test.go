@@ -29,83 +29,6 @@ type jobQueueEnv struct {
 	handler http.Handler
 }
 
-func newTestEnv(t *testing.T) jobQueueEnv {
-	t.Helper()
-
-	mockMux := http.NewServeMux()
-	mockgatewayserver.RegisterRoutes(mockMux, testutil.DiscardLogger())
-	mockServer := httptest.NewServer(mockMux)
-	t.Cleanup(mockServer.Close)
-
-	paymentCfg := payment.Config{
-		Gateway:        "mock",
-		GatewayURL:     mockServer.URL + "/mock/payment",
-		GatewayTimeout: 5 * time.Second,
-	}
-	app := newTestApp(paymentCfg)
-	handler := server.NewRouter(
-		testAppCfg, withPayment(paymentCfg),
-		testRedis, testutil.DiscardLogger(),
-		app,
-	)
-	return jobQueueEnv{app: app, handler: handler}
-}
-
-func placeAndPayOrder(t *testing.T, env jobQueueEnv) (orderID, paymentID uuid.UUID) {
-	t.Helper()
-	ctx := context.Background()
-
-	catID := uuid.New()
-	_, err := testPool.Exec(ctx,
-		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'JobQueue Cat', $2, true)`,
-		catID, "jobqueue-cat-"+catID.String()[:8])
-	require.NoError(t, err)
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
-
-	prodID := uuid.New()
-	_, err = testPool.Exec(ctx,
-		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
-		 VALUES ($1, 'JobQueue Product', $2, 'desc', 4000, 'USD', 'published', $3)`,
-		prodID, "jobqueue-prod-"+prodID.String()[:8], catID)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
-		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
-	})
-	seedInventoryLevel(t, prodID, 100, 0)
-
-	email := "jobqueue-" + uuid.New().String()[:8] + "@example.com"
-	userID, token := registerE2EUser(t, env.handler, email)
-	t.Cleanup(func() { cleanupOrdersOf(userID) })
-
-	cartBody := `{"product_id":"` + prodID.String() + `","quantity":1}`
-	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
-	cartReq.Header.Set("Content-Type", "application/json")
-	cartReq.Header.Set("Authorization", "Bearer "+token)
-	cartW := httptest.NewRecorder()
-	env.handler.ServeHTTP(cartW, cartReq)
-	require.Equal(t, http.StatusCreated, cartW.Code)
-
-	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders",
-		strings.NewReader(`{"payment_method_id":"pm_test_jobqueue"}`))
-	orderReq.Header.Set("Content-Type", "application/json")
-	orderReq.Header.Set("Authorization", "Bearer "+token)
-	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
-	orderW := httptest.NewRecorder()
-	env.handler.ServeHTTP(orderW, orderReq)
-	require.Equal(t, http.StatusCreated, orderW.Code)
-
-	var orderResp map[string]any
-	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
-	orderID = uuid.MustParse(orderResp["data"].(map[string]any)["order"].(map[string]any)["id"].(string))
-
-	require.NoError(t, testPool.QueryRow(ctx,
-		`SELECT id FROM payments WHERE order_id = $1`, orderID).Scan(&paymentID))
-	require.Equal(t, "paid", orderStatusOf(t, orderID))
-
-	return orderID, paymentID
-}
-
 func TestRefundJobIsEnqueuedOnce(t *testing.T) {
 	setup(t)
 	ctx := context.Background()
@@ -232,4 +155,81 @@ func TestOrderExpireStaleSweepRunsAgainAfterCompleting(t *testing.T) {
 		second.UniqueSkippedAsDuplicate,
 		"the periodic sweep must run again after its previous occurrence completes, not be silently skipped as a duplicate",
 	)
+}
+
+func newTestEnv(t *testing.T) jobQueueEnv {
+	t.Helper()
+
+	mockMux := http.NewServeMux()
+	mockgatewayserver.RegisterRoutes(mockMux, testutil.DiscardLogger())
+	mockServer := httptest.NewServer(mockMux)
+	t.Cleanup(mockServer.Close)
+
+	paymentCfg := payment.Config{
+		Gateway:        "mock",
+		GatewayURL:     mockServer.URL + "/mock/payment",
+		GatewayTimeout: 5 * time.Second,
+	}
+	app := newTestApp(paymentCfg)
+	handler := server.NewRouter(
+		testAppCfg, withPayment(paymentCfg),
+		testRedis, testutil.DiscardLogger(),
+		app,
+	)
+	return jobQueueEnv{app: app, handler: handler}
+}
+
+func placeAndPayOrder(t *testing.T, env jobQueueEnv) (orderID, paymentID uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+
+	catID := uuid.New()
+	_, err := testPool.Exec(ctx,
+		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'JobQueue Cat', $2, true)`,
+		catID, "jobqueue-cat-"+catID.String()[:8])
+	require.NoError(t, err)
+	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
+
+	prodID := uuid.New()
+	_, err = testPool.Exec(ctx,
+		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+		 VALUES ($1, 'JobQueue Product', $2, 'desc', 4000, 'USD', 'published', $3)`,
+		prodID, "jobqueue-prod-"+prodID.String()[:8], catID)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
+		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
+	})
+	seedInventoryLevel(t, prodID, 100, 0)
+
+	email := "jobqueue-" + uuid.New().String()[:8] + "@example.com"
+	userID, token := registerE2EUser(t, env.handler, email)
+	t.Cleanup(func() { cleanupOrdersOf(userID) })
+
+	cartBody := `{"product_id":"` + prodID.String() + `","quantity":1}`
+	cartReq := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(cartBody))
+	cartReq.Header.Set("Content-Type", "application/json")
+	cartReq.Header.Set("Authorization", "Bearer "+token)
+	cartW := httptest.NewRecorder()
+	env.handler.ServeHTTP(cartW, cartReq)
+	require.Equal(t, http.StatusCreated, cartW.Code)
+
+	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders",
+		strings.NewReader(`{"payment_method_id":"pm_test_jobqueue"}`))
+	orderReq.Header.Set("Content-Type", "application/json")
+	orderReq.Header.Set("Authorization", "Bearer "+token)
+	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderW := httptest.NewRecorder()
+	env.handler.ServeHTTP(orderW, orderReq)
+	require.Equal(t, http.StatusCreated, orderW.Code)
+
+	var orderResp map[string]any
+	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
+	orderID = uuid.MustParse(orderResp["data"].(map[string]any)["order"].(map[string]any)["id"].(string))
+
+	require.NoError(t, testPool.QueryRow(ctx,
+		`SELECT id FROM payments WHERE order_id = $1`, orderID).Scan(&paymentID))
+	require.Equal(t, "paid", orderStatusOf(t, orderID))
+
+	return orderID, paymentID
 }

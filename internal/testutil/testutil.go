@@ -35,10 +35,6 @@ func DiscardLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-func harnessLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-}
-
 func init() {
 	if os.Getenv("DOCKER_HOST") != "" {
 		return
@@ -128,35 +124,6 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 	return pool, func() {
 		pool.Close()
 	}
-}
-
-func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) error {
-	if _, lockErr := admin.Exec(ctx, `SELECT pg_advisory_lock(hashtext($1))`, dbName); lockErr != nil {
-		return fmt.Errorf("locking for database create: %w", lockErr)
-	}
-	defer func() { _, _ = admin.Exec(ctx, `SELECT pg_advisory_unlock(hashtext($1))`, dbName) }()
-
-	var exists bool
-	if scanErr := admin.QueryRow(ctx,
-		`SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, dbName,
-	).Scan(&exists); scanErr != nil {
-		return fmt.Errorf("checking for database: %w", scanErr)
-	}
-
-	if !exists {
-		if _, execErr := admin.Exec(ctx, `CREATE DATABASE "`+dbName+`"`); execErr != nil {
-			return fmt.Errorf("creating database %s: %w", dbName, execErr)
-		}
-	}
-
-	migratePool, poolErr := pgxpool.New(ctx, dsn)
-	if poolErr != nil {
-		return fmt.Errorf("connecting to migrate %s: %w", dbName, poolErr)
-	}
-	defer migratePool.Close()
-	runMigrations(ctx, migratePool)
-
-	return nil
 }
 
 func MustStartRedis(dbIndex int) (*redis.Client, func()) {
@@ -291,4 +258,37 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) {
 		harnessLogger().ErrorContext(ctx, "testutil: rivermigrate.Migrate", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
+}
+
+func harnessLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+}
+
+func ensureDatabase(ctx context.Context, admin *pgx.Conn, dbName, dsn string) error {
+	if _, lockErr := admin.Exec(ctx, `SELECT pg_advisory_lock(hashtext($1))`, dbName); lockErr != nil {
+		return fmt.Errorf("locking for database create: %w", lockErr)
+	}
+	defer func() { _, _ = admin.Exec(ctx, `SELECT pg_advisory_unlock(hashtext($1))`, dbName) }()
+
+	var exists bool
+	if scanErr := admin.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, dbName,
+	).Scan(&exists); scanErr != nil {
+		return fmt.Errorf("checking for database: %w", scanErr)
+	}
+
+	if !exists {
+		if _, execErr := admin.Exec(ctx, `CREATE DATABASE "`+dbName+`"`); execErr != nil {
+			return fmt.Errorf("creating database %s: %w", dbName, execErr)
+		}
+	}
+
+	migratePool, poolErr := pgxpool.New(ctx, dsn)
+	if poolErr != nil {
+		return fmt.Errorf("connecting to migrate %s: %w", dbName, poolErr)
+	}
+	defer migratePool.Close()
+	runMigrations(ctx, migratePool)
+
+	return nil
 }

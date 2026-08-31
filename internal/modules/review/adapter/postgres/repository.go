@@ -16,23 +16,6 @@ import (
 
 var _ review.Repository = (*Repository)(nil)
 
-func scanReview(row pgx.CollectableRow) (domain.Review, error) {
-	var rv domain.Review
-	err := row.Scan(
-		&rv.ID,
-		&rv.UserID,
-		&rv.ProductID,
-		&rv.OrderID,
-		&rv.Rating,
-		&rv.Title,
-		&rv.Body,
-		&rv.Status,
-		&rv.CreatedAt,
-		&rv.UpdatedAt,
-	)
-	return rv, err
-}
-
 type Repository struct {
 	db database.DB
 }
@@ -132,4 +115,21 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 		return errs.ErrNotFound
 	}
 	return nil
+}
+
+func scanReview(row pgx.CollectableRow) (domain.Review, error) {
+	var rv domain.Review
+	err := row.Scan(
+		&rv.ID,
+		&rv.UserID,
+		&rv.ProductID,
+		&rv.OrderID,
+		&rv.Rating,
+		&rv.Title,
+		&rv.Body,
+		&rv.Status,
+		&rv.CreatedAt,
+		&rv.UpdatedAt,
+	)
+	return rv, err
 }

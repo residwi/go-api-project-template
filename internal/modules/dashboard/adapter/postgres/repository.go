@@ -14,24 +14,6 @@ import (
 
 var _ dashboard.Repository = (*Repository)(nil)
 
-func scanStatusBreakdown(row pgx.CollectableRow) (domain.StatusBreakdown, error) {
-	var b domain.StatusBreakdown
-	err := row.Scan(&b.Status, &b.Count)
-	return b, err
-}
-
-func scanRevenueData(row pgx.CollectableRow) (domain.RevenueData, error) {
-	var d domain.RevenueData
-	err := row.Scan(&d.Date, &d.Revenue, &d.OrderCount)
-	return d, err
-}
-
-func scanTopProduct(row pgx.CollectableRow) (domain.TopProduct, error) {
-	var p domain.TopProduct
-	err := row.Scan(&p.ProductID, &p.Name, &p.TotalSold, &p.Revenue)
-	return p, err
-}
-
 type Repository struct {
 	db database.DB
 }
@@ -123,4 +105,22 @@ func (r *Repository) ListTopProducts(
 	}
 
 	return products, nil
+}
+
+func scanStatusBreakdown(row pgx.CollectableRow) (domain.StatusBreakdown, error) {
+	var b domain.StatusBreakdown
+	err := row.Scan(&b.Status, &b.Count)
+	return b, err
+}
+
+func scanRevenueData(row pgx.CollectableRow) (domain.RevenueData, error) {
+	var d domain.RevenueData
+	err := row.Scan(&d.Date, &d.Revenue, &d.OrderCount)
+	return d, err
+}
+
+func scanTopProduct(row pgx.CollectableRow) (domain.TopProduct, error) {
+	var p domain.TopProduct
+	err := row.Scan(&p.ProductID, &p.Name, &p.TotalSold, &p.Revenue)
+	return p, err
 }

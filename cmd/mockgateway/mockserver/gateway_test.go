@@ -14,12 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway"
 )
 
-func newMockMux() *http.ServeMux {
-	mux := http.NewServeMux()
-	RegisterRoutes(mux, slog.New(slog.DiscardHandler))
-	return mux
-}
-
 func TestHandleCharge(t *testing.T) {
 	t.Parallel()
 
@@ -291,4 +285,10 @@ func TestHandleWebhookTrigger(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
+}
+
+func newMockMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, slog.New(slog.DiscardHandler))
+	return mux
 }

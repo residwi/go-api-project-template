@@ -18,55 +18,6 @@ import (
 
 var _ inventory.Repository = (*Repository)(nil)
 
-func buildStockValues(items map[uuid.UUID]int) (string, []any, []uuid.UUID) {
-	ids := make([]uuid.UUID, 0, len(items))
-	for id := range items {
-		ids = append(ids, id)
-	}
-
-	placeholders := make([]string, len(ids))
-	args := make([]any, 0, len(ids)*stockValueCols)
-	param := 1
-	for i, id := range ids {
-		idCol, qtyCol := param, param+1
-		param += stockValueCols
-		if i == 0 {
-			placeholders[i] = fmt.Sprintf("($%d::uuid, $%d::int)", idCol, qtyCol)
-		} else {
-			placeholders[i] = fmt.Sprintf("($%d, $%d)", idCol, qtyCol)
-		}
-		args = append(args, id, items[id])
-	}
-	return strings.Join(placeholders, ","), args, ids
-}
-
-func lockLevels(ctx context.Context, db database.DBTX, ids []uuid.UUID) error {
-	_, err := db.Exec(ctx,
-		`SELECT 1 FROM inventory_levels WHERE product_id = ANY($1) ORDER BY product_id FOR UPDATE`, ids)
-	if err != nil {
-		return fmt.Errorf("locking inventory levels: %w", err)
-	}
-	return nil
-}
-
-func stockFrom(productID uuid.UUID, available, reserved int) *domain.Stock {
-	return &domain.Stock{
-		ProductID: productID,
-		Quantity:  available + reserved,
-		Reserved:  reserved,
-		Available: available,
-	}
-}
-
-func scanLevel(row pgx.CollectableRow) (domain.Stock, error) {
-	var id uuid.UUID
-	var available, reserved int
-	if err := row.Scan(&id, &available, &reserved); err != nil {
-		return domain.Stock{}, err
-	}
-	return *stockFrom(id, available, reserved), nil
-}
-
 type Repository struct {
 	db database.DB
 }
@@ -264,3 +215,52 @@ func (r *Repository) RestockBatch(ctx context.Context, items map[uuid.UUID]int) 
 }
 
 const stockValueCols = 2
+
+func buildStockValues(items map[uuid.UUID]int) (string, []any, []uuid.UUID) {
+	ids := make([]uuid.UUID, 0, len(items))
+	for id := range items {
+		ids = append(ids, id)
+	}
+
+	placeholders := make([]string, len(ids))
+	args := make([]any, 0, len(ids)*stockValueCols)
+	param := 1
+	for i, id := range ids {
+		idCol, qtyCol := param, param+1
+		param += stockValueCols
+		if i == 0 {
+			placeholders[i] = fmt.Sprintf("($%d::uuid, $%d::int)", idCol, qtyCol)
+		} else {
+			placeholders[i] = fmt.Sprintf("($%d, $%d)", idCol, qtyCol)
+		}
+		args = append(args, id, items[id])
+	}
+	return strings.Join(placeholders, ","), args, ids
+}
+
+func lockLevels(ctx context.Context, db database.DBTX, ids []uuid.UUID) error {
+	_, err := db.Exec(ctx,
+		`SELECT 1 FROM inventory_levels WHERE product_id = ANY($1) ORDER BY product_id FOR UPDATE`, ids)
+	if err != nil {
+		return fmt.Errorf("locking inventory levels: %w", err)
+	}
+	return nil
+}
+
+func stockFrom(productID uuid.UUID, available, reserved int) *domain.Stock {
+	return &domain.Stock{
+		ProductID: productID,
+		Quantity:  available + reserved,
+		Reserved:  reserved,
+		Available: available,
+	}
+}
+
+func scanLevel(row pgx.CollectableRow) (domain.Stock, error) {
+	var id uuid.UUID
+	var available, reserved int
+	if err := row.Scan(&id, &available, &reserved); err != nil {
+		return domain.Stock{}, err
+	}
+	return *stockFrom(id, available, reserved), nil
+}

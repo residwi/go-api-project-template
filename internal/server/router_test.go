@@ -81,42 +81,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// newTestApp wires a bootstrap.App against testPool/testRedis for a given
-// payment config. TestMain uses it for testApp; tests that need a different
-// payment gateway URL (a local httptest mock server) build their own
-// payment.Config and call this instead.
-// withPayment returns the shared module config with only Payment replaced --
-// the one field any call site varies.
-func withPayment(paymentCfg payment.Config) bootstrap.Config {
-	cfg := testModCfg
-	cfg.Payment = paymentCfg
-	return cfg
-}
-
-func newTestApp(paymentCfg payment.Config) *bootstrap.App {
-	app, err := bootstrap.New(
-		withPayment(paymentCfg),
-		database.DB{Primary: testPool},
-		testRedis,
-		testutil.DiscardLogger(),
-	)
-	if err != nil {
-		panic(err)
-	}
-	return app
-}
-
-// newTestRouter builds a router for a given payment config against a
-// freshly wired app -- the common case, where nothing but Payment varies
-// between call sites.
-func newTestRouter(paymentCfg payment.Config) http.Handler {
-	return NewRouter(
-		testAppCfg, withPayment(paymentCfg),
-		testRedis, testutil.DiscardLogger(),
-		newTestApp(paymentCfg),
-	)
-}
-
 func TestNewRouter(t *testing.T) {
 	setup(t)
 	t.Run("initializes without error", func(t *testing.T) {
@@ -913,4 +877,40 @@ func startAndStopServer(t *testing.T, healthAddr string) error {
 		t.Fatal("RunContext did not return after its context was cancelled")
 		return nil
 	}
+}
+
+// newTestApp wires a bootstrap.App against testPool/testRedis for a given
+// payment config. TestMain uses it for testApp; tests that need a different
+// payment gateway URL (a local httptest mock server) build their own
+// payment.Config and call this instead.
+// withPayment returns the shared module config with only Payment replaced --
+// the one field any call site varies.
+func withPayment(paymentCfg payment.Config) bootstrap.Config {
+	cfg := testModCfg
+	cfg.Payment = paymentCfg
+	return cfg
+}
+
+func newTestApp(paymentCfg payment.Config) *bootstrap.App {
+	app, err := bootstrap.New(
+		withPayment(paymentCfg),
+		database.DB{Primary: testPool},
+		testRedis,
+		testutil.DiscardLogger(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	return app
+}
+
+// newTestRouter builds a router for a given payment config against a
+// freshly wired app -- the common case, where nothing but Payment varies
+// between call sites.
+func newTestRouter(paymentCfg payment.Config) http.Handler {
+	return NewRouter(
+		testAppCfg, withPayment(paymentCfg),
+		testRedis, testutil.DiscardLogger(),
+		newTestApp(paymentCfg),
+	)
 }

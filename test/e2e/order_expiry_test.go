@@ -11,38 +11,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
-func seedExpiryUser(t *testing.T) uuid.UUID {
-	t.Helper()
-	return testutil.SeedUser(t, testPool)
-}
-
-// seedAwaitingPaymentOrder is raw SQL, not order's own adapters: domain.Order
-// is module-private, so nothing outside order can construct one.
-func seedAwaitingPaymentOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
-	t.Helper()
-	ctx := context.Background()
-	key := uuid.New().String()
-	var orderID uuid.UUID
-	require.NoError(t, testPool.QueryRow(
-		ctx,
-		`INSERT INTO orders (user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency)
-		 VALUES ($1, $2, $3, 'awaiting_payment', 1000, 0, 1000, 'USD') RETURNING id`,
-		userID,
-		key,
-		"hash-"+key,
-	).Scan(&orderID))
-	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM orders WHERE id = $1`, orderID) })
-	return orderID
-}
-
-func orderStatusOf(t *testing.T, orderID uuid.UUID) string {
-	t.Helper()
-	var status string
-	require.NoError(t, testPool.QueryRow(context.Background(),
-		`SELECT status FROM orders WHERE id = $1`, orderID).Scan(&status))
-	return status
-}
-
 // ExpireStale touches only the repo and inventory deps -- testApp.Orders is
 // fully wired, but releaseOrderHolds guards its coupon release on a non-empty
 // CouponCode, which the orders seeded below never set, so cart, promotion and
@@ -98,4 +66,36 @@ func TestE2EOrderExpiry(t *testing.T) {
 
 		assert.Equal(t, "awaiting_payment", orderStatusOf(t, orderID))
 	})
+}
+
+func seedExpiryUser(t *testing.T) uuid.UUID {
+	t.Helper()
+	return testutil.SeedUser(t, testPool)
+}
+
+// seedAwaitingPaymentOrder is raw SQL, not order's own adapters: domain.Order
+// is module-private, so nothing outside order can construct one.
+func seedAwaitingPaymentOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
+	t.Helper()
+	ctx := context.Background()
+	key := uuid.New().String()
+	var orderID uuid.UUID
+	require.NoError(t, testPool.QueryRow(
+		ctx,
+		`INSERT INTO orders (user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency)
+		 VALUES ($1, $2, $3, 'awaiting_payment', 1000, 0, 1000, 'USD') RETURNING id`,
+		userID,
+		key,
+		"hash-"+key,
+	).Scan(&orderID))
+	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM orders WHERE id = $1`, orderID) })
+	return orderID
+}
+
+func orderStatusOf(t *testing.T, orderID uuid.UUID) string {
+	t.Helper()
+	var status string
+	require.NoError(t, testPool.QueryRow(context.Background(),
+		`SELECT status FROM orders WHERE id = $1`, orderID).Scan(&status))
+	return status
 }

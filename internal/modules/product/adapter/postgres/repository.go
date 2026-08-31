@@ -18,36 +18,6 @@ import (
 
 var _ product.Repository = (*Repository)(nil)
 
-func scanProduct(row pgx.CollectableRow) (domain.Product, error) {
-	var p domain.Product
-	var amt amountColumns
-	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &amt.price, &amt.compareAtPrice,
-		&amt.currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
-	if err != nil {
-		return p, err
-	}
-	amt.assignTo(&p)
-	return p, nil
-}
-
-func scanProductIncludingDeleted(row pgx.CollectableRow) (domain.Product, error) {
-	var p domain.Product
-	var amt amountColumns
-	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &amt.price, &amt.compareAtPrice,
-		&amt.currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt)
-	if err != nil {
-		return p, err
-	}
-	amt.assignTo(&p)
-	return p, nil
-}
-
-func scanImage(row pgx.CollectableRow) (domain.Image, error) {
-	var img domain.Image
-	err := row.Scan(&img.ID, &img.ProductID, &img.URL, &img.AltText, &img.SortOrder, &img.CreatedAt)
-	return img, err
-}
-
 type Repository struct {
 	db database.DB
 }
@@ -364,4 +334,34 @@ func (a amountColumns) assignTo(p *domain.Product) {
 		compareAt := money.New(*a.compareAtPrice, a.currency)
 		p.CompareAtPrice = &compareAt
 	}
+}
+
+func scanProduct(row pgx.CollectableRow) (domain.Product, error) {
+	var p domain.Product
+	var amt amountColumns
+	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &amt.price, &amt.compareAtPrice,
+		&amt.currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+	if err != nil {
+		return p, err
+	}
+	amt.assignTo(&p)
+	return p, nil
+}
+
+func scanProductIncludingDeleted(row pgx.CollectableRow) (domain.Product, error) {
+	var p domain.Product
+	var amt amountColumns
+	err := row.Scan(&p.ID, &p.CategoryID, &p.Name, &p.Slug, &p.Description, &amt.price, &amt.compareAtPrice,
+		&amt.currency, &p.SKU, &p.Status, &p.CreatedAt, &p.UpdatedAt, &p.DeletedAt)
+	if err != nil {
+		return p, err
+	}
+	amt.assignTo(&p)
+	return p, nil
+}
+
+func scanImage(row pgx.CollectableRow) (domain.Image, error) {
+	var img domain.Image
+	err := row.Scan(&img.ID, &img.ProductID, &img.URL, &img.AltText, &img.SortOrder, &img.CreatedAt)
+	return img, err
 }

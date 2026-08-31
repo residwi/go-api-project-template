@@ -740,11 +740,15 @@ compiler; they are all greps.
     '^func \(\w+ \*?[a-z][A-Za-z]*\) [A-Z][A-Za-z]*'
     --include='*.go' internal cmd | sort -u` finds them) sit below the
     exported types they serve, and that is correct, not a gap to fix.
-    `.golangci.yml`'s `funcorder.function: true` is meant to enforce ordering
-    on free functions too, but a golangci-lint v2.12.2 bug means it never
-    actually fires there — confirmed against the standalone `funcorder`
-    binary, which does flag it — so this rule is a convention to read for,
-    not yet something `make lint` catches on its own.
+    `.golangci.yml`'s `funcorder.function: true` enforces ordering on free
+    functions too, and `make lint` does catch it. It did not always: a
+    golangci-lint v2.12.2 bug meant it never fired there, and this rule was
+    a convention to read for rather than one the build enforced. v2.13.2
+    fixed the bug and surfaced 28 pre-existing violations in one run, every
+    one an unexported helper sitting above an exported function. Note that
+    golangci-lint caches per package, so a warm cache hides a newly-enforced
+    rule: run `golangci-lint cache clean` before trusting a clean lint after
+    a toolchain upgrade. That cache is why those 28 went unnoticed.
 
 ## Code style
 

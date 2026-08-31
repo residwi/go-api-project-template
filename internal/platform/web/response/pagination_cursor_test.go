@@ -19,13 +19,6 @@ type pageRow struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func pageRowKey(r pageRow) (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
-
-type cursorPageBody struct {
-	Success bool                             `json:"success"`
-	Data    paging.CursorPageResult[pageRow] `json:"data"`
-}
-
 func TestCursorPage(t *testing.T) {
 	t.Parallel()
 
@@ -100,4 +93,11 @@ func TestCursorPage(t *testing.T) {
 		assert.Empty(t, body.Data.Items)
 		assert.False(t, body.Data.Pagination.HasMore)
 	})
+}
+
+func pageRowKey(r pageRow) (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
+
+type cursorPageBody struct {
+	Success bool                             `json:"success"`
+	Data    paging.CursorPageResult[pageRow] `json:"data"`
 }

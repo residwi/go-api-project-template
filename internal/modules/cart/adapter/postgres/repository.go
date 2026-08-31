@@ -16,16 +16,6 @@ import (
 
 var _ cart.Repository = (*Repository)(nil)
 
-func scanCartItem(row pgx.CollectableRow) (domain.Item, error) {
-	var item domain.Item
-	err := row.Scan(&item.ID, &item.CartID, &item.ProductID, &item.Quantity,
-		&item.CreatedAt, &item.UpdatedAt)
-	if err != nil {
-		return domain.Item{}, err
-	}
-	return item, nil
-}
-
 type Repository struct {
 	db database.DB
 }
@@ -170,4 +160,14 @@ func (r *Repository) GetCartForLock(ctx context.Context, userID uuid.UUID) (uuid
 		return uuid.Nil, fmt.Errorf("locking cart: %w", err)
 	}
 	return cartID, nil
+}
+
+func scanCartItem(row pgx.CollectableRow) (domain.Item, error) {
+	var item domain.Item
+	err := row.Scan(&item.ID, &item.CartID, &item.ProductID, &item.Quantity,
+		&item.CreatedAt, &item.UpdatedAt)
+	if err != nil {
+		return domain.Item{}, err
+	}
+	return item, nil
 }

@@ -20,41 +20,6 @@ import (
 
 var _ order.Repository = (*Repository)(nil)
 
-func scanOrder(row pgx.CollectableRow) (domain.Order, error) {
-	var o domain.Order
-	var idempotencyKey, notes *string
-	var amt amountColumns
-	err := row.Scan(&o.ID, &o.UserID, &idempotencyKey, &o.Status,
-		&amt.subtotal, &amt.discount, &amt.total,
-		&o.CouponCode, &amt.currency, &o.ShippingAddress, &o.BillingAddress,
-		&notes, &o.CreatedAt, &o.UpdatedAt)
-	if err != nil {
-		return o, err
-	}
-	amt.assignTo(&o)
-	if idempotencyKey != nil {
-		o.IdempotencyKey = *idempotencyKey
-	}
-	if notes != nil {
-		o.Notes = *notes
-	}
-	return o, nil
-}
-
-func scanItem(row pgx.CollectableRow) (domain.Item, error) {
-	var item domain.Item
-	var price, subtotal int64
-	var currency string
-	err := row.Scan(&item.ID, &item.OrderID, &item.ProductID, &item.ProductName,
-		&price, &item.Quantity, &subtotal, &item.CreatedAt, &currency)
-	if err != nil {
-		return item, err
-	}
-	item.Price = money.New(price, currency)
-	item.Subtotal = money.New(subtotal, currency)
-	return item, nil
-}
-
 type Repository struct {
 	db database.DB
 }
@@ -453,4 +418,39 @@ func (a amountColumns) assignTo(o *domain.Order) {
 	o.Subtotal = money.New(a.subtotal, a.currency)
 	o.Discount = money.New(a.discount, a.currency)
 	o.Total = money.New(a.total, a.currency)
+}
+
+func scanOrder(row pgx.CollectableRow) (domain.Order, error) {
+	var o domain.Order
+	var idempotencyKey, notes *string
+	var amt amountColumns
+	err := row.Scan(&o.ID, &o.UserID, &idempotencyKey, &o.Status,
+		&amt.subtotal, &amt.discount, &amt.total,
+		&o.CouponCode, &amt.currency, &o.ShippingAddress, &o.BillingAddress,
+		&notes, &o.CreatedAt, &o.UpdatedAt)
+	if err != nil {
+		return o, err
+	}
+	amt.assignTo(&o)
+	if idempotencyKey != nil {
+		o.IdempotencyKey = *idempotencyKey
+	}
+	if notes != nil {
+		o.Notes = *notes
+	}
+	return o, nil
+}
+
+func scanItem(row pgx.CollectableRow) (domain.Item, error) {
+	var item domain.Item
+	var price, subtotal int64
+	var currency string
+	err := row.Scan(&item.ID, &item.OrderID, &item.ProductID, &item.ProductName,
+		&price, &item.Quantity, &subtotal, &item.CreatedAt, &currency)
+	if err != nil {
+		return item, err
+	}
+	item.Price = money.New(price, currency)
+	item.Subtotal = money.New(subtotal, currency)
+	return item, nil
 }

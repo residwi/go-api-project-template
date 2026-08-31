@@ -16,13 +16,6 @@ import (
 
 var _ user.Repository = (*Repository)(nil)
 
-func scanUser(row pgx.CollectableRow) (domain.User, error) {
-	var u domain.User
-	err := row.Scan(&u.ID, &u.Email, &u.FirstName, &u.LastName,
-		&u.Phone, &u.Role, &u.Active, &u.CreatedAt, &u.UpdatedAt)
-	return u, err
-}
-
 type Repository struct {
 	db database.DB
 }
@@ -211,4 +204,11 @@ func (r *Repository) IncrementTokenVersion(ctx context.Context, id uuid.UUID) er
 		return errs.ErrNotFound
 	}
 	return nil
+}
+
+func scanUser(row pgx.CollectableRow) (domain.User, error) {
+	var u domain.User
+	err := row.Scan(&u.ID, &u.Email, &u.FirstName, &u.LastName,
+		&u.Phone, &u.Role, &u.Active, &u.CreatedAt, &u.UpdatedAt)
+	return u, err
 }
