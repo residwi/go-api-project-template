@@ -12,35 +12,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
+	webmw "github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
-
-type UserContext struct {
-	UserID       uuid.UUID
-	Email        string
-	Role         string
-	TokenVersion int
-}
-
-type userCtxKey struct{}
-
-func SetUserContext(ctx context.Context, uc UserContext) context.Context {
-	return context.WithValue(ctx, userCtxKey{}, uc)
-}
-
-func GetUserContext(ctx context.Context) (UserContext, bool) {
-	uc, ok := ctx.Value(userCtxKey{}).(UserContext)
-	return uc, ok
-}
-
-func RequireUser(w http.ResponseWriter, r *http.Request) (UserContext, bool) {
-	uc, ok := GetUserContext(r.Context())
-	if !ok {
-		response.Unauthorized(w, "authentication required")
-		return UserContext{}, false
-	}
-	return uc, true
-}
 
 type UserStatusChecker interface {
 	CheckStatus(ctx context.Context, userID uuid.UUID) (user.AccountStatus, error)
@@ -96,7 +70,7 @@ func Auth(
 				return
 			}
 
-			ctx := SetUserContext(r.Context(), UserContext{
+			ctx := webmw.SetUserContext(r.Context(), webmw.UserContext{
 				UserID:       claims.UserID,
 				Email:        claims.Email,
 				Role:         claims.Role,

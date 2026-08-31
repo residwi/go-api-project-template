@@ -17,32 +17,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
+	webmw "github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 )
-
-func TestRequireUser(t *testing.T) {
-	t.Run("returns the user when present in context", func(t *testing.T) {
-		want := UserContext{UserID: uuid.New(), Email: "a@example.com", Role: "user"}
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r = r.WithContext(SetUserContext(r.Context(), want))
-		w := httptest.NewRecorder()
-
-		got, ok := RequireUser(w, r)
-
-		require.True(t, ok)
-		assert.Equal(t, want, got)
-		assert.Equal(t, http.StatusOK, w.Code) // nothing written when authenticated
-	})
-
-	t.Run("writes 401 when no user in context", func(t *testing.T) {
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		w := httptest.NewRecorder()
-
-		_, ok := RequireUser(w, r)
-
-		assert.False(t, ok)
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-	})
-}
 
 func TestAuth(t *testing.T) {
 	t.Run("missing auth header", func(t *testing.T) {
@@ -230,11 +206,11 @@ func TestAuth(t *testing.T) {
 		called := false
 		handler := mid(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			called = true
-			uc, ok := GetUserContext(r.Context())
+			uc, ok := webmw.GetUserContext(r.Context())
 			if !assert.True(t, ok) {
 				return
 			}
-			assert.Equal(t, UserContext{
+			assert.Equal(t, webmw.UserContext{
 				UserID:       userID,
 				Email:        "user@example.com",
 				Role:         "admin",
