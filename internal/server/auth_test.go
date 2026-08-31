@@ -1,4 +1,4 @@
-package middleware
+package server
 
 import (
 	"bytes"
@@ -17,14 +17,14 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
-	webmw "github.com/residwi/go-api-project-template/internal/platform/web/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 )
 
 func TestAuth(t *testing.T) {
 	t.Run("missing auth header", func(t *testing.T) {
 		tokenValidator := NewMockTokenValidator(t)
 		userStatus := NewMockUserStatusChecker(t)
-		mid := Auth(tokenValidator, userStatus)
+		mid := authMiddleware(tokenValidator, userStatus)
 
 		handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
@@ -40,7 +40,7 @@ func TestAuth(t *testing.T) {
 	t.Run("invalid format", func(t *testing.T) {
 		tokenValidator := NewMockTokenValidator(t)
 		userStatus := NewMockUserStatusChecker(t)
-		mid := Auth(tokenValidator, userStatus)
+		mid := authMiddleware(tokenValidator, userStatus)
 
 		handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
@@ -57,7 +57,7 @@ func TestAuth(t *testing.T) {
 	t.Run("invalid token", func(t *testing.T) {
 		tokenValidator := NewMockTokenValidator(t)
 		userStatus := NewMockUserStatusChecker(t)
-		mid := Auth(tokenValidator, userStatus)
+		mid := authMiddleware(tokenValidator, userStatus)
 
 		tokenValidator.EXPECT().ValidateToken("bad-token").Return(auth.ClaimsView{}, errors.New("invalid"))
 
@@ -76,7 +76,7 @@ func TestAuth(t *testing.T) {
 	t.Run("wrong token type", func(t *testing.T) {
 		tokenValidator := NewMockTokenValidator(t)
 		userStatus := NewMockUserStatusChecker(t)
-		mid := Auth(tokenValidator, userStatus)
+		mid := authMiddleware(tokenValidator, userStatus)
 
 		tokenValidator.EXPECT().ValidateToken("refresh-token").Return(auth.ClaimsView{
 			UserID: uuid.New(),
@@ -100,7 +100,7 @@ func TestAuth(t *testing.T) {
 	t.Run("check status error returns internal error", func(t *testing.T) {
 		tokenValidator := NewMockTokenValidator(t)
 		userStatus := NewMockUserStatusChecker(t)
-		mid := Auth(tokenValidator, userStatus)
+		mid := authMiddleware(tokenValidator, userStatus)
 
 		userID := uuid.New()
 		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
@@ -128,7 +128,7 @@ func TestAuth(t *testing.T) {
 	t.Run("inactive user", func(t *testing.T) {
 		tokenValidator := NewMockTokenValidator(t)
 		userStatus := NewMockUserStatusChecker(t)
-		mid := Auth(tokenValidator, userStatus)
+		mid := authMiddleware(tokenValidator, userStatus)
 
 		userID := uuid.New()
 		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
@@ -158,7 +158,7 @@ func TestAuth(t *testing.T) {
 	t.Run("token version mismatch", func(t *testing.T) {
 		tokenValidator := NewMockTokenValidator(t)
 		userStatus := NewMockUserStatusChecker(t)
-		mid := Auth(tokenValidator, userStatus)
+		mid := authMiddleware(tokenValidator, userStatus)
 
 		userID := uuid.New()
 		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
@@ -188,7 +188,7 @@ func TestAuth(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		tokenValidator := NewMockTokenValidator(t)
 		userStatus := NewMockUserStatusChecker(t)
-		mid := Auth(tokenValidator, userStatus)
+		mid := authMiddleware(tokenValidator, userStatus)
 
 		userID := uuid.New()
 		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
@@ -206,11 +206,11 @@ func TestAuth(t *testing.T) {
 		called := false
 		handler := mid(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			called = true
-			uc, ok := webmw.GetUserContext(r.Context())
+			uc, ok := middleware.GetUserContext(r.Context())
 			if !assert.True(t, ok) {
 				return
 			}
-			assert.Equal(t, webmw.UserContext{
+			assert.Equal(t, middleware.UserContext{
 				UserID:       userID,
 				Email:        "user@example.com",
 				Role:         "admin",
@@ -235,7 +235,7 @@ func TestAuth(t *testing.T) {
 		userID := uuid.New()
 		tokenValidator := NewMockTokenValidator(t)
 		userStatus := NewMockUserStatusChecker(t)
-		mid := Auth(tokenValidator, userStatus)
+		mid := authMiddleware(tokenValidator, userStatus)
 
 		tokenValidator.EXPECT().ValidateToken("good-token").Return(auth.ClaimsView{
 			UserID:       userID,

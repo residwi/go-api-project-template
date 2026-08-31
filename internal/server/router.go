@@ -27,8 +27,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
-	webmw "github.com/residwi/go-api-project-template/internal/platform/web/middleware"
-	"github.com/residwi/go-api-project-template/internal/server/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 )
 
 func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, the four route groups and all 64 routes in the order the router mounts them
@@ -44,16 +43,16 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 
 	v := validator.New()
 
-	authMiddleware := middleware.Auth(app.Auth, app.Users)
-	adminMiddleware := webmw.RequireRole("admin")
+	authMW := authMiddleware(app.Auth, app.Users)
+	adminMW := middleware.RequireRole("admin")
 
 	router := web.NewRouter(mux)
 
 	api := router.Group("/api")
-	authed := router.Group("/api", authMiddleware)
-	admin := authed.Group("/admin", adminMiddleware)
+	authed := router.Group("/api", authMW)
+	admin := authed.Group("/admin", adminMW)
 
-	authLimiter := webmw.RateLimit(
+	authLimiter := middleware.RateLimit(
 		logger,
 		cache,
 		modCfg.Auth.RateLimit,
@@ -118,7 +117,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	admin.HandleFunc("GET /orders/{id}", orderAdminHandler.Get)
 	admin.HandleFunc("PUT /orders/{id}/status", orderAdminHandler.UpdateStatus)
 
-	orderWriteLimiter := webmw.RateLimit(
+	orderWriteLimiter := middleware.RateLimit(
 		logger,
 		cache,
 		modCfg.Order.RateLimit,
@@ -182,10 +181,10 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	}
 
 	return web.Chain(
-		webmw.RequestID,
-		webmw.Logging(logger),
-		webmw.Recovery(logger),
-		webmw.CORS(appCfg.CORS),
+		middleware.RequestID,
+		middleware.Logging(logger),
+		middleware.Recovery(logger),
+		middleware.CORS(appCfg.CORS),
 	)(mux)
 }
 

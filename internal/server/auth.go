@@ -1,4 +1,4 @@
-package middleware
+package server
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
-	webmw "github.com/residwi/go-api-project-template/internal/platform/web/middleware"
+	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -25,7 +25,7 @@ type TokenValidator interface {
 }
 
 //nolint:gocognit // token parse + claims validation + fail-open status-check branches are inherently branchy
-func Auth(
+func authMiddleware(
 	tokenValidator TokenValidator,
 	userStatus UserStatusChecker,
 ) web.Middleware {
@@ -70,7 +70,7 @@ func Auth(
 				return
 			}
 
-			ctx := webmw.SetUserContext(r.Context(), webmw.UserContext{
+			ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
 				UserID:       claims.UserID,
 				Email:        claims.Email,
 				Role:         claims.Role,
