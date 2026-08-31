@@ -232,7 +232,7 @@ importer_roots() {
 #   internal/server/response/response.go used to need an entry here too:
 #     Response and Error are the shared envelope every handler in every
 #     module writes through. Task 3 of the platform/transport split moved the
-#     file to internal/platform/response/response.go, which is exempt by
+#     file to internal/platform/web/response/response.go, which is exempt by
 #     location already -- internal/platform/ above -- so the allowlist entry
 #     is gone with it rather than pointing at a path nothing owns any more.
 JSON_TAG_ALLOWLIST='
@@ -1015,11 +1015,12 @@ check_transport_direction() {
 # tree the day it exists.
 #
 # internal/testutil is the single exemption, and it is a real hole rather than
-# a tidy one. Three platform test packages import it for the shared dockertest
-# harness -- platform/database, platform/cache and platform/queue --
-# and internal/testutil does not live under internal/platform, so it does not
-# travel with a copy of it. That is why the copy property this check defends
-# holds for `go build` on a copied internal/platform but NOT for `go test`:
+# a tidy one. Four platform test packages import it for the shared dockertest
+# harness -- platform/database, platform/cache, platform/queue and
+# platform/web/middleware -- and internal/testutil does not live under
+# internal/platform, so it does not travel with a copy of it. That is why the
+# copy property this check defends holds for `go build` on a copied
+# internal/platform but NOT for `go test`:
 # the non-test build is a leaf, the test build is not. Pre-existing, not
 # introduced by the split that added this check, and closing it means moving
 # internal/testutil under internal/platform. Until someone does, it is a stated

@@ -831,8 +831,11 @@ URL in one file, in one function, in the order the router mounts them".
 
 **What it costs beyond ugliness:** adding a module means touching `app.go`
 once — one line to build it, one field on `App` — and `router.go` once. Adding
-a route to an existing module touches `router.go` and the route golden.
-`New` carries no `//nolint:funlen`; `NewRouter` does, and its justification
+a route to an existing module touches the module's `adapter/http` for the
+handler and `router.go` for the URL — `TestRouteAccess` picks the route up
+automatically from `web.Router.Routes()`, so the only hand-edit left is a
+`publicRoutes` line when the route must be public.
+`New` carries no `//nolint:funlen`; `newRouter` does, and its justification
 says why — one flat wiring list mounting fifteen modules' routes, not nested
 logic.
 
