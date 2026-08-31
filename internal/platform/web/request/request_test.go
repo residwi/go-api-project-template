@@ -31,6 +31,18 @@ func TestBind(t *testing.T) {
 		assert.Equal(t, payload{Name: "ada"}, got)
 	})
 
+	t.Run("treats an empty (non-nil) validation map as success", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"ada"}`))
+
+		got, ok := Bind[payload](w, r, emptyValidator{})
+
+		require.True(t, ok)
+		assert.Equal(t, payload{Name: "ada"}, got)
+	})
+
 	t.Run("rejects malformed JSON with 400", func(t *testing.T) {
 		t.Parallel()
 
@@ -117,3 +129,7 @@ func (failingValidator) Validate(any) map[string]any {
 type passingValidator struct{}
 
 func (passingValidator) Validate(any) map[string]any { return nil }
+
+type emptyValidator struct{}
+
+func (emptyValidator) Validate(any) map[string]any { return map[string]any{} }
