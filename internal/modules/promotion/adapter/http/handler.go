@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -15,12 +14,11 @@ type PromotionApplier interface {
 }
 
 type Handler struct {
-	service   PromotionApplier
-	validator *validator.Validator
+	service PromotionApplier
 }
 
-func NewHandler(service PromotionApplier, v *validator.Validator) *Handler {
-	return &Handler{service: service, validator: v}
+func NewHandler(service PromotionApplier) *Handler {
+	return &Handler{service: service}
 }
 
 func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +27,7 @@ func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[applyRequest](w, r, h.validator)
+	req, ok := request.Bind[applyRequest](w, r)
 	if !ok {
 		return
 	}

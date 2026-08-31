@@ -10,7 +10,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion"
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -46,16 +45,15 @@ type PromotionManager interface {
 }
 
 type AdminHandler struct {
-	service   PromotionManager
-	validator *validator.Validator
+	service PromotionManager
 }
 
-func NewAdminHandler(service PromotionManager, v *validator.Validator) *AdminHandler {
-	return &AdminHandler{service: service, validator: v}
+func NewAdminHandler(service PromotionManager) *AdminHandler {
+	return &AdminHandler{service: service}
 }
 
 func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := request.Bind[createPromotionRequest](w, r, h.validator)
+	req, ok := request.Bind[createPromotionRequest](w, r)
 	if !ok {
 		return
 	}
@@ -96,7 +94,7 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[updatePromotionRequest](w, r, h.validator)
+	req, ok := request.Bind[updatePromotionRequest](w, r)
 	if !ok {
 		return
 	}

@@ -9,7 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/checkout"
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -28,12 +27,11 @@ type Checkout interface {
 }
 
 type Handler struct {
-	service   Checkout
-	validator *validator.Validator
+	service Checkout
 }
 
-func NewHandler(service Checkout, v *validator.Validator) *Handler {
-	return &Handler{service: service, validator: v}
+func NewHandler(service Checkout) *Handler {
+	return &Handler{service: service}
 }
 
 func (h *Handler) Place(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +46,7 @@ func (h *Handler) Place(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[placeOrderRequest](w, r, h.validator)
+	req, ok := request.Bind[placeOrderRequest](w, r)
 	if !ok {
 		return
 	}
@@ -79,7 +77,7 @@ func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[payRequest](w, r, h.validator)
+	req, ok := request.Bind[payRequest](w, r)
 	if !ok {
 		return
 	}

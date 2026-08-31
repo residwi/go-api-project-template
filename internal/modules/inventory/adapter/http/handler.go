@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -19,12 +18,11 @@ type InventoryManager interface {
 }
 
 type Handler struct {
-	service   InventoryManager
-	validator *validator.Validator
+	service InventoryManager
 }
 
-func NewHandler(service InventoryManager, v *validator.Validator) *Handler {
-	return &Handler{service: service, validator: v}
+func NewHandler(service InventoryManager) *Handler {
+	return &Handler{service: service}
 }
 
 func (h *Handler) GetStock(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +46,7 @@ func (h *Handler) Restock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[restockRequest](w, r, h.validator)
+	req, ok := request.Bind[restockRequest](w, r)
 	if !ok {
 		return
 	}
@@ -68,7 +66,7 @@ func (h *Handler) Adjust(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[adjustRequest](w, r, h.validator)
+	req, ok := request.Bind[adjustRequest](w, r)
 	if !ok {
 		return
 	}

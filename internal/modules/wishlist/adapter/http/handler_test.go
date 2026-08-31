@@ -18,7 +18,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -299,12 +298,11 @@ func TestToItemResponse_OmitsInternalFields(t *testing.T) {
 
 func setupMux(t *testing.T) (*http.ServeMux, *MockWishlistManager, middleware.UserContext) {
 	service := NewMockWishlistManager(t)
-	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := web.NewRouter(mux).Group("/api/v1")
 
-	h := NewHandler(service, v)
+	h := NewHandler(service)
 	authed.HandleFunc("GET /wishlist", h.List)
 	authed.HandleFunc("POST /wishlist/items", h.Add)
 	authed.HandleFunc("DELETE /wishlist/items/{product_id}", h.Remove)

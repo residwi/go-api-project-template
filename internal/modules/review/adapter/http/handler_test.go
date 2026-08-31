@@ -18,7 +18,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/review/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -416,11 +415,10 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockReviewManager) {
 	t.Helper()
 
 	service := NewMockReviewManager(t)
-	v := validator.New()
 
 	mux := http.NewServeMux()
 	group := web.NewRouter(mux).Group("/api/v1")
-	h := NewHandler(service, v)
+	h := NewHandler(service)
 	group.HandleFunc("GET /products/{id}/reviews", h.List)
 	group.HandleFunc("POST /products/{id}/reviews", h.Create)
 

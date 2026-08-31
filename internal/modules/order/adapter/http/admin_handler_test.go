@@ -17,7 +17,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -240,7 +239,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockOrderManager) {
 	mux := http.NewServeMux()
 	admin := web.NewRouter(mux).Group("/api/v1/admin")
 
-	h := NewAdminHandler(service, validator.New())
+	h := NewAdminHandler(service)
 	admin.HandleFunc("GET /orders", h.List)
 	admin.HandleFunc("GET /orders/{id}", h.Get)
 	admin.HandleFunc("PUT /orders/{id}/status", h.UpdateStatus)

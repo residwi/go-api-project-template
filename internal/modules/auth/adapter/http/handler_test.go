@@ -18,7 +18,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -417,11 +416,10 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 
 func newTestMux(t *testing.T) (http.Handler, *MockAuthManager) {
 	service := NewMockAuthManager(t)
-	v := validator.New()
 
 	mux := http.NewServeMux()
 	api := web.NewRouter(mux).Group("/api")
-	h := NewHandler(service, v)
+	h := NewHandler(service)
 	api.HandleFunc("POST /auth/login", h.Login)
 	api.HandleFunc("POST /auth/register", h.Register)
 	api.HandleFunc("POST /auth/refresh", h.Refresh)

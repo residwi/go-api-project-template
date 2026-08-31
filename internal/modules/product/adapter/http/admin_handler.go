@@ -12,7 +12,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -45,12 +44,11 @@ type ProductManager interface {
 }
 
 type AdminHandler struct {
-	service   ProductManager
-	validator *validator.Validator
+	service ProductManager
 }
 
-func NewAdminHandler(service ProductManager, v *validator.Validator) *AdminHandler {
-	return &AdminHandler{service: service, validator: v}
+func NewAdminHandler(service ProductManager) *AdminHandler {
+	return &AdminHandler{service: service}
 }
 
 func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +99,7 @@ func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := request.Bind[createProductRequest](w, r, h.validator)
+	req, ok := request.Bind[createProductRequest](w, r)
 	if !ok {
 		return
 	}
@@ -130,7 +128,7 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[updateProductRequest](w, r, h.validator)
+	req, ok := request.Bind[updateProductRequest](w, r)
 	if !ok {
 		return
 	}

@@ -18,7 +18,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -344,12 +343,11 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockPromotionManager) {
 	t.Helper()
 
 	service := NewMockPromotionManager(t)
-	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := web.NewRouter(mux).Group("/api/v1/admin")
 
-	ah := NewAdminHandler(service, v)
+	ah := NewAdminHandler(service)
 	admin.HandleFunc("GET /promotions", ah.List)
 	admin.HandleFunc("POST /promotions", ah.Create)
 	admin.HandleFunc("PUT /promotions/{id}", ah.Update)

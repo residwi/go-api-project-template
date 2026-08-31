@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -19,12 +18,11 @@ type ProfileManager interface {
 }
 
 type Handler struct {
-	service   ProfileManager
-	validator *validator.Validator
+	service ProfileManager
 }
 
-func NewHandler(service ProfileManager, v *validator.Validator) *Handler {
-	return &Handler{service: service, validator: v}
+func NewHandler(service ProfileManager) *Handler {
+	return &Handler{service: service}
 }
 
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +46,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[updateProfileRequest](w, r, h.validator)
+	req, ok := request.Bind[updateProfileRequest](w, r)
 	if !ok {
 		return
 	}

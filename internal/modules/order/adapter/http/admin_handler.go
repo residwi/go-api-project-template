@@ -9,7 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/order"
 	"github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -21,12 +20,11 @@ type OrderManager interface {
 }
 
 type AdminHandler struct {
-	service   OrderManager
-	validator *validator.Validator
+	service OrderManager
 }
 
-func NewAdminHandler(service OrderManager, v *validator.Validator) *AdminHandler {
-	return &AdminHandler{service: service, validator: v}
+func NewAdminHandler(service OrderManager) *AdminHandler {
+	return &AdminHandler{service: service}
 }
 
 func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +69,7 @@ func (h *AdminHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[updateStatusRequest](w, r, h.validator)
+	req, ok := request.Bind[updateStatusRequest](w, r)
 	if !ok {
 		return
 	}

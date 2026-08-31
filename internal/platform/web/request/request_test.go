@@ -13,7 +13,7 @@ import (
 )
 
 type payload struct {
-	Name string `json:"name"`
+	Name string `json:"name" validate:"required"`
 }
 
 func TestBind(t *testing.T) {
@@ -25,19 +25,7 @@ func TestBind(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"ada"}`))
 
-		got, ok := Bind[payload](w, r, passingValidator{})
-
-		require.True(t, ok)
-		assert.Equal(t, payload{Name: "ada"}, got)
-	})
-
-	t.Run("treats an empty (non-nil) validation map as success", func(t *testing.T) {
-		t.Parallel()
-
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"ada"}`))
-
-		got, ok := Bind[payload](w, r, emptyValidator{})
+		got, ok := Bind[payload](w, r)
 
 		require.True(t, ok)
 		assert.Equal(t, payload{Name: "ada"}, got)
@@ -49,7 +37,7 @@ func TestBind(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{`))
 
-		_, ok := Bind[payload](w, r, passingValidator{})
+		_, ok := Bind[payload](w, r)
 
 		assert.False(t, ok)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -61,7 +49,7 @@ func TestBind(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"nope":1}`))
 
-		_, ok := Bind[payload](w, r, passingValidator{})
+		_, ok := Bind[payload](w, r)
 
 		assert.False(t, ok)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -74,7 +62,7 @@ func TestBind(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(bigBody))
 
-		_, ok := Bind[payload](w, r, passingValidator{})
+		_, ok := Bind[payload](w, r)
 
 		assert.False(t, ok)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -87,7 +75,7 @@ func TestBind(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":""}`))
 
-		_, ok := Bind[payload](w, r, failingValidator{})
+		_, ok := Bind[payload](w, r)
 
 		require.False(t, ok)
 		require.Equal(t, http.StatusUnprocessableEntity, w.Code)
@@ -134,16 +122,97 @@ func TestParseUUIDParam(t *testing.T) {
 	})
 }
 
-type failingValidator struct{}
+func TestValidationDetails(t *testing.T) {
+	t.Parallel()
 
-func (failingValidator) Validate(any) map[string]any {
-	return map[string]any{"name": "this field is required"}
+	t.Run("returns nil for a valid struct", func(t *testing.T) {
+		t.Parallel()
+
+		got := validationDetails(tagStruct{Name: "John", Email: "john@example.com", Role: "admin"})
+
+		assert.Nil(t, got)
+	})
+
+	t.Run("names every missing required field", func(t *testing.T) {
+		t.Parallel()
+
+		got := validationDetails(tagStruct{})
+
+		assert.Equal(t, map[string]any{
+			"name":  "this field is required",
+			"email": "this field is required",
+			"role":  "this field is required",
+		}, got)
+	})
+
+	t.Run("reports email, min, max and oneof failures", func(t *testing.T) {
+		t.Parallel()
+
+		got := validationDetails(tagStruct{Name: "J", Email: "not-an-email", Role: "moderator"})
+
+		assert.Equal(t, map[string]any{
+			"name":  "must be at least 2 characters",
+			"email": "must be a valid email address",
+			"role":  "must be one of: admin user",
+		}, got)
+
+		got = validationDetails(tagStruct{
+			Name:  strings.Repeat("a", 51),
+			Email: "john@example.com",
+			Role:  "user",
+		})
+
+		assert.Equal(t, map[string]any{"name": "must be at most 50 characters"}, got)
+	})
+
+	t.Run("reports uuid, url, gte and lte failures", func(t *testing.T) {
+		t.Parallel()
+
+		got := validationDetails(boundedStruct{
+			ID:      "not-a-uuid",
+			Website: "not-a-url",
+			Age:     10,
+			Score:   150,
+		})
+
+		assert.Equal(t, map[string]any{
+			"iD":      "must be a valid UUID",
+			"website": "must be a valid URL",
+			"age":     "must be greater than or equal to 18",
+			"score":   "must be less than or equal to 100",
+		}, got)
+	})
+
+	t.Run("falls back to the tag name for an unmapped tag", func(t *testing.T) {
+		t.Parallel()
+
+		got := validationDetails(alphanumStruct{Value: "hello world!"})
+
+		assert.Equal(t, map[string]any{"value": "failed on alphanum validation"}, got)
+	})
+
+	t.Run("reports a non-struct input under a single error key", func(t *testing.T) {
+		t.Parallel()
+
+		got := validationDetails("not a struct")
+
+		require.Contains(t, got, "error")
+	})
 }
 
-type passingValidator struct{}
+type tagStruct struct {
+	Name  string `validate:"required,min=2,max=50"`
+	Email string `validate:"required,email"`
+	Role  string `validate:"required,oneof=admin user"`
+}
 
-func (passingValidator) Validate(any) map[string]any { return nil }
+type boundedStruct struct {
+	ID      string `validate:"required,uuid"`
+	Website string `validate:"required,url"`
+	Age     int    `validate:"required,gte=18"`
+	Score   int    `validate:"required,lte=100"`
+}
 
-type emptyValidator struct{}
-
-func (emptyValidator) Validate(any) map[string]any { return map[string]any{} }
+type alphanumStruct struct {
+	Value string `validate:"required,alphanum"`
+}

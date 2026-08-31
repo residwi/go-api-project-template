@@ -18,7 +18,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -369,11 +368,10 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockCategoryManager) {
 	t.Helper()
 
 	service := NewMockCategoryManager(t)
-	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := web.NewRouter(mux).Group("/api/v1/admin")
-	h := NewAdminHandler(service, v)
+	h := NewAdminHandler(service)
 	admin.HandleFunc("POST /categories", h.Create)
 	admin.HandleFunc("PUT /categories/{id}", h.Update)
 	admin.HandleFunc("DELETE /categories/{id}", h.Delete)

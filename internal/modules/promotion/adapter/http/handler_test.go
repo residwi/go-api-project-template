@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -170,11 +169,10 @@ func setupApplyMux(t *testing.T) (*http.ServeMux, *MockPromotionApplier) {
 	t.Helper()
 
 	service := NewMockPromotionApplier(t)
-	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := web.NewRouter(mux).Group("/api/v1")
-	authed.HandleFunc("POST /promotions/apply", NewHandler(service, v).Apply)
+	authed.HandleFunc("POST /promotions/apply", NewHandler(service).Apply)
 
 	return mux, service
 }

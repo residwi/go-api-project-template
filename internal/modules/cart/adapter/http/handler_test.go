@@ -18,7 +18,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/cart/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/money"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -614,12 +613,11 @@ func TestToCartResponse_OmitsUserID(t *testing.T) {
 
 func setupMux(t *testing.T) (*http.ServeMux, *MockCartManager, middleware.UserContext) {
 	service := NewMockCartManager(t)
-	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := web.NewRouter(mux).Group("/api/v1")
 
-	h := NewHandler(service, v)
+	h := NewHandler(service)
 	authed.HandleFunc("GET /cart", h.Get)
 	authed.HandleFunc("DELETE /cart", h.Clear)
 	authed.HandleFunc("POST /cart/items", h.Add)

@@ -9,7 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -26,12 +25,11 @@ type UserManager interface {
 }
 
 type AdminHandler struct {
-	service   UserManager
-	validator *validator.Validator
+	service UserManager
 }
 
-func NewAdminHandler(service UserManager, v *validator.Validator) *AdminHandler {
-	return &AdminHandler{service: service, validator: v}
+func NewAdminHandler(service UserManager) *AdminHandler {
+	return &AdminHandler{service: service}
 }
 
 func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +80,7 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[adminUpdateUserRequest](w, r, h.validator)
+	req, ok := request.Bind[adminUpdateUserRequest](w, r)
 	if !ok {
 		return
 	}
@@ -107,7 +105,7 @@ func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[updateRoleRequest](w, r, h.validator)
+	req, ok := request.Bind[updateRoleRequest](w, r)
 	if !ok {
 		return
 	}

@@ -19,7 +19,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -715,12 +714,11 @@ func TestToAdminUserResponse_ExposesOperatorFieldsButNotCredentials(t *testing.T
 
 func setupAdminHandlerMux(t *testing.T) (*http.ServeMux, *MockUserManager) {
 	usecase := NewMockUserManager(t)
-	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := web.NewRouter(mux).Group("/api/v1/admin")
 
-	h := NewAdminHandler(usecase, v)
+	h := NewAdminHandler(usecase)
 	admin.HandleFunc("GET /users", h.List)
 	admin.HandleFunc("GET /users/{id}", h.Get)
 	admin.HandleFunc("PUT /users/{id}", h.Update)

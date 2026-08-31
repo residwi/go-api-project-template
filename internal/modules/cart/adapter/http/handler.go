@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/cart/domain"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -22,12 +21,11 @@ type CartManager interface {
 }
 
 type Handler struct {
-	service   CartManager
-	validator *validator.Validator
+	service CartManager
 }
 
-func NewHandler(service CartManager, v *validator.Validator) *Handler {
-	return &Handler{service: service, validator: v}
+func NewHandler(service CartManager) *Handler {
+	return &Handler{service: service}
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +55,7 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[addItemRequest](w, r, h.validator)
+	req, ok := request.Bind[addItemRequest](w, r)
 	if !ok {
 		return
 	}
@@ -81,7 +79,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[updateQuantityRequest](w, r, h.validator)
+	req, ok := request.Bind[updateQuantityRequest](w, r)
 	if !ok {
 		return
 	}

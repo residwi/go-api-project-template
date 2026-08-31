@@ -16,7 +16,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -402,11 +401,10 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockShipmentManager) {
 	t.Helper()
 
 	service := NewMockShipmentManager(t)
-	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := web.NewRouter(mux).Group("/api/v1/admin")
-	h := NewAdminHandler(service, v)
+	h := NewAdminHandler(service)
 	admin.HandleFunc("POST /orders/{id}/ship", h.Create)
 	admin.HandleFunc("PUT /shipments/{id}/tracking", h.UpdateTracking)
 	admin.HandleFunc("POST /shipments/{id}/deliver", h.Deliver)

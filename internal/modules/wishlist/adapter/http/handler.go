@@ -9,7 +9,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/wishlist/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -22,12 +21,11 @@ type WishlistManager interface {
 }
 
 type Handler struct {
-	service   WishlistManager
-	validator *validator.Validator
+	service WishlistManager
 }
 
-func NewHandler(service WishlistManager, v *validator.Validator) *Handler {
-	return &Handler{service: service, validator: v}
+func NewHandler(service WishlistManager) *Handler {
+	return &Handler{service: service}
 }
 
 func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +34,7 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[addItemRequest](w, r, h.validator)
+	req, ok := request.Bind[addItemRequest](w, r)
 	if !ok {
 		return
 	}

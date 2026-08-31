@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -17,16 +16,15 @@ type AuthManager interface {
 }
 
 type Handler struct {
-	service   AuthManager
-	validator *validator.Validator
+	service AuthManager
 }
 
-func NewHandler(service AuthManager, v *validator.Validator) *Handler {
-	return &Handler{service: service, validator: v}
+func NewHandler(service AuthManager) *Handler {
+	return &Handler{service: service}
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	req, ok := request.Bind[loginRequest](w, r, h.validator)
+	req, ok := request.Bind[loginRequest](w, r)
 	if !ok {
 		return
 	}
@@ -41,7 +39,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	req, ok := request.Bind[registerRequest](w, r, h.validator)
+	req, ok := request.Bind[registerRequest](w, r)
 	if !ok {
 		return
 	}
@@ -56,7 +54,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
-	req, ok := request.Bind[refreshRequest](w, r, h.validator)
+	req, ok := request.Bind[refreshRequest](w, r)
 	if !ok {
 		return
 	}

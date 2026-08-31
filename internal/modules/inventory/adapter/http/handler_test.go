@@ -17,7 +17,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/inventory/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -441,7 +440,7 @@ func setupMux(t *testing.T, service InventoryManager) *http.ServeMux {
 
 	mux := http.NewServeMux()
 	admin := web.NewRouter(mux).Group("/api/admin")
-	h := NewHandler(service, validator.New())
+	h := NewHandler(service)
 	admin.HandleFunc("GET /inventory/{product_id}", h.GetStock)
 	admin.HandleFunc("PUT /inventory/{product_id}/restock", h.Restock)
 	admin.HandleFunc("PUT /inventory/{product_id}/adjust", h.Adjust)

@@ -21,7 +21,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/product"
 	"github.com/residwi/go-api-project-template/internal/modules/product/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -653,12 +652,11 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockProductManager) {
 	t.Helper()
 
 	service := NewMockProductManager(t)
-	v := validator.New()
 
 	mux := http.NewServeMux()
 	admin := web.NewRouter(mux).Group("/api/v1/admin")
 
-	ah := NewAdminHandler(service, v)
+	ah := NewAdminHandler(service)
 	admin.HandleFunc("GET /products", ah.List)
 	admin.HandleFunc("GET /products/{id}", ah.Get)
 	admin.HandleFunc("POST /products", ah.Create)

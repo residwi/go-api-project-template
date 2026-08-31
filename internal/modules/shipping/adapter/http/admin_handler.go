@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -19,12 +18,11 @@ type ShipmentManager interface {
 }
 
 type AdminHandler struct {
-	service   ShipmentManager
-	validator *validator.Validator
+	service ShipmentManager
 }
 
-func NewAdminHandler(service ShipmentManager, v *validator.Validator) *AdminHandler {
-	return &AdminHandler{service: service, validator: v}
+func NewAdminHandler(service ShipmentManager) *AdminHandler {
+	return &AdminHandler{service: service}
 }
 
 func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +31,7 @@ func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[createShipmentRequest](w, r, h.validator)
+	req, ok := request.Bind[createShipmentRequest](w, r)
 	if !ok {
 		return
 	}
@@ -68,7 +66,7 @@ func (h *AdminHandler) UpdateTracking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[updateTrackingRequest](w, r, h.validator)
+	req, ok := request.Bind[updateTrackingRequest](w, r)
 	if !ok {
 		return
 	}

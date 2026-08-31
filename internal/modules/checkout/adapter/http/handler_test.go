@@ -21,7 +21,6 @@ import (
 	orderdomain "github.com/residwi/go-api-project-template/internal/modules/order/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -436,7 +435,7 @@ func TestCancelHandler_CancelOrder(t *testing.T) {
 
 func setupMux(t *testing.T) (*http.ServeMux, *MockCheckout) {
 	service := NewMockCheckout(t)
-	h := NewHandler(service, validator.New())
+	h := NewHandler(service)
 
 	mux := http.NewServeMux()
 	authed := web.NewRouter(mux).Group("/api/v1")

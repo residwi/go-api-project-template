@@ -35,9 +35,10 @@ internal/
                             middleware/ subdirectory any more
   platform/                 generic infrastructure, no feature deps: cache/ config/
                             database/ errs/ logger/ paging/ queue/ slug/ storage/
-                            validator/ and web/, which is a tree of its own:
+                            and web/, which is a tree of its own:
                             web/           Middleware, Chain, Router
-                            web/request/   Bind, ParseUUIDParam
+                            web/request/   Bind, ParseUUIDParam, and the
+                                           go-playground validator behind them
                             web/response/  the envelope, HandleErr, CursorPage
                             web/middleware/ CORS, Logging, Recovery, RequestID,
                                             the user context, RequireRole, RateLimit
@@ -665,12 +666,28 @@ compiler; they are all greps.
     Per-queue leases became a client-wide `RescueStuckJobsAfter` (`WORKER_RESCUE_AFTER`, one value for every queue) plus a per-worker `Timeout()` (`PAYMENT_JOB_TIMEOUT`, `NOTIFICATION_JOB_TIMEOUT`, `ORDER_JOB_TIMEOUT`, each validated in its own module's `LoadConfig`) — a rescue window is no longer expressible per queue, only for the client as a whole. `payment` gained `ErrNotRefundable` in its own `errors.go`, wrapping an `errs` kind the way `auth`'s sentinels do; `RefundWorker.Work` translates it into `river.JobCancel` so a non-refundable payment is cancelled rather than retried. Never hand-roll a ticker/lease/poll loop — River owns polling, the leased claim, bounded concurrency, per-job timeouts and its own maintenance.
 17. **Repository reads use `pgx.CollectRows`**, never a hand-rolled `for rows.Next()` loop. Escape search terms with `database.EscapeLike()` and build keyset predicates with `database.KeysetCursor()`.
 18. **Handlers use the shared helpers.** Decode and validate with
-    `request.Bind[T](w, r, h.validator)` from
-    `internal/platform/web/request`; read the caller with
-    `middleware.RequireUser(w, r)` from
+    `request.Bind[T](w, r)` from `internal/platform/web/request`; read the
+    caller with `middleware.RequireUser(w, r)` from
     `internal/platform/web/middleware`; return errors through
     `response.HandleErr` from `internal/platform/web/response`. Do not
     hand-roll decode/validate or auth-context blocks.
+
+    **`Bind` owns the validator; a handler carries none.** There is one
+    `validator.New()` in the tree, a package-level `validate` in
+    `internal/platform/web/request/request.go`, and one shared instance is
+    what go-playground wants — it caches struct metadata per type. There used
+    to be a `request.Validator` interface, an
+    `internal/platform/validator` package behind it, and a
+    `validator *validator.Validator` field plus constructor parameter on 14
+    handlers, all to hand the router's single instance back to `Bind` on every
+    call. Nothing ever substituted it: no test mocked the interface, no
+    `RegisterValidation` existed anywhere. The tag-to-message mapping that
+    package really held (`required` -> "this field is required") is
+    `validationDetails` and `formatError` in `request.go` now, unexported. A
+    custom tag registers once beside `validate`, not per handler. The cost is
+    that a handler can no longer be given a different validator: nothing
+    wanted one, and reaching for one now means adding the parameter back to
+    the one handler that needs it rather than to all 14.
 18a. **An `adapter/http` port is named for the role it plays, never for the
     pattern.** `CartManager`, `ProductReader`, `WebhookProcessor`,
     `PromotionApplier`, `Reporter` — 23 ports across the 15 `adapter/http`

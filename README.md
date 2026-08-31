@@ -84,11 +84,11 @@ decides the verb, the path and the middleware group.
 │   │   ├── /errs               # The five status-carrying generic error kinds
 │   │   ├── /queue              # NewInsertClient + a transaction-aware Insert
 │   │   ├── /web                # Middleware, Chain, Router -- a tree of its own:
-│   │   │   ├── /request        #   Bind, ParseUUIDParam
+│   │   │   ├── /request        #   Bind (validator included), ParseUUIDParam
 │   │   │   ├── /response       #   the envelope, HandleErr, CursorPage
 │   │   │   └── /middleware     #   CORS, Logging, Recovery, RequestID, the user
 │   │   │                       #   context, RequireRole, RateLimit
-│   │   └── /cache /logger /paging /slug /storage /validator
+│   │   └── /cache /logger /paging /slug /storage
 │   └── /testutil               # Shared container plumbing for tests
 ├── /test/e2e                   # Cross-module sagas through the real router
 ├── /db
@@ -685,10 +685,11 @@ This template puts one module per feature and one `Service` per module:
   `order.LoadConfig`, `payment.LoadConfig`).
 - The five generic error kinds live in `internal/platform/errs` and the seven
   cross-module business sentinels in `internal/apperror`, each declared as a
-  wrap of one of the five; generic utilities (`paging`, `slug`, `validator`)
-  live in `internal/platform`; the JSON envelope lives in
-  `internal/platform/web/response` and request binding in
-  `internal/platform/web/request`.
+  wrap of one of the five; generic utilities (`paging`, `slug`) live in
+  `internal/platform`; the JSON envelope lives in
+  `internal/platform/web/response`, and request binding plus struct
+  validation in `internal/platform/web/request` -- `Bind` holds the one
+  `go-playground/validator` instance, so no handler carries one.
 
 **Read `ARCHITECTURE-LIMITATIONS.md` before copying this.** It lists what the
 shape makes hard, including the guarantees the flat-module shape gave up — a

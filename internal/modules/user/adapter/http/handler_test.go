@@ -17,7 +17,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/modules/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -315,12 +314,11 @@ func assertPublicProfileKeys(t *testing.T, dataJSON []byte) {
 
 func setupHandlerMux(t *testing.T) (*http.ServeMux, *MockProfileManager) {
 	usecase := NewMockProfileManager(t)
-	v := validator.New()
 
 	mux := http.NewServeMux()
 	authed := web.NewRouter(mux).Group("/api/v1")
 
-	h := NewHandler(usecase, v)
+	h := NewHandler(usecase)
 	authed.HandleFunc("GET /users/me", h.Me)
 	authed.HandleFunc("PUT /users/me", h.Update)
 

@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/category/domain"
-	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -34,16 +33,15 @@ type CategoryManager interface {
 }
 
 type AdminHandler struct {
-	service   CategoryManager
-	validator *validator.Validator
+	service CategoryManager
 }
 
-func NewAdminHandler(service CategoryManager, v *validator.Validator) *AdminHandler {
-	return &AdminHandler{service: service, validator: v}
+func NewAdminHandler(service CategoryManager) *AdminHandler {
+	return &AdminHandler{service: service}
 }
 
 func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := request.Bind[createCategoryRequest](w, r, h.validator)
+	req, ok := request.Bind[createCategoryRequest](w, r)
 	if !ok {
 		return
 	}
@@ -63,7 +61,7 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := request.Bind[updateCategoryRequest](w, r, h.validator)
+	req, ok := request.Bind[updateCategoryRequest](w, r)
 	if !ok {
 		return
 	}
