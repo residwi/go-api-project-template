@@ -67,6 +67,20 @@ func TestBind(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
+	t.Run("rejects a body over 1MiB with 400", func(t *testing.T) {
+		t.Parallel()
+
+		bigBody := `{"name":"` + strings.Repeat("a", (1<<20)+1024) + `"}`
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(bigBody))
+
+		_, ok := Bind[payload](w, r, passingValidator{})
+
+		assert.False(t, ok)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "request body too large")
+	})
+
 	t.Run("reports validation failures as 422 with details", func(t *testing.T) {
 		t.Parallel()
 

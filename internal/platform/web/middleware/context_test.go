@@ -21,7 +21,7 @@ func TestRequireUser(t *testing.T) {
 
 		require.True(t, ok)
 		assert.Equal(t, want, got)
-		assert.Equal(t, http.StatusOK, w.Code) // nothing written when authenticated
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("writes 401 when no user in context", func(t *testing.T) {
