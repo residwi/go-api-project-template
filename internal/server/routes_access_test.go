@@ -8,11 +8,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
+
+const probeSlug = "route-probe"
 
 var publicRoutes = []string{
 	"GET\t/health",
@@ -30,7 +33,7 @@ var publicRoutes = []string{
 var wildcards = strings.NewReplacer(
 	"{id}", "11111111-1111-1111-1111-111111111111",
 	"{product_id}", "22222222-2222-2222-2222-222222222222",
-	"{slug}", "no-such-slug",
+	"{slug}", probeSlug,
 )
 
 func TestRouteAccess(t *testing.T) {
@@ -43,8 +46,9 @@ func TestRouteAccess(t *testing.T) {
 		newTestApp(testPaymentCfg),
 	)
 	token := registerProbeUser(t, handler)
+	seedProbeSlug(t)
 
-	require.NotEmpty(t, mounted)
+	require.Len(t, mounted, 65)
 
 	for _, want := range publicRoutes {
 		assert.Contains(t, mounted, want, "publicRoutes names a route that is not mounted")
@@ -60,6 +64,8 @@ func TestRouteAccess(t *testing.T) {
 			case slices.Contains(publicRoutes, route):
 				assert.NotEqual(t, http.StatusUnauthorized, anon.Code,
 					"public route must not require auth")
+				assert.NotEqual(t, http.StatusNotFound, anon.Code,
+					"public route did not match any mounted pattern")
 
 			case strings.HasPrefix(pattern, "/api/admin/"):
 				assert.Equal(t, http.StatusUnauthorized, anon.Code)
@@ -69,7 +75,10 @@ func TestRouteAccess(t *testing.T) {
 			default:
 				assert.Equal(t, http.StatusUnauthorized, anon.Code,
 					"route is not in publicRoutes but serves anonymous callers")
-				assert.NotEqual(t, http.StatusForbidden, probe(handler, method, path, token).Code,
+				authed := probe(handler, method, path, token)
+				assert.NotEqual(t, http.StatusUnauthorized, authed.Code,
+					"authed route rejected a valid token")
+				assert.NotEqual(t, http.StatusForbidden, authed.Code,
 					"route landed on the admin group")
 			}
 		})
@@ -109,4 +118,23 @@ func registerProbeUser(t *testing.T, handler http.Handler) string {
 	token, ok := data["access_token"].(string)
 	require.True(t, ok)
 	return token
+}
+
+func seedProbeSlug(t *testing.T) {
+	t.Helper()
+
+	catID := uuid.New()
+	_, err := testPool.Exec(t.Context(),
+		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Route Probe Category', $2, true)`,
+		catID, probeSlug)
+	require.NoError(t, err)
+	t.Cleanup(func() { testPool.Exec(t.Context(), `DELETE FROM categories WHERE id = $1`, catID) })
+
+	prodID := uuid.New()
+	_, err = testPool.Exec(t.Context(),
+		`INSERT INTO products (id, name, slug, description, price, currency, status)
+		 VALUES ($1, 'Route Probe Product', $2, 'seeded for route access probe', 1000, 'USD', 'published')`,
+		prodID, probeSlug)
+	require.NoError(t, err)
+	t.Cleanup(func() { testPool.Exec(t.Context(), `DELETE FROM products WHERE id = $1`, prodID) })
 }
