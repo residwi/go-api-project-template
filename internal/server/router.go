@@ -29,7 +29,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 )
 
-func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, the four route groups and all 65 routes in the order the router mounts them
+func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, the four route groups and all routes in the order the router mounts them
 	appCfg *config.Settings,
 	modCfg bootstrap.Config,
 	cache *redis.Client,
