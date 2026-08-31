@@ -907,15 +907,16 @@ check_cross_module_imports() {
 # Check 6 -- the transport arrow points one way
 # ---------------------------------------------------------------------------
 #
-# A module may not import internal/server/. Only its own adapter/http may,
-# because that package exists to speak HTTP and nothing constructs it except
-# the route table.
+# A module may not import internal/server/. There is no exemption.
 #
-# That one exemption carries every module: adapter/http is where
-# response.Bind and middleware.RequireUser are called (AGENTS.md rule 18), so
-# dropping it reports 85 imports across fifteen modules in one run. The second
-# arm this case used to hold, matching a slice's usecase/<slice>/http/, went
-# with the slices and matched nothing while it lasted.
+# There used to be one, for a module's own adapter/http, because that is where
+# middleware.RequireUser and the user context were called. Every one of those
+# symbols lives in internal/platform/web/middleware now, so no file under a
+# module has any reason to name internal/server, and the arm matched nothing
+# on the day it was deleted -- proven by commenting it out and getting a clean
+# run before removing it. The second arm this case used to hold, matching a
+# slice's usecase/<slice>/http/, went with the slices and matched nothing
+# while it lasted.
 #
 # Two things this catches that a service-file-only check would miss:
 #   - a service returning a transport type, which is how user.Service came to
@@ -985,11 +986,11 @@ check_transport_direction() {
 			while IFS= read -r hit; do
 				[ -n "$hit" ] || continue
 				report "'${feature}' imports internal/server: ${file}:${hit%%:*}
-    A module may not import internal/server -- only its own adapter/http
-    may, because that package exists to speak HTTP and nothing constructs it
-    but the route table. Declare the shared type in
-    ${MODULES_ROOT}/${feature}/contract.go and let the transport import the
-    module root instead."
+    A module may not import internal/server, and there is no exemption.
+    Everything a handler needs -- RequireUser, the user context, RequireRole,
+    RateLimit -- lives in internal/platform/web/middleware. Declare a shared
+    type in ${MODULES_ROOT}/${feature}/contract.go and let the transport
+    import the module root instead."
 			done <<<"$hits"
 		done <<<"$files"
 	done < <(feature_dirs)
