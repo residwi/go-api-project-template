@@ -10,8 +10,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
+	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
 func clientIP(r *http.Request) string {

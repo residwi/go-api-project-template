@@ -9,7 +9,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/payment"
 	"github.com/residwi/go-api-project-template/internal/modules/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/platform/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
 type PaymentManager interface {

@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/modules/shipping/domain"
-	"github.com/residwi/go-api-project-template/internal/platform/response"
+	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
 

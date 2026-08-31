@@ -18,9 +18,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/modules/auth/domain"
 	"github.com/residwi/go-api-project-template/internal/modules/user"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
+	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
 func TestHandler_Login(t *testing.T) {

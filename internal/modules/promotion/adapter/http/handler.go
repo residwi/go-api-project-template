@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/platform/response"
 	"github.com/residwi/go-api-project-template/internal/platform/validator"
+	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 	"github.com/residwi/go-api-project-template/internal/server/middleware"
 )
 
