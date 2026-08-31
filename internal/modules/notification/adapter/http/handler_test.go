@@ -389,7 +389,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockNotificationManager, middlewar
 	service := NewMockNotificationManager(t)
 
 	mux := http.NewServeMux()
-	authed := web.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouter(mux).Group("/api/v1")
 
 	h := NewHandler(service)
 	authed.HandleFunc("GET /notifications", h.List)

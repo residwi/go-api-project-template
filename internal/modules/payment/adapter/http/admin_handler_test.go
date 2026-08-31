@@ -309,7 +309,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockPaymentManager) {
 	service := NewMockPaymentManager(t)
 
 	mux := http.NewServeMux()
-	admin := web.NewRouteGroup(mux, "/api/admin")
+	admin := web.NewRouter(mux).Group("/api/admin")
 	h := NewAdminHandler(service)
 	admin.HandleFunc("GET /payments", h.List)
 	admin.HandleFunc("GET /payments/{id}", h.Get)

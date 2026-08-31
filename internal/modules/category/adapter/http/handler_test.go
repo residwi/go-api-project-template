@@ -225,7 +225,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCategoryReader) {
 	service := NewMockCategoryReader(t)
 
 	mux := http.NewServeMux()
-	api := web.NewRouteGroup(mux, "/api/v1")
+	api := web.NewRouter(mux).Group("/api/v1")
 	h := NewHandler(service)
 	api.HandleFunc("GET /categories", h.List)
 	api.HandleFunc("GET /categories/{slug}", h.GetBySlug)

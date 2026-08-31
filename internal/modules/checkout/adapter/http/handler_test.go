@@ -439,7 +439,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCheckout) {
 	h := NewHandler(service, validator.New())
 
 	mux := http.NewServeMux()
-	authed := web.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouter(mux).Group("/api/v1")
 
 	authed.HandleFunc("POST /orders", h.Place)
 	authed.HandleFunc("POST /orders/{id}/pay", h.Retry)

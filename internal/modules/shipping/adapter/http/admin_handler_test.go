@@ -405,7 +405,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockShipmentManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	admin := web.NewRouteGroup(mux, "/api/v1/admin")
+	admin := web.NewRouter(mux).Group("/api/v1/admin")
 	h := NewAdminHandler(service, v)
 	admin.HandleFunc("POST /orders/{id}/ship", h.Create)
 	admin.HandleFunc("PUT /shipments/{id}/tracking", h.UpdateTracking)

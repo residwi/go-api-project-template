@@ -311,7 +311,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockProductReader) {
 	service := NewMockProductReader(t)
 
 	mux := http.NewServeMux()
-	api := web.NewRouteGroup(mux, "/api/v1")
+	api := web.NewRouter(mux).Group("/api/v1")
 
 	h := NewHandler(service)
 	api.HandleFunc("GET /products", h.List)

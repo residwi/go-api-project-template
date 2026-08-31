@@ -419,7 +419,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockReviewManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	group := web.NewRouteGroup(mux, "/api/v1")
+	group := web.NewRouter(mux).Group("/api/v1")
 	h := NewHandler(service, v)
 	group.HandleFunc("GET /products/{id}/reviews", h.List)
 	group.HandleFunc("POST /products/{id}/reviews", h.Create)

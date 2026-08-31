@@ -325,7 +325,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockOrderReader) {
 	service := NewMockOrderReader(t)
 
 	mux := http.NewServeMux()
-	authed := web.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouter(mux).Group("/api/v1")
 
 	h := NewHandler(service)
 	authed.HandleFunc("GET /orders", h.List)

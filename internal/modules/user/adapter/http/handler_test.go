@@ -318,7 +318,7 @@ func setupHandlerMux(t *testing.T) (*http.ServeMux, *MockProfileManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	authed := web.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouter(mux).Group("/api/v1")
 
 	h := NewHandler(usecase, v)
 	authed.HandleFunc("GET /users/me", h.Me)

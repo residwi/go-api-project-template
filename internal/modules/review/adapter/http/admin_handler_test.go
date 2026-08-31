@@ -76,7 +76,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockReviewDeleter) {
 	service := NewMockReviewDeleter(t)
 
 	mux := http.NewServeMux()
-	admin := web.NewRouteGroup(mux, "/api/v1/admin")
+	admin := web.NewRouter(mux).Group("/api/v1/admin")
 	admin.HandleFunc("DELETE /reviews/{id}", NewAdminHandler(service).Delete)
 
 	return mux, service

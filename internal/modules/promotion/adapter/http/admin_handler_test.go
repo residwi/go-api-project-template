@@ -347,7 +347,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockPromotionManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	admin := web.NewRouteGroup(mux, "/api/v1/admin")
+	admin := web.NewRouter(mux).Group("/api/v1/admin")
 
 	ah := NewAdminHandler(service, v)
 	admin.HandleFunc("GET /promotions", ah.List)

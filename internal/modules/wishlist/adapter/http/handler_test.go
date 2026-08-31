@@ -302,7 +302,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockWishlistManager, middleware.Us
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	authed := web.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouter(mux).Group("/api/v1")
 
 	h := NewHandler(service, v)
 	authed.HandleFunc("GET /wishlist", h.List)

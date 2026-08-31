@@ -527,7 +527,7 @@ func TestToSummaryResponse_ExposesExactFieldSet(t *testing.T) {
 func setupMux(t *testing.T) (*http.ServeMux, *MockReporter) {
 	service := NewMockReporter(t)
 	mux := http.NewServeMux()
-	admin := web.NewRouteGroup(mux, "/api/admin")
+	admin := web.NewRouter(mux).Group("/api/admin")
 
 	h := NewHandler(service)
 	admin.HandleFunc("GET /dashboard/summary", h.Summary)

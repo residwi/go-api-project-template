@@ -173,7 +173,7 @@ func setupApplyMux(t *testing.T) (*http.ServeMux, *MockPromotionApplier) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	authed := web.NewRouteGroup(mux, "/api/v1")
+	authed := web.NewRouter(mux).Group("/api/v1")
 	authed.HandleFunc("POST /promotions/apply", NewHandler(service, v).Apply)
 
 	return mux, service

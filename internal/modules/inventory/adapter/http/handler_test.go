@@ -440,7 +440,7 @@ func setupMux(t *testing.T, service InventoryManager) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
-	admin := web.NewRouteGroup(mux, "/api/admin")
+	admin := web.NewRouter(mux).Group("/api/admin")
 	h := NewHandler(service, validator.New())
 	admin.HandleFunc("GET /inventory/{product_id}", h.GetStock)
 	admin.HandleFunc("PUT /inventory/{product_id}/restock", h.Restock)

@@ -718,7 +718,7 @@ func setupAdminHandlerMux(t *testing.T) (*http.ServeMux, *MockUserManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	admin := web.NewRouteGroup(mux, "/api/v1/admin")
+	admin := web.NewRouter(mux).Group("/api/v1/admin")
 
 	h := NewAdminHandler(usecase, v)
 	admin.HandleFunc("GET /users", h.List)

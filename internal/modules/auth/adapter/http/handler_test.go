@@ -420,7 +420,7 @@ func newTestMux(t *testing.T) (http.Handler, *MockAuthManager) {
 	v := validator.New()
 
 	mux := http.NewServeMux()
-	api := web.NewRouteGroup(mux, "/api")
+	api := web.NewRouter(mux).Group("/api")
 	h := NewHandler(service, v)
 	api.HandleFunc("POST /auth/login", h.Login)
 	api.HandleFunc("POST /auth/register", h.Register)

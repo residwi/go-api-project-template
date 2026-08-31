@@ -46,9 +46,11 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	authMiddleware := middleware.Auth(app.Auth, app.Users)
 	adminMiddleware := middleware.RequireAdmin
 
-	api := web.NewRouteGroup(mux, "/api")
-	authed := web.NewRouteGroup(mux, "/api", authMiddleware)
-	admin := web.NewRouteGroup(mux, "/api/admin", authMiddleware, adminMiddleware)
+	router := web.NewRouter(mux)
+
+	api := router.Group("/api")
+	authed := router.Group("/api", authMiddleware)
+	admin := authed.Group("/admin", adminMiddleware)
 
 	authLimiter := middleware.RateLimit(
 		logger,
@@ -56,7 +58,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 		modCfg.Auth.RateLimit,
 		modCfg.Auth.RateWindow,
 	)
-	authPublic := web.NewRouteGroup(mux, "/api", authLimiter)
+	authPublic := router.Group("/api", authLimiter)
 
 	authHandler := authhttp.NewHandler(app.Auth, v)
 	authPublic.HandleFunc("POST /auth/register", authHandler.Register)
