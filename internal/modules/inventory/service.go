@@ -54,8 +54,10 @@ func (s *Service) Deduct(ctx context.Context, items map[uuid.UUID]int) error {
 }
 
 func (s *Service) Restore(ctx context.Context, items map[uuid.UUID]int, prior StockState) error {
-	if prior == Deducted {
+	switch prior {
+	case StockDeducted:
 		return s.repo.RestockBatch(ctx, items)
+	case StockReserved:
 	}
 	return s.repo.ReleaseBatch(ctx, items)
 }

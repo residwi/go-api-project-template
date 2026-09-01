@@ -232,7 +232,7 @@ func TestService_Restore(t *testing.T) {
 		items := map[uuid.UUID]int{uuid.New(): 2}
 		repo.EXPECT().ReleaseBatch(mock.Anything, items).Return(nil)
 
-		err := s.Restore(context.Background(), items, Reserved)
+		err := s.Restore(context.Background(), items, StockReserved)
 		require.NoError(t, err)
 	})
 
@@ -245,7 +245,7 @@ func TestService_Restore(t *testing.T) {
 		items := map[uuid.UUID]int{uuid.New(): 3}
 		repo.EXPECT().RestockBatch(mock.Anything, items).Return(nil)
 
-		err := s.Restore(context.Background(), items, Deducted)
+		err := s.Restore(context.Background(), items, StockDeducted)
 		require.NoError(t, err)
 	})
 }

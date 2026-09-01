@@ -8,6 +8,13 @@ type Availability struct {
 type StockState int
 
 const (
-	Reserved StockState = iota
-	Deducted
+	StockReserved StockState = iota
+	StockDeducted
 )
+
+func StockStateOf(deducted bool) StockState {
+	if deducted {
+		return StockDeducted
+	}
+	return StockReserved
+}

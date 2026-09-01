@@ -271,13 +271,6 @@ func (s *Service) CompensateRefund(ctx context.Context, paymentID, orderID uuid.
 	}
 }
 
-func stockStateFor(deducted bool) inventory.StockState {
-	if deducted {
-		return inventory.Deducted
-	}
-	return inventory.Reserved
-}
-
 func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
 	p, err := s.repo.GetByID(ctx, paymentID)
 	if err != nil {
@@ -505,7 +498,7 @@ func (s *Service) SettleRefund(ctx context.Context, paymentID, orderID uuid.UUID
 			if restoreErr := s.inventory.Restore(
 				txCtx,
 				items,
-				stockStateFor(orderSnap.StockDeducted),
+				inventory.StockStateOf(orderSnap.StockDeducted),
 			); restoreErr != nil {
 				s.logger.ErrorContext(txCtx, "failed to restore inventory on refund",
 					slog.String("order_id", orderID.String()), slog.String("error", restoreErr.Error()))

@@ -1204,7 +1204,7 @@ func TestService_CancelByUser(t *testing.T) {
 		d.inventory.EXPECT().Restore(mock.Anything, map[uuid.UUID]int{
 			productA: 2,
 			productB: 1,
-		}, inventory.Reserved).Return(nil)
+		}, inventory.StockReserved).Return(nil)
 
 		err := s.CancelByUser(ctx, userID, orderID)
 
@@ -1237,7 +1237,7 @@ func TestService_CancelByUser(t *testing.T) {
 				Subtotal:    money.New(5000, "USD"),
 			},
 		}, nil)
-		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).Return(nil)
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockReserved).Return(nil)
 		d.coupons.EXPECT().Release(mock.Anything, orderID).Return(nil)
 
 		err := s.CancelByUser(ctx, userID, orderID)
@@ -1271,7 +1271,7 @@ func TestService_CancelByUser(t *testing.T) {
 			},
 		}, nil)
 		d.inventory.EXPECT().
-			Restore(mock.Anything, mock.Anything, inventory.Reserved).
+			Restore(mock.Anything, mock.Anything, inventory.StockReserved).
 			Return(errors.New("inventory error"))
 
 		err := s.CancelByUser(ctx, userID, orderID)
@@ -1306,7 +1306,7 @@ func TestService_CancelByUser(t *testing.T) {
 				Subtotal:    money.New(5000, "USD"),
 			},
 		}, nil)
-		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).Return(nil)
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockReserved).Return(nil)
 		d.coupons.EXPECT().Release(mock.Anything, orderID).Return(errors.New("coupon service down"))
 
 		err := s.CancelByUser(ctx, userID, orderID)
@@ -1518,7 +1518,7 @@ func TestService_ExpireStale(t *testing.T) {
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, expired.ID).
 			Return([]domain.Item{{ProductID: productID, Quantity: 2}}, nil)
 		d.inventory.EXPECT().
-			Restore(mock.Anything, map[uuid.UUID]int{productID: 2}, inventory.Reserved).
+			Restore(mock.Anything, map[uuid.UUID]int{productID: 2}, inventory.StockReserved).
 			Return(nil)
 		d.coupons.EXPECT().Release(mock.Anything, expired.ID).Return(nil)
 

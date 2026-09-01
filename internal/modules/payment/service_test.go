@@ -1004,7 +1004,7 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{CouponCode: "SAVE10", StockDeducted: false}, nil)
 
-		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockReserved).
 			Return(nil)
 
 		d.coupon.EXPECT().Release(mock.Anything, orderID).
@@ -1055,7 +1055,7 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{StockDeducted: true}, nil)
 
-		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Deducted).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockDeducted).
 			Return(nil)
 
 		err := svc.SettleRefund(ctx, paymentID, orderID)
@@ -1221,7 +1221,7 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{StockDeducted: false}, nil)
 
-		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockReserved).
 			Return(nil)
 
 		err := svc.SettleRefund(ctx, paymentID, orderID)
@@ -1265,7 +1265,7 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{StockDeducted: false}, nil)
 
-		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockReserved).
 			Return(errors.New("release failed"))
 
 		err := svc.SettleRefund(ctx, paymentID, orderID)
@@ -1309,7 +1309,7 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{StockDeducted: true}, nil)
 
-		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Deducted).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockDeducted).
 			Return(errors.New("restock failed"))
 
 		err := svc.SettleRefund(ctx, paymentID, orderID)
@@ -1353,7 +1353,7 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{CouponCode: "SAVE10", StockDeducted: false}, nil)
 
-		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.Reserved).
+		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockReserved).
 			Return(nil)
 
 		d.coupon.EXPECT().Release(mock.Anything, orderID).

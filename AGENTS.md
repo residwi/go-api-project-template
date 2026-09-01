@@ -648,9 +648,13 @@ compiler; they are all greps.
 15. **Inventory reversal goes through `inventory.Service.Restore`.**
     `Restore(ctx, items map[uuid.UUID]int, prior StockState) error` decides
     whether that means releasing a reservation or restocking deducted goods;
-    callers supply order's prior state, never the mechanics. `StockState` is
-    declared in `inventory/contract.go`, so `order` and `payment` name the
-    type by importing `inventory`'s root package — never
+    callers supply order's prior state, never the mechanics. `StockState`
+    (`StockReserved`, `StockDeducted`) is declared in
+    `inventory/contract.go` beside `StockStateOf(deducted bool)`, the one
+    conversion from the `StockDeducted` bool an order carries — `order` and
+    `payment` each held an identical private `stockStateFor` helper until
+    that function replaced both, and neither may declare one again. Both
+    name the type by importing `inventory`'s root package — never
     `inventory/adapter/postgres`. That import is no longer the leaf it was:
     while `StockState` sat in `inventory/contract/`, check 7 guaranteed the
     package a consumer imported for it pulled in nothing but stdlib, `uuid`

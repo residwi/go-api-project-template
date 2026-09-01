@@ -441,7 +441,7 @@ func (s *Service) cancelWithReversal(ctx context.Context, order *domain.Order) e
 			for _, item := range items {
 				releases[item.ProductID] = item.Quantity
 			}
-			releaseErr := s.inventory.Restore(txCtx, releases, stockStateFor(order.StockDeducted))
+			releaseErr := s.inventory.Restore(txCtx, releases, inventory.StockStateOf(order.StockDeducted))
 			if releaseErr != nil {
 				return fmt.Errorf("restoring inventory on cancel: %w", releaseErr)
 			}
@@ -483,7 +483,7 @@ func (s *Service) releaseOrderHolds(ctx context.Context, o domain.Order) error {
 		for _, item := range items {
 			releases[item.ProductID] = item.Quantity
 		}
-		if err := s.inventory.Restore(ctx, releases, stockStateFor(o.StockDeducted)); err != nil {
+		if err := s.inventory.Restore(ctx, releases, inventory.StockStateOf(o.StockDeducted)); err != nil {
 			return fmt.Errorf("restoring inventory on expire: %w", err)
 		}
 	}
@@ -499,11 +499,4 @@ func (s *Service) releaseOrderHolds(ctx context.Context, o domain.Order) error {
 		}
 	}
 	return nil
-}
-
-func stockStateFor(deducted bool) inventory.StockState {
-	if deducted {
-		return inventory.Deducted
-	}
-	return inventory.Reserved
 }
