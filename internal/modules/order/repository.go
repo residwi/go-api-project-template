@@ -38,5 +38,4 @@ type Repository interface {
 	GetStaleProcessingOrders(ctx context.Context, threshold time.Duration, limit int) ([]domain.Order, error)
 
 	Apply(ctx context.Context, id uuid.UUID, t domain.Transition) error
-	UpdateStatus(ctx context.Context, id uuid.UUID, from, to domain.Status) error
 }

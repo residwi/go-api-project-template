@@ -672,7 +672,7 @@ This template puts one module per feature and one `Service` per module:
   intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) against their own
   port, and `order.Service` turns each intent into the right transition
   internally, keeping the state machine's allowed transitions in one place
-  (`internal/modules/order/domain/transition.go`).
+  (`internal/modules/order/domain/state.go`).
 - Monetary amounts are `money.Money` (an amount paired with its currency) in
   `order`, `payment`, `product` and `cart`, so an amount cannot drift from the
   currency beside it. `promotion` and `dashboard` stay on `int64` for reasons

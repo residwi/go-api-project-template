@@ -590,7 +590,7 @@ func TestService_Place(t *testing.T) {
 		// The named transition is asserted on Repository.Apply, which is where
 		// the old TransitionApplier port's expectation moved when that port
 		// folded into this Service.
-		d.repo.EXPECT().Apply(mock.Anything, mock.Anything, domain.PaidTransition).Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, mock.Anything, domain.ToPaid).Return(nil)
 		d.inventory.EXPECT().
 			Deduct(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(nil)
@@ -1121,7 +1121,7 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(errs.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(errs.ErrConflict)
 
 		err := s.CancelByUser(ctx, userID, orderID)
 
@@ -1140,7 +1140,7 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(errs.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(errs.ErrConflict)
 
 		err := s.CancelByUser(ctx, userID, orderID)
 
@@ -1159,7 +1159,7 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(errs.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(errs.ErrConflict)
 
 		err := s.CancelByUser(ctx, userID, orderID)
 
@@ -1180,7 +1180,7 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{
 			{
 				ID:          uuid.New(),
@@ -1225,7 +1225,7 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{
 			{
 				ID:          uuid.New(),
@@ -1258,7 +1258,7 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{
 			{
 				ID:          uuid.New(),
@@ -1294,7 +1294,7 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{
 			{
 				ID:          uuid.New(),
@@ -1326,7 +1326,7 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(errors.New("db error"))
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(errors.New("db error"))
 
 		err := s.CancelByUser(ctx, userID, orderID)
 
@@ -1345,7 +1345,7 @@ func TestService_CancelByUser(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(nil, errors.New("db error"))
 
 		err := s.CancelByUser(ctx, userID, orderID)
@@ -1375,7 +1375,7 @@ func TestService_CancelUnpaid(t *testing.T) {
 		}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{}, nil)
 		d.inventory.AssertNotCalled(t, "Restore", mock.Anything, mock.Anything, mock.Anything)
 
@@ -1391,7 +1391,7 @@ func TestService_CancelUnpaid(t *testing.T) {
 
 		existingOrder := &domain.Order{ID: orderID, UserID: uuid.New(), Status: domain.StatusPaid}
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.CancelledTransition).Return(errs.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(errs.ErrConflict)
 
 		err := s.CancelUnpaid(ctx, orderID)
 
@@ -1413,7 +1413,7 @@ func TestService_ChangeStatus(t *testing.T) {
 		existingOrder := &domain.Order{ID: orderID, Status: domain.StatusPaid}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().UpdateStatus(mock.Anything, orderID, domain.StatusPaid, domain.StatusProcessing).Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToProcessing).Return(nil)
 
 		err := s.ChangeStatus(ctx, orderID, domain.StatusProcessing)
 
@@ -1428,9 +1428,7 @@ func TestService_ChangeStatus(t *testing.T) {
 		existingOrder := &domain.Order{ID: orderID, Status: domain.StatusProcessing}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().
-			UpdateStatus(mock.Anything, orderID, domain.StatusProcessing, domain.StatusShipped).
-			Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToShipped).Return(nil)
 
 		err := s.ChangeStatus(ctx, orderID, domain.StatusShipped)
 
@@ -1493,9 +1491,7 @@ func TestService_ChangeStatus(t *testing.T) {
 		existingOrder := &domain.Order{ID: orderID, Status: domain.StatusPaid}
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
-		d.repo.EXPECT().
-			UpdateStatus(mock.Anything, orderID, domain.StatusPaid, domain.StatusProcessing).
-			Return(errs.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToProcessing).Return(errs.ErrConflict)
 
 		err := s.ChangeStatus(ctx, orderID, domain.StatusProcessing)
 
@@ -1518,7 +1514,7 @@ func TestService_ExpireStale(t *testing.T) {
 		productID := uuid.New()
 
 		d.repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return([]domain.Order{expired}, nil)
-		d.repo.EXPECT().Apply(mock.Anything, expired.ID, domain.ExpiredTransition).Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, expired.ID, domain.ToExpired).Return(nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, expired.ID).
 			Return([]domain.Item{{ProductID: productID, Quantity: 2}}, nil)
 		d.inventory.EXPECT().
@@ -1537,7 +1533,7 @@ func TestService_ExpireStale(t *testing.T) {
 
 		expired := domain.Order{ID: uuid.New()}
 		d.repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return([]domain.Order{expired}, nil)
-		d.repo.EXPECT().Apply(mock.Anything, expired.ID, domain.ExpiredTransition).Return(errs.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, expired.ID, domain.ToExpired).Return(errs.ErrConflict)
 
 		err := s.ExpireStale(ctx)
 		require.NoError(t, err)
@@ -1570,7 +1566,7 @@ func TestService_RecoverStale(t *testing.T) {
 		d.repo.EXPECT().
 			GetStaleProcessingOrders(mock.Anything, StaleProcessingThreshold, mock.Anything).
 			Return([]domain.Order{stale}, nil)
-		d.repo.EXPECT().Apply(mock.Anything, stale.ID, domain.AwaitingPaymentTransition).Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, stale.ID, domain.ToAwaitingPayment).Return(nil)
 
 		require.NoError(t, s.RecoverStale(ctx))
 	})
@@ -1585,7 +1581,7 @@ func TestService_RecoverStale(t *testing.T) {
 			GetStaleProcessingOrders(mock.Anything, StaleProcessingThreshold, mock.Anything).
 			Return([]domain.Order{stale}, nil)
 		d.repo.EXPECT().
-			Apply(mock.Anything, stale.ID, domain.AwaitingPaymentTransition).
+			Apply(mock.Anything, stale.ID, domain.ToAwaitingPayment).
 			Return(errs.ErrConflict)
 
 		require.NoError(t, s.RecoverStale(ctx))
@@ -1616,9 +1612,9 @@ func TestService_Apply(t *testing.T) {
 		t.Parallel()
 
 		s, d := newTestService(t)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.PaidTransition).Return(nil)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToPaid).Return(nil)
 
-		err := s.Apply(ctx, orderID, domain.PaidTransition)
+		err := s.Apply(ctx, orderID, domain.ToPaid)
 
 		assert.NoError(t, err)
 	})
@@ -1627,40 +1623,9 @@ func TestService_Apply(t *testing.T) {
 		t.Parallel()
 
 		s, d := newTestService(t)
-		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.RefundTransition).Return(errs.ErrConflict)
+		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToRefunded).Return(errs.ErrConflict)
 
-		err := s.Apply(ctx, orderID, domain.RefundTransition)
-
-		assert.ErrorIs(t, err, errs.ErrConflict)
-	})
-}
-
-func TestService_UpdateStatus(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-	orderID := uuid.New()
-
-	t.Run("forwards from and to to the dynamic compare-and-set", func(t *testing.T) {
-		t.Parallel()
-
-		s, d := newTestService(t)
-		d.repo.EXPECT().UpdateStatus(mock.Anything, orderID, domain.StatusPaid, domain.StatusProcessing).Return(nil)
-
-		err := s.UpdateStatus(ctx, orderID, domain.StatusPaid, domain.StatusProcessing)
-
-		require.NoError(t, err)
-	})
-
-	t.Run("conflict error propagates", func(t *testing.T) {
-		t.Parallel()
-
-		s, d := newTestService(t)
-		d.repo.EXPECT().
-			UpdateStatus(mock.Anything, orderID, domain.StatusPaid, domain.StatusProcessing).
-			Return(errs.ErrConflict)
-
-		err := s.UpdateStatus(ctx, orderID, domain.StatusPaid, domain.StatusProcessing)
+		err := s.Apply(ctx, orderID, domain.ToRefunded)
 
 		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
@@ -1669,14 +1634,14 @@ func TestService_UpdateStatus(t *testing.T) {
 // TestService_MarkPaid stands in for all eight Mark* methods: each is a
 // one-line forward to Apply with its named Transition, so proving the wiring
 // for one proves the pattern -- the allowed-from set itself is
-// domain/transition_test.go's TestCanTransition_Graph.
+// domain/state_test.go's TestTransitionGraph.
 func TestService_MarkPaid(t *testing.T) {
 	t.Parallel()
 
 	orderID := uuid.New()
 
 	s, d := newTestService(t)
-	d.repo.EXPECT().Apply(mock.Anything, orderID, domain.PaidTransition).Return(nil)
+	d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToPaid).Return(nil)
 
 	require.NoError(t, s.MarkPaid(context.Background(), orderID))
 }

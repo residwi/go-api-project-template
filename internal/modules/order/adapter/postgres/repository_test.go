@@ -581,7 +581,7 @@ func TestPostgresRepository_Apply(t *testing.T) {
 		orderID := seedOrderWith(t, userID, domain.StatusPaid, money.New(1000, "USD")).ID
 		repo := New(database.DB{Primary: testPool})
 
-		err := repo.Apply(context.Background(), orderID, domain.PaidTransition)
+		err := repo.Apply(context.Background(), orderID, domain.ToPaid)
 		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 
@@ -590,39 +590,11 @@ func TestPostgresRepository_Apply(t *testing.T) {
 		orderID := seedOrderWith(t, userID, domain.StatusPaymentProcessing, money.New(1000, "USD")).ID
 		repo := New(database.DB{Primary: testPool})
 
-		require.NoError(t, repo.Apply(context.Background(), orderID, domain.PaidTransition))
+		require.NoError(t, repo.Apply(context.Background(), orderID, domain.ToPaid))
 
 		deducted, reversed := stockFlagsOf(t, orderID)
 		assert.True(t, deducted)
 		assert.False(t, reversed)
-	})
-}
-
-func TestPostgresRepository_UpdateStatus(t *testing.T) {
-	t.Run("transitions to new status", func(t *testing.T) {
-		userID := seedUser(t)
-		orderID := seedOrder(t, userID).ID
-		repo := New(database.DB{Primary: testPool})
-
-		err := repo.UpdateStatus(
-			context.Background(),
-			orderID,
-			domain.StatusAwaitingPayment,
-			domain.StatusPaymentProcessing,
-		)
-		require.NoError(t, err)
-
-		assert.Equal(t, domain.StatusPaymentProcessing, statusOf(t, orderID))
-	})
-
-	t.Run("returns conflict when from-status does not match", func(t *testing.T) {
-		userID := seedUser(t)
-		orderID := seedOrder(t, userID).ID
-		repo := New(database.DB{Primary: testPool})
-
-		// paid is the wrong from-status for an awaiting_payment order.
-		err := repo.UpdateStatus(context.Background(), orderID, domain.StatusPaid, domain.StatusProcessing)
-		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
 }
 
@@ -713,14 +685,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("Apply", func(t *testing.T) {
-		err := New(database.DB{Primary: testPool}).Apply(cancelled(), uuid.New(), domain.PaidTransition)
-		assert.Error(t, err)
-	})
-
-	t.Run("UpdateStatus", func(t *testing.T) {
-		err := New(
-			database.DB{Primary: testPool},
-		).UpdateStatus(cancelled(), uuid.New(), domain.StatusAwaitingPayment, domain.StatusPaid)
+		err := New(database.DB{Primary: testPool}).Apply(cancelled(), uuid.New(), domain.ToPaid)
 		assert.Error(t, err)
 	})
 }

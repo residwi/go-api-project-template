@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/google/uuid"
 
@@ -296,7 +297,16 @@ func (s *Service) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {
 }
 
 func (s *Service) ChangeStatus(ctx context.Context, orderID uuid.UUID, toStatus domain.Status) error {
+	var t domain.Transition
 	switch toStatus {
+	case domain.StatusAwaitingPayment:
+		t = domain.ToAwaitingPayment
+	case domain.StatusProcessing:
+		t = domain.ToProcessing
+	case domain.StatusShipped:
+		t = domain.ToShipped
+	case domain.StatusDelivered:
+		t = domain.ToDelivered
 	case domain.StatusPaid, domain.StatusPaymentProcessing, domain.StatusCancelled,
 		domain.StatusExpired, domain.StatusRefunded, domain.StatusFulfillmentFailed:
 		return fmt.Errorf(
@@ -304,7 +314,8 @@ func (s *Service) ChangeStatus(ctx context.Context, orderID uuid.UUID, toStatus 
 			errs.ErrBadRequest,
 			toStatus,
 		)
-	case domain.StatusAwaitingPayment, domain.StatusProcessing, domain.StatusShipped, domain.StatusDelivered:
+	default:
+		return fmt.Errorf("%w: unknown order status %s", errs.ErrBadRequest, toStatus)
 	}
 
 	order, err := s.repo.GetByID(ctx, orderID)
@@ -312,11 +323,11 @@ func (s *Service) ChangeStatus(ctx context.Context, orderID uuid.UUID, toStatus 
 		return err
 	}
 
-	if !domain.CanTransition(order.Status, toStatus) {
+	if !slices.Contains(t.From, order.Status) {
 		return fmt.Errorf("%w: cannot transition from %s to %s", errs.ErrBadRequest, order.Status, toStatus)
 	}
 
-	return s.UpdateStatus(ctx, orderID, order.Status, toStatus)
+	return s.Apply(ctx, orderID, t)
 }
 
 func (s *Service) ExpireStale(ctx context.Context) error {
@@ -343,7 +354,7 @@ func (s *Service) RecoverStale(ctx context.Context) error {
 		return fmt.Errorf("getting stale processing orders: %w", err)
 	}
 	for _, o := range orders {
-		if err := s.Apply(ctx, o.ID, domain.AwaitingPaymentTransition); err != nil {
+		if err := s.Apply(ctx, o.ID, domain.ToAwaitingPayment); err != nil {
 			if errors.Is(err, errs.ErrConflict) {
 				continue
 			}
@@ -362,49 +373,45 @@ func (s *Service) Apply(ctx context.Context, orderID uuid.UUID, t domain.Transit
 	return s.repo.Apply(ctx, orderID, t)
 }
 
-func (s *Service) UpdateStatus(ctx context.Context, orderID uuid.UUID, from, to domain.Status) error {
-	return s.repo.UpdateStatus(ctx, orderID, from, to)
-}
-
 func (s *Service) MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error {
-	return s.Apply(ctx, orderID, domain.PaymentProcessingTransition)
+	return s.Apply(ctx, orderID, domain.ToPaymentProcessing)
 }
 
 func (s *Service) BeginPaymentAttempt(ctx context.Context, orderID uuid.UUID) error {
-	return s.Apply(ctx, orderID, domain.PaymentAttemptTransition)
+	return s.Apply(ctx, orderID, domain.ToPaymentAttempt)
 }
 
 func (s *Service) MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error {
-	return s.Apply(ctx, orderID, domain.AwaitingPaymentTransition)
+	return s.Apply(ctx, orderID, domain.ToAwaitingPayment)
 }
 
 func (s *Service) MarkPaid(ctx context.Context, orderID uuid.UUID) error {
-	return s.Apply(ctx, orderID, domain.PaidTransition)
+	return s.Apply(ctx, orderID, domain.ToPaid)
 }
 
 func (s *Service) MarkFulfillmentFailedAfterCharge(ctx context.Context, orderID uuid.UUID) error {
-	return s.Apply(ctx, orderID, domain.FulfillmentFailedAfterChargeTransition)
+	return s.Apply(ctx, orderID, domain.ToFulfillmentFailedAfterCharge)
 }
 
 func (s *Service) MarkFulfillmentFailedCompensating(ctx context.Context, orderID uuid.UUID) error {
-	return s.Apply(ctx, orderID, domain.FulfillmentFailedCompensatingTransition)
+	return s.Apply(ctx, orderID, domain.ToFulfillmentFailedCompensating)
 }
 
 func (s *Service) MarkRefunded(ctx context.Context, orderID uuid.UUID) error {
-	return s.Apply(ctx, orderID, domain.RefundTransition)
+	return s.Apply(ctx, orderID, domain.ToRefunded)
 }
 
 func (s *Service) MarkShipped(ctx context.Context, orderID uuid.UUID) error {
-	return s.Apply(ctx, orderID, domain.ShippedTransition)
+	return s.Apply(ctx, orderID, domain.ToShipped)
 }
 
 func (s *Service) MarkDelivered(ctx context.Context, orderID uuid.UUID) error {
-	return s.Apply(ctx, orderID, domain.DeliveredTransition)
+	return s.Apply(ctx, orderID, domain.ToDelivered)
 }
 
 func (s *Service) finalizeFreeOrder(ctx context.Context, order *domain.Order) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
-		if err := s.Apply(txCtx, order.ID, domain.PaidTransition); err != nil {
+		if err := s.Apply(txCtx, order.ID, domain.ToPaid); err != nil {
 			return err
 		}
 		deductions := make(map[uuid.UUID]int, len(order.Items))
@@ -418,7 +425,7 @@ func (s *Service) finalizeFreeOrder(ctx context.Context, order *domain.Order) er
 //nolint:gocognit // the single cancel path: guarded status CAS, conditional stock reversal (release vs restock vs skip), and best-effort coupon release
 func (s *Service) cancelWithReversal(ctx context.Context, order *domain.Order) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
-		if txErr := s.Apply(txCtx, order.ID, domain.CancelledTransition); txErr != nil {
+		if txErr := s.Apply(txCtx, order.ID, domain.ToCancelled); txErr != nil {
 			if errors.Is(txErr, errs.ErrConflict) {
 				return fmt.Errorf("%w: cannot cancel order in status %s", errs.ErrBadRequest, order.Status)
 			}
@@ -456,7 +463,7 @@ func (s *Service) cancelWithReversal(ctx context.Context, order *domain.Order) e
 
 func (s *Service) expireOne(ctx context.Context, o domain.Order) error {
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
-		if err := s.Apply(txCtx, o.ID, domain.ExpiredTransition); err != nil {
+		if err := s.Apply(txCtx, o.ID, domain.ToExpired); err != nil {
 			if errors.Is(err, errs.ErrConflict) {
 				return nil
 			}

@@ -362,29 +362,13 @@ func (r *Repository) Apply(ctx context.Context, id uuid.UUID, t domain.Transitio
 		        stock_deducted = stock_deducted OR $4,
 		        stock_reversed = stock_reversed OR $5
 		WHERE id = $2 AND status = ANY($3) RETURNING id`,
-		t.To, id, t.From, t.SetsStockDeducted, t.SetsStockReversed,
+		t.To, id, t.From, t.DeductsStock(), t.ReversesStock(),
 	).Scan(&returnedID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errs.ErrConflict
 		}
 		return fmt.Errorf("applying order transition: %w", err)
-	}
-	return nil
-}
-
-func (r *Repository) UpdateStatus(ctx context.Context, id uuid.UUID, from, to domain.Status) error {
-	db := database.PrimaryDB(ctx, r.db)
-	var returnedID uuid.UUID
-	err := db.QueryRow(ctx,
-		`UPDATE orders SET status = $1 WHERE id = $2 AND status = $3 RETURNING id`,
-		to, id, from,
-	).Scan(&returnedID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return errs.ErrConflict
-		}
-		return fmt.Errorf("updating order status: %w", err)
 	}
 	return nil
 }
