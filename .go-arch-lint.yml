@@ -1,0 +1,51 @@
+version: 3
+workdir: .
+allow:
+  depOnAnyVendor: true
+  deepScan: false
+excludeFiles:
+  - "^.*_test\\.go$"
+
+components:
+  cmd-api:     { in: cmd/api }
+  cmd-worker:  { in: cmd/worker }
+  cmd-mock:    { in: cmd/mockgateway/** }
+
+  app:         { in: internal/app }
+  server:      { in: internal/server }
+  worker:      { in: internal/worker }
+  config:      { in: internal/config }
+  testutil:    { in: internal/testutil }
+  money:       { in: internal/money }
+  apperror:    { in: internal/apperror }
+
+  pf-vocab:    { in: [ internal/platform/errs, internal/platform/paging, internal/platform/slug ] }
+  pf-tx:       { in: [ internal/platform/database, internal/platform/logger ] }
+  pf-io:       { in: [ internal/platform/cache, internal/platform/queue, internal/platform/storage, internal/platform/web, internal/platform/web/** ] }
+
+  ft-domain:   { in: internal/features/*/domain/** }
+  ft-core:     { in: internal/features/* }
+  ft-port:     { in: internal/features/*/adapter/gateway }
+  ft-adapter:  { in: internal/features/*/adapter/** }
+
+commonComponents:
+  - money
+  - apperror
+  - pf-vocab
+
+deps:
+  cmd-api:    { mayDependOn: [ server ] }
+  cmd-worker: { mayDependOn: [ worker ] }
+  cmd-mock:   { mayDependOn: [ cmd-mock, ft-adapter ] }
+
+  app:      { mayDependOn: [ config, ft-core, ft-adapter, pf-tx, pf-io ] }
+  server:   { mayDependOn: [ app, config, cmd-mock, ft-core, ft-adapter, pf-tx, pf-io ] }
+  worker:   { mayDependOn: [ app, config, ft-core, ft-adapter, pf-tx, pf-io ] }
+  testutil: { mayDependOn: [ pf-tx, pf-io ] }
+
+  pf-tx:    { mayDependOn: [ pf-tx ] }
+  pf-io:    { mayDependOn: [ pf-io, pf-tx ] }
+
+  ft-domain:  { mayDependOn: [ ft-domain, ft-core ] }
+  ft-core:    { mayDependOn: [ ft-core, ft-domain, ft-port, pf-tx ] }
+  ft-adapter: { mayDependOn: [ ft-adapter, ft-port, ft-core, ft-domain, pf-tx, pf-io ] }

@@ -91,6 +91,14 @@ lint: ## Run linter
 check-boundaries: ## Check architectural boundaries (wire tags, table ownership, adapter imports)
 	@./scripts/check-boundaries.sh
 
+.PHONY: check-arch
+check-arch: ## Check layer dependencies (domain -> core -> adapter) via go-arch-lint
+	@if ! command -v go-arch-lint > /dev/null; then \
+		echo "Installing go-arch-lint..."; \
+		go install github.com/fe3dback/go-arch-lint@latest; \
+	fi
+	@go-arch-lint check
+
 .PHONY: fmt
 fmt: ## Format code
 	@echo "Formatting..."
