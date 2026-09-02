@@ -87,10 +87,6 @@ lint: ## Run linter
 		golangci-lint run ./...; \
 	fi
 
-.PHONY: check-boundaries
-check-boundaries: ## Check architectural boundaries (wire tags, table ownership, adapter imports)
-	@./scripts/check-boundaries.sh
-
 .PHONY: check-arch
 check-arch: ## Check layer dependencies (domain -> core -> adapter) via go-arch-lint
 	@if ! command -v go-arch-lint > /dev/null; then \
@@ -233,10 +229,10 @@ mocks: ## Generate mocks
 	mockery
 
 .PHONY: all
-all: fmt vet check-boundaries lint test build ## Run all checks and build
+all: fmt vet check-arch lint test build ## Run all checks and build
 
 .PHONY: ci
-ci: deps fmt vet lint test ## Run CI pipeline
+ci: deps fmt vet check-arch lint test ## Run CI pipeline
 
 .PHONY: test-clean
 test-clean: ## Remove shared test containers (postgres + redis)

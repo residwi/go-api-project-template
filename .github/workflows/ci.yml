@@ -23,8 +23,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Check architectural boundaries
-        run: make check-boundaries
+      - name: Check architectural layers
+        run: make check-arch
 
       - uses: golangci/golangci-lint-action@v9
         with:
