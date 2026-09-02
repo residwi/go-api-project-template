@@ -210,9 +210,11 @@ proposing a feature that crosses a module boundary.
 
 ## When not to copy this
 
-This tree pays for boundaries a script can enforce because it is a template
+This tree pays for boundaries a linter can enforce because it is a template
 and the structure is the lesson. A product codebase with one team, one
 deployable and no copies downstream will find several of these decisions —
 the adapter package split, the consumer-declared ports, the per-module table
-ownership — cost more than they return. Take the checks and the ownership
-document first; they are the parts that keep working when nobody is watching.
+ownership — cost more than they return. Take the layer rules in
+`.go-arch-lint.yml` first: they are what keeps working when nobody is
+watching, and unlike the deleted checks, they need no per-project data file
+to maintain.
