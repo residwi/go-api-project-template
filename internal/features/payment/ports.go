@@ -7,13 +7,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/features/order"
-	"github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway"
 )
-
-type Gateway interface {
-	Charge(ctx context.Context, req gateway.ChargeRequest) (gateway.ChargeResponse, error)
-	Refund(ctx context.Context, req gateway.RefundRequest) (gateway.RefundResponse, error)
-}
 
 type Orders interface {
 	MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error

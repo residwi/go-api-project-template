@@ -14,7 +14,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
-	"github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway"
 	"github.com/residwi/go-api-project-template/internal/features/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
@@ -79,7 +78,7 @@ func (s *Service) Charge(ctx context.Context, req ChargeRequest) (ChargeResult, 
 		}
 	}
 
-	chargeReq := gateway.ChargeRequest{
+	chargeReq := GatewayChargeRequest{
 		IdempotencyKey:  p.ID.String(),
 		OrderID:         req.OrderID.String(),
 		Amount:          req.Amount.Amount,
@@ -100,8 +99,7 @@ func (s *Service) Charge(ctx context.Context, req ChargeRequest) (ChargeResult, 
 		return ChargeResult{PaymentID: p.ID}, fmt.Errorf("gateway charge: %w", err)
 	}
 
-	respJSON, _ := json.Marshal(resp)
-	if err := s.repo.UpdateGateway(ctx, p.ID, resp.TransactionID, respJSON); err != nil {
+	if err := s.repo.UpdateGateway(ctx, p.ID, resp.TransactionID, resp); err != nil {
 		s.logger.ErrorContext(ctx, "failed to update gateway info", slog.String("error", err.Error()))
 	}
 
@@ -429,7 +427,7 @@ func (s *Service) SettleRefund(ctx context.Context, paymentID, orderID uuid.UUID
 		slog.String("currency", p.Amount.Currency),
 	)
 
-	resp, gwErr := s.gateway.Refund(ctx, gateway.RefundRequest{
+	resp, gwErr := s.gateway.Refund(ctx, GatewayRefundRequest{
 		IdempotencyKey: p.ID.String(),
 		TransactionID:  p.GatewayTxnID,
 		Amount:         p.Amount.Amount,

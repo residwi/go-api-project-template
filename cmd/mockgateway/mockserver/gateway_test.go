@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway"
+	gatewaymock "github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway/mock"
 )
 
 func TestHandleCharge(t *testing.T) {
@@ -29,7 +29,7 @@ func TestHandleCharge(t *testing.T) {
 		mux.ServeHTTP(w, req)
 
 		require.Equal(t, http.StatusOK, w.Code)
-		var resp gateway.ChargeResponse
+		var resp gatewaymock.ChargeResponse
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.Equal(t, "success", resp.Status)
 		assert.NotEmpty(t, resp.TransactionID)
@@ -48,7 +48,7 @@ func TestHandleCharge(t *testing.T) {
 		mux.ServeHTTP(w, req)
 
 		require.Equal(t, http.StatusOK, w.Code)
-		var resp gateway.ChargeResponse
+		var resp gatewaymock.ChargeResponse
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.Equal(t, "failed", resp.Status)
 	})
@@ -65,7 +65,7 @@ func TestHandleCharge(t *testing.T) {
 		mux.ServeHTTP(w, req)
 
 		require.Equal(t, http.StatusOK, w.Code)
-		var resp gateway.ChargeResponse
+		var resp gatewaymock.ChargeResponse
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.Equal(t, "pending", resp.Status)
 		assert.NotEmpty(t, resp.PaymentURL)
@@ -82,7 +82,7 @@ func TestHandleCharge(t *testing.T) {
 		w1 := httptest.NewRecorder()
 		mux.ServeHTTP(w1, req1)
 
-		var resp1 gateway.ChargeResponse
+		var resp1 gatewaymock.ChargeResponse
 		require.NoError(t, json.NewDecoder(w1.Body).Decode(&resp1))
 
 		req2 := httptest.NewRequest(http.MethodPost, "/mock/payment/charge", strings.NewReader(body))
@@ -90,7 +90,7 @@ func TestHandleCharge(t *testing.T) {
 		w2 := httptest.NewRecorder()
 		mux.ServeHTTP(w2, req2)
 
-		var resp2 gateway.ChargeResponse
+		var resp2 gatewaymock.ChargeResponse
 		require.NoError(t, json.NewDecoder(w2.Body).Decode(&resp2))
 
 		assert.Equal(t, resp1, resp2)
@@ -125,7 +125,7 @@ func TestHandleRefund(t *testing.T) {
 		mux.ServeHTTP(w, req)
 
 		require.Equal(t, http.StatusOK, w.Code)
-		var resp gateway.RefundResponse
+		var resp gatewaymock.RefundResponse
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.Equal(t, "success", resp.Status)
 		assert.NotEmpty(t, resp.RefundID)

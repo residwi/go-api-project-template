@@ -25,7 +25,6 @@ components:
 
   ft-domain:   { in: internal/features/*/domain/** }
   ft-core:     { in: internal/features/* }
-  ft-port:     { in: internal/features/*/adapter/gateway }
   ft-adapter:  { in: internal/features/*/adapter/** }
 
 commonComponents:
@@ -47,5 +46,5 @@ deps:
   pf-io:    { mayDependOn: [ pf-io, pf-tx ] }
 
   ft-domain:  { mayDependOn: [ ft-domain, ft-core ] }
-  ft-core:    { mayDependOn: [ ft-core, ft-domain, ft-port, pf-tx ] }
-  ft-adapter: { mayDependOn: [ ft-adapter, ft-port, ft-core, ft-domain, pf-tx, pf-io ] }
+  ft-core:    { mayDependOn: [ ft-core, ft-domain, pf-tx ] }
+  ft-adapter: { mayDependOn: [ ft-adapter, ft-core, ft-domain, pf-tx, pf-io ] }

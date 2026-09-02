@@ -14,7 +14,7 @@ type Repository interface {
 	GetActiveByOrderID(ctx context.Context, orderID uuid.UUID) (*domain.Payment, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.Payment, error)
 	GetByGatewayTxnID(ctx context.Context, txnID string) (*domain.Payment, error)
-	UpdateGateway(ctx context.Context, id uuid.UUID, txnID string, response []byte) error
+	UpdateGateway(ctx context.Context, id uuid.UUID, txnID string, response GatewayChargeResponse) error
 	UpdatePaymentURL(ctx context.Context, id uuid.UUID, paymentURL string) error
 	ClearPaymentURL(ctx context.Context, id uuid.UUID) error
 	MarkPaid(ctx context.Context, id uuid.UUID, fromStatuses []domain.Status) error

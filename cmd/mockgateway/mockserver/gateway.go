@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway"
+	gatewaymock "github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway/mock"
 )
 
 type Option func(*mockServer)
@@ -22,14 +22,14 @@ type Option func(*mockServer)
 const statusSuccess = "success"
 
 type chargeRecord struct {
-	Response gateway.ChargeResponse
+	Response gatewaymock.ChargeResponse
 	Metadata map[string]string
 }
 
 type mockServer struct {
 	mu            sync.Mutex
 	charges       map[string]chargeRecord
-	refunds       map[string]gateway.RefundResponse
+	refunds       map[string]gatewaymock.RefundResponse
 	webhookSecret string
 	logger        *slog.Logger
 }
@@ -41,7 +41,7 @@ func WithWebhookSecret(secret string) Option {
 func RegisterRoutes(mux *http.ServeMux, log *slog.Logger, opts ...Option) {
 	s := &mockServer{
 		charges: make(map[string]chargeRecord),
-		refunds: make(map[string]gateway.RefundResponse),
+		refunds: make(map[string]gatewaymock.RefundResponse),
 		logger:  log,
 	}
 	for _, opt := range opts {
@@ -53,7 +53,7 @@ func RegisterRoutes(mux *http.ServeMux, log *slog.Logger, opts ...Option) {
 }
 
 func (s *mockServer) handleCharge(w http.ResponseWriter, r *http.Request) {
-	var req gateway.ChargeRequest
+	var req gatewaymock.ChargeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -68,22 +68,22 @@ func (s *mockServer) handleCharge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	txnID := uuid.New().String()
-	var resp gateway.ChargeResponse
+	var resp gatewaymock.ChargeResponse
 
 	if req.PaymentMethodID != "" {
 		if req.Amount%100 == 99 { //nolint:mnd // sentinel test value
-			resp = gateway.ChargeResponse{
+			resp = gatewaymock.ChargeResponse{
 				TransactionID: txnID,
 				Status:        "failed",
 			}
 		} else {
-			resp = gateway.ChargeResponse{
+			resp = gatewaymock.ChargeResponse{
 				TransactionID: txnID,
 				Status:        statusSuccess,
 			}
 		}
 	} else {
-		resp = gateway.ChargeResponse{
+		resp = gatewaymock.ChargeResponse{
 			TransactionID: txnID,
 			Status:        "pending",
 			PaymentURL:    fmt.Sprintf("http://localhost:8080/mock/payment/checkout/%s", txnID),
@@ -99,7 +99,7 @@ func (s *mockServer) handleCharge(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *mockServer) handleRefund(w http.ResponseWriter, r *http.Request) {
-	var req gateway.RefundRequest
+	var req gatewaymock.RefundRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -115,7 +115,7 @@ func (s *mockServer) handleRefund(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	resp := gateway.RefundResponse{
+	resp := gatewaymock.RefundResponse{
 		RefundID: uuid.New().String(),
 		Status:   statusSuccess,
 	}

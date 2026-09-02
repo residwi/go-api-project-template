@@ -208,15 +208,14 @@ And the feature rings:
 | Component | Glob | May import |
 | --- | --- | --- |
 | `ft-domain` | `internal/features/*/domain/**` | `ft-domain`, `ft-core` |
-| `ft-core` | `internal/features/*` | `ft-core`, `ft-domain`, `ft-port`, `pf-tx` |
-| `ft-port` | `internal/features/*/adapter/gateway` | — |
+| `ft-core` | `internal/features/*` | `ft-core`, `ft-domain`, `pf-tx` |
 | `ft-adapter` | `internal/features/*/adapter/**` | everything |
 
 `money`, `apperror` and `pf-vocab` are common components: every ring may import all three, and they import nothing of ours.
 
 So four things fail the build: a feature importing `internal/server`; a `Service` importing `platform/web`, `platform/queue`, `platform/cache` or `platform/storage`; a `domain/` package reaching for `database`; and **a `Service` importing its own adapter**, which is the one that matters most — a service depends on the port it declares, never on the thing that implements it.
 
-`ft-domain` may name `ft-core` because a domain type legitimately names another feature's `contract.go` type: `auth/domain/token.go` holds a `user.Profile`, `product/domain/product.go` holds an `inventory.Availability`. `ft-port` exists so `payment/ports.go` may name `gateway.ChargeRequest` — the external gateway's wire shapes belong in the adapter tree, while `adapter/gateway/{stripe,midtrans,mock}` stays out of the core.
+`ft-domain` may name `ft-core` because a domain type legitimately names another feature's `contract.go` type: `auth/domain/token.go` holds a `user.Profile`, `product/domain/product.go` holds an `inventory.Availability`. An outbound port and the types its signatures name both live in the module root, beside `queue.go` and `channel.go`: `payment/gateway.go` holds `Gateway` and its `GatewayChargeRequest`/`GatewayChargeResponse` pair, and `adapter/gateway/{stripe,midtrans,mock}` implement it. A port written in adapter types would force the core to import an adapter, which is the one thing these rules exist to prevent.
 
 A component whose glob matches no directory is a hard config error, so the config cannot drift from the tree. What it does not see: anything that is not an import. `cmd/` is in scope; `_test.go` files are not.
 

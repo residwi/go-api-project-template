@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway"
+	"github.com/residwi/go-api-project-template/internal/features/payment"
 )
 
 func TestGateway_Charge(t *testing.T) {
@@ -20,7 +20,7 @@ func TestGateway_Charge(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		want := gateway.ChargeResponse{
+		want := payment.GatewayChargeResponse{
 			TransactionID: "txn_123",
 			Status:        "success",
 			PaymentURL:    "https://example.com/pay",
@@ -31,19 +31,19 @@ func TestGateway_Charge(t *testing.T) {
 			assert.Equal(t, http.MethodPost, r.Method)
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
-			var req gateway.ChargeRequest
+			var req ChargeRequest
 			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req)) {
 				return
 			}
 			assert.Equal(t, "order_1", req.OrderID)
 
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(want)
+			json.NewEncoder(w).Encode(wireOf(want))
 		}))
 		defer ts.Close()
 
 		gw := New(ts.URL, 5*time.Second)
-		got, err := gw.Charge(context.Background(), gateway.ChargeRequest{
+		got, err := gw.Charge(context.Background(), payment.GatewayChargeRequest{
 			IdempotencyKey:  "key_1",
 			OrderID:         "order_1",
 			Amount:          5000,
@@ -64,7 +64,7 @@ func TestGateway_Charge(t *testing.T) {
 		defer ts.Close()
 
 		gw := New(ts.URL, 5*time.Second)
-		_, err := gw.Charge(context.Background(), gateway.ChargeRequest{
+		_, err := gw.Charge(context.Background(), payment.GatewayChargeRequest{
 			OrderID: "order_1",
 			Amount:  5000,
 		})
@@ -83,7 +83,7 @@ func TestGateway_Charge(t *testing.T) {
 		defer ts.Close()
 
 		gw := New(ts.URL, 5*time.Second)
-		_, err := gw.Charge(context.Background(), gateway.ChargeRequest{
+		_, err := gw.Charge(context.Background(), payment.GatewayChargeRequest{
 			OrderID: "order_1",
 			Amount:  5000,
 		})
@@ -96,7 +96,7 @@ func TestGateway_Charge(t *testing.T) {
 		t.Parallel()
 
 		gw := New("http://127.0.0.1:1", 1*time.Second)
-		_, err := gw.Charge(context.Background(), gateway.ChargeRequest{
+		_, err := gw.Charge(context.Background(), payment.GatewayChargeRequest{
 			OrderID: "order_1",
 			Amount:  5000,
 		})
@@ -109,7 +109,7 @@ func TestGateway_Charge(t *testing.T) {
 		t.Parallel()
 
 		gw := New("http://invalid\x7furl", 1*time.Second)
-		_, err := gw.Charge(context.Background(), gateway.ChargeRequest{
+		_, err := gw.Charge(context.Background(), payment.GatewayChargeRequest{
 			OrderID: "order_1",
 			Amount:  5000,
 		})
@@ -125,7 +125,7 @@ func TestGateway_Refund(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		want := gateway.RefundResponse{
+		want := payment.GatewayRefundResponse{
 			RefundID: "ref_456",
 			Status:   "success",
 		}
@@ -135,19 +135,19 @@ func TestGateway_Refund(t *testing.T) {
 			assert.Equal(t, http.MethodPost, r.Method)
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
-			var req gateway.RefundRequest
+			var req RefundRequest
 			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req)) {
 				return
 			}
 			assert.Equal(t, "txn_123", req.TransactionID)
 
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(want)
+			json.NewEncoder(w).Encode(refundWireOf(want))
 		}))
 		defer ts.Close()
 
 		gw := New(ts.URL, 5*time.Second)
-		got, err := gw.Refund(context.Background(), gateway.RefundRequest{
+		got, err := gw.Refund(context.Background(), payment.GatewayRefundRequest{
 			TransactionID: "txn_123",
 			Amount:        2500,
 			Reason:        "customer request",
@@ -166,7 +166,7 @@ func TestGateway_Refund(t *testing.T) {
 		defer ts.Close()
 
 		gw := New(ts.URL, 5*time.Second)
-		_, err := gw.Refund(context.Background(), gateway.RefundRequest{
+		_, err := gw.Refund(context.Background(), payment.GatewayRefundRequest{
 			TransactionID: "txn_123",
 			Amount:        2500,
 		})
@@ -185,7 +185,7 @@ func TestGateway_Refund(t *testing.T) {
 		defer ts.Close()
 
 		gw := New(ts.URL, 5*time.Second)
-		_, err := gw.Refund(context.Background(), gateway.RefundRequest{
+		_, err := gw.Refund(context.Background(), payment.GatewayRefundRequest{
 			TransactionID: "txn_123",
 			Amount:        2500,
 		})
@@ -198,7 +198,7 @@ func TestGateway_Refund(t *testing.T) {
 		t.Parallel()
 
 		gw := New("http://127.0.0.1:1", 1*time.Second)
-		_, err := gw.Refund(context.Background(), gateway.RefundRequest{
+		_, err := gw.Refund(context.Background(), payment.GatewayRefundRequest{
 			TransactionID: "txn_123",
 			Amount:        2500,
 		})
@@ -211,7 +211,7 @@ func TestGateway_Refund(t *testing.T) {
 		t.Parallel()
 
 		gw := New("http://invalid\x7furl", 1*time.Second)
-		_, err := gw.Refund(context.Background(), gateway.RefundRequest{
+		_, err := gw.Refund(context.Background(), payment.GatewayRefundRequest{
 			TransactionID: "txn_123",
 			Amount:        2500,
 		})

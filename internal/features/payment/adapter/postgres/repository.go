@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -132,11 +133,25 @@ func (r *Repository) UpdateStatus(
 	return nil
 }
 
-func (r *Repository) UpdateGateway(ctx context.Context, id uuid.UUID, txnID string, response []byte) error {
+func (r *Repository) UpdateGateway(
+	ctx context.Context,
+	id uuid.UUID,
+	txnID string,
+	response payment.GatewayChargeResponse,
+) error {
+	stored, err := json.Marshal(gatewayResponse{
+		TransactionID: response.TransactionID,
+		Status:        response.Status,
+		PaymentURL:    response.PaymentURL,
+	})
+	if err != nil {
+		return fmt.Errorf("marshaling gateway response: %w", err)
+	}
+
 	db := database.PrimaryDB(ctx, r.db)
-	_, err := db.Exec(ctx,
+	_, err = db.Exec(ctx,
 		`UPDATE payments SET gateway_txn_id = $1, gateway_response = $2 WHERE id = $3`,
-		txnID, response, id,
+		txnID, stored, id,
 	)
 	if err != nil {
 		return fmt.Errorf("updating gateway info: %w", err)

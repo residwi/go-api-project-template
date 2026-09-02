@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway"
+	"github.com/residwi/go-api-project-template/internal/features/payment"
 )
 
 type Gateway struct {
@@ -21,10 +21,10 @@ func New(apiKey string, timeout time.Duration) *Gateway {
 	}
 }
 
-func (g *Gateway) Charge(_ context.Context, _ gateway.ChargeRequest) (gateway.ChargeResponse, error) {
-	return gateway.ChargeResponse{}, errors.New("midtrans: not implemented")
+func (g *Gateway) Charge(_ context.Context, _ payment.GatewayChargeRequest) (payment.GatewayChargeResponse, error) {
+	return payment.GatewayChargeResponse{}, errors.New("midtrans: not implemented")
 }
 
-func (g *Gateway) Refund(_ context.Context, _ gateway.RefundRequest) (gateway.RefundResponse, error) {
-	return gateway.RefundResponse{}, errors.New("midtrans: not implemented")
+func (g *Gateway) Refund(_ context.Context, _ payment.GatewayRefundRequest) (payment.GatewayRefundResponse, error) {
+	return payment.GatewayRefundResponse{}, errors.New("midtrans: not implemented")
 }

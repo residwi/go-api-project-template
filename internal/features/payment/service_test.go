@@ -17,7 +17,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/features/order"
-	"github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway"
 	"github.com/residwi/go-api-project-template/internal/features/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
@@ -53,12 +52,12 @@ func TestService_Charge(t *testing.T) {
 			}).
 			Return(nil)
 
-		d.gateway.EXPECT().Charge(mock.Anything, mock.MatchedBy(func(r gateway.ChargeRequest) bool {
+		d.gateway.EXPECT().Charge(mock.Anything, mock.MatchedBy(func(r GatewayChargeRequest) bool {
 			return r.OrderID == orderID.String() &&
 				r.Amount == 10000 &&
 				r.Currency == "USD" &&
 				r.PaymentMethodID == "pm_test_123"
-		})).Return(gateway.ChargeResponse{
+		})).Return(GatewayChargeResponse{
 			TransactionID: "txn_abc",
 			Status:        "success",
 		}, nil)
@@ -121,9 +120,9 @@ func TestService_Charge(t *testing.T) {
 		d.repo.EXPECT().GetActiveByOrderID(mock.Anything, orderID).
 			Return(existing, nil)
 
-		d.gateway.EXPECT().Charge(mock.Anything, mock.MatchedBy(func(r gateway.ChargeRequest) bool {
+		d.gateway.EXPECT().Charge(mock.Anything, mock.MatchedBy(func(r GatewayChargeRequest) bool {
 			return r.IdempotencyKey == existingID.String()
-		})).Return(gateway.ChargeResponse{
+		})).Return(GatewayChargeResponse{
 			TransactionID: "txn_existing",
 			Status:        "success",
 		}, nil)
@@ -178,7 +177,7 @@ func TestService_Charge(t *testing.T) {
 			Return(nil)
 
 		d.gateway.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(GatewayChargeResponse{
 				TransactionID: "txn_pending",
 				Status:        "pending",
 				PaymentURL:    "https://pay.example.com/redirect",
@@ -214,7 +213,7 @@ func TestService_Charge(t *testing.T) {
 			Return(nil)
 
 		d.gateway.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(GatewayChargeResponse{
 				TransactionID: "txn_no_url",
 				Status:        "pending",
 			}, nil)
@@ -246,7 +245,7 @@ func TestService_Charge(t *testing.T) {
 			Return(nil)
 
 		d.gateway.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{}, errors.New("gateway timeout"))
+			Return(GatewayChargeResponse{}, errors.New("gateway timeout"))
 
 		result, err := svc.Charge(ctx, req)
 
@@ -316,7 +315,7 @@ func TestService_Charge_UpdateGatewayError(t *testing.T) {
 			Return(nil)
 
 		d.gateway.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(GatewayChargeResponse{
 				TransactionID: "txn_gw_err",
 				Status:        "success",
 			}, nil)
@@ -370,7 +369,7 @@ func TestService_Charge_UpdateGatewayError(t *testing.T) {
 			Return(nil)
 
 		d.gateway.EXPECT().Charge(mock.Anything, mock.Anything).
-			Return(gateway.ChargeResponse{
+			Return(GatewayChargeResponse{
 				TransactionID: "txn_url_err",
 				Status:        "pending",
 				PaymentURL:    "https://pay.example.com/url-err",
@@ -946,12 +945,12 @@ func TestService_SettleRefund(t *testing.T) {
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).
 			Return(p, nil)
 
-		d.gateway.EXPECT().Refund(mock.Anything, gateway.RefundRequest{
+		d.gateway.EXPECT().Refund(mock.Anything, GatewayRefundRequest{
 			IdempotencyKey: paymentID.String(),
 			TransactionID:  "txn_123",
 			Amount:         5000,
 			Reason:         "auto-refund",
-		}).Return(gateway.RefundResponse{RefundID: "ref_001"}, nil)
+		}).Return(GatewayRefundResponse{RefundID: "ref_001"}, nil)
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, paymentID, domain.StatusRefunded,
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
@@ -997,12 +996,12 @@ func TestService_SettleRefund(t *testing.T) {
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).
 			Return(p, nil)
 
-		d.gateway.EXPECT().Refund(mock.Anything, gateway.RefundRequest{
+		d.gateway.EXPECT().Refund(mock.Anything, GatewayRefundRequest{
 			IdempotencyKey: paymentID.String(),
 			TransactionID:  "txn_456",
 			Amount:         8000,
 			Reason:         "auto-refund",
-		}).Return(gateway.RefundResponse{RefundID: "ref_002"}, nil)
+		}).Return(GatewayRefundResponse{RefundID: "ref_002"}, nil)
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, paymentID, domain.StatusRefunded,
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
@@ -1099,7 +1098,7 @@ func TestService_SettleRefund(t *testing.T) {
 			Return(p, nil)
 
 		d.gateway.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{}, errors.New("gateway timeout"))
+			Return(GatewayRefundResponse{}, errors.New("gateway timeout"))
 
 		err := svc.SettleRefund(context.Background(), paymentID, orderID)
 		require.Error(t, err)
@@ -1127,7 +1126,7 @@ func TestService_SettleRefund(t *testing.T) {
 			Return(p, nil)
 
 		d.gateway.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{RefundID: "ref_items_err"}, nil)
+			Return(GatewayRefundResponse{RefundID: "ref_items_err"}, nil)
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, paymentID, domain.StatusRefunded,
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
@@ -1167,7 +1166,7 @@ func TestService_SettleRefund(t *testing.T) {
 			Return(p, nil)
 
 		d.gateway.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{RefundID: "ref_multi"}, nil)
+			Return(GatewayRefundResponse{RefundID: "ref_multi"}, nil)
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, paymentID, domain.StatusRefunded,
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
@@ -1212,7 +1211,7 @@ func TestService_SettleRefund(t *testing.T) {
 			Return(p, nil)
 
 		d.gateway.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{RefundID: "ref_rel_err"}, nil)
+			Return(GatewayRefundResponse{RefundID: "ref_rel_err"}, nil)
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, paymentID, domain.StatusRefunded,
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
@@ -1256,7 +1255,7 @@ func TestService_SettleRefund(t *testing.T) {
 			Return(p, nil)
 
 		d.gateway.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{RefundID: "ref_restock_err"}, nil)
+			Return(GatewayRefundResponse{RefundID: "ref_restock_err"}, nil)
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, paymentID, domain.StatusRefunded,
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).
@@ -1300,7 +1299,7 @@ func TestService_SettleRefund(t *testing.T) {
 			Return(p, nil)
 
 		d.gateway.EXPECT().Refund(mock.Anything, mock.Anything).
-			Return(gateway.RefundResponse{RefundID: "ref_coupon_err"}, nil)
+			Return(GatewayRefundResponse{RefundID: "ref_coupon_err"}, nil)
 
 		d.repo.EXPECT().UpdateStatus(mock.Anything, paymentID, domain.StatusRefunded,
 			[]domain.Status{domain.StatusSuccess, domain.StatusRequiresReview}).

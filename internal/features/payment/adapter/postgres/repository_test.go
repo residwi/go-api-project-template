@@ -171,7 +171,7 @@ func TestPostgresRepository_GetActiveByOrderID_WithNullableFields(t *testing.T) 
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
-		require.NoError(t, repo.UpdateGateway(ctx, p.ID, "txn-charge-active-test", []byte(`{}`)))
+		require.NoError(t, repo.UpdateGateway(ctx, p.ID, "txn-charge-active-test", payment.GatewayChargeResponse{}))
 		require.NoError(t, repo.UpdatePaymentURL(ctx, p.ID, "https://pay.example.com/active"))
 		_, err := testPool.Exec(ctx,
 			`UPDATE payments SET payment_method_id = $1 WHERE id = $2`, "pm_charge_active_test", p.ID)
@@ -195,14 +195,21 @@ func TestPostgresRepository_UpdateGateway(t *testing.T) {
 		ctx := context.Background()
 
 		txnID := "gw-txn-charge-" + uuid.New().String()
-		response := []byte(`{"code":200}`)
+		response := payment.GatewayChargeResponse{
+			TransactionID: txnID,
+			Status:        "success",
+			PaymentURL:    "https://pay.example.com/done",
+		}
 		err := repo.UpdateGateway(ctx, p.ID, txnID, response)
 		require.NoError(t, err)
 
 		got, err := repo.GetActiveByOrderID(ctx, orderID)
 		require.NoError(t, err)
 		assert.Equal(t, txnID, got.GatewayTxnID)
-		assert.JSONEq(t, string(response), string(got.GatewayResponse))
+		assert.JSONEq(t,
+			`{"transaction_id":"`+txnID+`","status":"success","payment_url":"https://pay.example.com/done"}`,
+			string(got.GatewayResponse),
+		)
 	})
 }
 
@@ -426,7 +433,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("UpdateGateway", func(t *testing.T) {
-		err := repo.UpdateGateway(cancelledCtx, uuid.New(), "txn", []byte(`{}`))
+		err := repo.UpdateGateway(cancelledCtx, uuid.New(), "txn", payment.GatewayChargeResponse{})
 		assert.Error(t, err)
 	})
 

@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/features/order"
-	"github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway"
 	"github.com/residwi/go-api-project-template/internal/features/payment/domain"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -43,24 +42,24 @@ func (_m *MockGateway) EXPECT() *MockGateway_Expecter {
 }
 
 // Charge provides a mock function for the type MockGateway
-func (_mock *MockGateway) Charge(ctx context.Context, req gateway.ChargeRequest) (gateway.ChargeResponse, error) {
+func (_mock *MockGateway) Charge(ctx context.Context, req GatewayChargeRequest) (GatewayChargeResponse, error) {
 	ret := _mock.Called(ctx, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Charge")
 	}
 
-	var r0 gateway.ChargeResponse
+	var r0 GatewayChargeResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, gateway.ChargeRequest) (gateway.ChargeResponse, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, GatewayChargeRequest) (GatewayChargeResponse, error)); ok {
 		return returnFunc(ctx, req)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, gateway.ChargeRequest) gateway.ChargeResponse); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, GatewayChargeRequest) GatewayChargeResponse); ok {
 		r0 = returnFunc(ctx, req)
 	} else {
-		r0 = ret.Get(0).(gateway.ChargeResponse)
+		r0 = ret.Get(0).(GatewayChargeResponse)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, gateway.ChargeRequest) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, GatewayChargeRequest) error); ok {
 		r1 = returnFunc(ctx, req)
 	} else {
 		r1 = ret.Error(1)
@@ -75,20 +74,20 @@ type MockGateway_Charge_Call struct {
 
 // Charge is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req gateway.ChargeRequest
+//   - req GatewayChargeRequest
 func (_e *MockGateway_Expecter) Charge(ctx any, req any) *MockGateway_Charge_Call {
 	return &MockGateway_Charge_Call{Call: _e.mock.On("Charge", ctx, req)}
 }
 
-func (_c *MockGateway_Charge_Call) Run(run func(ctx context.Context, req gateway.ChargeRequest)) *MockGateway_Charge_Call {
+func (_c *MockGateway_Charge_Call) Run(run func(ctx context.Context, req GatewayChargeRequest)) *MockGateway_Charge_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 gateway.ChargeRequest
+		var arg1 GatewayChargeRequest
 		if args[1] != nil {
-			arg1 = args[1].(gateway.ChargeRequest)
+			arg1 = args[1].(GatewayChargeRequest)
 		}
 		run(
 			arg0,
@@ -98,35 +97,35 @@ func (_c *MockGateway_Charge_Call) Run(run func(ctx context.Context, req gateway
 	return _c
 }
 
-func (_c *MockGateway_Charge_Call) Return(chargeResponse gateway.ChargeResponse, err error) *MockGateway_Charge_Call {
-	_c.Call.Return(chargeResponse, err)
+func (_c *MockGateway_Charge_Call) Return(gatewayChargeResponse GatewayChargeResponse, err error) *MockGateway_Charge_Call {
+	_c.Call.Return(gatewayChargeResponse, err)
 	return _c
 }
 
-func (_c *MockGateway_Charge_Call) RunAndReturn(run func(ctx context.Context, req gateway.ChargeRequest) (gateway.ChargeResponse, error)) *MockGateway_Charge_Call {
+func (_c *MockGateway_Charge_Call) RunAndReturn(run func(ctx context.Context, req GatewayChargeRequest) (GatewayChargeResponse, error)) *MockGateway_Charge_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Refund provides a mock function for the type MockGateway
-func (_mock *MockGateway) Refund(ctx context.Context, req gateway.RefundRequest) (gateway.RefundResponse, error) {
+func (_mock *MockGateway) Refund(ctx context.Context, req GatewayRefundRequest) (GatewayRefundResponse, error) {
 	ret := _mock.Called(ctx, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Refund")
 	}
 
-	var r0 gateway.RefundResponse
+	var r0 GatewayRefundResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, gateway.RefundRequest) (gateway.RefundResponse, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, GatewayRefundRequest) (GatewayRefundResponse, error)); ok {
 		return returnFunc(ctx, req)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, gateway.RefundRequest) gateway.RefundResponse); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, GatewayRefundRequest) GatewayRefundResponse); ok {
 		r0 = returnFunc(ctx, req)
 	} else {
-		r0 = ret.Get(0).(gateway.RefundResponse)
+		r0 = ret.Get(0).(GatewayRefundResponse)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, gateway.RefundRequest) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, GatewayRefundRequest) error); ok {
 		r1 = returnFunc(ctx, req)
 	} else {
 		r1 = ret.Error(1)
@@ -141,20 +140,20 @@ type MockGateway_Refund_Call struct {
 
 // Refund is a helper method to define mock.On call
 //   - ctx context.Context
-//   - req gateway.RefundRequest
+//   - req GatewayRefundRequest
 func (_e *MockGateway_Expecter) Refund(ctx any, req any) *MockGateway_Refund_Call {
 	return &MockGateway_Refund_Call{Call: _e.mock.On("Refund", ctx, req)}
 }
 
-func (_c *MockGateway_Refund_Call) Run(run func(ctx context.Context, req gateway.RefundRequest)) *MockGateway_Refund_Call {
+func (_c *MockGateway_Refund_Call) Run(run func(ctx context.Context, req GatewayRefundRequest)) *MockGateway_Refund_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 gateway.RefundRequest
+		var arg1 GatewayRefundRequest
 		if args[1] != nil {
-			arg1 = args[1].(gateway.RefundRequest)
+			arg1 = args[1].(GatewayRefundRequest)
 		}
 		run(
 			arg0,
@@ -164,12 +163,12 @@ func (_c *MockGateway_Refund_Call) Run(run func(ctx context.Context, req gateway
 	return _c
 }
 
-func (_c *MockGateway_Refund_Call) Return(refundResponse gateway.RefundResponse, err error) *MockGateway_Refund_Call {
-	_c.Call.Return(refundResponse, err)
+func (_c *MockGateway_Refund_Call) Return(gatewayRefundResponse GatewayRefundResponse, err error) *MockGateway_Refund_Call {
+	_c.Call.Return(gatewayRefundResponse, err)
 	return _c
 }
 
-func (_c *MockGateway_Refund_Call) RunAndReturn(run func(ctx context.Context, req gateway.RefundRequest) (gateway.RefundResponse, error)) *MockGateway_Refund_Call {
+func (_c *MockGateway_Refund_Call) RunAndReturn(run func(ctx context.Context, req GatewayRefundRequest) (GatewayRefundResponse, error)) *MockGateway_Refund_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1595,7 +1594,7 @@ func (_c *MockRepository_MarkPaid_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // UpdateGateway provides a mock function for the type MockRepository
-func (_mock *MockRepository) UpdateGateway(ctx context.Context, id uuid.UUID, txnID string, response []byte) error {
+func (_mock *MockRepository) UpdateGateway(ctx context.Context, id uuid.UUID, txnID string, response GatewayChargeResponse) error {
 	ret := _mock.Called(ctx, id, txnID, response)
 
 	if len(ret) == 0 {
@@ -1603,7 +1602,7 @@ func (_mock *MockRepository) UpdateGateway(ctx context.Context, id uuid.UUID, tx
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, []byte) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, GatewayChargeResponse) error); ok {
 		r0 = returnFunc(ctx, id, txnID, response)
 	} else {
 		r0 = ret.Error(0)
@@ -1620,12 +1619,12 @@ type MockRepository_UpdateGateway_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - txnID string
-//   - response []byte
+//   - response GatewayChargeResponse
 func (_e *MockRepository_Expecter) UpdateGateway(ctx any, id any, txnID any, response any) *MockRepository_UpdateGateway_Call {
 	return &MockRepository_UpdateGateway_Call{Call: _e.mock.On("UpdateGateway", ctx, id, txnID, response)}
 }
 
-func (_c *MockRepository_UpdateGateway_Call) Run(run func(ctx context.Context, id uuid.UUID, txnID string, response []byte)) *MockRepository_UpdateGateway_Call {
+func (_c *MockRepository_UpdateGateway_Call) Run(run func(ctx context.Context, id uuid.UUID, txnID string, response GatewayChargeResponse)) *MockRepository_UpdateGateway_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1639,9 +1638,9 @@ func (_c *MockRepository_UpdateGateway_Call) Run(run func(ctx context.Context, i
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
-		var arg3 []byte
+		var arg3 GatewayChargeResponse
 		if args[3] != nil {
-			arg3 = args[3].([]byte)
+			arg3 = args[3].(GatewayChargeResponse)
 		}
 		run(
 			arg0,
@@ -1658,7 +1657,7 @@ func (_c *MockRepository_UpdateGateway_Call) Return(err error) *MockRepository_U
 	return _c
 }
 
-func (_c *MockRepository_UpdateGateway_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, txnID string, response []byte) error) *MockRepository_UpdateGateway_Call {
+func (_c *MockRepository_UpdateGateway_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, txnID string, response GatewayChargeResponse) error) *MockRepository_UpdateGateway_Call {
 	_c.Call.Return(run)
 	return _c
 }
