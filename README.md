@@ -126,7 +126,9 @@ ring the wrong way. The rules are about layers, not modules:
 - A `Service` depends on the ports it declares, never on the adapters that
   implement them. A service importing its own `adapter/postgres` fails.
 - Transport and drivers — `platform/web`, `queue`, `cache`, `storage` — are
-  reachable from adapters only. A service importing any of them fails.
+  reachable from adapters and the wiring layer (`internal/app`,
+  `internal/server`, `internal/worker`), never from a `Service`. A service
+  importing any of them fails.
 - No feature may import `internal/server`, so no binary links HTTP just by
   constructing a module.
 
