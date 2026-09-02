@@ -9,9 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/user/domain"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockStatusCache creates a new instance of MockStatusCache. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
