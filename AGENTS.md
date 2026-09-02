@@ -198,8 +198,10 @@ Platform is split by role, and that split is what gives the layer rule teeth:
 | Component | Packages | Importable from |
 | --- | --- | --- |
 | `pf-vocab` | `errs`, `paging`, `slug` | anywhere |
-| `pf-tx` | `database`, `logger` | a `Service` and its adapters |
-| `pf-io` | `cache`, `queue`, `storage`, `web` | adapters only |
+| `pf-tx` | `database`, `logger` | a `Service`, its adapters, and the wiring layer |
+| `pf-io` | `cache`, `queue`, `storage`, `web` | adapters and the wiring layer |
+
+The wiring layer is `internal/app`, `internal/server` and `internal/worker`. It sits outside the rings and may import both platform groups, because composing adapters and serving HTTP is its whole job.
 
 And the feature rings:
 
