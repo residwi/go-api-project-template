@@ -43,9 +43,8 @@ the transaction still travels ambiently in `context`.
 **6. Modules own their data.** A module's SQL names only tables it owns, and
 cross-module reads go through a port. *Cost:* two queries where one join would
 do, and `?in_stock=true` becomes unimplementable. `dashboard` is carved out as
-a reporting read model. This is now a convention: the check that enforced it
-was retired with the script, so nothing detects a module querying a table it
-does not own.
+a reporting read model. Nothing enforces this — a module's SQL may name
+another module's table and every check will pass.
 
 **7. Inventory owns stock; product does not.** *Cost:* creating a sellable
 product is two admin calls. `available_stock` is stored, not derived, so every
@@ -215,6 +214,5 @@ and the structure is the lesson. A product codebase with one team, one
 deployable and no copies downstream will find several of these decisions —
 the adapter package split, the consumer-declared ports, the per-module table
 ownership — cost more than they return. Take the layer rules in
-`.go-arch-lint.yml` first: they are what keeps working when nobody is
-watching, and unlike the deleted checks, they need no per-project data file
-to maintain.
+`.go-arch-lint.yml` first: they need no per-project data file to maintain,
+and they keep working when nobody is watching.
