@@ -63,7 +63,9 @@ report() { printf '%s\n' "$*" >>"$VIOLATIONS"; }
 # denylist from internal/*/, and that list had already drifted once: `money` was
 # missing from it, so a shared value object was being treated as a module. A
 # denylist is wrong every time someone adds a directory and forgets; a directory
-# is right by construction.
+# is right by construction. `money` now lives at internal/money, outside this
+# root, so the "everything under here is a feature" claim holds without an
+# exception for it.
 FEATURES_ROOT='internal/features'
 
 # The bottom ring, walked by check 8. Held in a variable for the same reason
@@ -652,7 +654,7 @@ check_table_ownership() {
 		# broke this before: <feature>/postgres/ was hard-coded, so the check
 		# skipped a feature's SQL the day that directory moved -- first under
 		# a slice, now under adapter/. A feature with no postgres/ anywhere
-		# legitimately owns no table (auth, checkout and money today) and is
+		# legitimately owns no table (auth and checkout today) and is
 		# skipped.
 		[ -n "$(find "$FEATURES_ROOT/$feature" -type d -name postgres)" ] || continue
 

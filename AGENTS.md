@@ -26,9 +26,9 @@ If this file disagrees with the code, the code wins: say so and fix the file.
   - `web/` — `Middleware`, `Chain`, `Router`; `web/request/` (`Bind`, `ParseUUIDParam`, the validator); `web/response/` (envelope, `HandleErr`, `CursorPage`); `web/middleware/` (CORS, logging, recovery, request ID, user context, `RequireRole`, `RateLimit`)
 - `internal/testutil/` — shared dockertest harness (Postgres + Redis containers)
 - `internal/worker/` — the jobs analogue of `server/`: owns the one working `river.Client`, its queue map and the order stale-sweep's `river.PeriodicJob`
-- `internal/features/<feature>/` — the feature modules, plus two directories that are not features:
+- `internal/money/` — a shared kernel: the `Money` value object. No `Service`, no store, no routes, imports nothing of this repository's. It sits outside `features/` because it is not one — every module may name it, and it names none of them
+- `internal/features/<feature>/` — the feature modules, plus one directory that is not a feature:
   - `checkout/` — a bounded context. Owns no table, no `domain/`, no store; orchestrates `order` and `payment` in one business transaction
-  - `money/` — a shared kernel: the `Money` value object. No `Service`, no store, no routes, imports no other module
 - `db/migrations/` — goose SQL migrations
 - `db/seeds/data.sql` — seed data, applied by `make seed`
 - `db/OWNERSHIP.md` — table to owning module, parsed at run time by `make check-boundaries`

@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
-	"github.com/residwi/go-api-project-template/internal/features/money"
+	"github.com/residwi/go-api-project-template/internal/money"
 )
 
 const (
