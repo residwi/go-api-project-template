@@ -4,9 +4,8 @@ Why this codebase is shaped the way it is, what each decision costs, and what
 the shape makes hard. One line per decision; the code and `AGENTS.md` carry
 the rules themselves.
 
-**The numbering is stable.** `scripts/check-boundaries.sh`, `db/OWNERSHIP.md`
-and `AGENTS.md` cite these sections by number, so a retired or reversed
-decision keeps its number instead of being renumbered away.
+**The numbering is stable.** `AGENTS.md` cites these sections by number, so a
+retired or reversed decision keeps its number instead of being renumbered away.
 
 ## Decisions
 
@@ -42,9 +41,11 @@ the compiler police the narrower type. It does not make transactions explicit;
 the transaction still travels ambiently in `context`.
 
 **6. Modules own their data.** A module's SQL names only tables it owns, and
-`db/OWNERSHIP.md` is the parsed record. Cross-module reads go through a port.
-*Cost:* two queries where one join would do, and `?in_stock=true` becomes
-unimplementable. `dashboard` is carved out as a reporting read model.
+cross-module reads go through a port. *Cost:* two queries where one join would
+do, and `?in_stock=true` becomes unimplementable. `dashboard` is carved out as
+a reporting read model. This is now a convention: the check that enforced it
+was retired with the script, so nothing detects a module querying a table it
+does not own.
 
 **7. Inventory owns stock; product does not.** *Cost:* creating a sellable
 product is two admin calls. `available_stock` is stored, not derived, so every
@@ -101,8 +102,8 @@ and a module is no longer copy-pasteable with its routes.
 **16. A module is one flat package with an `adapter/` directory.** One
 `Service` per module, no `usecase/`, no `Deps` struct, no `module.go`. *Cost:*
 read this before copying the shape — module privacy stopped being a compile
-error. Check 4 makes a module's root package importable, so `payment` *can*
-call `order.Place`, and no check can tell that from a legal import.
+error. A module's root package is importable from anywhere, so `payment`
+*can* call `order.Place`, and nothing distinguishes that from a legal import.
 
 **17. Ports collapse to one per producer, not one per capability.** A consumer
 declares one interface per module it consumes, holding every method it needs.
@@ -115,6 +116,27 @@ transaction-aware `Insert`; each module keeps its args, `InsertOpts` and
 `river.Worker` in its own `adapter/jobs`, and `internal/worker` owns the one
 working client. *Cost:* `river_job` has no foreign key to any module's rows, so
 the old per-module job tables' referential integrity is gone for good.
+
+## Foreign keys across module boundaries
+
+22 foreign keys exist and 16 cross a module boundary. All 16 stay. The 6 that
+do not cross are aggregate-internal and unremarkable: `cart_items→carts`,
+`categories→categories`, `coupon_usages→promotions`, `order_items→orders`,
+`product_images→products`, `wishlist_items→wishlists`.
+
+**Inbound foreign keys are not the dependency graph.** `users` has 6 inbound
+FKs and 1 inbound port; `products` has 6 and 2; `categories` has 2 and none.
+Reading the schema for coupling misleads, which is why extracting a module is
+a data migration rather than a refactor.
+
+**Cross-module `ON DELETE CASCADE` is not kept.** Migration
+`20260424120016_drop_cross_module_cascades.sql` dropped five cascades while
+keeping each reference: `carts.user_id`, `cart_items.product_id`,
+`wishlists.user_id`, `wishlist_items.product_id`, `notifications.user_id`.
+They were unreachable — `users` and `products` are soft-deleted, so no
+`DELETE` ever reaches those rows — and meanwhile the schema advertised a
+cleanup nothing performed and described the database writing across a module
+boundary that no port describes. A lie in the schema is worse than an absence.
 
 ## Deliberately not done
 
@@ -141,8 +163,7 @@ proposing a feature that crosses a module boundary.
 
 ### Boundaries and coupling
 
-- **A module's whole exported surface is reachable from every other module.** Check 4 allows a root-package import, so a sibling's method is one call away and no check can distinguish it from a legal one. The port convention is all that stands there.
-- **`checkout` is held to a weaker rule than its siblings** — it alone may import a module's `domain/`, because `order.Service.Place`'s signature is written in `orderdomain` types.
+- **Every module's whole tree is reachable from every other module.** The layer rules constrain which ring a package may import, not which module, so a sibling's `domain/`, its adapters and its unported methods are all one import away. The port convention is all that stands there, and unlike the rule it replaced, nothing flags a violation.
 - **One flat `Service` satisfying several of a consumer's ports leaves the compiler unable to check which value goes where.** Two slice values used to be two distinct types; one `Service` satisfying both is one type, so wiring the wrong value would still compile. Nothing misbehaves today because every such field is wired to that same value.
 - **`contract.go` can grow into the shared domain model `internal/shared/` was rejected for being.** Nothing bounds what a module publishes there.
 - **Extracting a module into a service is a data migration, not a refactor** — the foreign keys decision 8 keeps are what make it one.
@@ -150,9 +171,10 @@ proposing a feature that crosses a module boundary.
 
 ### What the checks cannot see
 
-- **`make check-boundaries` has blind spots, and they are where you would hide something:** a table name must be a string literal, `_test.go` files are skipped, `dashboard` is exempt wholesale, and every check walks `internal/` only — `cmd/` and `test/` are outside all of them.
-- **A module can still smuggle SQL past check 3 with a built string.** The check is a grep, not a compiler.
-- **A path-keyed check can quietly stop matching anything.** `scripts/boundaries_test.go` probes each check from both sides for exactly this reason; the `paralleltest` exclusions in `.golangci.yml` have no such probe.
+- **`make check-arch` reads the import graph and nothing else.** It cannot see a `json` tag in the wrong package, a file named `dto.go`, SQL naming another module's table, or a module calling a sibling method no port of its own declares.
+- **It cannot see across modules at all.** The rules are about layers — `domain/` below the service, the service below its adapters — so `review` importing `order/domain` is legal to it. Module privacy is a convention now.
+- **`_test.go` files are excluded**, so a test may import anything.
+- **A path-keyed rule can quietly stop matching anything.** go-arch-lint refuses to load when a component's glob names no directory, which covers the config itself; the `paralleltest` exclusions in `.golangci.yml` have no such guard.
 - **The copy property `internal/platform` is checked for holds for `go build`, not `go test`** — four platform test packages import `internal/testutil`, which does not travel with a copied `platform`.
 
 ### Transport and exposure
