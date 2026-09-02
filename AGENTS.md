@@ -2,7 +2,7 @@
 
 Ecommerce API template in Go 1.26. It exposes REST endpoints under `/api` for auth, users, categories, products, inventory, cart, orders, payments, shipping, reviews, promotions, wishlists, notifications and an admin dashboard, and runs a separate worker process that drains payment, notification and order job queues. Storage is PostgreSQL (`pgx/v5`) with Redis (`go-redis/v9`); routing is stdlib `net/http` `ServeMux`.
 
-The structure is the product here — other people copy this tree — so a boundary that a script can enforce always beats one that only code review can. `make check-boundaries` is that script, and `ARCHITECTURE.md` records why each rule exists and what it costs.
+The structure is the product here — other people copy this tree — so a boundary a tool can enforce always beats one that only code review can. `make check-arch` enforces the layering, and `ARCHITECTURE.md` records why each rule exists, what it costs, and which rules are conventions no tool checks.
 
 If this file disagrees with the code, the code wins: say so and fix the file.
 
@@ -31,9 +31,8 @@ If this file disagrees with the code, the code wins: say so and fix the file.
   - `checkout/` — a bounded context. Owns no table, no `domain/`, no store; orchestrates `order` and `payment` in one business transaction
 - `db/migrations/` — goose SQL migrations
 - `db/seeds/data.sql` — seed data, applied by `make seed`
-- `db/OWNERSHIP.md` — table to owning module, parsed at run time by `make check-boundaries`
 - `test/e2e/` — cross-module saga tests through the real router
-- `scripts/check-boundaries.sh` — the architectural checks; `scripts/boundaries_test.go` proves each one still matches something
+- `.go-arch-lint.yml` — the layer rules, run by `make check-arch`
 
 ### Inside a module
 
@@ -101,7 +100,7 @@ make test-clean         # remove the shared postgres + redis test containers
 make mocks              # regenerate every mocks_test.go from .mockery.yml
 
 # Check
-make check-boundaries   # the architectural checks; prints "Boundaries OK"
+make check-arch         # the layer rules; prints "OK - No warnings found"
 make lint               # golangci-lint run ./...
 make vet
 make fmt                # go fmt ./... && gofmt -s -w .
@@ -110,11 +109,11 @@ make tidy
 make clean
 
 # Pipelines
-make all                # fmt -> vet -> check-boundaries -> lint -> test -> build
+make all                # fmt -> vet -> check-arch -> lint -> test -> build
 make ci                 # deps -> fmt -> vet -> lint -> test
 ```
 
-Two things about those pipelines: **`make ci` does not run `check-boundaries`, `make all` does** — rely on `make all`, or run `make check-boundaries` explicitly. And `make test` runs `./...` while `make test-coverage` globs `./internal/... ./test/...`, so a new top-level test directory is picked up by the first and silently skipped by the second.
+One thing about those pipelines: `make test` runs `./...` while `make test-coverage` globs `./internal/... ./test/...`, so a new top-level test directory is picked up by the first and silently skipped by the second.
 
 Database commands need the goose and river CLIs (`make migrate-install` installs both; the Makefile expects them under `$(go env GOPATH)/bin`). They build `DATABASE_URL` from `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSLMODE`, all overridable:
 
@@ -192,24 +191,36 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 
 ### Machine-checked boundaries
 
-`make check-boundaries` runs `scripts/check-boundaries.sh` and fails the build on any of these. The numbering has gaps because checks 5 and 7 were retired and renumbering would falsify every by-number citation in this file, `ARCHITECTURE.md`, `db/OWNERSHIP.md` and the script itself.
+`make check-arch` runs `go-arch-lint` against `.go-arch-lint.yml` and fails the build on any import that crosses a ring the wrong way. The rules are about layers, not modules.
 
-1. **`check_wire_tags`** — a `json` tag lives only in a module's own `adapter/http`. `internal/features/<feature>/http/` is not exempt, and neither is `internal/server`. `json:"-"` may not appear anywhere under `internal/`, and no file may be named `dto.go`. `internal/platform/` is exempt by location (the response envelope, the `envconfig` tags); `internal/features/payment/adapter/gateway/gateway.go` is allowlisted by name, being the external gateway's wire contract rather than ours.
-2. **`check_ownership_doc`** — `db/OWNERSHIP.md` has no duplicate row, no row for a table no migration creates, and no table without an owning row. The list is parsed out of the document at run time, so the document and the check cannot drift.
-3. **`check_table_ownership`** — a module's SQL only names tables it owns. It scans every non-test `.go` file in the module, not just `adapter/postgres`, and a CTE named after a real table is a violation rather than an exemption. `dashboard` is exempt by name, being a reporting read model. Change ownership in `db/OWNERSHIP.md`; there is no list in the script to keep in step.
-4. **`check_cross_module_imports`** — a module may import another module's root package, which is its published surface, and nothing deeper. `domain/` and every adapter stay private. Only the wiring layer (`app`, `server`, `worker`) may reach inside a module. One per-importer exemption exists: `checkout` alone may import a module's `domain/`, because `order.Service.Place`'s signature is written in `orderdomain` types.
-5. _Retired — `check_sibling_slice_imports`._
-6. **`check_transport_direction`** — a module may not import `internal/server`, with no exemption. It catches a `Service` returning a transport type and a module registering its own routes; either would make every binary constructing that module link HTTP, including the worker, which serves nothing. A module that must describe something the transport also describes puts the type in its own `contract.go`.
-7. _Retired — `check_contract_leaf`._
-8. **`check_platform_leaf`** — nothing under `internal/platform` may import a local package outside `internal/platform`, so that `cp -r internal/platform` into a fresh module compiles with no edits. The check matches every import of this repository's own code and subtracts what is allowed, rather than naming forbidden trees, so a tree added later is covered on the day it appears. `internal/testutil` is the one exemption, which is why the copy property holds for `go build` and not `go test`.
+Platform is split by role, and that split is what gives the layer rule teeth:
 
-`scripts/boundaries_test.go` plants a probe file in a real module for each check and asserts the script reports it, and probes from the other side too, so an exemption that has stopped matching anything fails a test instead of printing `Boundaries OK`. Run it with `go test ./scripts/`.
+| Component | Packages | Importable from |
+| --- | --- | --- |
+| `pf-vocab` | `errs`, `paging`, `slug` | anywhere |
+| `pf-tx` | `database`, `logger` | a `Service` and its adapters |
+| `pf-io` | `cache`, `queue`, `storage`, `web` | adapters only |
 
-Read "What it does not catch" in `db/OWNERSHIP.md` before trusting a green run. In short: table names must be string literals, `_test.go` files are skipped by checks 1 and 3 but deliberately in scope for check 4, `dashboard` is exempt wholesale, ownership is per table so column coupling is invisible, every check walks `internal/` only — `cmd/` and `test/` are outside all of them — and none of the checks is a compiler; they are all greps.
+And the feature rings:
+
+| Component | Glob | May import |
+| --- | --- | --- |
+| `ft-domain` | `internal/features/*/domain/**` | `ft-domain`, `ft-core` |
+| `ft-core` | `internal/features/*` | `ft-core`, `ft-domain`, `ft-port`, `pf-tx` |
+| `ft-port` | `internal/features/*/adapter/gateway` | — |
+| `ft-adapter` | `internal/features/*/adapter/**` | everything |
+
+So four things fail the build: a feature importing `internal/server`; a `Service` importing `platform/web`, `platform/queue`, `platform/cache` or `platform/storage`; a `domain/` package reaching for `database`; and **a `Service` importing its own adapter**, which is the one that matters most — a service depends on the port it declares, never on the thing that implements it.
+
+`ft-domain` may name `ft-core` because a domain type legitimately names another feature's `contract.go` type: `auth/domain/token.go` holds a `user.Profile`, `product/domain/product.go` holds an `inventory.Availability`. `ft-port` exists so `payment/ports.go` may name `gateway.ChargeRequest` — the external gateway's wire shapes belong in the adapter tree, while `adapter/gateway/{stripe,midtrans,mock}` stays out of the core.
+
+A component whose glob matches no directory is a hard config error, so the config cannot drift from the tree. What it does not see: anything that is not an import. `cmd/` is in scope; `_test.go` files are not.
 
 ### Conventions the checks cannot see
 
 - **A module imports another module's root package and nothing deeper**, and that means `payment` _can_ see `order.Place`. Nothing stops a module calling a sibling method no port of its own declares, and no check can tell the difference. Declare the interface the consumer needs in the consumer's own `ports.go` and wire it in `internal/app`; do not reach for a sibling's method because the import already compiles.
+- **A module's `domain/` and adapters are private by convention only.** The layer rules are indifferent to which module a package belongs to, so `review` importing `order/domain` compiles and passes `make check-arch`. Import another module's root package and nothing deeper.
+- **Table ownership is unchecked.** A module's SQL naming another module's table passes everything. `ARCHITECTURE.md` decision 6 states the rule; nothing enforces it.
 - **The arrow runs the other way for URLs.** The transport imports modules and a module names no URL: every route lives in `internal/server/router.go`, mounted on the route groups that same function builds. A module supplies a handler with exported route methods — exported precisely so `router.go`, a different package, can name them — and the transport decides the verb, the path and the group.
 
 ### Data flow: place an order
@@ -253,26 +264,26 @@ Read "What it does not catch" in `db/OWNERSHIP.md` before trusting a green run. 
 
 - Secrets come from env vars or a gitignored `.env`. Never commit real secrets. `.env.example` is the exhaustive list of supported variables; the README's table is a curated subset.
 - JWT auth with configurable expiry, bcrypt password hashes, RBAC through role middleware.
-- **Middleware lives in two places, and the line is whether it names a feature module.** Check 8 answers that by reading imports rather than by judgment: nothing under `internal/platform` may import `internal/features`. `internal/platform/web/middleware` holds panic recovery, request-ID injection, request logging, CORS, the user context (`UserContext`, `SetUserContext`, `GetUserContext`, `RequireUser`), `RequireRole` and rate limiting. `internal/server/auth.go` holds `authMiddleware` alone, because it names `auth.ClaimsView` and `user.AccountStatus`. A new compression or timeout middleware goes in platform; one that needs a module's type goes beside `authMiddleware`. A middleware needing an import platform may not have is the answer, not a reason to widen check 8.
+- **Middleware lives in two places, and the line is whether it names a feature module.** `make check-arch` answers that by reading imports rather than by judgment: nothing under `internal/platform` may import `internal/features`. `internal/platform/web/middleware` holds panic recovery, request-ID injection, request logging, CORS, the user context (`UserContext`, `SetUserContext`, `GetUserContext`, `RequireUser`), `RequireRole` and rate limiting. `internal/server/auth.go` holds `authMiddleware` alone, because it names `auth.ClaimsView` and `user.AccountStatus`. A new compression or timeout middleware goes in platform; one that needs a module's type goes beside `authMiddleware`. A middleware needing an import platform may not have is the answer, not a reason to loosen the platform rings.
 - **Field exposure is controlled by DTO omission, not by `json:"-"`.** Adding a field to a response means naming it in a wire type deliberately. The failure mode this leaves is naming the _wrong_ mapper: public and admin response mappers live in separate files in the same package, and a handler can call either and compile. Check which mapper an admin route uses before changing it.
 
 ## Agent Guardrails
 
 - Never hand-edit a generated `mocks_test.go` — regenerate with `make mocks`.
 - Never commit `.env`, secrets or API keys.
-- Run `make check-boundaries`, `make vet` and `make test` before calling a change complete. `make all` does all three plus lint and build.
+- Run `make check-arch`, `make vet` and `make test` before calling a change complete. `make all` does all three plus lint and build.
 - Do not add a third-party router.
 - Do not suppress a lint or vet finding with `//nolint` without a justification comment on the same line. The expected form is `//nolint:gocognit,funlen // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`.
 - Do not make the adapter subpackage tree uniform, and do not add a pass-through adapter package to fill a slot.
 - Backward compatibility is explicitly **not** a goal. API shapes may change where a better design demands it — but say so when they do.
-- **Adding a module:** create `internal/features/<feature>/` in the shape above, add a row per owned table to `db/OWNERSHIP.md`, wire it into `internal/app/app.go` (one line to build it, one field on `Services`), mount its routes in `internal/server/router.go`, then run `make check-boundaries` — a new module with an `adapter/postgres` and no ownership row fails it by design.
+- **Adding a module:** create `internal/features/<feature>/` in the shape above, wire it into `internal/app/app.go` (one line to build it, one field on `Services`), mount its routes in `internal/server/router.go`, then run `make check-arch`. Its `adapter/` and `domain/` are picked up by the existing globs, so no config edit is needed — but a feature with neither directory needs no change either, and one whose `domain/` you later delete will fail the config load until the glob goes.
 - **Adding one route touches three files:** the module's `adapter/http` for the handler, `internal/server/router.go` for the URL, and `allRoutes` in `internal/server/routes_access_test.go` — without the last one the route is never probed. A second line in `publicRoutes` is needed only when the route must answer anonymous callers.
 
 ## Further Reading
 
 - [README.md](README.md) — endpoint reference and quick start.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — the decisions behind this shape, what each one costs, and what it makes hard.
-- [db/OWNERSHIP.md](db/OWNERSHIP.md) — table to owning module, and what the ownership check cannot see.
+- [.go-arch-lint.yml](.go-arch-lint.yml) — the layer rules, run by `make check-arch`.
 - [db/migrations/](db/migrations/) — goose SQL migrations.
 - [.env.example](.env.example) — every supported environment variable.
 - [.mockery.yml](.mockery.yml), [.golangci.yml](.golangci.yml) — mock and lint configuration.
