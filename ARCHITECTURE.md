@@ -12,7 +12,8 @@ retired or reversed decision keeps its number instead of being renumbered away.
 **0. This repository is a template, so the structure is the product.** Every
 decision below is judged by what it teaches, not by what is cheapest to
 maintain: a reader will copy whatever they find here into a real system, so
-where a rule exists it is machine-checked. *Cost:* the `adapter/postgres` /
+a rule is machine-checked where a linter can see it, and recorded as a
+convention where it cannot. *Cost:* the `adapter/postgres` /
 `adapter/http` split buys an import alias per module in `bootstrap/app.go` and
 `server/router.go`, which is hard to justify in a product codebase and is the
 point here. Backward compatibility is explicitly not a goal.

@@ -12,7 +12,7 @@ import (
 // list in .golangci.yml for that reason.
 func TestLoadConfig(t *testing.T) {
 	t.Run("rejects an unrecognised gateway", func(t *testing.T) {
-		// A typo, a stray capital or trailing space must abort boot: newGateway
+		// A typo, a stray capital or trailing space must abort boot: newPaymentGateway
 		// (module.go) falls back to the mock for anything it does not
 		// recognise, which would otherwise route every real charge at
 		// localhost silently.
@@ -24,7 +24,7 @@ func TestLoadConfig(t *testing.T) {
 		assert.Contains(t, err.Error(), "PAYMENT_GATEWAY must be")
 	})
 
-	t.Run("accepts each gateway newGateway knows how to build", func(t *testing.T) {
+	t.Run("accepts each gateway newPaymentGateway knows how to build", func(t *testing.T) {
 		for _, name := range []string{GatewayMock, GatewayStripe, GatewayMidtrans} {
 			t.Setenv("PAYMENT_GATEWAY", name)
 

@@ -110,7 +110,7 @@ make clean
 
 # Pipelines
 make all                # fmt -> vet -> check-arch -> lint -> test -> build
-make ci                 # deps -> fmt -> vet -> lint -> test
+make ci                 # deps -> fmt -> vet -> check-arch -> lint -> test
 ```
 
 One thing about those pipelines: `make test` runs `./...` while `make test-coverage` globs `./internal/... ./test/...`, so a new top-level test directory is picked up by the first and silently skipped by the second.
@@ -136,7 +136,7 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 - **One `Service` per module, and its methods carry the verb.** No `Execute`. No module-name stutter — `cart.Get`, not `cart.GetCart`. An entity module implies its object (`category.Create`, `order.Get`); a process module names it (`checkout.PlaceOrder`, `checkout.CancelOrder`). `order.Place` rather than `Create`, because the operation locks the cart, validates it, reserves inventory and a coupon, writes the order, charges and clears the cart. `GetForUser` beside `Get` marks the method that performs an ownership check.
 - **A cross-module port is declared in the consuming module's own `ports.go`; the producer never publishes it.** One port per producer, not one per capability: a module declares one interface per other module it consumes, holding every method it needs from it. Two mechanisms satisfy a port without an adapter, and `internal/app` is the one place either is used — **name-match** (the producer's value already has a method named what the port asks for) and a **`contract.go` type** (when what crosses is a struct). There is no shared ports package.
 - **An `adapter/http` port is named for the role it plays, never for the pattern.** `CartManager`, `ProductReader`, `WebhookProcessor`, `Reporter` — never `UseCase`, and never `Service` either, since the port is a subset of what the module's `Service` offers. Role naming is what lets two ports coexist in one package when routes split by caller role. The `Handler` field holding the port is `service`, and so is the constructor parameter; constructors are `NewHandler`, `NewAdminHandler` and `NewWebhookHandler`.
-- **Wire types live in the module's own `adapter/http`.** A `json` tag belongs nowhere else, `json:"-"` belongs nowhere at all, and no file may be named `dto.go`. All three are machine-checked.
+- **Wire types live in the module's own `adapter/http`.** A `json` tag belongs nowhere else, `json:"-"` belongs nowhere at all, and no file may be named `dto.go`. None of the three is checked — see "Conventions the checks cannot see".
 - **Money is `money.Money`, never an `int64` beside a `Currency string`.** Scope is `order`, `payment`, `product`, `cart`; `promotion` and `dashboard` stay on `int64` for reasons `ARCHITECTURE.md` records. `Money` carries no `json` tag and implements no `sql.Scanner` — each adapter maps it explicitly, because wire shapes genuinely differ per endpoint. No float constructor, no `Div`.
 - **A `Service` runs no SQL and holds no pool.** Every read and write goes through the module's own `Repository`; `adapter/postgres` owns the pool and reaches it with `database.PrimaryDB(ctx, db)` or `database.ReplicaDB(ctx, db)` — both return the context's transaction if there is one, and `ReplicaDB` falls back to `Primary` when no replica is configured. Use `ReplicaDB` only for read-only methods.
 - **Services take `database.TxRunner`, never `*pgxpool.Pool`.** A service composes several repository calls into one unit of work through it, and the transaction propagates to every repository it touches — its own and other modules' — through `ctx`. A module that opens no transaction takes no runner at all. `internal/app` constructs the adapters and threads one `database.DB` value through them, so the pool never reaches a `Service`.
@@ -198,10 +198,10 @@ Platform is split by role, and that split is what gives the layer rule teeth:
 | Component | Packages | Importable from |
 | --- | --- | --- |
 | `pf-vocab` | `errs`, `paging`, `slug` | anywhere |
-| `pf-tx` | `database`, `logger` | a `Service`, its adapters, and the wiring layer |
+| `pf-tx` | `database`, `logger` | a `Service`, its adapters, the wiring layer, and `pf-io` |
 | `pf-io` | `cache`, `queue`, `storage`, `web` | adapters and the wiring layer |
 
-The wiring layer is `internal/app`, `internal/server` and `internal/worker`, and `internal/testutil` has the same reach. They sit outside the rings and may import both platform groups, because composing adapters, serving HTTP and starting containers is what they exist to do.
+The wiring layer is `internal/app`, `internal/server` and `internal/worker`, and `internal/testutil` reaches both platform groups too, though nothing else. They sit outside the rings and may import both platform groups, because composing adapters, serving HTTP and starting containers is what they exist to do.
 
 And the feature rings:
 
@@ -211,6 +211,8 @@ And the feature rings:
 | `ft-core` | `internal/features/*` | `ft-core`, `ft-domain`, `ft-port`, `pf-tx` |
 | `ft-port` | `internal/features/*/adapter/gateway` | — |
 | `ft-adapter` | `internal/features/*/adapter/**` | everything |
+
+`money`, `apperror` and `pf-vocab` are common components: every ring may import all three, and they import nothing of ours.
 
 So four things fail the build: a feature importing `internal/server`; a `Service` importing `platform/web`, `platform/queue`, `platform/cache` or `platform/storage`; a `domain/` package reaching for `database`; and **a `Service` importing its own adapter**, which is the one that matters most — a service depends on the port it declares, never on the thing that implements it.
 
@@ -254,7 +256,7 @@ A component whose glob matches no directory is a hard config error, so the confi
 - **Docker is required.** No build tags, no short mode. `internal/testutil` starts two long-lived containers by fixed name (`go-api-test-postgres`, `go-api-test-redis`) and every test binary attaches to whichever already exists; `make test-clean` removes them. Every package binary races for the same container name, and the loser polls until the winner's container is running with a bound port.
 - **Postgres databases are per module, created once under an advisory lock, and never dropped.** `MustStartPostgres(dbName)` creates and migrates `dbName` the first time any caller asks for it — the lock covers the migration, so a later caller always finds the latest schema — and every later caller just connects. `grep -rn 'MustStartPostgres(' --include='*_test.go' internal` is the live name mapping.
 - **`ResetDB` is safe only for a package that owns its database outright.** It takes a `*pgxpool.Pool`, not a package name, so nothing stops a new caller inside a module adding it — check before copying a `setup` helper that calls it. It never truncates `goose_db_version` or `river_migration`: migrations run on every `MustStartPostgres`, so clearing either version table would send the next caller over a schema that already exists.
-- **`MustStartRedis(dbIndex)` takes an index you pick by hand.** Claimed today: 0 (`platform/cache`), 1 (`platform/web/middleware`), 3 (`internal/server`), 5 (`test/e2e`), 6 (`modules/user/adapter/redis`). Nothing enforces a claim — a collision compiles, passes review and fails as a flake in an unrelated package — so `grep -rn 'MustStartRedis(' --include='*_test.go' .` is the authority, and update this list in the commit that takes an index.
+- **`MustStartRedis(dbIndex)` takes an index you pick by hand.** Claimed today: 0 (`platform/cache`), 1 (`platform/web/middleware`), 3 (`internal/server`), 5 (`test/e2e`), 6 (`features/user/adapter/redis`). Nothing enforces a claim — a collision compiles, passes review and fails as a flake in an unrelated package — so `grep -rn 'MustStartRedis(' --include='*_test.go' .` is the authority, and update this list in the commit that takes an index.
 - **`t.Parallel()` is mandatory everywhere except in a package that owns a database or a Redis index**, where everything shares one connection and `ResetDB` truncates every table. Those packages are excluded from `paralleltest` wholesale in `.golangci.yml` — per package, never per file, because a parallel sibling gets its rows deleted mid-assertion even when it never calls reset itself. Most alternatives in that `path:` regex are anchored to the repo root and die silently when the directory they name moves, so check them against `git ls-files` after any structural change; `/postgres/` and `/redis/` are unanchored and follow their directories. If you add a test package that claims a database or a Redis slot, add it to that exclusion in the same commit.
 - **Prefer subtests over table-driven tests.** One logical scenario per subtest, a descriptive name, its own setup. No monolithic tests. Duplication in setup is cheaper than a helper that hides expectations: a `newTestService(t)` returning mocks is fine, one that also sets up mock expectations is not.
 - **Compare whole objects, not field by field** — `assert.Equal` on the full struct or slice. For JSONB round-trips use `assert.JSONEq`, since Postgres normalises whitespace.
@@ -278,7 +280,7 @@ A component whose glob matches no directory is a hard config error, so the confi
 - Do not suppress a lint or vet finding with `//nolint` without a justification comment on the same line. The expected form is `//nolint:gocognit,funlen // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`.
 - Do not make the adapter subpackage tree uniform, and do not add a pass-through adapter package to fill a slot.
 - Backward compatibility is explicitly **not** a goal. API shapes may change where a better design demands it — but say so when they do.
-- **Adding a module:** create `internal/features/<feature>/` in the shape above, wire it into `internal/app/app.go` (one line to build it, one field on `Services`), mount its routes in `internal/server/router.go`, then run `make check-arch`. Its `adapter/` and `domain/` are picked up by the existing globs, so no config edit is needed — but a feature with neither directory needs no change either, and one whose `domain/` you later delete will fail the config load until the glob goes.
+- **Adding a module:** create `internal/features/<feature>/` in the shape above, wire it into `internal/app/app.go` (one line to build it, one field on `Services`), mount its routes in `internal/server/router.go`, then run `make check-arch`. Its `adapter/` and `domain/` are picked up by the existing globs, so no config edit is needed, and deleting a `domain/` needs none either — the glob still matches its siblings.
 - **Adding one route touches three files:** the module's `adapter/http` for the handler, `internal/server/router.go` for the URL, and `allRoutes` in `internal/server/routes_access_test.go` — without the last one the route is never probed. A second line in `publicRoutes` is needed only when the route must answer anonymous callers.
 
 ## Further Reading

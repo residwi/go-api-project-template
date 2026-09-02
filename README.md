@@ -1,11 +1,11 @@
 # Go API Project Template (ecommerce)
 
-A production-ready Go API template built on feature modules with machine-checked boundaries.
+A production-ready Go API template built on feature modules with machine-checked layers.
 
 ## Features
 
 - **Go 1.26+** with the new `ServeMux` routing
-- **Feature modules with machine-checked boundaries** — 14 features, one `Service` each, plus a `checkout` bounded context and a `money` shared kernel
+- **Feature modules with machine-checked layers** — 14 features, one `Service` each, plus a `checkout` bounded context and a `money` shared kernel
 - **Two binaries**: API server (`cmd/api`) and Payment Job Worker (`cmd/worker`)
 - **PostgreSQL 16+** with `pgx/v5` driver (requires `gen_random_uuid()`)
 - **Redis 8.0+** caching with `go-redis/v9` (requires `HSETEX`)
