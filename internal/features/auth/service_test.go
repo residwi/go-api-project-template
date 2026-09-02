@@ -363,6 +363,116 @@ func TestService_BuildTokenPair(t *testing.T) {
 	})
 }
 
+func TestService_Authenticate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("rejects a token that does not parse", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		svc := New(newTestConfig(), users)
+
+		_, err := svc.Authenticate(context.Background(), "not-a-token")
+
+		assert.ErrorIs(t, err, ErrInvalidToken)
+	})
+
+	t.Run("rejects a refresh token used as an access token", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		svc := New(newTestConfig(), users)
+
+		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
+		pair, err := svc.BuildTokenPair(profile)
+		require.NoError(t, err)
+
+		_, err = svc.Authenticate(context.Background(), pair.RefreshToken)
+
+		assert.ErrorIs(t, err, ErrInvalidToken)
+	})
+
+	t.Run("rejects a deactivated account", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		svc := New(newTestConfig(), users)
+
+		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
+		pair, err := svc.BuildTokenPair(profile)
+		require.NoError(t, err)
+
+		users.EXPECT().CheckStatus(mock.Anything, profile.ID).
+			Return(user.AccountStatus{Active: false, TokenVersion: 1}, nil)
+
+		_, err = svc.Authenticate(context.Background(), pair.AccessToken)
+
+		assert.ErrorIs(t, err, ErrAccountDeactivated)
+	})
+
+	t.Run("rejects a token whose version is behind the account", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		svc := New(newTestConfig(), users)
+
+		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
+		pair, err := svc.BuildTokenPair(profile)
+		require.NoError(t, err)
+
+		users.EXPECT().CheckStatus(mock.Anything, profile.ID).
+			Return(user.AccountStatus{Active: true, TokenVersion: 2}, nil)
+
+		_, err = svc.Authenticate(context.Background(), pair.AccessToken)
+
+		assert.ErrorIs(t, err, ErrTokenRevoked)
+	})
+
+	t.Run("surfaces a status lookup failure instead of rejecting the caller", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		svc := New(newTestConfig(), users)
+
+		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
+		pair, err := svc.BuildTokenPair(profile)
+		require.NoError(t, err)
+
+		users.EXPECT().CheckStatus(mock.Anything, profile.ID).
+			Return(user.AccountStatus{}, assert.AnError)
+
+		_, err = svc.Authenticate(context.Background(), pair.AccessToken)
+
+		require.ErrorIs(t, err, assert.AnError)
+		assert.NotErrorIs(t, err, errs.ErrUnauthorized)
+	})
+
+	t.Run("returns the claims for a live access token", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		svc := New(newTestConfig(), users)
+
+		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "admin", TokenVersion: 4}
+		pair, err := svc.BuildTokenPair(profile)
+		require.NoError(t, err)
+
+		users.EXPECT().CheckStatus(mock.Anything, profile.ID).
+			Return(user.AccountStatus{Active: true, TokenVersion: 4}, nil)
+
+		claims, err := svc.Authenticate(context.Background(), pair.AccessToken)
+
+		require.NoError(t, err)
+		assert.Equal(t, ClaimsView{
+			UserID:       profile.ID,
+			Email:        profile.Email,
+			Role:         profile.Role,
+			Type:         accessTokenType,
+			TokenVersion: profile.TokenVersion,
+		}, claims)
+	})
+}
+
 func TestService_ValidateToken(t *testing.T) {
 	t.Parallel()
 

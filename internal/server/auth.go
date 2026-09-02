@@ -6,29 +6,18 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
-
 	"github.com/residwi/go-api-project-template/internal/features/auth"
-	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
-type UserStatusChecker interface {
-	CheckStatus(ctx context.Context, userID uuid.UUID) (user.AccountStatus, error)
+type Authenticator interface {
+	Authenticate(ctx context.Context, token string) (auth.ClaimsView, error)
 }
 
-type TokenValidator interface {
-	ValidateToken(tokenString string) (auth.ClaimsView, error)
-}
-
-//nolint:gocognit // token parse + claims validation + fail-open status-check branches are inherently branchy
-func authMiddleware(
-	tokenValidator TokenValidator,
-	userStatus UserStatusChecker,
-) web.Middleware {
+func authMiddleware(authenticator Authenticator) web.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -43,30 +32,9 @@ func authMiddleware(
 				return
 			}
 
-			claims, err := tokenValidator.ValidateToken(parts[1])
+			claims, err := authenticator.Authenticate(r.Context(), parts[1])
 			if err != nil {
-				response.Unauthorized(w, "invalid token")
-				return
-			}
-
-			if claims.Type != "access" {
-				response.Unauthorized(w, "invalid token type")
-				return
-			}
-
-			status, err := userStatus.CheckStatus(r.Context(), claims.UserID)
-			if err != nil {
-				response.InternalError(w)
-				return
-			}
-
-			if !status.Active {
-				response.Unauthorized(w, "account is deactivated")
-				return
-			}
-
-			if status.TokenVersion != claims.TokenVersion {
-				response.Unauthorized(w, "token has been revoked")
+				response.HandleErr(w, err)
 				return
 			}
 

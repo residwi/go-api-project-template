@@ -39,6 +39,72 @@ func (_m *MockUserDirectory) EXPECT() *MockUserDirectory_Expecter {
 	return &MockUserDirectory_Expecter{mock: &_m.Mock}
 }
 
+// CheckStatus provides a mock function for the type MockUserDirectory
+func (_mock *MockUserDirectory) CheckStatus(ctx context.Context, id uuid.UUID) (user.AccountStatus, error) {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CheckStatus")
+	}
+
+	var r0 user.AccountStatus
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (user.AccountStatus, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) user.AccountStatus); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		r0 = ret.Get(0).(user.AccountStatus)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserDirectory_CheckStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CheckStatus'
+type MockUserDirectory_CheckStatus_Call struct {
+	*mock.Call
+}
+
+// CheckStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+func (_e *MockUserDirectory_Expecter) CheckStatus(ctx any, id any) *MockUserDirectory_CheckStatus_Call {
+	return &MockUserDirectory_CheckStatus_Call{Call: _e.mock.On("CheckStatus", ctx, id)}
+}
+
+func (_c *MockUserDirectory_CheckStatus_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockUserDirectory_CheckStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserDirectory_CheckStatus_Call) Return(accountStatus user.AccountStatus, err error) *MockUserDirectory_CheckStatus_Call {
+	_c.Call.Return(accountStatus, err)
+	return _c
+}
+
+func (_c *MockUserDirectory_CheckStatus_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (user.AccountStatus, error)) *MockUserDirectory_CheckStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Create provides a mock function for the type MockUserDirectory
 func (_mock *MockUserDirectory) Create(ctx context.Context, p user.NewUser) (user.Profile, error) {
 	ret := _mock.Called(ctx, p)

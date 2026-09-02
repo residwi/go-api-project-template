@@ -41,7 +41,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	router := web.NewRouter(mux)
 	router.HandleFunc("GET /health", healthHandler())
 
-	authMW := authMiddleware(deps.Auth, deps.Users)
+	authMW := authMiddleware(deps.Auth)
 	adminMW := middleware.RequireRole("admin")
 
 	api := router.Group("/api")

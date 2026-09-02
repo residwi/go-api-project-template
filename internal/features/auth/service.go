@@ -96,7 +96,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (*domain.Tok
 		return nil, ErrInvalidToken
 	}
 
-	if claims.Type != "refresh" {
+	if claims.Type != refreshTokenType {
 		return nil, ErrInvalidToken
 	}
 
@@ -124,12 +124,12 @@ func (s *Service) BuildTokenPair(user user.Profile) (*domain.TokenPair, error) {
 		TokenVersion: user.TokenVersion,
 	}
 
-	accessToken, err := s.generateToken(s.accessTTL, claims, "access")
+	accessToken, err := s.generateToken(s.accessTTL, claims, accessTokenType)
 	if err != nil {
 		return nil, fmt.Errorf("generating access token: %w", err)
 	}
 
-	refreshToken, err := s.generateToken(s.refreshTTL, claims, "refresh")
+	refreshToken, err := s.generateToken(s.refreshTTL, claims, refreshTokenType)
 	if err != nil {
 		return nil, fmt.Errorf("generating refresh token: %w", err)
 	}
@@ -171,6 +171,32 @@ func (s *Service) ValidateToken(tokenString string) (ClaimsView, error) {
 	}, nil
 }
 
+func (s *Service) Authenticate(ctx context.Context, token string) (ClaimsView, error) {
+	claims, err := s.ValidateToken(token)
+	if err != nil {
+		return ClaimsView{}, ErrInvalidToken
+	}
+
+	if claims.Type != accessTokenType {
+		return ClaimsView{}, ErrInvalidToken
+	}
+
+	status, err := s.users.CheckStatus(ctx, claims.UserID)
+	if err != nil {
+		return ClaimsView{}, fmt.Errorf("checking account status: %w", err)
+	}
+
+	if !status.Active {
+		return ClaimsView{}, ErrAccountDeactivated
+	}
+
+	if status.TokenVersion != claims.TokenVersion {
+		return ClaimsView{}, ErrTokenRevoked
+	}
+
+	return claims, nil
+}
+
 func (s *Service) generateToken(ttl time.Duration, claims domain.Claims, kind string) (string, error) {
 	now := time.Now()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims{
@@ -192,6 +218,11 @@ func (s *Service) generateToken(ttl time.Duration, claims domain.Claims, kind st
 
 // dummyPassword is hashed once per cost to give the unknown-email login path
 // roughly the same latency as a real bcrypt comparison.
+const (
+	accessTokenType  = "access"
+	refreshTokenType = "refresh"
+)
+
 const dummyPassword = "invalid-user-timing-equalizer"
 
 // maxPasswordBytes is bcrypt's hard input limit; inputs longer than this error

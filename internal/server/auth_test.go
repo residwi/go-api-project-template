@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -15,16 +14,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/features/auth"
-	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 )
 
 func TestAuth(t *testing.T) {
 	t.Run("missing auth header", func(t *testing.T) {
-		tokenValidator := NewMockTokenValidator(t)
-		userStatus := NewMockUserStatusChecker(t)
-		mid := authMiddleware(tokenValidator, userStatus)
+		authenticator := NewMockAuthenticator(t)
+		mid := authMiddleware(authenticator)
 
 		handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
@@ -38,9 +35,8 @@ func TestAuth(t *testing.T) {
 	})
 
 	t.Run("invalid format", func(t *testing.T) {
-		tokenValidator := NewMockTokenValidator(t)
-		userStatus := NewMockUserStatusChecker(t)
-		mid := authMiddleware(tokenValidator, userStatus)
+		authenticator := NewMockAuthenticator(t)
+		mid := authMiddleware(authenticator)
 
 		handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
@@ -54,152 +50,90 @@ func TestAuth(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 
-	t.Run("invalid token", func(t *testing.T) {
-		tokenValidator := NewMockTokenValidator(t)
-		userStatus := NewMockUserStatusChecker(t)
-		mid := authMiddleware(tokenValidator, userStatus)
-
-		tokenValidator.EXPECT().ValidateToken("bad-token").Return(auth.ClaimsView{}, errors.New("invalid"))
-
-		handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
-			t.Fatal("handler should not be called")
-		}))
-
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("Authorization", "Bearer bad-token")
-		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, req)
-
-		assert.Equal(t, http.StatusUnauthorized, rec.Code)
-	})
-
-	t.Run("wrong token type", func(t *testing.T) {
-		tokenValidator := NewMockTokenValidator(t)
-		userStatus := NewMockUserStatusChecker(t)
-		mid := authMiddleware(tokenValidator, userStatus)
-
-		tokenValidator.EXPECT().ValidateToken("refresh-token").Return(auth.ClaimsView{
-			UserID: uuid.New(),
-			Email:  "user@example.com",
-			Role:   "user",
-			Type:   "refresh",
-		}, nil)
-
-		handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
-			t.Fatal("handler should not be called")
-		}))
-
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("Authorization", "Bearer refresh-token")
-		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, req)
-
-		assert.Equal(t, http.StatusUnauthorized, rec.Code)
-	})
-
-	t.Run("check status error returns internal error", func(t *testing.T) {
-		tokenValidator := NewMockTokenValidator(t)
-		userStatus := NewMockUserStatusChecker(t)
-		mid := authMiddleware(tokenValidator, userStatus)
+	t.Run("bearer prefix is matched case-insensitively", func(t *testing.T) {
+		authenticator := NewMockAuthenticator(t)
+		mid := authMiddleware(authenticator)
 
 		userID := uuid.New()
-		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
-			UserID:       userID,
-			Email:        "user@example.com",
-			Role:         "user",
-			Type:         "access",
-			TokenVersion: 1,
-		}, nil)
-		userStatus.EXPECT().CheckStatus(mock.Anything, userID).
-			Return(user.AccountStatus{}, errors.New("db error"))
+		authenticator.EXPECT().Authenticate(mock.Anything, "tok").
+			Return(auth.ClaimsView{UserID: userID, Type: "access"}, nil)
+
+		called := false
+		handler := mid(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Authorization", "bEaReR tok")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		assert.True(t, called)
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	// The middleware maps whatever the authenticator rejects; which rules it
+	// enforces, and why, is auth.Service.Authenticate's business and is tested
+	// there. What matters here is that a rejection never reaches the handler
+	// and keeps the sentinel's status code.
+	t.Run("rejection is mapped and the handler is skipped", func(t *testing.T) {
+		for name, err := range map[string]error{
+			"invalid token":       auth.ErrInvalidToken,
+			"account deactivated": auth.ErrAccountDeactivated,
+			"token revoked":       auth.ErrTokenRevoked,
+			"invalid credentials": auth.ErrInvalidCredentials,
+		} {
+			t.Run(name, func(t *testing.T) {
+				authenticator := NewMockAuthenticator(t)
+				mid := authMiddleware(authenticator)
+
+				authenticator.EXPECT().Authenticate(mock.Anything, "tok").
+					Return(auth.ClaimsView{}, err)
+
+				handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+					t.Fatal("handler should not be called")
+				}))
+
+				req := httptest.NewRequest(http.MethodGet, "/", nil)
+				req.Header.Set("Authorization", "Bearer tok")
+				rec := httptest.NewRecorder()
+				handler.ServeHTTP(rec, req)
+
+				assert.Equal(t, http.StatusUnauthorized, rec.Code)
+			})
+		}
+	})
+
+	t.Run("a non-sentinel failure is not reported as unauthorized", func(t *testing.T) {
+		authenticator := NewMockAuthenticator(t)
+		mid := authMiddleware(authenticator)
+
+		authenticator.EXPECT().Authenticate(mock.Anything, "tok").
+			Return(auth.ClaimsView{}, assert.AnError)
 
 		handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
 		}))
 
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("Authorization", "Bearer valid-token")
+		req.Header.Set("Authorization", "Bearer tok")
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	})
 
-	t.Run("inactive user", func(t *testing.T) {
-		tokenValidator := NewMockTokenValidator(t)
-		userStatus := NewMockUserStatusChecker(t)
-		mid := authMiddleware(tokenValidator, userStatus)
-
-		userID := uuid.New()
-		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
-			UserID:       userID,
-			Email:        "user@example.com",
-			Role:         "user",
-			Type:         "access",
-			TokenVersion: 1,
-		}, nil)
-		userStatus.EXPECT().CheckStatus(mock.Anything, userID).Return(user.AccountStatus{
-			Active:       false,
-			TokenVersion: 1,
-		}, nil)
-
-		handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
-			t.Fatal("handler should not be called")
-		}))
-
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("Authorization", "Bearer valid-token")
-		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, req)
-
-		assert.Equal(t, http.StatusUnauthorized, rec.Code)
-	})
-
-	t.Run("token version mismatch", func(t *testing.T) {
-		tokenValidator := NewMockTokenValidator(t)
-		userStatus := NewMockUserStatusChecker(t)
-		mid := authMiddleware(tokenValidator, userStatus)
-
-		userID := uuid.New()
-		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
-			UserID:       userID,
-			Email:        "user@example.com",
-			Role:         "user",
-			Type:         "access",
-			TokenVersion: 1,
-		}, nil)
-		userStatus.EXPECT().CheckStatus(mock.Anything, userID).Return(user.AccountStatus{
-			Active:       true,
-			TokenVersion: 2,
-		}, nil)
-
-		handler := mid(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
-			t.Fatal("handler should not be called")
-		}))
-
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req.Header.Set("Authorization", "Bearer valid-token")
-		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, req)
-
-		assert.Equal(t, http.StatusUnauthorized, rec.Code)
-	})
-
 	t.Run("success", func(t *testing.T) {
-		tokenValidator := NewMockTokenValidator(t)
-		userStatus := NewMockUserStatusChecker(t)
-		mid := authMiddleware(tokenValidator, userStatus)
+		authenticator := NewMockAuthenticator(t)
+		mid := authMiddleware(authenticator)
 
 		userID := uuid.New()
-		tokenValidator.EXPECT().ValidateToken("valid-token").Return(auth.ClaimsView{
+		authenticator.EXPECT().Authenticate(mock.Anything, "valid-token").Return(auth.ClaimsView{
 			UserID:       userID,
 			Email:        "user@example.com",
 			Role:         "admin",
 			Type:         "access",
-			TokenVersion: 3,
-		}, nil)
-		userStatus.EXPECT().CheckStatus(mock.Anything, userID).Return(user.AccountStatus{
-			Active:       true,
 			TokenVersion: 3,
 		}, nil)
 
@@ -233,22 +167,19 @@ func TestAuth(t *testing.T) {
 		log := slog.New(logger.ContextHandler{Handler: slog.NewJSONHandler(&buf, nil)})
 
 		userID := uuid.New()
-		tokenValidator := NewMockTokenValidator(t)
-		userStatus := NewMockUserStatusChecker(t)
-		mid := authMiddleware(tokenValidator, userStatus)
+		authenticator := NewMockAuthenticator(t)
+		mid := authMiddleware(authenticator)
 
-		tokenValidator.EXPECT().ValidateToken("good-token").Return(auth.ClaimsView{
+		authenticator.EXPECT().Authenticate(mock.Anything, "good-token").Return(auth.ClaimsView{
 			UserID:       userID,
 			Email:        "a@example.com",
 			Role:         "user",
 			Type:         "access",
 			TokenVersion: 1,
 		}, nil)
-		userStatus.EXPECT().CheckStatus(mock.Anything, userID).
-			Return(user.AccountStatus{Active: true, TokenVersion: 1}, nil)
 
 		handler := mid(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.InfoContext(r.Context(), "downstream work")
+			log.InfoContext(r.Context(), "downstream")
 			w.WriteHeader(http.StatusOK)
 		}))
 
@@ -259,8 +190,8 @@ func TestAuth(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, rec.Code)
 
-		var record map[string]any
-		require.NoError(t, json.Unmarshal(buf.Bytes(), &record))
-		assert.Equal(t, userID.String(), record["user_id"])
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+		assert.Equal(t, userID.String(), entry["user_id"])
 	})
 }
