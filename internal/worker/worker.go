@@ -14,12 +14,12 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
-	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	notificationjobs "github.com/residwi/go-api-project-template/internal/modules/notification/adapter/jobs"
-	"github.com/residwi/go-api-project-template/internal/modules/order"
-	orderjobs "github.com/residwi/go-api-project-template/internal/modules/order/adapter/jobs"
-	paymentjobs "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/jobs"
-	"github.com/residwi/go-api-project-template/internal/platform/config"
+	"github.com/residwi/go-api-project-template/internal/app"
+	"github.com/residwi/go-api-project-template/internal/config"
+	notificationjobs "github.com/residwi/go-api-project-template/internal/features/notification/adapter/jobs"
+	"github.com/residwi/go-api-project-template/internal/features/order"
+	orderjobs "github.com/residwi/go-api-project-template/internal/features/order/adapter/jobs"
+	paymentjobs "github.com/residwi/go-api-project-template/internal/features/payment/adapter/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
@@ -42,13 +42,13 @@ func RunContext(ctx context.Context) error {
 
 	appLog := logger.Setup(appCfg.Log.Level, appCfg.Log.Format)
 
-	modCfg, err := bootstrap.LoadConfig(appCfg)
+	modCfg, err := app.LoadConfig(appCfg)
 	if err != nil {
 		appLog.ErrorContext(ctx, "loading module config failed", slog.String("error", err.Error()))
 		return err
 	}
 
-	primaryDB, err := database.NewPrimaryPostgres(ctx, appCfg.Database)
+	primaryDB, err := database.NewPrimaryPostgres(ctx, app.PoolOptions(appCfg.Database))
 	if err != nil {
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
 		return fmt.Errorf("connecting to database: %w", err)
@@ -57,7 +57,7 @@ func RunContext(ctx context.Context) error {
 
 	db := database.DB{Primary: primaryDB}
 
-	app, err := bootstrap.New(modCfg, db, nil, appLog)
+	deps, err := app.New(modCfg, db, nil, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
 		return fmt.Errorf("wiring services: %w", err)
@@ -65,7 +65,7 @@ func RunContext(ctx context.Context) error {
 
 	softStop := appCfg.App.ShutdownTimeout / softStopDivisor
 
-	client, err := newClient(db, modCfg, app, appCfg.Worker.RescueAfter, softStop, appLog)
+	client, err := newClient(db, modCfg, deps, appCfg.Worker.RescueAfter, softStop, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "building job client failed", slog.String("error", err.Error()))
 		return err
@@ -93,8 +93,8 @@ func RunContext(ctx context.Context) error {
 
 func newClient(
 	db database.DB,
-	modCfg bootstrap.Config,
-	app *bootstrap.App,
+	modCfg app.Config,
+	deps *app.Services,
 	rescueAfter time.Duration,
 	softStop time.Duration,
 	appLog *slog.Logger,
@@ -107,9 +107,9 @@ func newClient(
 	}
 
 	workers := river.NewWorkers()
-	river.AddWorker(workers, paymentjobs.NewRefundWorker(app.Payments, modCfg.Payment.JobTimeout))
-	river.AddWorker(workers, notificationjobs.NewSendWorker(app.Notifications, modCfg.Notification.JobTimeout))
-	river.AddWorker(workers, orderjobs.NewExpireStaleWorker(app.Orders, appLog, modCfg.Order.JobTimeout))
+	river.AddWorker(workers, paymentjobs.NewRefundWorker(deps.Payments, modCfg.Payment.JobTimeout))
+	river.AddWorker(workers, notificationjobs.NewSendWorker(deps.Notifications, modCfg.Notification.JobTimeout))
+	river.AddWorker(workers, orderjobs.NewExpireStaleWorker(deps.Orders, appLog, modCfg.Order.JobTimeout))
 
 	return river.NewClient(riverpgxv5.New(db.Primary), &river.Config{
 		Workers:              workers,

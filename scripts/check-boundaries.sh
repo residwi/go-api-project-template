@@ -64,10 +64,10 @@ report() { printf '%s\n' "$*" >>"$VIOLATIONS"; }
 # missing from it, so a shared value object was being treated as a module. A
 # denylist is wrong every time someone adds a directory and forgets; a directory
 # is right by construction.
-MODULES_ROOT='internal/modules'
+FEATURES_ROOT='internal/features'
 
 # The bottom ring, walked by check 8. Held in a variable for the same reason
-# MODULES_ROOT is: check 8 names this path three times -- the directory it
+# FEATURES_ROOT is: check 8 names this path three times -- the directory it
 # walks, the prefix that makes an import intra-platform and therefore legal,
 # and the advice it prints -- and three literals drift where one does not.
 PLATFORM_ROOT='internal/platform'
@@ -84,14 +84,14 @@ PLATFORM_ROOT='internal/platform'
 # below instead, so everything else checkout might reach for is still scanned
 # like any other feature.
 #
-# Held as a full path rather than the bare name (bootstrap, server) this
+# Held as a full path rather than the bare name (app, server) this
 # held before: importer_roots' two loops walk directories at different
 # depths, and is_wiring now takes whichever full path each loop already
-# prints, so a future entry naming a module (internal/modules/<feature>)
+# prints, so a future entry naming a module (internal/features/<feature>)
 # works the same way an entry naming a top-level directory does, without a
-# depth-specific comparison. Nothing in $MODULES_ROOT sits on this list
+# depth-specific comparison. Nothing in $FEATURES_ROOT sits on this list
 # today -- see the checkout paragraph above.
-WIRING_DIRS='internal/bootstrap internal/server internal/worker'
+WIRING_DIRS='internal/app internal/server internal/worker'
 
 is_wiring() {
 	case " $WIRING_DIRS " in
@@ -101,20 +101,20 @@ is_wiring() {
 }
 
 # feature_dirs prints the name of every feature module, read straight out of
-# $MODULES_ROOT, so a new feature is covered the day the directory is created.
+# $FEATURES_ROOT, so a new feature is covered the day the directory is created.
 feature_dirs() {
 	local dir
-	for dir in "$MODULES_ROOT"/*/; do
+	for dir in "$FEATURES_ROOT"/*/; do
 		[ -d "$dir" ] || continue
 		printf '%s\n' "$(basename "$dir")"
 	done
 }
 
-# $MODULES_ROOT is asserted, not assumed. Checks 3 and 4 are both driven by
+# $FEATURES_ROOT is asserted, not assumed. Checks 3 and 4 are both driven by
 # feature_dirs, and both fail *open* when it yields nothing: check_table_ownership
 # loops zero times, and check_cross_module_imports bails out on an empty feature
 # alternation. Rename or empty this directory and those two report nothing at
-# all, whatever is in the tree -- verified by moving internal/modules aside with
+# all, whatever is in the tree -- verified by moving internal/features aside with
 # a cross-module `INSERT INTO orders` and a sibling postgres import planted:
 # neither was mentioned. (That run still exited 1, but only because check 1's
 # path-keyed allowlist stopped matching the moved payment/gateway.go and
@@ -126,13 +126,13 @@ feature_dirs() {
 # broken checkout or a move this script has not been told about, so it is a hard
 # error rather than a violation report.
 if [ -z "$(feature_dirs)" ]; then
-	echo "check-boundaries: MODULES_ROOT ($MODULES_ROOT) holds no feature module directories." >&2
+	echo "check-boundaries: FEATURES_ROOT ($FEATURES_ROOT) holds no feature module directories." >&2
 	echo >&2
 	echo "  Checks 3 (table ownership) and 4 (cross-module imports) enumerate every feature" >&2
-	echo "  out of MODULES_ROOT. With nothing there they would pass while checking" >&2
+	echo "  out of FEATURES_ROOT. With nothing there they would pass while checking" >&2
 	echo "  nothing, so this is refused instead." >&2
 	echo >&2
-	echo "  If the modules moved, update MODULES_ROOT in scripts/check-boundaries.sh." >&2
+	echo "  If the modules moved, update FEATURES_ROOT in scripts/check-boundaries.sh." >&2
 	exit 1
 fi
 
@@ -143,15 +143,15 @@ fi
 # as "may wire adapters", which is why shared infrastructure is scanned too.
 #
 # It prints paths rather than bare names because the two kinds of directory now
-# sit at different depths: internal/platform against internal/modules/product.
-# $MODULES_ROOT itself is expanded into its children rather than scanned as one
+# sit at different depths: internal/platform against internal/features/product.
+# $FEATURES_ROOT itself is expanded into its children rather than scanned as one
 # directory, so that check 4 can tell which module an offending file belongs to:
 # the caller takes the basename of what it is given, and walking the root as one
 # directory would call every module's file "modules" and report each feature's
 # own adapter imports as violations.
 #
 # That expansion leaves a hole, which is why this prints roots and not only
-# directories: a .go file sitting *directly* at $MODULES_ROOT/ is in neither the
+# directories: a .go file sitting *directly* at $FEATURES_ROOT/ is in neither the
 # first loop (which skips the root) nor the second (which lists only children),
 # so nothing would scan it. Such a file belongs to no module -- it is not wiring
 # either -- so each one is handed to the caller by name. `find` accepts a file
@@ -161,16 +161,16 @@ importer_roots() {
 	local dir name file
 	for dir in internal/*/; do
 		name="$(basename "$dir")"
-		[ "internal/$name" = "$MODULES_ROOT" ] && continue
+		[ "internal/$name" = "$FEATURES_ROOT" ] && continue
 		is_wiring "internal/$name" && continue
 		printf '%s\n' "internal/$name"
 	done
-	for dir in "$MODULES_ROOT"/*/; do
+	for dir in "$FEATURES_ROOT"/*/; do
 		[ -d "$dir" ] || continue
 		is_wiring "${dir%/}" && continue
 		printf '%s\n' "${dir%/}"
 	done
-	for file in "$MODULES_ROOT"/*.go; do
+	for file in "$FEATURES_ROOT"/*.go; do
 		[ -f "$file" ] || continue
 		printf '%s\n' "$file"
 	done
@@ -181,15 +181,15 @@ importer_roots() {
 # ---------------------------------------------------------------------------
 #
 # Phase 4 moved every feature's wire DTOs into the http adapter beside the
-# handler that serialises them, today internal/modules/<feature>/adapter/http/.
+# handler that serialises them, today internal/features/<feature>/adapter/http/.
 # A `json:` tag on a domain model means the model has started doubling as a
 # transport type again, which is what the phase existed to undo.
 #
 # Exempt by location:
-#   internal/modules/<feature>/adapter/http/*.go
+#   internal/features/<feature>/adapter/http/*.go
 #                       the wire adapters -- this is where tags belong. A path
 #                       short of this pattern
-#                       (internal/modules/<feature>/http/) is deliberately NOT
+#                       (internal/features/<feature>/http/) is deliberately NOT
 #                       exempt: that path held the feature route tables until
 #                       they moved to internal/server/routes.go, and a
 #                       json tag reappearing there would mean a DTO had drifted
@@ -201,18 +201,20 @@ importer_roots() {
 #                       by both the walk and its filter, so the two cannot drift
 #                       apart the way a glob and a prose description can.
 #   *_test.go           tests may build wire payloads inline
-#   internal/platform/  transport infrastructure; internal/platform/config/ is
-#                       envconfig, not a domain model (no json tags today, but
-#                       the exemption matters so that adding one to a config
-#                       struct is not mistaken for a domain leak);
+#   internal/platform/  transport infrastructure;
 #                       internal/platform/paging/{cursor,offset}.go are the
-#                       shared pagination envelope
+#                       shared pagination envelope.
+#                       internal/config/ is NOT exempt: it moved out of
+#                       platform/ so that platform/ names no application
+#                       config, and it carries envconfig tags rather than json
+#                       ones. A json tag added there now fails this check,
+#                       which is right -- config is not a wire type
 #
 # Exempt by explicit path allowlist -- one entry per line. This is a variable
 # rather than another anonymous `grep -v` so that adding an entry is an
 # obvious, reviewable act that shows up in a diff with its justification.
 #
-#   internal/modules/payment/adapter/gateway/gateway.go
+#   internal/features/payment/adapter/gateway/gateway.go
 #     ChargeRequest / ChargeResponse / RefundRequest / RefundResponse are the
 #     *external* payment gateway's wire contract, not this system's. The tags
 #     describe someone else's API. Only this one file needs the exemption --
@@ -236,7 +238,7 @@ importer_roots() {
 #     location already -- internal/platform/ above -- so the allowlist entry
 #     is gone with it rather than pointing at a path nothing owns any more.
 JSON_TAG_ALLOWLIST='
-internal/modules/payment/adapter/gateway/gateway.go
+internal/features/payment/adapter/gateway/gateway.go
 '
 
 is_json_tag_allowlisted() {
@@ -244,8 +246,8 @@ is_json_tag_allowlisted() {
 }
 
 # is_http_adapter is true for a module's own http adapter --
-# internal/modules/<feature>/adapter/http/*.go -- and nothing else. A path
-# short of that pattern (internal/modules/<feature>/http/*.go) correctly
+# internal/features/<feature>/adapter/http/*.go -- and nothing else. A path
+# short of that pattern (internal/features/<feature>/http/*.go) correctly
 # returns false: no such directory exists, and nothing may recreate one to
 # hold a DTO. The second arm this carried, matching a slice's
 # usecase/<slice>/http/, went with the slices; while it lasted it was the
@@ -254,7 +256,7 @@ is_json_tag_allowlisted() {
 # 294 tags in fifteen adapters at once.
 is_http_adapter() {
 	case "$1" in
-	"$MODULES_ROOT"/*/adapter/http/*.go) return 0 ;;
+	"$FEATURES_ROOT"/*/adapter/http/*.go) return 0 ;;
 	esac
 	return 1
 }
@@ -268,7 +270,7 @@ check_wire_tags() {
 		is_json_tag_allowlisted "$file" && continue
 		while IFS= read -r line; do
 			report "json tag outside an http adapter: ${file}:${line%%:*}
-    Wire DTOs belong in internal/modules/<feature>/adapter/http/. Domain models carry no json tags.
+    Wire DTOs belong in internal/features/<feature>/adapter/http/. Domain models carry no json tags.
     If this type really is someone else's wire contract, add it to
     JSON_TAG_ALLOWLIST in scripts/check-boundaries.sh with a reason."
 		done < <(grep -n 'json:"' "$file" || true)
@@ -299,7 +301,7 @@ check_wire_tags() {
 	# 1c. A feature's dto.go must not come back.
 	#
 	# These files were deleted in Phase 4; their contents now live beside the
-	# handler that serialises them, in internal/modules/<feature>/adapter/http/.
+	# handler that serialises them, in internal/features/<feature>/adapter/http/.
 	#
 	# No -mindepth/-maxdepth. They used to pin this to internal/<feature>/dto.go
 	# at exactly depth 2, and Phase 6 moved the features to depth 3 -- a depth
@@ -309,7 +311,7 @@ check_wire_tags() {
 	while IFS= read -r file; do
 		report "resurrected DTO file: ${file}
     dto.go was deleted in Phase 4. Wire types live in
-    internal/modules/<feature>/adapter/http/ next to the handler that serialises them."
+    internal/features/<feature>/adapter/http/ next to the handler that serialises them."
 	done < <(find internal -type f -name 'dto.go' | sort)
 }
 
@@ -345,7 +347,7 @@ check_wire_tags() {
 #         INSERT INTO
 #             products (id, name)
 #     Line-oriented matching missed that entirely, and this codebase already
-#     wraps SQL mid-statement (internal/modules/inventory/adapter/postgres/repository.go ends a
+#     wraps SQL mid-statement (internal/features/inventory/adapter/postgres/repository.go ends a
 #     line with `DO UPDATE`), so a maintainer reformatting a long column list
 #     could ship a cross-module write green. Collapsing is safe because the
 #     pattern requires whitespace *and then* a letter or underscore after the
@@ -391,7 +393,7 @@ check_wire_tags() {
 #   - Only non-test files are scanned, and every .go file under a feature is
 #     walked, at any depth, not only the ones inside a directory named
 #     `postgres`. A module's SQL sits in
-#     internal/modules/<feature>/adapter/postgres/ today, but nothing makes it
+#     internal/features/<feature>/adapter/postgres/ today, but nothing makes it
 #     stay there: a query in service.go names a table just as effectively.
 #     Test files legitimately seed and assert against
 #     sibling tables to satisfy foreign keys; that is fixture setup, not an
@@ -399,13 +401,13 @@ check_wire_tags() {
 #   - Skipping tests removed the prose false positives that lived in test names
 #     ("removes all items from cart", "returns top products from paid orders"),
 #     but not all of them: prose in a *production* string literal still trips
-#     this check. `var msg = "update orders failed"` in internal/modules/cart/adapter/postgres/
+#     this check. `var msg = "update orders failed"` in internal/features/cart/adapter/postgres/
 #     reports `orders`. Nothing here can tell that string from a query, so the
 #     failure mode is a loud false positive rather than a silent miss -- it is
 #     recorded in $OWNERSHIP_DOC rather than papered over, because a check that
 #     cries wolf gets disabled.
 #   - `pg_constraint`, a Postgres catalog table rather than a domain table,
-#     appears only in internal/modules/cart/adapter/postgres/repository_test.go, which asserts
+#     appears only in internal/features/cart/adapter/postgres/repository_test.go, which asserts
 #     each foreign key's ON DELETE action. Because tests are out of scope it
 #     needs no allowlist entry -- recorded here so the next reader does not
 #     rediscover it as a violation.
@@ -626,7 +628,7 @@ sql_cte_names() {
 # table named from service.go was invisible to the narrower scan this replaced.
 # Walking the whole module closes that hole for free.
 module_go_files() {
-	find "$MODULES_ROOT/$1" -name '*.go' ! -name '*_test.go' -type f
+	find "$FEATURES_ROOT/$1" -name '*.go' ! -name '*_test.go' -type f
 }
 
 check_table_ownership() {
@@ -652,7 +654,7 @@ check_table_ownership() {
 		# a slice, now under adapter/. A feature with no postgres/ anywhere
 		# legitimately owns no table (auth, checkout and money today) and is
 		# skipped.
-		[ -n "$(find "$MODULES_ROOT/$feature" -type d -name postgres)" ] || continue
+		[ -n "$(find "$FEATURES_ROOT/$feature" -type d -name postgres)" ] || continue
 
 		allowed="$(allowed_tables "$feature")"
 		if [ -z "${allowed// /}" ]; then
@@ -754,7 +756,7 @@ check_table_ownership() {
 # check 5, which used to police one same-module case, is retired.
 #
 # Exempt as an importer: the wiring layer, and only the wiring layer.
-# internal/bootstrap/ and internal/server/ exist precisely to import
+# internal/app/ and internal/server/ exist precisely to import
 # adapters and wire them together, so they are skipped as importers via
 # WIRING_DIRS (importer_roots applies that exemption once, for every check
 # that walks it). Everything else under internal/ is scanned, features and
@@ -788,15 +790,15 @@ check_cross_module_imports() {
 	fi
 	# Escape regex metacharacters in the module path ("github.com/..." has dots).
 	module_re="$(printf '%s' "$module" | sed -e 's/[.[\*^$\/]/\\&/g')"
-	# $MODULES_ROOT is a path with slashes; escape it for the grep below too.
-	modules_re="$(printf '%s' "$MODULES_ROOT" | sed -e 's/[.[\*^$\/]/\\&/g')"
+	# $FEATURES_ROOT is a path with slashes; escape it for the grep below too.
+	modules_re="$(printf '%s' "$FEATURES_ROOT" | sed -e 's/[.[\*^$\/]/\\&/g')"
 
 	# feature_dirs cannot be empty by the time this runs -- the guard beside its
 	# definition exits the script first -- and that guard is what makes this bail
 	# safe to keep as belt and braces. On its own it was the silent death of this
 	# check: with no features the alternation collapses to `()`, which matches
 	# the empty string, so the pattern would demand a doubled slash --
-	# `internal/modules//` -- match nothing, and contribute no violations.
+	# `internal/features//` -- match nothing, and contribute no violations.
 	feature_alt="$(feature_dirs | tr '\n' '|' | sed -e 's/|$//')"
 	[ -n "$feature_alt" ] || return 0
 
@@ -819,15 +821,15 @@ check_cross_module_imports() {
 			[ -f "$file" ] || continue
 
 			# The importing file's own feature, derived from where it sits.
-			# Empty for anything outside $MODULES_ROOT -- internal/platform, a
+			# Empty for anything outside $FEATURES_ROOT -- internal/platform, a
 			# stray file directly at the modules root -- which is deliberate:
 			# such a file belongs to no module, so it is held to exactly the
 			# same rule a sibling module is: root packages yes, domain/ and
 			# adapters no.
 			file_feature=''
 			case "$file" in
-			"$MODULES_ROOT"/*)
-				rest="${file#"$MODULES_ROOT"/}"
+			"$FEATURES_ROOT"/*)
+				rest="${file#"$FEATURES_ROOT"/}"
 				file_feature="${rest%%/*}"
 				;;
 			esac
@@ -849,7 +851,7 @@ check_cross_module_imports() {
 
 			while IFS= read -r hit; do
 				[ -n "$hit" ] || continue
-				# hit looks like "12:\"<module>/internal/modules/<target>\"" --
+				# hit looks like "12:\"<module>/internal/features/<target>\"" --
 				# a bare import of the target's root package, which is the
 				# published surface and allowed -- or, with anything past the
 				# feature name, ".../<target>/domain",
@@ -858,7 +860,7 @@ check_cross_module_imports() {
 				imp="${hit#*:}"
 				imp="${imp#\"}"
 				imp="${imp%\"}"
-				rest="${imp#*"$MODULES_ROOT"/}"
+				rest="${imp#*"$FEATURES_ROOT"/}"
 				target="${rest%%/*}"
 
 				[ "$target" = "$file_feature" ] && continue
@@ -869,7 +871,7 @@ check_cross_module_imports() {
 				# package: importable, because that is the module's published
 				# surface. The `contract | contract/*` arm this carried went
 				# with the last contract/ directory -- no path under
-				# internal/modules can match it any more, so keeping it could
+				# internal/features can match it any more, so keeping it could
 				# only excuse a directory nobody is allowed to recreate.
 				case "$target_rest" in
 				"") continue ;;
@@ -895,8 +897,8 @@ check_cross_module_imports() {
     A module may import another module's root package -- that is its
     published surface. domain/ and every adapter (postgres, http, redis,
     jobs) stay private to the module that owns them. Declare a consumer-side
-    port instead (AGENTS.md rule 10; e.g. internal/modules/category/ports.go
-    or internal/modules/checkout/ports.go), or declare the struct that has to
+    port instead (AGENTS.md rule 10; e.g. internal/features/category/ports.go
+    or internal/features/checkout/ports.go), or declare the struct that has to
     cross in the producing module's own contract.go."
 			done <<<"$hits"
 		done <<<"$files"
@@ -957,7 +959,7 @@ check_transport_direction() {
 	while IFS= read -r feature; do
 		[ -n "$feature" ] || continue
 
-		files="$(find "$MODULES_ROOT/$feature" -type f -name '*.go' | sort)"
+		files="$(find "$FEATURES_ROOT/$feature" -type f -name '*.go' | sort)"
 		[ -n "$files" ] || continue
 
 		while IFS= read -r file; do
@@ -989,7 +991,7 @@ check_transport_direction() {
     A module may not import internal/server, and there is no exemption.
     Everything a handler needs -- RequireUser, the user context, RequireRole,
     RateLimit -- lives in internal/platform/web/middleware. Declare a shared
-    type in ${MODULES_ROOT}/${feature}/contract.go and let the transport
+    type in ${FEATURES_ROOT}/${feature}/contract.go and let the transport
     import the module root instead."
 			done <<<"$hits"
 		done <<<"$files"
@@ -1006,9 +1008,9 @@ check_transport_direction() {
 #
 # The test is deliberately inverted -- match every local import, then subtract
 # what is allowed -- rather than naming the trees that must not be imported.
-# The first version of this check named three (internal/modules,
+# The first version of this check named three (internal/features,
 # internal/server, internal/apperror) and so said nothing about
-# internal/bootstrap or cmd/mockgateway/mockserver, either of which would end
+# internal/app or cmd/mockgateway/mockserver, either of which would end
 # the leaf property just as completely while passing silently. A closed list
 # also has to be remembered: it covers a tree added later only on the day
 # someone thinks to extend it. Subtracting from "everything local" covers that

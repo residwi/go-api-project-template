@@ -17,11 +17,11 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/modules/auth"
-	"github.com/residwi/go-api-project-template/internal/modules/cart"
-	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	"github.com/residwi/go-api-project-template/internal/platform/config"
+	"github.com/residwi/go-api-project-template/internal/app"
+	"github.com/residwi/go-api-project-template/internal/config"
+	"github.com/residwi/go-api-project-template/internal/features/auth"
+	"github.com/residwi/go-api-project-template/internal/features/cart"
+	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/server"
 	"github.com/residwi/go-api-project-template/internal/testutil"
@@ -30,7 +30,7 @@ import (
 var (
 	testPool  *pgxpool.Pool
 	testRedis *redis.Client
-	testApp   *bootstrap.App
+	testApp   *app.Services
 
 	// Fixed across every App this package builds, so a token minted by one is
 	// still valid against another -- the only config any e2e test actually
@@ -53,7 +53,7 @@ var (
 		GatewayURL:     "http://localhost:19999",
 		GatewayTimeout: 5 * time.Second,
 	}
-	testModCfg = bootstrap.Config{
+	testModCfg = app.Config{
 		Auth: auth.Config{
 			Secret:          "test-secret-key-at-least-32-chars-long",
 			AccessTokenTTL:  15 * time.Minute,
@@ -85,7 +85,7 @@ func setup(t *testing.T) {
 	testutil.ResetRedis(t, testRedis)
 }
 
-// newTestApp wires a bootstrap.App against testPool/testRedis for a given
+// newTestApp wires a app.Services against testPool/testRedis for a given
 // payment config. TestMain uses it for testApp; tests that need a different
 // payment gateway URL (a local httptest mock server) build their own
 // payment.Config and call this instead.
@@ -93,14 +93,14 @@ func setup(t *testing.T) {
 // internal/server/router_test.go carries its own copy. Keep them in step.
 // withPayment returns the shared module config with only Payment replaced --
 // the one field any call site varies.
-func withPayment(paymentCfg payment.Config) bootstrap.Config {
+func withPayment(paymentCfg payment.Config) app.Config {
 	cfg := testModCfg
 	cfg.Payment = paymentCfg
 	return cfg
 }
 
-func newTestApp(paymentCfg payment.Config) *bootstrap.App {
-	app, err := bootstrap.New(
+func newTestApp(paymentCfg payment.Config) *app.Services {
+	deps, err := app.New(
 		withPayment(paymentCfg),
 		database.DB{Primary: testPool},
 		testRedis,
@@ -109,7 +109,7 @@ func newTestApp(paymentCfg payment.Config) *bootstrap.App {
 	if err != nil {
 		panic(err)
 	}
-	return app
+	return deps
 }
 
 // newTestRouter builds a router for a given payment config against a

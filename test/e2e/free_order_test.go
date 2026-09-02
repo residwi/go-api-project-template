@@ -19,7 +19,7 @@ import (
 // the order total to nothing, so order.Service skips the payment tail entirely
 // and finalizes the order itself -- marking it paid and turning the reservation
 // into a deduction. That branch is the only caller of order.Inventory.Deduct,
-// so dropping that wiring in internal/bootstrap/app.go used to leave every
+// so dropping that wiring in internal/app/app.go used to leave every
 // other e2e test green.
 func TestE2EFullyDiscountedOrder(t *testing.T) {
 	setup(t)

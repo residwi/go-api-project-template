@@ -16,16 +16,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
-	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	orderjobs "github.com/residwi/go-api-project-template/internal/modules/order/adapter/jobs"
-	"github.com/residwi/go-api-project-template/internal/modules/payment"
-	paymentjobs "github.com/residwi/go-api-project-template/internal/modules/payment/adapter/jobs"
+	"github.com/residwi/go-api-project-template/internal/app"
+	orderjobs "github.com/residwi/go-api-project-template/internal/features/order/adapter/jobs"
+	"github.com/residwi/go-api-project-template/internal/features/payment"
+	paymentjobs "github.com/residwi/go-api-project-template/internal/features/payment/adapter/jobs"
 	"github.com/residwi/go-api-project-template/internal/server"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 type jobQueueEnv struct {
-	app     *bootstrap.App
+	deps    *app.Services
 	handler http.Handler
 }
 
@@ -36,8 +36,8 @@ func TestRefundJobIsEnqueuedOnce(t *testing.T) {
 
 	_, paymentID := placeAndPayOrder(t, env)
 
-	require.NoError(t, env.app.Payments.Refund(ctx, paymentID))
-	require.NoError(t, env.app.Payments.Refund(ctx, paymentID))
+	require.NoError(t, env.deps.Payments.Refund(ctx, paymentID))
+	require.NoError(t, env.deps.Payments.Refund(ctx, paymentID))
 
 	var count int
 	require.NoError(t, testPool.QueryRow(ctx,
@@ -53,7 +53,7 @@ func TestCancellingAnOrderCancelsItsPaymentJobsOnly(t *testing.T) {
 	env := newTestEnv(t)
 
 	orderID, paymentID := placeAndPayOrder(t, env)
-	require.NoError(t, env.app.Payments.Refund(ctx, paymentID))
+	require.NoError(t, env.deps.Payments.Refund(ctx, paymentID))
 
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO river_job (kind, queue, max_attempts, args, tags)
@@ -61,7 +61,7 @@ func TestCancellingAnOrderCancelsItsPaymentJobsOnly(t *testing.T) {
 		"order-"+orderID.String())
 	require.NoError(t, err)
 
-	require.NoError(t, env.app.Payments.CancelPendingByOrderID(ctx, orderID))
+	require.NoError(t, env.deps.Payments.CancelPendingByOrderID(ctx, orderID))
 
 	var jobState string
 	require.NoError(t, testPool.QueryRow(ctx,
@@ -90,7 +90,7 @@ func TestRunnerClaimsAndRunsAnEnqueuedJob(t *testing.T) {
 	_, paymentID := placeAndPayOrder(t, env)
 
 	workers := river.NewWorkers()
-	river.AddWorker(workers, paymentjobs.NewRefundWorker(env.app.Payments, time.Minute))
+	river.AddWorker(workers, paymentjobs.NewRefundWorker(env.deps.Payments, time.Minute))
 
 	client, err := river.NewClient(riverpgxv5.New(testPool), &river.Config{
 		Workers: workers,
@@ -101,7 +101,7 @@ func TestRunnerClaimsAndRunsAnEnqueuedJob(t *testing.T) {
 	require.NoError(t, client.Start(ctx))
 	t.Cleanup(func() { _ = client.Stop(context.Background()) })
 
-	require.NoError(t, env.app.Payments.Refund(ctx, paymentID))
+	require.NoError(t, env.deps.Payments.Refund(ctx, paymentID))
 
 	require.Eventually(t, func() bool {
 		var state string
@@ -122,7 +122,7 @@ func TestOrderExpireStaleSweepRunsAgainAfterCompleting(t *testing.T) {
 	env := newTestEnv(t)
 
 	workers := river.NewWorkers()
-	river.AddWorker(workers, orderjobs.NewExpireStaleWorker(env.app.Orders, testutil.DiscardLogger(), time.Minute))
+	river.AddWorker(workers, orderjobs.NewExpireStaleWorker(env.deps.Orders, testutil.DiscardLogger(), time.Minute))
 
 	client, err := river.NewClient(riverpgxv5.New(testPool), &river.Config{
 		Workers: workers,
@@ -170,13 +170,13 @@ func newTestEnv(t *testing.T) jobQueueEnv {
 		GatewayURL:     mockServer.URL + "/mock/payment",
 		GatewayTimeout: 5 * time.Second,
 	}
-	app := newTestApp(paymentCfg)
+	deps := newTestApp(paymentCfg)
 	handler := server.NewRouter(
 		testAppCfg, withPayment(paymentCfg),
 		testRedis, testutil.DiscardLogger(),
-		app,
+		deps,
 	)
-	return jobQueueEnv{app: app, handler: handler}
+	return jobQueueEnv{deps: deps, handler: handler}
 }
 
 func placeAndPayOrder(t *testing.T, env jobQueueEnv) (orderID, paymentID uuid.UUID) {

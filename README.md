@@ -23,7 +23,7 @@ A production-ready Go API template built on feature modules with machine-checked
 
 ## Project Structure
 
-Feature modules sit under `/internal/modules` — one directory per module,
+Feature modules sit under `/internal/features` — one directory per module,
 sixteen of them. A module is **one flat package plus an `adapter/`
 directory**: `service.go` declaring one exported `Service`, `repository.go`
 for its storage port, `ports.go` for what it needs from other modules,
@@ -131,7 +131,7 @@ retired, and renumbering would falsify every by-number citation in `AGENTS.md`,
 3. No SQL anywhere in a module naming a table that module does not own.
 4. A module may import another module's **root package** — that is its
    published surface — and nothing deeper: not its `domain/`, not any of its
-   adapters. The wiring layer — `internal/bootstrap`, `internal/server` and
+   adapters. The wiring layer — `internal/app`, `internal/server` and
    `internal/worker` — is exempt as an importer, and `checkout` alone may
    reach `order/domain`.
 5. *(retired)* — it refused a slice importing a sibling slice; there are no
@@ -659,13 +659,13 @@ This template puts one module per feature and one `Service` per module:
   a boundary check enforces the direction.
 - PostgreSQL adapters live in each module's `adapter/postgres`, so a `Service`
   *cannot* import its own SQL adapter without a compile-time import cycle.
-  `internal/bootstrap` builds the adapter and hands it to `Service`, so the
+  `internal/app` builds the adapter and hands it to `Service`, so the
   pool never reaches the module's root package.
 - Cross-module dependencies use interfaces declared by the **consumer**, in
-  its own `ports.go` — `internal/modules/order/ports.go` declares what `order`
+  its own `ports.go` — `internal/features/order/ports.go` declares what `order`
   needs from `cart`; `cart` publishes none of it. Nine modules have a
   `ports.go`; the other seven reach nothing outside themselves. Two mechanisms
-  satisfy a port, and `internal/bootstrap` (the composition root, shared by
+  satisfy a port, and `internal/app` (the composition root, shared by
   the API server and the worker) wires them once: **name-match**, when the
   producer's own value already has a method named what the port asks for
   (`promotion.Service` satisfies both `order.CouponReserver` and
@@ -677,13 +677,13 @@ This template puts one module per feature and one `Service` per module:
   intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) against their own
   port, and `order.Service` turns each intent into the right transition
   internally, keeping the state machine's allowed transitions in one place
-  (`internal/modules/order/domain/state.go`).
+  (`internal/features/order/domain/state.go`).
 - Monetary amounts are `money.Money` (an amount paired with its currency) in
   `order`, `payment`, `product` and `cart`, so an amount cannot drift from the
   currency beside it. `promotion` and `dashboard` stay on `int64` for reasons
   recorded in `ARCHITECTURE.md` §10.
 - Configuration is validated at startup and boot aborts on failure:
-  infra-level settings in `Infra.validate()` (`internal/platform/config`),
+  infra-level settings in `Infra.validate()` (`internal/config`),
   module-owned settings (a sub-second `AUTH_RATE_WINDOW`, a
   `PAYMENT_JOB_CONCURRENCY < 1`) inline in that module's own `LoadConfig`
   (`auth.LoadConfig`, `cart.LoadConfig`, `notification.LoadConfig`,

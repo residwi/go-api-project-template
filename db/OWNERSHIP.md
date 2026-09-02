@@ -93,7 +93,7 @@ protect, because `dashboard` never writes.
    answer is a real read model — a projection `dashboard` owns and other modules
    write to — not a wider exemption.
 3. Read-only is a convention here, not a constraint. No grant, no separate role,
-   and no check enforces it. An `UPDATE` in `internal/modules/dashboard/adapter/postgres` would
+   and no check enforces it. An `UPDATE` in `internal/features/dashboard/adapter/postgres` would
    pass CI today.
 
 ## Cross-module foreign keys are kept
@@ -238,7 +238,7 @@ here; there is no list in the script to keep in step.
 
 * A production query naming a table the module does not own, via `FROM`,
   `JOIN`, `INSERT INTO`, `UPDATE`, `TRUNCATE` or `COPY`, anywhere under the
-  module — every non-test `.go` file under `internal/modules/<module>/`, not
+  module — every non-test `.go` file under `internal/features/<module>/`, not
   only the ones inside a directory named `postgres`. The scan used to be
   scoped to `postgres/` directories only, which meant a query in `service.go`
   was invisible; there is no longer a privileged directory, so the whole
@@ -256,7 +256,7 @@ here; there is no list in the script to keep in step.
   `INSERT INTO\n    products (...)` is caught. It was not, before Phase 5.
 * The same, when the table is written as a quoted identifier: `FROM "products"`.
 * A CTE named after a real table — `WITH orders AS (...)` in, say,
-  `internal/modules/payment/adapter/postgres/`. This is refused rather than exempted, because
+  `internal/features/payment/adapter/postgres/`. This is refused rather than exempted, because
   exempting it hid every genuine reference to `orders` in that file, reads and
   writes alike, without anyone touching this document. Per-statement CTE scoping
   would not have been enough: SQL says a non-recursive CTE body does not see the
@@ -273,7 +273,7 @@ check trusted past its reach is worse than no check.
 
 * **`dashboard`, at all.** Exempt by name, per the carve-out. Nothing verifies
   it stays read-only or stays at two tables.
-* **`internal/platform`, entirely.** Check 3 loops over `internal/modules/*`
+* **`internal/platform`, entirely.** Check 3 loops over `internal/features/*`
   only, so nothing in `internal/platform` is ever scanned for a table
   reference at all. This is the same absence check 4's own `WIRING_DIRS`
   exemption exploits for the wiring layer. `platform` owns no table today, so
@@ -291,7 +291,7 @@ check trusted past its reach is worse than no check.
   `//` and SQL `--` comments are stripped, and `_test.go` files are skipped,
   which between them removed most of it. What remains is prose in a *production*
   string literal: `var msg = "update orders failed"` in, say,
-  `internal/modules/payment/adapter/postgres/` reports `orders`. Nothing available to a grep can
+  `internal/features/payment/adapter/postgres/` reports `orders`. Nothing available to a grep can
   tell that string from a query. It fails loudly rather than silently, so the
   cost is an afternoon of confusion, not a boundary crossing — but if it starts
   happening often the answer is a SQL parser, not a wider allowlist.

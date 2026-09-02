@@ -10,9 +10,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/residwi/go-api-project-template/internal/bootstrap"
+	"github.com/redis/go-redis/v9"
+
+	"github.com/residwi/go-api-project-template/internal/app"
+	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/platform/cache"
-	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 )
@@ -33,20 +35,20 @@ func RunContext(ctx context.Context) error {
 
 	appLog := logger.Setup(appCfg.Log.Level, appCfg.Log.Format)
 
-	modCfg, err := bootstrap.LoadConfig(appCfg)
+	modCfg, err := app.LoadConfig(appCfg)
 	if err != nil {
 		appLog.ErrorContext(ctx, "loading module config failed", slog.String("error", err.Error()))
 		return err
 	}
 
-	primaryDB, err := database.NewPrimaryPostgres(ctx, appCfg.Database)
+	primaryDB, err := database.NewPrimaryPostgres(ctx, app.PoolOptions(appCfg.Database))
 	if err != nil {
 		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
 		return fmt.Errorf("connecting to database: %w", err)
 	}
 	defer primaryDB.Close()
 
-	replicaDB, err := database.NewReplicaPostgres(ctx, appCfg.Database)
+	replicaDB, err := database.NewReplicaPostgres(ctx, app.ReplicaPoolOptions(appCfg.Database))
 	if err != nil {
 		if !errors.Is(err, database.ErrReplicaNotConfigured) {
 			appLog.WarnContext(
@@ -61,7 +63,17 @@ func RunContext(ctx context.Context) error {
 		defer replicaDB.Close()
 	}
 
-	rdb, err := cache.NewRedis(ctx, appCfg.Redis)
+	rdb, err := cache.NewRedis(ctx, &redis.Options{
+		Addr:         appCfg.Redis.Addr(),
+		Password:     appCfg.Redis.Password,
+		DB:           appCfg.Redis.DB,
+		PoolSize:     appCfg.Redis.PoolSize,
+		MinIdleConns: appCfg.Redis.MinIdleConns,
+		DialTimeout:  appCfg.Redis.DialTimeout,
+		ReadTimeout:  appCfg.Redis.ReadTimeout,
+		WriteTimeout: appCfg.Redis.WriteTimeout,
+		PoolTimeout:  appCfg.Redis.PoolTimeout,
+	})
 	if err != nil {
 		appLog.WarnContext(
 			ctx,
@@ -75,13 +87,13 @@ func RunContext(ctx context.Context) error {
 
 	db := database.DB{Primary: primaryDB, Replica: replicaDB}
 
-	app, err := bootstrap.New(modCfg, db, rdb, appLog)
+	deps, err := app.New(modCfg, db, rdb, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
 		return fmt.Errorf("wiring services: %w", err)
 	}
 
-	handler := NewRouter(appCfg, modCfg, rdb, appLog, app)
+	handler := NewRouter(appCfg, modCfg, rdb, appLog, deps)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", appCfg.App.Port),

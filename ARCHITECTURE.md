@@ -184,7 +184,7 @@ proposing a feature that crosses a module boundary.
 ### Tests and wiring
 
 - **The test suite shares one Postgres and one Redis, and Redis slots are hand-assigned.** A collision compiles, passes review, and fails as a flake in an unrelated package.
-- **The composition site is deliberately tedious.** `bootstrap.New` is one long list of positional constructor arguments, which is what makes a forgotten dependency a compile error.
+- **The composition site is deliberately tedious.** `app.New` is one long list of positional constructor arguments, which is what makes a forgotten dependency a compile error.
 
 ## When not to copy this
 

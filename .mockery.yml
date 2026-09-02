@@ -12,7 +12,7 @@ packages:
   github.com/residwi/go-api-project-template/internal:
     config:
       recursive: true
-  github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway:
+  github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway:
     config:
       all: false
   github.com/residwi/go-api-project-template/internal/platform/database:

@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/modules/payment/adapter/gateway"
+	"github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway"
 )
 
 type Option func(*mockServer)

@@ -3,8 +3,6 @@ package cache
 import (
 	"context"
 	"os"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -12,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/platform/config"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -28,11 +25,8 @@ func TestMain(m *testing.M) {
 func TestNewRedis(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		addr := testRedisClient.Options().Addr
-		lastColon := strings.LastIndex(addr, ":")
-		host := addr[:lastColon]
-		port, _ := strconv.Atoi(addr[lastColon+1:])
 
-		client, err := NewRedis(context.Background(), config.Redis{Host: host, Port: port})
+		client, err := NewRedis(context.Background(), &redis.Options{Addr: addr})
 		require.NoError(t, err)
 		require.NotNil(t, client)
 		defer client.Close()
@@ -43,7 +37,7 @@ func TestNewRedis(t *testing.T) {
 	t.Run("connection refused", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		defer cancel()
-		client, err := NewRedis(ctx, config.Redis{Host: "localhost", Port: 1})
+		client, err := NewRedis(ctx, &redis.Options{Addr: "localhost:1"})
 		require.Error(t, err)
 		assert.Nil(t, client)
 		assert.Contains(t, err.Error(), "connecting to redis")

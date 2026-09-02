@@ -6,12 +6,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/residwi/go-api-project-template/internal/platform/config"
 )
 
 func TestCORS_SetsHeadersFromConfig(t *testing.T) {
-	cfg := config.CORS{
+	cfg := CORSOptions{
 		AllowedOrigins: []string{"https://example.com"},
 		AllowedMethods: []string{"GET", "POST"},
 		AllowedHeaders: []string{"Content-Type", "Authorization"},
@@ -34,7 +32,7 @@ func TestCORS_SetsHeadersFromConfig(t *testing.T) {
 }
 
 func TestCORS_Returns204OnOptionsPreflight(t *testing.T) {
-	cfg := config.CORS{
+	cfg := CORSOptions{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Content-Type"},
@@ -56,7 +54,7 @@ func TestCORS_Returns204OnOptionsPreflight(t *testing.T) {
 }
 
 func TestCORS_PassesThroughNonOptionsRequests(t *testing.T) {
-	cfg := config.CORS{
+	cfg := CORSOptions{
 		AllowedOrigins: []string{"https://example.com"},
 		AllowedMethods: []string{"GET"},
 		AllowedHeaders: []string{"Content-Type"},

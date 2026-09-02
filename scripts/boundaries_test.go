@@ -26,7 +26,7 @@ func TestCheckBoundaries(t *testing.T) {
 	// Probes land at a module root, or in an adapter directory that already
 	// exists. Nothing plants a directory: a probe file is removed by cleanup,
 	// a probe directory would linger if the test failed hard.
-	wishlistDir := filepath.Join("internal", "modules", "wishlist")
+	wishlistDir := filepath.Join("internal", "features", "wishlist")
 	wishlistHTTPDir := filepath.Join(wishlistDir, "adapter", "http")
 
 	t.Run("check 1a catches a json tag outside an http adapter", func(t *testing.T) {
@@ -80,37 +80,37 @@ func TestCheckBoundaries(t *testing.T) {
 	// the way a contract/ package used to be. domain/ and every adapter stay
 	// private.
 	t.Run("check 4 allows a module importing another module's root package", func(t *testing.T) {
-		probe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/category\"\n"
+		probe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/features/category\"\n"
 		out := runCheckWithoutError(t, filepath.Join(wishlistDir, "probe_rootimport.go"), probe)
 		assert.Contains(t, out, "Boundaries OK")
 	})
 
 	t.Run("check 4 catches a module importing another module's domain", func(t *testing.T) {
-		probe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/category/domain\"\n"
+		probe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/features/category/domain\"\n"
 		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_domainimport.go"), probe)
 		assert.Contains(t, out, "imports another module's internals")
 	})
 
 	t.Run("check 4 catches a module importing another module's postgres adapter", func(t *testing.T) {
-		probe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres\"\n"
+		probe := "package wishlist\n\nimport _ \"github.com/residwi/go-api-project-template/internal/features/order/adapter/postgres\"\n"
 		out := runCheckWithProbe(t, filepath.Join(wishlistDir, "probe_adapterimport.go"), probe)
 		assert.Contains(t, out, "adapter/postgres")
 	})
 
 	// The wiring layer is exempt as an importer, and that exemption is what
-	// lets bootstrap construct adapters at all: empty WIRING_DIRS and check 4
-	// reports 30 imports in internal/bootstrap alone.
+	// lets app construct adapters at all: empty WIRING_DIRS and check 4
+	// reports 30 imports in internal/app alone.
 	t.Run("check 4 exempts the wiring layer as an importer", func(t *testing.T) {
-		probe := "package bootstrap\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres\"\n"
-		out := runCheckWithoutError(t, filepath.Join("internal", "bootstrap", "probe_wiring.go"), probe)
+		probe := "package app\n\nimport _ \"github.com/residwi/go-api-project-template/internal/features/order/adapter/postgres\"\n"
+		out := runCheckWithoutError(t, filepath.Join("internal", "app", "probe_wiring.go"), probe)
 		assert.Contains(t, out, "Boundaries OK")
 	})
 
 	// internal/worker is the third WIRING_DIRS entry: it constructs each
-	// module's adapter/jobs worker directly, the same way bootstrap
+	// module's adapter/jobs worker directly, the same way app
 	// constructs adapter/postgres.
 	t.Run("check 4 exempts internal/worker as an importer", func(t *testing.T) {
-		probe := "package worker\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres\"\n"
+		probe := "package worker\n\nimport _ \"github.com/residwi/go-api-project-template/internal/features/order/adapter/postgres\"\n"
 		out := runCheckWithoutError(t, filepath.Join("internal", "worker", "probe_wiring.go"), probe)
 		assert.Contains(t, out, "Boundaries OK")
 	})
@@ -123,10 +123,10 @@ func TestCheckBoundaries(t *testing.T) {
 	// mode (order.NewOrder and order.Order moving into order's published
 	// surface, leaving the exemption an unnoticed permanent weakening) has
 	// something to break.
-	checkoutDir := filepath.Join("internal", "modules", "checkout")
+	checkoutDir := filepath.Join("internal", "features", "checkout")
 
 	t.Run("check 4 exempts checkout importing order/domain", func(t *testing.T) {
-		probe := "package checkout\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order/domain\"\n"
+		probe := "package checkout\n\nimport _ \"github.com/residwi/go-api-project-template/internal/features/order/domain\"\n"
 		out := runCheckWithoutError(t, filepath.Join(checkoutDir, "probe_orderdomain.go"), probe)
 		assert.Contains(t, out, "Boundaries OK")
 	})
@@ -134,7 +134,7 @@ func TestCheckBoundaries(t *testing.T) {
 	// The grant is domain/-only, not a blanket pass for checkout into order:
 	// reaching into any other part of order's internals still fails.
 	t.Run("check 4 does not extend checkout's exemption to order's postgres adapter", func(t *testing.T) {
-		probe := "package checkout\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order/adapter/postgres\"\n"
+		probe := "package checkout\n\nimport _ \"github.com/residwi/go-api-project-template/internal/features/order/adapter/postgres\"\n"
 		out := runCheckWithProbe(t, filepath.Join(checkoutDir, "probe_orderadapter.go"), probe)
 		assert.Contains(t, out, "imports another module's internals")
 	})
@@ -151,18 +151,18 @@ func TestCheckBoundaries(t *testing.T) {
 	// import of a module, of internal/server or of internal/apperror from
 	// anywhere under platform compiles cleanly and passes every other check.
 	t.Run("check 8 catches platform importing a module", func(t *testing.T) {
-		probe := "package errs\n\nimport _ \"github.com/residwi/go-api-project-template/internal/modules/order\"\n"
+		probe := "package errs\n\nimport _ \"github.com/residwi/go-api-project-template/internal/features/order\"\n"
 		out := runCheckWithProbe(t, filepath.Join("internal", "platform", "errs", "probe_platform.go"), probe)
 		assert.Contains(t, out, "platform must not import")
 	})
 
-	// The same probe pointed at internal/bootstrap. Check 8 used to name three
-	// trees it forbade -- modules, server, apperror -- which left bootstrap and
+	// The same probe pointed at internal/app. Check 8 used to name three
+	// trees it forbade -- modules, server, apperror -- which left app and
 	// cmd/mockgateway/mockserver able to end the leaf property in silence. The
 	// test is inverted now, so this subtest is what proves the widening is real
 	// and not just a reworded comment.
 	t.Run("check 8 catches platform importing the wiring layer", func(t *testing.T) {
-		probe := "package errs\n\nimport _ \"github.com/residwi/go-api-project-template/internal/bootstrap\"\n"
+		probe := "package errs\n\nimport _ \"github.com/residwi/go-api-project-template/internal/app\"\n"
 		out := runCheckWithProbe(t, filepath.Join("internal", "platform", "errs", "probe_platform_wiring.go"), probe)
 		assert.Contains(t, out, "platform must not import")
 	})

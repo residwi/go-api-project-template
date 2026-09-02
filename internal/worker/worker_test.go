@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/bootstrap"
-	"github.com/residwi/go-api-project-template/internal/modules/order"
+	"github.com/residwi/go-api-project-template/internal/app"
+	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
@@ -28,8 +28,8 @@ func TestMain(m *testing.M) {
 func TestNewClientRejectsARescueWindowThatOutlivesTheStaleThreshold(t *testing.T) {
 	_, err := newClient(
 		database.DB{Primary: testPool},
-		bootstrap.Config{},
-		&bootstrap.App{},
+		app.Config{},
+		&app.Services{},
 		order.StaleProcessingThreshold,
 		time.Minute,
 		slog.New(slog.DiscardHandler),
@@ -42,8 +42,8 @@ func TestNewClientRejectsARescueWindowThatOutlivesTheStaleThreshold(t *testing.T
 func TestNewClientRejectsAZeroRescueWindow(t *testing.T) {
 	_, err := newClient(
 		database.DB{Primary: testPool},
-		bootstrap.Config{},
-		&bootstrap.App{},
+		app.Config{},
+		&app.Services{},
 		0,
 		time.Minute,
 		slog.New(slog.DiscardHandler),
