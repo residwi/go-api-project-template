@@ -18,6 +18,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/review/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -61,9 +62,8 @@ func TestHandler_Create(t *testing.T) {
 			bytes.NewReader(body),
 		)
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: userID,
-			Email:  "test@example.com",
 			Role:   "user",
 		})
 		r = r.WithContext(ctx)
@@ -104,9 +104,8 @@ func TestHandler_Create(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/products/bad/reviews", bytes.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: uuid.New(),
-			Email:  "test@example.com",
 			Role:   "user",
 		})
 		r = r.WithContext(ctx)
@@ -153,9 +152,8 @@ func TestHandler_Create(t *testing.T) {
 			bytes.NewReader([]byte("{bad")),
 		)
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: uuid.New(),
-			Email:  "test@example.com",
 			Role:   "user",
 		})
 		r = r.WithContext(ctx)
@@ -180,9 +178,8 @@ func TestHandler_Create(t *testing.T) {
 			bytes.NewReader(body),
 		)
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: uuid.New(),
-			Email:  "test@example.com",
 			Role:   "user",
 		})
 		r = r.WithContext(ctx)
@@ -223,9 +220,8 @@ func TestHandler_Create(t *testing.T) {
 			bytes.NewReader(body),
 		)
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: userID,
-			Email:  "test@example.com",
 			Role:   "user",
 		})
 		r = r.WithContext(ctx)

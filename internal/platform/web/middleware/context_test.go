@@ -8,13 +8,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 )
 
 func TestRequireUser(t *testing.T) {
 	t.Run("returns the user when present in context", func(t *testing.T) {
-		want := UserContext{UserID: uuid.New(), Email: "a@example.com", Role: "user"}
+		want := identity.Identity{UserID: uuid.New(), Role: "user"}
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r = r.WithContext(SetUserContext(r.Context(), want))
+		r = r.WithContext(SetIdentity(r.Context(), want))
 		w := httptest.NewRecorder()
 
 		got, ok := RequireUser(w, r)

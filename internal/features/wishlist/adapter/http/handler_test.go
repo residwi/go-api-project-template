@@ -18,6 +18,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/wishlist/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -296,7 +297,7 @@ func TestToItemResponse_OmitsInternalFields(t *testing.T) {
 		"wishlist_id is an internal join key and must not be serialised")
 }
 
-func setupMux(t *testing.T) (*http.ServeMux, *MockWishlistManager, middleware.UserContext) {
+func setupMux(t *testing.T) (*http.ServeMux, *MockWishlistManager, identity.Identity) {
 	service := NewMockWishlistManager(t)
 
 	mux := http.NewServeMux()
@@ -307,16 +308,15 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockWishlistManager, middleware.Us
 	authed.HandleFunc("POST /wishlist/items", h.Add)
 	authed.HandleFunc("DELETE /wishlist/items/{product_id}", h.Remove)
 
-	uc := middleware.UserContext{
+	uc := identity.Identity{
 		UserID: uuid.New(),
-		Email:  "test@example.com",
 		Role:   "user",
 	}
 
 	return mux, service, uc
 }
 
-func withAuth(r *http.Request, uc middleware.UserContext) *http.Request {
-	ctx := middleware.SetUserContext(r.Context(), uc)
+func withAuth(r *http.Request, uc identity.Identity) *http.Request {
+	ctx := middleware.SetIdentity(r.Context(), uc)
 	return r.WithContext(ctx)
 }

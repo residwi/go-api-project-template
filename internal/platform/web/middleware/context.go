@@ -4,34 +4,26 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/google/uuid"
-
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
-type UserContext struct {
-	UserID       uuid.UUID
-	Email        string
-	Role         string
-	TokenVersion int
+type identityCtxKey struct{}
+
+func SetIdentity(ctx context.Context, id identity.Identity) context.Context {
+	return context.WithValue(ctx, identityCtxKey{}, id)
 }
 
-type userCtxKey struct{}
-
-func SetUserContext(ctx context.Context, uc UserContext) context.Context {
-	return context.WithValue(ctx, userCtxKey{}, uc)
+func GetIdentity(ctx context.Context) (identity.Identity, bool) {
+	id, ok := ctx.Value(identityCtxKey{}).(identity.Identity)
+	return id, ok
 }
 
-func GetUserContext(ctx context.Context) (UserContext, bool) {
-	uc, ok := ctx.Value(userCtxKey{}).(UserContext)
-	return uc, ok
-}
-
-func RequireUser(w http.ResponseWriter, r *http.Request) (UserContext, bool) {
-	uc, ok := GetUserContext(r.Context())
+func RequireUser(w http.ResponseWriter, r *http.Request) (identity.Identity, bool) {
+	id, ok := GetIdentity(r.Context())
 	if !ok {
 		response.Unauthorized(w, "authentication required")
-		return UserContext{}, false
+		return identity.Identity{}, false
 	}
-	return uc, true
+	return id, true
 }

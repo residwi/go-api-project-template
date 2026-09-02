@@ -16,6 +16,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/notification/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -312,7 +313,7 @@ func TestHandler_MarkRead(t *testing.T) {
 		t.Parallel()
 
 		r := httptest.NewRequest(http.MethodPut, "/notifications/bad/read", nil)
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{UserID: uuid.New(), Role: "user"})
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{UserID: uuid.New(), Role: "user"})
 		r = r.WithContext(ctx)
 		r.SetPathValue("id", "bad")
 		w := httptest.NewRecorder()
@@ -385,7 +386,7 @@ func TestHandler_MarkAllRead(t *testing.T) {
 	})
 }
 
-func setupMux(t *testing.T) (*http.ServeMux, *MockNotificationManager, middleware.UserContext) {
+func setupMux(t *testing.T) (*http.ServeMux, *MockNotificationManager, identity.Identity) {
 	service := NewMockNotificationManager(t)
 
 	mux := http.NewServeMux()
@@ -397,16 +398,15 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockNotificationManager, middlewar
 	authed.HandleFunc("PUT /notifications/{id}/read", h.MarkRead)
 	authed.HandleFunc("PUT /notifications/read-all", h.MarkAllRead)
 
-	uc := middleware.UserContext{
+	uc := identity.Identity{
 		UserID: uuid.New(),
-		Email:  "test@example.com",
 		Role:   "user",
 	}
 
 	return mux, service, uc
 }
 
-func notifAuth(r *http.Request, uc middleware.UserContext) *http.Request {
-	ctx := middleware.SetUserContext(r.Context(), uc)
+func notifAuth(r *http.Request, uc identity.Identity) *http.Request {
+	ctx := middleware.SetIdentity(r.Context(), uc)
 	return r.WithContext(ctx)
 }

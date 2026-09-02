@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/features/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -429,9 +430,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 			bytes.NewReader(body),
 		)
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: requesterID,
-			Email:  "admin@example.com",
 			Role:   "admin",
 		})
 		r = r.WithContext(ctx)
@@ -503,9 +503,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 			bytes.NewReader([]byte("{invalid")),
 		)
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: requesterID,
-			Email:  "admin@example.com",
 			Role:   "admin",
 		})
 		r = r.WithContext(ctx)
@@ -532,9 +531,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/"+sameID.String()+"/role", bytes.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: sameID,
-			Email:  "admin@example.com",
 			Role:   "admin",
 		})
 		r = r.WithContext(ctx)
@@ -564,9 +562,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 			bytes.NewReader(body),
 		)
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: requesterID,
-			Email:  "admin@example.com",
 			Role:   "admin",
 		})
 		r = r.WithContext(ctx)
@@ -597,9 +594,8 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/users/"+targetID.String(), nil)
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: requesterID,
-			Email:  "admin@example.com",
 			Role:   "admin",
 		})
 		r = r.WithContext(ctx)
@@ -657,9 +653,8 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/users/"+sameID.String(), nil)
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: sameID,
-			Email:  "admin@example.com",
 			Role:   "admin",
 		})
 		r = r.WithContext(ctx)

@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -178,9 +179,8 @@ func setupApplyMux(t *testing.T) (*http.ServeMux, *MockPromotionApplier) {
 }
 
 func setPromoAuthContext(r *http.Request) *http.Request {
-	ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+	ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 		UserID: uuid.New(),
-		Email:  "test@example.com",
 		Role:   "user",
 	})
 	return r.WithContext(ctx)

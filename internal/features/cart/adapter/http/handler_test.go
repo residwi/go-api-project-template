@@ -18,6 +18,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/cart/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -611,7 +612,7 @@ func TestToCartResponse_OmitsUserID(t *testing.T) {
 		"the caller is always the authenticated user; echoing user_id back adds nothing")
 }
 
-func setupMux(t *testing.T) (*http.ServeMux, *MockCartManager, middleware.UserContext) {
+func setupMux(t *testing.T) (*http.ServeMux, *MockCartManager, identity.Identity) {
 	service := NewMockCartManager(t)
 
 	mux := http.NewServeMux()
@@ -624,16 +625,15 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCartManager, middleware.UserCo
 	authed.HandleFunc("PUT /cart/items/{product_id}", h.Update)
 	authed.HandleFunc("DELETE /cart/items/{product_id}", h.Remove)
 
-	uc := middleware.UserContext{
+	uc := identity.Identity{
 		UserID: uuid.New(),
-		Email:  "test@example.com",
 		Role:   "user",
 	}
 
 	return mux, service, uc
 }
 
-func withAuth(r *http.Request, uc middleware.UserContext) *http.Request {
-	ctx := middleware.SetUserContext(r.Context(), uc)
+func withAuth(r *http.Request, uc identity.Identity) *http.Request {
+	ctx := middleware.SetIdentity(r.Context(), uc)
 	return r.WithContext(ctx)
 }

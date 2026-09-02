@@ -1,4 +1,4 @@
-package server
+package middleware
 
 import (
 	"context"
@@ -6,18 +6,16 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/residwi/go-api-project-template/internal/features/auth"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
-	"github.com/residwi/go-api-project-template/internal/platform/web"
-	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
 type Authenticator interface {
-	Authenticate(ctx context.Context, token string) (auth.ClaimsView, error)
+	Authenticate(ctx context.Context, token string) (identity.Identity, error)
 }
 
-func authMiddleware(authenticator Authenticator) web.Middleware {
+func Auth(authenticator Authenticator) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -32,19 +30,14 @@ func authMiddleware(authenticator Authenticator) web.Middleware {
 				return
 			}
 
-			claims, err := authenticator.Authenticate(r.Context(), parts[1])
+			id, err := authenticator.Authenticate(r.Context(), parts[1])
 			if err != nil {
 				response.HandleErr(w, err)
 				return
 			}
 
-			ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-				UserID:       claims.UserID,
-				Email:        claims.Email,
-				Role:         claims.Role,
-				TokenVersion: claims.TokenVersion,
-			})
-			ctx = logger.WithAttrs(ctx, slog.String("user_id", claims.UserID.String()))
+			ctx := SetIdentity(r.Context(), id)
+			ctx = logger.WithAttrs(ctx, slog.String("user_id", id.UserID.String()))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

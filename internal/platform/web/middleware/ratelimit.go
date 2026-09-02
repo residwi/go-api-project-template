@@ -27,8 +27,8 @@ func RateLimit(
 			}
 
 			identifier := clientIP(r)
-			if uc, ok := GetUserContext(r.Context()); ok {
-				identifier = "user:" + uc.UserID.String()
+			if id, ok := GetIdentity(r.Context()); ok {
+				identifier = "user:" + id.UserID.String()
 			}
 			bucket := time.Now().Unix() / int64(window.Seconds())
 			key := fmt.Sprintf("rl:%s:%d", identifier, bucket)

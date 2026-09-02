@@ -18,6 +18,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/order/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -335,9 +336,8 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockOrderReader) {
 }
 
 func setAuthContext(r *http.Request, userID uuid.UUID) *http.Request {
-	ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+	ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 		UserID: userID,
-		Email:  "test@example.com",
 		Role:   "user",
 	})
 	return r.WithContext(ctx)

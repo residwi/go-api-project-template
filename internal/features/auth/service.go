@@ -13,6 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/auth/domain"
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 )
 
 type Service struct {
@@ -171,30 +172,30 @@ func (s *Service) ValidateToken(tokenString string) (ClaimsView, error) {
 	}, nil
 }
 
-func (s *Service) Authenticate(ctx context.Context, token string) (ClaimsView, error) {
+func (s *Service) Authenticate(ctx context.Context, token string) (identity.Identity, error) {
 	claims, err := s.ValidateToken(token)
 	if err != nil {
-		return ClaimsView{}, ErrInvalidToken
+		return identity.Identity{}, ErrInvalidToken
 	}
 
 	if claims.Type != accessTokenType {
-		return ClaimsView{}, ErrInvalidToken
+		return identity.Identity{}, ErrInvalidToken
 	}
 
 	status, err := s.users.CheckStatus(ctx, claims.UserID)
 	if err != nil {
-		return ClaimsView{}, fmt.Errorf("checking account status: %w", err)
+		return identity.Identity{}, fmt.Errorf("checking account status: %w", err)
 	}
 
 	if !status.Active {
-		return ClaimsView{}, ErrAccountDeactivated
+		return identity.Identity{}, ErrAccountDeactivated
 	}
 
 	if status.TokenVersion != claims.TokenVersion {
-		return ClaimsView{}, ErrTokenRevoked
+		return identity.Identity{}, ErrTokenRevoked
 	}
 
-	return claims, nil
+	return identity.Identity{UserID: claims.UserID, Role: claims.Role}, nil
 }
 
 func (s *Service) generateToken(ttl time.Duration, claims domain.Claims, kind string) (string, error) {

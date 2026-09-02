@@ -16,6 +16,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -47,9 +48,8 @@ func TestHandler_Get(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
-		r = r.WithContext(middleware.SetUserContext(r.Context(), middleware.UserContext{
+		r = r.WithContext(middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: userID,
-			Email:  "test@example.com",
 			Role:   "user",
 		}))
 
@@ -98,9 +98,8 @@ func TestHandler_Get(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/bad/shipping", nil)
-		r = r.WithContext(middleware.SetUserContext(r.Context(), middleware.UserContext{
+		r = r.WithContext(middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: uuid.New(),
-			Email:  "test@example.com",
 			Role:   "user",
 		}))
 
@@ -127,8 +126,8 @@ func TestHandler_Get(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
-		r = r.WithContext(middleware.SetUserContext(r.Context(), middleware.UserContext{
-			UserID: userID, Email: "test@example.com", Role: "user",
+		r = r.WithContext(middleware.SetIdentity(r.Context(), identity.Identity{
+			UserID: userID, Role: "user",
 		}))
 
 		mux.ServeHTTP(w, r)
@@ -152,8 +151,8 @@ func TestHandler_Get(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
-		r = r.WithContext(middleware.SetUserContext(r.Context(), middleware.UserContext{
-			UserID: userID, Email: "test@example.com", Role: "user",
+		r = r.WithContext(middleware.SetIdentity(r.Context(), identity.Identity{
+			UserID: userID, Role: "user",
 		}))
 
 		mux.ServeHTTP(w, r)
@@ -174,8 +173,8 @@ func TestHandler_Get(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+orderID.String()+"/shipping", nil)
-		r = r.WithContext(middleware.SetUserContext(r.Context(), middleware.UserContext{
-			UserID: userID, Email: "test@example.com", Role: "user",
+		r = r.WithContext(middleware.SetIdentity(r.Context(), identity.Identity{
+			UserID: userID, Role: "user",
 		}))
 
 		mux.ServeHTTP(w, r)

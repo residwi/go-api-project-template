@@ -19,7 +19,7 @@ components:
   money:       { in: internal/money }
   apperror:    { in: internal/apperror }
 
-  pf-vocab:    { in: [ internal/platform/errs, internal/platform/paging, internal/platform/slug ] }
+  pf-vocab:    { in: [ internal/platform/errs, internal/platform/identity, internal/platform/paging, internal/platform/slug ] }
   pf-tx:       { in: [ internal/platform/database, internal/platform/logger ] }
   pf-io:       { in: [ internal/platform/cache, internal/platform/queue, internal/platform/storage, internal/platform/web, internal/platform/web/** ] }
 

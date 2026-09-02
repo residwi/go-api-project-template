@@ -17,6 +17,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -45,9 +46,8 @@ func TestHandler_Me(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/users/me", nil)
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: userID,
-			Email:  "test@example.com",
 			Role:   "user",
 		})
 		r = r.WithContext(ctx)
@@ -102,8 +102,8 @@ func TestHandler_Me(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/users/me", nil)
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-			UserID: userID, Email: "test@example.com", Role: "user",
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
+			UserID: userID, Role: "user",
 		})
 		r = r.WithContext(ctx)
 		mux.ServeHTTP(w, r)
@@ -138,9 +138,8 @@ func TestHandler_Update(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/users/me", bytes.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: userID,
-			Email:  "test@example.com",
 			Role:   "user",
 		})
 		r = r.WithContext(ctx)
@@ -184,9 +183,8 @@ func TestHandler_Update(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/users/me", bytes.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
 			UserID: userID,
-			Email:  "test@example.com",
 			Role:   "user",
 		})
 		r = r.WithContext(ctx)
@@ -219,8 +217,8 @@ func TestHandler_Update(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/users/me", bytes.NewReader([]byte("{bad")))
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-			UserID: userID, Email: "test@example.com", Role: "user",
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
+			UserID: userID, Role: "user",
 		})
 		r = r.WithContext(ctx)
 		mux.ServeHTTP(w, r)
@@ -239,8 +237,8 @@ func TestHandler_Update(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/users/me", bytes.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetUserContext(r.Context(), middleware.UserContext{
-			UserID: userID, Email: "test@example.com", Role: "user",
+		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
+			UserID: userID, Role: "user",
 		})
 		r = r.WithContext(ctx)
 		mux.ServeHTTP(w, r)

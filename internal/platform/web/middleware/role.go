@@ -4,24 +4,31 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
-func RequireRole(role string) func(http.Handler) http.Handler {
+func Require(denied string, pred func(identity.Identity) bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			uc, ok := GetUserContext(r.Context())
+			id, ok := GetIdentity(r.Context())
 			if !ok {
 				response.Unauthorized(w, "authentication required")
 				return
 			}
 
-			if uc.Role != role {
-				response.Forbidden(w, fmt.Sprintf("%s access required", role))
+			if !pred(id) {
+				response.Forbidden(w, denied)
 				return
 			}
 
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func RequireRole(role string) func(http.Handler) http.Handler {
+	return Require(fmt.Sprintf("%s access required", role), func(id identity.Identity) bool {
+		return id.Role == role
+	})
 }

@@ -16,6 +16,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 )
 
 func TestService_Login(t *testing.T) {
@@ -447,7 +448,7 @@ func TestService_Authenticate(t *testing.T) {
 		assert.NotErrorIs(t, err, errs.ErrUnauthorized)
 	})
 
-	t.Run("returns the claims for a live access token", func(t *testing.T) {
+	t.Run("returns the identity for a live access token", func(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
@@ -460,16 +461,10 @@ func TestService_Authenticate(t *testing.T) {
 		users.EXPECT().CheckStatus(mock.Anything, profile.ID).
 			Return(user.AccountStatus{Active: true, TokenVersion: 4}, nil)
 
-		claims, err := svc.Authenticate(context.Background(), pair.AccessToken)
+		id, err := svc.Authenticate(context.Background(), pair.AccessToken)
 
 		require.NoError(t, err)
-		assert.Equal(t, ClaimsView{
-			UserID:       profile.ID,
-			Email:        profile.Email,
-			Role:         profile.Role,
-			Type:         accessTokenType,
-			TokenVersion: profile.TokenVersion,
-		}, claims)
+		assert.Equal(t, identity.Identity{UserID: profile.ID, Role: profile.Role}, id)
 	})
 }
 
