@@ -15,9 +15,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway"
-	gatewaymidtrans "github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway/midtrans"
-	gatewaymock "github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway/mock"
-	gatewaystripe "github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway/stripe"
 	"github.com/residwi/go-api-project-template/internal/features/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
@@ -42,6 +39,7 @@ func New(
 	tx database.TxRunner,
 	cfg Config,
 	logger *slog.Logger,
+	gateway Gateway,
 	queue Queue,
 	orders Orders,
 	inventory Inventory,
@@ -50,24 +48,13 @@ func New(
 	return &Service{
 		repo:          repo,
 		tx:            tx,
-		gateway:       newGateway(cfg),
+		gateway:       gateway,
 		queue:         queue,
 		logger:        logger,
 		orders:        orders,
 		inventory:     inventory,
 		coupon:        coupons,
 		webhookSecret: cfg.WebhookSecret,
-	}
-}
-
-func newGateway(cfg Config) Gateway {
-	switch cfg.Gateway {
-	case gatewayStripe:
-		return gatewaystripe.New(cfg.GatewayAPIKey, cfg.GatewayTimeout)
-	case gatewayMidtrans:
-		return gatewaymidtrans.New(cfg.GatewayAPIKey, cfg.GatewayTimeout)
-	default:
-		return gatewaymock.New(cfg.GatewayURL, cfg.GatewayTimeout)
 	}
 }
 

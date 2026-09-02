@@ -22,15 +22,15 @@ type Config struct {
 	JobTimeout     time.Duration `envconfig:"PAYMENT_JOB_TIMEOUT"     default:"2m"`
 }
 
+const (
+	GatewayMock     = "mock"
+	GatewayStripe   = "stripe"
+	GatewayMidtrans = "midtrans"
+)
+
 const defaultWebhookSecret = "webhook-secret"
 
 const minJobInterval = 5 * time.Second
-
-const (
-	gatewayMock     = "mock"
-	gatewayStripe   = "stripe"
-	gatewayMidtrans = "midtrans"
-)
 
 func LoadConfig(appEnv string) (Config, error) {
 	var cfg Config
@@ -38,9 +38,9 @@ func LoadConfig(appEnv string) (Config, error) {
 		return Config{}, fmt.Errorf("loading payment config: %w", err)
 	}
 
-	if cfg.Gateway != gatewayMock && cfg.Gateway != gatewayStripe && cfg.Gateway != gatewayMidtrans {
+	if cfg.Gateway != GatewayMock && cfg.Gateway != GatewayStripe && cfg.Gateway != GatewayMidtrans {
 		return Config{}, fmt.Errorf(
-			"PAYMENT_GATEWAY must be %q, %q or %q, got %q", gatewayMock, gatewayStripe, gatewayMidtrans, cfg.Gateway,
+			"PAYMENT_GATEWAY must be %q, %q or %q, got %q", GatewayMock, GatewayStripe, GatewayMidtrans, cfg.Gateway,
 		)
 	}
 

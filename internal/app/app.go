@@ -23,6 +23,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	orderpg "github.com/residwi/go-api-project-template/internal/features/order/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
+	gatewaymidtrans "github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway/midtrans"
+	gatewaymock "github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway/mock"
+	gatewaystripe "github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway/stripe"
 	paymentjobs "github.com/residwi/go-api-project-template/internal/features/payment/adapter/jobs"
 	paymentpg "github.com/residwi/go-api-project-template/internal/features/payment/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/features/product"
@@ -109,6 +112,7 @@ func New(
 		txRunner,
 		cfg.Payment,
 		logger,
+		newPaymentGateway(cfg.Payment),
 		paymentjobs.NewQueue(insertClient, db),
 		ordMod,
 		inv,
@@ -137,4 +141,15 @@ func New(
 		Notifications: notificationMod,
 		Dashboard:     dashboard.New(dashboardpg.New(db)),
 	}, nil
+}
+
+func newPaymentGateway(cfg payment.Config) payment.Gateway {
+	switch cfg.Gateway {
+	case payment.GatewayStripe:
+		return gatewaystripe.New(cfg.GatewayAPIKey, cfg.GatewayTimeout)
+	case payment.GatewayMidtrans:
+		return gatewaymidtrans.New(cfg.GatewayAPIKey, cfg.GatewayTimeout)
+	default:
+		return gatewaymock.New(cfg.GatewayURL, cfg.GatewayTimeout)
+	}
 }

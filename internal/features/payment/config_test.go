@@ -25,7 +25,7 @@ func TestLoadConfig(t *testing.T) {
 	})
 
 	t.Run("accepts each gateway newGateway knows how to build", func(t *testing.T) {
-		for _, name := range []string{gatewayMock, gatewayStripe, gatewayMidtrans} {
+		for _, name := range []string{GatewayMock, GatewayStripe, GatewayMidtrans} {
 			t.Setenv("PAYMENT_GATEWAY", name)
 
 			_, err := LoadConfig("development")
