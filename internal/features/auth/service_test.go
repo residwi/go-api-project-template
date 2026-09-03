@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/residwi/go-api-project-template/internal/features/auth/adapter/token"
+	"github.com/residwi/go-api-project-template/internal/features/auth/domain"
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
@@ -42,7 +43,7 @@ func TestService_Login(t *testing.T) {
 
 		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(creds, nil)
 
-		resp, err := New(newTestConfig(), users).
+		resp, err := newTestService(users).
 			Login(context.Background(), "test@example.com", "password123")
 
 		require.NoError(t, err)
@@ -72,7 +73,7 @@ func TestService_Login(t *testing.T) {
 			Active:       false,
 		}, nil)
 
-		resp, err := New(newTestConfig(), users).
+		resp, err := newTestService(users).
 			Login(context.Background(), "inactive@example.com", "password123")
 
 		assert.Nil(t, resp)
@@ -92,7 +93,7 @@ func TestService_Login(t *testing.T) {
 			Active:       true,
 		}, nil)
 
-		resp, err := New(newTestConfig(), users).
+		resp, err := newTestService(users).
 			Login(context.Background(), "test@example.com", "wrong-password")
 
 		assert.Nil(t, resp)
@@ -107,7 +108,7 @@ func TestService_Login(t *testing.T) {
 		users.EXPECT().GetByEmail(mock.Anything, "notfound@example.com").
 			Return(user.Credentials{}, errors.New("not found"))
 
-		resp, err := New(newTestConfig(), users).
+		resp, err := newTestService(users).
 			Login(context.Background(), "notfound@example.com", "password123")
 
 		assert.Nil(t, resp)
@@ -140,7 +141,7 @@ func TestService_Register(t *testing.T) {
 				bcrypt.CompareHashAndPassword([]byte(p.PasswordHash), []byte("password123")) == nil
 		})).Return(createdUser, nil)
 
-		resp, err := New(newTestConfig(), users).
+		resp, err := newTestService(users).
 			Register(context.Background(), "test@example.com", "password123", "John", "Doe")
 
 		require.NoError(t, err)
@@ -158,7 +159,7 @@ func TestService_Register(t *testing.T) {
 		users.EXPECT().Create(mock.Anything, mock.Anything).
 			Return(user.Profile{}, errs.ErrConflict)
 
-		resp, err := New(newTestConfig(), users).
+		resp, err := newTestService(users).
 			Register(context.Background(), "dup@example.com", "password123", "John", "Doe")
 
 		assert.Nil(t, resp)
@@ -171,7 +172,7 @@ func TestService_Register(t *testing.T) {
 		longPassword := strings.Repeat("a", 73)
 
 		var users UserDirectory
-		resp, err := New(newTestConfig(), users).
+		resp, err := newTestService(users).
 			Register(context.Background(), "test@example.com", longPassword, "John", "Doe")
 
 		assert.Nil(t, resp)
@@ -187,7 +188,7 @@ func TestService_Refresh(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		userID := uuid.New()
 		user := user.Profile{
@@ -220,7 +221,7 @@ func TestService_Refresh(t *testing.T) {
 		t.Parallel()
 
 		var users UserDirectory
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		resp, err := svc.Refresh(context.Background(), "not-a-token")
 
@@ -232,7 +233,7 @@ func TestService_Refresh(t *testing.T) {
 		t.Parallel()
 
 		var users UserDirectory
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		pair, err := svc.BuildTokenPair(user.Profile{
 			ID: uuid.New(), Email: "test@example.com", Role: "customer", TokenVersion: 1,
@@ -249,7 +250,7 @@ func TestService_Refresh(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		userID := uuid.New()
 		pair, err := svc.BuildTokenPair(user.Profile{
@@ -274,7 +275,7 @@ func TestService_Refresh(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		userID := uuid.New()
 		pair, err := svc.BuildTokenPair(user.Profile{
@@ -299,7 +300,7 @@ func TestService_Refresh(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		userID := uuid.New()
 		pair, err := svc.BuildTokenPair(user.Profile{
@@ -332,8 +333,9 @@ func TestService_BuildTokenPair(t *testing.T) {
 		t.Parallel()
 
 		cfg := newTestConfig()
+		codec := token.New(cfg.Secret, cfg.Issuer)
 		var users UserDirectory
-		svc := New(cfg, users)
+		svc := New(cfg, users, codec)
 
 		pair, err := svc.BuildTokenPair(user)
 		require.NoError(t, err)
@@ -342,9 +344,9 @@ func TestService_BuildTokenPair(t *testing.T) {
 		assert.Equal(t, int(cfg.AccessTokenTTL/time.Second), pair.ExpiresIn)
 		assert.Equal(t, user, pair.User)
 
-		accessClaims, err := svc.ValidateToken(pair.AccessToken)
+		accessClaims, err := codec.Parse(pair.AccessToken)
 		require.NoError(t, err)
-		assert.Equal(t, ClaimsView{
+		assert.Equal(t, domain.Claims{
 			UserID:       userID,
 			Email:        "user@example.com",
 			Role:         "customer",
@@ -352,9 +354,9 @@ func TestService_BuildTokenPair(t *testing.T) {
 			TokenVersion: 1,
 		}, accessClaims)
 
-		refreshClaims, err := svc.ValidateToken(pair.RefreshToken)
+		refreshClaims, err := codec.Parse(pair.RefreshToken)
 		require.NoError(t, err)
-		assert.Equal(t, ClaimsView{
+		assert.Equal(t, domain.Claims{
 			UserID:       userID,
 			Email:        "user@example.com",
 			Role:         "customer",
@@ -371,7 +373,7 @@ func TestService_Authenticate(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		_, err := svc.Authenticate(context.Background(), "not-a-token")
 
@@ -382,7 +384,7 @@ func TestService_Authenticate(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
 		pair, err := svc.BuildTokenPair(profile)
@@ -397,7 +399,7 @@ func TestService_Authenticate(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
 		pair, err := svc.BuildTokenPair(profile)
@@ -415,7 +417,7 @@ func TestService_Authenticate(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
 		pair, err := svc.BuildTokenPair(profile)
@@ -433,7 +435,7 @@ func TestService_Authenticate(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
 		pair, err := svc.BuildTokenPair(profile)
@@ -452,7 +454,7 @@ func TestService_Authenticate(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
-		svc := New(newTestConfig(), users)
+		svc := newTestService(users)
 
 		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "admin", TokenVersion: 4}
 		pair, err := svc.BuildTokenPair(profile)
@@ -468,94 +470,6 @@ func TestService_Authenticate(t *testing.T) {
 	})
 }
 
-func TestService_ValidateToken(t *testing.T) {
-	t.Parallel()
-
-	user := user.Profile{
-		ID:    uuid.New(),
-		Email: "user@example.com",
-		Role:  "customer",
-	}
-
-	t.Run("wrong secret returns error", func(t *testing.T) {
-		t.Parallel()
-
-		cfg := newTestConfig()
-		var users UserDirectory
-		pair, err := New(cfg, users).BuildTokenPair(user)
-		require.NoError(t, err)
-
-		wrongCfg := cfg
-		wrongCfg.Secret = "wrong-secret"
-		claims, err := New(wrongCfg, users).ValidateToken(pair.AccessToken)
-		assert.Equal(t, ClaimsView{}, claims)
-		assert.Error(t, err)
-	})
-
-	t.Run("expired token returns error", func(t *testing.T) {
-		t.Parallel()
-
-		cfg := newTestConfig()
-		cfg.AccessTokenTTL = -1 * time.Second
-		var users UserDirectory
-		svc := New(cfg, users)
-		pair, err := svc.BuildTokenPair(user)
-		require.NoError(t, err)
-
-		claims, err := svc.ValidateToken(pair.AccessToken)
-		assert.Equal(t, ClaimsView{}, claims)
-		assert.Error(t, err)
-	})
-
-	t.Run("tampered token returns error", func(t *testing.T) {
-		t.Parallel()
-
-		var users UserDirectory
-		svc := New(newTestConfig(), users)
-		pair, err := svc.BuildTokenPair(user)
-		require.NoError(t, err)
-
-		tampered := pair.AccessToken[:len(pair.AccessToken)-5] + "XXXXX"
-
-		claims, err := svc.ValidateToken(tampered)
-		assert.Equal(t, ClaimsView{}, claims)
-		assert.Error(t, err)
-	})
-
-	t.Run("completely invalid token string", func(t *testing.T) {
-		t.Parallel()
-
-		var users UserDirectory
-		svc := New(newTestConfig(), users)
-
-		claims, err := svc.ValidateToken("not-a-token")
-		assert.Equal(t, ClaimsView{}, claims)
-		assert.Error(t, err)
-	})
-
-	t.Run("unexpected signing method returns error", func(t *testing.T) {
-		t.Parallel()
-
-		var users UserDirectory
-		svc := New(newTestConfig(), users)
-
-		tok := jwt.NewWithClaims(jwt.SigningMethodNone, jwt.MapClaims{
-			"user_id": uuid.New().String(),
-			"email":   "user@example.com",
-			"role":    "customer",
-			"typ":     "access",
-			"exp":     time.Now().Add(15 * time.Minute).Unix(),
-		})
-		tokenString, err := tok.SignedString(jwt.UnsafeAllowNoneSignatureType)
-		require.NoError(t, err)
-
-		claims, err := svc.ValidateToken(tokenString)
-		assert.Equal(t, ClaimsView{}, claims)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "unexpected signing method")
-	})
-}
-
 // newTestConfig gives every Service test the same secret, issuer and TTLs
 // token/usecase_test.go used to hard-code per test; subtests that need a
 // different value copy this and override just that field.
@@ -567,4 +481,12 @@ func newTestConfig() Config {
 		RefreshTokenTTL: 24 * time.Hour,
 		BcryptCost:      bcrypt.MinCost,
 	}
+}
+
+// newTestService wires the Service the way app.New does, with a real codec, so
+// tests that mint a token and read it back exercise the same path production
+// does. It sets no mock expectations -- each subtest states its own.
+func newTestService(users UserDirectory) *Service {
+	cfg := newTestConfig()
+	return New(cfg, users, token.New(cfg.Secret, cfg.Issuer))
 }

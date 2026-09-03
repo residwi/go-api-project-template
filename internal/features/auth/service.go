@@ -2,12 +2,9 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/residwi/go-api-project-template/internal/features/auth/domain"
@@ -20,18 +17,16 @@ type Service struct {
 	users      UserDirectory
 	dummyHash  []byte
 	bcryptCost int
-	secret     string
-	issuer     string
+	tokens     TokenCodec
 	accessTTL  time.Duration
 	refreshTTL time.Duration
 }
 
-func New(cfg Config, users UserDirectory) *Service {
+func New(cfg Config, users UserDirectory, tokens TokenCodec) *Service {
 	s := &Service{
 		users:      users,
+		tokens:     tokens,
 		bcryptCost: cfg.BcryptCost,
-		secret:     cfg.Secret,
-		issuer:     cfg.Issuer,
 		accessTTL:  cfg.AccessTokenTTL,
 		refreshTTL: cfg.RefreshTokenTTL,
 	}
@@ -92,7 +87,7 @@ func (s *Service) Register(
 }
 
 func (s *Service) Refresh(ctx context.Context, refreshToken string) (*domain.TokenPair, error) {
-	claims, err := s.ValidateToken(refreshToken)
+	claims, err := s.tokens.Parse(refreshToken)
 	if err != nil {
 		return nil, ErrInvalidToken
 	}
@@ -125,12 +120,14 @@ func (s *Service) BuildTokenPair(user user.Profile) (*domain.TokenPair, error) {
 		TokenVersion: user.TokenVersion,
 	}
 
-	accessToken, err := s.generateToken(s.accessTTL, claims, accessTokenType)
+	claims.Type = accessTokenType
+	accessToken, err := s.tokens.Sign(claims, s.accessTTL)
 	if err != nil {
 		return nil, fmt.Errorf("generating access token: %w", err)
 	}
 
-	refreshToken, err := s.generateToken(s.refreshTTL, claims, refreshTokenType)
+	claims.Type = refreshTokenType
+	refreshToken, err := s.tokens.Sign(claims, s.refreshTTL)
 	if err != nil {
 		return nil, fmt.Errorf("generating refresh token: %w", err)
 	}
@@ -143,37 +140,8 @@ func (s *Service) BuildTokenPair(user user.Profile) (*domain.TokenPair, error) {
 	}, nil
 }
 
-func (s *Service) ValidateToken(tokenString string) (ClaimsView, error) {
-	parsed, err := jwt.ParseWithClaims(
-		tokenString, &jwtClaims{}, func(t *jwt.Token) (any, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-			}
-			return []byte(s.secret), nil
-		},
-		jwt.WithExpirationRequired(),
-		jwt.WithIssuer(s.issuer),
-	)
-	if err != nil {
-		return ClaimsView{}, err
-	}
-
-	claims, ok := parsed.Claims.(*jwtClaims)
-	if !ok || !parsed.Valid {
-		return ClaimsView{}, errors.New("invalid token claims")
-	}
-
-	return ClaimsView{
-		UserID:       claims.UserID,
-		Email:        claims.Email,
-		Role:         claims.Role,
-		Type:         claims.Type,
-		TokenVersion: claims.TokenVersion,
-	}, nil
-}
-
 func (s *Service) Authenticate(ctx context.Context, token string) (identity.Identity, error) {
-	claims, err := s.ValidateToken(token)
+	claims, err := s.tokens.Parse(token)
 	if err != nil {
 		return identity.Identity{}, ErrInvalidToken
 	}
@@ -198,25 +166,6 @@ func (s *Service) Authenticate(ctx context.Context, token string) (identity.Iden
 	return identity.Identity{UserID: claims.UserID, Role: claims.Role}, nil
 }
 
-func (s *Service) generateToken(ttl time.Duration, claims domain.Claims, kind string) (string, error) {
-	now := time.Now()
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    s.issuer,
-			Subject:   claims.UserID.String(),
-			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
-			IssuedAt:  jwt.NewNumericDate(now),
-		},
-		UserID:       claims.UserID,
-		Email:        claims.Email,
-		Role:         claims.Role,
-		Type:         kind,
-		TokenVersion: claims.TokenVersion,
-	})
-
-	return token.SignedString([]byte(s.secret))
-}
-
 // dummyPassword is hashed once per cost to give the unknown-email login path
 // roughly the same latency as a real bcrypt comparison.
 const (
@@ -229,13 +178,3 @@ const dummyPassword = "invalid-user-timing-equalizer"
 // maxPasswordBytes is bcrypt's hard input limit; inputs longer than this error
 // in GenerateFromPassword. validator's max=72 counts runes, so we re-check bytes.
 const maxPasswordBytes = 72
-
-type jwtClaims struct {
-	jwt.RegisteredClaims
-
-	UserID       uuid.UUID
-	Email        string
-	Role         string
-	Type         string
-	TokenVersion int
-}
