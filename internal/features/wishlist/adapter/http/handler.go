@@ -9,7 +9,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/wishlist/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -29,7 +28,7 @@ func NewHandler(service WishlistManager) *Handler {
 }
 
 func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.RequireUser(w, r)
+	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -48,7 +47,7 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.RequireUser(w, r)
+	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -72,7 +71,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.RequireUser(w, r)
+	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
 	}

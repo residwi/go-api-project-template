@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -28,6 +29,15 @@ func Bind[T any](w http.ResponseWriter, r *http.Request) (T, bool) {
 		return req, false
 	}
 	return req, true
+}
+
+func RequireUser(w http.ResponseWriter, r *http.Request) (identity.Identity, bool) {
+	id, ok := identity.FromContext(r.Context())
+	if !ok {
+		response.Unauthorized(w, "authentication required")
+		return identity.Identity{}, false
+	}
+	return id, true
 }
 
 func ParseUUIDParam(w http.ResponseWriter, r *http.Request, name string) (uuid.UUID, bool) {

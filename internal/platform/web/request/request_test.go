@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -119,6 +120,37 @@ func TestParseUUIDParam(t *testing.T) {
 		require.False(t, ok)
 		require.Equal(t, http.StatusBadRequest, w.Code)
 		assert.Contains(t, w.Body.String(), "invalid product_id")
+	})
+}
+
+func TestRequireUser(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns the user when present in context", func(t *testing.T) {
+		t.Parallel()
+
+		want := identity.Identity{UserID: uuid.New(), Role: "user"}
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r = r.WithContext(identity.NewContext(r.Context(), want))
+		w := httptest.NewRecorder()
+
+		got, ok := RequireUser(w, r)
+
+		require.True(t, ok)
+		assert.Equal(t, want, got)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("writes 401 when no user in context", func(t *testing.T) {
+		t.Parallel()
+
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		w := httptest.NewRecorder()
+
+		_, ok := RequireUser(w, r)
+
+		assert.False(t, ok)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }
 

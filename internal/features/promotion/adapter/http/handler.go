@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -22,7 +21,7 @@ func NewHandler(service PromotionApplier) *Handler {
 }
 
 func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
-	_, ok := middleware.RequireUser(w, r)
+	_, ok := request.RequireUser(w, r)
 	if !ok {
 		return
 	}

@@ -9,7 +9,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/features/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -100,7 +99,7 @@ func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uc, ok := middleware.RequireUser(w, r)
+	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
 	}
@@ -124,7 +123,7 @@ func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uc, ok := middleware.RequireUser(w, r)
+	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
 	}

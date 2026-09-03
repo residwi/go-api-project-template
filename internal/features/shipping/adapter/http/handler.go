@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/features/shipping/domain"
-	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -25,7 +24,7 @@ func NewHandler(service ShipmentReader) *Handler {
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.RequireUser(w, r)
+	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
 	}

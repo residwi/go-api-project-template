@@ -9,7 +9,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/review/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -33,7 +32,7 @@ func NewHandler(service ReviewManager) *Handler {
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	uc, ok := middleware.RequireUser(w, r)
+	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
 	}

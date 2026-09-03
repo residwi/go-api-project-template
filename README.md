@@ -87,10 +87,11 @@ decides the verb, the path and the middleware group.
 │   │   ├── /identity           # Identity (UserID, Role) and its context plumbing
 │   │   ├── /queue              # NewInsertClient + a transaction-aware Insert
 │   │   ├── /web                # Middleware, Chain, Router -- a tree of its own:
-│   │   │   ├── /request        #   Bind (validator included), ParseUUIDParam
+│   │   │   ├── /request        #   Bind (validator included), RequireUser,
+│   │   │   │                   #   ParseUUIDParam
 │   │   │   ├── /response       #   the envelope, HandleErr, CursorPage
 │   │   │   └── /middleware     #   CORS, Logging, Recovery, RequestID, Auth,
-│   │   │                       #   RequireUser, Require/RequireRole, RateLimit
+│   │   │                       #   Require/RequireRole, RateLimit
 │   │   └── /cache /logger /paging /slug /storage
 │   └── /testutil               # Shared container plumbing for tests
 ├── /test/e2e                   # Cross-module sagas through the real router
