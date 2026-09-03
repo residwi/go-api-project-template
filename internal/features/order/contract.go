@@ -25,3 +25,18 @@ type FulfilmentSnapshot struct {
 	StockReversed bool
 	Dispatched    bool
 }
+
+type Address struct {
+	Street  string
+	City    string
+	State   string
+	ZipCode string
+	Country string
+}
+
+type NewOrder struct {
+	CouponCode      *string
+	ShippingAddress *Address
+	BillingAddress  *Address
+	Notes           string
+}

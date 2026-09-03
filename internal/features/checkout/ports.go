@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/features/order"
-	orderdomain "github.com/residwi/go-api-project-template/internal/features/order/domain"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 )
 
@@ -14,9 +13,9 @@ type Orders interface {
 	Place(
 		ctx context.Context,
 		userID uuid.UUID,
-		in orderdomain.NewOrder,
+		in order.NewOrder,
 		idempotencyKey string,
-	) (order *orderdomain.Order, created bool, err error)
+	) (placed *order.Snapshot, created bool, err error)
 	Snapshot(ctx context.Context, orderID uuid.UUID) (order.Snapshot, error)
 	BeginPaymentAttempt(ctx context.Context, orderID uuid.UUID) error
 	MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error

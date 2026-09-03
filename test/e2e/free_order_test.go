@@ -90,9 +90,11 @@ func TestE2EFullyDiscountedOrder(t *testing.T) {
 	orderID := uuid.MustParse(orderData["id"].(string))
 
 	t.Run("the discount covers the whole order", func(t *testing.T) {
-		assert.InDelta(t, float64(3000), orderData["subtotal_amount"], 0.0001)
-		assert.InDelta(t, float64(3000), orderData["discount_amount"], 0.0001)
-		assert.InDelta(t, float64(0), orderData["total_amount"], 0.0001)
+		// checkout reports the outcome; the subtotal and discount that produced
+		// it live on order's own representation.
+		assert.InDelta(t, float64(0), orderData["total"], 0.0001)
+		assert.InDelta(t, float64(3000), orderSubtotalOf(t, orderID), 0.0001)
+		assert.InDelta(t, float64(3000), orderDiscountOf(t, orderID), 0.0001)
 	})
 
 	t.Run("a zero-total order is paid without a payment", func(t *testing.T) {
@@ -105,4 +107,20 @@ func TestE2EFullyDiscountedOrder(t *testing.T) {
 		assert.Equal(t, 8, available)
 		assert.Equal(t, 0, reserved)
 	})
+}
+
+func orderSubtotalOf(t *testing.T, orderID uuid.UUID) float64 {
+	t.Helper()
+	var amount int64
+	require.NoError(t, testPool.QueryRow(context.Background(),
+		`SELECT subtotal_amount FROM orders WHERE id = $1`, orderID).Scan(&amount))
+	return float64(amount)
+}
+
+func orderDiscountOf(t *testing.T, orderID uuid.UUID) float64 {
+	t.Helper()
+	var amount int64
+	require.NoError(t, testPool.QueryRow(context.Background(),
+		`SELECT discount_amount FROM orders WHERE id = $1`, orderID).Scan(&amount))
+	return float64(amount)
 }

@@ -8,10 +8,11 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/features/checkout"
-	"github.com/residwi/go-api-project-template/internal/features/order/domain"
-	"github.com/residwi/go-api-project-template/internal/features/payment"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/features/checkout"
+	"github.com/residwi/go-api-project-template/internal/features/order"
+	"github.com/residwi/go-api-project-template/internal/features/payment"
 )
 
 // NewMockCheckout creates a new instance of MockCheckout. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -105,23 +106,23 @@ func (_c *MockCheckout_CancelOrder_Call) RunAndReturn(run func(ctx context.Conte
 }
 
 // PlaceOrder provides a mock function for the type MockCheckout
-func (_mock *MockCheckout) PlaceOrder(ctx context.Context, userID uuid.UUID, in checkout.PlaceOrderInput) (*domain.Order, error) {
+func (_mock *MockCheckout) PlaceOrder(ctx context.Context, userID uuid.UUID, in checkout.PlaceOrderInput) (*order.Snapshot, error) {
 	ret := _mock.Called(ctx, userID, in)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PlaceOrder")
 	}
 
-	var r0 *domain.Order
+	var r0 *order.Snapshot
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, checkout.PlaceOrderInput) (*domain.Order, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, checkout.PlaceOrderInput) (*order.Snapshot, error)); ok {
 		return returnFunc(ctx, userID, in)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, checkout.PlaceOrderInput) *domain.Order); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, checkout.PlaceOrderInput) *order.Snapshot); ok {
 		r0 = returnFunc(ctx, userID, in)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.Order)
+			r0 = ret.Get(0).(*order.Snapshot)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, checkout.PlaceOrderInput) error); ok {
@@ -168,12 +169,12 @@ func (_c *MockCheckout_PlaceOrder_Call) Run(run func(ctx context.Context, userID
 	return _c
 }
 
-func (_c *MockCheckout_PlaceOrder_Call) Return(order *domain.Order, err error) *MockCheckout_PlaceOrder_Call {
-	_c.Call.Return(order, err)
+func (_c *MockCheckout_PlaceOrder_Call) Return(snapshot *order.Snapshot, err error) *MockCheckout_PlaceOrder_Call {
+	_c.Call.Return(snapshot, err)
 	return _c
 }
 
-func (_c *MockCheckout_PlaceOrder_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, in checkout.PlaceOrderInput) (*domain.Order, error)) *MockCheckout_PlaceOrder_Call {
+func (_c *MockCheckout_PlaceOrder_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, in checkout.PlaceOrderInput) (*order.Snapshot, error)) *MockCheckout_PlaceOrder_Call {
 	_c.Call.Return(run)
 	return _c
 }

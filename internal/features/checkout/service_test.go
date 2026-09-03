@@ -11,7 +11,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/order"
-	orderdomain "github.com/residwi/go-api-project-template/internal/features/order/domain"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
@@ -25,16 +24,16 @@ func TestService_PlaceOrder(t *testing.T) {
 		t.Parallel()
 
 		userID, orderID := uuid.New(), uuid.New()
-		placed := &orderdomain.Order{
+		placed := &order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(2500, "USD"),
-			Status: orderdomain.StatusAwaitingPayment,
+			Status: "awaiting_payment",
 		}
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().
-			Place(t.Context(), userID, orderdomain.NewOrder{Notes: "leave at door"}, "idem-1").
+			Place(t.Context(), userID, order.NewOrder{Notes: "leave at door"}, "idem-1").
 			Return(placed, true, nil)
 
 		payments := NewMockPayments(t)
@@ -49,7 +48,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		svc := New(orders, payments, testutil.DiscardLogger())
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
-			Order:           orderdomain.NewOrder{Notes: "leave at door"},
+			Order:           order.NewOrder{Notes: "leave at door"},
 			PaymentMethodID: "pm_123",
 			IdempotencyKey:  "idem-1",
 		})
@@ -62,15 +61,15 @@ func TestService_PlaceOrder(t *testing.T) {
 		t.Parallel()
 
 		userID, orderID := uuid.New(), uuid.New()
-		placed := &orderdomain.Order{
+		placed := &order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(2500, "USD"),
-			Status: orderdomain.StatusAwaitingPayment,
+			Status: "awaiting_payment",
 		}
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-2").Return(placed, true, nil)
+		orders.EXPECT().Place(t.Context(), userID, order.NewOrder{}, "idem-2").Return(placed, true, nil)
 
 		payments := NewMockPayments(t)
 		payments.EXPECT().Charge(t.Context(), mock.Anything).
@@ -79,27 +78,27 @@ func TestService_PlaceOrder(t *testing.T) {
 		svc := New(orders, payments, testutil.DiscardLogger())
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
-			Order:          orderdomain.NewOrder{},
+			Order:          order.NewOrder{},
 			IdempotencyKey: "idem-2",
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, orderdomain.StatusAwaitingPayment, got.Status)
+		assert.Equal(t, "awaiting_payment", got.Status)
 	})
 
 	t.Run("does not charge a zero-total order", func(t *testing.T) {
 		t.Parallel()
 
 		userID := uuid.New()
-		placed := &orderdomain.Order{
+		placed := &order.Snapshot{
 			ID:     uuid.New(),
 			UserID: userID,
 			Total:  money.New(0, "USD"),
-			Status: orderdomain.StatusPaid,
+			Status: "paid",
 		}
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-3").Return(placed, true, nil)
+		orders.EXPECT().Place(t.Context(), userID, order.NewOrder{}, "idem-3").Return(placed, true, nil)
 
 		// No EXPECT on payments: mockery fails the test if Charge is called.
 		payments := NewMockPayments(t)
@@ -107,7 +106,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		svc := New(orders, payments, testutil.DiscardLogger())
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
-			Order:          orderdomain.NewOrder{},
+			Order:          order.NewOrder{},
 			IdempotencyKey: "idem-3",
 		})
 
@@ -121,7 +120,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		userID := uuid.New()
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-4").
+		orders.EXPECT().Place(t.Context(), userID, order.NewOrder{}, "idem-4").
 			Return(nil, false, apperror.ErrCartEmpty)
 
 		payments := NewMockPayments(t)
@@ -129,7 +128,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		svc := New(orders, payments, testutil.DiscardLogger())
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
-			Order:          orderdomain.NewOrder{},
+			Order:          order.NewOrder{},
 			IdempotencyKey: "idem-4",
 		})
 
@@ -145,15 +144,15 @@ func TestService_PlaceOrder(t *testing.T) {
 		// the guard reads: created=false is, so the order below is deliberately
 		// still awaiting_payment with a payable total. Status-inference would
 		// charge it a second time.
-		replayed := &orderdomain.Order{
+		replayed := &order.Snapshot{
 			ID:     uuid.New(),
 			UserID: userID,
 			Total:  money.New(2500, "USD"),
-			Status: orderdomain.StatusAwaitingPayment,
+			Status: "awaiting_payment",
 		}
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Place(t.Context(), userID, orderdomain.NewOrder{}, "idem-replay").
+		orders.EXPECT().Place(t.Context(), userID, order.NewOrder{}, "idem-replay").
 			Return(replayed, false, nil)
 
 		// No EXPECT on payments: mockery fails the test if Charge is called.
@@ -162,7 +161,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		svc := New(orders, payments, testutil.DiscardLogger())
 
 		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
-			Order:           orderdomain.NewOrder{},
+			Order:           order.NewOrder{},
 			PaymentMethodID: "pm_123",
 			IdempotencyKey:  "idem-replay",
 		})
@@ -185,7 +184,7 @@ func TestService_RetryPayment(t *testing.T) {
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(4000, "USD"),
-			Status: string(orderdomain.StatusAwaitingPayment),
+			Status: string("awaiting_payment"),
 		}, nil)
 		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(nil)
 
@@ -213,7 +212,7 @@ func TestService_RetryPayment(t *testing.T) {
 		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: uuid.New(),
-			Status: string(orderdomain.StatusAwaitingPayment),
+			Status: string("awaiting_payment"),
 		}, nil)
 
 		svc := New(orders, NewMockPayments(t), testutil.DiscardLogger())
@@ -232,7 +231,7 @@ func TestService_RetryPayment(t *testing.T) {
 		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
-			Status: string(orderdomain.StatusPaid),
+			Status: string("paid"),
 		}, nil)
 		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(errs.ErrConflict)
 
@@ -255,7 +254,7 @@ func TestService_RetryPayment(t *testing.T) {
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(4000, "USD"),
-			Status: string(orderdomain.StatusAwaitingPayment),
+			Status: string("awaiting_payment"),
 		}, nil)
 		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(errs.ErrConflict)
 
@@ -276,7 +275,7 @@ func TestService_RetryPayment(t *testing.T) {
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(4000, "USD"),
-			Status: string(orderdomain.StatusAwaitingPayment),
+			Status: string("awaiting_payment"),
 		}, nil)
 		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(nil)
 		orders.EXPECT().MarkAwaitingPayment(t.Context(), orderID).Return(nil)

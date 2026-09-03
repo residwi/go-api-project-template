@@ -8,10 +8,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/features/order"
-	"github.com/residwi/go-api-project-template/internal/features/order/domain"
-	"github.com/residwi/go-api-project-template/internal/features/payment"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/features/order"
+	"github.com/residwi/go-api-project-template/internal/features/payment"
 )
 
 // NewMockOrders creates a new instance of MockOrders. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -219,32 +219,32 @@ func (_c *MockOrders_MarkAwaitingPayment_Call) RunAndReturn(run func(ctx context
 }
 
 // Place provides a mock function for the type MockOrders
-func (_mock *MockOrders) Place(ctx context.Context, userID uuid.UUID, in domain.NewOrder, idempotencyKey string) (*domain.Order, bool, error) {
+func (_mock *MockOrders) Place(ctx context.Context, userID uuid.UUID, in order.NewOrder, idempotencyKey string) (*order.Snapshot, bool, error) {
 	ret := _mock.Called(ctx, userID, in, idempotencyKey)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Place")
 	}
 
-	var r0 *domain.Order
+	var r0 *order.Snapshot
 	var r1 bool
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, domain.NewOrder, string) (*domain.Order, bool, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, order.NewOrder, string) (*order.Snapshot, bool, error)); ok {
 		return returnFunc(ctx, userID, in, idempotencyKey)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, domain.NewOrder, string) *domain.Order); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, order.NewOrder, string) *order.Snapshot); ok {
 		r0 = returnFunc(ctx, userID, in, idempotencyKey)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.Order)
+			r0 = ret.Get(0).(*order.Snapshot)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, domain.NewOrder, string) bool); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, order.NewOrder, string) bool); ok {
 		r1 = returnFunc(ctx, userID, in, idempotencyKey)
 	} else {
 		r1 = ret.Get(1).(bool)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, domain.NewOrder, string) error); ok {
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, order.NewOrder, string) error); ok {
 		r2 = returnFunc(ctx, userID, in, idempotencyKey)
 	} else {
 		r2 = ret.Error(2)
@@ -260,13 +260,13 @@ type MockOrders_Place_Call struct {
 // Place is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-//   - in domain.NewOrder
+//   - in order.NewOrder
 //   - idempotencyKey string
 func (_e *MockOrders_Expecter) Place(ctx any, userID any, in any, idempotencyKey any) *MockOrders_Place_Call {
 	return &MockOrders_Place_Call{Call: _e.mock.On("Place", ctx, userID, in, idempotencyKey)}
 }
 
-func (_c *MockOrders_Place_Call) Run(run func(ctx context.Context, userID uuid.UUID, in domain.NewOrder, idempotencyKey string)) *MockOrders_Place_Call {
+func (_c *MockOrders_Place_Call) Run(run func(ctx context.Context, userID uuid.UUID, in order.NewOrder, idempotencyKey string)) *MockOrders_Place_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -276,9 +276,9 @@ func (_c *MockOrders_Place_Call) Run(run func(ctx context.Context, userID uuid.U
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 domain.NewOrder
+		var arg2 order.NewOrder
 		if args[2] != nil {
-			arg2 = args[2].(domain.NewOrder)
+			arg2 = args[2].(order.NewOrder)
 		}
 		var arg3 string
 		if args[3] != nil {
@@ -294,12 +294,12 @@ func (_c *MockOrders_Place_Call) Run(run func(ctx context.Context, userID uuid.U
 	return _c
 }
 
-func (_c *MockOrders_Place_Call) Return(order *domain.Order, created bool, err error) *MockOrders_Place_Call {
-	_c.Call.Return(order, created, err)
+func (_c *MockOrders_Place_Call) Return(placed *order.Snapshot, created bool, err error) *MockOrders_Place_Call {
+	_c.Call.Return(placed, created, err)
 	return _c
 }
 
-func (_c *MockOrders_Place_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, in domain.NewOrder, idempotencyKey string) (*domain.Order, bool, error)) *MockOrders_Place_Call {
+func (_c *MockOrders_Place_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, in order.NewOrder, idempotencyKey string) (*order.Snapshot, bool, error)) *MockOrders_Place_Call {
 	_c.Call.Return(run)
 	return _c
 }

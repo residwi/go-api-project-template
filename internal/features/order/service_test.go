@@ -57,11 +57,10 @@ func TestService_Place(t *testing.T) {
 			Return(existingOrder, nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(items, nil)
 
-		resp, created, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, created, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		require.NoError(t, err)
 		assert.Equal(t, orderID, resp.ID)
-		assert.Len(t, resp.Items, 1)
 		assert.False(t, created, "checkout charges only a created order, so a replay must report false")
 	})
 
@@ -74,7 +73,7 @@ func TestService_Place(t *testing.T) {
 		dbErr := errors.New("database connection error")
 		d.repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).Return(nil, dbErr)
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, dbErr)
@@ -95,7 +94,7 @@ func TestService_Place(t *testing.T) {
 			Items: []cart.Item{},
 		}, nil)
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, apperror.ErrCartEmpty)
@@ -124,7 +123,7 @@ func TestService_Place(t *testing.T) {
 			},
 		}, nil)
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, errs.ErrBadRequest)
@@ -143,7 +142,7 @@ func TestService_Place(t *testing.T) {
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(nil, cartErr)
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, cartErr)
@@ -187,23 +186,22 @@ func TestService_Place(t *testing.T) {
 			productA: 2,
 			productB: 1,
 		}).Return(nil)
-		d.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
+		d.repo.EXPECT().CreateItems(mock.Anything, mock.MatchedBy(func(items []domain.Item) bool {
+			return len(items) == 2
+		})).Return(nil)
 		d.cart.EXPECT().Clear(mock.Anything, userID).Return(nil)
 		d.notifications.EXPECT().
 			Create(mock.Anything, mock.MatchedBy(func(in notification.NewNotification) bool {
 				return in.UserID == userID
 			})).Return(nil)
 
-		resp, created, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, created, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.True(t, created)
-		assert.Equal(t, domain.StatusAwaitingPayment, resp.Status)
+		assert.Equal(t, string(domain.StatusAwaitingPayment), resp.Status)
 		assert.Equal(t, money.New(10000, "USD"), resp.Total)
-		assert.Equal(t, money.New(10000, "USD"), resp.Subtotal)
-		assert.Equal(t, money.New(0, "USD"), resp.Discount)
-		assert.Len(t, resp.Items, 2)
 	})
 
 	t.Run("success with coupon applied", func(t *testing.T) {
@@ -247,14 +245,11 @@ func TestService_Place(t *testing.T) {
 				return in.UserID == userID
 			})).Return(nil)
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{CouponCode: &couponCode}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{CouponCode: &couponCode}, idempotencyKey)
 
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Equal(t, money.New(5000, "USD"), resp.Subtotal)
-		assert.Equal(t, money.New(1000, "USD"), resp.Discount)
 		assert.Equal(t, money.New(4000, "USD"), resp.Total)
-		assert.Equal(t, &couponCode, resp.CouponCode)
 	})
 
 	t.Run("mixed-currency cart is rejected", func(t *testing.T) {
@@ -287,7 +282,7 @@ func TestService_Place(t *testing.T) {
 			},
 		}, nil)
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, errs.ErrBadRequest)
@@ -313,7 +308,7 @@ func TestService_Place(t *testing.T) {
 			Return(existingOrder, nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(nil, dbErr)
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, dbErr)
@@ -354,7 +349,7 @@ func TestService_Place(t *testing.T) {
 			Reserve(mock.Anything, couponCode, userID, mock.Anything, int64(5000)).
 			Return(int64(0), errors.New("invalid coupon"))
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{CouponCode: &couponCode}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{CouponCode: &couponCode}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
@@ -396,11 +391,11 @@ func TestService_Place(t *testing.T) {
 				return in.UserID == userID
 			})).Return(errors.New("queue full"))
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		assert.Equal(t, domain.StatusAwaitingPayment, resp.Status)
+		assert.Equal(t, string(domain.StatusAwaitingPayment), resp.Status)
 	})
 
 	t.Run("repo Create error propagates from transaction", func(t *testing.T) {
@@ -430,7 +425,7 @@ func TestService_Place(t *testing.T) {
 
 		d.repo.EXPECT().Create(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
@@ -466,7 +461,7 @@ func TestService_Place(t *testing.T) {
 			Reserve(mock.Anything, map[uuid.UUID]int{productA: 1}).
 			Return(errors.New("insufficient stock"))
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
@@ -503,7 +498,7 @@ func TestService_Place(t *testing.T) {
 			Return(nil)
 		d.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(errors.New("db error"))
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
@@ -541,7 +536,7 @@ func TestService_Place(t *testing.T) {
 		d.repo.EXPECT().CreateItems(mock.Anything, mock.Anything).Return(nil)
 		d.cart.EXPECT().Clear(mock.Anything, userID).Return(errors.New("cache error"))
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{}, idempotencyKey)
 
 		assert.Nil(t, resp)
 		assert.Error(t, err)
@@ -599,7 +594,7 @@ func TestService_Place(t *testing.T) {
 				return in.UserID == userID
 			})).Return(nil)
 
-		resp, _, err := s.Place(ctx, userID, domain.NewOrder{CouponCode: &couponCode}, idempotencyKey)
+		resp, _, err := s.Place(ctx, userID, NewOrder{CouponCode: &couponCode}, idempotencyKey)
 
 		require.NoError(t, err)
 		require.NotNil(t, resp)
@@ -630,7 +625,7 @@ func TestService_Place_RejectsWithdrawnProduct(t *testing.T) {
 		},
 	}, nil)
 
-	_, _, err := s.Place(context.Background(), userID, domain.NewOrder{}, idempotencyKey)
+	_, _, err := s.Place(context.Background(), userID, NewOrder{}, idempotencyKey)
 
 	require.ErrorIs(t, err, errs.ErrBadRequest)
 	assert.Contains(t, err.Error(), "Withdrawn Widget",
@@ -661,7 +656,7 @@ func TestService_Place_RejectsUnavailableProduct(t *testing.T) {
 		},
 	}, nil)
 
-	_, _, err := s.Place(context.Background(), userID, domain.NewOrder{}, idempotencyKey)
+	_, _, err := s.Place(context.Background(), userID, NewOrder{}, idempotencyKey)
 	require.ErrorIs(t, err, errs.ErrBadRequest)
 	// Direct and intentional, rather than incidental: the guard must reject
 	// before any stock is reserved, not merely happen to fail elsewhere first.
@@ -692,7 +687,7 @@ func TestService_Place_RejectsMixedCurrencyCart(t *testing.T) {
 		},
 	}, nil)
 
-	_, _, err := s.Place(context.Background(), userID, domain.NewOrder{}, "idem-mixed-1")
+	_, _, err := s.Place(context.Background(), userID, NewOrder{}, "idem-mixed-1")
 	require.Error(t, err)
 	require.ErrorIs(t, err, money.ErrCurrencyMismatch, "the cause must be identifiable")
 	require.ErrorIs(t, err, errs.ErrBadRequest, "a mixed-currency cart is user input -- 400, not 500")

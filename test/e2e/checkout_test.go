@@ -329,11 +329,24 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	orderID := orderData["id"].(string)
 
 	t.Run("order has coupon applied with discount", func(t *testing.T) {
-		// Product price 1110 x1, 10% coupon -> discount 111, total 999.
-		assert.Equal(t, couponCode, orderData["coupon_code"])
-		assert.InDelta(t, float64(1110), orderData["subtotal_amount"], 0.0001)
-		assert.InDelta(t, float64(111), orderData["discount_amount"], 0.0001)
-		assert.InDelta(t, float64(999), orderData["total_amount"], 0.0001)
+		// Product price 1110 x1, 10% coupon -> discount 111, total 999. Checkout
+		// answers with the order's identity and outcome; the full representation
+		// comes from order's own endpoint, which is what a client would call.
+		assert.InDelta(t, float64(999), orderData["total"], 0.0001)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/orders/"+orderID, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		var got map[string]any
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&got))
+		full := got["data"].(map[string]any)
+		assert.Equal(t, couponCode, full["coupon_code"])
+		assert.InDelta(t, float64(1110), full["subtotal_amount"], 0.0001)
+		assert.InDelta(t, float64(111), full["discount_amount"], 0.0001)
+		assert.InDelta(t, float64(999), full["total_amount"], 0.0001)
 	})
 
 	t.Run("cancel order releases coupon", func(t *testing.T) {

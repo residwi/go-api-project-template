@@ -8,13 +8,13 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	orderdomain "github.com/residwi/go-api-project-template/internal/features/order/domain"
+	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 type PlaceOrderInput struct {
-	Order           orderdomain.NewOrder
+	Order           order.NewOrder
 	PaymentMethodID string
 	IdempotencyKey  string
 }
@@ -33,8 +33,8 @@ func (s *Service) PlaceOrder(
 	ctx context.Context,
 	userID uuid.UUID,
 	in PlaceOrderInput,
-) (*orderdomain.Order, error) {
-	order, created, err := s.orders.Place(ctx, userID, in.Order, in.IdempotencyKey)
+) (*order.Snapshot, error) {
+	placed, created, err := s.orders.Place(ctx, userID, in.Order, in.IdempotencyKey)
 	if err != nil {
 		return nil, err
 	}
@@ -43,18 +43,18 @@ func (s *Service) PlaceOrder(
 	// charged on the call that created it. Charging again bills the customer
 	// twice and lands the order in fulfillment_failed, so the same successful
 	// response is returned untouched.
-	if created && order.Total.Amount > 0 {
+	if created && placed.Total.Amount > 0 {
 		if _, payErr := s.payments.Charge(ctx, payment.ChargeRequest{
-			OrderID:         order.ID,
-			Amount:          order.Total,
+			OrderID:         placed.ID,
+			Amount:          placed.Total,
 			PaymentMethodID: in.PaymentMethodID,
 		}); payErr != nil {
 			s.logger.ErrorContext(ctx, "failed to initiate payment, order stays in awaiting_payment",
-				slog.String("order_id", order.ID.String()), slog.String("error", payErr.Error()))
+				slog.String("order_id", placed.ID.String()), slog.String("error", payErr.Error()))
 		}
 	}
 
-	return order, nil
+	return placed, nil
 }
 
 func (s *Service) RetryPayment(

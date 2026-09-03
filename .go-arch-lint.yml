@@ -47,4 +47,4 @@ deps:
 
   ft-domain:  { mayDependOn: [ ft-domain ] }
   ft-core:    { mayDependOn: [ ft-core, ft-domain, pf-tx ] }
-  ft-adapter: { mayDependOn: [ ft-adapter, ft-core, ft-domain, pf-tx, pf-io ] }
+  ft-adapter: { mayDependOn: [ ft-core, ft-domain, pf-tx, pf-io ] }

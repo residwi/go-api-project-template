@@ -59,9 +59,9 @@ func New(
 func (s *Service) Place(
 	ctx context.Context,
 	userID uuid.UUID,
-	in domain.NewOrder,
+	in NewOrder,
 	idempotencyKey string,
-) (*domain.Order, bool, error) {
+) (*Snapshot, bool, error) {
 	existing, err := s.repo.GetByUserIDAndIdempotencyKey(ctx, userID, idempotencyKey)
 	if err != nil && !errors.Is(err, errs.ErrNotFound) {
 		return nil, false, err
@@ -72,7 +72,7 @@ func (s *Service) Place(
 			return nil, false, itemErr
 		}
 		existing.Items = items
-		return existing, false, nil
+		return placedOf(existing), false, nil
 	}
 
 	order := &domain.Order{
@@ -80,8 +80,8 @@ func (s *Service) Place(
 		IdempotencyKey:  idempotencyKey,
 		Status:          domain.StatusAwaitingPayment,
 		CouponCode:      in.CouponCode,
-		ShippingAddress: in.ShippingAddress,
-		BillingAddress:  in.BillingAddress,
+		ShippingAddress: toDomainAddress(in.ShippingAddress),
+		BillingAddress:  toDomainAddress(in.BillingAddress),
 		Notes:           in.Notes,
 	}
 
@@ -180,7 +180,7 @@ func (s *Service) Place(
 		}
 	}
 
-	return order, true, nil
+	return placedOf(order), true, nil
 }
 
 func (s *Service) ListByUser(
@@ -509,4 +509,26 @@ func (s *Service) releaseOrderHolds(ctx context.Context, o domain.Order) error {
 		}
 	}
 	return nil
+}
+
+func placedOf(o *domain.Order) *Snapshot {
+	return &Snapshot{
+		ID:     o.ID,
+		UserID: o.UserID,
+		Total:  o.Total,
+		Status: string(o.Status),
+	}
+}
+
+func toDomainAddress(a *Address) *domain.Address {
+	if a == nil {
+		return nil
+	}
+	return &domain.Address{
+		Street:  a.Street,
+		City:    a.City,
+		State:   a.State,
+		ZipCode: a.ZipCode,
+		Country: a.Country,
+	}
 }

@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
-	orderdomain "github.com/residwi/go-api-project-template/internal/features/order/domain"
+	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
@@ -152,88 +151,31 @@ func TestHandler_PlaceOrder(t *testing.T) {
 	})
 }
 
-func TestAddressResponse_JSONRoundTrip(t *testing.T) {
+// order serves the full representation and tests its own mappers; checkout
+// answers with what the client cannot already know.
+func TestToPlaceOrderResponse_CarriesOnlyTheOrdersIdentityAndOutcome(t *testing.T) {
 	t.Parallel()
 
-	got := toAddressResponse(&orderdomain.Address{
-		Street:  "123 Main St",
-		City:    "Springfield",
-		State:   "IL",
-		ZipCode: "62701",
-		Country: "US",
-	})
+	orderID, userID := uuid.New(), uuid.New()
 
-	raw, err := json.Marshal(got)
-	require.NoError(t, err)
-	assert.JSONEq(t, `{
-		"street":"123 Main St",
-		"city":"Springfield",
-		"state":"IL",
-		"zip_code":"62701",
-		"country":"US"
-	}`, string(raw))
-}
-
-func TestAddressResponse_NilIsNil(t *testing.T) {
-	t.Parallel()
-
-	assert.Nil(t, toAddressResponse(nil))
-}
-
-func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
-	t.Parallel()
-
-	orderID := uuid.New()
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	got := toOrderResponse(&orderdomain.Order{
-		ID:             orderID,
-		UserID:         uuid.New(),
-		IdempotencyKey: "idem-key-1",
-		RequestHash:    "distinguishable-request-hash",
-		Status:         orderdomain.StatusPaid,
-		Subtotal:       money.New(1000, "USD"),
-		Discount:       money.New(0, "USD"),
-		Total:          money.New(1000, "USD"),
-		StockDeducted:  true,
-		StockReversed:  true,
-		Items: []orderdomain.Item{
-			{
-				ID:          uuid.New(),
-				OrderID:     orderID,
-				ProductID:   uuid.New(),
-				ProductName: "Widget",
-				Price:       money.New(1000, "USD"),
-				Quantity:    1,
-				Subtotal:    money.New(1000, "USD"),
-				CreatedAt:   now,
-			},
-		},
-		CreatedAt: now,
-		UpdatedAt: now,
+	got := toPlaceOrderResponse(&order.Snapshot{
+		ID:     orderID,
+		UserID: userID,
+		Total:  money.New(9900, "USD"),
+		Status: "awaiting_payment",
 	})
 
 	raw, err := json.Marshal(got)
 	require.NoError(t, err)
 
-	var fields map[string]json.RawMessage
-	require.NoError(t, json.Unmarshal(raw, &fields))
+	var body struct {
+		Order map[string]json.RawMessage `json:"order"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &body))
 	assert.ElementsMatch(t,
-		[]string{
-			"id", "user_id", "status", "subtotal_amount", "discount_amount", "total_amount",
-			"currency", "items", "created_at", "updated_at",
-		},
-		slices.Collect(maps.Keys(fields)),
-		"idempotency_key, request_hash, stock_deducted, and stock_reversed must not appear")
-
-	assert.NotContains(t, string(raw), "distinguishable-request-hash",
-		"RequestHash is an idempotency internal and must not be serialised")
-	assert.NotContains(t, string(raw), "idem-key-1",
-		"IdempotencyKey must not be serialised")
-	assert.NotContains(t, string(raw), "stock_deducted",
-		"StockDeducted is saga state and must not be serialised")
-	assert.NotContains(t, string(raw), "stock_reversed",
-		"StockReversed is saga state and must not be serialised")
+		[]string{"id", "user_id", "status", "total", "currency"},
+		slices.Collect(maps.Keys(body.Order)),
+		"checkout must not grow a second copy of order's representation")
 }
 
 func TestRetryHandler_RetryPayment(t *testing.T) {

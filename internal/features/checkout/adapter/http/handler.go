@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/residwi/go-api-project-template/internal/features/checkout"
-	orderdomain "github.com/residwi/go-api-project-template/internal/features/order/domain"
+	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -18,7 +18,7 @@ type Checkout interface {
 		ctx context.Context,
 		userID uuid.UUID,
 		in checkout.PlaceOrderInput,
-	) (*orderdomain.Order, error)
+	) (*order.Snapshot, error)
 	RetryPayment(
 		ctx context.Context, userID, orderID uuid.UUID, paymentMethodID string,
 	) (payment.ChargeResult, error)
@@ -56,13 +56,13 @@ func (h *Handler) Place(w http.ResponseWriter, r *http.Request) {
 		IdempotencyKey:  idempotencyKey,
 	}
 
-	order, err := h.service.PlaceOrder(r.Context(), uc.UserID, in)
+	placed, err := h.service.PlaceOrder(r.Context(), uc.UserID, in)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
 	}
 
-	response.Created(w, toPlaceOrderResponse(order))
+	response.Created(w, toPlaceOrderResponse(placed))
 }
 
 func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {

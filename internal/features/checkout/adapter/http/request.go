@@ -1,8 +1,6 @@
 package http
 
-import (
-	orderdomain "github.com/residwi/go-api-project-template/internal/features/order/domain"
-)
+import "github.com/residwi/go-api-project-template/internal/features/order"
 
 type addressRequest struct {
 	Street  string `json:"street"`
@@ -12,11 +10,11 @@ type addressRequest struct {
 	Country string `json:"country"`
 }
 
-func (r *addressRequest) toAddress() *orderdomain.Address {
+func (r *addressRequest) toAddress() *order.Address {
 	if r == nil {
 		return nil
 	}
-	return &orderdomain.Address{
+	return &order.Address{
 		Street:  r.Street,
 		City:    r.City,
 		State:   r.State,
@@ -33,8 +31,8 @@ type placeOrderRequest struct {
 	Notes           string          `json:"notes,omitempty"`
 }
 
-func (r placeOrderRequest) toOrder() orderdomain.NewOrder {
-	return orderdomain.NewOrder{
+func (r placeOrderRequest) toOrder() order.NewOrder {
+	return order.NewOrder{
 		CouponCode:      r.CouponCode,
 		ShippingAddress: r.ShippingAddress.toAddress(),
 		BillingAddress:  r.BillingAddress.toAddress(),
