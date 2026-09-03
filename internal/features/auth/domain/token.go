@@ -5,8 +5,8 @@ import "github.com/google/uuid"
 type Kind string
 
 const (
-	AccessToken  Kind = "access"
-	RefreshToken Kind = "refresh"
+	KindAccess  Kind = "access"
+	KindRefresh Kind = "refresh"
 )
 
 type Claims struct {

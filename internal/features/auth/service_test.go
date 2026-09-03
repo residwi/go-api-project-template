@@ -346,16 +346,16 @@ func TestService_BuildTokenPair(t *testing.T) {
 
 		want := domain.Claims{UserID: userID, Role: "customer", TokenVersion: 1}
 
-		accessClaims, err := tokens.Verify(pair.AccessToken, domain.AccessToken)
+		accessClaims, err := tokens.Verify(pair.AccessToken, domain.KindAccess)
 		require.NoError(t, err)
 		assert.Equal(t, want, accessClaims)
 
-		refreshClaims, err := tokens.Verify(pair.RefreshToken, domain.RefreshToken)
+		refreshClaims, err := tokens.Verify(pair.RefreshToken, domain.KindRefresh)
 		require.NoError(t, err)
 		assert.Equal(t, want, refreshClaims)
 
 		// the pair is two distinct kinds, not the same token twice
-		_, err = tokens.Verify(pair.RefreshToken, domain.AccessToken)
+		_, err = tokens.Verify(pair.RefreshToken, domain.KindAccess)
 		assert.Error(t, err)
 	})
 }

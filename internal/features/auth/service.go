@@ -87,7 +87,7 @@ func (s *Service) Register(
 }
 
 func (s *Service) Refresh(ctx context.Context, refreshToken string) (*TokenPair, error) {
-	claims, err := s.tokens.Verify(refreshToken, domain.RefreshToken)
+	claims, err := s.tokens.Verify(refreshToken, domain.KindRefresh)
 	if err != nil {
 		return nil, ErrInvalidToken
 	}
@@ -115,12 +115,12 @@ func (s *Service) BuildTokenPair(user user.Profile) (*TokenPair, error) {
 		TokenVersion: user.TokenVersion,
 	}
 
-	accessToken, err := s.tokens.Issue(claims, domain.AccessToken, s.accessTTL)
+	accessToken, err := s.tokens.Issue(claims, domain.KindAccess, s.accessTTL)
 	if err != nil {
 		return nil, fmt.Errorf("generating access token: %w", err)
 	}
 
-	refreshToken, err := s.tokens.Issue(claims, domain.RefreshToken, s.refreshTTL)
+	refreshToken, err := s.tokens.Issue(claims, domain.KindRefresh, s.refreshTTL)
 	if err != nil {
 		return nil, fmt.Errorf("generating refresh token: %w", err)
 	}
@@ -134,7 +134,7 @@ func (s *Service) BuildTokenPair(user user.Profile) (*TokenPair, error) {
 }
 
 func (s *Service) Authenticate(ctx context.Context, token string) (identity.Identity, error) {
-	claims, err := s.tokens.Verify(token, domain.AccessToken)
+	claims, err := s.tokens.Verify(token, domain.KindAccess)
 	if err != nil {
 		return identity.Identity{}, ErrInvalidToken
 	}

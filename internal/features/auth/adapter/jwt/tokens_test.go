@@ -30,10 +30,10 @@ func TestTokens_Verify(t *testing.T) {
 		t.Parallel()
 
 		tokens := New(testSecret, testIssuer)
-		signed, err := tokens.Issue(claims, domain.AccessToken, 15*time.Minute)
+		signed, err := tokens.Issue(claims, domain.KindAccess, 15*time.Minute)
 		require.NoError(t, err)
 
-		got, err := tokens.Verify(signed, domain.AccessToken)
+		got, err := tokens.Verify(signed, domain.KindAccess)
 
 		require.NoError(t, err)
 		assert.Equal(t, claims, got)
@@ -42,10 +42,10 @@ func TestTokens_Verify(t *testing.T) {
 	t.Run("rejects a token signed with another secret", func(t *testing.T) {
 		t.Parallel()
 
-		signed, err := New(testSecret, testIssuer).Issue(claims, domain.AccessToken, 15*time.Minute)
+		signed, err := New(testSecret, testIssuer).Issue(claims, domain.KindAccess, 15*time.Minute)
 		require.NoError(t, err)
 
-		got, err := New("wrong-secret", testIssuer).Verify(signed, domain.AccessToken)
+		got, err := New("wrong-secret", testIssuer).Verify(signed, domain.KindAccess)
 
 		assert.Equal(t, domain.Claims{}, got)
 		assert.Error(t, err)
@@ -54,10 +54,10 @@ func TestTokens_Verify(t *testing.T) {
 	t.Run("rejects a token issued by someone else", func(t *testing.T) {
 		t.Parallel()
 
-		signed, err := New(testSecret, "other-issuer").Issue(claims, domain.AccessToken, 15*time.Minute)
+		signed, err := New(testSecret, "other-issuer").Issue(claims, domain.KindAccess, 15*time.Minute)
 		require.NoError(t, err)
 
-		got, err := New(testSecret, testIssuer).Verify(signed, domain.AccessToken)
+		got, err := New(testSecret, testIssuer).Verify(signed, domain.KindAccess)
 
 		assert.Equal(t, domain.Claims{}, got)
 		assert.Error(t, err)
@@ -67,10 +67,10 @@ func TestTokens_Verify(t *testing.T) {
 		t.Parallel()
 
 		tokens := New(testSecret, testIssuer)
-		signed, err := tokens.Issue(claims, domain.AccessToken, -1*time.Second)
+		signed, err := tokens.Issue(claims, domain.KindAccess, -1*time.Second)
 		require.NoError(t, err)
 
-		got, err := tokens.Verify(signed, domain.AccessToken)
+		got, err := tokens.Verify(signed, domain.KindAccess)
 
 		assert.Equal(t, domain.Claims{}, got)
 		assert.Error(t, err)
@@ -80,10 +80,10 @@ func TestTokens_Verify(t *testing.T) {
 		t.Parallel()
 
 		tokens := New(testSecret, testIssuer)
-		signed, err := tokens.Issue(claims, domain.AccessToken, 15*time.Minute)
+		signed, err := tokens.Issue(claims, domain.KindAccess, 15*time.Minute)
 		require.NoError(t, err)
 
-		got, err := tokens.Verify(signed[:len(signed)-5]+"XXXXX", domain.AccessToken)
+		got, err := tokens.Verify(signed[:len(signed)-5]+"XXXXX", domain.KindAccess)
 
 		assert.Equal(t, domain.Claims{}, got)
 		assert.Error(t, err)
@@ -92,7 +92,7 @@ func TestTokens_Verify(t *testing.T) {
 	t.Run("rejects a string that is not a token", func(t *testing.T) {
 		t.Parallel()
 
-		got, err := New(testSecret, testIssuer).Verify("not-a-token", domain.AccessToken)
+		got, err := New(testSecret, testIssuer).Verify("not-a-token", domain.KindAccess)
 
 		assert.Equal(t, domain.Claims{}, got)
 		assert.Error(t, err)
@@ -105,10 +105,10 @@ func TestTokens_Verify(t *testing.T) {
 		t.Parallel()
 
 		tokens := New(testSecret, testIssuer)
-		signed, err := tokens.Issue(claims, domain.RefreshToken, 24*time.Hour)
+		signed, err := tokens.Issue(claims, domain.KindRefresh, 24*time.Hour)
 		require.NoError(t, err)
 
-		got, err := tokens.Verify(signed, domain.AccessToken)
+		got, err := tokens.Verify(signed, domain.KindAccess)
 
 		assert.Equal(t, domain.Claims{}, got)
 		require.Error(t, err)
@@ -119,10 +119,10 @@ func TestTokens_Verify(t *testing.T) {
 		t.Parallel()
 
 		tokens := New(testSecret, testIssuer)
-		signed, err := tokens.Issue(claims, domain.RefreshToken, 24*time.Hour)
+		signed, err := tokens.Issue(claims, domain.KindRefresh, 24*time.Hour)
 		require.NoError(t, err)
 
-		got, err := tokens.Verify(signed, domain.RefreshToken)
+		got, err := tokens.Verify(signed, domain.KindRefresh)
 
 		require.NoError(t, err)
 		assert.Equal(t, claims, got)
@@ -144,7 +144,7 @@ func TestTokens_Verify(t *testing.T) {
 		signed, err := tok.SignedString(jwt.UnsafeAllowNoneSignatureType)
 		require.NoError(t, err)
 
-		got, err := New(testSecret, testIssuer).Verify(signed, domain.AccessToken)
+		got, err := New(testSecret, testIssuer).Verify(signed, domain.KindAccess)
 
 		assert.Equal(t, domain.Claims{}, got)
 		require.Error(t, err)
