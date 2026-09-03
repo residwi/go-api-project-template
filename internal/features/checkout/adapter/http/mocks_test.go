@@ -104,27 +104,27 @@ func (_c *MockCheckoutManager_CancelOrder_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
-// Checkout provides a mock function for the type MockCheckoutManager
-func (_mock *MockCheckoutManager) Checkout(ctx context.Context, userID uuid.UUID, in checkout.Input) (*order.Snapshot, error) {
+// PlaceOrder provides a mock function for the type MockCheckoutManager
+func (_mock *MockCheckoutManager) PlaceOrder(ctx context.Context, userID uuid.UUID, in checkout.PlaceOrderInput) (*order.Snapshot, error) {
 	ret := _mock.Called(ctx, userID, in)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Checkout")
+		panic("no return value specified for PlaceOrder")
 	}
 
 	var r0 *order.Snapshot
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, checkout.Input) (*order.Snapshot, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, checkout.PlaceOrderInput) (*order.Snapshot, error)); ok {
 		return returnFunc(ctx, userID, in)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, checkout.Input) *order.Snapshot); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, checkout.PlaceOrderInput) *order.Snapshot); ok {
 		r0 = returnFunc(ctx, userID, in)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*order.Snapshot)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, checkout.Input) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, checkout.PlaceOrderInput) error); ok {
 		r1 = returnFunc(ctx, userID, in)
 	} else {
 		r1 = ret.Error(1)
@@ -132,20 +132,20 @@ func (_mock *MockCheckoutManager) Checkout(ctx context.Context, userID uuid.UUID
 	return r0, r1
 }
 
-// MockCheckoutManager_Checkout_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Checkout'
-type MockCheckoutManager_Checkout_Call struct {
+// MockCheckoutManager_PlaceOrder_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PlaceOrder'
+type MockCheckoutManager_PlaceOrder_Call struct {
 	*mock.Call
 }
 
-// Checkout is a helper method to define mock.On call
+// PlaceOrder is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-//   - in checkout.Input
-func (_e *MockCheckoutManager_Expecter) Checkout(ctx any, userID any, in any) *MockCheckoutManager_Checkout_Call {
-	return &MockCheckoutManager_Checkout_Call{Call: _e.mock.On("Checkout", ctx, userID, in)}
+//   - in checkout.PlaceOrderInput
+func (_e *MockCheckoutManager_Expecter) PlaceOrder(ctx any, userID any, in any) *MockCheckoutManager_PlaceOrder_Call {
+	return &MockCheckoutManager_PlaceOrder_Call{Call: _e.mock.On("PlaceOrder", ctx, userID, in)}
 }
 
-func (_c *MockCheckoutManager_Checkout_Call) Run(run func(ctx context.Context, userID uuid.UUID, in checkout.Input)) *MockCheckoutManager_Checkout_Call {
+func (_c *MockCheckoutManager_PlaceOrder_Call) Run(run func(ctx context.Context, userID uuid.UUID, in checkout.PlaceOrderInput)) *MockCheckoutManager_PlaceOrder_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -155,9 +155,9 @@ func (_c *MockCheckoutManager_Checkout_Call) Run(run func(ctx context.Context, u
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 checkout.Input
+		var arg2 checkout.PlaceOrderInput
 		if args[2] != nil {
-			arg2 = args[2].(checkout.Input)
+			arg2 = args[2].(checkout.PlaceOrderInput)
 		}
 		run(
 			arg0,
@@ -168,12 +168,12 @@ func (_c *MockCheckoutManager_Checkout_Call) Run(run func(ctx context.Context, u
 	return _c
 }
 
-func (_c *MockCheckoutManager_Checkout_Call) Return(snapshot *order.Snapshot, err error) *MockCheckoutManager_Checkout_Call {
+func (_c *MockCheckoutManager_PlaceOrder_Call) Return(snapshot *order.Snapshot, err error) *MockCheckoutManager_PlaceOrder_Call {
 	_c.Call.Return(snapshot, err)
 	return _c
 }
 
-func (_c *MockCheckoutManager_Checkout_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, in checkout.Input) (*order.Snapshot, error)) *MockCheckoutManager_Checkout_Call {
+func (_c *MockCheckoutManager_PlaceOrder_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, in checkout.PlaceOrderInput) (*order.Snapshot, error)) *MockCheckoutManager_PlaceOrder_Call {
 	_c.Call.Return(run)
 	return _c
 }

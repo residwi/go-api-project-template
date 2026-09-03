@@ -656,7 +656,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockProductManager) {
 	admin := web.NewRouter(mux).Group("/api/v1/admin")
 
 	ah := NewAdminHandler(service)
-	admin.HandleFunc("GET /products", ah.ListAdmin)
+	admin.HandleFunc("GET /products", ah.List)
 	admin.HandleFunc("GET /products/{id}", ah.GetByID)
 	admin.HandleFunc("POST /products", ah.Create)
 	admin.HandleFunc("PUT /products/{id}", ah.Update)

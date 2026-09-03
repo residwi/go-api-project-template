@@ -713,9 +713,9 @@ func setupAdminHandlerMux(t *testing.T) (*http.ServeMux, *MockUserManager) {
 	admin := web.NewRouter(mux).Group("/api/v1/admin")
 
 	h := NewAdminHandler(usecase)
-	admin.HandleFunc("GET /users", h.ListAdmin)
+	admin.HandleFunc("GET /users", h.List)
 	admin.HandleFunc("GET /users/{id}", h.GetUser)
-	admin.HandleFunc("PUT /users/{id}", h.AdminUpdate)
+	admin.HandleFunc("PUT /users/{id}", h.Update)
 	admin.HandleFunc("PUT /users/{id}/role", h.UpdateRole)
 	admin.HandleFunc("DELETE /users/{id}", h.Delete)
 

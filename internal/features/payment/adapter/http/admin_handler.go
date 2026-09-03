@@ -27,7 +27,7 @@ func NewAdminHandler(service PaymentManager) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-func (h *AdminHandler) ListAdmin(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := payment.AdminListParams{
 		OffsetPage: page,

@@ -13,7 +13,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
-type Input struct {
+type PlaceOrderInput struct {
 	Order           order.NewOrder
 	PaymentMethodID string
 	IdempotencyKey  string
@@ -29,10 +29,10 @@ func New(orders Orders, payments Payments, logger *slog.Logger) *Service {
 	return &Service{orders: orders, payments: payments, logger: logger}
 }
 
-func (s *Service) Checkout(
+func (s *Service) PlaceOrder(
 	ctx context.Context,
 	userID uuid.UUID,
-	in Input,
+	in PlaceOrderInput,
 ) (*order.Snapshot, error) {
 	placed, created, err := s.orders.Place(ctx, userID, in.Order, in.IdempotencyKey)
 	if err != nil {

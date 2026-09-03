@@ -31,7 +31,7 @@ func NewAdminHandler(service UserManager) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-func (h *AdminHandler) ListAdmin(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := user.AdminListParams{
 		OffsetPage: page,
@@ -73,7 +73,7 @@ func (h *AdminHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toAdminUserResponse(u))
 }
 
-func (h *AdminHandler) AdminUpdate(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

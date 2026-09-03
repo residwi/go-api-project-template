@@ -66,9 +66,9 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	authed.HandleFunc("PUT /users/me", userHandler.UpdateProfile)
 
 	userAdminHandler := userhttp.NewAdminHandler(deps.Users)
-	admin.HandleFunc("GET /users", userAdminHandler.ListAdmin)
+	admin.HandleFunc("GET /users", userAdminHandler.List)
 	admin.HandleFunc("GET /users/{id}", userAdminHandler.GetUser)
-	admin.HandleFunc("PUT /users/{id}", userAdminHandler.AdminUpdate)
+	admin.HandleFunc("PUT /users/{id}", userAdminHandler.Update)
 	admin.HandleFunc("PUT /users/{id}/role", userAdminHandler.UpdateRole)
 	admin.HandleFunc("DELETE /users/{id}", userAdminHandler.Delete)
 
@@ -86,7 +86,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	api.HandleFunc("GET /products/{slug}", productHandler.GetBySlug)
 
 	productAdminHandler := producthttp.NewAdminHandler(deps.Products)
-	admin.HandleFunc("GET /products", productAdminHandler.ListAdmin)
+	admin.HandleFunc("GET /products", productAdminHandler.List)
 	admin.HandleFunc("GET /products/{id}", productAdminHandler.GetByID)
 	admin.HandleFunc("POST /products", productAdminHandler.Create)
 	admin.HandleFunc("PUT /products/{id}", productAdminHandler.Update)
@@ -109,7 +109,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	authed.HandleFunc("GET /orders/{id}", orderHandler.GetForUser)
 
 	orderAdminHandler := orderhttp.NewAdminHandler(deps.Orders)
-	admin.HandleFunc("GET /orders", orderAdminHandler.ListAdmin)
+	admin.HandleFunc("GET /orders", orderAdminHandler.List)
 	admin.HandleFunc("GET /orders/{id}", orderAdminHandler.Get)
 	admin.HandleFunc("PUT /orders/{id}/status", orderAdminHandler.ChangeStatus)
 
@@ -121,14 +121,14 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	)
 	checkoutHandler := checkouthttp.NewHandler(deps.Checkout)
 	orderWrites := authed.Group("", orderLimiter)
-	orderWrites.HandleFunc("POST /checkout", checkoutHandler.Checkout)
+	orderWrites.HandleFunc("POST /checkout", checkoutHandler.PlaceOrder)
 	orderWrites.HandleFunc("POST /orders/{id}/pay", checkoutHandler.RetryPayment)
 	authed.HandleFunc("POST /orders/{id}/cancel", checkoutHandler.CancelOrder)
 
 	api.HandleFunc("POST /payments/webhook", paymenthttp.NewWebhookHandler(deps.Payments, logger).HandleWebhook)
 
 	paymentAdminHandler := paymenthttp.NewAdminHandler(deps.Payments)
-	admin.HandleFunc("GET /payments", paymentAdminHandler.ListAdmin)
+	admin.HandleFunc("GET /payments", paymentAdminHandler.List)
 	admin.HandleFunc("GET /payments/{id}", paymentAdminHandler.GetByID)
 	admin.HandleFunc("POST /payments/{id}/refund", paymentAdminHandler.Refund)
 
@@ -149,7 +149,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 
 	promotionAdminHandler := promotionhttp.NewAdminHandler(deps.Promotions)
 	admin.HandleFunc("POST /promotions", promotionAdminHandler.Create)
-	admin.HandleFunc("GET /promotions", promotionAdminHandler.ListAdmin)
+	admin.HandleFunc("GET /promotions", promotionAdminHandler.List)
 	admin.HandleFunc("PUT /promotions/{id}", promotionAdminHandler.Update)
 	admin.HandleFunc("DELETE /promotions/{id}", promotionAdminHandler.Delete)
 

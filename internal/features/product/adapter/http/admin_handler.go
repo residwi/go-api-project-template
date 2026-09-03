@@ -51,7 +51,7 @@ func NewAdminHandler(service ProductManager) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-func (h *AdminHandler) ListAdmin(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 
 	params := product.AdminListParams{

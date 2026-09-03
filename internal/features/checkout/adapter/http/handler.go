@@ -14,10 +14,10 @@ import (
 )
 
 type CheckoutManager interface {
-	Checkout(
+	PlaceOrder(
 		ctx context.Context,
 		userID uuid.UUID,
-		in checkout.Input,
+		in checkout.PlaceOrderInput,
 	) (*order.Snapshot, error)
 	RetryPayment(
 		ctx context.Context, userID, orderID uuid.UUID, paymentMethodID string,
@@ -33,7 +33,7 @@ func NewHandler(service CheckoutManager) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
 	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
@@ -50,13 +50,13 @@ func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	in := checkout.Input{
+	in := checkout.PlaceOrderInput{
 		Order:           req.toOrder(),
 		PaymentMethodID: req.PaymentMethodID,
 		IdempotencyKey:  idempotencyKey,
 	}
 
-	placed, err := h.service.Checkout(r.Context(), uc.UserID, in)
+	placed, err := h.service.PlaceOrder(r.Context(), uc.UserID, in)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
