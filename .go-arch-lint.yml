@@ -1,50 +1,410 @@
 version: 3
 workdir: .
+
 allow:
   depOnAnyVendor: true
   deepScan: false
+
 excludeFiles:
   - "^.*_test\\.go$"
 
 components:
-  cmd-api:     { in: cmd/api }
-  cmd-worker:  { in: cmd/worker }
-  cmd-mock:    { in: cmd/mockgateway/** }
+  cmd-api:
+    in: cmd/api
+  cmd-worker:
+    in: cmd/worker
+  cmd-mockgateway:
+    in: cmd/mockgateway/**
+  app:
+    in: internal/app
+  server:
+    in: internal/server
+  worker:
+    in: internal/worker
+  config:
+    in: internal/config
+  testutil:
+    in: internal/testutil
+  money:
+    in: internal/money
+  apperror:
+    in: internal/apperror
+  errs:
+    in: internal/platform/errs
+  identity:
+    in: internal/platform/identity
+  paging:
+    in: internal/platform/paging
+  slug:
+    in: internal/platform/slug
+  database:
+    in: internal/platform/database
+  logger:
+    in: internal/platform/logger
+  cache:
+    in: internal/platform/cache
+  queue:
+    in: internal/platform/queue
+  storage:
+    in: internal/platform/storage
+  web:
+    in:
+      - internal/platform/web
+      - internal/platform/web/**
 
-  app:         { in: internal/app }
-  server:      { in: internal/server }
-  worker:      { in: internal/worker }
-  config:      { in: internal/config }
-  testutil:    { in: internal/testutil }
-  money:       { in: internal/money }
-  apperror:    { in: internal/apperror }
+  # Three components per feature. The root is public; domain/ and adapter/
+  # are private to that feature. One glob over features/*/domain/** would
+  # put all of them in a single component and permit every cross-feature
+  # reach, which is the rule this split exists to prevent.
 
-  pf-vocab:    { in: [ internal/platform/errs, internal/platform/identity, internal/platform/paging, internal/platform/slug ] }
-  pf-tx:       { in: [ internal/platform/database, internal/platform/logger ] }
-  pf-io:       { in: [ internal/platform/cache, internal/platform/queue, internal/platform/storage, internal/platform/web, internal/platform/web/** ] }
+  ft-auth:
+    in: internal/features/auth
+  ft-auth-domain:
+    in: internal/features/auth/domain/**
+  ft-auth-adapter:
+    in: internal/features/auth/adapter/**
 
-  ft-domain:   { in: internal/features/*/domain/** }
-  ft-core:     { in: internal/features/* }
-  ft-adapter:  { in: internal/features/*/adapter/** }
+  ft-cart:
+    in: internal/features/cart
+  ft-cart-domain:
+    in: internal/features/cart/domain/**
+  ft-cart-adapter:
+    in: internal/features/cart/adapter/**
+
+  ft-category:
+    in: internal/features/category
+  ft-category-domain:
+    in: internal/features/category/domain/**
+  ft-category-adapter:
+    in: internal/features/category/adapter/**
+
+  ft-checkout:
+    in: internal/features/checkout
+  ft-checkout-adapter:
+    in: internal/features/checkout/adapter/**
+
+  ft-dashboard:
+    in: internal/features/dashboard
+  ft-dashboard-domain:
+    in: internal/features/dashboard/domain/**
+  ft-dashboard-adapter:
+    in: internal/features/dashboard/adapter/**
+
+  ft-inventory:
+    in: internal/features/inventory
+  ft-inventory-domain:
+    in: internal/features/inventory/domain/**
+  ft-inventory-adapter:
+    in: internal/features/inventory/adapter/**
+
+  ft-notification:
+    in: internal/features/notification
+  ft-notification-domain:
+    in: internal/features/notification/domain/**
+  ft-notification-adapter:
+    in: internal/features/notification/adapter/**
+
+  ft-order:
+    in: internal/features/order
+  ft-order-domain:
+    in: internal/features/order/domain/**
+  ft-order-adapter:
+    in: internal/features/order/adapter/**
+
+  ft-payment:
+    in: internal/features/payment
+  ft-payment-domain:
+    in: internal/features/payment/domain/**
+  ft-payment-adapter:
+    in: internal/features/payment/adapter/**
+
+  ft-product:
+    in: internal/features/product
+  ft-product-domain:
+    in: internal/features/product/domain/**
+  ft-product-adapter:
+    in: internal/features/product/adapter/**
+
+  ft-promotion:
+    in: internal/features/promotion
+  ft-promotion-domain:
+    in: internal/features/promotion/domain/**
+  ft-promotion-adapter:
+    in: internal/features/promotion/adapter/**
+
+  ft-review:
+    in: internal/features/review
+  ft-review-domain:
+    in: internal/features/review/domain/**
+  ft-review-adapter:
+    in: internal/features/review/adapter/**
+
+  ft-shipping:
+    in: internal/features/shipping
+  ft-shipping-domain:
+    in: internal/features/shipping/domain/**
+  ft-shipping-adapter:
+    in: internal/features/shipping/adapter/**
+
+  ft-user:
+    in: internal/features/user
+  ft-user-domain:
+    in: internal/features/user/domain/**
+  ft-user-adapter:
+    in: internal/features/user/adapter/**
+
+  ft-wishlist:
+    in: internal/features/wishlist
+  ft-wishlist-domain:
+    in: internal/features/wishlist/domain/**
+  ft-wishlist-adapter:
+    in: internal/features/wishlist/adapter/**
 
 commonComponents:
   - money
   - apperror
-  - pf-vocab
+  - errs
+  - identity
+  - paging
+  - slug
 
+# mayDependOn lists what each component imports today. Adding a new
+# cross-feature dependency means editing this file, on purpose.
 deps:
-  cmd-api:    { mayDependOn: [ server ] }
-  cmd-worker: { mayDependOn: [ worker ] }
-  cmd-mock:   { mayDependOn: [ cmd-mock, ft-adapter ] }
-
-  app:      { mayDependOn: [ config, ft-core, ft-adapter, pf-tx, pf-io ] }
-  server:   { mayDependOn: [ app, config, cmd-mock, ft-core, ft-adapter, pf-tx, pf-io ] }
-  worker:   { mayDependOn: [ app, config, ft-core, ft-adapter, pf-tx, pf-io ] }
-  testutil: { mayDependOn: [ pf-tx, pf-io ] }
-
-  pf-tx:    { mayDependOn: [ pf-tx ] }
-  pf-io:    { mayDependOn: [ pf-io, pf-tx ] }
-
-  ft-domain:  { mayDependOn: [ ft-domain ] }
-  ft-core:    { mayDependOn: [ ft-core, ft-domain, pf-tx ] }
-  ft-adapter: { mayDependOn: [ ft-core, ft-domain, pf-tx, pf-io ] }
+  app:
+    mayDependOn:
+      - config
+      - database
+      - ft-auth
+      - ft-auth-adapter
+      - ft-cart
+      - ft-cart-adapter
+      - ft-category
+      - ft-category-adapter
+      - ft-checkout
+      - ft-dashboard
+      - ft-dashboard-adapter
+      - ft-inventory
+      - ft-inventory-adapter
+      - ft-notification
+      - ft-notification-adapter
+      - ft-order
+      - ft-order-adapter
+      - ft-payment
+      - ft-payment-adapter
+      - ft-product
+      - ft-product-adapter
+      - ft-promotion
+      - ft-promotion-adapter
+      - ft-review
+      - ft-review-adapter
+      - ft-shipping
+      - ft-shipping-adapter
+      - ft-user
+      - ft-user-adapter
+      - ft-wishlist
+      - ft-wishlist-adapter
+      - queue
+  cmd-api:
+    mayDependOn:
+      - server
+  cmd-mockgateway:
+    mayDependOn:
+      - cmd-mockgateway
+      - ft-payment-adapter
+  cmd-worker:
+    mayDependOn:
+      - worker
+  ft-auth:
+    mayDependOn:
+      - ft-auth-domain
+      - ft-user
+  ft-auth-adapter:
+    mayDependOn:
+      - ft-auth
+      - ft-auth-domain
+      - web
+  ft-cart:
+    mayDependOn:
+      - database
+      - ft-cart-domain
+      - ft-product
+  ft-cart-adapter:
+    mayDependOn:
+      - database
+      - ft-cart
+      - ft-cart-domain
+      - web
+  ft-category:
+    mayDependOn:
+      - ft-category-domain
+  ft-category-adapter:
+    mayDependOn:
+      - database
+      - ft-category
+      - ft-category-domain
+      - web
+  ft-checkout:
+    mayDependOn:
+      - ft-order
+      - ft-payment
+  ft-checkout-adapter:
+    mayDependOn:
+      - ft-checkout
+      - ft-order
+      - ft-payment
+      - web
+  ft-dashboard:
+    mayDependOn:
+      - ft-dashboard-domain
+  ft-dashboard-adapter:
+    mayDependOn:
+      - database
+      - ft-dashboard
+      - ft-dashboard-domain
+      - web
+  ft-inventory:
+    mayDependOn:
+      - ft-inventory-domain
+  ft-inventory-adapter:
+    mayDependOn:
+      - database
+      - ft-inventory
+      - ft-inventory-domain
+      - web
+  ft-notification:
+    mayDependOn:
+      - database
+      - ft-notification-domain
+  ft-notification-adapter:
+    mayDependOn:
+      - database
+      - ft-notification
+      - ft-notification-domain
+      - queue
+      - web
+  ft-order:
+    mayDependOn:
+      - database
+      - ft-cart
+      - ft-inventory
+      - ft-notification
+      - ft-order-domain
+  ft-order-adapter:
+    mayDependOn:
+      - database
+      - ft-order
+      - ft-order-domain
+      - web
+  ft-payment:
+    mayDependOn:
+      - database
+      - ft-inventory
+      - ft-order
+      - ft-payment-domain
+  ft-payment-adapter:
+    mayDependOn:
+      - database
+      - ft-payment
+      - ft-payment-domain
+      - queue
+      - web
+  ft-product:
+    mayDependOn:
+      - ft-inventory
+      - ft-product-domain
+  ft-product-adapter:
+    mayDependOn:
+      - database
+      - ft-product
+      - ft-product-domain
+      - web
+  ft-promotion:
+    mayDependOn:
+      - database
+      - ft-promotion-domain
+  ft-promotion-adapter:
+    mayDependOn:
+      - database
+      - ft-promotion
+      - ft-promotion-domain
+      - web
+  ft-review:
+    mayDependOn:
+      - ft-review-domain
+  ft-review-adapter:
+    mayDependOn:
+      - database
+      - ft-review
+      - ft-review-domain
+      - web
+  ft-shipping:
+    mayDependOn:
+      - database
+      - ft-order
+      - ft-shipping-domain
+  ft-shipping-adapter:
+    mayDependOn:
+      - database
+      - ft-shipping
+      - ft-shipping-domain
+      - web
+  ft-user:
+    mayDependOn:
+      - ft-user-domain
+  ft-user-adapter:
+    mayDependOn:
+      - database
+      - ft-user
+      - ft-user-domain
+      - web
+  ft-wishlist:
+    mayDependOn:
+      - ft-wishlist-domain
+  ft-wishlist-adapter:
+    mayDependOn:
+      - database
+      - ft-wishlist
+      - ft-wishlist-domain
+      - web
+  queue:
+    mayDependOn:
+      - database
+  server:
+    mayDependOn:
+      - app
+      - cache
+      - cmd-mockgateway
+      - config
+      - database
+      - ft-auth-adapter
+      - ft-cart-adapter
+      - ft-category-adapter
+      - ft-checkout-adapter
+      - ft-dashboard-adapter
+      - ft-inventory-adapter
+      - ft-notification-adapter
+      - ft-order-adapter
+      - ft-payment-adapter
+      - ft-product-adapter
+      - ft-promotion-adapter
+      - ft-review-adapter
+      - ft-shipping-adapter
+      - ft-user-adapter
+      - ft-wishlist-adapter
+      - logger
+      - web
+  web:
+    mayDependOn:
+      - logger
+      - web
+  worker:
+    mayDependOn:
+      - app
+      - config
+      - database
+      - ft-notification-adapter
+      - ft-order
+      - ft-order-adapter
+      - ft-payment-adapter
+      - logger

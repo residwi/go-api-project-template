@@ -123,8 +123,13 @@ interface they mock, in-package — there is no top-level `/mocks` directory.
 
 `make check-arch` runs [go-arch-lint](https://github.com/fe3dback/go-arch-lint)
 against `.go-arch-lint.yml` and fails the build on any import that crosses a
-ring the wrong way. The rules are about layers, not modules:
+ring the wrong way, or that reaches into another feature's internals:
 
+- Each feature is three components: `ft-<feature>` is the public root, while
+  `ft-<feature>-domain` and `ft-<feature>-adapter` are private to it. Only the
+  owning feature names its own two, so `cart` importing `order/domain` — or
+  `order/adapter/postgres` — fails. Features talk through root packages, which
+  means ports and contracts.
 - `domain/` is the innermost ring. It depends on nothing — not infrastructure,
   and not another feature. A domain package importing anything of ours fails.
 - A `Service` depends on the ports it declares, never on the adapters that

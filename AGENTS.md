@@ -193,7 +193,11 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 
 ### Machine-checked boundaries
 
-`make check-arch` runs `go-arch-lint` against `.go-arch-lint.yml` and fails the build on any import that crosses a ring the wrong way. The rules are about layers, not modules.
+`make check-arch` runs `go-arch-lint` against `.go-arch-lint.yml` and fails the build on any import that crosses a ring the wrong way, **or that reaches into another feature's internals**.
+
+Each feature is three components, not one: `ft-<feature>` is the public root, `ft-<feature>-domain` and `ft-<feature>-adapter` are private to it. Only the owning feature names its own two, so `cart` importing `order/domain` fails the build. A single glob over `internal/features/*/domain/**` would put all fourteen in one component and permit every cross-feature reach — the per-feature split is the whole point, and it is why the file is long.
+
+`mayDependOn` lists the imports that exist today rather than every import that could be legal. A new cross-feature dependency therefore fails until it is added here, which is the intent: coupling between features becomes a reviewed edit.
 
 Platform is split by role, and that split is what gives the layer rule teeth:
 
@@ -226,7 +230,7 @@ A component whose glob matches no directory is a hard config error, so the confi
 ### Conventions the checks cannot see
 
 - **A module imports another module's root package and nothing deeper**, and that means `payment` _can_ see `order.Place`. Nothing stops a module calling a sibling method no port of its own declares, and no check can tell the difference. Declare the interface the consumer needs in the consumer's own `ports.go` and wire it in `internal/app`; do not reach for a sibling's method because the import already compiles.
-- **A module's `domain/` and adapters are private by convention only.** The layer rules are indifferent to which module a package belongs to, so `review` importing `order/domain` compiles and passes `make check-arch`. Import another module's root package and nothing deeper.
+- **What `make check-arch` cannot see is a method call, not an import.** It reads imports only, so a module reaching a sibling method that no port of its own declares passes — see the entry above. `allow.deepScan` would extend it to method calls and injections; it is off.
 - **Table ownership is unchecked.** A module's SQL naming another module's table passes everything. `ARCHITECTURE.md` decision 6 states the rule; nothing enforces it.
 - **The arrow runs the other way for URLs.** The transport imports modules and a module names no URL: every route lives in `internal/server/router.go`, mounted on the route groups that same function builds. A module supplies a handler with exported route methods — exported precisely so `router.go`, a different package, can name them — and the transport decides the verb, the path and the group.
 
