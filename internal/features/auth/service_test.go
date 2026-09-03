@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/residwi/go-api-project-template/internal/features/auth/adapter/token"
+	"github.com/residwi/go-api-project-template/internal/features/auth/adapter/jwt"
 	"github.com/residwi/go-api-project-template/internal/features/auth/domain"
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
@@ -333,7 +333,7 @@ func TestService_BuildTokenPair(t *testing.T) {
 		t.Parallel()
 
 		cfg := newTestConfig()
-		codec := token.New(cfg.Secret, cfg.Issuer)
+		codec := jwt.New(cfg.Secret, cfg.Issuer)
 		var users UserDirectory
 		svc := New(cfg, users, codec)
 
@@ -488,5 +488,5 @@ func newTestConfig() Config {
 // does. It sets no mock expectations -- each subtest states its own.
 func newTestService(users UserDirectory) *Service {
 	cfg := newTestConfig()
-	return New(cfg, users, token.New(cfg.Secret, cfg.Issuer))
+	return New(cfg, users, jwt.New(cfg.Secret, cfg.Issuer))
 }

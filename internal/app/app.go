@@ -7,7 +7,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/residwi/go-api-project-template/internal/features/auth"
-	authtoken "github.com/residwi/go-api-project-template/internal/features/auth/adapter/token"
+	authjwt "github.com/residwi/go-api-project-template/internal/features/auth/adapter/jwt"
 	"github.com/residwi/go-api-project-template/internal/features/cart"
 	cartpg "github.com/residwi/go-api-project-template/internal/features/cart/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/features/category"
@@ -94,7 +94,7 @@ func New(
 		statusCache = userredis.New(cache)
 	}
 	userMod := user.New(userpg.New(db), statusCache, logger)
-	authMod := auth.New(cfg.Auth, userMod, authtoken.New(cfg.Auth.Secret, cfg.Auth.Issuer))
+	authMod := auth.New(cfg.Auth, userMod, authjwt.New(cfg.Auth.Secret, cfg.Auth.Issuer))
 
 	cartMod := cart.New(cartpg.New(db), txRunner, prod, cfg.Cart.MaxItems)
 
