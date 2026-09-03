@@ -39,10 +39,6 @@ func (s *Service) PlaceOrder(
 		return nil, err
 	}
 
-	// A replay of an idempotency key returns the stored order, which was already
-	// charged on the call that created it. Charging again bills the customer
-	// twice and lands the order in fulfillment_failed, so the same successful
-	// response is returned untouched.
 	if created && placed.Total.Amount > 0 {
 		if _, payErr := s.payments.Charge(ctx, payment.ChargeRequest{
 			OrderID:         placed.ID,

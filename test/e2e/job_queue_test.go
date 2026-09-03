@@ -214,7 +214,7 @@ func placeAndPayOrder(t *testing.T, env jobQueueEnv) (orderID, paymentID uuid.UU
 	env.handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders",
+	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout",
 		strings.NewReader(`{"payment_method_id":"pm_test_jobqueue"}`))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)

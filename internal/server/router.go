@@ -121,7 +121,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	)
 	checkoutHandler := checkouthttp.NewHandler(deps.Checkout)
 	orderWrites := authed.Group("", orderLimiter)
-	orderWrites.HandleFunc("POST /orders", checkoutHandler.Place)
+	orderWrites.HandleFunc("POST /checkout", checkoutHandler.Checkout)
 	orderWrites.HandleFunc("POST /orders/{id}/pay", checkoutHandler.Retry)
 	authed.HandleFunc("POST /orders/{id}/cancel", checkoutHandler.Cancel)
 

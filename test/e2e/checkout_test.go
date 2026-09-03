@@ -105,7 +105,7 @@ func TestE2EOrderFlow(t *testing.T) {
 
 	t.Run("place order", func(t *testing.T) {
 		body := `{"payment_method_id":"pm_test_123"}`
-		req := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("Idempotency-Key", uuid.New().String())
@@ -189,7 +189,7 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
 	orderBody := `{"payment_method_id":"pm_test_123"}`
-	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
+	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
 	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
@@ -314,7 +314,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 
 	// coupon_code drives promotion.Service.Reserve through place.CouponReserver.
 	orderBody := fmt.Sprintf(`{"payment_method_id":"pm_test_123","coupon_code":"%s"}`, couponCode)
-	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
+	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
 	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
@@ -329,9 +329,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	orderID := orderData["id"].(string)
 
 	t.Run("order has coupon applied with discount", func(t *testing.T) {
-		// Product price 1110 x1, 10% coupon -> discount 111, total 999. Checkout
-		// answers with the order's identity and outcome; the full representation
-		// comes from order's own endpoint, which is what a client would call.
+		// Product price 1110 x1, 10% coupon -> discount 111, total 999.
 		assert.InDelta(t, float64(999), orderData["total"], 0.0001)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/orders/"+orderID, nil)

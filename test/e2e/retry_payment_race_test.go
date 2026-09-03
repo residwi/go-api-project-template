@@ -81,7 +81,7 @@ func TestE2ERetryPaymentRace(t *testing.T) {
 	handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	placeReq := httptest.NewRequest(http.MethodPost, "/api/orders",
+	placeReq := httptest.NewRequest(http.MethodPost, "/api/checkout",
 		strings.NewReader(`{"payment_method_id":"pm_test_race"}`))
 	placeReq.Header.Set("Content-Type", "application/json")
 	placeReq.Header.Set("Authorization", "Bearer "+token)

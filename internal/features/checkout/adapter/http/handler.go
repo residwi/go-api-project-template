@@ -33,7 +33,7 @@ func NewHandler(service Checkout) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Place(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return

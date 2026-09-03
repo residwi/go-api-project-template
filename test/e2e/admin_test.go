@@ -180,7 +180,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
 	orderBody := `{"payment_method_id":"pm_test_123"}`
-	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
+	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
 	orderReq.Header.Set("Idempotency-Key", uuid.New().String())

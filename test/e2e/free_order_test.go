@@ -75,7 +75,7 @@ func TestE2EFullyDiscountedOrder(t *testing.T) {
 	handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders",
+	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout",
 		strings.NewReader(fmt.Sprintf(`{"payment_method_id":"pm_test_free","coupon_code":"%s"}`, couponCode)))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
@@ -90,8 +90,6 @@ func TestE2EFullyDiscountedOrder(t *testing.T) {
 	orderID := uuid.MustParse(orderData["id"].(string))
 
 	t.Run("the discount covers the whole order", func(t *testing.T) {
-		// checkout reports the outcome; the subtotal and discount that produced
-		// it live on order's own representation.
 		assert.InDelta(t, float64(0), orderData["total"], 0.0001)
 		assert.InDelta(t, float64(3000), orderSubtotalOf(t, orderID), 0.0001)
 		assert.InDelta(t, float64(3000), orderDiscountOf(t, orderID), 0.0001)

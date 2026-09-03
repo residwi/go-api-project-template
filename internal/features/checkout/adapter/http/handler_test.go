@@ -34,7 +34,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		mux, _ := setupMux(t)
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders", nil)
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/checkout", nil)
 
 		mux.ServeHTTP(w, r)
 
@@ -52,7 +52,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 		userID := uuid.New()
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders", nil)
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/checkout", nil)
 		r = setAuthContext(r, userID)
 
 		mux.ServeHTTP(w, r)
@@ -72,7 +72,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 		userID := uuid.New()
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders", strings.NewReader("{invalid"))
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/checkout", strings.NewReader("{invalid"))
 		r = setAuthContext(r, userID)
 		r.Header.Set("Idempotency-Key", uuid.NewString())
 
@@ -88,7 +88,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 		userID := uuid.New()
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders", strings.NewReader(`{}`))
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/checkout", strings.NewReader(`{}`))
 		r = setAuthContext(r, userID)
 		r.Header.Set("Idempotency-Key", uuid.NewString())
 
@@ -113,7 +113,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders", strings.NewReader(body))
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/checkout", strings.NewReader(body))
 		r = setAuthContext(r, userID)
 		r.Header.Set("Idempotency-Key", uuid.NewString())
 
@@ -136,7 +136,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders", strings.NewReader(body))
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/checkout", strings.NewReader(body))
 		r = setAuthContext(r, userID)
 		r.Header.Set("Idempotency-Key", uuid.NewString())
 
@@ -151,8 +151,6 @@ func TestHandler_PlaceOrder(t *testing.T) {
 	})
 }
 
-// order serves the full representation and tests its own mappers; checkout
-// answers with what the client cannot already know.
 func TestToPlaceOrderResponse_CarriesOnlyTheOrdersIdentityAndOutcome(t *testing.T) {
 	t.Parallel()
 
@@ -382,7 +380,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCheckout) {
 	mux := http.NewServeMux()
 	authed := web.NewRouter(mux).Group("/api/v1")
 
-	authed.HandleFunc("POST /orders", h.Place)
+	authed.HandleFunc("POST /checkout", h.Checkout)
 	authed.HandleFunc("POST /orders/{id}/pay", h.Retry)
 	authed.HandleFunc("POST /orders/{id}/cancel", h.Cancel)
 

@@ -81,7 +81,7 @@ func TestE2EOrderIdempotencyReplay(t *testing.T) {
 	idempotencyKey := uuid.New().String()
 	placeOrder := func(t *testing.T) map[string]any {
 		t.Helper()
-		req := httptest.NewRequest(http.MethodPost, "/api/orders",
+		req := httptest.NewRequest(http.MethodPost, "/api/checkout",
 			strings.NewReader(`{"payment_method_id":"pm_test_replay"}`))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)

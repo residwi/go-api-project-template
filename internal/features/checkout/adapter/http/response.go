@@ -19,10 +19,6 @@ type placeOrderResponse struct {
 	Order placedOrderResponse `json:"order"`
 }
 
-// The client just sent the addresses, coupon and notes; echoing them back adds
-// nothing it does not already hold. What it cannot know is the order's id and
-// where the order landed, so that is what checkout answers with -- the full
-// representation is GET /api/orders/{id}, which order serves itself.
 func toPlaceOrderResponse(o *order.Snapshot) placeOrderResponse {
 	return placeOrderResponse{Order: placedOrderResponse{
 		ID:       o.ID,

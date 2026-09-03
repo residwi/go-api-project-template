@@ -267,7 +267,7 @@ DELETE /api/cart                        # Clear cart
 #### Orders (Authenticated)
 
 ```
-POST /api/orders                       # Place order
+POST /api/checkout                     # Place an order and charge it
 GET  /api/orders                       # List my orders
 GET  /api/orders/{id}                  # Get order detail
 POST /api/orders/{id}/pay              # Retry payment

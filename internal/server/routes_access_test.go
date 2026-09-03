@@ -52,7 +52,7 @@ var allRoutes = []string{
 	"GET\t/api/admin/orders",
 	"GET\t/api/admin/orders/{id}",
 	"PUT\t/api/admin/orders/{id}/status",
-	"POST\t/api/orders",
+	"POST\t/api/checkout",
 	"POST\t/api/orders/{id}/pay",
 	"POST\t/api/orders/{id}/cancel",
 	"POST\t/api/payments/webhook",

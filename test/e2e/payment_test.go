@@ -103,7 +103,7 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 
 	// Place order (pm_test_123 triggers direct charge success in mock)
 	orderBody := `{"payment_method_id":"pm_test_123"}`
-	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
+	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
 	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
@@ -251,7 +251,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	// Place order. Total is 4099 (%100 == 99) so the synchronous charge fails and
 	// the order stays awaiting_payment with a pending payment.
 	orderBody := `{"payment_method_id":"pm_test_123"}`
-	orderReq := httptest.NewRequest(http.MethodPost, "/api/orders", strings.NewReader(orderBody))
+	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
 	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
