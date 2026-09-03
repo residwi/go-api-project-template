@@ -11,10 +11,15 @@ import (
 const StaleProcessingThreshold = 15 * time.Minute
 
 type Snapshot struct {
-	ID            uuid.UUID
-	UserID        uuid.UUID
-	Total         money.Money
-	Status        string
+	ID     uuid.UUID
+	UserID uuid.UUID
+	Total  money.Money
+	Status string
+}
+
+type FulfilmentSnapshot struct {
+	Snapshot
+
 	CouponCode    string
 	StockDeducted bool
 	StockReversed bool

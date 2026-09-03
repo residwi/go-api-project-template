@@ -18,6 +18,7 @@ type Orders interface {
 	MarkRefunded(ctx context.Context, orderID uuid.UUID) error
 	CancelUnpaid(ctx context.Context, orderID uuid.UUID) error
 	Snapshot(ctx context.Context, orderID uuid.UUID) (order.Snapshot, error)
+	FulfilmentSnapshot(ctx context.Context, orderID uuid.UUID) (order.FulfilmentSnapshot, error)
 	ListItemQuantities(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error)
 }
 

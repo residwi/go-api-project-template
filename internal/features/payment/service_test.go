@@ -682,9 +682,8 @@ func TestService_FinalizeSuccess(t *testing.T) {
 
 		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{
-				Total:         money.New(10000, "USD"),
-				Status:        "paid",
-				StockDeducted: true,
+				Total:  money.New(10000, "USD"),
+				Status: "paid",
 			}, nil)
 
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).
@@ -963,8 +962,8 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 2}, nil)
 
-		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{CouponCode: "SAVE10", StockDeducted: false}, nil)
+		d.orders.EXPECT().FulfilmentSnapshot(mock.Anything, orderID).
+			Return(order.FulfilmentSnapshot{CouponCode: "SAVE10", StockDeducted: false}, nil)
 
 		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockReserved).
 			Return(nil)
@@ -1014,8 +1013,8 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 5}, nil)
 
-		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{StockDeducted: true}, nil)
+		d.orders.EXPECT().FulfilmentSnapshot(mock.Anything, orderID).
+			Return(order.FulfilmentSnapshot{StockDeducted: true}, nil)
 
 		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockDeducted).
 			Return(nil)
@@ -1135,8 +1134,8 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().MarkRefunded(mock.Anything, orderID).
 			Return(nil)
 
-		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{}, nil)
+		d.orders.EXPECT().FulfilmentSnapshot(mock.Anything, orderID).
+			Return(order.FulfilmentSnapshot{}, nil)
 
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(nil, errors.New("db error"))
@@ -1180,8 +1179,8 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID2: 1, productID1: 2}, nil)
 
-		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{StockDeducted: false}, nil)
+		d.orders.EXPECT().FulfilmentSnapshot(mock.Anything, orderID).
+			Return(order.FulfilmentSnapshot{StockDeducted: false}, nil)
 
 		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockReserved).
 			Return(nil)
@@ -1224,8 +1223,8 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
-		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{StockDeducted: false}, nil)
+		d.orders.EXPECT().FulfilmentSnapshot(mock.Anything, orderID).
+			Return(order.FulfilmentSnapshot{StockDeducted: false}, nil)
 
 		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockReserved).
 			Return(errors.New("release failed"))
@@ -1268,8 +1267,8 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
-		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{StockDeducted: true}, nil)
+		d.orders.EXPECT().FulfilmentSnapshot(mock.Anything, orderID).
+			Return(order.FulfilmentSnapshot{StockDeducted: true}, nil)
 
 		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockDeducted).
 			Return(errors.New("restock failed"))
@@ -1312,8 +1311,8 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
-		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{CouponCode: "SAVE10", StockDeducted: false}, nil)
+		d.orders.EXPECT().FulfilmentSnapshot(mock.Anything, orderID).
+			Return(order.FulfilmentSnapshot{CouponCode: "SAVE10", StockDeducted: false}, nil)
 
 		d.inventory.EXPECT().Restore(mock.Anything, mock.Anything, inventory.StockReserved).
 			Return(nil)

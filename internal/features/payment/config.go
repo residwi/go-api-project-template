@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-
-	"github.com/residwi/go-api-project-template/internal/features/order"
 )
 
 type Config struct {
@@ -61,14 +59,6 @@ func LoadConfig(appEnv string) (Config, error) {
 	if cfg.JobTimeout < cfg.GatewayTimeout*3 {
 		return Config{}, errors.New(
 			"PAYMENT_JOB_TIMEOUT must be at least 3× PAYMENT_GATEWAY_TIMEOUT to avoid duplicate gateway calls",
-		)
-	}
-
-	if cfg.GatewayTimeout*3 >= order.StaleProcessingThreshold {
-		return Config{}, fmt.Errorf(
-			"PAYMENT_GATEWAY_TIMEOUT (%s) is too large: 3× it must stay below the order stale-processing threshold (%s) so a valid PAYMENT_JOB_TIMEOUT range exists",
-			cfg.GatewayTimeout,
-			order.StaleProcessingThreshold,
 		)
 	}
 

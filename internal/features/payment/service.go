@@ -448,7 +448,7 @@ func (s *Service) SettleRefund(ctx context.Context, paymentID, orderID uuid.UUID
 		slog.String("refund_id", resp.RefundID))
 
 	txErr := s.tx.Run(ctx, func(txCtx context.Context) error {
-		orderSnap, snapErr := s.orders.Snapshot(txCtx, orderID)
+		orderSnap, snapErr := s.orders.FulfilmentSnapshot(txCtx, orderID)
 		if snapErr != nil {
 			return fmt.Errorf("getting order for refund: %w", snapErr)
 		}

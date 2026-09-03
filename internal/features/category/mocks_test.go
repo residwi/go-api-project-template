@@ -8,9 +8,8 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/category/domain"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockProductCounter creates a new instance of MockProductCounter. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

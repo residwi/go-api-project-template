@@ -229,9 +229,17 @@ func (s *Service) Get(ctx context.Context, orderID uuid.UUID) (*domain.Order, er
 }
 
 func (s *Service) Snapshot(ctx context.Context, orderID uuid.UUID) (Snapshot, error) {
-	o, err := s.repo.GetByID(ctx, orderID)
+	full, err := s.FulfilmentSnapshot(ctx, orderID)
 	if err != nil {
 		return Snapshot{}, err
+	}
+	return full.Snapshot, nil
+}
+
+func (s *Service) FulfilmentSnapshot(ctx context.Context, orderID uuid.UUID) (FulfilmentSnapshot, error) {
+	o, err := s.repo.GetByID(ctx, orderID)
+	if err != nil {
+		return FulfilmentSnapshot{}, err
 	}
 
 	couponCode := ""
@@ -239,11 +247,13 @@ func (s *Service) Snapshot(ctx context.Context, orderID uuid.UUID) (Snapshot, er
 		couponCode = *o.CouponCode
 	}
 
-	return Snapshot{
-		ID:            o.ID,
-		UserID:        o.UserID,
-		Total:         o.Total,
-		Status:        string(o.Status),
+	return FulfilmentSnapshot{
+		Snapshot: Snapshot{
+			ID:     o.ID,
+			UserID: o.UserID,
+			Total:  o.Total,
+			Status: string(o.Status),
+		},
 		CouponCode:    couponCode,
 		StockDeducted: o.StockDeducted,
 		StockReversed: o.StockReversed,

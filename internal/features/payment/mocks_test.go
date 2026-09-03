@@ -8,11 +8,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	mock "github.com/stretchr/testify/mock"
-
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/features/payment/domain"
+	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockGateway creates a new instance of MockGateway. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -254,6 +253,72 @@ func (_c *MockOrders_CancelUnpaid_Call) Return(err error) *MockOrders_CancelUnpa
 }
 
 func (_c *MockOrders_CancelUnpaid_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) error) *MockOrders_CancelUnpaid_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FulfilmentSnapshot provides a mock function for the type MockOrders
+func (_mock *MockOrders) FulfilmentSnapshot(ctx context.Context, orderID uuid.UUID) (order.FulfilmentSnapshot, error) {
+	ret := _mock.Called(ctx, orderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FulfilmentSnapshot")
+	}
+
+	var r0 order.FulfilmentSnapshot
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (order.FulfilmentSnapshot, error)); ok {
+		return returnFunc(ctx, orderID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) order.FulfilmentSnapshot); ok {
+		r0 = returnFunc(ctx, orderID)
+	} else {
+		r0 = ret.Get(0).(order.FulfilmentSnapshot)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, orderID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOrders_FulfilmentSnapshot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FulfilmentSnapshot'
+type MockOrders_FulfilmentSnapshot_Call struct {
+	*mock.Call
+}
+
+// FulfilmentSnapshot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - orderID uuid.UUID
+func (_e *MockOrders_Expecter) FulfilmentSnapshot(ctx any, orderID any) *MockOrders_FulfilmentSnapshot_Call {
+	return &MockOrders_FulfilmentSnapshot_Call{Call: _e.mock.On("FulfilmentSnapshot", ctx, orderID)}
+}
+
+func (_c *MockOrders_FulfilmentSnapshot_Call) Run(run func(ctx context.Context, orderID uuid.UUID)) *MockOrders_FulfilmentSnapshot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOrders_FulfilmentSnapshot_Call) Return(fulfilmentSnapshot order.FulfilmentSnapshot, err error) *MockOrders_FulfilmentSnapshot_Call {
+	_c.Call.Return(fulfilmentSnapshot, err)
+	return _c
+}
+
+func (_c *MockOrders_FulfilmentSnapshot_Call) RunAndReturn(run func(ctx context.Context, orderID uuid.UUID) (order.FulfilmentSnapshot, error)) *MockOrders_FulfilmentSnapshot_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -8,9 +8,10 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 )
 
 type payload struct {

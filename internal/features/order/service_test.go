@@ -963,14 +963,16 @@ func TestService_Snapshot(t *testing.T) {
 			StockDeducted: true,
 		}, nil)
 
-		got, err := s.Snapshot(context.Background(), orderID)
+		got, err := s.FulfilmentSnapshot(context.Background(), orderID)
 
 		require.NoError(t, err)
-		assert.Equal(t, Snapshot{
-			ID:            orderID,
-			UserID:        userID,
-			Total:         money.New(9000, "IDR"),
-			Status:        "shipped",
+		assert.Equal(t, FulfilmentSnapshot{
+			Snapshot: Snapshot{
+				ID:     orderID,
+				UserID: userID,
+				Total:  money.New(9000, "IDR"),
+				Status: "shipped",
+			},
 			CouponCode:    "",
 			StockDeducted: true,
 			Dispatched:    true,
