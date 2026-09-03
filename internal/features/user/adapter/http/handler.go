@@ -24,7 +24,7 @@ func NewHandler(service ProfileManager) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
@@ -39,7 +39,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toUserResponse(u))
 }
 
-func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return

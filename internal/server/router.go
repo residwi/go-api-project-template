@@ -62,13 +62,13 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	authPublic.HandleFunc("POST /auth/refresh", authHandler.Refresh)
 
 	userHandler := userhttp.NewHandler(deps.Users)
-	authed.HandleFunc("GET /users/me", userHandler.Me)
-	authed.HandleFunc("PUT /users/me", userHandler.Update)
+	authed.HandleFunc("GET /users/me", userHandler.GetUser)
+	authed.HandleFunc("PUT /users/me", userHandler.UpdateProfile)
 
 	userAdminHandler := userhttp.NewAdminHandler(deps.Users)
-	admin.HandleFunc("GET /users", userAdminHandler.List)
-	admin.HandleFunc("GET /users/{id}", userAdminHandler.Get)
-	admin.HandleFunc("PUT /users/{id}", userAdminHandler.Update)
+	admin.HandleFunc("GET /users", userAdminHandler.ListAdmin)
+	admin.HandleFunc("GET /users/{id}", userAdminHandler.GetUser)
+	admin.HandleFunc("PUT /users/{id}", userAdminHandler.AdminUpdate)
 	admin.HandleFunc("PUT /users/{id}/role", userAdminHandler.UpdateRole)
 	admin.HandleFunc("DELETE /users/{id}", userAdminHandler.Delete)
 
@@ -82,12 +82,12 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	admin.HandleFunc("DELETE /categories/{id}", categoryAdminHandler.Delete)
 
 	productHandler := producthttp.NewHandler(deps.Products)
-	api.HandleFunc("GET /products", productHandler.List)
+	api.HandleFunc("GET /products", productHandler.ListPublished)
 	api.HandleFunc("GET /products/{slug}", productHandler.GetBySlug)
 
 	productAdminHandler := producthttp.NewAdminHandler(deps.Products)
-	admin.HandleFunc("GET /products", productAdminHandler.List)
-	admin.HandleFunc("GET /products/{id}", productAdminHandler.Get)
+	admin.HandleFunc("GET /products", productAdminHandler.ListAdmin)
+	admin.HandleFunc("GET /products/{id}", productAdminHandler.GetByID)
 	admin.HandleFunc("POST /products", productAdminHandler.Create)
 	admin.HandleFunc("PUT /products/{id}", productAdminHandler.Update)
 	admin.HandleFunc("DELETE /products/{id}", productAdminHandler.Delete)
@@ -100,18 +100,18 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	cartHandler := carthttp.NewHandler(deps.Carts)
 	authed.HandleFunc("GET /cart", cartHandler.Get)
 	authed.HandleFunc("POST /cart/items", cartHandler.Add)
-	authed.HandleFunc("PUT /cart/items/{product_id}", cartHandler.Update)
+	authed.HandleFunc("PUT /cart/items/{product_id}", cartHandler.UpdateQuantity)
 	authed.HandleFunc("DELETE /cart/items/{product_id}", cartHandler.Remove)
 	authed.HandleFunc("DELETE /cart", cartHandler.Clear)
 
 	orderHandler := orderhttp.NewHandler(deps.Orders)
-	authed.HandleFunc("GET /orders", orderHandler.List)
-	authed.HandleFunc("GET /orders/{id}", orderHandler.Get)
+	authed.HandleFunc("GET /orders", orderHandler.ListByUser)
+	authed.HandleFunc("GET /orders/{id}", orderHandler.GetForUser)
 
 	orderAdminHandler := orderhttp.NewAdminHandler(deps.Orders)
-	admin.HandleFunc("GET /orders", orderAdminHandler.List)
+	admin.HandleFunc("GET /orders", orderAdminHandler.ListAdmin)
 	admin.HandleFunc("GET /orders/{id}", orderAdminHandler.Get)
-	admin.HandleFunc("PUT /orders/{id}/status", orderAdminHandler.UpdateStatus)
+	admin.HandleFunc("PUT /orders/{id}/status", orderAdminHandler.ChangeStatus)
 
 	orderLimiter := middleware.RateLimit(
 		logger,
@@ -122,17 +122,17 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	checkoutHandler := checkouthttp.NewHandler(deps.Checkout)
 	orderWrites := authed.Group("", orderLimiter)
 	orderWrites.HandleFunc("POST /checkout", checkoutHandler.Checkout)
-	orderWrites.HandleFunc("POST /orders/{id}/pay", checkoutHandler.Retry)
-	authed.HandleFunc("POST /orders/{id}/cancel", checkoutHandler.Cancel)
+	orderWrites.HandleFunc("POST /orders/{id}/pay", checkoutHandler.RetryPayment)
+	authed.HandleFunc("POST /orders/{id}/cancel", checkoutHandler.CancelOrder)
 
 	api.HandleFunc("POST /payments/webhook", paymenthttp.NewWebhookHandler(deps.Payments, logger).HandleWebhook)
 
 	paymentAdminHandler := paymenthttp.NewAdminHandler(deps.Payments)
-	admin.HandleFunc("GET /payments", paymentAdminHandler.List)
-	admin.HandleFunc("GET /payments/{id}", paymentAdminHandler.Get)
+	admin.HandleFunc("GET /payments", paymentAdminHandler.ListAdmin)
+	admin.HandleFunc("GET /payments/{id}", paymentAdminHandler.GetByID)
 	admin.HandleFunc("POST /payments/{id}/refund", paymentAdminHandler.Refund)
 
-	authed.HandleFunc("GET /orders/{id}/shipping", shippinghttp.NewHandler(deps.Shipping).Get)
+	authed.HandleFunc("GET /orders/{id}/shipping", shippinghttp.NewHandler(deps.Shipping).GetForUser)
 
 	shippingAdminHandler := shippinghttp.NewAdminHandler(deps.Shipping)
 	admin.HandleFunc("POST /orders/{id}/ship", shippingAdminHandler.Create)
@@ -140,7 +140,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	admin.HandleFunc("POST /shipments/{id}/deliver", shippingAdminHandler.Deliver)
 
 	reviewHandler := reviewhttp.NewHandler(deps.Reviews)
-	api.HandleFunc("GET /products/{id}/reviews", reviewHandler.List)
+	api.HandleFunc("GET /products/{id}/reviews", reviewHandler.ListByProduct)
 	authed.HandleFunc("POST /products/{id}/reviews", reviewHandler.Create)
 	admin.HandleFunc("DELETE /reviews/{id}", reviewhttp.NewAdminHandler(deps.Reviews).Delete)
 
@@ -149,7 +149,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 
 	promotionAdminHandler := promotionhttp.NewAdminHandler(deps.Promotions)
 	admin.HandleFunc("POST /promotions", promotionAdminHandler.Create)
-	admin.HandleFunc("GET /promotions", promotionAdminHandler.List)
+	admin.HandleFunc("GET /promotions", promotionAdminHandler.ListAdmin)
 	admin.HandleFunc("PUT /promotions/{id}", promotionAdminHandler.Update)
 	admin.HandleFunc("DELETE /promotions/{id}", promotionAdminHandler.Delete)
 
@@ -160,14 +160,14 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 
 	notificationHandler := notificationhttp.NewHandler(deps.Notifications)
 	authed.HandleFunc("GET /notifications", notificationHandler.List)
-	authed.HandleFunc("GET /notifications/unread-count", notificationHandler.UnreadCount)
+	authed.HandleFunc("GET /notifications/unread-count", notificationHandler.CountUnread)
 	authed.HandleFunc("PUT /notifications/{id}/read", notificationHandler.MarkRead)
 	authed.HandleFunc("PUT /notifications/read-all", notificationHandler.MarkAllRead)
 
 	dashboardHandler := dashboardhttp.NewHandler(deps.Dashboard)
-	admin.HandleFunc("GET /dashboard/summary", dashboardHandler.Summary)
-	admin.HandleFunc("GET /dashboard/top-products", dashboardHandler.TopProducts)
-	admin.HandleFunc("GET /dashboard/revenue", dashboardHandler.Revenue)
+	admin.HandleFunc("GET /dashboard/summary", dashboardHandler.GetSummary)
+	admin.HandleFunc("GET /dashboard/top-products", dashboardHandler.ListTopProducts)
+	admin.HandleFunc("GET /dashboard/revenue", dashboardHandler.ListRevenueByDay)
 
 	if appCfg.App.Env == "development" {
 		mockgatewayserver.RegisterRoutes(

@@ -27,7 +27,7 @@ func NewAdminHandler(service OrderManager) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) ListAdmin(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := order.AdminListParams{
 		OffsetPage: page,
@@ -63,7 +63,7 @@ func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toOrderResponse(o))
 }
 
-func (h *AdminHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

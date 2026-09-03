@@ -70,7 +70,7 @@ func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 	response.Created(w, toAdminPromotionResponse(promo))
 }
 
-func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) ListAdmin(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 	params := promotion.AdminListParams{OffsetPage: page}
 

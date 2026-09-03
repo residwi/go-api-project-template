@@ -26,7 +26,7 @@ func NewHandler(service ProductReader) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListPublished(w http.ResponseWriter, r *http.Request) {
 	cursor := paging.ParseCursorPage(r)
 
 	params := product.PublishedListParams{

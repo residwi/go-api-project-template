@@ -47,7 +47,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		svc := New(orders, payments, testutil.DiscardLogger())
 
-		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
+		got, err := svc.Checkout(t.Context(), userID, Input{
 			Order:           order.NewOrder{Notes: "leave at door"},
 			PaymentMethodID: "pm_123",
 			IdempotencyKey:  "idem-1",
@@ -77,7 +77,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		svc := New(orders, payments, testutil.DiscardLogger())
 
-		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
+		got, err := svc.Checkout(t.Context(), userID, Input{
 			Order:          order.NewOrder{},
 			IdempotencyKey: "idem-2",
 		})
@@ -105,7 +105,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		svc := New(orders, payments, testutil.DiscardLogger())
 
-		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
+		got, err := svc.Checkout(t.Context(), userID, Input{
 			Order:          order.NewOrder{},
 			IdempotencyKey: "idem-3",
 		})
@@ -127,7 +127,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		svc := New(orders, payments, testutil.DiscardLogger())
 
-		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
+		got, err := svc.Checkout(t.Context(), userID, Input{
 			Order:          order.NewOrder{},
 			IdempotencyKey: "idem-4",
 		})
@@ -160,7 +160,7 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		svc := New(orders, payments, testutil.DiscardLogger())
 
-		got, err := svc.PlaceOrder(t.Context(), userID, PlaceOrderInput{
+		got, err := svc.Checkout(t.Context(), userID, Input{
 			Order:           order.NewOrder{},
 			PaymentMethodID: "pm_123",
 			IdempotencyKey:  "idem-replay",

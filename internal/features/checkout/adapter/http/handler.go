@@ -13,11 +13,11 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
-type Checkout interface {
-	PlaceOrder(
+type CheckoutManager interface {
+	Checkout(
 		ctx context.Context,
 		userID uuid.UUID,
-		in checkout.PlaceOrderInput,
+		in checkout.Input,
 	) (*order.Snapshot, error)
 	RetryPayment(
 		ctx context.Context, userID, orderID uuid.UUID, paymentMethodID string,
@@ -26,10 +26,10 @@ type Checkout interface {
 }
 
 type Handler struct {
-	service Checkout
+	service CheckoutManager
 }
 
-func NewHandler(service Checkout) *Handler {
+func NewHandler(service CheckoutManager) *Handler {
 	return &Handler{service: service}
 }
 
@@ -50,13 +50,13 @@ func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	in := checkout.PlaceOrderInput{
+	in := checkout.Input{
 		Order:           req.toOrder(),
 		PaymentMethodID: req.PaymentMethodID,
 		IdempotencyKey:  idempotencyKey,
 	}
 
-	placed, err := h.service.PlaceOrder(r.Context(), uc.UserID, in)
+	placed, err := h.service.Checkout(r.Context(), uc.UserID, in)
 	if err != nil {
 		response.HandleErr(w, err)
 		return
@@ -65,7 +65,7 @@ func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 	response.Created(w, toPlaceOrderResponse(placed))
 }
 
-func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) RetryPayment(w http.ResponseWriter, r *http.Request) {
 	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
@@ -90,7 +90,7 @@ func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toPayResultResponse(result))
 }
 
-func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CancelOrder(w http.ResponseWriter, r *http.Request) {
 	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return

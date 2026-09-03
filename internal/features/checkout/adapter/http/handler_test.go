@@ -108,7 +108,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		mux, usecase := setupMux(t)
 
 		userID := uuid.New()
-		usecase.EXPECT().PlaceOrder(mock.Anything, userID, mock.Anything).
+		usecase.EXPECT().Checkout(mock.Anything, userID, mock.Anything).
 			Return(nil, errors.New("database connection error"))
 
 		w := httptest.NewRecorder()
@@ -131,7 +131,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		mux, usecase := setupMux(t)
 
 		userID := uuid.New()
-		usecase.EXPECT().PlaceOrder(mock.Anything, userID, mock.Anything).
+		usecase.EXPECT().Checkout(mock.Anything, userID, mock.Anything).
 			Return(nil, errors.Join(errs.ErrBadRequest, errors.New("cart contains mixed currencies")))
 
 		w := httptest.NewRecorder()
@@ -373,16 +373,16 @@ func TestCancelHandler_CancelOrder(t *testing.T) {
 	})
 }
 
-func setupMux(t *testing.T) (*http.ServeMux, *MockCheckout) {
-	service := NewMockCheckout(t)
+func setupMux(t *testing.T) (*http.ServeMux, *MockCheckoutManager) {
+	service := NewMockCheckoutManager(t)
 	h := NewHandler(service)
 
 	mux := http.NewServeMux()
 	authed := web.NewRouter(mux).Group("/api/v1")
 
 	authed.HandleFunc("POST /checkout", h.Checkout)
-	authed.HandleFunc("POST /orders/{id}/pay", h.Retry)
-	authed.HandleFunc("POST /orders/{id}/cancel", h.Cancel)
+	authed.HandleFunc("POST /orders/{id}/pay", h.RetryPayment)
+	authed.HandleFunc("POST /orders/{id}/cancel", h.CancelOrder)
 
 	return mux, service
 }

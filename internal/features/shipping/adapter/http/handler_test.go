@@ -250,7 +250,7 @@ func setupMux(t *testing.T, service ShipmentReader) *http.ServeMux {
 
 	mux := http.NewServeMux()
 	authed := web.NewRouter(mux).Group("/api/v1")
-	authed.HandleFunc("GET /orders/{id}/shipping", NewHandler(service).Get)
+	authed.HandleFunc("GET /orders/{id}/shipping", NewHandler(service).GetForUser)
 
 	return mux
 }

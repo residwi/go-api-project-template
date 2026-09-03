@@ -414,7 +414,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockReviewManager) {
 	mux := http.NewServeMux()
 	group := web.NewRouter(mux).Group("/api/v1")
 	h := NewHandler(service)
-	group.HandleFunc("GET /products/{id}/reviews", h.List)
+	group.HandleFunc("GET /products/{id}/reviews", h.ListByProduct)
 	group.HandleFunc("POST /products/{id}/reviews", h.Create)
 
 	return mux, service

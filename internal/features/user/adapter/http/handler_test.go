@@ -316,8 +316,8 @@ func setupHandlerMux(t *testing.T) (*http.ServeMux, *MockProfileManager) {
 	authed := web.NewRouter(mux).Group("/api/v1")
 
 	h := NewHandler(usecase)
-	authed.HandleFunc("GET /users/me", h.Me)
-	authed.HandleFunc("PUT /users/me", h.Update)
+	authed.HandleFunc("GET /users/me", h.GetUser)
+	authed.HandleFunc("PUT /users/me", h.UpdateProfile)
 
 	return mux, usecase
 }

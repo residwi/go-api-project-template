@@ -52,7 +52,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handler) UnreadCount(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CountUnread(w http.ResponseWriter, r *http.Request) {
 	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return

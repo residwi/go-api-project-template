@@ -50,7 +50,7 @@ func parseDateRange(w http.ResponseWriter, r *http.Request) (from, to time.Time,
 	return from, to, true
 }
 
-func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	from, to, ok := parseDateRange(w, r)
 	if !ok {
 		return
@@ -65,7 +65,7 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, toSummaryResponse(sales, breakdown))
 }
 
-func (h *Handler) Revenue(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListRevenueByDay(w http.ResponseWriter, r *http.Request) {
 	from, to, ok := parseDateRange(w, r)
 	if !ok {
 		return
@@ -85,7 +85,7 @@ func (h *Handler) Revenue(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, out)
 }
 
-func (h *Handler) TopProducts(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListTopProducts(w http.ResponseWriter, r *http.Request) {
 	from, to, ok := parseDateRange(w, r)
 	if !ok {
 		return

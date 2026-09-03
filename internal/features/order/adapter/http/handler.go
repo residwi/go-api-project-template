@@ -26,7 +26,7 @@ func NewHandler(service OrderReader) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListByUser(w http.ResponseWriter, r *http.Request) {
 	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
@@ -50,7 +50,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetForUser(w http.ResponseWriter, r *http.Request) {
 	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return

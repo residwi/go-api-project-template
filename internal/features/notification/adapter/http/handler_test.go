@@ -193,7 +193,7 @@ func TestHandler_UnreadCount(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/notifications/unread-count", nil)
 		w := httptest.NewRecorder()
 
-		h.UnreadCount(w, r)
+		h.CountUnread(w, r)
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
@@ -393,7 +393,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockNotificationManager, identity.
 
 	h := NewHandler(service)
 	authed.HandleFunc("GET /notifications", h.List)
-	authed.HandleFunc("GET /notifications/unread-count", h.UnreadCount)
+	authed.HandleFunc("GET /notifications/unread-count", h.CountUnread)
 	authed.HandleFunc("PUT /notifications/{id}/read", h.MarkRead)
 	authed.HandleFunc("PUT /notifications/read-all", h.MarkAllRead)
 

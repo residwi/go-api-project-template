@@ -67,7 +67,7 @@ func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
 	response.Created(w, nil)
 }
 
-func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateQuantity(w http.ResponseWriter, r *http.Request) {
 	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return

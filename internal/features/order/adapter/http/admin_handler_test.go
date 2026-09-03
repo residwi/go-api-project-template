@@ -240,9 +240,9 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockOrderManager) {
 	admin := web.NewRouter(mux).Group("/api/v1/admin")
 
 	h := NewAdminHandler(service)
-	admin.HandleFunc("GET /orders", h.List)
+	admin.HandleFunc("GET /orders", h.ListAdmin)
 	admin.HandleFunc("GET /orders/{id}", h.Get)
-	admin.HandleFunc("PUT /orders/{id}/status", h.UpdateStatus)
+	admin.HandleFunc("PUT /orders/{id}/status", h.ChangeStatus)
 
 	return mux, service
 }

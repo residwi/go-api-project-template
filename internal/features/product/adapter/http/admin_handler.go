@@ -51,7 +51,7 @@ func NewAdminHandler(service ProductManager) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) ListAdmin(w http.ResponseWriter, r *http.Request) {
 	page := paging.ParseOffsetPage(r)
 
 	params := product.AdminListParams{
@@ -83,7 +83,7 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, paging.NewOffsetPageResult(out, page, total))
 }
 
-func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

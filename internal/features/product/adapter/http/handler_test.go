@@ -313,7 +313,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockProductReader) {
 	api := web.NewRouter(mux).Group("/api/v1")
 
 	h := NewHandler(service)
-	api.HandleFunc("GET /products", h.List)
+	api.HandleFunc("GET /products", h.ListPublished)
 	api.HandleFunc("GET /products/{slug}", h.GetBySlug)
 
 	return mux, service

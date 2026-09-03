@@ -56,7 +56,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	response.Created(w, toReviewResponse(*rv))
 }
 
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListByProduct(w http.ResponseWriter, r *http.Request) {
 	productID, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return

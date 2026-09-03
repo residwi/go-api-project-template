@@ -621,7 +621,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCartManager, identity.Identity
 	authed.HandleFunc("GET /cart", h.Get)
 	authed.HandleFunc("DELETE /cart", h.Clear)
 	authed.HandleFunc("POST /cart/items", h.Add)
-	authed.HandleFunc("PUT /cart/items/{product_id}", h.Update)
+	authed.HandleFunc("PUT /cart/items/{product_id}", h.UpdateQuantity)
 	authed.HandleFunc("DELETE /cart/items/{product_id}", h.Remove)
 
 	uc := identity.Identity{

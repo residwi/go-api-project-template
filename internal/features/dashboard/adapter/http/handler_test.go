@@ -530,9 +530,9 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockReporter) {
 	admin := web.NewRouter(mux).Group("/api/admin")
 
 	h := NewHandler(service)
-	admin.HandleFunc("GET /dashboard/summary", h.Summary)
-	admin.HandleFunc("GET /dashboard/revenue", h.Revenue)
-	admin.HandleFunc("GET /dashboard/top-products", h.TopProducts)
+	admin.HandleFunc("GET /dashboard/summary", h.GetSummary)
+	admin.HandleFunc("GET /dashboard/revenue", h.ListRevenueByDay)
+	admin.HandleFunc("GET /dashboard/top-products", h.ListTopProducts)
 
 	return mux, service
 }
