@@ -20,7 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
-	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -634,6 +633,6 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCartManager, identity.Identity
 }
 
 func withAuth(r *http.Request, uc identity.Identity) *http.Request {
-	ctx := middleware.SetIdentity(r.Context(), uc)
+	ctx := identity.NewContext(r.Context(), uc)
 	return r.WithContext(ctx)
 }

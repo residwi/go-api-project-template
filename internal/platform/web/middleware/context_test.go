@@ -16,7 +16,7 @@ func TestRequireUser(t *testing.T) {
 	t.Run("returns the user when present in context", func(t *testing.T) {
 		want := identity.Identity{UserID: uuid.New(), Role: "user"}
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r = r.WithContext(SetIdentity(r.Context(), want))
+		r = r.WithContext(identity.NewContext(r.Context(), want))
 		w := httptest.NewRecorder()
 
 		got, ok := RequireUser(w, r)

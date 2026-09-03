@@ -10,6 +10,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -27,7 +28,7 @@ func RateLimit(
 			}
 
 			identifier := clientIP(r)
-			if id, ok := GetIdentity(r.Context()); ok {
+			if id, ok := identity.FromContext(r.Context()); ok {
 				identifier = "user:" + id.UserID.String()
 			}
 			bucket := time.Now().Unix() / int64(window.Seconds())

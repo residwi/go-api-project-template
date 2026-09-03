@@ -7,8 +7,9 @@ package middleware
 import (
 	"context"
 
-	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 )
 
 // NewMockAuthenticator creates a new instance of MockAuthenticator. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

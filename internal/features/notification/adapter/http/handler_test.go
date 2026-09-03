@@ -18,7 +18,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
-	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -313,7 +312,7 @@ func TestHandler_MarkRead(t *testing.T) {
 		t.Parallel()
 
 		r := httptest.NewRequest(http.MethodPut, "/notifications/bad/read", nil)
-		ctx := middleware.SetIdentity(r.Context(), identity.Identity{UserID: uuid.New(), Role: "user"})
+		ctx := identity.NewContext(r.Context(), identity.Identity{UserID: uuid.New(), Role: "user"})
 		r = r.WithContext(ctx)
 		r.SetPathValue("id", "bad")
 		w := httptest.NewRecorder()
@@ -407,6 +406,6 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockNotificationManager, identity.
 }
 
 func notifAuth(r *http.Request, uc identity.Identity) *http.Request {
-	ctx := middleware.SetIdentity(r.Context(), uc)
+	ctx := identity.NewContext(r.Context(), uc)
 	return r.WithContext(ctx)
 }

@@ -36,7 +36,7 @@ func Auth(authenticator Authenticator) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := SetIdentity(r.Context(), id)
+			ctx := identity.NewContext(r.Context(), id)
 			ctx = logger.WithAttrs(ctx, slog.String("user_id", id.UserID.String()))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

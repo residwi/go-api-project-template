@@ -8,9 +8,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	mock "github.com/stretchr/testify/mock"
+
 	"github.com/residwi/go-api-project-template/internal/features/review/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockReviewDeleter creates a new instance of MockReviewDeleter. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

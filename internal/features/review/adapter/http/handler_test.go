@@ -20,7 +20,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
-	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -62,7 +61,7 @@ func TestHandler_Create(t *testing.T) {
 			bytes.NewReader(body),
 		)
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
+		ctx := identity.NewContext(r.Context(), identity.Identity{
 			UserID: userID,
 			Role:   "user",
 		})
@@ -104,7 +103,7 @@ func TestHandler_Create(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/products/bad/reviews", bytes.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
+		ctx := identity.NewContext(r.Context(), identity.Identity{
 			UserID: uuid.New(),
 			Role:   "user",
 		})
@@ -152,7 +151,7 @@ func TestHandler_Create(t *testing.T) {
 			bytes.NewReader([]byte("{bad")),
 		)
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
+		ctx := identity.NewContext(r.Context(), identity.Identity{
 			UserID: uuid.New(),
 			Role:   "user",
 		})
@@ -178,7 +177,7 @@ func TestHandler_Create(t *testing.T) {
 			bytes.NewReader(body),
 		)
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
+		ctx := identity.NewContext(r.Context(), identity.Identity{
 			UserID: uuid.New(),
 			Role:   "user",
 		})
@@ -220,7 +219,7 @@ func TestHandler_Create(t *testing.T) {
 			bytes.NewReader(body),
 		)
 		r.Header.Set("Content-Type", "application/json")
-		ctx := middleware.SetIdentity(r.Context(), identity.Identity{
+		ctx := identity.NewContext(r.Context(), identity.Identity{
 			UserID: userID,
 			Role:   "user",
 		})

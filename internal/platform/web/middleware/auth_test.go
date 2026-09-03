@@ -113,7 +113,7 @@ func TestAuth(t *testing.T) {
 		called := false
 		handler := Auth(authenticator)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			called = true
-			got, ok := GetIdentity(r.Context())
+			got, ok := identity.FromContext(r.Context())
 			if !assert.True(t, ok) {
 				return
 			}

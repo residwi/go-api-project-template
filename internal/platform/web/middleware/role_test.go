@@ -19,7 +19,7 @@ func TestRequireRole(t *testing.T) {
 	t.Run("passes a caller holding the required role", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r = r.WithContext(SetIdentity(r.Context(), identity.Identity{UserID: uuid.New(), Role: "admin"}))
+		r = r.WithContext(identity.NewContext(r.Context(), identity.Identity{UserID: uuid.New(), Role: "admin"}))
 
 		RequireRole("admin")(next).ServeHTTP(w, r)
 
@@ -29,7 +29,7 @@ func TestRequireRole(t *testing.T) {
 	t.Run("rejects a caller holding a different role with 403", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r = r.WithContext(SetIdentity(r.Context(), identity.Identity{UserID: uuid.New(), Role: "user"}))
+		r = r.WithContext(identity.NewContext(r.Context(), identity.Identity{UserID: uuid.New(), Role: "user"}))
 
 		RequireRole("admin")(next).ServeHTTP(w, r)
 
@@ -47,7 +47,7 @@ func TestRequireRole(t *testing.T) {
 	t.Run("gates on the role it was given, not on admin", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r = r.WithContext(SetIdentity(r.Context(), identity.Identity{UserID: uuid.New(), Role: "auditor"}))
+		r = r.WithContext(identity.NewContext(r.Context(), identity.Identity{UserID: uuid.New(), Role: "auditor"}))
 
 		RequireRole("auditor")(next).ServeHTTP(w, r)
 

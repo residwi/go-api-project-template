@@ -18,7 +18,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
-	"github.com/residwi/go-api-project-template/internal/platform/web/middleware"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -179,7 +178,7 @@ func setupApplyMux(t *testing.T) (*http.ServeMux, *MockPromotionApplier) {
 }
 
 func setPromoAuthContext(r *http.Request) *http.Request {
-	ctx := middleware.SetIdentity(r.Context(), identity.Identity{
+	ctx := identity.NewContext(r.Context(), identity.Identity{
 		UserID: uuid.New(),
 		Role:   "user",
 	})
