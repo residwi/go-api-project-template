@@ -68,26 +68,30 @@ decides the verb, the path and the middleware group.
 │   │           └── jobs/            # job args + river.Worker -- payment, notification, order (3)
 │   ├── /apperror               # Seven cross-module business sentinels, each a
 │   │                           # wrap of a platform/errs kind
-│   ├── /bootstrap              # The composition root: builds every Service,
+│   ├── /app                    # The composition root: builds every Service,
 │   │                           # wires every cross-module port by name-match
-│   ├── /server                 # server.go (Run), router.go (NewRouter, health, routes)
-│   │                           # and auth.go, which holds authMiddleware -- the one
-│   │                           # middleware naming a feature module
+│   ├── /config                 # This app's infra env vars -- rewritten per project,
+│   │                           # which is why it sits outside /platform
+│   ├── /money                  # The Money value object: a shared kernel every
+│   │                           # module may name and that names none of them
+│   ├── /server                 # server.go (Run) and router.go (NewRouter, health,
+│   │                           # routes). It mounts middleware; it holds none
 │   ├── /worker                 # The river.Client analogue of internal/server: owns
 │   │                           # the one working client, the queue map, and the
 │   │                           # order stale-sweep's river.PeriodicJob
-│   ├── /platform               # Infrastructure, no domain knowledge
-│   │   ├── /config             # Infra config (godotenv + envconfig) -- module-owned
+│   ├── /platform               # Infrastructure, no domain knowledge. Module-owned
 │   │   │                       # config (JWT, cart limits, payment gateway, ...)
-│   │   │                       # lives in each module's own config.go instead
+│   │   │                       # lives in each module's own config.go
 │   │   ├── /database           # Postgres pools, transactions, TxRunner
 │   │   ├── /errs               # The five status-carrying generic error kinds
+│   │   ├── /identity           # Identity: the UserID and Role a caller carries
 │   │   ├── /queue              # NewInsertClient + a transaction-aware Insert
 │   │   ├── /web                # Middleware, Chain, Router -- a tree of its own:
 │   │   │   ├── /request        #   Bind (validator included), ParseUUIDParam
 │   │   │   ├── /response       #   the envelope, HandleErr, CursorPage
-│   │   │   └── /middleware     #   CORS, Logging, Recovery, RequestID, the user
-│   │   │                       #   context, RequireRole, RateLimit
+│   │   │   └── /middleware     #   CORS, Logging, Recovery, RequestID, Auth and
+│   │   │                       #   the identity context, Require/RequireRole,
+│   │   │                       #   RateLimit
 │   │   └── /cache /logger /paging /slug /storage
 │   └── /testutil               # Shared container plumbing for tests
 ├── /test/e2e                   # Cross-module sagas through the real router
@@ -121,8 +125,8 @@ interface they mock, in-package — there is no top-level `/mocks` directory.
 against `.go-arch-lint.yml` and fails the build on any import that crosses a
 ring the wrong way. The rules are about layers, not modules:
 
-- `domain/` is the innermost ring — it holds business rules and touches no
-  infrastructure.
+- `domain/` is the innermost ring. It depends on nothing — not infrastructure,
+  and not another feature. A domain package importing anything of ours fails.
 - A `Service` depends on the ports it declares, never on the adapters that
   implement them. A service importing its own `adapter/postgres` fails.
 - Transport and drivers — `platform/web`, `queue`, `cache`, `storage` — are

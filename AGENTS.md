@@ -14,7 +14,7 @@ If this file disagrees with the code, the code wins: say so and fix the file.
 - `internal/apperror/` — cross-module business sentinels (`ErrInsufficientStock`, `ErrCartEmpty`, …), each declared as a wrap of an `errs` kind; no feature deps
 - `internal/app/` — the composition root: builds every `Service` and wires every cross-module port, and maps `config` values onto the platform option structs (`PoolOptions`, `ReplicaPoolOptions`)
 - `internal/config/` — this application's infra env vars (`godotenv` + `envconfig`). Deliberately **not** under `platform/`: it names `APP_NAME`, `DB_*`, `WORKER_RESCUE_AFTER`, so it is the one config that is rewritten per project rather than copied
-- `internal/server/` — `server.go` (`Run`), `router.go` (`NewRouter`, health, every route) and `auth.go` (`authMiddleware`, the one middleware that names a feature module)
+- `internal/server/` — `server.go` (`Run`) and `router.go` (`NewRouter`, health, every route). It mounts handlers and middleware; it holds none of its own
 - `internal/platform/` — generic infrastructure, no feature deps:
   - `cache/` — Redis client; `NewRedis` takes a `*redis.Options`
   - `database/` — pools (`PostgresOptions`), `TxRunner`, `PrimaryDB`/`ReplicaDB`, keyset and LIKE helpers
@@ -23,7 +23,8 @@ If this file disagrees with the code, the code wins: say so and fix the file.
   - `paging/` — cursor and offset pagination
   - `queue/` — insert-only River client and the transaction-aware `Insert`
   - `slug/`, `storage/`
-  - `web/` — `Middleware`, `Chain`, `Router`; `web/request/` (`Bind`, `ParseUUIDParam`, the validator); `web/response/` (envelope, `HandleErr`, `CursorPage`); `web/middleware/` (CORS, logging, recovery, request ID, user context, `RequireRole`, `RateLimit`)
+  - `identity/` — the `Identity` an authenticated caller carries: `UserID` and `Role`, and nothing else
+  - `web/` — `Middleware`, `Chain`, `Router`; `web/request/` (`Bind`, `ParseUUIDParam`, the validator); `web/response/` (envelope, `HandleErr`, `CursorPage`); `web/middleware/` (CORS, logging, recovery, request ID, `Auth` and the identity context, `Require`/`RequireRole`, `RateLimit`)
 - `internal/testutil/` — shared dockertest harness (Postgres + Redis containers)
 - `internal/worker/` — the jobs analogue of `server/`: owns the one working `river.Client`, its queue map and the order stale-sweep's `river.PeriodicJob`
 - `internal/money/` — a shared kernel: the `Money` value object. No `Service`, no store, no routes, imports nothing of this repository's. It sits outside `features/` because it is not one — every module may name it, and it names none of them
@@ -56,6 +57,7 @@ internal/features/<feature>/
     postgres/        SQL adapter
     http/            handlers plus their wire types
     redis/           the store behind a cache port (user only)
+    jwt/             the Tokens port's implementation (auth only)
     gateway/         the outbound Gateway port and its implementations (payment only)
     channel/         the Channel port's log implementation (notification only)
     jobs/            job args, InsertOpts and a river.Worker; the only place in
@@ -161,7 +163,7 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 │      │                                │                      │
 │  internal/server                  internal/worker            │
 │  NewRouter: every URL,            one river.Client,          │
-│  route groups, authMiddleware     queue map, periodic sweep   │
+│  route groups, middleware         queue map, periodic sweep   │
 │      │                                │                      │
 │      └──────────────┬─────────────────┘                      │
 │                     │                                        │
@@ -197,7 +199,7 @@ Platform is split by role, and that split is what gives the layer rule teeth:
 
 | Component | Packages | Importable from |
 | --- | --- | --- |
-| `pf-vocab` | `errs`, `paging`, `slug` | anywhere |
+| `pf-vocab` | `errs`, `identity`, `paging`, `slug` | anywhere |
 | `pf-tx` | `database`, `logger` | a `Service`, its adapters, the wiring layer, and `pf-io` |
 | `pf-io` | `cache`, `queue`, `storage`, `web` | adapters and the wiring layer |
 
@@ -207,15 +209,15 @@ And the feature rings:
 
 | Component | Glob | May import |
 | --- | --- | --- |
-| `ft-domain` | `internal/features/*/domain/**` | `ft-domain`, `ft-core` |
+| `ft-domain` | `internal/features/*/domain/**` | `ft-domain` |
 | `ft-core` | `internal/features/*` | `ft-core`, `ft-domain`, `pf-tx` |
 | `ft-adapter` | `internal/features/*/adapter/**` | everything |
 
 `money`, `apperror` and `pf-vocab` are common components: every ring may import all three, and they import nothing of ours.
 
-So four things fail the build: a feature importing `internal/server`; a `Service` importing `platform/web`, `platform/queue`, `platform/cache` or `platform/storage`; a `domain/` package reaching for `database`; and **a `Service` importing its own adapter**, which is the one that matters most — a service depends on the port it declares, never on the thing that implements it.
+So five things fail the build: a feature importing `internal/server`; a `Service` importing `platform/web`, `platform/queue`, `platform/cache` or `platform/storage`; a `domain/` package reaching for `database` or for another feature; and **a `Service` importing its own adapter**, which is the one that matters most — a service depends on the port it declares, never on the thing that implements it.
 
-`ft-domain` may name `ft-core` because a domain type legitimately names another feature's `contract.go` type: `auth/domain/token.go` holds a `user.Profile`, `product/domain/product.go` holds an `inventory.Availability`. An outbound port and the types its signatures name both live in the module root, beside `queue.go` and `channel.go`: `payment/gateway.go` holds `Gateway` and its `GatewayChargeRequest`/`GatewayChargeResponse` pair, and `adapter/gateway/{stripe,midtrans,mock}` implement it. A port written in adapter types would force the core to import an adapter, which is the one thing these rules exist to prevent.
+`ft-domain` depends on nothing but itself. A domain type that wants another module's data means one of two things: the type is a result crossing the service boundary rather than an entity, in which case it belongs in `contract.go` — or the entity needs its own shape and the service maps at the port, the way `product` holds its own `Availability` rather than `inventory`'s. An outbound port and the types its signatures name both live in the module root, beside `queue.go` and `channel.go`: `payment/gateway.go` holds `Gateway` and its `GatewayChargeRequest`/`GatewayChargeResponse` pair, and `adapter/gateway/{stripe,midtrans,mock}` implement it. A port written in adapter types would force the core to import an adapter, which is the one thing these rules exist to prevent.
 
 A component whose glob matches no directory is a hard config error, so the config cannot drift from the tree. What it does not see: anything that is not an import. `cmd/` is in scope; `_test.go` files are not.
 
@@ -266,8 +268,8 @@ A component whose glob matches no directory is a hard config error, so the confi
 ## Security & Compliance
 
 - Secrets come from env vars or a gitignored `.env`. Never commit real secrets. `.env.example` is the exhaustive list of supported variables; the README's table is a curated subset.
-- JWT auth with configurable expiry, bcrypt password hashes, RBAC through role middleware.
-- **Middleware lives in two places, and the line is whether it names a feature module.** `make check-arch` answers that by reading imports rather than by judgment: nothing under `internal/platform` may import `internal/features`. `internal/platform/web/middleware` holds panic recovery, request-ID injection, request logging, CORS, the user context (`UserContext`, `SetUserContext`, `GetUserContext`, `RequireUser`), `RequireRole` and rate limiting. `internal/server/auth.go` holds `authMiddleware` alone, because it names `auth.ClaimsView` and `user.AccountStatus`. A new compression or timeout middleware goes in platform; one that needs a module's type goes beside `authMiddleware`. A middleware needing an import platform may not have is the answer, not a reason to loosen the platform rings.
+- JWT auth with configurable expiry, bcrypt password hashes, RBAC through role middleware. The JWT library is named only in `auth/adapter/jwt`, behind the `auth.Tokens` port; `Verify` takes the token kind the caller expects, so a refresh token cannot authenticate a request.
+- **All middleware lives in `internal/platform/web/middleware`**, including authentication: panic recovery, request-ID injection, request logging, CORS, `Auth` and the identity context (`SetIdentity`, `GetIdentity`, `RequireUser`), `Require`/`RequireRole`, and rate limiting. It names no feature, which `make check-arch` enforces by reading imports rather than by judgment. `Auth` calls an `Authenticator` port that a feature satisfies by name-match, and the identity it produces lives in `platform/identity` so a `Service` can return one without importing the transport ring. A middleware that seems to need a feature's type is telling you the policy belongs in that feature, the way token type, account status and revocation moved into `auth.Authenticate`.
 - **Field exposure is controlled by DTO omission, not by `json:"-"`.** Adding a field to a response means naming it in a wire type deliberately. The failure mode this leaves is naming the _wrong_ mapper: public and admin response mappers live in separate files in the same package, and a handler can call either and compile. Check which mapper an admin route uses before changing it.
 
 ## Agent Guardrails

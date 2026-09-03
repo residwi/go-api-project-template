@@ -14,7 +14,7 @@ decision below is judged by what it teaches, not by what is cheapest to
 maintain: a reader will copy whatever they find here into a real system, so
 a rule is machine-checked where a linter can see it, and recorded as a
 convention where it cannot. *Cost:* the `adapter/postgres` /
-`adapter/http` split buys an import alias per module in `bootstrap/app.go` and
+`adapter/http` split buys an import alias per module in `app/app.go` and
 `server/router.go`, which is hard to justify in a product codebase and is the
 point here. Backward compatibility is explicitly not a goal.
 
@@ -27,9 +27,10 @@ interface it needs in its own `ports.go`; the producer never publishes one.
 *Cost:* free where a producer's method already matches by name; where a struct
 has to cross, decision 13 pays for it with a published surface.
 
-**3. Adapters are subpackages named for their technology.** `adapter/postgres`,
-`adapter/http`, `adapter/redis`, `adapter/gateway`, `adapter/jobs`. *Cost:*
-many packages share a name across modules, so wiring files alias them.
+**3. Adapters are subpackages named for their technology, and each file is
+named for the port it satisfies.** `adapter/postgres/repository.go`,
+`adapter/redis/cache.go`, `adapter/jwt/tokens.go`, `adapter/gateway/stripe/gateway.go`.
+*Cost:* many packages share a name across modules, so wiring files alias them.
 
 **4. Adapter subpackages exist only where adaptation is needed.** No
 pass-through package to fill a slot. *Cost:* you cannot predict a module's
@@ -116,6 +117,18 @@ transaction-aware `Insert`; each module keeps its args, `InsertOpts` and
 `river.Worker` in its own `adapter/jobs`, and `internal/worker` owns the one
 working client. *Cost:* `river_job` has no foreign key to any module's rows, so
 the old per-module job tables' referential integrity is gone for good.
+
+**19. Authentication is platform middleware over a feature port.**
+`platform/web/middleware.Auth` reads the bearer header and calls an
+`Authenticator`; `auth.Service.Authenticate` decides token kind, account status
+and revocation; the `identity.Identity` it returns lives in `platform/identity`
+so a service can produce one without importing the transport ring. The JWT
+library sits behind `auth.Tokens` in `adapter/jwt`, and `Verify` takes the kind
+the caller expects rather than returning it, so no caller can forget to check.
+*Cost:* `platform` now defines an interface a feature must satisfy and an
+identity shaped like this application's — `UserID` and `Role` — which a project
+with scopes or non-UUID subjects would edit rather than copy. `Require(pred)`
+absorbs the first of those without touching the type.
 
 ## Foreign keys across module boundaries
 
