@@ -110,6 +110,8 @@ error. A module's root package is importable from anywhere, so `payment`
 declares one interface per module it consumes, holding every method it needs.
 *Cost:* the port stops answering "what does this specific call path use" —
 `order.Cart` carries `Lock`, `Snapshot` and `Clear` whatever the caller needs.
+Segregation comes from the published types instead: `order` offers `Snapshot`
+and `FulfilmentSnapshot` so a consumer names the one whose fields it drives.
 
 **18. Background jobs share one queue, not one per module — and that queue is
 River.** `internal/platform/queue` holds an insert-only client and a

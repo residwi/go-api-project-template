@@ -677,7 +677,9 @@ This template puts one module per feature and one `Service` per module:
   module-owned settings (a sub-second `AUTH_RATE_WINDOW`, a
   `PAYMENT_JOB_CONCURRENCY < 1`) inline in that module's own `LoadConfig`
   (`auth.LoadConfig`, `cart.LoadConfig`, `notification.LoadConfig`,
-  `order.LoadConfig`, `payment.LoadConfig`).
+  `order.LoadConfig`, `payment.LoadConfig`), and an invariant spanning two
+  modules -- the payment gateway timeout against order's stale-processing
+  threshold -- in `app.LoadConfig`, the first place both are in scope.
 - The five generic error kinds live in `internal/platform/errs` and the seven
   cross-module business sentinels in `internal/apperror`, each declared as a
   wrap of one of the five; generic utilities (`paging`, `slug`) live in
