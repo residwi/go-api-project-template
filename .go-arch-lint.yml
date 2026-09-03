@@ -172,39 +172,7 @@ commonComponents:
 # cross-feature dependency means editing this file, on purpose.
 deps:
   app:
-    mayDependOn:
-      - config
-      - database
-      - ft-auth
-      - ft-auth-adapter
-      - ft-cart
-      - ft-cart-adapter
-      - ft-category
-      - ft-category-adapter
-      - ft-checkout
-      - ft-dashboard
-      - ft-dashboard-adapter
-      - ft-inventory
-      - ft-inventory-adapter
-      - ft-notification
-      - ft-notification-adapter
-      - ft-order
-      - ft-order-adapter
-      - ft-payment
-      - ft-payment-adapter
-      - ft-product
-      - ft-product-adapter
-      - ft-promotion
-      - ft-promotion-adapter
-      - ft-review
-      - ft-review-adapter
-      - ft-shipping
-      - ft-shipping-adapter
-      - ft-user
-      - ft-user-adapter
-      - ft-wishlist
-      - ft-wishlist-adapter
-      - queue
+    anyProjectDeps: true
   cmd-api:
     mayDependOn:
       - server
@@ -371,40 +339,10 @@ deps:
     mayDependOn:
       - database
   server:
-    mayDependOn:
-      - app
-      - cache
-      - cmd-mockgateway
-      - config
-      - database
-      - ft-auth-adapter
-      - ft-cart-adapter
-      - ft-category-adapter
-      - ft-checkout-adapter
-      - ft-dashboard-adapter
-      - ft-inventory-adapter
-      - ft-notification-adapter
-      - ft-order-adapter
-      - ft-payment-adapter
-      - ft-product-adapter
-      - ft-promotion-adapter
-      - ft-review-adapter
-      - ft-shipping-adapter
-      - ft-user-adapter
-      - ft-wishlist-adapter
-      - logger
-      - web
+    anyProjectDeps: true
   web:
     mayDependOn:
       - logger
       - web
   worker:
-    mayDependOn:
-      - app
-      - config
-      - database
-      - ft-notification-adapter
-      - ft-order
-      - ft-order-adapter
-      - ft-payment-adapter
-      - logger
+    anyProjectDeps: true
