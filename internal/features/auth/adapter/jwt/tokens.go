@@ -11,48 +11,47 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/auth/domain"
 )
 
-type Codec struct {
+type Tokens struct {
 	secret []byte
 	issuer string
 }
 
-func New(secret, issuer string) *Codec {
-	return &Codec{secret: []byte(secret), issuer: issuer}
+func New(secret, issuer string) *Tokens {
+	return &Tokens{secret: []byte(secret), issuer: issuer}
 }
 
-func (c *Codec) Sign(claims domain.Claims, ttl time.Duration) (string, error) {
+func (t *Tokens) Issue(claims domain.Claims, kind domain.Kind, ttl time.Duration) (string, error) {
 	now := time.Now()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    c.issuer,
+			Issuer:    t.issuer,
 			Subject:   claims.UserID.String(),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 			IssuedAt:  jwt.NewNumericDate(now),
 		},
 		UserID:       claims.UserID,
-		Email:        claims.Email,
 		Role:         claims.Role,
-		Type:         claims.Type,
+		Kind:         string(kind),
 		TokenVersion: claims.TokenVersion,
 	})
 
-	signed, err := token.SignedString(c.secret)
+	signed, err := token.SignedString(t.secret)
 	if err != nil {
 		return "", fmt.Errorf("signing token: %w", err)
 	}
 	return signed, nil
 }
 
-func (c *Codec) Parse(tokenString string) (domain.Claims, error) {
+func (t *Tokens) Verify(token string, want domain.Kind) (domain.Claims, error) {
 	parsed, err := jwt.ParseWithClaims(
-		tokenString, &jwtClaims{}, func(t *jwt.Token) (any, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		token, &jwtClaims{}, func(tok *jwt.Token) (any, error) {
+			if _, ok := tok.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", tok.Header["alg"])
 			}
-			return c.secret, nil
+			return t.secret, nil
 		},
 		jwt.WithExpirationRequired(),
-		jwt.WithIssuer(c.issuer),
+		jwt.WithIssuer(t.issuer),
 	)
 	if err != nil {
 		return domain.Claims{}, fmt.Errorf("parsing token: %w", err)
@@ -63,11 +62,13 @@ func (c *Codec) Parse(tokenString string) (domain.Claims, error) {
 		return domain.Claims{}, errors.New("invalid token claims")
 	}
 
+	if domain.Kind(claims.Kind) != want {
+		return domain.Claims{}, fmt.Errorf("token is a %q, want %q", claims.Kind, want)
+	}
+
 	return domain.Claims{
 		UserID:       claims.UserID,
-		Email:        claims.Email,
 		Role:         claims.Role,
-		Type:         claims.Type,
 		TokenVersion: claims.TokenVersion,
 	}, nil
 }
@@ -76,8 +77,7 @@ type jwtClaims struct {
 	jwt.RegisteredClaims
 
 	UserID       uuid.UUID
-	Email        string
 	Role         string
-	Type         string
+	Kind         string
 	TokenVersion int
 }

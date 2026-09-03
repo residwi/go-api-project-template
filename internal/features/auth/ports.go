@@ -17,7 +17,7 @@ type UserDirectory interface {
 	CheckStatus(ctx context.Context, id uuid.UUID) (user.AccountStatus, error)
 }
 
-type TokenCodec interface {
-	Sign(claims domain.Claims, ttl time.Duration) (string, error)
-	Parse(token string) (domain.Claims, error)
+type Tokens interface {
+	Issue(claims domain.Claims, kind domain.Kind, ttl time.Duration) (string, error)
+	Verify(token string, want domain.Kind) (domain.Claims, error)
 }

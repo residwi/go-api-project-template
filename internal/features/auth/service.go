@@ -17,12 +17,12 @@ type Service struct {
 	users      UserDirectory
 	dummyHash  []byte
 	bcryptCost int
-	tokens     TokenCodec
+	tokens     Tokens
 	accessTTL  time.Duration
 	refreshTTL time.Duration
 }
 
-func New(cfg Config, users UserDirectory, tokens TokenCodec) *Service {
+func New(cfg Config, users UserDirectory, tokens Tokens) *Service {
 	s := &Service{
 		users:      users,
 		tokens:     tokens,
@@ -87,12 +87,8 @@ func (s *Service) Register(
 }
 
 func (s *Service) Refresh(ctx context.Context, refreshToken string) (*TokenPair, error) {
-	claims, err := s.tokens.Parse(refreshToken)
+	claims, err := s.tokens.Verify(refreshToken, domain.RefreshToken)
 	if err != nil {
-		return nil, ErrInvalidToken
-	}
-
-	if claims.Type != refreshTokenType {
 		return nil, ErrInvalidToken
 	}
 
@@ -115,19 +111,16 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (*TokenPair,
 func (s *Service) BuildTokenPair(user user.Profile) (*TokenPair, error) {
 	claims := domain.Claims{
 		UserID:       user.ID,
-		Email:        user.Email,
 		Role:         user.Role,
 		TokenVersion: user.TokenVersion,
 	}
 
-	claims.Type = accessTokenType
-	accessToken, err := s.tokens.Sign(claims, s.accessTTL)
+	accessToken, err := s.tokens.Issue(claims, domain.AccessToken, s.accessTTL)
 	if err != nil {
 		return nil, fmt.Errorf("generating access token: %w", err)
 	}
 
-	claims.Type = refreshTokenType
-	refreshToken, err := s.tokens.Sign(claims, s.refreshTTL)
+	refreshToken, err := s.tokens.Issue(claims, domain.RefreshToken, s.refreshTTL)
 	if err != nil {
 		return nil, fmt.Errorf("generating refresh token: %w", err)
 	}
@@ -141,12 +134,8 @@ func (s *Service) BuildTokenPair(user user.Profile) (*TokenPair, error) {
 }
 
 func (s *Service) Authenticate(ctx context.Context, token string) (identity.Identity, error) {
-	claims, err := s.tokens.Parse(token)
+	claims, err := s.tokens.Verify(token, domain.AccessToken)
 	if err != nil {
-		return identity.Identity{}, ErrInvalidToken
-	}
-
-	if claims.Type != accessTokenType {
 		return identity.Identity{}, ErrInvalidToken
 	}
 
@@ -168,11 +157,6 @@ func (s *Service) Authenticate(ctx context.Context, token string) (identity.Iden
 
 // dummyPassword is hashed once per cost to give the unknown-email login path
 // roughly the same latency as a real bcrypt comparison.
-const (
-	accessTokenType  = "access"
-	refreshTokenType = "refresh"
-)
-
 const dummyPassword = "invalid-user-timing-equalizer"
 
 // maxPasswordBytes is bcrypt's hard input limit; inputs longer than this error

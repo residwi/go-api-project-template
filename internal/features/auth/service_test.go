@@ -333,9 +333,9 @@ func TestService_BuildTokenPair(t *testing.T) {
 		t.Parallel()
 
 		cfg := newTestConfig()
-		codec := jwt.New(cfg.Secret, cfg.Issuer)
+		tokens := jwt.New(cfg.Secret, cfg.Issuer)
 		var users UserDirectory
-		svc := New(cfg, users, codec)
+		svc := New(cfg, users, tokens)
 
 		pair, err := svc.BuildTokenPair(user)
 		require.NoError(t, err)
@@ -344,25 +344,19 @@ func TestService_BuildTokenPair(t *testing.T) {
 		assert.Equal(t, int(cfg.AccessTokenTTL/time.Second), pair.ExpiresIn)
 		assert.Equal(t, user, pair.User)
 
-		accessClaims, err := codec.Parse(pair.AccessToken)
-		require.NoError(t, err)
-		assert.Equal(t, domain.Claims{
-			UserID:       userID,
-			Email:        "user@example.com",
-			Role:         "customer",
-			Type:         "access",
-			TokenVersion: 1,
-		}, accessClaims)
+		want := domain.Claims{UserID: userID, Role: "customer", TokenVersion: 1}
 
-		refreshClaims, err := codec.Parse(pair.RefreshToken)
+		accessClaims, err := tokens.Verify(pair.AccessToken, domain.AccessToken)
 		require.NoError(t, err)
-		assert.Equal(t, domain.Claims{
-			UserID:       userID,
-			Email:        "user@example.com",
-			Role:         "customer",
-			Type:         "refresh",
-			TokenVersion: 1,
-		}, refreshClaims)
+		assert.Equal(t, want, accessClaims)
+
+		refreshClaims, err := tokens.Verify(pair.RefreshToken, domain.RefreshToken)
+		require.NoError(t, err)
+		assert.Equal(t, want, refreshClaims)
+
+		// the pair is two distinct kinds, not the same token twice
+		_, err = tokens.Verify(pair.RefreshToken, domain.AccessToken)
+		assert.Error(t, err)
 	})
 }
 

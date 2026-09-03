@@ -17,25 +17,23 @@ const (
 	testIssuer = "test-issuer"
 )
 
-func TestCodec_Parse(t *testing.T) {
+func TestTokens_Verify(t *testing.T) {
 	t.Parallel()
 
 	claims := domain.Claims{
 		UserID:       uuid.New(),
-		Email:        "user@example.com",
 		Role:         "customer",
-		Type:         "access",
 		TokenVersion: 1,
 	}
 
 	t.Run("round trips every claim it was given", func(t *testing.T) {
 		t.Parallel()
 
-		codec := New(testSecret, testIssuer)
-		signed, err := codec.Sign(claims, 15*time.Minute)
+		tokens := New(testSecret, testIssuer)
+		signed, err := tokens.Issue(claims, domain.AccessToken, 15*time.Minute)
 		require.NoError(t, err)
 
-		got, err := codec.Parse(signed)
+		got, err := tokens.Verify(signed, domain.AccessToken)
 
 		require.NoError(t, err)
 		assert.Equal(t, claims, got)
@@ -44,10 +42,10 @@ func TestCodec_Parse(t *testing.T) {
 	t.Run("rejects a token signed with another secret", func(t *testing.T) {
 		t.Parallel()
 
-		signed, err := New(testSecret, testIssuer).Sign(claims, 15*time.Minute)
+		signed, err := New(testSecret, testIssuer).Issue(claims, domain.AccessToken, 15*time.Minute)
 		require.NoError(t, err)
 
-		got, err := New("wrong-secret", testIssuer).Parse(signed)
+		got, err := New("wrong-secret", testIssuer).Verify(signed, domain.AccessToken)
 
 		assert.Equal(t, domain.Claims{}, got)
 		assert.Error(t, err)
@@ -56,10 +54,10 @@ func TestCodec_Parse(t *testing.T) {
 	t.Run("rejects a token issued by someone else", func(t *testing.T) {
 		t.Parallel()
 
-		signed, err := New(testSecret, "other-issuer").Sign(claims, 15*time.Minute)
+		signed, err := New(testSecret, "other-issuer").Issue(claims, domain.AccessToken, 15*time.Minute)
 		require.NoError(t, err)
 
-		got, err := New(testSecret, testIssuer).Parse(signed)
+		got, err := New(testSecret, testIssuer).Verify(signed, domain.AccessToken)
 
 		assert.Equal(t, domain.Claims{}, got)
 		assert.Error(t, err)
@@ -68,11 +66,11 @@ func TestCodec_Parse(t *testing.T) {
 	t.Run("rejects an expired token", func(t *testing.T) {
 		t.Parallel()
 
-		codec := New(testSecret, testIssuer)
-		signed, err := codec.Sign(claims, -1*time.Second)
+		tokens := New(testSecret, testIssuer)
+		signed, err := tokens.Issue(claims, domain.AccessToken, -1*time.Second)
 		require.NoError(t, err)
 
-		got, err := codec.Parse(signed)
+		got, err := tokens.Verify(signed, domain.AccessToken)
 
 		assert.Equal(t, domain.Claims{}, got)
 		assert.Error(t, err)
@@ -81,11 +79,11 @@ func TestCodec_Parse(t *testing.T) {
 	t.Run("rejects a tampered token", func(t *testing.T) {
 		t.Parallel()
 
-		codec := New(testSecret, testIssuer)
-		signed, err := codec.Sign(claims, 15*time.Minute)
+		tokens := New(testSecret, testIssuer)
+		signed, err := tokens.Issue(claims, domain.AccessToken, 15*time.Minute)
 		require.NoError(t, err)
 
-		got, err := codec.Parse(signed[:len(signed)-5] + "XXXXX")
+		got, err := tokens.Verify(signed[:len(signed)-5]+"XXXXX", domain.AccessToken)
 
 		assert.Equal(t, domain.Claims{}, got)
 		assert.Error(t, err)
@@ -94,10 +92,40 @@ func TestCodec_Parse(t *testing.T) {
 	t.Run("rejects a string that is not a token", func(t *testing.T) {
 		t.Parallel()
 
-		got, err := New(testSecret, testIssuer).Parse("not-a-token")
+		got, err := New(testSecret, testIssuer).Verify("not-a-token", domain.AccessToken)
 
 		assert.Equal(t, domain.Claims{}, got)
 		assert.Error(t, err)
+	})
+
+	// A refresh token is long-lived and never sent to normal endpoints; if it
+	// could authenticate one, stealing it would be equivalent to stealing a
+	// password. Verify refuses on kind, so no caller can forget to check.
+	t.Run("refuses a refresh token where an access token is wanted", func(t *testing.T) {
+		t.Parallel()
+
+		tokens := New(testSecret, testIssuer)
+		signed, err := tokens.Issue(claims, domain.RefreshToken, 24*time.Hour)
+		require.NoError(t, err)
+
+		got, err := tokens.Verify(signed, domain.AccessToken)
+
+		assert.Equal(t, domain.Claims{}, got)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "want \"access\"")
+	})
+
+	t.Run("accepts a refresh token where one is wanted", func(t *testing.T) {
+		t.Parallel()
+
+		tokens := New(testSecret, testIssuer)
+		signed, err := tokens.Issue(claims, domain.RefreshToken, 24*time.Hour)
+		require.NoError(t, err)
+
+		got, err := tokens.Verify(signed, domain.RefreshToken)
+
+		require.NoError(t, err)
+		assert.Equal(t, claims, got)
 	})
 
 	// alg=none is the classic JWT forgery: without the HMAC check a caller could
@@ -109,14 +137,14 @@ func TestCodec_Parse(t *testing.T) {
 			"user_id": uuid.New().String(),
 			"email":   "user@example.com",
 			"role":    "customer",
-			"typ":     "access",
+			"kind":    "access",
 			"iss":     testIssuer,
 			"exp":     time.Now().Add(15 * time.Minute).Unix(),
 		})
 		signed, err := tok.SignedString(jwt.UnsafeAllowNoneSignatureType)
 		require.NoError(t, err)
 
-		got, err := New(testSecret, testIssuer).Parse(signed)
+		got, err := New(testSecret, testIssuer).Verify(signed, domain.AccessToken)
 
 		assert.Equal(t, domain.Claims{}, got)
 		require.Error(t, err)
