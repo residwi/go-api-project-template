@@ -341,7 +341,7 @@ func TestService_BuildTokenPair(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, pair.AccessToken)
 		assert.NotEmpty(t, pair.RefreshToken)
-		assert.Equal(t, int(cfg.AccessTokenTTL/time.Second), pair.ExpiresIn)
+		assert.Equal(t, cfg.AccessTokenTTL, pair.ExpiresIn)
 		assert.Equal(t, user, pair.User)
 
 		want := domain.Claims{UserID: userID, Role: "customer", TokenVersion: 1}

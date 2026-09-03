@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,7 @@ func TestHandler_Login(t *testing.T) {
 		service.EXPECT().Login(mock.Anything, "test@example.com", "password123").Return(&auth.TokenPair{
 			AccessToken:  "access-token",
 			RefreshToken: "refresh-token",
-			ExpiresIn:    900,
+			ExpiresIn:    15 * time.Minute,
 			User:         user.Profile{Email: "test@example.com"},
 		}, nil)
 
@@ -57,6 +58,8 @@ func TestHandler_Login(t *testing.T) {
 		require.True(t, ok)
 		assert.NotEmpty(t, data["access_token"])
 		assert.NotEmpty(t, data["refresh_token"])
+		// the core states a duration; expires_in is OAuth's seconds
+		assert.InDelta(t, 900, data["expires_in"], 0)
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
@@ -142,7 +145,7 @@ func TestHandler_Register(t *testing.T) {
 			Return(&auth.TokenPair{
 				AccessToken:  "access-token",
 				RefreshToken: "refresh-token",
-				ExpiresIn:    900,
+				ExpiresIn:    15 * time.Minute,
 				User: user.Profile{
 					ID:        userID,
 					Email:     "test@example.com",
@@ -273,7 +276,7 @@ func TestHandler_Refresh(t *testing.T) {
 		service.EXPECT().Refresh(mock.Anything, "a-refresh-token").Return(&auth.TokenPair{
 			AccessToken:  "new-access-token",
 			RefreshToken: "new-refresh-token",
-			ExpiresIn:    900,
+			ExpiresIn:    15 * time.Minute,
 			User:         user.Profile{Email: "test@example.com"},
 		}, nil)
 
@@ -372,7 +375,7 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 	tp := &auth.TokenPair{
 		AccessToken:  "access-token-value",
 		RefreshToken: "refresh-token-value",
-		ExpiresIn:    900,
+		ExpiresIn:    15 * time.Minute,
 		User: user.Profile{
 			ID:           userID,
 			Email:        "user@example.com",

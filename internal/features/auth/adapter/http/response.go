@@ -25,7 +25,7 @@ func toTokenResponse(tp *auth.TokenPair) tokenResponse {
 	return tokenResponse{
 		AccessToken:  tp.AccessToken,
 		RefreshToken: tp.RefreshToken,
-		ExpiresIn:    tp.ExpiresIn,
+		ExpiresIn:    int(tp.ExpiresIn.Seconds()),
 		User: authUserResponse{
 			ID:        tp.User.ID,
 			Email:     tp.User.Email,

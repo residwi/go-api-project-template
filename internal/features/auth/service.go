@@ -128,7 +128,7 @@ func (s *Service) BuildTokenPair(user user.Profile) (*TokenPair, error) {
 	return &TokenPair{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    int(s.accessTTL.Seconds()),
+		ExpiresIn:    s.accessTTL,
 		User:         user,
 	}, nil
 }
