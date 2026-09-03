@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/money"
 )
 
@@ -30,7 +29,7 @@ type Product struct {
 	UpdatedAt      time.Time
 	DeletedAt      *time.Time
 
-	Availability inventory.Availability
+	Availability Availability
 }
 
 type Image struct {
@@ -40,4 +39,9 @@ type Image struct {
 	AltText   *string
 	SortOrder int
 	CreatedAt time.Time
+}
+
+type Availability struct {
+	OnHand    int
+	Available int
 }

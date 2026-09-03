@@ -4,15 +4,15 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/residwi/go-api-project-template/internal/features/auth/domain"
+	"github.com/residwi/go-api-project-template/internal/features/auth"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
 type AuthManager interface {
-	Login(ctx context.Context, email, password string) (*domain.TokenPair, error)
-	Register(ctx context.Context, email, password, firstName, lastName string) (*domain.TokenPair, error)
-	Refresh(ctx context.Context, refreshToken string) (*domain.TokenPair, error)
+	Login(ctx context.Context, email, password string) (*auth.TokenPair, error)
+	Register(ctx context.Context, email, password, firstName, lastName string) (*auth.TokenPair, error)
+	Refresh(ctx context.Context, refreshToken string) (*auth.TokenPair, error)
 }
 
 type Handler struct {

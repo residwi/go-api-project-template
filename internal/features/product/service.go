@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/features/product/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
@@ -68,7 +67,7 @@ func (s *Service) Create(
 		return nil, err
 	}
 
-	prod.Availability = inventory.Availability{}
+	prod.Availability = domain.Availability{}
 	return prod, nil
 }
 
@@ -291,7 +290,11 @@ func (s *Service) enrich(ctx context.Context, products []domain.Product) error {
 		return fmt.Errorf("reading availability: %w", err)
 	}
 	for i := range products {
-		products[i].Availability = levels[products[i].ID]
+		level := levels[products[i].ID]
+		products[i].Availability = domain.Availability{
+			OnHand:    level.OnHand,
+			Available: level.Available,
+		}
 	}
 	return nil
 }

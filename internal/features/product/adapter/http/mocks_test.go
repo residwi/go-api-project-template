@@ -8,10 +8,11 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	mock "github.com/stretchr/testify/mock"
+
 	"github.com/residwi/go-api-project-template/internal/features/product"
 	"github.com/residwi/go-api-project-template/internal/features/product/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
-	mock "github.com/stretchr/testify/mock"
 )
 
 // NewMockProductManager creates a new instance of MockProductManager. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

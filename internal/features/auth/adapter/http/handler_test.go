@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/features/auth"
-	"github.com/residwi/go-api-project-template/internal/features/auth/domain"
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
@@ -30,7 +29,7 @@ func TestHandler_Login(t *testing.T) {
 
 		mux, service := newTestMux(t)
 
-		service.EXPECT().Login(mock.Anything, "test@example.com", "password123").Return(&domain.TokenPair{
+		service.EXPECT().Login(mock.Anything, "test@example.com", "password123").Return(&auth.TokenPair{
 			AccessToken:  "access-token",
 			RefreshToken: "refresh-token",
 			ExpiresIn:    900,
@@ -140,7 +139,7 @@ func TestHandler_Register(t *testing.T) {
 
 		userID := uuid.New()
 		service.EXPECT().Register(mock.Anything, "test@example.com", "password123", "John", "Doe").
-			Return(&domain.TokenPair{
+			Return(&auth.TokenPair{
 				AccessToken:  "access-token",
 				RefreshToken: "refresh-token",
 				ExpiresIn:    900,
@@ -271,7 +270,7 @@ func TestHandler_Refresh(t *testing.T) {
 
 		mux, service := newTestMux(t)
 
-		service.EXPECT().Refresh(mock.Anything, "a-refresh-token").Return(&domain.TokenPair{
+		service.EXPECT().Refresh(mock.Anything, "a-refresh-token").Return(&auth.TokenPair{
 			AccessToken:  "new-access-token",
 			RefreshToken: "new-refresh-token",
 			ExpiresIn:    900,
@@ -370,7 +369,7 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 	t.Parallel()
 
 	userID := uuid.New()
-	tp := &domain.TokenPair{
+	tp := &auth.TokenPair{
 		AccessToken:  "access-token-value",
 		RefreshToken: "refresh-token-value",
 		ExpiresIn:    900,

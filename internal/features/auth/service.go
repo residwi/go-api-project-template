@@ -34,7 +34,7 @@ func New(cfg Config, users UserDirectory, tokens TokenCodec) *Service {
 	return s
 }
 
-func (s *Service) Login(ctx context.Context, email, password string) (*domain.TokenPair, error) {
+func (s *Service) Login(ctx context.Context, email, password string) (*TokenPair, error) {
 	creds, err := s.users.GetByEmail(ctx, email)
 	if err != nil {
 		_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(password))
@@ -63,7 +63,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*domain.To
 func (s *Service) Register(
 	ctx context.Context,
 	email, password, firstName, lastName string,
-) (*domain.TokenPair, error) {
+) (*TokenPair, error) {
 	if len(password) > maxPasswordBytes {
 		return nil, fmt.Errorf("%w: password must not exceed %d bytes", errs.ErrBadRequest, maxPasswordBytes)
 	}
@@ -86,7 +86,7 @@ func (s *Service) Register(
 	return s.BuildTokenPair(user)
 }
 
-func (s *Service) Refresh(ctx context.Context, refreshToken string) (*domain.TokenPair, error) {
+func (s *Service) Refresh(ctx context.Context, refreshToken string) (*TokenPair, error) {
 	claims, err := s.tokens.Parse(refreshToken)
 	if err != nil {
 		return nil, ErrInvalidToken
@@ -112,7 +112,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (*domain.Tok
 	return s.BuildTokenPair(user)
 }
 
-func (s *Service) BuildTokenPair(user user.Profile) (*domain.TokenPair, error) {
+func (s *Service) BuildTokenPair(user user.Profile) (*TokenPair, error) {
 	claims := domain.Claims{
 		UserID:       user.ID,
 		Email:        user.Email,
@@ -132,7 +132,7 @@ func (s *Service) BuildTokenPair(user user.Profile) (*domain.TokenPair, error) {
 		return nil, fmt.Errorf("generating refresh token: %w", err)
 	}
 
-	return &domain.TokenPair{
+	return &TokenPair{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    int(s.accessTTL.Seconds()),

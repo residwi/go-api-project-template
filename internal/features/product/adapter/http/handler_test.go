@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/features/product"
 	"github.com/residwi/go-api-project-template/internal/features/product/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
@@ -276,7 +275,7 @@ func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
 		SKU:       &sku,
 		Status:    "published",
 		DeletedAt: &deletedAt,
-		Availability: inventory.Availability{
+		Availability: domain.Availability{
 			OnHand:    50,
 			Available: 424242,
 		},

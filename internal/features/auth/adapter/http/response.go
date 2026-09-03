@@ -3,7 +3,7 @@ package http
 import (
 	"github.com/google/uuid"
 
-	"github.com/residwi/go-api-project-template/internal/features/auth/domain"
+	"github.com/residwi/go-api-project-template/internal/features/auth"
 )
 
 type authUserResponse struct {
@@ -21,7 +21,7 @@ type tokenResponse struct {
 	User         authUserResponse `json:"user"`
 }
 
-func toTokenResponse(tp *domain.TokenPair) tokenResponse {
+func toTokenResponse(tp *auth.TokenPair) tokenResponse {
 	return tokenResponse{
 		AccessToken:  tp.AccessToken,
 		RefreshToken: tp.RefreshToken,

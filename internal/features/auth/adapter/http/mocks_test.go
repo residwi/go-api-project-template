@@ -7,7 +7,7 @@ package http
 import (
 	"context"
 
-	"github.com/residwi/go-api-project-template/internal/features/auth/domain"
+	"github.com/residwi/go-api-project-template/internal/features/auth"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -39,23 +39,23 @@ func (_m *MockAuthManager) EXPECT() *MockAuthManager_Expecter {
 }
 
 // Login provides a mock function for the type MockAuthManager
-func (_mock *MockAuthManager) Login(ctx context.Context, email string, password string) (*domain.TokenPair, error) {
+func (_mock *MockAuthManager) Login(ctx context.Context, email string, password string) (*auth.TokenPair, error) {
 	ret := _mock.Called(ctx, email, password)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Login")
 	}
 
-	var r0 *domain.TokenPair
+	var r0 *auth.TokenPair
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*domain.TokenPair, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*auth.TokenPair, error)); ok {
 		return returnFunc(ctx, email, password)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *domain.TokenPair); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *auth.TokenPair); ok {
 		r0 = returnFunc(ctx, email, password)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.TokenPair)
+			r0 = ret.Get(0).(*auth.TokenPair)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
@@ -102,34 +102,34 @@ func (_c *MockAuthManager_Login_Call) Run(run func(ctx context.Context, email st
 	return _c
 }
 
-func (_c *MockAuthManager_Login_Call) Return(tokenPair *domain.TokenPair, err error) *MockAuthManager_Login_Call {
+func (_c *MockAuthManager_Login_Call) Return(tokenPair *auth.TokenPair, err error) *MockAuthManager_Login_Call {
 	_c.Call.Return(tokenPair, err)
 	return _c
 }
 
-func (_c *MockAuthManager_Login_Call) RunAndReturn(run func(ctx context.Context, email string, password string) (*domain.TokenPair, error)) *MockAuthManager_Login_Call {
+func (_c *MockAuthManager_Login_Call) RunAndReturn(run func(ctx context.Context, email string, password string) (*auth.TokenPair, error)) *MockAuthManager_Login_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Refresh provides a mock function for the type MockAuthManager
-func (_mock *MockAuthManager) Refresh(ctx context.Context, refreshToken string) (*domain.TokenPair, error) {
+func (_mock *MockAuthManager) Refresh(ctx context.Context, refreshToken string) (*auth.TokenPair, error) {
 	ret := _mock.Called(ctx, refreshToken)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Refresh")
 	}
 
-	var r0 *domain.TokenPair
+	var r0 *auth.TokenPair
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*domain.TokenPair, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*auth.TokenPair, error)); ok {
 		return returnFunc(ctx, refreshToken)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *domain.TokenPair); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *auth.TokenPair); ok {
 		r0 = returnFunc(ctx, refreshToken)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.TokenPair)
+			r0 = ret.Get(0).(*auth.TokenPair)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
@@ -170,34 +170,34 @@ func (_c *MockAuthManager_Refresh_Call) Run(run func(ctx context.Context, refres
 	return _c
 }
 
-func (_c *MockAuthManager_Refresh_Call) Return(tokenPair *domain.TokenPair, err error) *MockAuthManager_Refresh_Call {
+func (_c *MockAuthManager_Refresh_Call) Return(tokenPair *auth.TokenPair, err error) *MockAuthManager_Refresh_Call {
 	_c.Call.Return(tokenPair, err)
 	return _c
 }
 
-func (_c *MockAuthManager_Refresh_Call) RunAndReturn(run func(ctx context.Context, refreshToken string) (*domain.TokenPair, error)) *MockAuthManager_Refresh_Call {
+func (_c *MockAuthManager_Refresh_Call) RunAndReturn(run func(ctx context.Context, refreshToken string) (*auth.TokenPair, error)) *MockAuthManager_Refresh_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Register provides a mock function for the type MockAuthManager
-func (_mock *MockAuthManager) Register(ctx context.Context, email string, password string, firstName string, lastName string) (*domain.TokenPair, error) {
+func (_mock *MockAuthManager) Register(ctx context.Context, email string, password string, firstName string, lastName string) (*auth.TokenPair, error) {
 	ret := _mock.Called(ctx, email, password, firstName, lastName)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Register")
 	}
 
-	var r0 *domain.TokenPair
+	var r0 *auth.TokenPair
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) (*domain.TokenPair, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) (*auth.TokenPair, error)); ok {
 		return returnFunc(ctx, email, password, firstName, lastName)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) *domain.TokenPair); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) *auth.TokenPair); ok {
 		r0 = returnFunc(ctx, email, password, firstName, lastName)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*domain.TokenPair)
+			r0 = ret.Get(0).(*auth.TokenPair)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
@@ -256,12 +256,12 @@ func (_c *MockAuthManager_Register_Call) Run(run func(ctx context.Context, email
 	return _c
 }
 
-func (_c *MockAuthManager_Register_Call) Return(tokenPair *domain.TokenPair, err error) *MockAuthManager_Register_Call {
+func (_c *MockAuthManager_Register_Call) Return(tokenPair *auth.TokenPair, err error) *MockAuthManager_Register_Call {
 	_c.Call.Return(tokenPair, err)
 	return _c
 }
 
-func (_c *MockAuthManager_Register_Call) RunAndReturn(run func(ctx context.Context, email string, password string, firstName string, lastName string) (*domain.TokenPair, error)) *MockAuthManager_Register_Call {
+func (_c *MockAuthManager_Register_Call) RunAndReturn(run func(ctx context.Context, email string, password string, firstName string, lastName string) (*auth.TokenPair, error)) *MockAuthManager_Register_Call {
 	_c.Call.Return(run)
 	return _c
 }
