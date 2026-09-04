@@ -21,14 +21,14 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: stable
 
       - name: Check architectural layers
         run: make check-arch
 
       - uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.11
+          version: latest
 
   test:
     name: Test
@@ -38,7 +38,7 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version: stable
 
       - name: Download modules
         run: go mod download
