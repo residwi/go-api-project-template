@@ -6,6 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type Queue interface {
+type JobQueue interface {
 	EnqueueSend(ctx context.Context, notificationID uuid.UUID) error
 }

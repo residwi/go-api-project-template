@@ -1686,7 +1686,7 @@ type testDeps struct {
 	orders    *MockOrders
 	inventory *MockInventory
 	coupon    *MockCouponReleaser
-	queue     *MockQueue
+	queue     *MockJobQueue
 }
 
 // newTestService builds *Service directly rather than through New, because
@@ -1699,7 +1699,7 @@ func newTestService(t *testing.T) (*Service, testDeps) {
 		orders:    NewMockOrders(t),
 		inventory: NewMockInventory(t),
 		coupon:    NewMockCouponReleaser(t),
-		queue:     NewMockQueue(t),
+		queue:     NewMockJobQueue(t),
 	}
 
 	svc := &Service{
@@ -1716,7 +1716,7 @@ func newTestService(t *testing.T) (*Service, testDeps) {
 	return svc, d
 }
 
-func assertRefundEnqueued(t *testing.T, queue *MockQueue, paymentID, orderID uuid.UUID) {
+func assertRefundEnqueued(t *testing.T, queue *MockJobQueue, paymentID, orderID uuid.UUID) {
 	t.Helper()
 
 	queue.EXPECT().EnqueueRefund(mock.Anything, paymentID, orderID).Return(nil)

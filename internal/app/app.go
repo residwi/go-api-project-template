@@ -43,7 +43,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/wishlist"
 	wishlistpg "github.com/residwi/go-api-project-template/internal/features/wishlist/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	"github.com/residwi/go-api-project-template/internal/platform/queue"
+	"github.com/residwi/go-api-project-template/internal/platform/jobqueue"
 )
 
 type Services struct {
@@ -72,7 +72,7 @@ func New(
 ) (*Services, error) {
 	txRunner := database.NewTxRunner(db.Primary)
 
-	insertClient, err := queue.NewInsertClient(db)
+	insertClient, err := jobqueue.NewInsertClient(db)
 	if err != nil {
 		return nil, fmt.Errorf("building job insert client: %w", err)
 	}
@@ -84,7 +84,7 @@ func New(
 	notificationMod := notification.New(
 		notificationpg.New(db),
 		txRunner,
-		notificationjobs.NewQueue(insertClient, db),
+		notificationjobs.NewJobQueue(insertClient, db),
 		channellog.New(logger),
 		logger,
 	)
@@ -114,7 +114,7 @@ func New(
 		cfg.Payment,
 		logger,
 		newPaymentGateway(cfg.Payment),
-		paymentjobs.NewQueue(insertClient, db),
+		paymentjobs.NewJobQueue(insertClient, db),
 		ordMod,
 		inv,
 		promotionMod,

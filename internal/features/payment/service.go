@@ -23,7 +23,7 @@ type Service struct {
 	repo    Repository
 	tx      database.TxRunner
 	gateway Gateway
-	queue   Queue
+	queue   JobQueue
 	logger  *slog.Logger
 
 	orders    Orders
@@ -39,7 +39,7 @@ func New(
 	cfg Config,
 	logger *slog.Logger,
 	gateway Gateway,
-	queue Queue,
+	queue JobQueue,
 	orders Orders,
 	inventory Inventory,
 	coupons CouponReleaser,

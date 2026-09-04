@@ -10,26 +10,26 @@ import (
 	"github.com/riverqueue/river/rivertype"
 
 	"github.com/residwi/go-api-project-template/internal/platform/database"
-	"github.com/residwi/go-api-project-template/internal/platform/queue"
+	"github.com/residwi/go-api-project-template/internal/platform/jobqueue"
 )
 
-type Queue struct {
+type JobQueue struct {
 	client *river.Client[pgx.Tx]
 	db     database.DB
 }
 
-func NewQueue(client *river.Client[pgx.Tx], db database.DB) *Queue {
-	return &Queue{client: client, db: db}
+func NewJobQueue(client *river.Client[pgx.Tx], db database.DB) *JobQueue {
+	return &JobQueue{client: client, db: db}
 }
 
-func (q *Queue) EnqueueRefund(ctx context.Context, paymentID, orderID uuid.UUID) error {
+func (q *JobQueue) EnqueueRefund(ctx context.Context, paymentID, orderID uuid.UUID) error {
 	args := RefundArgs{PaymentID: paymentID, OrderID: orderID}
 	opts := &river.InsertOpts{Tags: []string{orderTag(orderID)}}
 
-	return queue.Insert(ctx, q.client, q.db, args, opts)
+	return jobqueue.Insert(ctx, q.client, q.db, args, opts)
 }
 
-func (q *Queue) CancelPendingForOrder(ctx context.Context, orderID uuid.UUID) error {
+func (q *JobQueue) CancelPendingForOrder(ctx context.Context, orderID uuid.UUID) error {
 	res, err := q.client.JobList(ctx, river.NewJobListParams().
 		Kinds(RefundArgs{}.Kind()).
 		TagsAny(orderTag(orderID)).

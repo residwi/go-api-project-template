@@ -44,7 +44,7 @@ components:
   cache:
     in: internal/platform/cache
   queue:
-    in: internal/platform/queue
+    in: internal/platform/jobqueue
   storage:
     in: internal/platform/storage
   web:
