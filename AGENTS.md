@@ -206,7 +206,7 @@ Every other component is one package named for itself, and the rings run from th
 | --- | --- |
 | `<feature>/domain/**` | the common components, and nothing else of ours |
 | `<feature>/` — the core | its own `domain/`, `database` where it holds a `TxRunner`, and the root package of each sibling module it consumes |
-| `<feature>/adapter/**` | its own core and `domain/`, plus `database`, `web`, and `queue` where it enqueues |
+| `<feature>/adapter/**` | its own core and `domain/`, plus `database`, `web`, and `jobqueue` where it enqueues |
 | `internal/app`, `internal/server`, `internal/worker` | everything (`anyProjectDeps`) — the wiring layer composes adapters, serves HTTP and starts River, so enumerating what it may see asserts nothing that could ever fail |
 | `cmd/api`, `cmd/worker` | `server` and `worker` respectively, nothing more |
 

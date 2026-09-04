@@ -43,7 +43,7 @@ components:
     in: internal/platform/logger
   cache:
     in: internal/platform/cache
-  queue:
+  jobqueue:
     in: internal/platform/jobqueue
   storage:
     in: internal/platform/storage
@@ -249,7 +249,7 @@ deps:
       - database
       - ft-notification
       - ft-notification-domain
-      - queue
+      - jobqueue
       - web
   ft-order:
     mayDependOn:
@@ -275,7 +275,7 @@ deps:
       - database
       - ft-payment
       - ft-payment-domain
-      - queue
+      - jobqueue
       - web
   ft-product:
     mayDependOn:
@@ -335,7 +335,7 @@ deps:
       - ft-wishlist
       - ft-wishlist-domain
       - web
-  queue:
+  jobqueue:
     mayDependOn:
       - database
   server:
