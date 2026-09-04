@@ -2,8 +2,6 @@ module github.com/residwi/go-api-project-template
 
 go 1.26.0
 
-toolchain go1.26.5
-
 require (
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -16,6 +14,7 @@ require (
 	github.com/redis/go-redis/v9 v9.22.0
 	github.com/riverqueue/river v0.45.0
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.45.0
+	github.com/riverqueue/river/rivertype v0.45.0
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/crypto v0.55.0
 	golang.org/x/sync v0.22.0
@@ -58,7 +57,6 @@ require (
 	github.com/opencontainers/runc v1.3.6 // indirect
 	github.com/riverqueue/river/riverdriver v0.45.0 // indirect
 	github.com/riverqueue/river/rivershared v0.45.0 // indirect
-	github.com/riverqueue/river/rivertype v0.45.0 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
