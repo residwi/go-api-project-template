@@ -216,7 +216,7 @@ proposing a feature that crosses a module boundary.
 
 ### Jobs and data
 
-- **Job delivery is at-least-once, and only one of the two jobs is idempotent.** A redelivery of the other one repeats its effect.
+- **Job delivery is at-least-once, and one of the three workers is not idempotent.** `payment.refund` is guarded by the payment's own status and `order.expire-stale` re-derives its work set, so a redelivery of either is a no-op; `notification.send` reads the row and hands it to the channel with no dedup, so a redelivery sends the message twice.
 - **`RescueStuckJobsAfter` is client-wide**, so a per-queue rescue window is not expressible — only a per-worker `Timeout()` is.
 - **The read replica is wired up with no protection against reading your own write.** `ReplicaDB` is a per-method choice, and nothing checks whether that method follows a write.
 - **A repository write can leak outside its own transaction with no test failing** — the transaction travels in `ctx`, so a method handed the wrong context still runs.

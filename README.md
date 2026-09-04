@@ -44,7 +44,7 @@ A production-ready Go API template: a modular monolith of hexagonal feature modu
 │   │       ├── config.go            # this module's own env vars
 │   │       │                        #   (auth, cart, notification, order, payment)
 │   │       ├── errors.go            # its own error sentinels (auth, payment)
-│   │       ├── queue.go             # the outbound job port (notification, payment)
+│   │       ├── job_queue.go         # the outbound job port (notification, payment)
 │   │       ├── channel.go           # the outbound Channel port (notification)
 │   │       ├── gateway.go           # the outbound Gateway port (payment)
 │   │       ├── cache.go             # the StatusCache port (user)

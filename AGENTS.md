@@ -21,10 +21,10 @@ If this file disagrees with the code, the code wins: say so and fix the file.
   - `errs/` — the five generic error kinds
   - `logger/` — `slog` setup, context attributes
   - `paging/` — cursor and offset pagination
-  - `queue/` — insert-only River client and the transaction-aware `Insert`
+  - `jobqueue/` — insert-only River client and the transaction-aware `Insert`
   - `slug/`, `storage/`
   - `identity/` — the `Identity` an authenticated caller carries (`UserID`, `Role`) and how it travels: `NewContext`, `FromContext`
-  - `web/` — `Middleware`, `Chain`, `Router`; `web/request/` (`Bind`, `RequireUser`, `ParseUUIDParam`, the validator); `web/response/` (envelope, `HandleErr`, `CursorPage`); `web/middleware/` (CORS, logging, recovery, request ID, `Auth`, `Require`/`RequireRole`, `RateLimit`) — every export is a `func(http.Handler) http.Handler`
+  - `web/` — `Middleware`, `Chain`, `Router`; `web/request/` (`Bind`, `RequireUser`, `ParseUUIDParam`, the validator); `web/response/` (envelope, `HandleErr`, `CursorPage`); `web/middleware/` (CORS, logging, recovery, request ID, `Auth`, `Require`/`RequireRole`, `RateLimit`) — each is a constructor returning `func(http.Handler) http.Handler`, except `RequestID`, which needs no configuration and is the handler wrapper itself
 - `internal/testutil/` — shared dockertest harness (Postgres + Redis containers)
 - `internal/worker/` — the jobs analogue of `server/`: owns the one working `river.Client`, its queue map and the order stale-sweep's `river.PeriodicJob`
 - `internal/money/` — a shared kernel: the `Money` value object. No `Service`, no store, no routes, imports nothing of this repository's. It sits outside `features/` because it is not one — every module may name it, and it names none of them
@@ -48,8 +48,12 @@ internal/features/<feature>/
   ports.go           every cross-module port this module consumes, one file
   contract.go        the struct types another module may name
   config.go          this module's own env vars
+  errors.go          sentinels only this module raises (auth, payment)
   domain/            aggregate types and rules -- private to the module
   channel.go         the outbound Channel port (notification only)
+  gateway.go         the outbound Gateway port and its request/response
+                     types (payment only)
+  cache.go           the outbound StatusCache port (user only)
   job_queue.go       the outbound job-enqueue port, named JobQueue
   service_test.go    mock-driven tests, package <feature>
   mocks_test.go      mockery output, in-package
@@ -58,7 +62,8 @@ internal/features/<feature>/
     http/            handlers plus their wire types
     redis/           the store behind a cache port (user only)
     jwt/             the Tokens port's implementation (auth only)
-    gateway/         the outbound Gateway port and its implementations (payment only)
+    gateway/         the Gateway port's implementations: stripe, midtrans, mock
+                     (payment only)
     channel/         the Channel port's log implementation (notification only)
     jobs/            job args, InsertOpts and a river.Worker; the only place in
                      the module that names river
@@ -147,11 +152,11 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 - **Handlers use the shared helpers.** Decode and validate with `request.Bind[T](w, r)`, read the caller with `request.RequireUser(w, r)`, return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks. `Bind` owns the validator — there is one shared `validator.New()` in the tree and a handler carries none; register a custom tag beside it, not per handler.
 - **Order status changes only through `order.Service.Apply`.** Every guarded transition is a named `domain.Transition` in `internal/features/order/domain/state.go`, carrying the statuses it may be applied from and a stock effect the adapter reads through `DeductsStock()`/`ReversesStock()`. Other modules depend on intent methods on their own port (`payment.Orders.MarkPaid`, `shipping.Orders.MarkShipped`), and the guard itself is the `WHERE status = ANY(...)` in `Repository.Apply`. Never write an ad-hoc from/to status list at a call site.
 - **Inventory reversal goes through `inventory.Service.Restore`.** It decides whether that means releasing a reservation or restocking deducted goods; callers supply the order's prior `StockState`, never the mechanics. `StockState` and `StockStateOf(deducted bool)` live in `inventory/contract.go` — do not reintroduce a private per-module copy of that conversion.
-- **Background jobs run on River.** `internal/platform/jobqueue` holds an insert-only client (`NewInsertClient`) and `Insert`, which type-asserts `database.PrimaryDB(ctx, db)` to `pgx.Tx` and uses `InsertTx` when the caller is inside a transaction — without that, an enqueue survives a business write that rolled back. Each module that has a job keeps an `adapter/jobs` package holding the args type, its `InsertOpts()` and a `river.Worker`, and that is the only place in the module naming `river`. The outbound port is `Queue`, unqualified, the way `repository.go` declares `Repository`. Never hand-roll a ticker, lease or poll loop: River owns polling, the leased claim, bounded concurrency, per-job timeouts and maintenance.
+- **Background jobs run on River.** `internal/platform/jobqueue` holds an insert-only client (`NewInsertClient`) and `Insert`, which type-asserts `database.PrimaryDB(ctx, db)` to `pgx.Tx` and uses `InsertTx` when the caller is inside a transaction — without that, an enqueue survives a business write that rolled back. Each module that has a job keeps an `adapter/jobs` package holding the args type, its `InsertOpts()` and a `river.Worker`, and that is the only place in the module naming `river`. The outbound port is `JobQueue`, declared in the module root's `job_queue.go` the way `repository.go` declares `Repository`, and the adapter type implementing it carries the same name. Never hand-roll a ticker, lease or poll loop: River owns polling, the leased claim, bounded concurrency, per-job timeouts and maintenance.
 - **New config invariants go in the owning type's own loader** — infra ones in `Settings.validate()`, module ones inline in that module's `LoadConfig`. An invariant relating **two** modules' values belongs to neither loader: it goes in `app.LoadConfig`, which is the first place both are in scope — a module reaching for a sibling's constant to check a rule is the shape to avoid. Misconfiguration must abort boot rather than surface later as a runtime error. Do not guard per use site.
 - **Request-scoped log attributes are named once, at the edge.** `logger.WithAttrs(ctx, ...)` stashes them and `logger.ContextHandler` merges them into every record below, so no function grows a parameter to carry `request_id`. An attribute may only be named at an edge that owns exactly one value — `order_id` stays at the call site because a command loops over batches. Naming an attribute at two points on one path emits the key twice; slog does not deduplicate.
 - **Exported `type`, `var` and `const` declarations come before unexported ones in a file.** Two exemptions: a `var _ Iface = (*T)(nil)` compile assertion stays adjacent to the type it asserts about, and a context-key type stays beside the functions that read it. The rule covers declarations, not every identifier: an unexported type carrying an exported method sits below the exported type it serves, which `funcorder`'s `struct-method` check requires. `funcorder.function: true` orders free functions too, and `make lint` catches it — but golangci-lint caches per package, so run `golangci-lint cache clean` before trusting a clean lint after a toolchain upgrade.
-- **No comments in Go source, except directives and a comment that names a specific regression or a non-obvious constant.** Directives always stay — every `//nolint:` (with its justification on the same line) and every `//go:`. What survives beyond them today is `internal/features/checkout/service.go`'s note above `if created && order.Total.Amount > 0` (without it the `created &&` guard reads as redundant, and deleting it reintroduces a double-charge bug) and `internal/features/auth/service.go`'s notes on `dummyPassword` and `maxPasswordBytes` (bcrypt limits that the code cannot state itself). A comment earns its place by naming what breaks without it, not by explaining what the line already says.
+- **No comments in Go source, except directives and a comment that names a specific regression or a non-obvious constant.** Directives always stay — every `//nolint:` (with its justification on the same line) and every `//go:`. What survives beyond them today is `internal/app/config.go`'s note above the payment-timeout check (why a rule spanning two modules is validated where both values are in scope, and what races if it is not) and `internal/features/auth/service.go`'s notes on `dummyPassword` and `maxPasswordBytes` (bcrypt limits that the code cannot state itself). A comment earns its place by naming what breaks without it, not by explaining what the line already says.
 - **Prefer duplication over an abstraction that does not quite fit.**
 - **Commit messages** use conventional-commit prefixes, matching surrounding history (`refactor(cart): …`, `docs(db): …`, `test(e2e): …`).
 
@@ -186,7 +191,7 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 │   └────────────────────────────────────────────────┘         │
 │                     │                                        │
 │              internal/platform                               │
-│   database │ cache │ queue │ web │ errs │ logger │ paging    │
+│  database │ cache │ jobqueue │ web │ errs │ logger │ paging   │
 │                     │                                        │
 │              PostgreSQL + Redis                              │
 └──────────────────────────────────────────────────────────────┘
@@ -210,13 +215,13 @@ Every other component is one package named for itself, and the rings run from th
 | `internal/app`, `internal/server`, `internal/worker` | everything (`anyProjectDeps`) — the wiring layer composes adapters, serves HTTP and starts River, so enumerating what it may see asserts nothing that could ever fail |
 | `cmd/api`, `cmd/worker` | `server` and `worker` respectively, nothing more |
 
-The common components — `money`, `apperror`, `errs`, `identity`, `paging`, `slug` — are importable from anywhere and import nothing of ours. A platform package is nearly as strict: `queue` may name `database` and `web` may name `logger`, while `database`, `cache`, `storage`, `logger`, `config` and `testutil` reach only the common components.
+The common components — `money`, `apperror`, `errs`, `identity`, `paging`, `slug` — are importable from anywhere and import nothing of ours. A platform package is nearly as strict: `jobqueue` may name `database` and `web` may name `logger`, while `database`, `cache`, `storage`, `logger`, `config` and `testutil` reach only the common components.
 
 So these fail the build: a feature importing `internal/server`; a `Service` importing `platform/web`, `platform/jobqueue`, `platform/cache` or `platform/storage`; a `domain/` package reaching for `database` or for another feature; and **a `Service` importing its own adapter**, which is the one that matters most — a service depends on the port it declares, never on the thing that implements it.
 
 A module may publish more than one view of the same aggregate when consumers drive different parts of it: `order.Snapshot` is what any consumer may know, and `order.FulfilmentSnapshot` embeds it and adds the compensation state only the refund path drives. Prefer that over one wide struct every consumer can branch on.
 
-A `domain/` package depends on nothing of ours but the common components. A domain type that wants another module's data means one of two things: the type is a result crossing the service boundary rather than an entity, in which case it belongs in `contract.go` — or the entity needs its own shape and the service maps at the port, the way `product` holds its own `Availability` rather than `inventory`'s. An outbound port and the types its signatures name both live in the module root, beside `queue.go` and `channel.go`: `payment/gateway.go` holds `Gateway` and its `GatewayChargeRequest`/`GatewayChargeResponse` pair, and `adapter/gateway/{stripe,midtrans,mock}` implement it. A port written in adapter types would force the core to import an adapter, which is the one thing these rules exist to prevent.
+A `domain/` package depends on nothing of ours but the common components. A domain type that wants another module's data means one of two things: the type is a result crossing the service boundary rather than an entity, in which case it belongs in `contract.go` — or the entity needs its own shape and the service maps at the port, the way `product` holds its own `Availability` rather than `inventory`'s. An outbound port and the types its signatures name both live in the module root, beside `job_queue.go` and `channel.go`: `payment/gateway.go` holds `Gateway` and its `GatewayChargeRequest`/`GatewayChargeResponse` pair, and `adapter/gateway/{stripe,midtrans,mock}` implement it. A port written in adapter types would force the core to import an adapter, which is the one thing these rules exist to prevent.
 
 A component whose glob matches no directory is a hard config error, so the config cannot drift from the tree. What it does not see: anything that is not an import. `cmd/` is in scope; `_test.go` files are not.
 
@@ -240,7 +245,7 @@ A component whose glob matches no directory is a hard config error, so the confi
 ## Testing Strategy and Rules
 
 - **Framework.** `testing` + `stretchr/testify`. `require` when the test cannot continue without the value, `assert` for soft checks.
-- **Mocks are generated** by mockery v3 from `.mockery.yml`, **in-package**, as `mocks_test.go` beside the interface they mock. A `_test.go` file never enters its package's importable `GoFiles`, so a mock is private to that package, cannot cycle back, and keeps every `Mock*` name out of the module's exported API. `.mockery.yml` is one recursive rule rooted at `internal/` with `all: true` and no per-interface list. Run `make mocks`; never hand-edit the output. Use the expecter API, never `On`:
+- **Mocks are generated** by mockery v3 from `.mockery.yml`, **in-package**, as `mocks_test.go` beside the interface they mock. A `_test.go` file never enters its package's importable `GoFiles`, so a mock is private to that package, cannot cycle back, and keeps every `Mock*` name out of the module's exported API. `.mockery.yml` is one recursive rule rooted at `internal/` with `all: true`, plus a short opt-out list of packages set to `all: false` — `payment/adapter/gateway`, `platform/database`, `platform/storage` and `platform/web/request`, whose interfaces no test mocks. Exclude a package there rather than listing interfaces one by one. Run `make mocks`; never hand-edit the output. Use the expecter API, never `On`:
 
   ```go
   repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)   // correct
