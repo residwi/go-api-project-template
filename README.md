@@ -1,12 +1,12 @@
 # Go API Project Template (ecommerce)
 
-A production-ready Go API template built on feature modules with machine-checked layers.
+A production-ready Go API template: a modular monolith of hexagonal feature modules, with layer rules enforced by go-arch-lint.
 
 ## Features
 
 - **Go 1.26+** with the new `ServeMux` routing
-- **Feature modules with machine-checked layers** — 14 features, one `Service` each, plus a `checkout` bounded context and a `money` shared kernel
-- **Two binaries**: API server (`cmd/api`) and Payment Job Worker (`cmd/worker`)
+- **Modular monolith** — feature modules, each a hexagon with its own domain, ports and adapters; layer rules enforced by go-arch-lint
+- **Two binaries**: API server (`cmd/api`) and job worker (`cmd/worker`)
 - **PostgreSQL 16+** with `pgx/v5` driver (requires `gen_random_uuid()`)
 - **Redis 8.0+** caching with `go-redis/v9` (requires `HSETEX`)
 - **JWT Authentication** with RBAC (Role-Based Access Control)
@@ -23,128 +23,83 @@ A production-ready Go API template built on feature modules with machine-checked
 
 ## Project Structure
 
-Feature modules sit under `/internal/features` — one directory per module,
-sixteen of them. A module is **one flat package plus an `adapter/`
-directory**: `service.go` declaring one exported `Service`, `repository.go`
-for its storage port, `ports.go` for what it needs from other modules,
-`contract.go` for what other modules may name, a `domain/` for its aggregate,
-and an `adapter/` holding one subpackage per technology it speaks. Adapters
-are named for their technology and a module only has the ones it needs, so the
-tree is deliberately **non-uniform** — `auth` has no store at all, `user` has
-two.
-
-**A module names no URL.** Every route in the system is declared in
-`/internal/server/router.go` — one function, 65 routes, fifteen labelled
-blocks. A module supplies a handler with exported route methods; the transport
-decides the verb, the path and the middleware group.
-
 ```text
 /go-api-project-template
 ├── /cmd
-│   ├── /api                    # API server entry point
-│   ├── /worker                 # Payment + notification + order job worker
+│   ├── /api                    # API server entry point (server.Run)
+│   ├── /worker                 # Job worker entry point (worker.Run)
 │   └── /mockgateway            # Dev-only mock payment gateway
+│       └── /mockserver         #   its handlers, mountable in-process
 ├── /internal
-│   ├── /modules                # 16 directories: 14 features, plus:
-│   │   ├── /checkout           #   a bounded context orchestrating order+payment
-│   │   ├── /money              #   a shared kernel: the Money value object
+│   ├── /features               # One directory per feature module:
+│   │   ├── /checkout           #   a bounded context orchestrating order+payment;
+│   │   │                       #   owns no table, no domain/, no store
 │   │   └── /auth /user /category /product /inventory /cart /order /payment
-│   │       /review /promotion /wishlist /notification /dashboard /shipping
+│   │       /shipping /review /promotion /wishlist /notification /dashboard
 │   │       ├── service.go           # one exported Service and New; New takes
-│   │       │                        # positional parameters, no Deps struct
+│   │       │                        #   positional parameters, no Deps struct
 │   │       ├── repository.go        # the storage port; adapter/postgres satisfies it
-│   │       ├── ports.go             # what this module needs from others (9 of 16)
-│   │       ├── contract.go          # what other modules may name (8 of 16)
-│   │       ├── config.go            # this module's own env vars (4 of 16)
-│   │       ├── domain/              # aggregate types + rules; the innermost
-│   │       │                        # ring, touches no infrastructure (14 of 16)
-│   │       ├── queue.go             # the outbound job port -- payment, notification only
-│   │       └── adapter/
-│   │           ├── postgres/        # SQL adapter, where the module has SQL (13)
-│   │           ├── http/            # handlers + their wire types (15)
-│   │           ├── redis/           # user only: its StatusCache port's store
-│   │           ├── gateway/         # payment only: the outbound Gateway port
-│   │           ├── channel/         # notification only: the outbound Channel port
-│   │           └── jobs/            # job args + river.Worker -- payment, notification, order (3)
-│   ├── /apperror               # Seven cross-module business sentinels, each a
-│   │                           # wrap of a platform/errs kind
-│   ├── /app                    # The composition root: builds every Service,
-│   │                           # wires every cross-module port by name-match
+│   │       ├── ports.go             # what this module needs from other modules
+│   │       ├── contract.go          # the structs other modules may name
+│   │       ├── config.go            # this module's own env vars
+│   │       │                        #   (auth, cart, notification, order, payment)
+│   │       ├── errors.go            # its own error sentinels (auth, payment)
+│   │       ├── queue.go             # the outbound job port (notification, payment)
+│   │       ├── channel.go           # the outbound Channel port (notification)
+│   │       ├── gateway.go           # the outbound Gateway port (payment)
+│   │       ├── cache.go             # the StatusCache port (user)
+│   │       ├── domain/              # aggregate types + rules; the innermost ring,
+│   │       │                        #   touches no infrastructure
+│   │       └── adapter/             # only the subpackages the module needs:
+│   │           ├── postgres/        #   SQL adapter
+│   │           ├── http/            #   handlers + their wire types
+│   │           ├── redis/           #   user only: the StatusCache store
+│   │           ├── jwt/             #   auth only: the Tokens port
+│   │           ├── gateway/         #   payment only: stripe/ midtrans/ mock/
+│   │           ├── channel/         #   notification only: the log channel
+│   │           └── jobs/           #   job args + river.Worker
+│   │                               #   (notification, order, payment)
+│   ├── /app                    # The composition root: builds every Service and
+│   │                           # wires every cross-module port
+│   ├── /apperror               # Cross-module business sentinels, each a wrap of
+│   │                           # a platform/errs kind
 │   ├── /config                 # This app's infra env vars -- rewritten per project,
 │   │                           # which is why it sits outside /platform
-│   ├── /money                  # The Money value object: a shared kernel every
-│   │                           # module may name and that names none of them
+│   ├── /money                  # The Money value object: every module may name it,
+│   │                           # it names none of them
 │   ├── /server                 # server.go (Run) and router.go (NewRouter, health,
-│   │                           # routes). It mounts middleware; it holds none
-│   ├── /worker                 # The river.Client analogue of internal/server: owns
-│   │                           # the one working client, the queue map, and the
-│   │                           # order stale-sweep's river.PeriodicJob
-│   ├── /platform               # Infrastructure, no domain knowledge. Module-owned
-│   │   │                       # config (JWT, cart limits, payment gateway, ...)
-│   │   │                       # lives in each module's own config.go
-│   │   ├── /database           # Postgres pools, transactions, TxRunner
-│   │   ├── /errs               # The five status-carrying generic error kinds
-│   │   ├── /identity           # Identity (UserID, Role) and its context plumbing
-│   │   ├── /queue              # NewInsertClient + a transaction-aware Insert
-│   │   ├── /web                # Middleware, Chain, Router -- a tree of its own:
-│   │   │   ├── /request        #   Bind (validator included), RequireUser,
-│   │   │   │                   #   ParseUUIDParam
-│   │   │   ├── /response       #   the envelope, HandleErr, CursorPage
-│   │   │   └── /middleware     #   CORS, Logging, Recovery, RequestID, Auth,
-│   │   │                       #   Require/RequireRole, RateLimit
-│   │   └── /cache /logger /paging /slug /storage
+│   │                           # every route). It mounts middleware; it holds none
+│   ├── /worker                 # The river.Client analogue of /server: the one
+│   │                           # working client, its queue map, its periodic job
+│   ├── /platform               # Infrastructure, no feature knowledge:
+│   │   ├── /database           #   pools, transactions, TxRunner, keyset helpers
+│   │   ├── /cache              #   Redis client
+│   │   ├── /jobqueue           #   NewInsertClient + a transaction-aware Insert
+│   │   ├── /errs               #   the five status-carrying error kinds
+│   │   ├── /identity           #   Identity (UserID, Role) and its context plumbing
+│   │   ├── /logger             #   slog setup and context attributes
+│   │   ├── /paging             #   cursor and offset pagination
+│   │   ├── /slug /storage      #   slug generation, file storage
+│   │   └── /web                #   Middleware, Chain, Router -- a tree of its own:
+│   │       ├── /request        #     Bind (validator included), RequireUser,
+│   │       │                   #     ParseUUIDParam
+│   │       ├── /response       #     the envelope, HandleErr, CursorPage
+│   │       └── /middleware     #     CORS, Logging, Recovery, RequestID, Auth,
+│   │                           #     Require/RequireRole, RateLimit
 │   └── /testutil               # Shared container plumbing for tests
 ├── /test/e2e                   # Cross-module sagas through the real router
 ├── /db
 │   ├── /migrations             # goose migrations
 │   └── /seeds                  # Seed data
 ├── .go-arch-lint.yml           # Layer rules, enforced by `make check-arch`
-├── AGENTS.md                   # Working rules, and which are machine-checked
-└── ARCHITECTURE.md             # Why the codebase is shaped this way, what it
-                                #   costs, and what it makes hard
+├── .mockery.yml                # In-package mock generation (make mocks)
+├── AGENTS.md                   # Working rules for humans and agents
+└── ARCHITECTURE.md             # Why the codebase is shaped this way
 ```
 
-No module holds a directory at its root outside `domain/` and `adapter/` —
-`payment/gateway/` (the outbound `Gateway` port plus its three real
-implementations — `stripe/ midtrans/ mock/`, picked once from
-`PAYMENT_GATEWAY`) lives under `payment/adapter/gateway/` now. Background
-jobs run on [River](https://riverqueue.com) rather than a hand-rolled queue:
-`internal/platform/queue` holds exactly two functions — an insert-only
-`river.Client` constructor and a transaction-aware `Insert` — and each of
-`payment`, `notification` and `order` gained an `adapter/jobs` holding its
-job args and its `river.Worker`. Payment and notification each declare their
-outbound port in their own root `queue.go`; order enqueues nothing, since its
-stale sweep is a `river.PeriodicJob` instead. `internal/worker` is new: it
-owns the one working `river.Client` for the process, the queue map, and that
-periodic job.
-
-Mocks are generated by mockery v3 as a private `mocks_test.go` beside the
-interface they mock, in-package — there is no top-level `/mocks` directory.
-
-`make check-arch` runs [go-arch-lint](https://github.com/fe3dback/go-arch-lint)
-against `.go-arch-lint.yml` and fails the build on any import that crosses a
-ring the wrong way, or that reaches into another feature's internals:
-
-- Each feature is three components: `ft-<feature>` is the public root, while
-  `ft-<feature>-domain` and `ft-<feature>-adapter` are private to it. Only the
-  owning feature names its own two, so `cart` importing `order/domain` — or
-  `order/adapter/postgres` — fails. Features talk through root packages, which
-  means ports and contracts.
-- `domain/` is the innermost ring. It depends on nothing — not infrastructure,
-  and not another feature. A domain package importing anything of ours fails.
-- A `Service` depends on the ports it declares, never on the adapters that
-  implement them. A service importing its own `adapter/postgres` fails.
-- Transport and drivers — `platform/web`, `queue`, `cache`, `storage` — are
-  reachable from adapters and the wiring layer (`internal/app`,
-  `internal/server`, `internal/worker`, `internal/testutil`), never from a
-  `Service`. A service importing any of them fails.
-- No feature may import `internal/server`, so no binary links HTTP just by
-  constructing a module.
-
-A component whose glob matches no directory is a hard config error, so the
-config cannot drift from the tree. It reads imports and nothing else: wire-tag
-placement, table ownership and module privacy are conventions `AGENTS.md`
-records and no tool enforces.
+What a module holds, which imports `make check-arch` refuses, and what the
+shape costs are all in **[ARCHITECTURE.md](ARCHITECTURE.md)**;
+[AGENTS.md](AGENTS.md) carries the day-to-day working rules.
 
 ## Getting Started
 
@@ -370,65 +325,84 @@ GET /api/admin/dashboard/revenue       # Revenue analytics
 
 ### API Response Format
 
-All responses follow a standard envelope format:
+Every response is the same three-field envelope, declared once in
+`internal/platform/web/response`:
 
-**Success Response:**
+**Success:**
 
 ```json
 {
   "success": true,
-  "data": { ... },
-  "meta": {
-    "pagination": {
-      "page": 1,
-      "page_size": 20,
-      "total": 100,
-      "total_pages": 5
-    }
-  },
-  "timestamp": "2024-01-01T00:00:00Z",
-  "request_id": "abc123"
+  "data": { ... }
 }
 ```
 
-**Error Response:**
+**Paginated list** — pagination sits inside `data`, beside `items`. Public
+endpoints are cursor-paginated, admin endpoints offset-paginated:
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [...],
+    "pagination": { "next_cursor": "MjAyNi0wOS0wNFQx...", "has_more": true }
+  }
+}
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [...],
+    "pagination": { "current_page": 1, "page_size": 20, "total_items": 100, "total_pages": 5 }
+  }
+}
+```
+
+**Error:**
+
+```json
+{
+  "success": false,
+  "error": { "message": "order not found" }
+}
+```
+
+**Validation error** (422) — `details` maps each field to one message:
 
 ```json
 {
   "success": false,
   "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Validation failed",
-    "details": [
-      {
-        "field": "email",
-        "message": "email is required"
-      }
-    ]
-  },
-  "timestamp": "2024-01-01T00:00:00Z",
-  "request_id": "abc123"
+    "message": "validation failed",
+    "details": {
+      "email": "must be a valid email address",
+      "quantity": "this field is required"
+    }
+  }
 }
 ```
 
 ### Query Parameters
 
-#### Pagination
+**Pagination.** Cursor for public lists, offset for admin lists. Both default
+to 20 per page and cap at 100:
 
 ```
-GET /api/products?page=1&page_size=20
+GET /api/products?cursor=<opaque>&limit=20
+GET /api/admin/products?page=1&page_size=20
 ```
 
-#### Sorting
+**Filtering.** Each endpoint reads only the parameters it supports, and there is
+no generic sort parameter:
 
 ```
-GET /api/products?sort_by=created_at&sort_dir=desc
-```
-
-#### Filtering
-
-```
-GET /api/products?category=electronics&q=phone
+GET /api/products?search=phone&category_id=<uuid>&min_price=1000&max_price=50000
+GET /api/admin/orders?status=paid
+GET /api/admin/payments?status=succeeded&order_id=<uuid>
+GET /api/admin/users?search=ada&role=admin&active=true
+GET /api/admin/dashboard/revenue?from=2026-01-01&to=2026-01-31
 ```
 
 ### Authentication
@@ -441,13 +415,10 @@ Authorization: Bearer <access_token>
 
 ## Worker (payment + notification + order job queues)
 
-The project includes a separate worker binary built on
-[River](https://riverqueue.com), a Postgres-backed job queue. `cmd/worker`
-is a thin `main` calling `worker.Run()`; `internal/worker` builds the one
-working `river.Client` for the process, registers one `river.Worker` per job
-kind — `payment/adapter/jobs.RefundWorker`, `notification/adapter/jobs.SendWorker`,
-`order/adapter/jobs.ExpireStaleWorker` — and runs three queues (`payment`,
-`notification`, `order`) side by side.
+A separate binary on [River](https://riverqueue.com), a Postgres-backed queue.
+`cmd/worker` is a thin `main` calling `worker.Run()`; `internal/worker` builds
+the one `river.Client` for the process and runs the `payment`, `notification`
+and `order` queues side by side.
 
 ```bash
 # Build worker
@@ -457,36 +428,14 @@ make build-worker
 make run-worker
 ```
 
-Payment and notification enqueue through their own outbound port
-(`payment.Queue`, `notification.Queue`), each implemented in the
-module's own `adapter/jobs` package against
-`internal/platform/queue.Insert` — which joins the caller's open transaction
-when there is one (type-asserting `database.PrimaryDB` to `pgx.Tx`), so an
-enqueue never survives a business write that rolls back. Order enqueues
-nothing: its stale sweep is a `river.PeriodicJob` declared in
-`internal/worker`, run on `ORDER_JOB_INTERVAL` with `RunOnStart: true`, so a
-long outage yields one sweep on restart rather than a backlog of missed
-runs — the schedule is no longer a durable row the way the old
-self-scheduling job's dedup key was.
-
-River owns fetch batching, retries and its own maintenance, so there is no
-`WORKER_BATCH_SIZE` or prune settings to configure any more. What is left:
-
-- `WORKER_RESCUE_AFTER` — how long a job may sit `running` before River's
-  client-wide rescuer reclaims it as stuck (default: 5m). The worker refuses
-  to start if this is not below the order module's 15-minute
-  stale-processing threshold, since a rescue that fires while a charge is
-  genuinely still in flight can revert an order out from under it.
-- `PAYMENT_JOB_CONCURRENCY` / `NOTIFICATION_JOB_CONCURRENCY` /
-  `ORDER_JOB_CONCURRENCY` — max concurrent workers per queue.
-- `PAYMENT_JOB_TIMEOUT` / `NOTIFICATION_JOB_TIMEOUT` / `ORDER_JOB_TIMEOUT` —
-  each worker's own `Timeout()`, validated in that module's `LoadConfig`
-  (payment's must be at least 3× `PAYMENT_GATEWAY_TIMEOUT`).
-- `ORDER_JOB_INTERVAL` — the stale sweep's recurrence period.
-- `PAYMENT_JOB_INTERVAL` / `NOTIFICATION_JOB_INTERVAL` — still validated
-  (must be at least 5s) but no longer read anywhere: River's own client
-  polls continuously and does not take a per-queue interval, and nothing
-  else in `internal/worker` consumes these two fields today.
+Enqueueing goes through `platform/jobqueue.Insert`, which joins the caller's open
+transaction when there is one, so an enqueue never survives a business write
+that rolls back. Every `*_JOB_*` and `WORKER_*` setting is listed under
+[Environment Variables](#environment-variables); one of them is a startup
+invariant rather than a preference — the worker refuses to start unless
+`WORKER_RESCUE_AFTER` is below the order module's stale-processing threshold,
+since a rescue firing while a charge is still in flight can revert an order out
+from under it. `ARCHITECTURE.md` decision 18 explains the rest.
 
 ## Available Make Commands
 
@@ -495,6 +444,7 @@ make help             # Show all commands
 make build            # Build all binaries (API + worker)
 make build-api        # Build the API server
 make build-worker     # Build the worker
+make build-mockgateway # Build the dev-only mock payment gateway
 make run              # Run the API server
 make run-worker       # Run the worker
 make dev              # Run with hot reload
@@ -506,7 +456,9 @@ make check-arch       # Run the architectural layer rules
 make lint             # Run linter
 make fmt              # Format code
 make vet              # Run go vet
+make vuln             # Run govulncheck
 make tidy             # Tidy go modules
+make clean            # Remove build output and coverage files
 make mocks            # Generate mocks
 make docker-up        # Start postgres and redis
 make docker-dev       # Start all services with hot reload (API + worker)
@@ -523,6 +475,8 @@ make migrate-status   # Show migration status
 make migrate-version  # Show current migration version
 make db-create        # Create the database
 make db-drop          # Drop the database
+make seed             # Apply db/seeds/data.sql
+make migrate-install  # Install the goose and river CLIs
 make setup            # Setup development environment
 make deps             # Download dependencies
 make all              # Run all checks and build
@@ -577,127 +531,82 @@ without `build`.
 
 ## Environment Variables
 
-See `.env.example` for all available configuration options.
+`.env.example` is the exhaustive list. The table below covers everything except
+the Redis connection-pool group (`REDIS_POOL_SIZE`, `REDIS_MIN_IDLE_CONNS`,
+`REDIS_DIAL_TIMEOUT`, `REDIS_READ_TIMEOUT`, `REDIS_WRITE_TIMEOUT`,
+`REDIS_POOL_TIMEOUT`), which is tuning rather than configuration.
 
 Key variables:
 
-| Variable                        | Description                                    | Default                                                   |
-| ------------------------------- | ---------------------------------------------- | --------------------------------------------------------- |
-| `APP_NAME`                      | Application name                               | `ecommerce-api`                                           |
-| `APP_ENV`                       | Environment (development, staging, production) | `development`                                             |
-| `APP_PORT`                      | Server port                                    | `8080`                                                    |
-| `APP_READ_TIMEOUT`              | HTTP read timeout                              | `15s`                                                     |
-| `APP_WRITE_TIMEOUT`             | HTTP write timeout                             | `15s`                                                     |
-| `APP_IDLE_TIMEOUT`              | HTTP idle timeout                              | `60s`                                                     |
-| `APP_SHUTDOWN_TIMEOUT`          | Graceful shutdown timeout                      | `30s`                                                     |
-| `MAX_CART_ITEMS`                | Maximum items per cart                         | `50`                                                      |
-| `ORDER_RATE_LIMIT`              | Order rate limit per user                      | `5`                                                       |
-| `ORDER_RATE_WINDOW`             | Order rate limit window                        | `1m`                                                      |
-| `DB_HOST`                       | Database host                                  | `localhost`                                               |
-| `DB_PORT`                       | Database port                                  | `5432`                                                    |
-| `DB_USER`                       | Database user                                  | `postgres`                                                |
-| `DB_PASSWORD`                   | Database password                              | `postgres`                                                |
-| `DB_NAME`                       | Database name                                  | `ecommerce`                                               |
-| `DB_SSLMODE`                    | Database SSL mode                              | `disable`                                                 |
-| `DB_MAX_CONNS`                  | Max database connections                       | `25`                                                      |
-| `DB_MIN_CONNS`                  | Min database connections                       | `5`                                                       |
-| `DB_MAX_CONN_LIFETIME`          | Max connection lifetime                        | `1h`                                                      |
-| `DB_MAX_CONN_IDLE_TIME`         | Max connection idle time                       | `30m`                                                     |
-| `DB_STATEMENT_TIMEOUT`          | Statement timeout                              | `30s`                                                     |
-| `DB_IDLE_IN_TX_SESSION_TIMEOUT` | Idle in transaction timeout                    | `60s`                                                     |
-| `REPLICA_DATABASE_URL`           | Read replica URL — now load-bearing: set it and `dashboard`, plus the read-only paths of `order`, `product`, `promotion` and `user`, read from the replica instead of the primary | — |
-| `REDIS_HOST`                    | Redis host                                     | `localhost`                                               |
-| `REDIS_PORT`                    | Redis port                                     | `6379`                                                    |
-| `REDIS_PASSWORD`                | Redis password                                 | —                                                         |
-| `REDIS_DB`                      | Redis database index                           | `0`                                                       |
-| `JWT_SECRET`                    | JWT signing key                                | —                                                         |
-| `JWT_ACCESS_TTL`                | Access token TTL                               | `15m`                                                     |
-| `JWT_REFRESH_TTL`               | Refresh token TTL                              | `168h`                                                    |
-| `JWT_ISSUER`                    | JWT issuer                                     | `ecommerce-api`                                           |
-| `AUTH_RATE_LIMIT`               | Login rate limit per IP                        | `10`                                                      |
-| `AUTH_RATE_WINDOW`              | Login rate limit window                        | `1m`                                                      |
-| `BCRYPT_COST`                   | Password hashing cost                          | `10`                                                      |
-| `LOG_LEVEL`                     | Logging level (debug, info, warn, error)       | `info`                                                    |
-| `LOG_FORMAT`                    | Log format (json, text)                        | `json`                                                    |
-| `CORS_ALLOWED_ORIGINS`          | CORS allowed origins                           | `*`                                                       |
-| `CORS_ALLOWED_METHODS`          | CORS allowed methods                           | `GET,POST,PUT,DELETE,OPTIONS`                             |
-| `CORS_ALLOWED_HEADERS`          | CORS allowed headers                           | `Content-Type,Authorization,X-Request-ID,Idempotency-Key` |
-| `CORS_MAX_AGE`                  | CORS max age (seconds)                         | `86400`                                                   |
-| `WORKER_RESCUE_AFTER`           | How long a job can sit `running` before River's client-wide rescuer reclaims it as stuck | `5m` |
-| `PAYMENT_JOB_INTERVAL`       | Validated (>= 5s), but unread since the move to River — see Worker section | `10s` |
-| `PAYMENT_JOB_CONCURRENCY`    | Payment queue concurrent processors            | `5`                                                       |
-| `PAYMENT_JOB_TIMEOUT`        | Payment refund worker's per-job timeout          | `2m`                                                      |
-| `NOTIFICATION_JOB_INTERVAL`  | Validated (>= 5s), but unread since the move to River — see Worker section | `5s` |
-| `NOTIFICATION_JOB_CONCURRENCY` | Notification queue concurrent processors     | `10`                                                      |
-| `NOTIFICATION_JOB_TIMEOUT`   | Notification send worker's per-job timeout       | `30s`                                                     |
-| `ORDER_JOB_INTERVAL`         | Order queue poll interval                      | `1m`                                                      |
-| `ORDER_JOB_CONCURRENCY`      | Order queue concurrent processors              | `1`                                                       |
-| `ORDER_JOB_TIMEOUT`          | Order stale-sweep worker's per-job timeout       | `2m`                                                      |
-| `PAYMENT_GATEWAY`               | Payment gateway provider                       | `mock`                                                    |
-| `PAYMENT_GATEWAY_URL`           | Payment gateway URL                            | —                                                         |
-| `PAYMENT_GATEWAY_TIMEOUT`       | Payment gateway timeout                        | `10s`                                                     |
-| `PAYMENT_GATEWAY_API_KEY`       | Payment gateway API key                        | —                                                         |
-| `PAYMENT_WEBHOOK_SECRET`        | Payment webhook secret                         | —                                                         |
+| Variable                        | Description                                                                                                                                                                       | Default                                                   |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `APP_NAME`                      | Application name                                                                                                                                                                  | `ecommerce-api`                                           |
+| `APP_ENV`                       | Environment (development, staging, production)                                                                                                                                    | `development`                                             |
+| `APP_PORT`                      | Server port                                                                                                                                                                       | `8080`                                                    |
+| `APP_READ_TIMEOUT`              | HTTP read timeout                                                                                                                                                                 | `15s`                                                     |
+| `APP_WRITE_TIMEOUT`             | HTTP write timeout                                                                                                                                                                | `15s`                                                     |
+| `APP_IDLE_TIMEOUT`              | HTTP idle timeout                                                                                                                                                                 | `60s`                                                     |
+| `APP_SHUTDOWN_TIMEOUT`          | Graceful shutdown timeout                                                                                                                                                         | `30s`                                                     |
+| `MAX_CART_ITEMS`                | Maximum items per cart                                                                                                                                                            | `50`                                                      |
+| `ORDER_RATE_LIMIT`              | Order rate limit per user                                                                                                                                                         | `5`                                                       |
+| `ORDER_RATE_WINDOW`             | Order rate limit window                                                                                                                                                           | `1m`                                                      |
+| `DB_HOST`                       | Database host                                                                                                                                                                     | `localhost`                                               |
+| `DB_PORT`                       | Database port                                                                                                                                                                     | `5432`                                                    |
+| `DB_USER`                       | Database user                                                                                                                                                                     | `postgres`                                                |
+| `DB_PASSWORD`                   | Database password                                                                                                                                                                 | `postgres`                                                |
+| `DB_NAME`                       | Database name                                                                                                                                                                     | `ecommerce`                                               |
+| `DB_SSLMODE`                    | Database SSL mode                                                                                                                                                                 | `disable`                                                 |
+| `DB_MAX_CONNS`                  | Max database connections                                                                                                                                                          | `25`                                                      |
+| `DB_MIN_CONNS`                  | Min database connections                                                                                                                                                          | `5`                                                       |
+| `DB_MAX_CONN_LIFETIME`          | Max connection lifetime                                                                                                                                                           | `1h`                                                      |
+| `DB_MAX_CONN_IDLE_TIME`         | Max connection idle time                                                                                                                                                          | `30m`                                                     |
+| `DB_STATEMENT_TIMEOUT`          | Statement timeout                                                                                                                                                                 | `30s`                                                     |
+| `DB_IDLE_IN_TX_SESSION_TIMEOUT` | Idle in transaction timeout                                                                                                                                                       | `60s`                                                     |
+| `REPLICA_DATABASE_URL`          | Read replica URL — now load-bearing: set it and `dashboard`, plus the read-only paths of `order`, `product`, `promotion` and `user`, read from the replica instead of the primary | —                                                         |
+| `REDIS_HOST`                    | Redis host                                                                                                                                                                        | `localhost`                                               |
+| `REDIS_PORT`                    | Redis port                                                                                                                                                                        | `6379`                                                    |
+| `REDIS_PASSWORD`                | Redis password                                                                                                                                                                    | —                                                         |
+| `REDIS_DB`                      | Redis database index                                                                                                                                                              | `0`                                                       |
+| `JWT_SECRET`                    | JWT signing key                                                                                                                                                                   | —                                                         |
+| `JWT_ACCESS_TTL`                | Access token TTL                                                                                                                                                                  | `15m`                                                     |
+| `JWT_REFRESH_TTL`               | Refresh token TTL                                                                                                                                                                 | `168h`                                                    |
+| `JWT_ISSUER`                    | JWT issuer                                                                                                                                                                        | `ecommerce-api`                                           |
+| `AUTH_RATE_LIMIT`               | Login rate limit per IP                                                                                                                                                           | `10`                                                      |
+| `AUTH_RATE_WINDOW`              | Login rate limit window                                                                                                                                                           | `1m`                                                      |
+| `BCRYPT_COST`                   | Password hashing cost                                                                                                                                                             | `10`                                                      |
+| `LOG_LEVEL`                     | Logging level (debug, info, warn, error)                                                                                                                                          | `info`                                                    |
+| `LOG_FORMAT`                    | Log format (json, text)                                                                                                                                                           | `json`                                                    |
+| `CORS_ALLOWED_ORIGINS`          | CORS allowed origins                                                                                                                                                              | `*`                                                       |
+| `CORS_ALLOWED_METHODS`          | CORS allowed methods                                                                                                                                                              | `GET,POST,PUT,DELETE,OPTIONS`                             |
+| `CORS_ALLOWED_HEADERS`          | CORS allowed headers                                                                                                                                                              | `Content-Type,Authorization,X-Request-ID,Idempotency-Key` |
+| `CORS_MAX_AGE`                  | CORS max age (seconds)                                                                                                                                                            | `86400`                                                   |
+| `WORKER_RESCUE_AFTER`           | How long a job can sit `running` before River's client-wide rescuer reclaims it as stuck                                                                                          | `5m`                                                      |
+| `PAYMENT_JOB_INTERVAL`          | Validated (>= 5s), but unread since the move to River — see Worker section                                                                                                        | `10s`                                                     |
+| `PAYMENT_JOB_CONCURRENCY`       | Payment queue concurrent processors                                                                                                                                               | `5`                                                       |
+| `PAYMENT_JOB_TIMEOUT`           | Payment refund worker's per-job timeout                                                                                                                                           | `2m`                                                      |
+| `NOTIFICATION_JOB_INTERVAL`     | Validated (>= 5s), but unread since the move to River — see Worker section                                                                                                        | `5s`                                                      |
+| `NOTIFICATION_JOB_CONCURRENCY`  | Notification queue concurrent processors                                                                                                                                          | `10`                                                      |
+| `NOTIFICATION_JOB_TIMEOUT`      | Notification send worker's per-job timeout                                                                                                                                        | `30s`                                                     |
+| `ORDER_JOB_INTERVAL`            | Order queue poll interval                                                                                                                                                         | `1m`                                                      |
+| `ORDER_JOB_CONCURRENCY`         | Order queue concurrent processors                                                                                                                                                 | `1`                                                       |
+| `ORDER_JOB_TIMEOUT`             | Order stale-sweep worker's per-job timeout                                                                                                                                        | `2m`                                                      |
+| `PAYMENT_GATEWAY`               | Payment gateway provider                                                                                                                                                          | `mock`                                                    |
+| `PAYMENT_GATEWAY_URL`           | Payment gateway URL                                                                                                                                                               | —                                                         |
+| `PAYMENT_GATEWAY_TIMEOUT`       | Payment gateway timeout                                                                                                                                                           | `10s`                                                     |
+| `PAYMENT_GATEWAY_API_KEY`       | Payment gateway API key                                                                                                                                                           | —                                                         |
+| `PAYMENT_WEBHOOK_SECRET`        | Payment webhook secret                                                                                                                                                            | —                                                         |
 
 ## Architecture
 
-This template puts one module per feature and one `Service` per module:
+A modular monolith: one deployable, one database, and one flat package per
+feature module, each module its own hexagon — a `Service` that declares the
+ports it needs, with `adapter/` holding whatever satisfies them. Ports are
+declared by the consumer, `internal/app` wires them, and `internal/server` owns
+every URL so no module names one.
 
-- Each feature (auth, user, product, order, …) is a module with one exported
-  `Service`, its own repository port, its own `domain/`, and its own wire DTOs
-  in `adapter/http`. `checkout` is the exception that proves the rule: it owns
-  no table and no domain, and exists to orchestrate `order` and `payment`
-  across one business transaction — which is what keeps those two from
-  importing each other.
-- Dependencies flow inward (handler → `Service` → repository), and URLs flow
-  the other way: `internal/server` imports the modules, never the reverse, and
-  a boundary check enforces the direction.
-- PostgreSQL adapters live in each module's `adapter/postgres`, so a `Service`
-  *cannot* import its own SQL adapter without a compile-time import cycle.
-  `internal/app` builds the adapter and hands it to `Service`, so the
-  pool never reaches the module's root package.
-- Cross-module dependencies use interfaces declared by the **consumer**, in
-  its own `ports.go` — `internal/features/order/ports.go` declares what `order`
-  needs from `cart`; `cart` publishes none of it. Nine modules have a
-  `ports.go`; the other seven reach nothing outside themselves. Two mechanisms
-  satisfy a port, and `internal/app` (the composition root, shared by
-  the API server and the worker) wires them once: **name-match**, when the
-  producer's own value already has a method named what the port asks for
-  (`promotion.Service` satisfies both `order.CouponReserver` and
-  `payment.CouponReleaser` with no adapter), or a **type in the producer's
-  `contract.go`**, when what crosses is a struct rather than something a value
-  already satisfies. The dependency graph stays acyclic by construction.
-- Order status changes from other modules go through named `domain.Transition`
-  values applied via `order.Service.Apply` — payment and shipping express
-  intent (`MarkPaid`, `MarkRefunded`, `MarkShipped`, …) against their own
-  port, and `order.Service` turns each intent into the right transition
-  internally, keeping the state machine's allowed transitions in one place
-  (`internal/features/order/domain/state.go`).
-- Monetary amounts are `money.Money` (an amount paired with its currency) in
-  `order`, `payment`, `product` and `cart`, so an amount cannot drift from the
-  currency beside it. `promotion` and `dashboard` stay on `int64` for reasons
-  recorded in `ARCHITECTURE.md` §10.
-- Configuration is validated at startup and boot aborts on failure:
-  infra-level settings in `Infra.validate()` (`internal/config`),
-  module-owned settings (a sub-second `AUTH_RATE_WINDOW`, a
-  `PAYMENT_JOB_CONCURRENCY < 1`) inline in that module's own `LoadConfig`
-  (`auth.LoadConfig`, `cart.LoadConfig`, `notification.LoadConfig`,
-  `order.LoadConfig`, `payment.LoadConfig`), and an invariant spanning two
-  modules -- the payment gateway timeout against order's stale-processing
-  threshold -- in `app.LoadConfig`, the first place both are in scope.
-- The five generic error kinds live in `internal/platform/errs` and the seven
-  cross-module business sentinels in `internal/apperror`, each declared as a
-  wrap of one of the five; generic utilities (`paging`, `slug`) live in
-  `internal/platform`; the JSON envelope lives in
-  `internal/platform/web/response`, and request binding plus struct
-  validation in `internal/platform/web/request` -- `Bind` holds the one
-  `go-playground/validator` instance, so no handler carries one.
-
-**Read `ARCHITECTURE.md`'s "Limitations" section before copying this.** It
-lists what the
-shape makes hard, including the guarantees the flat-module shape gave up — a
-module's whole exported surface is reachable from every other module, and
-nothing but review keeps a cross-module call inside a declared port.
+**[ARCHITECTURE.md](ARCHITECTURE.md)** has the decisions behind that shape,
+what each one costs, and the limitations it creates — read its "Limitations"
+section before copying this template.
 
 ## Security
 

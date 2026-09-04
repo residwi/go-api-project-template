@@ -2,7 +2,7 @@
 
 Ecommerce API template in Go 1.26. It exposes REST endpoints under `/api` for auth, users, categories, products, inventory, cart, orders, payments, shipping, reviews, promotions, wishlists, notifications and an admin dashboard, and runs a separate worker process that drains payment, notification and order job queues. Storage is PostgreSQL (`pgx/v5`) with Redis (`go-redis/v9`); routing is stdlib `net/http` `ServeMux`.
 
-The structure is the product here — other people copy this tree — so a boundary a tool can enforce always beats one that only code review can. `make check-arch` enforces the layering, and `ARCHITECTURE.md` records why each rule exists, what it costs, and which rules are conventions no tool checks.
+It is a **modular monolith**: one deployable, one database, and one flat package per feature module. Each module is its own **hexagon** — a core that declares the ports it needs and knows nothing of what satisfies them, with `adapter/` holding every implementation, inbound and outbound. The structure is the product here, since other people copy this tree, so a boundary a tool can enforce always beats one that only code review can: `make check-arch` runs go-arch-lint over the layering, and `ARCHITECTURE.md` records why each rule exists, what it costs, and which rules are conventions no linter sees.
 
 If this file disagrees with the code, the code wins: say so and fix the file.
 
@@ -50,7 +50,7 @@ internal/features/<feature>/
   config.go          this module's own env vars
   domain/            aggregate types and rules -- private to the module
   channel.go         the outbound Channel port (notification only)
-  queue.go           the outbound job-enqueue port, named Queue
+  job_queue.go       the outbound job-enqueue port, named JobQueue
   service_test.go    mock-driven tests, package <feature>
   mocks_test.go      mockery output, in-package
   adapter/
@@ -137,6 +137,7 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 - **No stdlib `log`** anywhere (`depguard` denies it across `$all`), and **no `slog.Any`** (`forbidigo` denies the identifier). Every attribute names its type: an error is `slog.String("error", err.Error())`, a recovered panic is `slog.String("panic", fmt.Sprint(rec))`.
 - **One `Service` per module, and its methods carry the verb.** No `Execute`. No module-name stutter — `cart.Get`, not `cart.GetCart`. An entity module implies its object (`category.Create`, `order.Get`); a process module names it (`checkout.PlaceOrder`, `checkout.CancelOrder`). `order.Place` rather than `Create`, because the operation locks the cart, validates it, reserves inventory and a coupon, writes the order, charges and clears the cart. `GetForUser` beside `Get` marks the method that performs an ownership check.
 - **A cross-module port is declared in the consuming module's own `ports.go`; the producer never publishes it.** One port per producer, not one per capability: a module declares one interface per other module it consumes, holding every method it needs from it. Two mechanisms satisfy a port without an adapter, and `internal/app` is the one place either is used — **name-match** (the producer's value already has a method named what the port asks for) and a **`contract.go` type** (when what crosses is a struct). There is no shared ports package.
+- **A handler method takes the name of the service method it calls.** Finding the service behind a route should not mean reading the handler body, so `Handler.UpdateQuantity` calls `cart.UpdateQuantity` and `Handler.GetSummary` calls `dashboard.GetSummary` — the service's name is the more precise of the two. The exception is a qualifier the receiver already states: `AdminHandler.List` calls `ListAdmin` and `AdminHandler.Update` calls `AdminUpdate`, because `Admin` in the method name repeats `AdminHandler`. The services keep the longer names, since one `Service` holds both `ListAdmin` and `ListByUser`.
 - **An `adapter/http` port is named for the role it plays, never for the pattern.** `CartManager`, `ProductReader`, `WebhookProcessor`, `Reporter` — never `UseCase`, and never `Service` either, since the port is a subset of what the module's `Service` offers. Role naming is what lets two ports coexist in one package when routes split by caller role. The `Handler` field holding the port is `service`, and so is the constructor parameter; constructors are `NewHandler`, `NewAdminHandler` and `NewWebhookHandler`.
 - **Wire types live in the module's own `adapter/http`.** A `json` tag belongs nowhere else, `json:"-"` belongs nowhere at all, and no file may be named `dto.go`. None of the three is checked — see "Conventions the checks cannot see".
 - **Money is `money.Money`, never an `int64` beside a `Currency string`.** Scope is `order`, `payment`, `product`, `cart`; `promotion` and `dashboard` stay on `int64` for reasons `ARCHITECTURE.md` records. `Money` carries no `json` tag and implements no `sql.Scanner` — each adapter maps it explicitly, because wire shapes genuinely differ per endpoint. No float constructor, no `Div`.
@@ -146,7 +147,7 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 - **Handlers use the shared helpers.** Decode and validate with `request.Bind[T](w, r)`, read the caller with `request.RequireUser(w, r)`, return errors through `response.HandleErr`. Do not hand-roll decode/validate or auth-context blocks. `Bind` owns the validator — there is one shared `validator.New()` in the tree and a handler carries none; register a custom tag beside it, not per handler.
 - **Order status changes only through `order.Service.Apply`.** Every guarded transition is a named `domain.Transition` in `internal/features/order/domain/state.go`, carrying the statuses it may be applied from and a stock effect the adapter reads through `DeductsStock()`/`ReversesStock()`. Other modules depend on intent methods on their own port (`payment.Orders.MarkPaid`, `shipping.Orders.MarkShipped`), and the guard itself is the `WHERE status = ANY(...)` in `Repository.Apply`. Never write an ad-hoc from/to status list at a call site.
 - **Inventory reversal goes through `inventory.Service.Restore`.** It decides whether that means releasing a reservation or restocking deducted goods; callers supply the order's prior `StockState`, never the mechanics. `StockState` and `StockStateOf(deducted bool)` live in `inventory/contract.go` — do not reintroduce a private per-module copy of that conversion.
-- **Background jobs run on River.** `internal/platform/queue` holds an insert-only client (`NewInsertClient`) and `Insert`, which type-asserts `database.PrimaryDB(ctx, db)` to `pgx.Tx` and uses `InsertTx` when the caller is inside a transaction — without that, an enqueue survives a business write that rolled back. Each module that has a job keeps an `adapter/jobs` package holding the args type, its `InsertOpts()` and a `river.Worker`, and that is the only place in the module naming `river`. The outbound port is `Queue`, unqualified, the way `repository.go` declares `Repository`. Never hand-roll a ticker, lease or poll loop: River owns polling, the leased claim, bounded concurrency, per-job timeouts and maintenance.
+- **Background jobs run on River.** `internal/platform/jobqueue` holds an insert-only client (`NewInsertClient`) and `Insert`, which type-asserts `database.PrimaryDB(ctx, db)` to `pgx.Tx` and uses `InsertTx` when the caller is inside a transaction — without that, an enqueue survives a business write that rolled back. Each module that has a job keeps an `adapter/jobs` package holding the args type, its `InsertOpts()` and a `river.Worker`, and that is the only place in the module naming `river`. The outbound port is `Queue`, unqualified, the way `repository.go` declares `Repository`. Never hand-roll a ticker, lease or poll loop: River owns polling, the leased claim, bounded concurrency, per-job timeouts and maintenance.
 - **New config invariants go in the owning type's own loader** — infra ones in `Settings.validate()`, module ones inline in that module's `LoadConfig`. An invariant relating **two** modules' values belongs to neither loader: it goes in `app.LoadConfig`, which is the first place both are in scope — a module reaching for a sibling's constant to check a rule is the shape to avoid. Misconfiguration must abort boot rather than surface later as a runtime error. Do not guard per use site.
 - **Request-scoped log attributes are named once, at the edge.** `logger.WithAttrs(ctx, ...)` stashes them and `logger.ContextHandler` merges them into every record below, so no function grows a parameter to carry `request_id`. An attribute may only be named at an edge that owns exactly one value — `order_id` stays at the call site because a command loops over batches. Naming an attribute at two points on one path emits the key twice; slog does not deduplicate.
 - **Exported `type`, `var` and `const` declarations come before unexported ones in a file.** Two exemptions: a `var _ Iface = (*T)(nil)` compile assertion stays adjacent to the type it asserts about, and a context-key type stays beside the functions that read it. The rule covers declarations, not every identifier: an unexported type carrying an exported method sits below the exported type it serves, which `funcorder`'s `struct-method` check requires. `funcorder.function: true` orders free functions too, and `make lint` catches it — but golangci-lint caches per package, so run `golangci-lint cache clean` before trusting a clean lint after a toolchain upgrade.
@@ -191,52 +192,43 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### Machine-checked boundaries
+### Layer rules (`make check-arch`)
 
 `make check-arch` runs `go-arch-lint` against `.go-arch-lint.yml` and fails the build on any import that crosses a ring the wrong way, **or that reaches into another feature's internals**.
 
-Each feature is three components, not one: `ft-<feature>` is the public root, `ft-<feature>-domain` and `ft-<feature>-adapter` are private to it. Only the owning feature names its own two, so `cart` importing `order/domain` fails the build. A single glob over `internal/features/*/domain/**` would put all fourteen in one component and permit every cross-feature reach — the per-feature split is the whole point, and it is why the file is long.
+A feature is up to three components, not one: `ft-<feature>` is the public root, `ft-<feature>-domain` and `ft-<feature>-adapter` are private to it. Only the owning feature names its own two, so `cart` importing `order/domain` fails the build. `checkout` has two, having no `domain/`. A single glob over `internal/features/*/domain/**` would put every feature's domain in one component and permit every cross-feature reach — the per-feature split is the whole point, and it is why the file is long.
 
 `mayDependOn` lists the imports that exist today rather than every import that could be legal. A new cross-feature dependency therefore fails until it is added here, which is the intent: coupling between features becomes a reviewed edit.
 
-Platform is split by role, and that split is what gives the layer rule teeth:
+Every other component is one package named for itself, and the rings run from the inside out:
 
-| Component | Packages | Importable from |
-| --- | --- | --- |
-| `pf-vocab` | `errs`, `identity`, `paging`, `slug` | anywhere |
-| `pf-tx` | `database`, `logger` | a `Service`, its adapters, the wiring layer, and `pf-io` |
-| `pf-io` | `cache`, `queue`, `storage`, `web` | adapters and the wiring layer |
+| Ring | May import |
+| --- | --- |
+| `<feature>/domain/**` | the common components, and nothing else of ours |
+| `<feature>/` — the core | its own `domain/`, `database` where it holds a `TxRunner`, and the root package of each sibling module it consumes |
+| `<feature>/adapter/**` | its own core and `domain/`, plus `database`, `web`, and `queue` where it enqueues |
+| `internal/app`, `internal/server`, `internal/worker` | everything (`anyProjectDeps`) — the wiring layer composes adapters, serves HTTP and starts River, so enumerating what it may see asserts nothing that could ever fail |
+| `cmd/api`, `cmd/worker` | `server` and `worker` respectively, nothing more |
 
-The wiring layer is `internal/app`, `internal/server` and `internal/worker`, and `internal/testutil` reaches both platform groups too, though nothing else. They sit outside the rings and may import both platform groups, because composing adapters, serving HTTP and starting containers is what they exist to do.
+The common components — `money`, `apperror`, `errs`, `identity`, `paging`, `slug` — are importable from anywhere and import nothing of ours. A platform package is nearly as strict: `queue` may name `database` and `web` may name `logger`, while `database`, `cache`, `storage`, `logger`, `config` and `testutil` reach only the common components.
 
-And the feature rings:
-
-| Component | Glob | May import |
-| --- | --- | --- |
-| `ft-domain` | `internal/features/*/domain/**` | `ft-domain` |
-| `ft-core` | `internal/features/*` | `ft-core`, `ft-domain`, `pf-tx` |
-| `ft-adapter` | `internal/features/*/adapter/**` | everything |
-
-`money`, `apperror` and `pf-vocab` are common components: every ring may import all three, and they import nothing of ours.
-
-So five things fail the build: a feature importing `internal/server`; a `Service` importing `platform/web`, `platform/queue`, `platform/cache` or `platform/storage`; a `domain/` package reaching for `database` or for another feature; and **a `Service` importing its own adapter**, which is the one that matters most — a service depends on the port it declares, never on the thing that implements it.
+So these fail the build: a feature importing `internal/server`; a `Service` importing `platform/web`, `platform/jobqueue`, `platform/cache` or `platform/storage`; a `domain/` package reaching for `database` or for another feature; and **a `Service` importing its own adapter**, which is the one that matters most — a service depends on the port it declares, never on the thing that implements it.
 
 A module may publish more than one view of the same aggregate when consumers drive different parts of it: `order.Snapshot` is what any consumer may know, and `order.FulfilmentSnapshot` embeds it and adds the compensation state only the refund path drives. Prefer that over one wide struct every consumer can branch on.
 
-`ft-domain` depends on nothing but itself. A domain type that wants another module's data means one of two things: the type is a result crossing the service boundary rather than an entity, in which case it belongs in `contract.go` — or the entity needs its own shape and the service maps at the port, the way `product` holds its own `Availability` rather than `inventory`'s. An outbound port and the types its signatures name both live in the module root, beside `queue.go` and `channel.go`: `payment/gateway.go` holds `Gateway` and its `GatewayChargeRequest`/`GatewayChargeResponse` pair, and `adapter/gateway/{stripe,midtrans,mock}` implement it. A port written in adapter types would force the core to import an adapter, which is the one thing these rules exist to prevent.
+A `domain/` package depends on nothing of ours but the common components. A domain type that wants another module's data means one of two things: the type is a result crossing the service boundary rather than an entity, in which case it belongs in `contract.go` — or the entity needs its own shape and the service maps at the port, the way `product` holds its own `Availability` rather than `inventory`'s. An outbound port and the types its signatures name both live in the module root, beside `queue.go` and `channel.go`: `payment/gateway.go` holds `Gateway` and its `GatewayChargeRequest`/`GatewayChargeResponse` pair, and `adapter/gateway/{stripe,midtrans,mock}` implement it. A port written in adapter types would force the core to import an adapter, which is the one thing these rules exist to prevent.
 
 A component whose glob matches no directory is a hard config error, so the config cannot drift from the tree. What it does not see: anything that is not an import. `cmd/` is in scope; `_test.go` files are not.
 
-### Conventions the checks cannot see
+### Conventions no linter enforces
 
-- **A module imports another module's root package and nothing deeper**, and that means `payment` _can_ see `order.Place`. Nothing stops a module calling a sibling method no port of its own declares, and no check can tell the difference. Declare the interface the consumer needs in the consumer's own `ports.go` and wire it in `internal/app`; do not reach for a sibling's method because the import already compiles.
 - **What `make check-arch` cannot see is a method call, not an import.** It reads imports only, so a module reaching a sibling method that no port of its own declares passes — see the entry above. `allow.deepScan` would extend it to method calls and injections; it is off.
 - **Table ownership is unchecked.** A module's SQL naming another module's table passes everything. `ARCHITECTURE.md` decision 6 states the rule; nothing enforces it.
 - **The arrow runs the other way for URLs.** The transport imports modules and a module names no URL: every route lives in `internal/server/router.go`, mounted on the route groups that same function builds. A module supplies a handler with exported route methods — exported precisely so `router.go`, a different package, can name them — and the transport decides the verb, the path and the group.
 
 ### Data flow: place an order
 
-1. `POST /api/checkout/orders` lands on `checkout`'s handler.
+1. `POST /api/checkout` lands on `checkout`'s handler.
 2. `checkout.Service.PlaceOrder` calls `order.Service.Place` through its own `Orders` port: one transaction that checks idempotency, locks and validates the cart, reserves inventory, writes the order and its items, reserves a coupon and clears the cart.
 3. `checkout` then charges through its `Payments` port — `payment.Service.Charge` writes the payment row and calls the gateway.
 4. Terminal gateway results arrive as a webhook on `payment`'s `webhook_handler.go`; a refund is enqueued as a River job in `payment/adapter/jobs` and drained by `internal/worker`.

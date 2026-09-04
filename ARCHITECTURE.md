@@ -12,15 +12,18 @@ retired or reversed decision keeps its number instead of being renumbered away.
 **0. This repository is a template, so the structure is the product.** Every
 decision below is judged by what it teaches, not by what is cheapest to
 maintain: a reader will copy whatever they find here into a real system, so
-a rule is machine-checked where a linter can see it, and recorded as a
-convention where it cannot. *Cost:* the `adapter/postgres` /
+a rule is enforced by go-arch-lint where a linter can see it, and recorded as
+a convention where it cannot. *Cost:* the `adapter/postgres` /
 `adapter/http` split buys an import alias per module in `app/app.go` and
 `server/router.go`, which is hard to justify in a product codebase and is the
 point here. Backward compatibility is explicitly not a goal.
 
-**1. Feature modules, not layers.** A module owns its whole vertical — domain,
-service, storage port, adapters — so a feature changes in one directory instead
-of four. *Cost:* a module is a directory tree, not a file.
+**1. A modular monolith of hexagons, not a layered application.** One
+deployable and one database, but a module owns its whole vertical — domain,
+service, the ports it declares, the adapters that satisfy them — so a feature
+changes in one directory instead of four, and the hexagon is per feature
+rather than one for the whole application. *Cost:* a module is a directory
+tree, not a file.
 
 **2. Ports live with the consumer.** The consuming module declares the
 interface it needs in its own `ports.go`; the producer never publishes one.
@@ -114,7 +117,7 @@ Segregation comes from the published types instead: `order` offers `Snapshot`
 and `FulfilmentSnapshot` so a consumer names the one whose fields it drives.
 
 **18. Background jobs share one queue, not one per module — and that queue is
-River.** `internal/platform/queue` holds an insert-only client and a
+River.** `internal/platform/jobqueue` holds an insert-only client and a
 transaction-aware `Insert`; each module keeps its args, `InsertOpts` and
 `river.Worker` in its own `adapter/jobs`, and `internal/worker` owns the one
 working client. *Cost:* `river_job` has no foreign key to any module's rows, so
@@ -178,7 +181,7 @@ proposing a feature that crosses a module boundary.
 
 ### Boundaries and coupling
 
-- **Every module's whole tree is reachable from every other module.** The layer rules constrain which ring a package may import, not which module, so a sibling's `domain/`, its adapters and its unported methods are all one import away. The port convention is all that stands there, and unlike the rule it replaced, nothing flags a violation.
+- **A sibling's tree is closed, but its root package is wide open once an edge exists.** `mayDependOn` grants a whole package, not a symbol, so declaring that `payment` consumes `order` puts every exported method of `order` within reach — the port convention is what keeps the call site honest.
 - **One flat `Service` satisfying several of a consumer's ports leaves the compiler unable to check which value goes where.** Two slice values used to be two distinct types; one `Service` satisfying both is one type, so wiring the wrong value would still compile. Nothing misbehaves today because every such field is wired to that same value.
 - **`contract.go` can grow into the shared domain model `internal/shared/` was rejected for being.** Nothing bounds what a module publishes there.
 - **Extracting a module into a service is a data migration, not a refactor** — the foreign keys decision 8 keeps are what make it one.
@@ -187,7 +190,7 @@ proposing a feature that crosses a module boundary.
 ### What the checks cannot see
 
 - **`make check-arch` reads the import graph and nothing else.** It cannot see a `json` tag in the wrong package, a file named `dto.go`, SQL naming another module's table, or a module calling a sibling method no port of its own declares.
-- **It cannot see across modules at all.** The rules are about layers — `domain/` below the service, the service below its adapters — so `review` importing `order/domain` is legal to it. Module privacy is a convention now.
+- **It cannot see which method a module calls.** Cross-module imports are declared edge by edge, so reaching a sibling's `domain/` or an undeclared sibling entirely fails the build — but any exported method of a module already on the list is invisible to it.
 - **`_test.go` files are excluded**, so a test may import anything.
 - **A path-keyed rule can quietly stop matching anything.** go-arch-lint refuses to load when a component's glob names no directory, which covers the config itself; the `paralleltest` exclusions in `.golangci.yml` have no such guard.
 - **The copy property `internal/platform` is checked for holds for `go build`, not `go test`** — four platform test packages import `internal/testutil`, which does not travel with a copied `platform`.
