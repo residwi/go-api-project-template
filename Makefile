@@ -52,7 +52,7 @@ dev: ## Run with hot reload using air
 		air; \
 	else \
 		echo "Installing air..."; \
-		go install github.com/cosmtrek/air@latest; \
+		go install github.com/air-verse/air@latest; \
 		air; \
 	fi
 
@@ -211,7 +211,7 @@ docker-clean: ## Clean up Docker resources
 setup: ## Setup development environment
 	@echo "Setting up development environment..."
 	go mod download
-	go install github.com/cosmtrek/air@latest
+	go install github.com/air-verse/air@latest
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install github.com/pressly/goose/v3/cmd/goose@latest
 	cp -n .env.example .env || true
