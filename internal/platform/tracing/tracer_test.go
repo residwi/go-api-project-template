@@ -61,38 +61,24 @@ func TestRecord(t *testing.T) {
 }
 
 func TestSetup(t *testing.T) {
-	t.Run("registers nothing when the exporter is unset", func(t *testing.T) {
-		t.Setenv("OTEL_TRACES_EXPORTER", "")
+	t.Run("registers nothing when tracing is off", func(t *testing.T) {
+		for _, exporter := range []string{"", "none"} {
+			beforeProvider := otel.GetTracerProvider()
+			beforePropagator := otel.GetTextMapPropagator()
 
-		beforeProvider := otel.GetTracerProvider()
-		beforePropagator := otel.GetTextMapPropagator()
+			shutdown, err := tracing.Setup(t.Context(), "test-api", "test", exporter, testutil.DiscardLogger())
+			require.NoError(t, err)
+			t.Cleanup(shutdown)
 
-		shutdown, err := tracing.Setup(t.Context(), "test-api", "test", testutil.DiscardLogger())
-		require.NoError(t, err)
-		t.Cleanup(shutdown)
-
-		assert.Same(t, beforeProvider, otel.GetTracerProvider())
-		assert.Equal(t, beforePropagator, otel.GetTextMapPropagator())
-	})
-
-	t.Run("registers nothing when the exporter is none", func(t *testing.T) {
-		t.Setenv("OTEL_TRACES_EXPORTER", "none")
-
-		beforeProvider := otel.GetTracerProvider()
-		beforePropagator := otel.GetTextMapPropagator()
-
-		shutdown, err := tracing.Setup(t.Context(), "test-api", "test", testutil.DiscardLogger())
-		require.NoError(t, err)
-		t.Cleanup(shutdown)
-
-		assert.Same(t, beforeProvider, otel.GetTracerProvider())
-		assert.Equal(t, beforePropagator, otel.GetTextMapPropagator())
+			assert.Same(t, beforeProvider, otel.GetTracerProvider(), exporter)
+			assert.Equal(t, beforePropagator, otel.GetTextMapPropagator(), exporter)
+		}
 	})
 
 	t.Run("registers a provider and a propagator when an exporter is configured", func(t *testing.T) {
 		t.Setenv("OTEL_TRACES_EXPORTER", "console")
 
-		shutdown, err := tracing.Setup(t.Context(), "test-api", "test", testutil.DiscardLogger())
+		shutdown, err := tracing.Setup(t.Context(), "test-api", "test", "console", testutil.DiscardLogger())
 		require.NoError(t, err)
 		t.Cleanup(shutdown)
 

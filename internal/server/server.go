@@ -38,7 +38,7 @@ func RunContext( //nolint:funlen // one linear boot sequence: config, tracing, d
 
 	appLog := logger.Setup(appCfg.Log.Level, appCfg.Log.Format)
 
-	shutdownTracing, err := tracing.Setup(ctx, appCfg.App.Name, appCfg.App.Env, appLog)
+	shutdownTracing, err := tracing.Setup(ctx, appCfg.App.Name, appCfg.App.Env, appCfg.Tracing.Exporter, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "setting up tracing failed", slog.String("error", err.Error()))
 		return fmt.Errorf("setting up tracing: %w", err)

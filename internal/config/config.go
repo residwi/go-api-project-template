@@ -18,6 +18,7 @@ type Settings struct {
 	Log      Log
 	CORS     CORS
 	Worker   Worker
+	Tracing  Tracing
 }
 
 func Load() (*Settings, error) {
@@ -104,4 +105,8 @@ type CORS struct {
 
 type Worker struct {
 	RescueAfter time.Duration `envconfig:"WORKER_RESCUE_AFTER" default:"5m"`
+}
+
+type Tracing struct {
+	Exporter string `envconfig:"OTEL_TRACES_EXPORTER" default:"none"`
 }

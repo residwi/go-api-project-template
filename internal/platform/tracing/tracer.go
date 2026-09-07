@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	"go.opentelemetry.io/contrib/exporters/autoexport"
@@ -23,20 +22,16 @@ const flushTimeout = 5 * time.Second
 
 func Setup(
 	ctx context.Context,
-	serviceName, env string,
+	serviceName, env, exporter string,
 	log *slog.Logger,
 ) (func(), error) {
-	if os.Getenv("OTEL_TRACES_EXPORTER") == "" {
+	if exporter == "" || exporter == "none" {
 		return func() {}, nil
 	}
 
-	exporter, err := autoexport.NewSpanExporter(ctx)
+	spanExporter, err := autoexport.NewSpanExporter(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("building span exporter: %w", err)
-	}
-
-	if autoexport.IsNoneSpanExporter(exporter) {
-		return func() {}, nil
 	}
 
 	res, err := newResource(ctx, serviceName, env)
@@ -45,7 +40,7 @@ func Setup(
 	}
 
 	provider := sdktrace.NewTracerProvider(
-		sdktrace.WithSpanProcessor(dropRootClientSpans{sdktrace.NewBatchSpanProcessor(exporter)}),
+		sdktrace.WithSpanProcessor(dropRootClientSpans{sdktrace.NewBatchSpanProcessor(spanExporter)}),
 		sdktrace.WithResource(res),
 	)
 
