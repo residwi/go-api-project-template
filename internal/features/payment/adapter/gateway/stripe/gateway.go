@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 )
 
@@ -16,8 +18,11 @@ type Gateway struct {
 
 func New(apiKey string, timeout time.Duration) *Gateway {
 	return &Gateway{
-		apiKey:     apiKey,
-		httpClient: &http.Client{Timeout: timeout},
+		apiKey: apiKey,
+		httpClient: &http.Client{
+			Timeout:   timeout,
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		},
 	}
 }
 

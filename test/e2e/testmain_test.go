@@ -16,6 +16,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/residwi/go-api-project-template/internal/app"
 	"github.com/residwi/go-api-project-template/internal/config"
@@ -31,6 +34,7 @@ var (
 	testPool  *pgxpool.Pool
 	testRedis *redis.Client
 	testApp   *app.Services
+	testSpans *tracetest.SpanRecorder
 
 	// Fixed across every App this package builds, so a token minted by one is
 	// still valid against another -- the only config any e2e test actually
@@ -66,6 +70,9 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	testSpans = tracetest.NewSpanRecorder()
+	otel.SetTracerProvider(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(testSpans)))
+
 	pool, cleanupPG := testutil.MustStartPostgres("test_e2e")
 	defer cleanupPG()
 	testPool = pool
@@ -83,6 +90,7 @@ func setup(t *testing.T) {
 	t.Helper()
 	testutil.ResetDB(t, testPool)
 	testutil.ResetRedis(t, testRedis)
+	testSpans.Reset()
 }
 
 // newTestApp wires a app.Services against testPool/testRedis for a given

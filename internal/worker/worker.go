@@ -13,6 +13,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivertype"
+	"github.com/riverqueue/rivercontrib/otelriver"
 
 	"github.com/residwi/go-api-project-template/internal/app"
 	"github.com/residwi/go-api-project-template/internal/config"
@@ -22,6 +24,7 @@ import (
 	paymentjobs "github.com/residwi/go-api-project-template/internal/features/payment/adapter/jobs"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
+	"github.com/residwi/go-api-project-template/internal/platform/tracing"
 )
 
 const softStopDivisor = 2
@@ -41,6 +44,17 @@ func RunContext(ctx context.Context) error {
 	}
 
 	appLog := logger.Setup(appCfg.Log.Level, appCfg.Log.Format)
+
+	shutdownTracing, err := tracing.Setup(ctx, appCfg.App.Name, appCfg.App.Env, appLog)
+	if err != nil {
+		appLog.ErrorContext(ctx, "setting up tracing failed", slog.String("error", err.Error()))
+		return fmt.Errorf("setting up tracing: %w", err)
+	}
+	defer func() {
+		if errFlush := shutdownTracing(); errFlush != nil {
+			appLog.ErrorContext(context.Background(), "flushing traces failed", slog.String("error", errFlush.Error()))
+		}
+	}()
 
 	modCfg, err := app.LoadConfig(appCfg)
 	if err != nil {
@@ -112,6 +126,9 @@ func newClient(
 	river.AddWorker(workers, orderjobs.NewExpireStaleWorker(deps.Orders, appLog, modCfg.Order.JobTimeout))
 
 	return river.NewClient(riverpgxv5.New(db.Primary), &river.Config{
+		Middleware: []rivertype.Middleware{
+			otelriver.NewMiddleware(&otelriver.MiddlewareConfig{EnableTracePropagation: true}),
+		},
 		Workers:              workers,
 		RescueStuckJobsAfter: rescueAfter,
 		SoftStopTimeout:      softStop,

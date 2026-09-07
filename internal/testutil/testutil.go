@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -103,7 +104,18 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		os.Exit(1)
 	}
 
-	pool, err := pgxpool.New(ctx, dsn)
+	poolCfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		harnessLogger().Error(
+			"testutil: parsing package pool config",
+			slog.String("db", dbName),
+			slog.String("error", err.Error()),
+		)
+		os.Exit(1)
+	}
+	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithTrimSQLInSpanName())
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		harnessLogger().Error(
 			"testutil: building package pool",

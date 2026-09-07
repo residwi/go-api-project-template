@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	mockgatewayserver "github.com/residwi/go-api-project-template/cmd/mockgateway/mockserver"
 	"github.com/residwi/go-api-project-template/internal/app"
@@ -179,6 +180,12 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 
 	return web.Chain(
 		middleware.RequestID,
+		// otelhttp reads r.Pattern after ServeMux routes, and RequestID hands
+		// down a copy from r.WithContext -- placed above it, every span is
+		// named "GET".
+		otelhttp.NewMiddleware("",
+			otelhttp.WithFilter(func(r *http.Request) bool { return r.URL.Path != "/health" }),
+		),
 		middleware.Logging(logger),
 		middleware.Recovery(logger),
 		middleware.CORS(middleware.CORSOptions{

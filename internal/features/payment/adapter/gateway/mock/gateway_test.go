@@ -10,6 +10,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 )
@@ -117,6 +120,40 @@ func TestGateway_Charge(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "creating charge request")
 	})
+}
+
+func TestGateway_ChargeSendsTraceparent(t *testing.T) {
+	t.Parallel()
+
+	var got string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("Traceparent")
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(wireOf(payment.GatewayChargeResponse{
+			TransactionID: "txn_123",
+			Status:        "success",
+			PaymentURL:    "https://example.com/pay",
+		}))
+	}))
+	defer ts.Close()
+
+	prevPropagator := otel.GetTextMapPropagator()
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+	t.Cleanup(func() { otel.SetTextMapPropagator(prevPropagator) })
+
+	provider := sdktrace.NewTracerProvider()
+	ctx, span := provider.Tracer("test").Start(context.Background(), "payment.Charge")
+	defer span.End()
+
+	gw := New(ts.URL, 5*time.Second)
+	_, err := gw.Charge(ctx, payment.GatewayChargeRequest{
+		OrderID: "order_1",
+		Amount:  5000,
+	})
+
+	require.NoError(t, err)
+	assert.NotEmpty(t, got)
 }
 
 func TestGateway_Refund(t *testing.T) {

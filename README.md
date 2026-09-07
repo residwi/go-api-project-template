@@ -596,6 +596,24 @@ Key variables:
 | `PAYMENT_GATEWAY_API_KEY`       | Payment gateway API key                                                                                                                                                           | —                                                         |
 | `PAYMENT_WEBHOOK_SECRET`        | Payment webhook secret                                                                                                                                                            | —                                                         |
 
+## Tracing
+
+`make docker-dev` gives a traced stack for free: `compose.yml` sets
+`OTEL_TRACES_EXPORTER=otlp` and `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318`
+on both `api` and `worker`, and starts a Jaeger container alongside them. Open
+the UI at `http://localhost:16686` and pick a service to see its traces.
+
+`make docker-up` plus `make run` leaves tracing off — `.env.example` ships
+`OTEL_TRACES_EXPORTER=none`, and an unset variable is treated the same way, so
+no provider is registered and the global tracer stays a no-op: spans stay
+cheap, not free.
+
+The endpoint differs by where the process runs: `http://jaeger:4318` inside
+the compose network, `http://localhost:4318` from the host — a locally-run API
+pointed at the compose Jaeger needs the second one. Sampling is
+`OTEL_TRACES_SAMPLER_ARG`, not a code change; see `.env.example` for the full
+`OTEL_*` list.
+
 ## Architecture
 
 A modular monolith: one deployable, one database, and one flat package per

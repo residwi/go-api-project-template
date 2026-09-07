@@ -1,30 +1,25 @@
 package response
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
 func HandleErr(w http.ResponseWriter, err error) {
-	statusFor := []struct {
-		sentinel error
-		status   int
-	}{
-		{errs.ErrNotFound, http.StatusNotFound},
-		{errs.ErrConflict, http.StatusConflict},
-		{errs.ErrBadRequest, http.StatusBadRequest},
-		{errs.ErrUnauthorized, http.StatusUnauthorized},
-		{errs.ErrForbidden, http.StatusForbidden},
+	kind := errs.Kind(err)
+	if kind == nil {
+		InternalError(w)
+		return
 	}
 
-	for _, m := range statusFor {
-		if errors.Is(err, m.sentinel) {
-			Err(w, m.status, err.Error(), nil)
-			return
-		}
+	statusFor := map[error]int{
+		errs.ErrNotFound:     http.StatusNotFound,
+		errs.ErrConflict:     http.StatusConflict,
+		errs.ErrBadRequest:   http.StatusBadRequest,
+		errs.ErrUnauthorized: http.StatusUnauthorized,
+		errs.ErrForbidden:    http.StatusForbidden,
 	}
 
-	InternalError(w)
+	Err(w, statusFor[kind], err.Error(), nil)
 }

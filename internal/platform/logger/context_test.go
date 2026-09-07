@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 func TestContextHandler(t *testing.T) {
@@ -133,6 +134,42 @@ func TestContextHandler(t *testing.T) {
 		assert.NotContains(t, leftBuf.String(), "!BUG")
 		assert.NotContains(t, rightBuf.String(), "!BUG")
 		assert.Equal(t, "req-1", decodeRecord(t, &rightBuf)["request_id"])
+	})
+}
+
+func TestContextHandlerTraceAttributes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("stamps trace and span ids from the context", func(t *testing.T) {
+		t.Parallel()
+
+		var buf bytes.Buffer
+		log := slog.New(ContextHandler{Handler: slog.NewJSONHandler(&buf, nil)})
+
+		provider := sdktrace.NewTracerProvider()
+		ctx, span := provider.Tracer("test").Start(context.Background(), "cart.Add")
+		defer span.End()
+
+		log.InfoContext(ctx, "hello")
+
+		var record map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &record))
+		assert.Equal(t, span.SpanContext().TraceID().String(), record["trace_id"])
+		assert.Equal(t, span.SpanContext().SpanID().String(), record["span_id"])
+	})
+
+	t.Run("omits both keys when there is no span", func(t *testing.T) {
+		t.Parallel()
+
+		var buf bytes.Buffer
+		log := slog.New(ContextHandler{Handler: slog.NewJSONHandler(&buf, nil)})
+
+		log.InfoContext(context.Background(), "hello")
+
+		var record map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &record))
+		assert.NotContains(t, record, "trace_id")
+		assert.NotContains(t, record, "span_id")
 	})
 }
 

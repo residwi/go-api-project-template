@@ -13,6 +13,8 @@ services:
       DB_HOST: postgres
       REDIS_HOST: redis
       PAYMENT_GATEWAY_URL: http://api:8080/mock/payment
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     depends_on:
       postgres:
         condition: service_healthy
@@ -32,6 +34,8 @@ services:
       DB_HOST: postgres
       REDIS_HOST: redis
       PAYMENT_GATEWAY_URL: http://api:8080/mock/payment
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,6 +67,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "4318:4318"
 
 volumes:
   postgres_data:

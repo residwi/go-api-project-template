@@ -135,6 +135,18 @@ identity shaped like this application's — `UserID` and `Role` — which a proj
 with scopes or non-UUID subjects would edit rather than copy. `Require(pred)`
 absorbs the first of those without touching the type.
 
+**20. Edges are instrumented by library; business spans are hand-written.**
+`otelhttp`, `otelpgx`, `redisotel` and `otelriver` wrap every port this
+template does not own, so a route, a query, a Redis command and a job already
+produce a span with no code in the module that uses them. A `Service` method
+has no library to wrap the same way — the only automatic option is a
+decorator, which needs one interface per `Service`, the shape decision 16
+spent itself avoiding — so the three-line prologue `AGENTS.md` names is
+written by hand instead, once per exported `Service` method that takes `ctx`.
+*Cost:* a near-identical block per method, each a place to get the ordering
+wrong; `AGENTS.md` states the ordering rule so at least the mistake is
+checkable by eye.
+
 ## Foreign keys across module boundaries
 
 22 foreign keys exist and 16 cross a module boundary. All 16 stay. The 6 that
@@ -172,7 +184,7 @@ nothing here.
 - A `product_view` read model — `dashboard`'s carve-out already covers reporting.
 - Backward compatibility — see decision 0.
 - A logger in the context — decision 12 puts attributes there, not the logger.
-- OpenTelemetry wiring — nothing here exports traces yet.
+- `otelslog` / the OpenTelemetry logs signal — a different signal from tracing: it exports log records through the logs pipeline and writes nothing to stdout, so keeping the JSON logs would need a `LoggerProvider`, a log exporter and a fan-out handler. `ContextHandler` already stamps `trace_id`, and the two compose rather than compete.
 
 ## Limitations
 
@@ -192,6 +204,7 @@ proposing a feature that crosses a module boundary.
 - **`make check-arch` reads the import graph and nothing else.** It cannot see a `json` tag in the wrong package, a file named `dto.go`, SQL naming another module's table, or a module calling a sibling method no port of its own declares.
 - **It cannot see which method a module calls.** Cross-module imports are declared edge by edge, so reaching a sibling's `domain/` or an undeclared sibling entirely fails the build — but any exported method of a module already on the list is invisible to it.
 - **`_test.go` files are excluded**, so a test may import anything.
+- **Nothing enforces the span prologue.** `AGENTS.md` names the three-line shape, but no linter checks that an exported `Service` method opening `ctx` actually starts one — a new method without it compiles clean, lints clean, and stays invisible until someone reads a trace and finds the gap.
 - **A path-keyed rule can quietly stop matching anything.** go-arch-lint refuses to load when a component's glob names no directory, which covers the config itself; the `paralleltest` exclusions in `.golangci.yml` have no such guard.
 - **The copy property `internal/platform` is checked for holds for `go build`, not `go test`** — four platform test packages import `internal/testutil`, which does not travel with a copied `platform`.
 

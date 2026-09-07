@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"slices"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
 type ctxKey struct{}
@@ -19,9 +21,21 @@ type ContextHandler struct {
 }
 
 func (h ContextHandler) Handle(ctx context.Context, r slog.Record) error {
-	if attrs, ok := ctx.Value(ctxKey{}).([]slog.Attr); ok {
-		r = r.Clone()
-		r.AddAttrs(attrs...)
+	attrs, _ := ctx.Value(ctxKey{}).([]slog.Attr)
+	spanCtx := trace.SpanContextFromContext(ctx)
+
+	if len(attrs) == 0 && !spanCtx.IsValid() {
+		return h.Handler.Handle(ctx, r)
+	}
+
+	r = r.Clone()
+	r.AddAttrs(attrs...)
+
+	if spanCtx.IsValid() {
+		r.AddAttrs(
+			slog.String("trace_id", spanCtx.TraceID().String()),
+			slog.String("span_id", spanCtx.SpanID().String()),
+		)
 	}
 
 	return h.Handler.Handle(ctx, r)

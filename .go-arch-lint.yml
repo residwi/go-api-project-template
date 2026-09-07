@@ -45,6 +45,8 @@ components:
     in: internal/platform/cache
   jobqueue:
     in: internal/platform/jobqueue
+  tracing:
+    in: internal/platform/tracing
   storage:
     in: internal/platform/storage
   web:
@@ -167,6 +169,7 @@ commonComponents:
   - identity
   - paging
   - slug
+  - tracing
 
 # mayDependOn lists what each component imports today. Adding a new
 # cross-feature dependency means editing this file, on purpose.
@@ -340,6 +343,9 @@ deps:
       - database
   server:
     anyProjectDeps: true
+  tracing:
+    mayDependOn:
+      - errs
   web:
     mayDependOn:
       - logger

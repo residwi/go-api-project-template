@@ -8,18 +8,27 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
-var testContainerPort string
+var (
+	testContainerPort string
+	testPool          *pgxpool.Pool
+)
 
 func TestMain(m *testing.M) {
-	pool, cleanup := testutil.MustStartPostgres("testdb")
+	var cleanup func()
+	testPool, cleanup = testutil.MustStartPostgres("testdb")
 	defer cleanup()
-	testContainerPort = strconv.FormatUint(uint64(pool.Config().ConnConfig.Port), 10)
+	testContainerPort = strconv.FormatUint(uint64(testPool.Config().ConnConfig.Port), 10)
 	os.Exit(m.Run())
 }
 
@@ -105,6 +114,37 @@ func TestNewReplicaPostgres(t *testing.T) {
 		assert.Nil(t, pool)
 		assert.Contains(t, err.Error(), "pinging replica database")
 	})
+}
+
+func TestPoolEmitsQuerySpans(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+
+	otel.SetTracerProvider(provider)
+	t.Cleanup(func() { otel.SetTracerProvider(noop.NewTracerProvider()) })
+
+	opts := PostgresOptions{
+		DSN:             testDSN(testContainerPort, "disable"),
+		MaxConns:        5,
+		MinConns:        1,
+		MaxConnLifetime: 5 * time.Minute,
+		MaxConnIdleTime: 1 * time.Minute,
+	}
+	pool, err := NewPrimaryPostgres(context.Background(), opts)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	ctx, parent := provider.Tracer("test").Start(t.Context(), "test.Query")
+	var one int
+	require.NoError(t, pool.QueryRow(ctx, "SELECT 1").Scan(&one))
+	parent.End()
+
+	names := make([]string, 0, len(recorder.Ended()))
+	for _, span := range recorder.Ended() {
+		names = append(names, span.Name())
+	}
+
+	assert.Contains(t, names, "query SELECT")
 }
 
 func testDSN(port, sslMode string) string {

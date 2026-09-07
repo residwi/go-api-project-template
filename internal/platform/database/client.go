@@ -7,6 +7,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -67,6 +68,7 @@ func NewReplicaPostgres(ctx context.Context, opts PostgresOptions) (*pgxpool.Poo
 }
 
 func applyPoolTuning(poolCfg *pgxpool.Config, opts PostgresOptions) {
+	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithTrimSQLInSpanName())
 	poolCfg.MaxConns = int32(min(opts.MaxConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32
 	poolCfg.MinConns = int32(min(opts.MinConns, math.MaxInt32)) //nolint:gosec // value capped at MaxInt32
 	poolCfg.MaxConnLifetime = opts.MaxConnLifetime

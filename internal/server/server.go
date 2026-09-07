@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/residwi/go-api-project-template/internal/app"
@@ -17,6 +18,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/cache"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
+	"github.com/residwi/go-api-project-template/internal/platform/tracing"
 )
 
 func Run() error {
@@ -35,51 +37,30 @@ func RunContext(ctx context.Context) error {
 
 	appLog := logger.Setup(appCfg.Log.Level, appCfg.Log.Format)
 
+	shutdownTracing, err := tracing.Setup(ctx, appCfg.App.Name, appCfg.App.Env, appLog)
+	if err != nil {
+		appLog.ErrorContext(ctx, "setting up tracing failed", slog.String("error", err.Error()))
+		return fmt.Errorf("setting up tracing: %w", err)
+	}
+	defer func() {
+		if errFlush := shutdownTracing(); errFlush != nil {
+			appLog.ErrorContext(context.Background(), "flushing traces failed", slog.String("error", errFlush.Error()))
+		}
+	}()
+
 	modCfg, err := app.LoadConfig(appCfg)
 	if err != nil {
 		appLog.ErrorContext(ctx, "loading module config failed", slog.String("error", err.Error()))
 		return err
 	}
 
-	primaryDB, err := database.NewPrimaryPostgres(ctx, app.PoolOptions(appCfg.Database))
+	primaryDB, replicaDB, rdb, err := setupPools(ctx, appCfg, appLog)
 	if err != nil {
-		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
-		return fmt.Errorf("connecting to database: %w", err)
+		return err
 	}
 	defer primaryDB.Close()
-
-	replicaDB, err := database.NewReplicaPostgres(ctx, app.ReplicaPoolOptions(appCfg.Database))
-	if err != nil {
-		if !errors.Is(err, database.ErrReplicaNotConfigured) {
-			appLog.WarnContext(
-				ctx,
-				"failed to connect replica database, using primary",
-				slog.String("error", err.Error()),
-			)
-		}
-		replicaDB = nil
-	}
 	if replicaDB != nil {
 		defer replicaDB.Close()
-	}
-
-	rdb, err := cache.NewRedis(ctx, &redis.Options{
-		Addr:         appCfg.Redis.Addr(),
-		Password:     appCfg.Redis.Password,
-		DB:           appCfg.Redis.DB,
-		PoolSize:     appCfg.Redis.PoolSize,
-		MinIdleConns: appCfg.Redis.MinIdleConns,
-		DialTimeout:  appCfg.Redis.DialTimeout,
-		ReadTimeout:  appCfg.Redis.ReadTimeout,
-		WriteTimeout: appCfg.Redis.WriteTimeout,
-		PoolTimeout:  appCfg.Redis.PoolTimeout,
-	})
-	if err != nil {
-		appLog.WarnContext(
-			ctx,
-			"failed to connect to redis, continuing without cache/rate-limiting",
-			slog.String("error", err.Error()),
-		)
 	}
 	if rdb != nil {
 		defer rdb.Close()
@@ -136,4 +117,49 @@ func RunContext(ctx context.Context) error {
 
 	appLog.InfoContext(ctx, "server stopped gracefully")
 	return nil
+}
+
+func setupPools(
+	ctx context.Context,
+	appCfg *config.Settings,
+	appLog *slog.Logger,
+) (*pgxpool.Pool, *pgxpool.Pool, *redis.Client, error) {
+	primaryDB, err := database.NewPrimaryPostgres(ctx, app.PoolOptions(appCfg.Database))
+	if err != nil {
+		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
+		return nil, nil, nil, fmt.Errorf("connecting to database: %w", err)
+	}
+
+	replicaDB, err := database.NewReplicaPostgres(ctx, app.ReplicaPoolOptions(appCfg.Database))
+	if err != nil {
+		if !errors.Is(err, database.ErrReplicaNotConfigured) {
+			appLog.WarnContext(
+				ctx,
+				"failed to connect replica database, using primary",
+				slog.String("error", err.Error()),
+			)
+		}
+		replicaDB = nil
+	}
+
+	rdb, err := cache.NewRedis(ctx, &redis.Options{
+		Addr:         appCfg.Redis.Addr(),
+		Password:     appCfg.Redis.Password,
+		DB:           appCfg.Redis.DB,
+		PoolSize:     appCfg.Redis.PoolSize,
+		MinIdleConns: appCfg.Redis.MinIdleConns,
+		DialTimeout:  appCfg.Redis.DialTimeout,
+		ReadTimeout:  appCfg.Redis.ReadTimeout,
+		WriteTimeout: appCfg.Redis.WriteTimeout,
+		PoolTimeout:  appCfg.Redis.PoolTimeout,
+	})
+	if err != nil {
+		appLog.WarnContext(
+			ctx,
+			"failed to connect to redis, continuing without cache/rate-limiting",
+			slog.String("error", err.Error()),
+		)
+	}
+
+	return primaryDB, replicaDB, rdb, nil
 }
