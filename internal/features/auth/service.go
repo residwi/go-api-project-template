@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/residwi/go-api-project-template/internal/features/auth/domain"
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
+	"github.com/residwi/go-api-project-template/internal/platform/tracing"
 )
 
 type Service struct {
@@ -20,6 +23,7 @@ type Service struct {
 	tokens     Tokens
 	accessTTL  time.Duration
 	refreshTTL time.Duration
+	tracer     trace.Tracer
 }
 
 func New(cfg Config, users UserDirectory, tokens Tokens) *Service {
@@ -29,12 +33,17 @@ func New(cfg Config, users UserDirectory, tokens Tokens) *Service {
 		bcryptCost: cfg.BcryptCost,
 		accessTTL:  cfg.AccessTokenTTL,
 		refreshTTL: cfg.RefreshTokenTTL,
+		tracer:     otel.Tracer("github.com/residwi/go-api-project-template/internal/features/auth"),
 	}
 	s.dummyHash, _ = bcrypt.GenerateFromPassword([]byte(dummyPassword), cfg.BcryptCost)
 	return s
 }
 
-func (s *Service) Login(ctx context.Context, email, password string) (*TokenPair, error) {
+func (s *Service) Login(ctx context.Context, email, password string) (_ *TokenPair, err error) {
+	ctx, span := s.tracer.Start(ctx, "auth.Login")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	creds, err := s.users.GetByEmail(ctx, email)
 	if err != nil {
 		_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(password))
@@ -63,7 +72,11 @@ func (s *Service) Login(ctx context.Context, email, password string) (*TokenPair
 func (s *Service) Register(
 	ctx context.Context,
 	email, password, firstName, lastName string,
-) (*TokenPair, error) {
+) (_ *TokenPair, err error) {
+	ctx, span := s.tracer.Start(ctx, "auth.Register")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	if len(password) > maxPasswordBytes {
 		return nil, fmt.Errorf("%w: password must not exceed %d bytes", errs.ErrBadRequest, maxPasswordBytes)
 	}
@@ -86,7 +99,11 @@ func (s *Service) Register(
 	return s.BuildTokenPair(user)
 }
 
-func (s *Service) Refresh(ctx context.Context, refreshToken string) (*TokenPair, error) {
+func (s *Service) Refresh(ctx context.Context, refreshToken string) (_ *TokenPair, err error) {
+	ctx, span := s.tracer.Start(ctx, "auth.Refresh")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	claims, err := s.tokens.Verify(refreshToken, domain.KindRefresh)
 	if err != nil {
 		return nil, ErrInvalidToken
@@ -133,7 +150,11 @@ func (s *Service) BuildTokenPair(user user.Profile) (*TokenPair, error) {
 	}, nil
 }
 
-func (s *Service) Authenticate(ctx context.Context, token string) (identity.Identity, error) {
+func (s *Service) Authenticate(ctx context.Context, token string) (_ identity.Identity, err error) {
+	ctx, span := s.tracer.Start(ctx, "auth.Authenticate")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	claims, err := s.tokens.Verify(token, domain.KindAccess)
 	if err != nil {
 		return identity.Identity{}, ErrInvalidToken

@@ -4,27 +4,42 @@ import (
 	"context"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/residwi/go-api-project-template/internal/features/dashboard/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/tracing"
 )
 
 type Service struct {
-	repo Repository
+	repo   Repository
+	tracer trace.Tracer
 }
 
 func New(repo Repository) *Service {
-	return &Service{repo: repo}
+	return &Service{
+		repo:   repo,
+		tracer: otel.Tracer("github.com/residwi/go-api-project-template/internal/features/dashboard"),
+	}
 }
 
-func (s *Service) ListRevenueByDay(ctx context.Context, from, to time.Time) ([]domain.RevenueData, error) {
+func (s *Service) ListRevenueByDay(ctx context.Context, from, to time.Time) (_ []domain.RevenueData, err error) {
+	ctx, span := s.tracer.Start(ctx, "dashboard.ListRevenueByDay")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.ListRevenueByDay(ctx, from, to)
 }
 
 func (s *Service) GetSummary(
 	ctx context.Context,
 	from, to time.Time,
-) (domain.SalesSummary, []domain.StatusBreakdown, error) {
+) (_ domain.SalesSummary, _ []domain.StatusBreakdown, err error) {
+	ctx, span := s.tracer.Start(ctx, "dashboard.GetSummary")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	var (
 		sales     domain.SalesSummary
 		breakdown []domain.StatusBreakdown
@@ -47,6 +62,14 @@ func (s *Service) GetSummary(
 	return sales, breakdown, nil
 }
 
-func (s *Service) ListTopProducts(ctx context.Context, limit int, from, to time.Time) ([]domain.TopProduct, error) {
+func (s *Service) ListTopProducts(
+	ctx context.Context,
+	limit int,
+	from, to time.Time,
+) (_ []domain.TopProduct, err error) {
+	ctx, span := s.tracer.Start(ctx, "dashboard.ListTopProducts")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.ListTopProducts(ctx, limit, from, to)
 }

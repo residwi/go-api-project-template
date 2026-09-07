@@ -8,6 +8,9 @@ import (
 	"slices"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
@@ -17,6 +20,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
+	"github.com/residwi/go-api-project-template/internal/platform/tracing"
 )
 
 const (
@@ -28,6 +32,7 @@ type Service struct {
 	repo   Repository
 	tx     database.TxRunner
 	logger *slog.Logger
+	tracer trace.Tracer
 
 	cart          Cart
 	inventory     Inventory
@@ -48,6 +53,7 @@ func New(
 		repo:          repo,
 		tx:            tx,
 		logger:        logger,
+		tracer:        otel.Tracer("github.com/residwi/go-api-project-template/internal/features/order"),
 		cart:          cart,
 		inventory:     inventory,
 		coupons:       coupons,
@@ -61,7 +67,11 @@ func (s *Service) Place(
 	userID uuid.UUID,
 	in NewOrder,
 	idempotencyKey string,
-) (*Snapshot, bool, error) {
+) (_ *Snapshot, _ bool, err error) {
+	ctx, span := s.tracer.Start(ctx, "order.Place")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	existing, err := s.repo.GetByUserIDAndIdempotencyKey(ctx, userID, idempotencyKey)
 	if err != nil && !errors.Is(err, errs.ErrNotFound) {
 		return nil, false, err
@@ -161,6 +171,8 @@ func (s *Service) Place(
 		return nil, false, err
 	}
 
+	span.SetAttributes(attribute.String("order.id", order.ID.String()))
+
 	order.Items = orderItems
 
 	if order.Total.Amount == 0 {
@@ -187,11 +199,19 @@ func (s *Service) ListByUser(
 	ctx context.Context,
 	userID uuid.UUID,
 	cursor paging.CursorPage,
-) ([]domain.Order, error) {
+) (_ []domain.Order, err error) {
+	ctx, span := s.tracer.Start(ctx, "order.ListByUser")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.ListByUser(ctx, userID, cursor)
 }
 
-func (s *Service) GetForUser(ctx context.Context, userID, orderID uuid.UUID) (*domain.Order, error) {
+func (s *Service) GetForUser(ctx context.Context, userID, orderID uuid.UUID) (_ *domain.Order, err error) {
+	ctx, span := s.tracer.Start(ctx, "order.GetForUser")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	order, err := s.repo.GetByID(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -209,11 +229,19 @@ func (s *Service) GetForUser(ctx context.Context, userID, orderID uuid.UUID) (*d
 	return order, nil
 }
 
-func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]domain.Order, int, error) {
+func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) (_ []domain.Order, _ int, err error) {
+	ctx, span := s.tracer.Start(ctx, "order.ListAdmin")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.ListAdmin(ctx, params)
 }
 
-func (s *Service) Get(ctx context.Context, orderID uuid.UUID) (*domain.Order, error) {
+func (s *Service) Get(ctx context.Context, orderID uuid.UUID) (_ *domain.Order, err error) {
+	ctx, span := s.tracer.Start(ctx, "order.Get")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	order, err := s.repo.GetByID(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -228,7 +256,11 @@ func (s *Service) Get(ctx context.Context, orderID uuid.UUID) (*domain.Order, er
 	return order, nil
 }
 
-func (s *Service) Snapshot(ctx context.Context, orderID uuid.UUID) (Snapshot, error) {
+func (s *Service) Snapshot(ctx context.Context, orderID uuid.UUID) (_ Snapshot, err error) {
+	ctx, span := s.tracer.Start(ctx, "order.Snapshot")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	full, err := s.FulfilmentSnapshot(ctx, orderID)
 	if err != nil {
 		return Snapshot{}, err
@@ -236,7 +268,11 @@ func (s *Service) Snapshot(ctx context.Context, orderID uuid.UUID) (Snapshot, er
 	return full.Snapshot, nil
 }
 
-func (s *Service) FulfilmentSnapshot(ctx context.Context, orderID uuid.UUID) (FulfilmentSnapshot, error) {
+func (s *Service) FulfilmentSnapshot(ctx context.Context, orderID uuid.UUID) (_ FulfilmentSnapshot, err error) {
+	ctx, span := s.tracer.Start(ctx, "order.FulfilmentSnapshot")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	o, err := s.repo.GetByID(ctx, orderID)
 	if err != nil {
 		return FulfilmentSnapshot{}, err
@@ -261,7 +297,11 @@ func (s *Service) FulfilmentSnapshot(ctx context.Context, orderID uuid.UUID) (Fu
 	}, nil
 }
 
-func (s *Service) ListItemQuantities(ctx context.Context, orderID uuid.UUID) (map[uuid.UUID]int, error) {
+func (s *Service) ListItemQuantities(ctx context.Context, orderID uuid.UUID) (_ map[uuid.UUID]int, err error) {
+	ctx, span := s.tracer.Start(ctx, "order.ListItemQuantities")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	items, err := s.repo.ListItemsByOrderID(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -274,7 +314,11 @@ func (s *Service) ListItemQuantities(ctx context.Context, orderID uuid.UUID) (ma
 	return out, nil
 }
 
-func (s *Service) HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (bool, error) {
+func (s *Service) HasDeliveredOrder(ctx context.Context, userID, orderID, productID uuid.UUID) (_ bool, err error) {
+	ctx, span := s.tracer.Start(ctx, "order.HasDeliveredOrder")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.HasDeliveredOrder(ctx, DeliveredPurchaseParams{
 		UserID:    userID,
 		OrderID:   orderID,
@@ -282,7 +326,11 @@ func (s *Service) HasDeliveredOrder(ctx context.Context, userID, orderID, produc
 	})
 }
 
-func (s *Service) CancelByUser(ctx context.Context, userID, orderID uuid.UUID) error {
+func (s *Service) CancelByUser(ctx context.Context, userID, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.CancelByUser")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	order, err := s.repo.GetByID(ctx, orderID)
 	if err != nil {
 		return err
@@ -298,7 +346,11 @@ func (s *Service) CancelByUser(ctx context.Context, userID, orderID uuid.UUID) e
 	return s.cancelWithReversal(ctx, order)
 }
 
-func (s *Service) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {
+func (s *Service) CancelUnpaid(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.CancelUnpaid")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	order, err := s.repo.GetByID(ctx, orderID)
 	if err != nil {
 		return err
@@ -306,7 +358,11 @@ func (s *Service) CancelUnpaid(ctx context.Context, orderID uuid.UUID) error {
 	return s.cancelWithReversal(ctx, order)
 }
 
-func (s *Service) ChangeStatus(ctx context.Context, orderID uuid.UUID, toStatus domain.Status) error {
+func (s *Service) ChangeStatus(ctx context.Context, orderID uuid.UUID, toStatus domain.Status) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.ChangeStatus")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	var t domain.Transition
 	switch toStatus {
 	case domain.StatusAwaitingPayment:
@@ -340,7 +396,11 @@ func (s *Service) ChangeStatus(ctx context.Context, orderID uuid.UUID, toStatus 
 	return s.Apply(ctx, orderID, t)
 }
 
-func (s *Service) ExpireStale(ctx context.Context) error {
+func (s *Service) ExpireStale(ctx context.Context) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.ExpireStale")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	orders, err := s.repo.GetExpiredOrders(ctx, housekeepingBatchLimit)
 	if err != nil {
 		return fmt.Errorf("getting expired orders: %w", err)
@@ -358,7 +418,11 @@ func (s *Service) ExpireStale(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) RecoverStale(ctx context.Context) error {
+func (s *Service) RecoverStale(ctx context.Context) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.RecoverStale")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	orders, err := s.repo.GetStaleProcessingOrders(ctx, StaleProcessingThreshold, housekeepingBatchLimit)
 	if err != nil {
 		return fmt.Errorf("getting stale processing orders: %w", err)
@@ -379,43 +443,83 @@ func (s *Service) RecoverStale(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) Apply(ctx context.Context, orderID uuid.UUID, t domain.Transition) error {
+func (s *Service) Apply(ctx context.Context, orderID uuid.UUID, t domain.Transition) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.Apply")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.Apply(ctx, orderID, t)
 }
 
-func (s *Service) MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) error {
+func (s *Service) MarkPaymentProcessing(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.MarkPaymentProcessing")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.Apply(ctx, orderID, domain.ToPaymentProcessing)
 }
 
-func (s *Service) BeginPaymentAttempt(ctx context.Context, orderID uuid.UUID) error {
+func (s *Service) BeginPaymentAttempt(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.BeginPaymentAttempt")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.Apply(ctx, orderID, domain.ToPaymentAttempt)
 }
 
-func (s *Service) MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) error {
+func (s *Service) MarkAwaitingPayment(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.MarkAwaitingPayment")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.Apply(ctx, orderID, domain.ToAwaitingPayment)
 }
 
-func (s *Service) MarkPaid(ctx context.Context, orderID uuid.UUID) error {
+func (s *Service) MarkPaid(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.MarkPaid")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.Apply(ctx, orderID, domain.ToPaid)
 }
 
-func (s *Service) MarkFulfillmentFailedAfterCharge(ctx context.Context, orderID uuid.UUID) error {
+func (s *Service) MarkFulfillmentFailedAfterCharge(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.MarkFulfillmentFailedAfterCharge")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.Apply(ctx, orderID, domain.ToFulfillmentFailedAfterCharge)
 }
 
-func (s *Service) MarkFulfillmentFailedCompensating(ctx context.Context, orderID uuid.UUID) error {
+func (s *Service) MarkFulfillmentFailedCompensating(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.MarkFulfillmentFailedCompensating")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.Apply(ctx, orderID, domain.ToFulfillmentFailedCompensating)
 }
 
-func (s *Service) MarkRefunded(ctx context.Context, orderID uuid.UUID) error {
+func (s *Service) MarkRefunded(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.MarkRefunded")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.Apply(ctx, orderID, domain.ToRefunded)
 }
 
-func (s *Service) MarkShipped(ctx context.Context, orderID uuid.UUID) error {
+func (s *Service) MarkShipped(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.MarkShipped")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.Apply(ctx, orderID, domain.ToShipped)
 }
 
-func (s *Service) MarkDelivered(ctx context.Context, orderID uuid.UUID) error {
+func (s *Service) MarkDelivered(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "order.MarkDelivered")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.Apply(ctx, orderID, domain.ToDelivered)
 }
 

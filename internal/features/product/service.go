@@ -5,21 +5,30 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/residwi/go-api-project-template/internal/features/product/domain"
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/slug"
+	"github.com/residwi/go-api-project-template/internal/platform/tracing"
 )
 
 type Service struct {
 	repo Repository
 
 	inventory Inventory
+
+	tracer trace.Tracer
 }
 
 func New(repo Repository, inventory Inventory) *Service {
-	return &Service{repo: repo, inventory: inventory}
+	return &Service{
+		repo:      repo,
+		inventory: inventory,
+		tracer:    otel.Tracer("github.com/residwi/go-api-project-template/internal/features/product"),
+	}
 }
 
 func denominateLike(amount *money.Money, price money.Money) *money.Money {
@@ -39,7 +48,11 @@ func (s *Service) Create(
 	compareAtPrice *money.Money,
 	sku *string,
 	status string,
-) (*domain.Product, error) {
+) (_ *domain.Product, err error) {
+	ctx, span := s.tracer.Start(ctx, "product.Create")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	if price.Currency == "" {
 		price.Currency = defaultCurrency
 	}
@@ -81,7 +94,11 @@ func (s *Service) Update(
 	compareAtPrice *money.Money,
 	sku *string,
 	status *string,
-) (*domain.Product, error) {
+) (_ *domain.Product, err error) {
+	ctx, span := s.tracer.Start(ctx, "product.Update")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	prod, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -118,7 +135,11 @@ func (s *Service) Update(
 	return prod, nil
 }
 
-func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *Service) Delete(ctx context.Context, id uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "product.Delete")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.Delete(ctx, id)
 }
 
@@ -128,7 +149,11 @@ func (s *Service) AddImage(
 	url string,
 	altText *string,
 	sortOrder *int,
-) (*domain.Image, error) {
+) (_ *domain.Image, err error) {
+	ctx, span := s.tracer.Start(ctx, "product.AddImage")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	if _, err := s.repo.GetByID(ctx, productID); err != nil {
 		return nil, err
 	}
@@ -149,7 +174,11 @@ func (s *Service) AddImage(
 	return img, nil
 }
 
-func (s *Service) DeleteImage(ctx context.Context, productID, imageID uuid.UUID) error {
+func (s *Service) DeleteImage(ctx context.Context, productID, imageID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "product.DeleteImage")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	if _, err := s.repo.GetByID(ctx, productID); err != nil {
 		return err
 	}
@@ -157,7 +186,11 @@ func (s *Service) DeleteImage(ctx context.Context, productID, imageID uuid.UUID)
 	return s.repo.DeleteImage(ctx, imageID)
 }
 
-func (s *Service) GetBySlug(ctx context.Context, productSlug string) (*domain.Product, error) {
+func (s *Service) GetBySlug(ctx context.Context, productSlug string) (_ *domain.Product, err error) {
+	ctx, span := s.tracer.Start(ctx, "product.GetBySlug")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	p, err := s.repo.GetBySlug(ctx, productSlug)
 	if err != nil {
 		return nil, err
@@ -180,7 +213,11 @@ func (s *Service) GetBySlug(ctx context.Context, productSlug string) (*domain.Pr
 	return &one[0], nil
 }
 
-func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Product, error) {
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (_ *domain.Product, err error) {
+	ctx, span := s.tracer.Start(ctx, "product.GetByID")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	p, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -202,7 +239,11 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Product, e
 func (s *Service) ListPublished(
 	ctx context.Context,
 	params PublishedListParams,
-) ([]domain.Product, string, bool, error) {
+) (_ []domain.Product, _ string, _ bool, err error) {
+	ctx, span := s.tracer.Start(ctx, "product.ListPublished")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	products, nextCursor, hasMore, err := s.repo.ListPublished(ctx, params)
 	if err != nil {
 		return nil, "", false, err
@@ -213,7 +254,14 @@ func (s *Service) ListPublished(
 	return products, nextCursor, hasMore, nil
 }
 
-func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]domain.Product, int, error) {
+func (s *Service) ListAdmin(
+	ctx context.Context,
+	params AdminListParams,
+) (_ []domain.Product, _ int, err error) {
+	ctx, span := s.tracer.Start(ctx, "product.ListAdmin")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	products, total, err := s.repo.ListAdmin(ctx, params)
 	if err != nil {
 		return nil, 0, err
@@ -224,11 +272,19 @@ func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]doma
 	return products, total, nil
 }
 
-func (s *Service) CountPublished(ctx context.Context, categoryID uuid.UUID) (int, error) {
+func (s *Service) CountPublished(ctx context.Context, categoryID uuid.UUID) (_ int, err error) {
+	ctx, span := s.tracer.Start(ctx, "product.CountPublished")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.CountPublishedByCategory(ctx, categoryID)
 }
 
-func (s *Service) GetInfo(ctx context.Context, id uuid.UUID) (*Info, error) {
+func (s *Service) GetInfo(ctx context.Context, id uuid.UUID) (_ *Info, err error) {
+	ctx, span := s.tracer.Start(ctx, "product.GetInfo")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	p, err := s.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -243,7 +299,11 @@ func (s *Service) GetInfo(ctx context.Context, id uuid.UUID) (*Info, error) {
 	}, nil
 }
 
-func (s *Service) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]Info, error) {
+func (s *Service) GetInfoByIDs(ctx context.Context, ids []uuid.UUID) (_ map[uuid.UUID]Info, err error) {
+	ctx, span := s.tracer.Start(ctx, "product.GetInfoByIDs")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	products, err := s.getByIDsIncludingDeleted(ctx, ids)
 	if err != nil {
 		return nil, err

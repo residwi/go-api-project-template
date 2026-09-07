@@ -33,12 +33,12 @@ func TestService_PlaceOrder(t *testing.T) {
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().
-			Place(t.Context(), userID, order.NewOrder{Notes: "leave at door"}, "idem-1").
+			Place(mock.Anything, userID, order.NewOrder{Notes: "leave at door"}, "idem-1").
 			Return(placed, true, nil)
 
 		payments := NewMockPayments(t)
 		payments.EXPECT().
-			Charge(t.Context(), payment.ChargeRequest{
+			Charge(mock.Anything, payment.ChargeRequest{
 				OrderID:         orderID,
 				Amount:          money.New(2500, "USD"),
 				PaymentMethodID: "pm_123",
@@ -69,10 +69,10 @@ func TestService_PlaceOrder(t *testing.T) {
 		}
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Place(t.Context(), userID, order.NewOrder{}, "idem-2").Return(placed, true, nil)
+		orders.EXPECT().Place(mock.Anything, userID, order.NewOrder{}, "idem-2").Return(placed, true, nil)
 
 		payments := NewMockPayments(t)
-		payments.EXPECT().Charge(t.Context(), mock.Anything).
+		payments.EXPECT().Charge(mock.Anything, mock.Anything).
 			Return(payment.ChargeResult{}, errors.New("gateway down"))
 
 		svc := New(orders, payments, testutil.DiscardLogger())
@@ -98,7 +98,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		}
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Place(t.Context(), userID, order.NewOrder{}, "idem-3").Return(placed, true, nil)
+		orders.EXPECT().Place(mock.Anything, userID, order.NewOrder{}, "idem-3").Return(placed, true, nil)
 
 		// No EXPECT on payments: mockery fails the test if Charge is called.
 		payments := NewMockPayments(t)
@@ -120,7 +120,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		userID := uuid.New()
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Place(t.Context(), userID, order.NewOrder{}, "idem-4").
+		orders.EXPECT().Place(mock.Anything, userID, order.NewOrder{}, "idem-4").
 			Return(nil, false, apperror.ErrCartEmpty)
 
 		payments := NewMockPayments(t)
@@ -152,7 +152,7 @@ func TestService_PlaceOrder(t *testing.T) {
 		}
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Place(t.Context(), userID, order.NewOrder{}, "idem-replay").
+		orders.EXPECT().Place(mock.Anything, userID, order.NewOrder{}, "idem-replay").
 			Return(replayed, false, nil)
 
 		// No EXPECT on payments: mockery fails the test if Charge is called.
@@ -180,16 +180,16 @@ func TestService_RetryPayment(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
+		orders.EXPECT().Snapshot(mock.Anything, orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(4000, "USD"),
 			Status: string("awaiting_payment"),
 		}, nil)
-		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(nil)
+		orders.EXPECT().BeginPaymentAttempt(mock.Anything, orderID).Return(nil)
 
 		payments := NewMockPayments(t)
-		payments.EXPECT().Charge(t.Context(), payment.ChargeRequest{
+		payments.EXPECT().Charge(mock.Anything, payment.ChargeRequest{
 			OrderID:         orderID,
 			Amount:          money.New(4000, "USD"),
 			PaymentMethodID: "pm_retry",
@@ -209,7 +209,7 @@ func TestService_RetryPayment(t *testing.T) {
 		orderID := uuid.New()
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
+		orders.EXPECT().Snapshot(mock.Anything, orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: uuid.New(),
 			Status: string("awaiting_payment"),
@@ -228,12 +228,12 @@ func TestService_RetryPayment(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
+		orders.EXPECT().Snapshot(mock.Anything, orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Status: string("paid"),
 		}, nil)
-		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(errs.ErrConflict)
+		orders.EXPECT().BeginPaymentAttempt(mock.Anything, orderID).Return(errs.ErrConflict)
 
 		svc := New(orders, NewMockPayments(t), testutil.DiscardLogger())
 
@@ -250,13 +250,13 @@ func TestService_RetryPayment(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
+		orders.EXPECT().Snapshot(mock.Anything, orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(4000, "USD"),
 			Status: string("awaiting_payment"),
 		}, nil)
-		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(errs.ErrConflict)
+		orders.EXPECT().BeginPaymentAttempt(mock.Anything, orderID).Return(errs.ErrConflict)
 
 		svc := New(orders, NewMockPayments(t), testutil.DiscardLogger())
 
@@ -271,17 +271,17 @@ func TestService_RetryPayment(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().Snapshot(t.Context(), orderID).Return(order.Snapshot{
+		orders.EXPECT().Snapshot(mock.Anything, orderID).Return(order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
 			Total:  money.New(4000, "USD"),
 			Status: string("awaiting_payment"),
 		}, nil)
-		orders.EXPECT().BeginPaymentAttempt(t.Context(), orderID).Return(nil)
-		orders.EXPECT().MarkAwaitingPayment(t.Context(), orderID).Return(nil)
+		orders.EXPECT().BeginPaymentAttempt(mock.Anything, orderID).Return(nil)
+		orders.EXPECT().MarkAwaitingPayment(mock.Anything, orderID).Return(nil)
 
 		payments := NewMockPayments(t)
-		payments.EXPECT().Charge(t.Context(), payment.ChargeRequest{
+		payments.EXPECT().Charge(mock.Anything, payment.ChargeRequest{
 			OrderID:         orderID,
 			Amount:          money.New(4000, "USD"),
 			PaymentMethodID: "pm_retry",
@@ -304,10 +304,10 @@ func TestService_CancelOrder(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().CancelByUser(t.Context(), userID, orderID).Return(nil)
+		orders.EXPECT().CancelByUser(mock.Anything, userID, orderID).Return(nil)
 
 		payments := NewMockPayments(t)
-		payments.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(nil)
+		payments.EXPECT().CancelPendingByOrderID(mock.Anything, orderID).Return(nil)
 
 		svc := New(orders, payments, testutil.DiscardLogger())
 
@@ -320,10 +320,10 @@ func TestService_CancelOrder(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().CancelByUser(t.Context(), userID, orderID).Return(nil)
+		orders.EXPECT().CancelByUser(mock.Anything, userID, orderID).Return(nil)
 
 		payments := NewMockPayments(t)
-		payments.EXPECT().CancelPendingByOrderID(t.Context(), orderID).Return(errors.New("db down"))
+		payments.EXPECT().CancelPendingByOrderID(mock.Anything, orderID).Return(errors.New("db down"))
 
 		svc := New(orders, payments, testutil.DiscardLogger())
 
@@ -336,7 +336,7 @@ func TestService_CancelOrder(t *testing.T) {
 		userID, orderID := uuid.New(), uuid.New()
 
 		orders := NewMockOrders(t)
-		orders.EXPECT().CancelByUser(t.Context(), userID, orderID).Return(apperror.ErrOrderCharging)
+		orders.EXPECT().CancelByUser(mock.Anything, userID, orderID).Return(apperror.ErrOrderCharging)
 
 		svc := New(orders, NewMockPayments(t), testutil.DiscardLogger())
 

@@ -5,10 +5,13 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/residwi/go-api-project-template/internal/features/shipping/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/tracing"
 )
 
 type Service struct {
@@ -16,17 +19,28 @@ type Service struct {
 	tx   database.TxRunner
 
 	orders Orders
+
+	tracer trace.Tracer
 }
 
 func New(repo Repository, tx database.TxRunner, orders Orders) *Service {
-	return &Service{repo: repo, tx: tx, orders: orders}
+	return &Service{
+		repo:   repo,
+		tx:     tx,
+		orders: orders,
+		tracer: otel.Tracer("github.com/residwi/go-api-project-template/internal/features/shipping"),
+	}
 }
 
 func (s *Service) Create(
 	ctx context.Context,
 	orderID uuid.UUID,
 	carrier, trackingNumber string,
-) (*domain.Shipment, error) {
+) (_ *domain.Shipment, err error) {
+	ctx, span := s.tracer.Start(ctx, "shipping.Create")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	order, err := s.orders.Snapshot(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -55,7 +69,11 @@ func (s *Service) Create(
 	return shipment, nil
 }
 
-func (s *Service) Deliver(ctx context.Context, shipmentID uuid.UUID) (*domain.Shipment, error) {
+func (s *Service) Deliver(ctx context.Context, shipmentID uuid.UUID) (_ *domain.Shipment, err error) {
+	ctx, span := s.tracer.Start(ctx, "shipping.Deliver")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	shipment, err := s.repo.GetByID(ctx, shipmentID)
 	if err != nil {
 		return nil, err
@@ -80,7 +98,11 @@ func (s *Service) UpdateTracking(
 	ctx context.Context,
 	shipmentID uuid.UUID,
 	carrier, trackingNumber string,
-) (*domain.Shipment, error) {
+) (_ *domain.Shipment, err error) {
+	ctx, span := s.tracer.Start(ctx, "shipping.UpdateTracking")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	shipment, err := s.repo.GetByID(ctx, shipmentID)
 	if err != nil {
 		return nil, err
@@ -100,7 +122,11 @@ func (s *Service) UpdateTracking(
 	return s.repo.GetByID(ctx, shipmentID)
 }
 
-func (s *Service) GetForUser(ctx context.Context, userID, orderID uuid.UUID) (*domain.Shipment, error) {
+func (s *Service) GetForUser(ctx context.Context, userID, orderID uuid.UUID) (_ *domain.Shipment, err error) {
+	ctx, span := s.tracer.Start(ctx, "shipping.GetForUser")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	order, err := s.orders.Snapshot(ctx, orderID)
 	if err != nil {
 		return nil, err

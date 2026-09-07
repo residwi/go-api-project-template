@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
@@ -1708,6 +1709,7 @@ func newTestService(t *testing.T) (*Service, testDeps) {
 		gateway:   d.gateway,
 		queue:     d.queue,
 		logger:    testutil.DiscardLogger(),
+		tracer:    otel.Tracer("test"),
 		orders:    d.orders,
 		inventory: d.inventory,
 		coupon:    d.coupon,

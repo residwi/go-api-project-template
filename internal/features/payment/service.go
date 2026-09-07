@@ -11,12 +11,16 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/inventory"
 	"github.com/residwi/go-api-project-template/internal/features/payment/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/tracing"
 )
 
 type Service struct {
@@ -25,6 +29,7 @@ type Service struct {
 	gateway Gateway
 	queue   JobQueue
 	logger  *slog.Logger
+	tracer  trace.Tracer
 
 	orders    Orders
 	inventory Inventory
@@ -50,6 +55,7 @@ func New(
 		gateway:       gateway,
 		queue:         queue,
 		logger:        logger,
+		tracer:        otel.Tracer("github.com/residwi/go-api-project-template/internal/features/payment"),
 		orders:        orders,
 		inventory:     inventory,
 		coupon:        coupons,
@@ -57,7 +63,12 @@ func New(
 	}
 }
 
-func (s *Service) Charge(ctx context.Context, req ChargeRequest) (ChargeResult, error) {
+func (s *Service) Charge(ctx context.Context, req ChargeRequest) (_ ChargeResult, err error) {
+	ctx, span := s.tracer.Start(ctx, "payment.Charge")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+	span.SetAttributes(attribute.String("order.id", req.OrderID.String()))
+
 	existing, err := s.repo.GetActiveByOrderID(ctx, req.OrderID)
 	if err != nil && !errors.Is(err, errs.ErrNotFound) {
 		return ChargeResult{}, err
@@ -145,7 +156,11 @@ func (s *Service) Charge(ctx context.Context, req ChargeRequest) (ChargeResult, 
 }
 
 //nolint:gocognit // single finalize CAS with idempotent already-finalized and late-charge-on-terminal-order branches; funlen counts golines' wrapping, not added logic
-func (s *Service) FinalizeSuccess(ctx context.Context, paymentID, orderID uuid.UUID) error {
+func (s *Service) FinalizeSuccess(ctx context.Context, paymentID, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "payment.FinalizeSuccess")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.tx.Run(ctx, func(txCtx context.Context) error {
 		orderSnap, err := s.orders.Snapshot(txCtx, orderID)
 		if err != nil {
@@ -229,6 +244,9 @@ func (s *Service) FinalizeSuccess(ctx context.Context, paymentID, orderID uuid.U
 }
 
 func (s *Service) CompensateRefund(ctx context.Context, paymentID, orderID uuid.UUID) {
+	ctx, span := s.tracer.Start(ctx, "payment.CompensateRefund")
+	defer span.End()
+
 	txErr := s.tx.Run(ctx, func(txCtx context.Context) error {
 		if statusErr := s.repo.UpdateStatus(txCtx, paymentID, domain.StatusRequiresReview,
 			[]domain.Status{domain.StatusPending, domain.StatusProcessing, domain.StatusSuccess}); statusErr != nil {
@@ -251,12 +269,17 @@ func (s *Service) CompensateRefund(ctx context.Context, paymentID, orderID uuid.
 		return s.queue.EnqueueRefund(txCtx, paymentID, orderID)
 	})
 	if txErr != nil {
+		tracing.Record(span, txErr)
 		s.logger.ErrorContext(ctx, "compensating refund failed",
 			slog.String("order_id", orderID.String()), slog.String("error", txErr.Error()))
 	}
 }
 
-func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
+func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "payment.Refund")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	p, err := s.repo.GetByID(ctx, paymentID)
 	if err != nil {
 		return err
@@ -270,7 +293,11 @@ func (s *Service) Refund(ctx context.Context, paymentID uuid.UUID) error {
 }
 
 //nolint:gocognit // resolves the payment then dispatches success/failed/cancelled/expired event branches
-func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature string) error {
+func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature string) (err error) {
+	ctx, span := s.tracer.Start(ctx, "payment.HandleWebhook")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	if s.webhookSecret != "" && !verifySignature(s.webhookSecret, payload, signature) {
 		s.logger.WarnContext(ctx, "webhook: invalid or missing signature")
 		return fmt.Errorf("%w: invalid webhook signature", errs.ErrUnauthorized)
@@ -286,43 +313,7 @@ func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature s
 	metadata, _ := body["metadata"].(map[string]any)
 	txnID, _ := body["transaction_id"].(string)
 
-	var p *domain.Payment
-
-	if metadata != nil { //nolint:nestif // webhook payload parsing
-		if pidStr, ok := metadata["payment_id"].(string); ok {
-			pid, parseErr := uuid.Parse(pidStr)
-			if parseErr == nil {
-				found, getErr := s.repo.GetByID(ctx, pid)
-				if getErr != nil {
-					s.logger.ErrorContext(
-						ctx,
-						"webhook: failed to get payment by id",
-						slog.String("payment_id", pid.String()),
-						slog.String("error", getErr.Error()),
-					)
-				} else {
-					p = found
-				}
-			}
-		}
-	}
-
-	if p == nil && txnID != "" {
-		found, getErr := s.repo.GetByGatewayTxnID(ctx, txnID)
-		if getErr != nil {
-			if !errors.Is(getErr, errs.ErrNotFound) {
-				s.logger.ErrorContext(
-					ctx,
-					"webhook: failed to get payment by gateway txn id",
-					slog.String("txn_id", txnID),
-					slog.String("error", getErr.Error()),
-				)
-			}
-		} else {
-			p = found
-		}
-	}
-
+	p := s.resolveWebhookPayment(ctx, metadata, txnID)
 	if p == nil {
 		s.logger.ErrorContext(ctx, "webhook: unknown payment_id", slog.String("payload_event", event))
 		return nil
@@ -391,16 +382,29 @@ func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature s
 	return nil
 }
 
-func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*domain.Payment, error) {
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (_ *domain.Payment, err error) {
+	ctx, span := s.tracer.Start(ctx, "payment.GetByID")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]domain.Payment, int, error) {
+func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) (_ []domain.Payment, _ int, err error) {
+	ctx, span := s.tracer.Start(ctx, "payment.ListAdmin")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.ListAdmin(ctx, params)
 }
 
 //nolint:gocognit // not-refundable guard, gateway call, and the finalize transaction's dispatched/restock/coupon branches
-func (s *Service) SettleRefund(ctx context.Context, paymentID, orderID uuid.UUID) error {
+func (s *Service) SettleRefund(ctx context.Context, paymentID, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "payment.SettleRefund")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+	span.SetAttributes(attribute.String("order.id", orderID.String()))
+
 	p, err := s.repo.GetByID(ctx, paymentID)
 	if err != nil {
 		s.logger.ErrorContext(
@@ -509,11 +513,55 @@ func (s *Service) SettleRefund(ctx context.Context, paymentID, orderID uuid.UUID
 	return nil
 }
 
-func (s *Service) CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) error {
+func (s *Service) CancelPendingByOrderID(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "payment.CancelPendingByOrderID")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	if err := s.queue.CancelPendingForOrder(ctx, orderID); err != nil {
 		return fmt.Errorf("cancelling payment jobs for order %s: %w", orderID, err)
 	}
 	return nil
+}
+
+func (s *Service) resolveWebhookPayment(ctx context.Context, metadata map[string]any, txnID string) *domain.Payment {
+	if metadata != nil { //nolint:nestif // webhook payload parsing
+		if pidStr, ok := metadata["payment_id"].(string); ok {
+			pid, parseErr := uuid.Parse(pidStr)
+			if parseErr == nil {
+				found, getErr := s.repo.GetByID(ctx, pid)
+				if getErr != nil {
+					s.logger.ErrorContext(
+						ctx,
+						"webhook: failed to get payment by id",
+						slog.String("payment_id", pid.String()),
+						slog.String("error", getErr.Error()),
+					)
+				} else {
+					return found
+				}
+			}
+		}
+	}
+
+	if txnID == "" {
+		return nil
+	}
+
+	found, getErr := s.repo.GetByGatewayTxnID(ctx, txnID)
+	if getErr != nil {
+		if !errors.Is(getErr, errs.ErrNotFound) {
+			s.logger.ErrorContext(
+				ctx,
+				"webhook: failed to get payment by gateway txn id",
+				slog.String("txn_id", txnID),
+				slog.String("error", getErr.Error()),
+			)
+		}
+		return nil
+	}
+
+	return found
 }
 
 func verifySignature(secret string, body []byte, provided string) bool {

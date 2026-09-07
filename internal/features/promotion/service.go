@@ -6,22 +6,34 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/residwi/go-api-project-template/internal/features/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/tracing"
 )
 
 type Service struct {
-	repo Repository
-	tx   database.TxRunner
+	repo   Repository
+	tx     database.TxRunner
+	tracer trace.Tracer
 }
 
 func New(repo Repository, tx database.TxRunner) *Service {
-	return &Service{repo: repo, tx: tx}
+	return &Service{
+		repo:   repo,
+		tx:     tx,
+		tracer: otel.Tracer("github.com/residwi/go-api-project-template/internal/features/promotion"),
+	}
 }
 
-func (s *Service) Apply(ctx context.Context, code string, orderAmount int64) (int64, error) {
+func (s *Service) Apply(ctx context.Context, code string, orderAmount int64) (_ int64, err error) {
+	ctx, span := s.tracer.Start(ctx, "promotion.Apply")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	promo, err := s.repo.GetByCode(ctx, code)
 	if err != nil {
 		return 0, err
@@ -45,7 +57,11 @@ func (s *Service) Create(
 	startsAt time.Time,
 	expiresAt time.Time,
 	active bool,
-) (*domain.Promotion, error) {
+) (_ *domain.Promotion, err error) {
+	ctx, span := s.tracer.Start(ctx, "promotion.Create")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	promo := &domain.Promotion{
 		Code:           code,
 		Type:           promoType,
@@ -81,7 +97,11 @@ func (s *Service) Update(
 	startsAt *time.Time,
 	expiresAt *time.Time,
 	active *bool,
-) (*domain.Promotion, error) {
+) (_ *domain.Promotion, err error) {
+	ctx, span := s.tracer.Start(ctx, "promotion.Update")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	promo, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -126,11 +146,22 @@ func (s *Service) Update(
 	return promo, nil
 }
 
-func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *Service) Delete(ctx context.Context, id uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "promotion.Delete")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) ([]domain.Promotion, int, error) {
+func (s *Service) ListAdmin(
+	ctx context.Context,
+	params AdminListParams,
+) (_ []domain.Promotion, _ int, err error) {
+	ctx, span := s.tracer.Start(ctx, "promotion.ListAdmin")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	return s.repo.ListAdmin(ctx, params)
 }
 
@@ -139,23 +170,27 @@ func (s *Service) Reserve(
 	code string,
 	userID, orderID uuid.UUID,
 	orderSubtotal int64,
-) (int64, error) {
+) (_ int64, err error) {
+	ctx, span := s.tracer.Start(ctx, "promotion.Reserve")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	var discountAmount int64
 
-	err := s.tx.Run(ctx, func(ctx context.Context) error {
-		promo, err := s.repo.GetByCode(ctx, code)
-		if err != nil {
-			return err
+	err = s.tx.Run(ctx, func(txCtx context.Context) error {
+		promo, txErr := s.repo.GetByCode(txCtx, code)
+		if txErr != nil {
+			return txErr
 		}
 
-		if err := domain.ValidatePromotion(promo, orderSubtotal); err != nil {
-			return err
+		if txErr := domain.ValidatePromotion(promo, orderSubtotal); txErr != nil {
+			return txErr
 		}
 
 		discountAmount = domain.ComputeDiscount(promo, orderSubtotal)
 
-		if err := s.repo.ApplyPromotion(ctx, promo.ID); err != nil {
-			return err
+		if txErr := s.repo.ApplyPromotion(txCtx, promo.ID); txErr != nil {
+			return txErr
 		}
 
 		usage := &domain.CouponUsage{
@@ -164,22 +199,26 @@ func (s *Service) Reserve(
 			OrderID:  orderID,
 			Discount: discountAmount,
 		}
-		return s.repo.CreateUsage(ctx, usage)
+		return s.repo.CreateUsage(txCtx, usage)
 	})
 
 	return discountAmount, err
 }
 
-func (s *Service) Release(ctx context.Context, orderID uuid.UUID) error {
-	return s.tx.Run(ctx, func(ctx context.Context) error {
-		usage, err := s.repo.DeleteUsageByOrderID(ctx, orderID)
-		if err != nil {
-			if errors.Is(err, errs.ErrNotFound) {
+func (s *Service) Release(ctx context.Context, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "promotion.Release")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
+	return s.tx.Run(ctx, func(txCtx context.Context) error {
+		usage, txErr := s.repo.DeleteUsageByOrderID(txCtx, orderID)
+		if txErr != nil {
+			if errors.Is(txErr, errs.ErrNotFound) {
 				return nil
 			}
-			return err
+			return txErr
 		}
 
-		return s.repo.ReleasePromotion(ctx, usage.CouponID)
+		return s.repo.ReleasePromotion(txCtx, usage.CouponID)
 	})
 }

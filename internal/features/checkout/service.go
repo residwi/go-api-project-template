@@ -6,11 +6,14 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/residwi/go-api-project-template/internal/apperror"
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
+	"github.com/residwi/go-api-project-template/internal/platform/tracing"
 )
 
 type PlaceOrderInput struct {
@@ -23,17 +26,27 @@ type Service struct {
 	orders   Orders
 	payments Payments
 	logger   *slog.Logger
+	tracer   trace.Tracer
 }
 
 func New(orders Orders, payments Payments, logger *slog.Logger) *Service {
-	return &Service{orders: orders, payments: payments, logger: logger}
+	return &Service{
+		orders:   orders,
+		payments: payments,
+		logger:   logger,
+		tracer:   otel.Tracer("github.com/residwi/go-api-project-template/internal/features/checkout"),
+	}
 }
 
 func (s *Service) PlaceOrder(
 	ctx context.Context,
 	userID uuid.UUID,
 	in PlaceOrderInput,
-) (*order.Snapshot, error) {
+) (_ *order.Snapshot, err error) {
+	ctx, span := s.tracer.Start(ctx, "checkout.PlaceOrder")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	placed, created, err := s.orders.Place(ctx, userID, in.Order, in.IdempotencyKey)
 	if err != nil {
 		return nil, err
@@ -57,7 +70,11 @@ func (s *Service) RetryPayment(
 	ctx context.Context,
 	userID, orderID uuid.UUID,
 	paymentMethodID string,
-) (payment.ChargeResult, error) {
+) (_ payment.ChargeResult, err error) {
+	ctx, span := s.tracer.Start(ctx, "checkout.RetryPayment")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	order, err := s.orders.Snapshot(ctx, orderID)
 	if err != nil {
 		return payment.ChargeResult{}, err
@@ -88,7 +105,11 @@ func (s *Service) RetryPayment(
 	return result, nil
 }
 
-func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) error {
+func (s *Service) CancelOrder(ctx context.Context, userID, orderID uuid.UUID) (err error) {
+	ctx, span := s.tracer.Start(ctx, "checkout.CancelOrder")
+	defer span.End()
+	defer func() { tracing.Record(span, err) }()
+
 	if err := s.orders.CancelByUser(ctx, userID, orderID); err != nil {
 		return err
 	}
