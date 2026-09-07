@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/residwi/go-api-project-template/internal/app"
@@ -28,7 +27,9 @@ func Run() error {
 	return RunContext(ctx)
 }
 
-func RunContext(ctx context.Context) error {
+func RunContext( //nolint:funlen // one linear boot sequence: config, tracing, database, wiring, serve, shutdown -- splitting it separates each acquire from the defer that releases it
+	ctx context.Context,
+) error {
 	appCfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "loading app config failed: %v\n", err)
@@ -54,13 +55,45 @@ func RunContext(ctx context.Context) error {
 		return err
 	}
 
-	primaryDB, replicaDB, rdb, err := setupPools(ctx, appCfg, appLog)
+	primaryDB, err := database.NewPrimaryPostgres(ctx, app.PoolOptions(appCfg.Database))
 	if err != nil {
-		return err
+		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
+		return fmt.Errorf("connecting to database: %w", err)
 	}
 	defer primaryDB.Close()
+
+	replicaDB, err := database.NewReplicaPostgres(ctx, app.ReplicaPoolOptions(appCfg.Database))
+	if err != nil {
+		if !errors.Is(err, database.ErrReplicaNotConfigured) {
+			appLog.WarnContext(
+				ctx,
+				"failed to connect replica database, using primary",
+				slog.String("error", err.Error()),
+			)
+		}
+		replicaDB = nil
+	}
 	if replicaDB != nil {
 		defer replicaDB.Close()
+	}
+
+	rdb, err := cache.NewRedis(ctx, &redis.Options{
+		Addr:         appCfg.Redis.Addr(),
+		Password:     appCfg.Redis.Password,
+		DB:           appCfg.Redis.DB,
+		PoolSize:     appCfg.Redis.PoolSize,
+		MinIdleConns: appCfg.Redis.MinIdleConns,
+		DialTimeout:  appCfg.Redis.DialTimeout,
+		ReadTimeout:  appCfg.Redis.ReadTimeout,
+		WriteTimeout: appCfg.Redis.WriteTimeout,
+		PoolTimeout:  appCfg.Redis.PoolTimeout,
+	})
+	if err != nil {
+		appLog.WarnContext(
+			ctx,
+			"failed to connect to redis, continuing without cache/rate-limiting",
+			slog.String("error", err.Error()),
+		)
 	}
 	if rdb != nil {
 		defer rdb.Close()
@@ -117,49 +150,4 @@ func RunContext(ctx context.Context) error {
 
 	appLog.InfoContext(ctx, "server stopped gracefully")
 	return nil
-}
-
-func setupPools(
-	ctx context.Context,
-	appCfg *config.Settings,
-	appLog *slog.Logger,
-) (*pgxpool.Pool, *pgxpool.Pool, *redis.Client, error) {
-	primaryDB, err := database.NewPrimaryPostgres(ctx, app.PoolOptions(appCfg.Database))
-	if err != nil {
-		appLog.ErrorContext(ctx, "connecting to database failed", slog.String("error", err.Error()))
-		return nil, nil, nil, fmt.Errorf("connecting to database: %w", err)
-	}
-
-	replicaDB, err := database.NewReplicaPostgres(ctx, app.ReplicaPoolOptions(appCfg.Database))
-	if err != nil {
-		if !errors.Is(err, database.ErrReplicaNotConfigured) {
-			appLog.WarnContext(
-				ctx,
-				"failed to connect replica database, using primary",
-				slog.String("error", err.Error()),
-			)
-		}
-		replicaDB = nil
-	}
-
-	rdb, err := cache.NewRedis(ctx, &redis.Options{
-		Addr:         appCfg.Redis.Addr(),
-		Password:     appCfg.Redis.Password,
-		DB:           appCfg.Redis.DB,
-		PoolSize:     appCfg.Redis.PoolSize,
-		MinIdleConns: appCfg.Redis.MinIdleConns,
-		DialTimeout:  appCfg.Redis.DialTimeout,
-		ReadTimeout:  appCfg.Redis.ReadTimeout,
-		WriteTimeout: appCfg.Redis.WriteTimeout,
-		PoolTimeout:  appCfg.Redis.PoolTimeout,
-	})
-	if err != nil {
-		appLog.WarnContext(
-			ctx,
-			"failed to connect to redis, continuing without cache/rate-limiting",
-			slog.String("error", err.Error()),
-		)
-	}
-
-	return primaryDB, replicaDB, rdb, nil
 }
