@@ -50,11 +50,7 @@ func RunContext(ctx context.Context) error {
 		appLog.ErrorContext(ctx, "setting up tracing failed", slog.String("error", err.Error()))
 		return fmt.Errorf("setting up tracing: %w", err)
 	}
-	defer func() {
-		if errFlush := shutdownTracing(); errFlush != nil {
-			appLog.ErrorContext(context.Background(), "flushing traces failed", slog.String("error", errFlush.Error()))
-		}
-	}()
+	defer shutdownTracing()
 
 	modCfg, err := app.LoadConfig(appCfg)
 	if err != nil {

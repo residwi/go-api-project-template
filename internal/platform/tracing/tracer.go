@@ -25,9 +25,9 @@ func Setup(
 	ctx context.Context,
 	serviceName, env string,
 	log *slog.Logger,
-) (func() error, error) {
+) (func(), error) {
 	if os.Getenv("OTEL_TRACES_EXPORTER") == "" {
-		return func() error { return nil }, nil
+		return func() {}, nil
 	}
 
 	exporter, err := autoexport.NewSpanExporter(ctx)
@@ -36,7 +36,7 @@ func Setup(
 	}
 
 	if autoexport.IsNoneSpanExporter(exporter) {
-		return func() error { return nil }, nil
+		return func() {}, nil
 	}
 
 	res, err := newResource(ctx, serviceName, env)
@@ -58,11 +58,13 @@ func Setup(
 		log.ErrorContext(context.Background(), "trace export failed", slog.String("error", err.Error()))
 	}))
 
-	return func() error {
+	return func() {
 		flushCtx, cancel := context.WithTimeout(context.Background(), flushTimeout)
 		defer cancel()
 
-		return provider.Shutdown(flushCtx)
+		if err := provider.Shutdown(flushCtx); err != nil {
+			log.ErrorContext(flushCtx, "flushing traces failed", slog.String("error", err.Error()))
+		}
 	}, nil
 }
 

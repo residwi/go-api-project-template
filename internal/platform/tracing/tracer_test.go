@@ -69,7 +69,7 @@ func TestSetup(t *testing.T) {
 
 		shutdown, err := tracing.Setup(t.Context(), "test-api", "test", testutil.DiscardLogger())
 		require.NoError(t, err)
-		t.Cleanup(func() { assert.NoError(t, shutdown()) })
+		t.Cleanup(shutdown)
 
 		assert.Same(t, beforeProvider, otel.GetTracerProvider())
 		assert.Equal(t, beforePropagator, otel.GetTextMapPropagator())
@@ -83,7 +83,7 @@ func TestSetup(t *testing.T) {
 
 		shutdown, err := tracing.Setup(t.Context(), "test-api", "test", testutil.DiscardLogger())
 		require.NoError(t, err)
-		t.Cleanup(func() { assert.NoError(t, shutdown()) })
+		t.Cleanup(shutdown)
 
 		assert.Same(t, beforeProvider, otel.GetTracerProvider())
 		assert.Equal(t, beforePropagator, otel.GetTextMapPropagator())
@@ -94,7 +94,7 @@ func TestSetup(t *testing.T) {
 
 		shutdown, err := tracing.Setup(t.Context(), "test-api", "test", testutil.DiscardLogger())
 		require.NoError(t, err)
-		t.Cleanup(func() { assert.NoError(t, shutdown()) })
+		t.Cleanup(shutdown)
 
 		assert.NotEmpty(t, otel.GetTextMapPropagator().Fields())
 	})
