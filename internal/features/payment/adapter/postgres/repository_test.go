@@ -15,7 +15,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/money"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -328,8 +327,8 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		seedPayment(t, repo, orderID)
 
 		payments, total, err := repo.ListAdmin(context.Background(), payment.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
-			OrderID:    orderID.String(),
+			Page: 1, PageSize: 10,
+			OrderID: orderID.String(),
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -351,8 +350,8 @@ func TestPostgresRepository_ListAdmin_WithNullableFields(t *testing.T) {
 		require.NoError(t, err)
 
 		payments, total, err := repo.ListAdmin(ctx, payment.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 100},
-			OrderID:    orderID.String(),
+			Page: 1, PageSize: 100,
+			OrderID: orderID.String(),
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -376,9 +375,9 @@ func TestPostgresRepository_ListAdmin_Filters(t *testing.T) {
 		seedPayment(t, repo, orderID)
 
 		payments, total, err := repo.ListAdmin(context.Background(), payment.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
-			OrderID:    orderID.String(),
-			Status:     "pending",
+			Page: 1, PageSize: 10,
+			OrderID: orderID.String(),
+			Status:  "pending",
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -394,8 +393,8 @@ func TestPostgresRepository_ListAdmin_Filters(t *testing.T) {
 		seedPayment(t, repo, orderID)
 
 		payments, total, err := repo.ListAdmin(context.Background(), payment.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
-			OrderID:    orderID.String(),
+			Page: 1, PageSize: 10,
+			OrderID: orderID.String(),
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -465,7 +464,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	t.Run("ListAdmin", func(t *testing.T) {
 		_, _, err := repo.ListAdmin(
 			cancelledCtx,
-			payment.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}},
+			payment.AdminListParams{Page: 1, PageSize: 10},
 		)
 		assert.Error(t, err)
 	})

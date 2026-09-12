@@ -16,7 +16,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -164,7 +163,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		// the results rather than asserting an exact total.
 		items, total, err := repo.ListAdmin(
 			context.Background(),
-			promotion.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 1000}},
+			promotion.AdminListParams{Page: 1, PageSize: 1000},
 		)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 2)
@@ -184,7 +183,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		_, _, err := repo.ListAdmin(
 			cancelledCtx,
-			promotion.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}},
+			promotion.AdminListParams{Page: 1, PageSize: 10},
 		)
 		assert.Error(t, err)
 	})
@@ -356,7 +355,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	t.Run("ListAdmin", func(t *testing.T) {
 		_, _, err := repo.ListAdmin(
 			cancelledCtx,
-			promotion.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}},
+			promotion.AdminListParams{Page: 1, PageSize: 10},
 		)
 		assert.Error(t, err)
 	})

@@ -833,7 +833,7 @@ func TestService_ListAdmin(t *testing.T) {
 
 		s, d := newTestService(t)
 
-		params := AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 20}, Status: "paid"}
+		params := AdminListParams{Page: 1, PageSize: 20, Status: "paid"}
 		expected := []domain.Order{{ID: uuid.New(), Status: domain.StatusPaid}}
 
 		d.repo.EXPECT().ListAdmin(mock.Anything, params).Return(expected, 1, nil)
@@ -850,7 +850,7 @@ func TestService_ListAdmin(t *testing.T) {
 
 		s, d := newTestService(t)
 
-		params := AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 20}}
+		params := AdminListParams{Page: 1, PageSize: 20}
 		dbErr := errors.New("database error")
 
 		d.repo.EXPECT().ListAdmin(mock.Anything, params).Return(nil, 0, dbErr)
@@ -962,12 +962,10 @@ func TestService_Snapshot(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, FulfilmentSnapshot{
-			Snapshot: Snapshot{
-				ID:     orderID,
-				UserID: userID,
-				Total:  money.New(9000, "IDR"),
-				Status: "shipped",
-			},
+			ID:            orderID,
+			UserID:        userID,
+			Total:         money.New(9000, "IDR"),
+			Status:        "shipped",
 			CouponCode:    "",
 			StockDeducted: true,
 			Dispatched:    true,

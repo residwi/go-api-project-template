@@ -23,12 +23,10 @@ func New(secret, issuer string) *Tokens {
 func (t *Tokens) Issue(claims domain.Claims, kind domain.Kind, ttl time.Duration) (string, error) {
 	now := time.Now()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    t.issuer,
-			Subject:   claims.UserID.String(),
-			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
-			IssuedAt:  jwt.NewNumericDate(now),
-		},
+		Issuer:       t.issuer,
+		Subject:      claims.UserID.String(),
+		ExpiresAt:    jwt.NewNumericDate(now.Add(ttl)),
+		IssuedAt:     jwt.NewNumericDate(now),
 		UserID:       claims.UserID,
 		Role:         claims.Role,
 		Kind:         string(kind),

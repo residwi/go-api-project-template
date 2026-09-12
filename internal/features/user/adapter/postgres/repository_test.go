@@ -14,7 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -135,8 +134,8 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		users, total, err := repo.ListAdmin(context.Background(), user.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50},
-			Search:     token,
+			Page: 1, PageSize: 50,
+			Search: token,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, 2, total)
@@ -162,14 +161,14 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		ctx := context.Background()
 
 		first, total, err := repo.ListAdmin(ctx, user.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 1}, Search: token,
+			Page: 1, PageSize: 1, Search: token,
 		})
 		require.NoError(t, err)
 		require.Len(t, first, 1)
 		assert.Equal(t, 3, total)
 
 		second, _, err := repo.ListAdmin(ctx, user.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 2, PageSize: 1}, Search: token,
+			Page: 2, PageSize: 1, Search: token,
 		})
 		require.NoError(t, err)
 		require.Len(t, second, 1)
@@ -183,7 +182,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		users, total, err := repo.ListAdmin(context.Background(), user.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50}, Role: "admin",
+			Page: 1, PageSize: 50, Role: "admin",
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -198,7 +197,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		active := true
 
 		users, _, err := repo.ListAdmin(context.Background(), user.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50}, Active: &active,
+			Page: 1, PageSize: 50, Active: &active,
 		})
 		require.NoError(t, err)
 		for _, u := range users {
@@ -211,7 +210,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		users, total, err := repo.ListAdmin(context.Background(), user.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50}, Search: u.Email,
+			Page: 1, PageSize: 50, Search: u.Email,
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -372,7 +371,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("ListAdmin returns error on cancelled context", func(t *testing.T) {
-		_, _, err := repo.ListAdmin(ctx, user.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}})
+		_, _, err := repo.ListAdmin(ctx, user.AdminListParams{Page: 1, PageSize: 10})
 		require.Error(t, err)
 	})
 

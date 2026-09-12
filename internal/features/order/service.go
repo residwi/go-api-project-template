@@ -284,12 +284,10 @@ func (s *Service) FulfilmentSnapshot(ctx context.Context, orderID uuid.UUID) (_ 
 	}
 
 	return FulfilmentSnapshot{
-		Snapshot: Snapshot{
-			ID:     o.ID,
-			UserID: o.UserID,
-			Total:  o.Total,
-			Status: string(o.Status),
-		},
+		ID:            o.ID,
+		UserID:        o.UserID,
+		Total:         o.Total,
+		Status:        string(o.Status),
 		CouponCode:    couponCode,
 		StockDeducted: o.StockDeducted,
 		StockReversed: o.StockReversed,

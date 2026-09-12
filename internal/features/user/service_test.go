@@ -12,7 +12,6 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/paging"
 )
 
 func TestService_GetByEmail(t *testing.T) {
@@ -219,7 +218,7 @@ func TestService_ListAdmin(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		params := AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}}
+		params := AdminListParams{Page: 1, PageSize: 10}
 		users := []domain.User{
 			{ID: uuid.New(), Email: "a@example.com", FirstName: "A", LastName: "User"},
 			{ID: uuid.New(), Email: "b@example.com", FirstName: "B", LastName: "User"},

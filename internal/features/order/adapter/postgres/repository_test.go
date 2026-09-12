@@ -331,7 +331,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		orders, total, err := repo.ListAdmin(context.Background(), order.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 50},
+			Page: 1, PageSize: 50,
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -344,7 +344,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		orders, total, err := repo.ListAdmin(context.Background(), order.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}, Status: "awaiting_payment",
+			Page: 1, PageSize: 10, Status: "awaiting_payment",
 		})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, total, 1)
@@ -655,7 +655,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("ListAdmin", func(t *testing.T) {
 		_, _, err := New(database.DB{Primary: testPool}).ListAdmin(cancelled(), order.AdminListParams{
-			OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10},
+			Page: 1, PageSize: 10,
 		})
 		assert.Error(t, err)
 	})

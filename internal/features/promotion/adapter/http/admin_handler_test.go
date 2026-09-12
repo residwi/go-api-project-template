@@ -17,7 +17,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/promotion"
 	"github.com/residwi/go-api-project-template/internal/features/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -138,7 +137,7 @@ func TestAdminHandler_List(t *testing.T) {
 			{ID: uuid.New(), Code: "B"},
 		}
 		service.EXPECT().
-			ListAdmin(mock.Anything, promotion.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 20}}).
+			ListAdmin(mock.Anything, promotion.AdminListParams{Page: 1, PageSize: 20}).
 			Return(promos, 2, nil)
 
 		w := httptest.NewRecorder()
@@ -158,7 +157,7 @@ func TestAdminHandler_List(t *testing.T) {
 		mux, service := setupAdminMux(t)
 
 		service.EXPECT().
-			ListAdmin(mock.Anything, promotion.AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 20}}).
+			ListAdmin(mock.Anything, promotion.AdminListParams{Page: 1, PageSize: 20}).
 			Return(nil, 0, assert.AnError)
 
 		w := httptest.NewRecorder()

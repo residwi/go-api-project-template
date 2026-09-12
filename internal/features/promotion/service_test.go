@@ -14,7 +14,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/promotion/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
-	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -490,7 +489,7 @@ func TestService_ListAdmin(t *testing.T) {
 		var tx database.TxRunner
 		svc := New(repo, tx)
 
-		params := AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}}
+		params := AdminListParams{Page: 1, PageSize: 10}
 		promos := []domain.Promotion{
 			{ID: uuid.New(), Code: "A"},
 			{ID: uuid.New(), Code: "B"},
@@ -510,7 +509,7 @@ func TestService_ListAdmin(t *testing.T) {
 		var tx database.TxRunner
 		svc := New(repo, tx)
 
-		params := AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}}
+		params := AdminListParams{Page: 1, PageSize: 10}
 		repo.EXPECT().ListAdmin(mock.Anything, params).Return(nil, 0, assert.AnError)
 
 		_, _, err := svc.ListAdmin(context.Background(), params)
