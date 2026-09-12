@@ -89,11 +89,11 @@ func New(
 		logger,
 	)
 
-	var statusCache user.StatusCache = user.NoCache{}
+	var userRepo user.Repository = userpg.New(db)
 	if cache != nil {
-		statusCache = userredis.New(cache)
+		userRepo = userredis.New(userRepo, cache, logger)
 	}
-	userMod := user.New(userpg.New(db), statusCache, logger)
+	userMod := user.New(userRepo)
 	authMod := auth.New(cfg.Auth, userMod, authjwt.New(cfg.Auth.Secret, cfg.Auth.Issuer))
 
 	cartMod := cart.New(cartpg.New(db), txRunner, prod, cfg.Cart.MaxItems)

@@ -325,6 +325,7 @@ deps:
       - ft-user-domain
   ft-user-adapter:
     mayDependOn:
+      - cache
       - database
       - ft-user
       - ft-user-domain

@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
-	"time"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
@@ -18,16 +16,12 @@ import (
 
 type Service struct {
 	repo   Repository
-	cache  StatusCache
-	logger *slog.Logger
 	tracer trace.Tracer
 }
 
-func New(repo Repository, cache StatusCache, logger *slog.Logger) *Service {
+func New(repo Repository) *Service {
 	return &Service{
 		repo:   repo,
-		cache:  cache,
-		logger: logger,
 		tracer: otel.Tracer("github.com/residwi/go-api-project-template/internal/features/user"),
 	}
 }
@@ -123,28 +117,13 @@ func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (_ AccountS
 	defer span.End()
 	defer func() { tracing.Record(span, err) }()
 
-	snap, found, err := s.cache.Get(ctx, userID)
-	if err != nil {
-		s.logger.WarnContext(
-			ctx,
-			"user status cache read failed, falling back to DB",
-			slog.String("error", err.Error()),
-		)
-	} else if found {
-		return AccountStatus(snap), nil
-	}
-
 	active, tokenVersion, err := s.repo.GetStatusByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, errs.ErrNotFound) {
 			return AccountStatus{Active: false}, nil
 		}
-		return AccountStatus{}, err
-	}
 
-	if err := s.cache.Put(ctx, userID,
-		StatusSnapshot{Active: active, TokenVersion: tokenVersion}, statusCacheTTL); err != nil {
-		s.logger.WarnContext(ctx, "user status cache write failed", slog.String("error", err.Error()))
+		return AccountStatus{}, err
 	}
 
 	return AccountStatus{Active: active, TokenVersion: tokenVersion}, nil
@@ -215,8 +194,6 @@ func (s *Service) AdminUpdate(
 		return nil, err
 	}
 
-	s.invalidateStatusCache(ctx, id)
-
 	return u, nil
 }
 
@@ -253,7 +230,6 @@ func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUI
 		return fmt.Errorf("revoking tokens after role change: %w", err)
 	}
 
-	s.invalidateStatusCache(ctx, targetID)
 	return nil
 }
 
@@ -285,19 +261,5 @@ func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) (
 		return err
 	}
 
-	s.invalidateStatusCache(ctx, targetID)
 	return nil
 }
-
-func (s *Service) invalidateStatusCache(ctx context.Context, userID uuid.UUID) {
-	if err := s.cache.Invalidate(ctx, userID); err != nil {
-		s.logger.WarnContext(
-			ctx,
-			"failed to invalidate user status cache",
-			slog.String("target_user_id", userID.String()),
-			slog.String("error", err.Error()),
-		)
-	}
-}
-
-const statusCacheTTL = 30 * time.Second

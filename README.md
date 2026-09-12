@@ -8,7 +8,7 @@ A production-ready Go API template: a modular monolith of hexagonal feature modu
 - **Modular monolith** — feature modules, each a hexagon with its own domain, ports and adapters; layer rules enforced by go-arch-lint
 - **Two binaries**: API server (`cmd/api`) and job worker (`cmd/worker`)
 - **PostgreSQL 16+** with `pgx/v5` driver (requires `gen_random_uuid()`)
-- **Redis 8.0+** caching with `go-redis/v9` (requires `HSETEX`)
+- **Redis** caching with `go-redis/v9`
 - **JWT Authentication** with RBAC (Role-Based Access Control)
 - **Database Migrations** with `goose`
 - **Structured Logging** with `log/slog`
@@ -47,13 +47,12 @@ A production-ready Go API template: a modular monolith of hexagonal feature modu
 │   │       ├── job_queue.go         # the outbound job port (notification, payment)
 │   │       ├── channel.go           # the outbound Channel port (notification)
 │   │       ├── gateway.go           # the outbound Gateway port (payment)
-│   │       ├── cache.go             # the StatusCache port (user)
 │   │       ├── domain/              # aggregate types + rules; the innermost ring,
 │   │       │                        #   touches no infrastructure
 │   │       └── adapter/             # only the subpackages the module needs:
 │   │           ├── postgres/        #   SQL adapter
 │   │           ├── http/            #   handlers + their wire types
-│   │           ├── redis/           #   user only: the StatusCache store
+│   │           ├── redis/           #   user only: the caching Repository decorator
 │   │           ├── jwt/             #   auth only: the Tokens port
 │   │           ├── gateway/         #   payment only: stripe/ midtrans/ mock/
 │   │           ├── channel/         #   notification only: the log channel
@@ -107,7 +106,7 @@ shape costs are all in **[ARCHITECTURE.md](ARCHITECTURE.md)**;
 
 - Go 1.26 or later
 - PostgreSQL 16+
-- Redis 8.0+
+- Redis
 - Docker & Docker Compose
 - Make (optional but recommended)
 

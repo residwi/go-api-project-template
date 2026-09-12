@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -14,7 +13,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/user/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
-	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestService_GetByEmail(t *testing.T) {
@@ -24,8 +22,7 @@ func TestService_GetByEmail(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetByEmail(mock.Anything, "alice@example.com").
@@ -58,8 +55,7 @@ func TestService_GetByEmail(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		repo.EXPECT().GetByEmail(mock.Anything, "nobody@example.com").
 			Return(nil, errs.ErrNotFound)
@@ -76,8 +72,7 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.User")).
 			Run(func(_ context.Context, u *domain.User) {
@@ -107,8 +102,7 @@ func TestService_Create(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.User")).
 			Return(errs.ErrConflict)
@@ -130,8 +124,7 @@ func TestService_GetByID(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		id := uuid.New()
 		repo.EXPECT().GetByID(mock.Anything, id).
@@ -162,8 +155,7 @@ func TestService_GetByID(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
@@ -185,8 +177,7 @@ func TestService_GetUser(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		id := uuid.New()
 		expected := &domain.User{
@@ -209,8 +200,7 @@ func TestService_GetUser(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
@@ -227,8 +217,7 @@ func TestService_ListAdmin(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		params := AdminListParams{OffsetPage: paging.OffsetPage{Page: 1, PageSize: 10}}
 		users := []domain.User{
@@ -249,31 +238,12 @@ func TestService_CheckStatus(t *testing.T) {
 
 	userID := uuid.New()
 
-	t.Run("returns the cached snapshot without touching the repository", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		c := NewMockStatusCache(t)
-		c.EXPECT().Get(mock.Anything, userID).
-			Return(StatusSnapshot{Active: true, TokenVersion: 42}, true, nil)
-		s := New(repo, c, testutil.DiscardLogger())
-
-		got, err := s.CheckStatus(context.Background(), userID)
-
-		require.NoError(t, err)
-		assert.Equal(t, AccountStatus{Active: true, TokenVersion: 42}, got)
-	})
-
-	t.Run("reads the repository on a miss and writes the snapshot back", func(t *testing.T) {
+	t.Run("returns the status the repository reports", func(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 7, nil)
-		c := NewMockStatusCache(t)
-		c.EXPECT().Get(mock.Anything, userID).Return(StatusSnapshot{}, false, nil)
-		c.EXPECT().Put(mock.Anything, userID,
-			StatusSnapshot{Active: true, TokenVersion: 7}, 30*time.Second).Return(nil)
-		s := New(repo, c, testutil.DiscardLogger())
+		s := New(repo)
 
 		got, err := s.CheckStatus(context.Background(), userID)
 
@@ -281,33 +251,12 @@ func TestService_CheckStatus(t *testing.T) {
 		assert.Equal(t, AccountStatus{Active: true, TokenVersion: 7}, got)
 	})
 
-	t.Run("falls back to the repository when the cache read errors", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 3, nil)
-		c := NewMockStatusCache(t)
-		c.EXPECT().Get(mock.Anything, userID).
-			Return(StatusSnapshot{}, false, errors.New("backend down"))
-		c.EXPECT().Put(mock.Anything, userID, mock.Anything, mock.Anything).Return(nil)
-		s := New(repo, c, testutil.DiscardLogger())
-
-		got, err := s.CheckStatus(context.Background(), userID)
-
-		require.NoError(t, err)
-		assert.Equal(t, AccountStatus{Active: true, TokenVersion: 3}, got)
-	})
-
-	t.Run("caches an inactive user as inactive", func(t *testing.T) {
+	t.Run("reports an inactive user as inactive", func(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 4, nil)
-		c := NewMockStatusCache(t)
-		c.EXPECT().Get(mock.Anything, userID).Return(StatusSnapshot{}, false, nil)
-		c.EXPECT().Put(mock.Anything, userID,
-			StatusSnapshot{Active: false, TokenVersion: 4}, 30*time.Second).Return(nil)
-		s := New(repo, c, testutil.DiscardLogger())
+		s := New(repo)
 
 		got, err := s.CheckStatus(context.Background(), userID)
 
@@ -315,65 +264,29 @@ func TestService_CheckStatus(t *testing.T) {
 		assert.Equal(t, AccountStatus{Active: false, TokenVersion: 4}, got)
 	})
 
-	t.Run("reports a deleted user as inactive rather than an error", func(t *testing.T) {
+	t.Run("reports an unknown user as inactive rather than an error", func(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 0, errs.ErrNotFound)
-		c := NewMockStatusCache(t)
-		c.EXPECT().Get(mock.Anything, userID).Return(StatusSnapshot{}, false, nil)
-		s := New(repo, c, testutil.DiscardLogger())
+		s := New(repo)
 
 		got, err := s.CheckStatus(context.Background(), userID)
 
 		require.NoError(t, err)
-		assert.Equal(t, AccountStatus{Active: false, TokenVersion: 0}, got)
+		assert.Equal(t, AccountStatus{Active: false}, got)
 	})
 
-	t.Run("still returns the result when the cache write fails", func(t *testing.T) {
+	t.Run("propagates any other repository error", func(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 1, nil)
-		c := NewMockStatusCache(t)
-		c.EXPECT().Get(mock.Anything, userID).Return(StatusSnapshot{}, false, nil)
-		c.EXPECT().Put(mock.Anything, userID, mock.Anything, mock.Anything).
-			Return(errors.New("backend down"))
-		s := New(repo, c, testutil.DiscardLogger())
-
-		got, err := s.CheckStatus(context.Background(), userID)
-
-		require.NoError(t, err)
-		assert.Equal(t, AccountStatus{Active: true, TokenVersion: 1}, got)
-	})
-
-	t.Run("works with NoCache, always reading through to the repository", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 9, nil)
-		s := New(repo, NoCache{}, testutil.DiscardLogger())
-
-		got, err := s.CheckStatus(context.Background(), userID)
-
-		require.NoError(t, err)
-		assert.Equal(t, AccountStatus{Active: true, TokenVersion: 9}, got)
-	})
-
-	t.Run("repo error propagates", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		c := NewMockStatusCache(t)
-		c.EXPECT().Get(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(StatusSnapshot{}, false, nil)
-		s := New(repo, c, testutil.DiscardLogger())
-
 		dbErr := errors.New("database timeout")
-		repo.EXPECT().GetStatusByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
-			Return(false, 0, dbErr)
+		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 0, dbErr)
+		s := New(repo)
 
-		_, err := s.CheckStatus(context.Background(), uuid.New())
+		_, err := s.CheckStatus(context.Background(), userID)
+
 		assert.ErrorIs(t, err, dbErr)
 	})
 }
@@ -385,8 +298,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -419,8 +331,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -444,8 +355,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
@@ -458,8 +368,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		var cache StatusCache
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -487,8 +396,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		cache := NewMockStatusCache(t)
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -501,7 +409,6 @@ func TestService_AdminUpdate(t *testing.T) {
 		}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
-		cache.EXPECT().Invalidate(mock.Anything, id).Return(nil)
 
 		active := false
 		result, err := s.AdminUpdate(context.Background(), id, "", "", nil, &active)
@@ -520,7 +427,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
@@ -533,7 +440,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -557,8 +464,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		cache := NewMockStatusCache(t)
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		id := uuid.New()
 		existing := &domain.User{
@@ -572,7 +478,6 @@ func TestService_AdminUpdate(t *testing.T) {
 		}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
-		cache.EXPECT().Invalidate(mock.Anything, id).Return(nil)
 
 		phone := "555-9999"
 		active := false
@@ -588,30 +493,6 @@ func TestService_AdminUpdate(t *testing.T) {
 			Active:    false,
 		}, result)
 	})
-
-	t.Run("still succeeds when cache invalidation fails", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		cache := NewMockStatusCache(t)
-		s := New(repo, cache, testutil.DiscardLogger())
-
-		id := uuid.New()
-		existing := &domain.User{
-			ID:     id,
-			Email:  "alice@example.com",
-			Role:   "user",
-			Active: true,
-		}
-		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
-		cache.EXPECT().Invalidate(mock.Anything, id).Return(errors.New("cache down"))
-
-		active := false
-		result, err := s.AdminUpdate(context.Background(), id, "", "", nil, &active)
-		require.NoError(t, err)
-		assert.False(t, result.Active)
-	})
 }
 
 func TestService_UpdateRole(t *testing.T) {
@@ -621,8 +502,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		cache := NewMockStatusCache(t)
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -631,7 +511,6 @@ func TestService_UpdateRole(t *testing.T) {
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
 		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(nil)
-		cache.EXPECT().Invalidate(mock.Anything, targetID).Return(nil)
 
 		err := s.UpdateRole(context.Background(), requesterID, targetID, "admin")
 		require.NoError(t, err)
@@ -641,7 +520,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		sameID := uuid.New()
 
@@ -653,7 +532,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -670,7 +549,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -689,8 +568,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		cache := NewMockStatusCache(t)
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -700,7 +578,6 @@ func TestService_UpdateRole(t *testing.T) {
 		repo.EXPECT().CountAdmins(mock.Anything).Return(3, nil)
 		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
 		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(nil)
-		cache.EXPECT().Invalidate(mock.Anything, targetID).Return(nil)
 
 		err := s.UpdateRole(context.Background(), requesterID, targetID, "user")
 		require.NoError(t, err)
@@ -710,7 +587,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
@@ -723,7 +600,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -742,7 +619,7 @@ func TestService_UpdateRole(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -757,25 +634,6 @@ func TestService_UpdateRole(t *testing.T) {
 		err := s.UpdateRole(context.Background(), requesterID, targetID, "admin")
 		assert.ErrorIs(t, err, incrErr)
 	})
-
-	t.Run("still succeeds when cache invalidation fails", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		cache := NewMockStatusCache(t)
-		s := New(repo, cache, testutil.DiscardLogger())
-
-		requesterID := uuid.New()
-		targetID := uuid.New()
-
-		repo.EXPECT().GetByID(mock.Anything, targetID).Return(&domain.User{ID: targetID, Role: "user"}, nil)
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
-		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(nil)
-		cache.EXPECT().Invalidate(mock.Anything, targetID).Return(errors.New("cache down"))
-
-		err := s.UpdateRole(context.Background(), requesterID, targetID, "admin")
-		require.NoError(t, err)
-	})
 }
 
 func TestService_Delete(t *testing.T) {
@@ -785,8 +643,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		cache := NewMockStatusCache(t)
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -794,7 +651,6 @@ func TestService_Delete(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)
 		repo.EXPECT().Delete(mock.Anything, targetID).Return(nil)
-		cache.EXPECT().Invalidate(mock.Anything, targetID).Return(nil)
 
 		err := s.Delete(context.Background(), requesterID, targetID)
 		require.NoError(t, err)
@@ -804,7 +660,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		sameID := uuid.New()
 
@@ -816,7 +672,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -833,7 +689,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
@@ -846,7 +702,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -865,8 +721,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		cache := NewMockStatusCache(t)
-		s := New(repo, cache, testutil.DiscardLogger())
+		s := New(repo)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -875,7 +730,6 @@ func TestService_Delete(t *testing.T) {
 			Return(&domain.User{ID: targetID, Role: "admin"}, nil)
 		repo.EXPECT().CountAdmins(mock.Anything).Return(3, nil)
 		repo.EXPECT().Delete(mock.Anything, targetID).Return(nil)
-		cache.EXPECT().Invalidate(mock.Anything, targetID).Return(nil)
 
 		err := s.Delete(context.Background(), requesterID, targetID)
 		require.NoError(t, err)
@@ -885,7 +739,7 @@ func TestService_Delete(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		s := New(repo, NewMockStatusCache(t), testutil.DiscardLogger())
+		s := New(repo)
 
 		requesterID := uuid.New()
 		targetID := uuid.New()
@@ -898,23 +752,5 @@ func TestService_Delete(t *testing.T) {
 
 		err := s.Delete(context.Background(), requesterID, targetID)
 		assert.ErrorIs(t, err, deleteErr)
-	})
-
-	t.Run("still succeeds when cache invalidation fails", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		cache := NewMockStatusCache(t)
-		s := New(repo, cache, testutil.DiscardLogger())
-
-		requesterID := uuid.New()
-		targetID := uuid.New()
-
-		repo.EXPECT().GetByID(mock.Anything, targetID).Return(&domain.User{ID: targetID, Role: "user"}, nil)
-		repo.EXPECT().Delete(mock.Anything, targetID).Return(nil)
-		cache.EXPECT().Invalidate(mock.Anything, targetID).Return(errors.New("cache down"))
-
-		err := s.Delete(context.Background(), requesterID, targetID)
-		require.NoError(t, err)
 	})
 }

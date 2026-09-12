@@ -15,6 +15,9 @@ packages:
   github.com/residwi/go-api-project-template/internal/features/payment/adapter/gateway:
     config:
       all: false
+  github.com/residwi/go-api-project-template/internal/platform/cache:
+    config:
+      all: false
   github.com/residwi/go-api-project-template/internal/platform/database:
     config:
       all: false

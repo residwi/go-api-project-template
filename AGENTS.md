@@ -16,7 +16,7 @@ If this file disagrees with the code, the code wins: say so and fix the file.
 - `internal/config/` — this application's infra env vars (`godotenv` + `envconfig`). Deliberately **not** under `platform/`: it names `APP_NAME`, `DB_*`, `WORKER_RESCUE_AFTER`, so it is the one config that is rewritten per project rather than copied
 - `internal/server/` — `server.go` (`Run`) and `router.go` (`NewRouter`, health, every route). It mounts handlers and middleware; it holds none of its own
 - `internal/platform/` — generic infrastructure, no feature deps:
-  - `cache/` — Redis client; `NewRedis` takes a `*redis.Options`
+  - `cache/` — Redis client; `NewRedis` takes a `*redis.Options`, plus `ReadThrough`, the read-through with singleflight barrier, TTL jitter and not-found placeholder, driven through the generic free function `Take[T]`
   - `database/` — pools (`PostgresOptions`), `TxRunner`, `PrimaryDB`/`ReplicaDB`, keyset and LIKE helpers
   - `errs/` — the five generic error kinds
   - `logger/` — `slog` setup, context attributes
@@ -54,14 +54,14 @@ internal/features/<feature>/
   channel.go         the outbound Channel port (notification only)
   gateway.go         the outbound Gateway port and its request/response
                      types (payment only)
-  cache.go           the outbound StatusCache port (user only)
   job_queue.go       the outbound job-enqueue port, named JobQueue
   service_test.go    mock-driven tests, package <feature>
   mocks_test.go      mockery output, in-package
   adapter/
     postgres/        SQL adapter
     http/            handlers plus their wire types
-    redis/           the store behind a cache port (user only)
+    redis/           the caching Repository decorator and its status store
+                     (user only)
     jwt/             the Tokens port's implementation (auth only)
     gateway/         the Gateway port's implementations: stripe, midtrans, mock
                      (payment only)
@@ -260,7 +260,7 @@ A component whose glob matches no directory is a hard config error, so the confi
   This is also why an `adapter/http` handler declares its own narrow port locally: mockery cannot write a private mock into a package that does not declare the interface.
 
 - **Tests live in the package they test**, except where an import cycle or a deliberate outside-view preference puts them in an external `_test` package — `test/e2e` and a handful of others. A module's `service_test.go` is always `package <feature>` and its `handler_test.go` always `package http`, so one file can hold both route-level tests through a mux and direct tests of unexported mappers. Put a new test where its access requires, then name the file for that.
-- **Where a test belongs.** Anything only the database can prove — recursive CTEs, keyset pagination, unique constraints — goes in `adapter/postgres/repository_test.go` (or `adapter/redis/cache_test.go`) against a real container. Anything a mock can express — a `Service`'s reaction to a value, an error branch — goes in that module's `service_test.go`. A saga spanning tables no single module owns goes to `test/e2e/`, driven through the real `server.NewRouter`. No module starts its own container, and there is no `test/integration` directory: `go test ./...` runs package binaries concurrently, and collapsing per-package tests into one package would serialise them.
+- **Where a test belongs.** Anything only the database can prove — recursive CTEs, keyset pagination, unique constraints — goes in `adapter/postgres/repository_test.go` (or `adapter/redis/status_store_test.go`) against a real container. Anything a mock can express — a `Service`'s reaction to a value, an error branch — goes in that module's `service_test.go`. A saga spanning tables no single module owns goes to `test/e2e/`, driven through the real `server.NewRouter`. No module starts its own container, and there is no `test/integration` directory: `go test ./...` runs package binaries concurrently, and collapsing per-package tests into one package would serialise them.
 - **A handler test proves the handler, not the URL.** Every test under `internal/features/*/adapter/http/` builds its own `web.NewRouter(mux).Group(...)` and picks its own prefix — several use paths production has never served. `internal/server/routes_access_test.go` is the only place that enumerates the real table: `allRoutes` is a hand-written list of `method<TAB>path` lines, `publicRoutes` names the routes that must answer an anonymous caller, and an `/api/admin/` prefix must give a non-admin a 403. `web.Router` records nothing, so a route missing from `allRoutes` is simply never probed. **Adding a line to `publicRoutes` opens a route to the internet** — that edit wants a second reader.
 - **Docker is required.** No build tags, no short mode. `internal/testutil` starts two long-lived containers by fixed name (`go-api-test-postgres`, `go-api-test-redis`) and every test binary attaches to whichever already exists; `make test-clean` removes them. Every package binary races for the same container name, and the loser polls until the winner's container is running with a bound port.
 - **Postgres databases are per module, created once under an advisory lock, and never dropped.** `MustStartPostgres(dbName)` creates and migrates `dbName` the first time any caller asks for it — the lock covers the migration, so a later caller always finds the latest schema — and every later caller just connects. `grep -rn 'MustStartPostgres(' --include='*_test.go' internal` is the live name mapping.
@@ -271,7 +271,7 @@ A component whose glob matches no directory is a hard config error, so the confi
 - **Compare whole objects, not field by field** — `assert.Equal` on the full struct or slice. For JSONB round-trips use `assert.JSONEq`, since Postgres normalises whitespace.
 - **Test behaviour, not wiring.** Verify a returned value, an error, or a side effect.
 - **Order a test file so the tests come first.** Package-level `var`s and `TestMain` at the top, then every `func TestXxx`, then stub types with their methods grouped under them, then plain helpers last. `funcorder` only orders methods against their struct, so the rest is on you.
-- **Keep tests fast.** Use `bcrypt.MinCost` for password hashes (`DefaultCost` costs ~250ms per hash) and group tests that exercise the real `Register` path. Reach for `testing/synctest` before hand-rolling around real time for ticker- or timeout-driven code — but note it cannot wrap a `pgxpool` acquire, so a test holding a real pool must shrink intervals and timeouts instead. Give intentionally-broken clients short timeouts (`MaxRetries: 0`, `DialTimeout: 200 * time.Millisecond`) so error paths fail in milliseconds.
+- **Keep tests fast.** Use `bcrypt.MinCost` for password hashes (`DefaultCost` costs ~250ms per hash) and group tests that exercise the real `Register` path. Reach for `testing/synctest` before hand-rolling around real time for ticker- or timeout-driven code — but note it cannot wrap a `pgxpool` acquire, so a test holding a real pool must shrink intervals and timeouts instead. Give intentionally-broken clients short timeouts (`MaxRetries: -1`, `DialTimeout: 200 * time.Millisecond`) so error paths fail in milliseconds.
 
 ## Security & Compliance
 

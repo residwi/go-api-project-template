@@ -32,7 +32,8 @@ has to cross, decision 13 pays for it with a published surface.
 
 **3. Adapters are subpackages named for their technology, and each file is
 named for the port it satisfies.** `adapter/postgres/repository.go`,
-`adapter/redis/cache.go`, `adapter/jwt/tokens.go`, `adapter/gateway/stripe/gateway.go`.
+`adapter/redis/status_store.go`, `adapter/jwt/tokens.go`,
+`adapter/gateway/stripe/gateway.go`.
 *Cost:* many packages share a name across modules, so wiring files alias them.
 
 **4. Adapter subpackages exist only where adaptation is needed.** No
@@ -146,6 +147,59 @@ written by hand instead, once per exported `Service` method that takes `ctx`.
 *Cost:* a near-identical block per method, each a place to get the ordering
 wrong; `AGENTS.md` states the ordering rule so at least the mistake is
 checkable by eye.
+
+**21. The user status cache is a `Repository` decorator, not a port the service
+holds.** `internal/app` wraps the Postgres repository in `userredis.Repository`
+when Redis is configured; the service calls `s.repo.GetStatusByID` and knows
+nothing. Policy — singleflight barrier, TTL jitter, not-found placeholder —
+lives in `internal/platform/cache`: the adapter holds a `ReadThrough` and
+drives it through the generic free function `Take[T]`. *Cost:*
+`Repository.GetStatusByID` may return data up to 33s stale and the interface
+does not say so, so a reader must open the decorator to learn which methods are
+cached. The decorator writes nine methods explicitly rather than embedding
+`user.Repository`, so that a tenth method is a compile error instead of a
+silently uncached one — nothing else enforces that, since `make check-arch`
+reads imports only. A stale value can still be written back if a load overlaps
+an invalidation; `LoadTimeout` bounds the window but does not close it, and
+closing it needs a compare-and-set write-back. The absent-user bound depends on
+Redis being up: `cache.NewRedis` returns nil on a failed ping, `server.go` logs
+and continues, and `app.go` then skips the decorator entirely, so a boot
+without Redis, or a mid-life outage where `fill` falls through to the loader,
+restores the original unbounded per-request query for a deleted user — the
+singleflight barrier still caps concurrent duplicates, so it is better than
+before, but it is not the stated 5s bound. And the caller's own deadline no
+longer bounds the database query on a cache miss: `fill` runs the load under
+`context.WithoutCancel(ctx)`, which drops the caller's deadline along with its
+cancellation, and `LoadTimeout` replaces it rather than intersecting with it —
+here that tightens the bound, since request timeouts run longer than
+`LoadTimeout`, but it means a request deadline no longer applies to the cached
+read's DB call. `writeTimeout` is kept but untested: the in-memory fake that
+could capture the deadline a command received died with the `Store[T]`
+interface, and a real client gives no way to observe it — deleting the constant
+would reintroduce the defect where a slow load leaves no budget to cache its
+own result, so an untested guard was judged better than a removed one. A JSON
+value that unmarshals into a zero struct is served as a hit: `null` or `{}` at
+a cache key yields a zero `AccountStatus` with a nil error, where the previous
+hash decoder treated a missing `active` field as a miss and reloaded. Bounded
+in practice: nothing but this decorator writes that key, and the failure
+direction is `Active: false` → 401, i.e. a user logged out rather than a
+revoked user admitted.
+
+**22. A write invalidates the cache key; it never updates it.** The decorator
+`Del`s after the wrapped write returns nil, rather than writing the new value
+through. Two writers whose transactions commit in order can still land their
+cache writes out of order, leaving the cache disagreeing with the database
+until the TTL expires; two deletes cannot, because the next read reloads
+whatever the database actually holds. A delete also cannot publish a value a
+rollback withdrew, and it avoids a re-read — `Update` takes a `*domain.User`,
+which carries no `token_version`, so a write-through would have to go back to
+Postgres to learn what to cache. *Cost:* this orders writers against each
+other and nothing else. It does not touch the reader-versus-writer race in
+decision 21, where a load that began before the delete writes its stale value
+after it — the delete has already happened and cannot undo a later write.
+And it is best-effort: `invalidate` logs a failed `Del` and continues, so a
+Redis blip leaves a stale entry for a full TTL. Only a compare-and-set
+write-back closes either hole.
 
 ## Foreign keys across module boundaries
 
