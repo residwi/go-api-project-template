@@ -56,6 +56,19 @@ func TestRateLimit(t *testing.T) {
 		assert.Equal(t, http.StatusTooManyRequests, doRateLimited(handler, "10.1.0.4:1111").Code)
 	})
 
+	t.Run("admits exactly the auth burst of three", func(t *testing.T) {
+		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
+
+		handler := RateLimit(testLogger(), testRedis, 10, 3, time.Second)(okHandler)
+
+		for i := range 3 {
+			require.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.14:1111").Code,
+				"request %d should pass", i+1)
+		}
+
+		assert.Equal(t, http.StatusTooManyRequests, doRateLimited(handler, "10.1.0.14:1111").Code)
+	})
+
 	t.Run("recovers after one refill interval", func(t *testing.T) {
 		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
 
@@ -93,7 +106,9 @@ func TestRateLimit(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, "10", w.Header().Get("X-RateLimit-Limit"))
-		assert.NotEmpty(t, w.Header().Get("X-RateLimit-Remaining"))
+		// redis_rate under-reports Remaining by one on the first request
+		// against a fresh key; capacity is unaffected.
+		assert.Equal(t, "1", w.Header().Get("X-RateLimit-Remaining"))
 		assert.NotEmpty(t, w.Header().Get("X-RateLimit-Reset"))
 	})
 
