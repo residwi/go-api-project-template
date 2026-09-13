@@ -16,7 +16,7 @@ If this file disagrees with the code, the code wins: say so and fix the file.
 - `internal/config/` — this application's infra env vars (`godotenv` + `envconfig`). Deliberately **not** under `platform/`: it names `APP_NAME`, `DB_*`, `WORKER_RESCUE_AFTER`, so it is the one config that is rewritten per project rather than copied
 - `internal/server/` — `server.go` (`Run`) and `router.go` (`NewRouter`, health, every route). It mounts handlers and middleware; it holds none of its own
 - `internal/platform/` — generic infrastructure, no feature deps:
-  - `cache/` — Redis client; `NewRedis` takes a `*redis.Options`, plus `ReadThrough`, the read-through with singleflight barrier, TTL jitter and not-found placeholder, driven through the generic free function `Take[T]`
+  - `cache/` — Redis client; `NewRedis` takes a `*redis.Options`, plus `ReadThrough`, the read-through with singleflight barrier, TTL jitter and not-found placeholder, driven through the generic method `ReadThrough.Take[T]`
   - `database/` — pools (`PostgresOptions`), `TxRunner`, `PrimaryDB`/`ReplicaDB`, keyset and LIKE helpers
   - `errs/` — the five generic error kinds
   - `logger/` — `slog` setup, context attributes

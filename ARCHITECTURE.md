@@ -153,7 +153,7 @@ holds.** `internal/app` wraps the Postgres repository in `userredis.Repository`
 when Redis is configured; the service calls `s.repo.GetStatusByID` and knows
 nothing. Policy — singleflight barrier, TTL jitter, not-found placeholder —
 lives in `internal/platform/cache`: the adapter holds a `ReadThrough` and
-drives it through the generic free function `Take[T]`. *Cost:*
+drives it through the generic method `ReadThrough.Take[T]`. *Cost:*
 `Repository.GetStatusByID` may return data up to 33s stale and the interface
 does not say so, so a reader must open the decorator to learn which methods are
 cached. The decorator writes nine methods explicitly rather than embedding
