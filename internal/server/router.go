@@ -49,10 +49,12 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	authed := router.Group("/api", authMW)
 	admin := authed.Group("/admin", adminMW)
 
+	const authLimiterBurst = 3
 	authLimiter := middleware.RateLimit(
 		logger,
 		cache,
 		modCfg.Auth.RateLimit,
+		authLimiterBurst,
 		modCfg.Auth.RateWindow,
 	)
 	authPublic := router.Group("/api", authLimiter)
@@ -114,10 +116,12 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	admin.HandleFunc("GET /orders/{id}", orderAdminHandler.Get)
 	admin.HandleFunc("PUT /orders/{id}/status", orderAdminHandler.ChangeStatus)
 
+	const orderLimiterBurst = 2
 	orderLimiter := middleware.RateLimit(
 		logger,
 		cache,
 		modCfg.Order.RateLimit,
+		orderLimiterBurst,
 		modCfg.Order.RateWindow,
 	)
 	checkoutHandler := checkouthttp.NewHandler(deps.Checkout)

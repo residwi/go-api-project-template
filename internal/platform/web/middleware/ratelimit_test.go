@@ -2,17 +2,16 @@ package middleware
 
 import (
 	"context"
-	"errors"
-	"net"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/residwi/go-api-project-template/internal/platform/identity"
 )
 
 func TestRateLimit(t *testing.T) {
@@ -21,148 +20,155 @@ func TestRateLimit(t *testing.T) {
 	})
 
 	t.Run("nil redis passes through", func(t *testing.T) {
-		handler := RateLimit(testLogger(), nil, 10, time.Minute)(okHandler)
+		handler := RateLimit(testLogger(), nil, 10, 2, time.Minute)(okHandler)
 
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		w := httptest.NewRecorder()
-
-		handler.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.1:1111").Code)
 	})
 
-	t.Run("allows requests under limit", func(t *testing.T) {
-		t.Cleanup(func() {
-			testRedis.FlushDB(context.Background())
-		})
+	t.Run("zero burst disables the limiter", func(t *testing.T) {
+		handler := RateLimit(testLogger(), testRedis, 10, 0, time.Minute)(okHandler)
 
-		const maxRequests = 5
-		handler := RateLimit(testLogger(), testRedis, maxRequests, time.Minute)(okHandler)
-
-		for i := range 3 {
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			r.RemoteAddr = "10.0.0.1:12345"
-			w := httptest.NewRecorder()
-
-			handler.ServeHTTP(w, r)
-
-			require.Equal(t, http.StatusOK, w.Code, "request %d should succeed", i+1)
+		for range 5 {
+			assert.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.2:1111").Code)
 		}
 	})
 
-	t.Run("blocks requests over limit", func(t *testing.T) {
-		t.Cleanup(func() {
-			testRedis.FlushDB(context.Background())
-		})
+	t.Run("allows the burst arriving at once", func(t *testing.T) {
+		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
 
-		const maxRequests = 5
-		handler := RateLimit(testLogger(), testRedis, maxRequests, time.Minute)(okHandler)
+		handler := RateLimit(testLogger(), testRedis, 10, 2, time.Second)(okHandler)
 
-		for i := range maxRequests {
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			r.RemoteAddr = "10.0.0.2:12345"
-			w := httptest.NewRecorder()
+		for i := range 2 {
+			require.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.3:1111").Code,
+				"request %d should pass", i+1)
+		}
+	})
 
-			handler.ServeHTTP(w, r)
+	t.Run("rejects the request past the burst", func(t *testing.T) {
+		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
 
-			require.Equal(t, http.StatusOK, w.Code, "request %d should succeed", i+1)
+		handler := RateLimit(testLogger(), testRedis, 10, 2, time.Second)(okHandler)
+
+		for range 2 {
+			require.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.4:1111").Code)
 		}
 
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r.RemoteAddr = "10.0.0.2:12345"
-		w := httptest.NewRecorder()
+		assert.Equal(t, http.StatusTooManyRequests, doRateLimited(handler, "10.1.0.4:1111").Code)
+	})
 
-		handler.ServeHTTP(w, r)
+	t.Run("recovers after one refill interval", func(t *testing.T) {
+		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
+
+		// Rate 10 over a 1s period is one token every 100ms.
+		handler := RateLimit(testLogger(), testRedis, 10, 2, time.Second)(okHandler)
+
+		for range 2 {
+			require.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.5:1111").Code)
+		}
+		require.Equal(t, http.StatusTooManyRequests, doRateLimited(handler, "10.1.0.5:1111").Code)
+
+		time.Sleep(150 * time.Millisecond)
+
+		assert.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.5:1111").Code)
+	})
+
+	t.Run("sets Retry-After on a rejection", func(t *testing.T) {
+		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
+
+		handler := RateLimit(testLogger(), testRedis, 10, 1, time.Second)(okHandler)
+		require.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.6:1111").Code)
+
+		w := doRateLimited(handler, "10.1.0.6:1111")
+
+		require.Equal(t, http.StatusTooManyRequests, w.Code)
+		assert.Equal(t, "1", w.Header().Get("Retry-After"))
+	})
+
+	t.Run("reports the budget on an allowed request", func(t *testing.T) {
+		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
+
+		handler := RateLimit(testLogger(), testRedis, 10, 3, time.Second)(okHandler)
+
+		w := doRateLimited(handler, "10.1.0.7:1111")
+
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "10", w.Header().Get("X-RateLimit-Limit"))
+		assert.NotEmpty(t, w.Header().Get("X-RateLimit-Remaining"))
+		assert.NotEmpty(t, w.Header().Get("X-RateLimit-Reset"))
+	})
+
+	t.Run("reports the budget on a rejected request", func(t *testing.T) {
+		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
+
+		handler := RateLimit(testLogger(), testRedis, 10, 1, time.Second)(okHandler)
+		require.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.8:1111").Code)
+
+		w := doRateLimited(handler, "10.1.0.8:1111")
+
+		require.Equal(t, http.StatusTooManyRequests, w.Code)
+		assert.Equal(t, "10", w.Header().Get("X-RateLimit-Limit"))
+		assert.Equal(t, "0", w.Header().Get("X-RateLimit-Remaining"))
+	})
+
+	t.Run("keys an authenticated caller on the user id, not the address", func(t *testing.T) {
+		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
+
+		handler := RateLimit(testLogger(), testRedis, 10, 1, time.Second)(okHandler)
+		caller := identity.Identity{UserID: uuid.New(), Role: "user"}
+
+		require.Equal(t, http.StatusOK, doRateLimitedAs(handler, "10.1.0.9:1111", caller).Code)
+
+		w := doRateLimitedAs(handler, "10.1.0.10:2222", caller)
 
 		assert.Equal(t, http.StatusTooManyRequests, w.Code)
 	})
 
+	t.Run("different addresses have separate budgets", func(t *testing.T) {
+		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
+
+		handler := RateLimit(testLogger(), testRedis, 10, 1, time.Second)(okHandler)
+
+		require.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.11:1111").Code)
+		require.Equal(t, http.StatusTooManyRequests, doRateLimited(handler, "10.1.0.11:1111").Code)
+
+		assert.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.12:1111").Code)
+	})
+
 	t.Run("redis error allows request through", func(t *testing.T) {
-		handler := RateLimit(testLogger(), testRedis, 10, time.Minute)(okHandler)
+		handler := RateLimit(testLogger(), testRedis, 10, 2, time.Minute)(okHandler)
 
 		ctx, cancel := context.WithCancel(context.Background())
-		cancel() // cancel immediately to cause redis error
+		cancel()
 
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r = r.WithContext(ctx)
+		r.RemoteAddr = "10.1.0.13:1111"
 		w := httptest.NewRecorder()
 
-		handler.ServeHTTP(w, r)
+		handler.ServeHTTP(w, r.WithContext(ctx))
 
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
-
-	t.Run("expire error is logged but request still passes", func(t *testing.T) {
-		t.Cleanup(func() {
-			testRedis.FlushDB(context.Background())
-		})
-
-		hookedClient := redis.NewClient(testRedis.Options())
-		hookedClient.AddHook(expireFailHook{})
-		defer hookedClient.Close()
-
-		handler := RateLimit(testLogger(), hookedClient, 10, time.Minute)(okHandler)
-
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r.RemoteAddr = "10.0.0.99:12345"
-		w := httptest.NewRecorder()
-
-		handler.ServeHTTP(w, r)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
-
-	t.Run("different IPs have separate limits", func(t *testing.T) {
-		t.Cleanup(func() {
-			testRedis.FlushDB(context.Background())
-		})
-
-		const maxRequests = 5
-		handler := RateLimit(testLogger(), testRedis, maxRequests, time.Minute)(okHandler)
-
-		for i := range maxRequests {
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			r.RemoteAddr = "10.0.0.3:12345"
-			w := httptest.NewRecorder()
-
-			handler.ServeHTTP(w, r)
-
-			require.Equal(t, http.StatusOK, w.Code, "IP1 request %d should succeed", i+1)
-		}
-
-		r := httptest.NewRequest(http.MethodGet, "/", nil)
-		r.RemoteAddr = "10.0.0.3:12345"
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, r)
-		require.Equal(t, http.StatusTooManyRequests, w.Code, "IP1 should be blocked")
-
-		r = httptest.NewRequest(http.MethodGet, "/", nil)
-		r.RemoteAddr = "10.0.0.4:12345"
-		w = httptest.NewRecorder()
-		handler.ServeHTTP(w, r)
-		assert.Equal(t, http.StatusOK, w.Code, "IP2 should still be allowed")
-	})
 }
 
-type expireFailHook struct{}
+func doRateLimited(handler http.Handler, remoteAddr string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.RemoteAddr = remoteAddr
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
 
-func (expireFailHook) DialHook(next redis.DialHook) redis.DialHook {
-	return func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return next(ctx, network, addr)
-	}
+	return w
 }
 
-func (expireFailHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
-	return func(ctx context.Context, cmd redis.Cmder) error {
-		if strings.EqualFold(cmd.Name(), "expire") {
-			return errors.New("injected expire error")
-		}
-		return next(ctx, cmd)
-	}
-}
+func doRateLimitedAs(
+	handler http.Handler,
+	remoteAddr string,
+	caller identity.Identity,
+) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.RemoteAddr = remoteAddr
+	r = r.WithContext(identity.NewContext(r.Context(), caller))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
 
-func (expireFailHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
-	return func(ctx context.Context, cmds []redis.Cmder) error {
-		return next(ctx, cmds)
-	}
+	return w
 }

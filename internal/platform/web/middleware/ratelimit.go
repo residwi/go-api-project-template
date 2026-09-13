@@ -1,13 +1,13 @@
 package middleware
 
 import (
-	"fmt"
 	"log/slog"
-	"net"
+	"math"
 	"net/http"
-	"strings"
+	"strconv"
 	"time"
 
+	"github.com/go-redis/redis_rate/v10"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
@@ -17,24 +17,36 @@ import (
 func RateLimit(
 	log *slog.Logger,
 	rdb *redis.Client,
-	maxRequests int,
+	maxRequests, burst int,
 	window time.Duration,
 ) func(http.Handler) http.Handler {
+	var limiter *redis_rate.Limiter
+	if rdb != nil {
+		limiter = redis_rate.NewLimiter(rdb)
+	}
+
+	burst = min(burst, maxRequests)
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if rdb == nil || maxRequests <= 0 || window <= 0 {
+			if limiter == nil || maxRequests <= 0 || burst <= 0 || window <= 0 {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			identifier := clientIP(r)
+			identifier, ok := clientIPFromContext(r.Context())
+			if !ok {
+				identifier = r.RemoteAddr
+			}
 			if id, ok := identity.FromContext(r.Context()); ok {
 				identifier = "user:" + id.UserID.String()
 			}
-			bucket := time.Now().Unix() / int64(window.Seconds())
-			key := fmt.Sprintf("rl:%s:%d", identifier, bucket)
 
-			count, err := rdb.Incr(r.Context(), key).Result()
+			res, err := limiter.Allow(r.Context(), identifier, redis_rate.Limit{
+				Rate:   maxRequests,
+				Burst:  burst,
+				Period: window,
+			})
 			if err != nil {
 				log.WarnContext(
 					r.Context(),
@@ -42,36 +54,28 @@ func RateLimit(
 					slog.String("error", err.Error()),
 				)
 				next.ServeHTTP(w, r)
+
 				return
 			}
 
-			if count == 1 {
-				if err := rdb.Expire(r.Context(), key, window+5*time.Second).Err(); err != nil {
-					log.WarnContext(r.Context(), "rate limit expire error", slog.String("error", err.Error()))
-				}
-			}
+			w.Header().Set("X-RateLimit-Limit", strconv.Itoa(maxRequests))
+			w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(res.Remaining))
+			w.Header().Set(
+				"X-RateLimit-Reset",
+				strconv.FormatInt(time.Now().Add(res.ResetAfter).Unix(), 10),
+			)
 
-			if count > int64(maxRequests) {
+			if res.Allowed == 0 {
+				w.Header().Set(
+					"Retry-After",
+					strconv.Itoa(int(math.Ceil(res.RetryAfter.Seconds()))),
+				)
 				response.TooManyRequests(w, "rate limit exceeded")
+
 				return
 			}
 
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		first, _, _ := strings.Cut(xff, ",")
-		return strings.TrimSpace(first)
-	}
-	if xrip := strings.TrimSpace(r.Header.Get("X-Real-IP")); xrip != "" {
-		return xrip
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }
