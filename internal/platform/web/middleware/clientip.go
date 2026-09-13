@@ -89,7 +89,7 @@ func xffEntriesRightToLeft(r *http.Request) []string {
 	var entries []string
 
 	for _, value := range r.Header.Values("X-Forwarded-For") {
-		for _, entry := range strings.Split(value, ",") { //nolint:modernize // brief specifies strings.Split
+		for entry := range strings.SplitSeq(value, ",") {
 			if entry = strings.TrimSpace(entry); entry != "" {
 				entries = append(entries, entry)
 			}
