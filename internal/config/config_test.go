@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net/netip"
 	"testing"
 	"time"
 
@@ -73,5 +74,65 @@ func TestLoad(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "APP_SHUTDOWN_TIMEOUT")
+	})
+}
+
+func TestParseTrustedProxies(t *testing.T) {
+	t.Run("parses IPv4 and IPv6 CIDRs", func(t *testing.T) {
+		got, err := ParseTrustedProxies([]string{"203.0.113.0/24", "2001:db8::/32"})
+
+		require.NoError(t, err)
+		assert.Equal(t, []netip.Prefix{
+			netip.MustParsePrefix("203.0.113.0/24"),
+			netip.MustParsePrefix("2001:db8::/32"),
+		}, got)
+	})
+
+	t.Run("returns nothing for an unset list", func(t *testing.T) {
+		got, err := ParseTrustedProxies(nil)
+
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+
+	t.Run("skips blank entries", func(t *testing.T) {
+		got, err := ParseTrustedProxies([]string{"", "   ", "203.0.113.0/24"})
+
+		require.NoError(t, err)
+		assert.Equal(t, []netip.Prefix{netip.MustParsePrefix("203.0.113.0/24")}, got)
+	})
+
+	t.Run("rejects a malformed entry", func(t *testing.T) {
+		_, err := ParseTrustedProxies([]string{"203.0.113.0/24", "not-a-cidr"})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not-a-cidr")
+	})
+
+	t.Run("rejects a bare address with no prefix length", func(t *testing.T) {
+		_, err := ParseTrustedProxies([]string{"203.0.113.5"})
+
+		require.Error(t, err)
+	})
+}
+
+func TestSettingsValidateTrustedProxies(t *testing.T) {
+	t.Run("aborts boot on a malformed CIDR", func(t *testing.T) {
+		var s Settings
+		s.App.ShutdownTimeout = 30 * time.Second
+		s.App.TrustedProxies = []string{"nonsense"}
+
+		err := s.validate()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "TRUSTED_PROXIES")
+	})
+
+	t.Run("accepts a valid CIDR", func(t *testing.T) {
+		var s Settings
+		s.App.ShutdownTimeout = 30 * time.Second
+		s.App.TrustedProxies = []string{"203.0.113.0/24"}
+
+		assert.NoError(t, s.validate())
 	})
 }

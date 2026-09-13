@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -39,7 +41,31 @@ func (s *Settings) validate() error {
 		)
 	}
 
+	if _, err := ParseTrustedProxies(s.App.TrustedProxies); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func ParseTrustedProxies(raw []string) ([]netip.Prefix, error) {
+	prefixes := make([]netip.Prefix, 0, len(raw))
+
+	for _, entry := range raw {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+
+		prefix, err := netip.ParsePrefix(entry)
+		if err != nil {
+			return nil, fmt.Errorf("TRUSTED_PROXIES entry %q: %w", entry, err)
+		}
+
+		prefixes = append(prefixes, prefix)
+	}
+
+	return prefixes, nil
 }
 
 type App struct {
@@ -50,6 +76,7 @@ type App struct {
 	WriteTimeout    time.Duration `envconfig:"APP_WRITE_TIMEOUT"    default:"15s"`
 	IdleTimeout     time.Duration `envconfig:"APP_IDLE_TIMEOUT"     default:"60s"`
 	ShutdownTimeout time.Duration `envconfig:"APP_SHUTDOWN_TIMEOUT" default:"30s"`
+	TrustedProxies  []string      `envconfig:"TRUSTED_PROXIES"`
 }
 
 type Database struct {
