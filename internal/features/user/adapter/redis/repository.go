@@ -127,4 +127,4 @@ func statusOptions() cache.Options {
 	}
 }
 
-func statusKey(id uuid.UUID) string { return "user:status:v2:" + id.String() }
+func statusKey(id uuid.UUID) string { return "user:status:" + id.String() }
