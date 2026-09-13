@@ -190,7 +190,7 @@ func TestTake(t *testing.T) {
 		assert.Equal(t, 3, got)
 	})
 
-	t.Run("panics when Options.TTL, AbsentTTL, LoadTimeout is zero, or Deviation is out of range", func(t *testing.T) {
+	t.Run("panics when Options.TTL, AbsentTTL or LoadTimeout is zero", func(t *testing.T) {
 		rt := NewReadThrough(testRedisClient, testutil.DiscardLogger())
 		load := func(context.Context) (int, error) { return 0, nil }
 
@@ -211,20 +211,6 @@ func TestTake(t *testing.T) {
 		t.Run("zero LoadTimeout", func(t *testing.T) {
 			opts := testOptions()
 			opts.LoadTimeout = 0
-
-			assert.Panics(t, func() { _, _ = rt.Take(context.Background(), opts, testKey(t), load) })
-		})
-
-		t.Run("negative Deviation", func(t *testing.T) {
-			opts := testOptions()
-			opts.Deviation = -0.1
-
-			assert.Panics(t, func() { _, _ = rt.Take(context.Background(), opts, testKey(t), load) })
-		})
-
-		t.Run("Deviation of 1 or more", func(t *testing.T) {
-			opts := testOptions()
-			opts.Deviation = 1
 
 			assert.Panics(t, func() { _, _ = rt.Take(context.Background(), opts, testKey(t), load) })
 		})
@@ -278,13 +264,12 @@ func TestTake(t *testing.T) {
 func TestJitter(t *testing.T) {
 	t.Run("varies within the deviation band across repeated calls", func(t *testing.T) {
 		base := time.Minute
-		deviation := 0.1
 
 		seen := make(map[time.Duration]struct{})
 
 		var sawBelow, sawAbove bool
 		for range 200 {
-			d := jitter(base, deviation)
+			d := jitter(base)
 			assert.GreaterOrEqual(t, d, time.Duration(0.9*float64(base)))
 			assert.LessOrEqual(t, d, time.Duration(1.1*float64(base)))
 			seen[d] = struct{}{}
@@ -307,7 +292,6 @@ func testOptions() Options {
 	return Options{
 		TTL:         time.Minute,
 		AbsentTTL:   10 * time.Second,
-		Deviation:   0.1,
 		LoadTimeout: time.Second,
 	}
 }

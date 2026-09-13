@@ -18,7 +18,6 @@ import (
 type Options struct {
 	TTL         time.Duration
 	AbsentTTL   time.Duration
-	Deviation   float64
 	LoadTimeout time.Duration
 }
 
@@ -66,6 +65,7 @@ func (r *ReadThrough) Take[T any](
 const (
 	absentPlaceholder = "\x00absent"
 	writeTimeout      = 500 * time.Millisecond
+	deviation         = 0.1
 )
 
 func (r *ReadThrough) fill[T any](
@@ -111,7 +111,7 @@ func (r *ReadThrough) fill[T any](
 	val, err := load(loadCtx)
 	if err != nil {
 		if errors.Is(err, errs.ErrNotFound) {
-			r.write(shared, key, absentPlaceholder, jitter(opts.AbsentTTL, opts.Deviation), true)
+			r.write(shared, key, absentPlaceholder, jitter(opts.AbsentTTL), true)
 		}
 
 		return zero, err
@@ -129,7 +129,7 @@ func (r *ReadThrough) fill[T any](
 		return val, nil
 	}
 
-	r.write(shared, key, data, jitter(opts.TTL, opts.Deviation), false)
+	r.write(shared, key, data, jitter(opts.TTL), false)
 
 	return val, nil
 }
@@ -167,12 +167,10 @@ func (o Options) mustBeValid() {
 		panic("cache: Options.AbsentTTL must be positive")
 	case o.LoadTimeout <= 0:
 		panic("cache: Options.LoadTimeout must be positive")
-	case o.Deviation < 0 || o.Deviation >= 1:
-		panic("cache: Options.Deviation must be in [0, 1)")
 	}
 }
 
-func jitter(base time.Duration, deviation float64) time.Duration {
+func jitter(base time.Duration) time.Duration {
 	//nolint:gosec // TTL jitter, not a security decision
 	return time.Duration((1 + deviation - 2*deviation*rand.Float64()) * float64(base))
 }

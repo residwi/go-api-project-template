@@ -16,7 +16,6 @@ import (
 const (
 	statusTTL         = 30 * time.Second
 	statusAbsentTTL   = 5 * time.Second
-	statusDeviation   = 0.1
 	statusLoadTimeout = time.Second
 	invalidateTimeout = time.Second
 )
@@ -124,7 +123,6 @@ func statusOptions() cache.Options {
 	return cache.Options{
 		TTL:         statusTTL,
 		AbsentTTL:   statusAbsentTTL,
-		Deviation:   statusDeviation,
 		LoadTimeout: statusLoadTimeout,
 	}
 }
