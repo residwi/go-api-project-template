@@ -30,7 +30,6 @@ func Logging(log *slog.Logger) func(http.Handler) http.Handler {
 				slog.String("path", r.URL.Path),
 				slog.Int("status", recorder.statusCode),
 				slog.String("duration", time.Since(start).String()),
-				slog.String("remote_addr", r.RemoteAddr),
 			)
 		})
 	}

@@ -182,11 +182,19 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 		)
 	}
 
+	trustedProxies, err := config.ParseTrustedProxies(appCfg.App.TrustedProxies)
+	if err != nil {
+		panic(err)
+	}
+
 	return web.Chain(
+		middleware.ClientIP(trustedProxies),
 		middleware.RequestID,
-		// otelhttp reads r.Pattern after ServeMux routes, and RequestID hands
-		// down a copy from r.WithContext -- placed above it, every span is
-		// named "GET".
+		// otelhttp reads r.Pattern off the request object it passed down, and
+		// ServeMux sets Pattern in place when it routes. Any middleware between
+		// otelhttp and the mux that calls r.WithContext hands ServeMux a
+		// different object, leaving every span named "GET". ClientIP and
+		// RequestID both copy the request, so both must stay above otelhttp.
 		otelhttp.NewMiddleware("",
 			otelhttp.WithFilter(func(r *http.Request) bool { return r.URL.Path != "/health" }),
 		),
