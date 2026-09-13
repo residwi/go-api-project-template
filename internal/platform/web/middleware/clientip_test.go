@@ -69,8 +69,8 @@ func TestClientIP(t *testing.T) {
 	t.Run("flattens repeated X-Forwarded-For header lines", func(t *testing.T) {
 		got := captureClientIP(t, nil, func(r *http.Request) {
 			r.RemoteAddr = "10.0.0.1:5555"
-			r.Header.Add("X-Forwarded-For", "198.51.100.9")
 			r.Header.Add("X-Forwarded-For", "10.0.0.2")
+			r.Header.Add("X-Forwarded-For", "198.51.100.9")
 		})
 
 		assert.Equal(t, "198.51.100.9", got)
