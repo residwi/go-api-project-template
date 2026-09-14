@@ -55,6 +55,17 @@ func TestClientIP(t *testing.T) {
 		assert.Equal(t, "198.51.100.9", got)
 	})
 
+	t.Run("matches a trusted prefix through a zoned address", func(t *testing.T) {
+		trusted := []netip.Prefix{netip.MustParsePrefix("2001:db8::/32")}
+
+		got := captureClientIP(t, trusted, func(r *http.Request) {
+			r.RemoteAddr = "[2001:db8::1]:5555"
+			r.Header.Set("X-Forwarded-For", "198.51.100.9, 2001:db8::2%eth0")
+		})
+
+		assert.Equal(t, "198.51.100.9", got)
+	})
+
 	t.Run("honours an explicitly trusted public CIDR", func(t *testing.T) {
 		trusted := []netip.Prefix{netip.MustParsePrefix("203.0.113.0/24")}
 

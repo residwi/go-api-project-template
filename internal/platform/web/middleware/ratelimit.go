@@ -3,7 +3,9 @@ package middleware
 import (
 	"log/slog"
 	"math"
+	"net"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"time"
 
@@ -14,7 +16,9 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
-func RateLimit(
+const ipv6RateLimitPrefixBits = 64
+
+func RateLimit( //nolint:gocognit // resolves the caller identifier (context IP, else remote addr with the port stripped, masked to its IPv6 /64), then overrides it for an authenticated caller
 	log *slog.Logger,
 	rdb *redis.Client,
 	maxRequests, burst int,
@@ -37,6 +41,14 @@ func RateLimit(
 			identifier, ok := clientIPFromContext(r.Context())
 			if !ok {
 				identifier = r.RemoteAddr
+				if host, _, err := net.SplitHostPort(identifier); err == nil {
+					identifier = host
+				}
+			}
+			if addr, err := netip.ParseAddr(identifier); err == nil && addr.Is6() && !addr.Is4In6() {
+				if prefix, err := addr.Prefix(ipv6RateLimitPrefixBits); err == nil {
+					identifier = prefix.String()
+				}
 			}
 			if id, ok := identity.FromContext(r.Context()); ok {
 				identifier = "user:" + id.UserID.String()

@@ -106,8 +106,9 @@ func TestRateLimit(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, "10", w.Header().Get("X-RateLimit-Limit"))
-		// redis_rate under-reports Remaining by one on the first request
-		// against a fresh key; capacity is unaffected.
+		// An artifact of this test's 1s period: redis_rate's emission interval
+		// is then 0.1, and the inexact float cancels to burst-2. The shipped
+		// 1m period gives exactly 6.0 and reports correctly.
 		assert.Equal(t, "1", w.Header().Get("X-RateLimit-Remaining"))
 		assert.NotEmpty(t, w.Header().Get("X-RateLimit-Reset"))
 	})
@@ -147,6 +148,19 @@ func TestRateLimit(t *testing.T) {
 		require.Equal(t, http.StatusTooManyRequests, doRateLimited(handler, "10.1.0.11:1111").Code)
 
 		assert.Equal(t, http.StatusOK, doRateLimited(handler, "10.1.0.12:1111").Code)
+	})
+
+	t.Run("keys IPv6 callers by their 64 prefix", func(t *testing.T) {
+		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
+
+		handler := RateLimit(testLogger(), testRedis, 10, 1, time.Second)(okHandler)
+
+		require.Equal(t, http.StatusOK, doRateLimited(handler, "[2001:db8:1::1]:1111").Code)
+		assert.Equal(t, http.StatusTooManyRequests, doRateLimited(handler, "[2001:db8:1::9999]:2222").Code,
+			"a different suffix in the same /64 must share the bucket")
+
+		assert.Equal(t, http.StatusOK, doRateLimited(handler, "[2001:db8:2::1]:3333").Code,
+			"a different /64 must get its own bucket")
 	})
 
 	t.Run("redis error allows request through", func(t *testing.T) {

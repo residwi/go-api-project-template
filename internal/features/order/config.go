@@ -27,7 +27,7 @@ func LoadConfig() (Config, error) {
 
 	if cfg.RateWindow < time.Second {
 		return Config{}, errors.New(
-			"ORDER_RATE_WINDOW must be at least 1s (sub-second windows divide by zero in the limiter)",
+			"ORDER_RATE_WINDOW must be at least 1s (a deliberate minimum window)",
 		)
 	}
 
