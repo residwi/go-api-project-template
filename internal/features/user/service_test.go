@@ -39,14 +39,16 @@ func TestService_GetByEmail(t *testing.T) {
 		creds, err := s.GetByEmail(context.Background(), "alice@example.com")
 		require.NoError(t, err)
 		assert.Equal(t, Credentials{
-			ID:           id,
-			Email:        "alice@example.com",
+			Profile: Profile{
+				ID:           id,
+				Email:        "alice@example.com",
+				FirstName:    "Alice",
+				LastName:     "Smith",
+				Role:         "user",
+				Active:       true,
+				TokenVersion: 1,
+			},
 			PasswordHash: "hash123",
-			FirstName:    "Alice",
-			LastName:     "Smith",
-			Role:         "user",
-			Active:       true,
-			TokenVersion: 1,
 		}, creds)
 	})
 

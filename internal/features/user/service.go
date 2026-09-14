@@ -35,16 +35,8 @@ func (s *Service) GetByEmail(ctx context.Context, email string) (_ Credentials, 
 	if err != nil {
 		return Credentials{}, err
 	}
-	return Credentials{
-		ID:           u.ID,
-		Email:        u.Email,
-		PasswordHash: u.PasswordHash,
-		FirstName:    u.FirstName,
-		LastName:     u.LastName,
-		Role:         u.Role,
-		Active:       u.Active,
-		TokenVersion: u.TokenVersion,
-	}, nil
+
+	return Credentials{Profile: toProfile(u), PasswordHash: u.PasswordHash}, nil
 }
 
 func (s *Service) Create(ctx context.Context, params NewUser) (_ Profile, err error) {
@@ -65,15 +57,7 @@ func (s *Service) Create(ctx context.Context, params NewUser) (_ Profile, err er
 		return Profile{}, err
 	}
 
-	return Profile{
-		ID:           u.ID,
-		Email:        u.Email,
-		FirstName:    u.FirstName,
-		LastName:     u.LastName,
-		Role:         u.Role,
-		Active:       u.Active,
-		TokenVersion: u.TokenVersion,
-	}, nil
+	return toProfile(u), nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (_ Profile, err error) {
@@ -85,15 +69,8 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (_ Profile, err err
 	if err != nil {
 		return Profile{}, err
 	}
-	return Profile{
-		ID:           u.ID,
-		Email:        u.Email,
-		FirstName:    u.FirstName,
-		LastName:     u.LastName,
-		Role:         u.Role,
-		Active:       u.Active,
-		TokenVersion: u.TokenVersion,
-	}, nil
+
+	return toProfile(u), nil
 }
 
 func (s *Service) GetUser(ctx context.Context, id uuid.UUID) (_ *domain.User, err error) {
@@ -262,4 +239,16 @@ func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) (
 	}
 
 	return nil
+}
+
+func toProfile(u *domain.User) Profile {
+	return Profile{
+		ID:           u.ID,
+		Email:        u.Email,
+		FirstName:    u.FirstName,
+		LastName:     u.LastName,
+		Role:         u.Role,
+		Active:       u.Active,
+		TokenVersion: u.TokenVersion,
+	}
 }

@@ -2,17 +2,6 @@ package user
 
 import "github.com/google/uuid"
 
-type Credentials struct {
-	ID           uuid.UUID
-	Email        string
-	PasswordHash string
-	FirstName    string
-	LastName     string
-	Role         string
-	Active       bool
-	TokenVersion int
-}
-
 type Profile struct {
 	ID           uuid.UUID
 	Email        string
@@ -21,6 +10,12 @@ type Profile struct {
 	Role         string
 	Active       bool
 	TokenVersion int
+}
+
+type Credentials struct {
+	Profile
+
+	PasswordHash string
 }
 
 type NewUser struct {
