@@ -29,7 +29,7 @@ func TestLoadConfig(t *testing.T) {
 		assert.Contains(t, err.Error(), "ORDER_JOB_CONCURRENCY must be at least 1")
 	})
 
-	t.Run("rejects a sub-second rate window that would divide by zero in the limiter", func(t *testing.T) {
+	t.Run("enforces a minimum 1 second rate limit window", func(t *testing.T) {
 		t.Setenv("ORDER_RATE_WINDOW", "500ms")
 
 		_, err := LoadConfig()

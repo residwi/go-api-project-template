@@ -105,12 +105,12 @@ func TestRateLimit(t *testing.T) {
 		w := doRateLimited(handler, "10.1.0.7:1111")
 
 		require.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "10", w.Header().Get("X-RateLimit-Limit"))
+		assert.Equal(t, "10", w.Header().Get("X-Ratelimit-Limit"))
 		// An artifact of this test's 1s period: redis_rate's emission interval
 		// is then 0.1, and the inexact float cancels to burst-2. The shipped
 		// 1m period gives exactly 6.0 and reports correctly.
-		assert.Equal(t, "1", w.Header().Get("X-RateLimit-Remaining"))
-		assert.NotEmpty(t, w.Header().Get("X-RateLimit-Reset"))
+		assert.Equal(t, "1", w.Header().Get("X-Ratelimit-Remaining"))
+		assert.NotEmpty(t, w.Header().Get("X-Ratelimit-Reset"))
 	})
 
 	t.Run("reports the budget on a rejected request", func(t *testing.T) {
@@ -122,8 +122,8 @@ func TestRateLimit(t *testing.T) {
 		w := doRateLimited(handler, "10.1.0.8:1111")
 
 		require.Equal(t, http.StatusTooManyRequests, w.Code)
-		assert.Equal(t, "10", w.Header().Get("X-RateLimit-Limit"))
-		assert.Equal(t, "0", w.Header().Get("X-RateLimit-Remaining"))
+		assert.Equal(t, "10", w.Header().Get("X-Ratelimit-Limit"))
+		assert.Equal(t, "0", w.Header().Get("X-Ratelimit-Remaining"))
 	})
 
 	t.Run("keys an authenticated caller on the user id, not the address", func(t *testing.T) {

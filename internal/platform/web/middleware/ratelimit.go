@@ -70,10 +70,10 @@ func RateLimit( //nolint:gocognit // resolves the caller identifier (context IP,
 				return
 			}
 
-			w.Header().Set("X-RateLimit-Limit", strconv.Itoa(maxRequests))
-			w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(res.Remaining))
+			w.Header().Set("X-Ratelimit-Limit", strconv.Itoa(maxRequests))
+			w.Header().Set("X-Ratelimit-Remaining", strconv.Itoa(res.Remaining))
 			w.Header().Set(
-				"X-RateLimit-Reset",
+				"X-Ratelimit-Reset",
 				strconv.FormatInt(time.Now().Add(res.ResetAfter).Unix(), 10),
 			)
 

@@ -11,7 +11,7 @@ import (
 // ancestor) has called t.Parallel. This file is on the paralleltest exclusion
 // list in .golangci.yml for that reason.
 func TestLoadConfig(t *testing.T) {
-	t.Run("rejects a sub-second rate window that would divide by zero in the limiter", func(t *testing.T) {
+	t.Run("enforces a minimum 1 second rate limit window", func(t *testing.T) {
 		// JWT_SECRET is required:"true"; set it so envconfig gets past that check
 		// and actually reaches the rate-window validation this subtest is for.
 		t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
