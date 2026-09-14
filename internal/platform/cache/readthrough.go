@@ -15,12 +15,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 )
 
-type Options struct {
-	TTL         time.Duration
-	AbsentTTL   time.Duration
-	LoadTimeout time.Duration
-}
-
 type ReadThrough struct {
 	rdb    *redis.Client
 	logger *slog.Logger
@@ -33,16 +27,14 @@ func NewReadThrough(rdb *redis.Client, logger *slog.Logger) *ReadThrough {
 
 func (r *ReadThrough) Take[T any](
 	ctx context.Context,
-	opts Options,
 	key string,
+	ttl time.Duration,
 	load func(context.Context) (T, error),
 ) (T, error) {
-	opts.mustBeValid()
-
 	var zero T
 
 	ch := r.flight.DoChan(key, func() (any, error) {
-		return r.fill(ctx, opts, key, load)
+		return r.fill(ctx, key, ttl, load)
 	})
 
 	select {
@@ -66,12 +58,14 @@ const (
 	absentPlaceholder = "\x00absent"
 	writeTimeout      = 500 * time.Millisecond
 	deviation         = 0.1
+	absentTTL         = 5 * time.Second
+	loadTimeout       = time.Second
 )
 
 func (r *ReadThrough) fill[T any](
 	ctx context.Context,
-	opts Options,
 	key string,
+	ttl time.Duration,
 	load func(context.Context) (T, error),
 ) (_ any, err error) {
 	defer func() {
@@ -105,13 +99,13 @@ func (r *ReadThrough) fill[T any](
 			slog.String("key", key), slog.String("error", getErr.Error()))
 	}
 
-	loadCtx, cancelLoad := context.WithTimeout(shared, opts.LoadTimeout)
+	loadCtx, cancelLoad := context.WithTimeout(shared, loadTimeout)
 	defer cancelLoad()
 
 	val, err := load(loadCtx)
 	if err != nil {
 		if errors.Is(err, errs.ErrNotFound) {
-			r.write(shared, key, absentPlaceholder, jitter(opts.AbsentTTL), true)
+			r.write(shared, key, absentPlaceholder, jitter(absentTTL), true)
 		}
 
 		return zero, err
@@ -129,7 +123,11 @@ func (r *ReadThrough) fill[T any](
 		return val, nil
 	}
 
-	r.write(shared, key, data, jitter(opts.TTL), false)
+	// ttl 0 means skip the write: go-redis would persist the entry forever, and a stale
+	// account status would outlive a revoked token.
+	if ttl > 0 {
+		r.write(shared, key, data, jitter(ttl), false)
+	}
 
 	return val, nil
 }
@@ -156,17 +154,6 @@ func (r *ReadThrough) del(ctx context.Context, key string) {
 
 	if err := r.rdb.Del(delCtx, key).Err(); err != nil {
 		r.logger.WarnContext(delCtx, "cache delete failed", slog.String("key", key), slog.String("error", err.Error()))
-	}
-}
-
-func (o Options) mustBeValid() {
-	switch {
-	case o.TTL <= 0:
-		panic("cache: Options.TTL must be positive")
-	case o.AbsentTTL <= 0:
-		panic("cache: Options.AbsentTTL must be positive")
-	case o.LoadTimeout <= 0:
-		panic("cache: Options.LoadTimeout must be positive")
 	}
 }
 

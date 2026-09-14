@@ -15,8 +15,6 @@ import (
 
 const (
 	statusTTL         = 30 * time.Second
-	statusAbsentTTL   = 5 * time.Second
-	statusLoadTimeout = time.Second
 	invalidateTimeout = time.Second
 )
 
@@ -41,8 +39,8 @@ func New(repo user.Repository, rdb *goredis.Client, logger *slog.Logger) *Reposi
 func (r *Repository) GetStatusByID(ctx context.Context, id uuid.UUID) (bool, int, error) {
 	status, err := r.cache.Take(
 		ctx,
-		statusOptions(),
 		statusKey(id),
+		statusTTL,
 		func(ctx context.Context) (user.AccountStatus, error) {
 			active, tokenVersion, loadErr := r.repo.GetStatusByID(ctx, id)
 			if loadErr != nil {
@@ -116,14 +114,6 @@ func (r *Repository) invalidate(ctx context.Context, id uuid.UUID) {
 	if err := r.rdb.Del(delCtx, statusKey(id)).Err(); err != nil {
 		r.logger.WarnContext(delCtx, "failed to invalidate user status cache",
 			slog.String("target_user_id", id.String()), slog.String("error", err.Error()))
-	}
-}
-
-func statusOptions() cache.Options {
-	return cache.Options{
-		TTL:         statusTTL,
-		AbsentTTL:   statusAbsentTTL,
-		LoadTimeout: statusLoadTimeout,
 	}
 }
 

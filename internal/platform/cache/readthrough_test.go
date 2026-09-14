@@ -17,19 +17,21 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
+const testTTL = time.Minute
+
 func TestTake(t *testing.T) {
 	t.Run("miss loads and returns the value; a second Take serves it without the loader", func(t *testing.T) {
 		rt := NewReadThrough(testRedisClient, testutil.DiscardLogger())
 		key := testKey(t)
 
-		got, err := rt.Take(context.Background(), testOptions(), key, func(context.Context) (int, error) {
+		got, err := rt.Take(context.Background(), key, testTTL, func(context.Context) (int, error) {
 			return 7, nil
 		})
 		require.NoError(t, err)
 		assert.Equal(t, 7, got)
 
 		var loaded atomic.Bool
-		got, err = rt.Take(context.Background(), testOptions(), key, func(context.Context) (int, error) {
+		got, err = rt.Take(context.Background(), key, testTTL, func(context.Context) (int, error) {
 			loaded.Store(true)
 			return 0, nil
 		})
@@ -44,7 +46,7 @@ func TestTake(t *testing.T) {
 		require.NoError(t, testRedisClient.Set(context.Background(), key, absentPlaceholder, time.Minute).Err())
 
 		var loaded atomic.Bool
-		_, err := rt.Take(context.Background(), testOptions(), key, func(context.Context) (int, error) {
+		_, err := rt.Take(context.Background(), key, testTTL, func(context.Context) (int, error) {
 			loaded.Store(true)
 			return 0, nil
 		})
@@ -54,13 +56,12 @@ func TestTake(t *testing.T) {
 	})
 
 	t.Run(
-		"an errs.ErrNotFound loader writes the placeholder, and PTTL is within the AbsentTTL band and below Options.TTL",
+		"an errs.ErrNotFound loader writes the placeholder, and PTTL is within the absentTTL band and below the ttl",
 		func(t *testing.T) {
 			rt := NewReadThrough(testRedisClient, testutil.DiscardLogger())
 			key := testKey(t)
-			opts := testOptions()
 
-			_, err := rt.Take(context.Background(), opts, key, func(context.Context) (int, error) {
+			_, err := rt.Take(context.Background(), key, testTTL, func(context.Context) (int, error) {
 				return 0, errs.ErrNotFound
 			})
 			require.ErrorIs(t, err, errs.ErrNotFound)
@@ -68,8 +69,8 @@ func TestTake(t *testing.T) {
 			ttl, err := testRedisClient.PTTL(context.Background(), key).Result()
 			require.NoError(t, err)
 			assert.Greater(t, ttl, time.Duration(0))
-			assert.LessOrEqual(t, ttl, time.Duration(1.1*float64(opts.AbsentTTL)))
-			assert.Less(t, ttl, opts.TTL, "absent TTL must stay below the success TTL")
+			assert.LessOrEqual(t, ttl, time.Duration(1.1*float64(absentTTL)))
+			assert.Less(t, ttl, testTTL, "absent TTL must stay below the success TTL")
 		},
 	)
 
@@ -83,7 +84,7 @@ func TestTake(t *testing.T) {
 		var wg sync.WaitGroup
 		for range 20 {
 			wg.Go(func() {
-				_, _ = rt.Take(context.Background(), testOptions(), key, func(context.Context) (int, error) {
+				_, _ = rt.Take(context.Background(), key, testTTL, func(context.Context) (int, error) {
 					loads.Add(1)
 					<-release
 					return 5, nil
@@ -109,7 +110,7 @@ func TestTake(t *testing.T) {
 
 		go func() {
 			defer close(done)
-			_, _ = rt.Take(ctx, testOptions(), key, func(context.Context) (int, error) {
+			_, _ = rt.Take(ctx, key, testTTL, func(context.Context) (int, error) {
 				close(started)
 				<-release
 				return 9, nil
@@ -121,7 +122,7 @@ func TestTake(t *testing.T) {
 		waiterCtx, waiterCancel := context.WithCancel(context.Background())
 		waiterErr := make(chan error, 1)
 		go func() {
-			_, err := rt.Take(waiterCtx, testOptions(), key, func(context.Context) (int, error) {
+			_, err := rt.Take(waiterCtx, key, testTTL, func(context.Context) (int, error) {
 				return 0, errors.New("second loader must not run")
 			})
 			waiterErr <- err
@@ -144,7 +145,7 @@ func TestTake(t *testing.T) {
 		rt := NewReadThrough(testRedisClient, testutil.DiscardLogger())
 		key := testKey(t)
 
-		_, err := rt.Take(context.Background(), testOptions(), key, func(context.Context) (int, error) {
+		_, err := rt.Take(context.Background(), key, testTTL, func(context.Context) (int, error) {
 			panic("boom")
 		})
 
@@ -158,7 +159,7 @@ func TestTake(t *testing.T) {
 		require.NoError(t, testRedisClient.Set(context.Background(), key, "not-json", time.Minute).Err())
 
 		var loaded atomic.Bool
-		_, err := rt.Take(context.Background(), testOptions(), key, func(context.Context) (int, error) {
+		_, err := rt.Take(context.Background(), key, testTTL, func(context.Context) (int, error) {
 			loaded.Store(true)
 			return 0, errs.ErrNotFound
 		})
@@ -182,7 +183,7 @@ func TestTake(t *testing.T) {
 		rt := NewReadThrough(broken, testutil.DiscardLogger())
 		key := testKey(t)
 
-		got, err := rt.Take(context.Background(), testOptions(), key, func(context.Context) (int, error) {
+		got, err := rt.Take(context.Background(), key, testTTL, func(context.Context) (int, error) {
 			return 3, nil
 		})
 
@@ -190,30 +191,32 @@ func TestTake(t *testing.T) {
 		assert.Equal(t, 3, got)
 	})
 
-	t.Run("panics when Options.TTL, AbsentTTL or LoadTimeout is zero", func(t *testing.T) {
+	t.Run("a ttl of 0 returns the loaded value and writes nothing", func(t *testing.T) {
 		rt := NewReadThrough(testRedisClient, testutil.DiscardLogger())
-		load := func(context.Context) (int, error) { return 0, nil }
+		key := testKey(t)
 
-		t.Run("zero TTL", func(t *testing.T) {
-			opts := testOptions()
-			opts.TTL = 0
+		got, err := rt.Take(context.Background(), key, 0, func(context.Context) (int, error) {
+			return 11, nil
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 11, got)
 
-			assert.Panics(t, func() { _, _ = rt.Take(context.Background(), opts, testKey(t), load) })
+		_, err = testRedisClient.Get(context.Background(), key).Result()
+		assert.ErrorIs(t, err, redis.Nil, "a ttl of 0 must not write the entry")
+	})
+
+	t.Run("a ttl of 0 still bounds the loader", func(t *testing.T) {
+		rt := NewReadThrough(testRedisClient, testutil.DiscardLogger())
+
+		_, err := rt.Take(context.Background(), testKey(t), 0, func(ctx context.Context) (int, error) {
+			deadline, ok := ctx.Deadline()
+			assert.True(t, ok, "the loader context must carry a deadline")
+			assert.WithinDuration(t, time.Now().Add(loadTimeout), deadline, 200*time.Millisecond)
+
+			return 1, nil
 		})
 
-		t.Run("zero AbsentTTL", func(t *testing.T) {
-			opts := testOptions()
-			opts.AbsentTTL = 0
-
-			assert.Panics(t, func() { _, _ = rt.Take(context.Background(), opts, testKey(t), load) })
-		})
-
-		t.Run("zero LoadTimeout", func(t *testing.T) {
-			opts := testOptions()
-			opts.LoadTimeout = 0
-
-			assert.Panics(t, func() { _, _ = rt.Take(context.Background(), opts, testKey(t), load) })
-		})
+		require.NoError(t, err)
 	})
 
 	t.Run(
@@ -226,7 +229,7 @@ func TestTake(t *testing.T) {
 			started := make(chan struct{})
 
 			go func() {
-				_, _ = rt.Take(context.Background(), testOptions(), key, func(context.Context) (int, error) {
+				_, _ = rt.Take(context.Background(), key, testTTL, func(context.Context) (int, error) {
 					close(started)
 					<-release
 
@@ -245,7 +248,7 @@ func TestTake(t *testing.T) {
 			followerCh := make(chan takeResult, 1)
 			go func() {
 				close(ready)
-				v, err := rt.Take(context.Background(), testOptions(), key, func(context.Context) (string, error) {
+				v, err := rt.Take(context.Background(), key, testTTL, func(context.Context) (string, error) {
 					return "unreachable", nil
 				})
 				followerCh <- takeResult{val: v, err: err}
@@ -286,14 +289,6 @@ func TestJitter(t *testing.T) {
 		assert.True(t, sawBelow, "jitter must be able to shorten the TTL")
 		assert.True(t, sawAbove, "jitter must be able to lengthen the TTL")
 	})
-}
-
-func testOptions() Options {
-	return Options{
-		TTL:         time.Minute,
-		AbsentTTL:   10 * time.Second,
-		LoadTimeout: time.Second,
-	}
 }
 
 func testKey(t *testing.T) string {
