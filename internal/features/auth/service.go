@@ -109,7 +109,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (_ *TokenPai
 		return nil, ErrInvalidToken
 	}
 
-	user, err := s.users.GetByID(ctx, claims.UserID)
+	user, err := s.users.GetProfile(ctx, claims.UserID)
 	if err != nil {
 		return nil, err
 	}

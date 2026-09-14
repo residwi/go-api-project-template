@@ -12,7 +12,7 @@ import (
 )
 
 type ProfileManager interface {
-	GetUser(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	UpdateProfile(ctx context.Context, id uuid.UUID, firstName, lastName string, phone *string) (*domain.User, error)
 }
 
@@ -24,13 +24,13 @@ func NewHandler(service ProfileManager) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	uc, ok := request.RequireUser(w, r)
 	if !ok {
 		return
 	}
 
-	u, err := h.service.GetUser(r.Context(), uc.UserID)
+	u, err := h.service.GetByID(r.Context(), uc.UserID)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

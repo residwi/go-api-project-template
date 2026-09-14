@@ -15,7 +15,7 @@ import (
 
 type UserManager interface {
 	ListAdmin(ctx context.Context, params user.AdminListParams) ([]domain.User, int, error)
-	GetUser(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	AdminUpdate(
 		ctx context.Context, id uuid.UUID, firstName, lastName string, phone *string, active *bool,
 	) (*domain.User, error)
@@ -58,13 +58,13 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, paging.NewOffsetPageResult(out, page, total))
 }
 
-func (h *AdminHandler) GetUser(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, ok := request.ParseUUIDParam(w, r, "id")
 	if !ok {
 		return
 	}
 
-	u, err := h.service.GetUser(r.Context(), id)
+	u, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
 		response.HandleErr(w, err)
 		return

@@ -60,8 +60,8 @@ func (s *Service) Create(ctx context.Context, params NewUser) (_ Profile, err er
 	return toProfile(u), nil
 }
 
-func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (_ Profile, err error) {
-	ctx, span := s.tracer.Start(ctx, "user.GetByID")
+func (s *Service) GetProfile(ctx context.Context, id uuid.UUID) (_ Profile, err error) {
+	ctx, span := s.tracer.Start(ctx, "user.GetProfile")
 	defer span.End()
 	defer func() { tracing.Record(span, err) }()
 
@@ -73,8 +73,8 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (_ Profile, err err
 	return toProfile(u), nil
 }
 
-func (s *Service) GetUser(ctx context.Context, id uuid.UUID) (_ *domain.User, err error) {
-	ctx, span := s.tracer.Start(ctx, "user.GetUser")
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (_ *domain.User, err error) {
+	ctx, span := s.tracer.Start(ctx, "user.GetByID")
 	defer span.End()
 	defer func() { tracing.Record(span, err) }()
 

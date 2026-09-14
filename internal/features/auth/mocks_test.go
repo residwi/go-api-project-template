@@ -20,10 +20,19 @@ func NewMockUserDirectory(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockUserDirectory {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockUserDirectory{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -239,12 +248,12 @@ func (_c *MockUserDirectory_GetByEmail_Call) RunAndReturn(run func(ctx context.C
 	return _c
 }
 
-// GetByID provides a mock function for the type MockUserDirectory
-func (_mock *MockUserDirectory) GetByID(ctx context.Context, id uuid.UUID) (user.Profile, error) {
+// GetProfile provides a mock function for the type MockUserDirectory
+func (_mock *MockUserDirectory) GetProfile(ctx context.Context, id uuid.UUID) (user.Profile, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetByID")
+		panic("no return value specified for GetProfile")
 	}
 
 	var r0 user.Profile
@@ -265,19 +274,19 @@ func (_mock *MockUserDirectory) GetByID(ctx context.Context, id uuid.UUID) (user
 	return r0, r1
 }
 
-// MockUserDirectory_GetByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByID'
-type MockUserDirectory_GetByID_Call struct {
+// MockUserDirectory_GetProfile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfile'
+type MockUserDirectory_GetProfile_Call struct {
 	*mock.Call
 }
 
-// GetByID is a helper method to define mock.On call
+// GetProfile is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockUserDirectory_Expecter) GetByID(ctx any, id any) *MockUserDirectory_GetByID_Call {
-	return &MockUserDirectory_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
+func (_e *MockUserDirectory_Expecter) GetProfile(ctx any, id any) *MockUserDirectory_GetProfile_Call {
+	return &MockUserDirectory_GetProfile_Call{Call: _e.mock.On("GetProfile", ctx, id)}
 }
 
-func (_c *MockUserDirectory_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockUserDirectory_GetByID_Call {
+func (_c *MockUserDirectory_GetProfile_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockUserDirectory_GetProfile_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -295,12 +304,12 @@ func (_c *MockUserDirectory_GetByID_Call) Run(run func(ctx context.Context, id u
 	return _c
 }
 
-func (_c *MockUserDirectory_GetByID_Call) Return(profile user.Profile, err error) *MockUserDirectory_GetByID_Call {
+func (_c *MockUserDirectory_GetProfile_Call) Return(profile user.Profile, err error) *MockUserDirectory_GetProfile_Call {
 	_c.Call.Return(profile, err)
 	return _c
 }
 
-func (_c *MockUserDirectory_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (user.Profile, error)) *MockUserDirectory_GetByID_Call {
+func (_c *MockUserDirectory_GetProfile_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (user.Profile, error)) *MockUserDirectory_GetProfile_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -311,10 +320,19 @@ func NewMockTokens(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockTokens {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockTokens{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }

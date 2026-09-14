@@ -19,10 +19,19 @@ func NewMockUserManager(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockUserManager {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockUserManager{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -195,12 +204,12 @@ func (_c *MockUserManager_Delete_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
-// GetUser provides a mock function for the type MockUserManager
-func (_mock *MockUserManager) GetUser(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+// GetByID provides a mock function for the type MockUserManager
+func (_mock *MockUserManager) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetUser")
+		panic("no return value specified for GetByID")
 	}
 
 	var r0 *domain.User
@@ -223,19 +232,19 @@ func (_mock *MockUserManager) GetUser(ctx context.Context, id uuid.UUID) (*domai
 	return r0, r1
 }
 
-// MockUserManager_GetUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUser'
-type MockUserManager_GetUser_Call struct {
+// MockUserManager_GetByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByID'
+type MockUserManager_GetByID_Call struct {
 	*mock.Call
 }
 
-// GetUser is a helper method to define mock.On call
+// GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockUserManager_Expecter) GetUser(ctx any, id any) *MockUserManager_GetUser_Call {
-	return &MockUserManager_GetUser_Call{Call: _e.mock.On("GetUser", ctx, id)}
+func (_e *MockUserManager_Expecter) GetByID(ctx any, id any) *MockUserManager_GetByID_Call {
+	return &MockUserManager_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
-func (_c *MockUserManager_GetUser_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockUserManager_GetUser_Call {
+func (_c *MockUserManager_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockUserManager_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -253,12 +262,12 @@ func (_c *MockUserManager_GetUser_Call) Run(run func(ctx context.Context, id uui
 	return _c
 }
 
-func (_c *MockUserManager_GetUser_Call) Return(user *domain.User, err error) *MockUserManager_GetUser_Call {
+func (_c *MockUserManager_GetByID_Call) Return(user *domain.User, err error) *MockUserManager_GetByID_Call {
 	_c.Call.Return(user, err)
 	return _c
 }
 
-func (_c *MockUserManager_GetUser_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*domain.User, error)) *MockUserManager_GetUser_Call {
+func (_c *MockUserManager_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*domain.User, error)) *MockUserManager_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -412,10 +421,19 @@ func NewMockProfileManager(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockProfileManager {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockProfileManager{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -433,12 +451,12 @@ func (_m *MockProfileManager) EXPECT() *MockProfileManager_Expecter {
 	return &MockProfileManager_Expecter{mock: &_m.Mock}
 }
 
-// GetUser provides a mock function for the type MockProfileManager
-func (_mock *MockProfileManager) GetUser(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+// GetByID provides a mock function for the type MockProfileManager
+func (_mock *MockProfileManager) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetUser")
+		panic("no return value specified for GetByID")
 	}
 
 	var r0 *domain.User
@@ -461,19 +479,19 @@ func (_mock *MockProfileManager) GetUser(ctx context.Context, id uuid.UUID) (*do
 	return r0, r1
 }
 
-// MockProfileManager_GetUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUser'
-type MockProfileManager_GetUser_Call struct {
+// MockProfileManager_GetByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByID'
+type MockProfileManager_GetByID_Call struct {
 	*mock.Call
 }
 
-// GetUser is a helper method to define mock.On call
+// GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockProfileManager_Expecter) GetUser(ctx any, id any) *MockProfileManager_GetUser_Call {
-	return &MockProfileManager_GetUser_Call{Call: _e.mock.On("GetUser", ctx, id)}
+func (_e *MockProfileManager_Expecter) GetByID(ctx any, id any) *MockProfileManager_GetByID_Call {
+	return &MockProfileManager_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
-func (_c *MockProfileManager_GetUser_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockProfileManager_GetUser_Call {
+func (_c *MockProfileManager_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockProfileManager_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -491,12 +509,12 @@ func (_c *MockProfileManager_GetUser_Call) Run(run func(ctx context.Context, id 
 	return _c
 }
 
-func (_c *MockProfileManager_GetUser_Call) Return(user1 *domain.User, err error) *MockProfileManager_GetUser_Call {
+func (_c *MockProfileManager_GetByID_Call) Return(user1 *domain.User, err error) *MockProfileManager_GetByID_Call {
 	_c.Call.Return(user1, err)
 	return _c
 }
 
-func (_c *MockProfileManager_GetUser_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*domain.User, error)) *MockProfileManager_GetUser_Call {
+func (_c *MockProfileManager_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*domain.User, error)) *MockProfileManager_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }

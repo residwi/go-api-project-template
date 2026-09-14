@@ -39,15 +39,13 @@ func TestService_GetByEmail(t *testing.T) {
 		creds, err := s.GetByEmail(context.Background(), "alice@example.com")
 		require.NoError(t, err)
 		assert.Equal(t, Credentials{
-			Profile: Profile{
-				ID:           id,
-				Email:        "alice@example.com",
-				FirstName:    "Alice",
-				LastName:     "Smith",
-				Role:         "user",
-				Active:       true,
-				TokenVersion: 1,
-			},
+			ID:           id,
+			Email:        "alice@example.com",
+			FirstName:    "Alice",
+			LastName:     "Smith",
+			Role:         "user",
+			Active:       true,
+			TokenVersion: 1,
 			PasswordHash: "hash123",
 		}, creds)
 	})
@@ -118,7 +116,7 @@ func TestService_Create(t *testing.T) {
 	})
 }
 
-func TestService_GetByID(t *testing.T) {
+func TestService_GetProfile(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
@@ -139,7 +137,7 @@ func TestService_GetByID(t *testing.T) {
 				TokenVersion: 3,
 			}, nil)
 
-		result, err := s.GetByID(context.Background(), id)
+		result, err := s.GetProfile(context.Background(), id)
 		require.NoError(t, err)
 		assert.Equal(t, Profile{
 			ID:           id,
@@ -161,17 +159,12 @@ func TestService_GetByID(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		_, err := s.GetByID(context.Background(), uuid.New())
+		_, err := s.GetProfile(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
-// GetUser serves both /users/me and the admin /users/{id} route: the old
-// query slice had already merged these from two identically-bodied methods
-// before this flatten. It stays a distinct method from GetByID rather than
-// folding into it, because GetByID's signature is pinned by auth's
-// UserDirectory port, which this flatten must not rename.
-func TestService_GetUser(t *testing.T) {
+func TestService_GetByID(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
@@ -192,7 +185,7 @@ func TestService_GetUser(t *testing.T) {
 		}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(expected, nil)
 
-		result, err := s.GetUser(context.Background(), id)
+		result, err := s.GetByID(context.Background(), id)
 		require.NoError(t, err)
 		assert.Equal(t, expected, result)
 	})
@@ -206,7 +199,7 @@ func TestService_GetUser(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		_, err := s.GetUser(context.Background(), uuid.New())
+		_, err := s.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }

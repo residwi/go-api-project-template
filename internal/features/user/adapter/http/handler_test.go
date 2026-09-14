@@ -22,7 +22,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
-func TestHandler_Me(t *testing.T) {
+func TestHandler_GetByID(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
@@ -31,7 +31,7 @@ func TestHandler_Me(t *testing.T) {
 		mux, usecase := setupHandlerMux(t)
 
 		userID := uuid.New()
-		usecase.EXPECT().GetUser(mock.Anything, userID).Return(&domain.User{
+		usecase.EXPECT().GetByID(mock.Anything, userID).Return(&domain.User{
 			ID:        userID,
 			Email:     "test@example.com",
 			FirstName: "John",
@@ -97,7 +97,7 @@ func TestHandler_Me(t *testing.T) {
 
 		mux, usecase := setupHandlerMux(t)
 		userID := uuid.New()
-		usecase.EXPECT().GetUser(mock.Anything, userID).Return(nil, errs.ErrNotFound)
+		usecase.EXPECT().GetByID(mock.Anything, userID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/users/me", nil)
@@ -316,7 +316,7 @@ func setupHandlerMux(t *testing.T) (*http.ServeMux, *MockProfileManager) {
 	authed := web.NewRouter(mux).Group("/api/v1")
 
 	h := NewHandler(usecase)
-	authed.HandleFunc("GET /users/me", h.GetUser)
+	authed.HandleFunc("GET /users/me", h.GetByID)
 	authed.HandleFunc("PUT /users/me", h.UpdateProfile)
 
 	return mux, usecase

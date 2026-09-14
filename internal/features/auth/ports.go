@@ -13,7 +13,7 @@ import (
 type UserDirectory interface {
 	GetByEmail(ctx context.Context, email string) (user.Credentials, error)
 	Create(ctx context.Context, p user.NewUser) (user.Profile, error)
-	GetByID(ctx context.Context, id uuid.UUID) (user.Profile, error)
+	GetProfile(ctx context.Context, id uuid.UUID) (user.Profile, error)
 	CheckStatus(ctx context.Context, id uuid.UUID) (user.AccountStatus, error)
 }
 

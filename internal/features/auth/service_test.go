@@ -208,7 +208,7 @@ func TestService_Refresh(t *testing.T) {
 		pair, err := svc.BuildTokenPair(user)
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
+		users.EXPECT().GetProfile(mock.Anything, userID).Return(user, nil)
 
 		resp, err := svc.Refresh(context.Background(), pair.RefreshToken)
 
@@ -258,7 +258,7 @@ func TestService_Refresh(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(user.Profile{
+		users.EXPECT().GetProfile(mock.Anything, userID).Return(user.Profile{
 			ID:           userID,
 			Email:        "test@example.com",
 			Active:       false,
@@ -283,7 +283,7 @@ func TestService_Refresh(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		users.EXPECT().GetByID(mock.Anything, userID).Return(user.Profile{
+		users.EXPECT().GetProfile(mock.Anything, userID).Return(user.Profile{
 			ID:           userID,
 			Email:        "test@example.com",
 			Active:       true,
@@ -309,7 +309,7 @@ func TestService_Refresh(t *testing.T) {
 		require.NoError(t, err)
 
 		dbErr := errors.New("database connection lost")
-		users.EXPECT().GetByID(mock.Anything, userID).Return(user.Profile{}, dbErr)
+		users.EXPECT().GetProfile(mock.Anything, userID).Return(user.Profile{}, dbErr)
 
 		resp, err := svc.Refresh(context.Background(), pair.RefreshToken)
 

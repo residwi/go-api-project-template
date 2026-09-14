@@ -181,7 +181,7 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 	})
 }
 
-func TestAdminHandler_GetUser(t *testing.T) {
+func TestAdminHandler_GetByID(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
@@ -191,7 +191,7 @@ func TestAdminHandler_GetUser(t *testing.T) {
 
 		userID := uuid.New()
 		now := time.Now()
-		usecase.EXPECT().GetUser(mock.Anything, userID).Return(&domain.User{
+		usecase.EXPECT().GetByID(mock.Anything, userID).Return(&domain.User{
 			ID:        userID,
 			Email:     "alice@example.com",
 			FirstName: "Alice",
@@ -247,7 +247,7 @@ func TestAdminHandler_GetUser(t *testing.T) {
 
 		mux, usecase := setupAdminHandlerMux(t)
 		userID := uuid.New()
-		usecase.EXPECT().GetUser(mock.Anything, userID).Return(nil, errs.ErrNotFound)
+		usecase.EXPECT().GetByID(mock.Anything, userID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users/"+userID.String(), nil)
@@ -714,7 +714,7 @@ func setupAdminHandlerMux(t *testing.T) (*http.ServeMux, *MockUserManager) {
 
 	h := NewAdminHandler(usecase)
 	admin.HandleFunc("GET /users", h.List)
-	admin.HandleFunc("GET /users/{id}", h.GetUser)
+	admin.HandleFunc("GET /users/{id}", h.GetByID)
 	admin.HandleFunc("PUT /users/{id}", h.Update)
 	admin.HandleFunc("PUT /users/{id}/role", h.UpdateRole)
 	admin.HandleFunc("DELETE /users/{id}", h.Delete)

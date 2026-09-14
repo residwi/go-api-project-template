@@ -65,12 +65,12 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	authPublic.HandleFunc("POST /auth/refresh", authHandler.Refresh)
 
 	userHandler := userhttp.NewHandler(deps.Users)
-	authed.HandleFunc("GET /users/me", userHandler.GetUser)
+	authed.HandleFunc("GET /users/me", userHandler.GetByID)
 	authed.HandleFunc("PUT /users/me", userHandler.UpdateProfile)
 
 	userAdminHandler := userhttp.NewAdminHandler(deps.Users)
 	admin.HandleFunc("GET /users", userAdminHandler.List)
-	admin.HandleFunc("GET /users/{id}", userAdminHandler.GetUser)
+	admin.HandleFunc("GET /users/{id}", userAdminHandler.GetByID)
 	admin.HandleFunc("PUT /users/{id}", userAdminHandler.Update)
 	admin.HandleFunc("PUT /users/{id}/role", userAdminHandler.UpdateRole)
 	admin.HandleFunc("DELETE /users/{id}", userAdminHandler.Delete)
