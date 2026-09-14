@@ -1,12 +1,15 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"strconv"
 	"strings"
@@ -26,6 +29,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/cart"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
+	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
@@ -446,6 +450,32 @@ func TestNewRouterWithNilCache(t *testing.T) {
 		handler.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestClientIPWiring(t *testing.T) {
+	setup(t)
+
+	t.Run("resolves the forwarded IP when the proxy is in TrustedProxies", func(t *testing.T) {
+		var buf bytes.Buffer
+		captureLogger := slog.New(logger.ContextHandler{Handler: slog.NewJSONHandler(&buf, nil)})
+
+		cfg := *testAppCfg
+		cfg.App.TrustedProxies = config.TrustedProxies{netip.MustParsePrefix("203.0.113.0/24")}
+
+		handler := NewRouter(&cfg, testModCfg, testRedis, captureLogger, testApp)
+
+		req := httptest.NewRequest(http.MethodGet, "/health", nil)
+		req.RemoteAddr = "203.0.113.7:5555"
+		req.Header.Set("X-Forwarded-For", "198.51.100.9")
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusOK, w.Code)
+
+		var record map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &record))
+		assert.Equal(t, "198.51.100.9", record["client_ip"])
 	})
 }
 

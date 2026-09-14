@@ -160,7 +160,7 @@ cached. The decorator writes nine methods explicitly rather than embedding
 `user.Repository`, so that a tenth method is a compile error instead of a
 silently uncached one — nothing else enforces that, since `make check-arch`
 reads imports only. A stale value can still be written back if a load overlaps
-an invalidation; `LoadTimeout` bounds the window but does not close it, and
+an invalidation; `loadTimeout` bounds the window but does not close it, and
 closing it needs a compare-and-set write-back. The absent-user bound depends on
 Redis being up: `cache.NewRedis` returns nil on a failed ping, `server.go` logs
 and continues, and `app.go` then skips the decorator entirely, so a boot
@@ -170,9 +170,9 @@ singleflight barrier still caps concurrent duplicates, so it is better than
 before, but it is not the stated 5s bound. And the caller's own deadline no
 longer bounds the database query on a cache miss: `fill` runs the load under
 `context.WithoutCancel(ctx)`, which drops the caller's deadline along with its
-cancellation, and `LoadTimeout` replaces it rather than intersecting with it —
+cancellation, and `loadTimeout` replaces it rather than intersecting with it —
 here that tightens the bound, since request timeouts run longer than
-`LoadTimeout`, but it means a request deadline no longer applies to the cached
+`loadTimeout`, but it means a request deadline no longer applies to the cached
 read's DB call. `writeTimeout` is kept but untested: the in-memory fake that
 could capture the deadline a command received died with the `Store[T]`
 interface, and a real client gives no way to observe it — deleting the constant

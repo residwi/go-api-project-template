@@ -123,10 +123,12 @@ func (r *ReadThrough) fill[T any](
 		return val, nil
 	}
 
-	// ttl 0 means skip the write: go-redis would persist the entry forever, and a stale
-	// account status would outlive a revoked token.
+	// go-redis reads a zero expiration as no expiration, so a non-positive ttl must not
+	// reach it: the entry would outlive every failed invalidation.
 	if ttl > 0 {
 		r.write(shared, key, data, jitter(ttl), false)
+	} else {
+		r.logger.WarnContext(shared, "non-positive ttl, not caching", slog.String("key", key))
 	}
 
 	return val, nil

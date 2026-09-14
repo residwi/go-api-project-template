@@ -57,7 +57,7 @@ func (t *TrustedProxies) Decode(value string) error {
 
 		prefix, err := netip.ParsePrefix(entry)
 		if err != nil {
-			return fmt.Errorf("TRUSTED_PROXIES entry %q: %w", entry, err)
+			return fmt.Errorf("entry %q: %w", entry, err)
 		}
 
 		prefixes = append(prefixes, prefix)
