@@ -77,62 +77,73 @@ func TestLoad(t *testing.T) {
 	})
 }
 
-func TestParseTrustedProxies(t *testing.T) {
+func TestTrustedProxiesDecode(t *testing.T) {
 	t.Run("parses IPv4 and IPv6 CIDRs", func(t *testing.T) {
-		got, err := ParseTrustedProxies([]string{"203.0.113.0/24", "2001:db8::/32"})
+		var got TrustedProxies
 
-		require.NoError(t, err)
-		assert.Equal(t, []netip.Prefix{
+		require.NoError(t, got.Decode("203.0.113.0/24,2001:db8::/32"))
+		assert.Equal(t, TrustedProxies{
 			netip.MustParsePrefix("203.0.113.0/24"),
 			netip.MustParsePrefix("2001:db8::/32"),
 		}, got)
 	})
 
-	t.Run("returns nothing for an unset list", func(t *testing.T) {
-		got, err := ParseTrustedProxies(nil)
+	t.Run("returns nothing for an empty value", func(t *testing.T) {
+		var got TrustedProxies
 
-		require.NoError(t, err)
+		require.NoError(t, got.Decode(""))
 		assert.Empty(t, got)
 	})
 
-	t.Run("skips blank entries", func(t *testing.T) {
-		got, err := ParseTrustedProxies([]string{"", "   ", "203.0.113.0/24"})
+	t.Run("skips blank entries and trims the rest", func(t *testing.T) {
+		var got TrustedProxies
 
-		require.NoError(t, err)
-		assert.Equal(t, []netip.Prefix{netip.MustParsePrefix("203.0.113.0/24")}, got)
+		require.NoError(t, got.Decode(" , 203.0.113.0/24 ,   "))
+		assert.Equal(t, TrustedProxies{netip.MustParsePrefix("203.0.113.0/24")}, got)
 	})
 
 	t.Run("rejects a malformed entry", func(t *testing.T) {
-		_, err := ParseTrustedProxies([]string{"203.0.113.0/24", "not-a-cidr"})
+		var got TrustedProxies
+
+		err := got.Decode("203.0.113.0/24,not-a-cidr")
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not-a-cidr")
 	})
 
 	t.Run("rejects a bare address with no prefix length", func(t *testing.T) {
-		_, err := ParseTrustedProxies([]string{"203.0.113.5"})
+		var got TrustedProxies
 
-		require.Error(t, err)
+		require.Error(t, got.Decode("203.0.113.5"))
+	})
+
+	t.Run("replaces any earlier value rather than appending to it", func(t *testing.T) {
+		got := TrustedProxies{netip.MustParsePrefix("198.51.100.0/24")}
+
+		require.NoError(t, got.Decode("203.0.113.0/24"))
+		assert.Equal(t, TrustedProxies{netip.MustParsePrefix("203.0.113.0/24")}, got)
 	})
 }
 
-func TestSettingsValidateTrustedProxies(t *testing.T) {
+func TestLoadTrustedProxies(t *testing.T) {
 	t.Run("aborts boot on a malformed CIDR", func(t *testing.T) {
-		var s Settings
-		s.App.ShutdownTimeout = 30 * time.Second
-		s.App.TrustedProxies = []string{"nonsense"}
+		t.Setenv("TRUSTED_PROXIES", "nonsense")
 
-		err := s.validate()
+		_, err := Load()
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "TRUSTED_PROXIES")
+		assert.Contains(t, err.Error(), "nonsense")
 	})
 
-	t.Run("accepts a valid CIDR", func(t *testing.T) {
-		var s Settings
-		s.App.ShutdownTimeout = 30 * time.Second
-		s.App.TrustedProxies = []string{"203.0.113.0/24"}
+	t.Run("parses a valid list onto App.TrustedProxies", func(t *testing.T) {
+		t.Setenv("TRUSTED_PROXIES", "203.0.113.0/24,2001:db8::/32")
 
-		assert.NoError(t, s.validate())
+		s, err := Load()
+
+		require.NoError(t, err)
+		assert.Equal(t, TrustedProxies{
+			netip.MustParsePrefix("203.0.113.0/24"),
+			netip.MustParsePrefix("2001:db8::/32"),
+		}, s.App.TrustedProxies)
 	})
 }

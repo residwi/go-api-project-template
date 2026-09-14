@@ -41,17 +41,15 @@ func (s *Settings) validate() error {
 		)
 	}
 
-	if _, err := ParseTrustedProxies(s.App.TrustedProxies); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func ParseTrustedProxies(raw []string) ([]netip.Prefix, error) {
-	prefixes := make([]netip.Prefix, 0, len(raw))
+type TrustedProxies []netip.Prefix
 
-	for _, entry := range raw {
+func (t *TrustedProxies) Decode(value string) error {
+	prefixes := make(TrustedProxies, 0)
+
+	for entry := range strings.SplitSeq(value, ",") {
 		entry = strings.TrimSpace(entry)
 		if entry == "" {
 			continue
@@ -59,24 +57,26 @@ func ParseTrustedProxies(raw []string) ([]netip.Prefix, error) {
 
 		prefix, err := netip.ParsePrefix(entry)
 		if err != nil {
-			return nil, fmt.Errorf("TRUSTED_PROXIES entry %q: %w", entry, err)
+			return fmt.Errorf("TRUSTED_PROXIES entry %q: %w", entry, err)
 		}
 
 		prefixes = append(prefixes, prefix)
 	}
 
-	return prefixes, nil
+	*t = prefixes
+
+	return nil
 }
 
 type App struct {
-	Name            string        `envconfig:"APP_NAME"             default:"ecommerce-api"`
-	Env             string        `envconfig:"APP_ENV"              default:"development"`
-	Port            int           `envconfig:"APP_PORT"             default:"8080"`
-	ReadTimeout     time.Duration `envconfig:"APP_READ_TIMEOUT"     default:"15s"`
-	WriteTimeout    time.Duration `envconfig:"APP_WRITE_TIMEOUT"    default:"15s"`
-	IdleTimeout     time.Duration `envconfig:"APP_IDLE_TIMEOUT"     default:"60s"`
-	ShutdownTimeout time.Duration `envconfig:"APP_SHUTDOWN_TIMEOUT" default:"30s"`
-	TrustedProxies  []string      `envconfig:"TRUSTED_PROXIES"`
+	Name            string         `envconfig:"APP_NAME"             default:"ecommerce-api"`
+	Env             string         `envconfig:"APP_ENV"              default:"development"`
+	Port            int            `envconfig:"APP_PORT"             default:"8080"`
+	ReadTimeout     time.Duration  `envconfig:"APP_READ_TIMEOUT"     default:"15s"`
+	WriteTimeout    time.Duration  `envconfig:"APP_WRITE_TIMEOUT"    default:"15s"`
+	IdleTimeout     time.Duration  `envconfig:"APP_IDLE_TIMEOUT"     default:"60s"`
+	ShutdownTimeout time.Duration  `envconfig:"APP_SHUTDOWN_TIMEOUT" default:"30s"`
+	TrustedProxies  TrustedProxies `envconfig:"TRUSTED_PROXIES"`
 }
 
 type Database struct {
