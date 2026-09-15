@@ -29,7 +29,7 @@ func TestTraceShapeOfAPublicRequest(t *testing.T) {
 	assert.Equal(t, trace.SpanKindServer, root.SpanKind())
 	assert.False(t, root.Parent().IsValid())
 
-	query := findSpanDescendedFrom(t, root, "query SELECT")
+	query := findSpanDescendedFrom(t, root, "SELECT")
 	assert.Equal(t, trace.SpanKindClient, query.SpanKind())
 }
 
@@ -105,8 +105,7 @@ func TestTraceShapeOfCheckout(t *testing.T) {
 	orderPlace := findSpanDescendedFrom(t, root, "order.Place")
 	assert.Equal(t, place.SpanContext().SpanID(), orderPlace.Parent().SpanID())
 
-	query := findSpanDescendedFrom(t, root, "query SELECT")
-	assert.Equal(t, orderPlace.SpanContext().SpanID(), query.Parent().SpanID())
+	findChildSpan(t, orderPlace, "SELECT")
 }
 
 func findSpan(t *testing.T, name string) sdktrace.ReadOnlySpan {
@@ -135,6 +134,18 @@ func findSpanDescendedFrom(t *testing.T, root sdktrace.ReadOnlySpan, name string
 	t.Fatalf("no span named %q in the trace of %q; saw %v", name, root.Name(), spanNames())
 
 	return nil
+}
+
+func findChildSpan(t *testing.T, parent sdktrace.ReadOnlySpan, name string) {
+	t.Helper()
+
+	for _, span := range testSpans.Ended() {
+		if span.Name() == name && span.Parent().SpanID() == parent.SpanContext().SpanID() {
+			return
+		}
+	}
+
+	t.Fatalf("no span named %q under %q; saw %v", name, parent.Name(), spanNames())
 }
 
 func spanNames() []string {

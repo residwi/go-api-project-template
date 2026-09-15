@@ -113,7 +113,7 @@ func MustStartPostgres(dbName string) (*pgxpool.Pool, func()) {
 		)
 		os.Exit(1)
 	}
-	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer(otelpgx.WithTrimSQLInSpanName())
+	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer()
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {

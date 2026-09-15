@@ -144,7 +144,7 @@ func TestPoolEmitsQuerySpans(t *testing.T) {
 		names = append(names, span.Name())
 	}
 
-	assert.Contains(t, names, "query SELECT")
+	assert.Contains(t, names, "SELECT")
 }
 
 func testDSN(port, sslMode string) string {
