@@ -11,7 +11,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -61,7 +60,6 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 	testutil.ResetDB(t, testPool)
 	ctx := context.Background()
 
-	var cache *redis.Client
 	deps, err := app.New(
 		app.Config{
 			Payment: payment.Config{
@@ -72,7 +70,6 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 			},
 		},
 		database.DB{Primary: testPool},
-		cache,
 		testutil.DiscardLogger(),
 	)
 	require.NoError(t, err)

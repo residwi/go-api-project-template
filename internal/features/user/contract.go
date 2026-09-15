@@ -24,8 +24,3 @@ type NewUser struct {
 	FirstName    string
 	LastName     string
 }
-
-type AccountStatus struct {
-	Active       bool
-	TokenVersion int
-}

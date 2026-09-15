@@ -107,25 +107,6 @@ func TestPostgresRepository_GetByEmail(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_GetStatusByID(t *testing.T) {
-	t.Run("returns the user's active flag and token version", func(t *testing.T) {
-		u := seedUser(t)
-		repo := New(database.DB{Primary: testPool})
-
-		active, tokenVersion, err := repo.GetStatusByID(context.Background(), u.ID)
-		require.NoError(t, err)
-		assert.Equal(t, u.Active, active)
-		assert.Equal(t, u.TokenVersion, tokenVersion)
-	})
-
-	t.Run("returns not found", func(t *testing.T) {
-		repo := New(database.DB{Primary: testPool})
-
-		_, _, err := repo.GetStatusByID(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, errs.ErrNotFound)
-	})
-}
-
 func TestPostgresRepository_ListAdmin(t *testing.T) {
 	t.Run("returns the users this subtest seeded", func(t *testing.T) {
 		token := "listadmin-" + uuid.New().String()[:8]
@@ -360,12 +341,6 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("GetByEmail returns error on cancelled context", func(t *testing.T) {
 		_, err := repo.GetByEmail(ctx, "test@example.com")
-		require.Error(t, err)
-		assert.NotErrorIs(t, err, errs.ErrNotFound)
-	})
-
-	t.Run("GetStatusByID returns error on cancelled context", func(t *testing.T) {
-		_, _, err := repo.GetStatusByID(ctx, uuid.New())
 		require.Error(t, err)
 		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})

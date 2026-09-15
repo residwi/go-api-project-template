@@ -111,7 +111,6 @@ func newTestApp(paymentCfg payment.Config) *app.Services {
 	deps, err := app.New(
 		withPayment(paymentCfg),
 		database.DB{Primary: testPool},
-		testRedis,
 		testutil.DiscardLogger(),
 	)
 	if err != nil {

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/redis/go-redis/v9"
-
 	"github.com/residwi/go-api-project-template/internal/features/auth"
 	authjwt "github.com/residwi/go-api-project-template/internal/features/auth/adapter/jwt"
 	"github.com/residwi/go-api-project-template/internal/features/cart"
@@ -39,7 +37,6 @@ import (
 	shippingpg "github.com/residwi/go-api-project-template/internal/features/shipping/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/features/user"
 	userpg "github.com/residwi/go-api-project-template/internal/features/user/adapter/postgres"
-	userredis "github.com/residwi/go-api-project-template/internal/features/user/adapter/redis"
 	"github.com/residwi/go-api-project-template/internal/features/wishlist"
 	wishlistpg "github.com/residwi/go-api-project-template/internal/features/wishlist/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
@@ -67,7 +64,6 @@ type Services struct {
 func New(
 	cfg Config,
 	db database.DB,
-	cache *redis.Client,
 	logger *slog.Logger,
 ) (*Services, error) {
 	txRunner := database.NewTxRunner(db.Primary)
@@ -89,11 +85,7 @@ func New(
 		logger,
 	)
 
-	var userRepo user.Repository = userpg.New(db)
-	if cache != nil {
-		userRepo = userredis.New(userRepo, cache, logger)
-	}
-	userMod := user.New(userRepo)
+	userMod := user.New(userpg.New(db))
 	authMod := auth.New(cfg.Auth, userMod, authjwt.New(cfg.Auth.Secret, cfg.Auth.Issuer))
 
 	cartMod := cart.New(cartpg.New(db), txRunner, prod, cfg.Cart.MaxItems)

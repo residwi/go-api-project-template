@@ -80,22 +80,6 @@ func (r *Repository) GetByEmail(ctx context.Context, email string) (*domain.User
 	return &u, nil
 }
 
-func (r *Repository) GetStatusByID(ctx context.Context, id uuid.UUID) (bool, int, error) {
-	db := database.PrimaryDB(ctx, r.db)
-	var active bool
-	var tokenVersion int
-	err := db.QueryRow(ctx,
-		`SELECT active, token_version FROM users WHERE id = $1 AND deleted_at IS NULL`, id,
-	).Scan(&active, &tokenVersion)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return false, 0, errs.ErrNotFound
-		}
-		return false, 0, fmt.Errorf("getting user status by id: %w", err)
-	}
-	return active, tokenVersion, nil
-}
-
 func (r *Repository) ListAdmin(ctx context.Context, params user.AdminListParams) ([]domain.User, int, error) {
 	db := database.ReplicaDB(ctx, r.db)
 

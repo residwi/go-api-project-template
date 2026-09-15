@@ -67,7 +67,7 @@ func RunContext(ctx context.Context) error {
 
 	db := database.DB{Primary: primaryDB}
 
-	deps, err := app.New(modCfg, db, nil, appLog)
+	deps, err := app.New(modCfg, db, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
 		return fmt.Errorf("wiring services: %w", err)

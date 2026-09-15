@@ -97,7 +97,7 @@ func RunContext( //nolint:funlen // one linear boot sequence: config, tracing, d
 
 	db := database.DB{Primary: primaryDB, Replica: replicaDB}
 
-	deps, err := app.New(modCfg, db, rdb, appLog)
+	deps, err := app.New(modCfg, db, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "wiring services failed", slog.String("error", err.Error()))
 		return fmt.Errorf("wiring services: %w", err)
