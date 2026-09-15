@@ -1,6 +1,6 @@
 # Project Overview
 
-Ecommerce API template in Go 1.26. It exposes REST endpoints under `/api` for auth, users, categories, products, inventory, cart, orders, payments, shipping, reviews, promotions, wishlists, notifications and an admin dashboard, and runs a separate worker process that drains payment, notification and order job queues. Storage is PostgreSQL (`pgx/v5`) with Redis (`go-redis/v9`); routing is stdlib `net/http` `ServeMux`.
+Ecommerce API template in Go 1.27. It exposes REST endpoints under `/api` for auth, users, categories, products, inventory, cart, orders, payments, shipping, reviews, promotions, wishlists, notifications and an admin dashboard, and runs a separate worker process that drains payment, notification and order job queues. Storage is PostgreSQL (`pgx/v5`) with Redis (`go-redis/v9`); routing is stdlib `net/http` `ServeMux`.
 
 It is a **modular monolith**: one deployable, one database, and one flat package per feature module. Each module is its own **hexagon** — a core that declares the ports it needs and knows nothing of what satisfies them, with `adapter/` holding every implementation, inbound and outbound. The structure is the product here, since other people copy this tree, so a boundary a tool can enforce always beats one that only code review can: `make check-arch` runs go-arch-lint over the layering, and `ARCHITECTURE.md` records why each rule exists, what it costs, and which rules are conventions no linter sees.
 
@@ -133,7 +133,7 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 
 ## Code Style & Conventions
 
-- **Language and libraries.** Go 1.26. stdlib `net/http` `ServeMux` — do not add a third-party router. `encoding/json` for JSON, `log/slog` for logging, `go-playground/validator/v10` for validation, `godotenv` + `kelseyhightower/envconfig` for config.
+- **Language and libraries.** Go 1.27. stdlib `net/http` `ServeMux` — do not add a third-party router. `encoding/json` for JSON, `log/slog` for logging, `go-playground/validator/v10` for validation, `godotenv` + `kelseyhightower/envconfig` for config.
 - **Formatting.** `gofmt -s`, enforced by `make fmt` and golangci-lint. Import groups: stdlib, blank line, third-party, blank line, local (`github.com/residwi/go-api-project-template/...`).
 - **Packages** are short singular nouns (`user`, `product`, `cart`).
 - **Errors.** Five generic kinds in `internal/platform/errs` (`ErrNotFound`, `ErrConflict`, `ErrBadRequest`, `ErrUnauthorized`, `ErrForbidden`); cross-module business sentinels in `internal/apperror`. Add context with `fmt.Errorf("%w: ...", errs.ErrBadRequest)`.

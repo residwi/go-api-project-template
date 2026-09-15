@@ -246,31 +246,6 @@ func TestService_Refresh(t *testing.T) {
 		assert.ErrorIs(t, err, ErrInvalidToken)
 	})
 
-	t.Run("inactive user returns ErrUnauthorized", func(t *testing.T) {
-		t.Parallel()
-
-		users := NewMockUserDirectory(t)
-		svc := newTestService(users)
-
-		userID := uuid.New()
-		pair, err := svc.BuildTokenPair(user.Profile{
-			ID: userID, Email: "test@example.com", Role: "customer", TokenVersion: 1,
-		})
-		require.NoError(t, err)
-
-		users.EXPECT().GetProfile(mock.Anything, userID).Return(user.Profile{
-			ID:           userID,
-			Email:        "test@example.com",
-			Active:       false,
-			TokenVersion: 1,
-		}, nil)
-
-		resp, err := svc.Refresh(context.Background(), pair.RefreshToken)
-
-		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, errs.ErrUnauthorized)
-	})
-
 	t.Run("GetProfile error propagates", func(t *testing.T) {
 		t.Parallel()
 
@@ -323,7 +298,8 @@ func TestService_Refresh(t *testing.T) {
 		users.EXPECT().GetProfile(mock.Anything, profile.ID).
 			Return(user.Profile{ID: profile.ID, Active: false, TokenVersion: 1}, nil)
 
-		_, err = s.Refresh(context.Background(), pair.RefreshToken)
+		resp, err := s.Refresh(context.Background(), pair.RefreshToken)
+		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, ErrAccountDeactivated)
 	})
 
@@ -340,7 +316,8 @@ func TestService_Refresh(t *testing.T) {
 		users.EXPECT().GetProfile(mock.Anything, profile.ID).
 			Return(user.Profile{ID: profile.ID, Active: true, TokenVersion: 2}, nil)
 
-		_, err = s.Refresh(context.Background(), pair.RefreshToken)
+		resp, err := s.Refresh(context.Background(), pair.RefreshToken)
+		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, ErrTokenRevoked)
 	})
 }
@@ -452,7 +429,7 @@ func TestService_Authenticate(t *testing.T) {
 		assert.ErrorIs(t, err, ErrTokenRevoked)
 	})
 
-	t.Run("surfaces a status lookup failure instead of rejecting the caller", func(t *testing.T) {
+	t.Run("surfaces a profile lookup failure instead of rejecting the caller", func(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
@@ -469,6 +446,24 @@ func TestService_Authenticate(t *testing.T) {
 
 		require.ErrorIs(t, err, assert.AnError)
 		assert.NotErrorIs(t, err, errs.ErrUnauthorized)
+	})
+
+	t.Run("rejects an access token whose user was deleted", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		svc := newTestService(users)
+
+		profile := user.Profile{ID: uuid.New(), Role: "user", Active: true, TokenVersion: 1}
+		pair, err := svc.BuildTokenPair(profile)
+		require.NoError(t, err)
+
+		users.EXPECT().GetProfile(mock.Anything, profile.ID).
+			Return(user.Profile{}, errs.ErrNotFound)
+
+		_, err = svc.Authenticate(context.Background(), pair.AccessToken)
+		require.ErrorIs(t, err, ErrInvalidToken)
+		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("returns the identity for a live access token", func(t *testing.T) {
