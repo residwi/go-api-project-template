@@ -227,64 +227,6 @@ func TestService_ListAdmin(t *testing.T) {
 	})
 }
 
-func TestService_CheckStatus(t *testing.T) {
-	t.Parallel()
-
-	userID := uuid.New()
-
-	t.Run("returns the status the repository reports", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(true, 7, nil)
-		s := New(repo)
-
-		got, err := s.CheckStatus(context.Background(), userID)
-
-		require.NoError(t, err)
-		assert.Equal(t, AccountStatus{Active: true, TokenVersion: 7}, got)
-	})
-
-	t.Run("reports an inactive user as inactive", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 4, nil)
-		s := New(repo)
-
-		got, err := s.CheckStatus(context.Background(), userID)
-
-		require.NoError(t, err)
-		assert.Equal(t, AccountStatus{Active: false, TokenVersion: 4}, got)
-	})
-
-	t.Run("reports an unknown user as inactive rather than an error", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 0, errs.ErrNotFound)
-		s := New(repo)
-
-		got, err := s.CheckStatus(context.Background(), userID)
-
-		require.NoError(t, err)
-		assert.Equal(t, AccountStatus{Active: false}, got)
-	})
-
-	t.Run("propagates any other repository error", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		dbErr := errors.New("database timeout")
-		repo.EXPECT().GetStatusByID(mock.Anything, userID).Return(false, 0, dbErr)
-		s := New(repo)
-
-		_, err := s.CheckStatus(context.Background(), userID)
-
-		assert.ErrorIs(t, err, dbErr)
-	})
-}
-
 func TestService_UpdateProfile(t *testing.T) {
 	t.Parallel()
 

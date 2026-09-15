@@ -106,6 +106,9 @@ func TestTraceShapeOfCheckout(t *testing.T) {
 	assert.Equal(t, place.SpanContext().SpanID(), orderPlace.Parent().SpanID())
 
 	findChildSpan(t, orderPlace, "SELECT")
+
+	profile := findSpanDescendedFrom(t, root, "user.GetProfile")
+	findChildSpan(t, profile, "SELECT")
 }
 
 func findSpan(t *testing.T, name string) sdktrace.ReadOnlySpan {

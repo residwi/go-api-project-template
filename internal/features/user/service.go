@@ -2,7 +2,6 @@ package user
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -87,23 +86,6 @@ func (s *Service) ListAdmin(ctx context.Context, params AdminListParams) (_ []do
 	defer func() { tracing.Record(span, err) }()
 
 	return s.repo.ListAdmin(ctx, params)
-}
-
-func (s *Service) CheckStatus(ctx context.Context, userID uuid.UUID) (_ AccountStatus, err error) {
-	ctx, span := s.tracer.Start(ctx, "user.CheckStatus")
-	defer span.End()
-	defer func() { tracing.Record(span, err) }()
-
-	active, tokenVersion, err := s.repo.GetStatusByID(ctx, userID)
-	if err != nil {
-		if errors.Is(err, errs.ErrNotFound) {
-			return AccountStatus{Active: false}, nil
-		}
-
-		return AccountStatus{}, err
-	}
-
-	return AccountStatus{Active: active, TokenVersion: tokenVersion}, nil
 }
 
 func (s *Service) UpdateProfile(

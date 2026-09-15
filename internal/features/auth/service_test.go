@@ -271,32 +271,7 @@ func TestService_Refresh(t *testing.T) {
 		assert.ErrorIs(t, err, errs.ErrUnauthorized)
 	})
 
-	t.Run("token version mismatch returns ErrInvalidToken", func(t *testing.T) {
-		t.Parallel()
-
-		users := NewMockUserDirectory(t)
-		svc := newTestService(users)
-
-		userID := uuid.New()
-		pair, err := svc.BuildTokenPair(user.Profile{
-			ID: userID, Email: "test@example.com", Role: "customer", TokenVersion: 1,
-		})
-		require.NoError(t, err)
-
-		users.EXPECT().GetProfile(mock.Anything, userID).Return(user.Profile{
-			ID:           userID,
-			Email:        "test@example.com",
-			Active:       true,
-			TokenVersion: 2,
-		}, nil)
-
-		resp, err := svc.Refresh(context.Background(), pair.RefreshToken)
-
-		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, ErrInvalidToken)
-	})
-
-	t.Run("GetByID error propagates", func(t *testing.T) {
+	t.Run("GetProfile error propagates", func(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
@@ -315,6 +290,58 @@ func TestService_Refresh(t *testing.T) {
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, dbErr)
+	})
+
+	t.Run("rejects a token whose user was deleted", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		s := newTestService(users)
+
+		profile := user.Profile{ID: uuid.New(), Role: "user", Active: true, TokenVersion: 1}
+		pair, err := s.BuildTokenPair(profile)
+		require.NoError(t, err)
+
+		users.EXPECT().GetProfile(mock.Anything, profile.ID).
+			Return(user.Profile{}, errs.ErrNotFound)
+
+		_, err = s.Refresh(context.Background(), pair.RefreshToken)
+		require.ErrorIs(t, err, ErrInvalidToken)
+		assert.NotErrorIs(t, err, errs.ErrNotFound)
+	})
+
+	t.Run("rejects a deactivated account with ErrAccountDeactivated", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		s := newTestService(users)
+
+		profile := user.Profile{ID: uuid.New(), Role: "user", Active: true, TokenVersion: 1}
+		pair, err := s.BuildTokenPair(profile)
+		require.NoError(t, err)
+
+		users.EXPECT().GetProfile(mock.Anything, profile.ID).
+			Return(user.Profile{ID: profile.ID, Active: false, TokenVersion: 1}, nil)
+
+		_, err = s.Refresh(context.Background(), pair.RefreshToken)
+		assert.ErrorIs(t, err, ErrAccountDeactivated)
+	})
+
+	t.Run("rejects a superseded token version with ErrTokenRevoked", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		s := newTestService(users)
+
+		profile := user.Profile{ID: uuid.New(), Role: "user", Active: true, TokenVersion: 1}
+		pair, err := s.BuildTokenPair(profile)
+		require.NoError(t, err)
+
+		users.EXPECT().GetProfile(mock.Anything, profile.ID).
+			Return(user.Profile{ID: profile.ID, Active: true, TokenVersion: 2}, nil)
+
+		_, err = s.Refresh(context.Background(), pair.RefreshToken)
+		assert.ErrorIs(t, err, ErrTokenRevoked)
 	})
 }
 
@@ -399,8 +426,8 @@ func TestService_Authenticate(t *testing.T) {
 		pair, err := svc.BuildTokenPair(profile)
 		require.NoError(t, err)
 
-		users.EXPECT().CheckStatus(mock.Anything, profile.ID).
-			Return(user.AccountStatus{Active: false, TokenVersion: 1}, nil)
+		users.EXPECT().GetProfile(mock.Anything, profile.ID).
+			Return(user.Profile{ID: profile.ID, Active: false, TokenVersion: 1}, nil)
 
 		_, err = svc.Authenticate(context.Background(), pair.AccessToken)
 
@@ -417,8 +444,8 @@ func TestService_Authenticate(t *testing.T) {
 		pair, err := svc.BuildTokenPair(profile)
 		require.NoError(t, err)
 
-		users.EXPECT().CheckStatus(mock.Anything, profile.ID).
-			Return(user.AccountStatus{Active: true, TokenVersion: 2}, nil)
+		users.EXPECT().GetProfile(mock.Anything, profile.ID).
+			Return(user.Profile{ID: profile.ID, Active: true, TokenVersion: 2}, nil)
 
 		_, err = svc.Authenticate(context.Background(), pair.AccessToken)
 
@@ -435,8 +462,8 @@ func TestService_Authenticate(t *testing.T) {
 		pair, err := svc.BuildTokenPair(profile)
 		require.NoError(t, err)
 
-		users.EXPECT().CheckStatus(mock.Anything, profile.ID).
-			Return(user.AccountStatus{}, assert.AnError)
+		users.EXPECT().GetProfile(mock.Anything, profile.ID).
+			Return(user.Profile{}, assert.AnError)
 
 		_, err = svc.Authenticate(context.Background(), pair.AccessToken)
 
@@ -454,8 +481,8 @@ func TestService_Authenticate(t *testing.T) {
 		pair, err := svc.BuildTokenPair(profile)
 		require.NoError(t, err)
 
-		users.EXPECT().CheckStatus(mock.Anything, profile.ID).
-			Return(user.AccountStatus{Active: true, TokenVersion: 4}, nil)
+		users.EXPECT().GetProfile(mock.Anything, profile.ID).
+			Return(user.Profile{ID: profile.ID, Active: true, TokenVersion: 4}, nil)
 
 		id, err := svc.Authenticate(context.Background(), pair.AccessToken)
 

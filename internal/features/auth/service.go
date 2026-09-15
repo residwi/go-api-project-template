@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -58,15 +59,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (_ *TokenPa
 		return nil, ErrInvalidCredentials
 	}
 
-	return s.BuildTokenPair(user.Profile{
-		ID:           creds.ID,
-		Email:        creds.Email,
-		FirstName:    creds.FirstName,
-		LastName:     creds.LastName,
-		Role:         creds.Role,
-		Active:       creds.Active,
-		TokenVersion: creds.TokenVersion,
-	})
+	return s.BuildTokenPair(creds.Profile)
 }
 
 func (s *Service) Register(
@@ -109,20 +102,12 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (_ *TokenPai
 		return nil, ErrInvalidToken
 	}
 
-	user, err := s.users.GetProfile(ctx, claims.UserID)
+	u, err := s.activeProfile(ctx, claims)
 	if err != nil {
 		return nil, err
 	}
 
-	if !user.Active {
-		return nil, errs.ErrUnauthorized
-	}
-
-	if user.TokenVersion != claims.TokenVersion {
-		return nil, ErrInvalidToken
-	}
-
-	return s.BuildTokenPair(user)
+	return s.BuildTokenPair(u)
 }
 
 func (s *Service) BuildTokenPair(user user.Profile) (*TokenPair, error) {
@@ -160,20 +145,31 @@ func (s *Service) Authenticate(ctx context.Context, token string) (_ identity.Id
 		return identity.Identity{}, ErrInvalidToken
 	}
 
-	status, err := s.users.CheckStatus(ctx, claims.UserID)
-	if err != nil {
-		return identity.Identity{}, fmt.Errorf("checking account status: %w", err)
-	}
-
-	if !status.Active {
-		return identity.Identity{}, ErrAccountDeactivated
-	}
-
-	if status.TokenVersion != claims.TokenVersion {
-		return identity.Identity{}, ErrTokenRevoked
+	if _, err := s.activeProfile(ctx, claims); err != nil {
+		return identity.Identity{}, err
 	}
 
 	return identity.Identity{UserID: claims.UserID, Role: claims.Role}, nil
+}
+
+func (s *Service) activeProfile(ctx context.Context, claims domain.Claims) (user.Profile, error) {
+	u, err := s.users.GetProfile(ctx, claims.UserID)
+	if err != nil {
+		if errors.Is(err, errs.ErrNotFound) {
+			return user.Profile{}, ErrInvalidToken
+		}
+		return user.Profile{}, fmt.Errorf("loading account: %w", err)
+	}
+
+	if !u.Active {
+		return user.Profile{}, ErrAccountDeactivated
+	}
+
+	if u.TokenVersion != claims.TokenVersion {
+		return user.Profile{}, ErrTokenRevoked
+	}
+
+	return u, nil
 }
 
 // dummyPassword is hashed once per cost to give the unknown-email login path
