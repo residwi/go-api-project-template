@@ -147,6 +147,110 @@ written by hand instead, once per exported `Service` method that takes `ctx`.
 wrong; `AGENTS.md` states the ordering rule so at least the mistake is
 checkable by eye.
 
+**21. The cache seam is a `Repository` decorator.** Policy — barrier, jitter,
+not-found placeholder, corrupt-entry drop — lives in `internal/platform/cache`;
+key naming and encoding live in the feature's `adapter/redis`; the `Service`
+is untouched and arch-lint forbids it importing either. *Cost:* the port does
+not say which methods are cached, so a reader must open the decorator. Each
+decorator writes every port method out rather than embedding, so a new method
+is a compile error instead of a silently uncached read. Invalidation is a
+`Del` fired after the write commits, not a lock held across it, so a read
+already in flight can load the pre-write row and `Set` it back after the
+`Del` runs, leaving that stale value cached for a full TTL — only
+compare-and-set closes that window, and neither `ardanlabs/service` nor
+go-zero closes it either, for the same reason.
+
+**22. Five read paths, three mechanisms, chosen per call site.** `ReadThrough`
+where the barrier or the absent placeholder pays (`category.List`,
+`product.GetBySlug`, `promotion.GetByCode`); a maintained atomic counter
+where the writes already know the delta (`notification.CountUnread`,
+decision 23); plain cache-aside where neither applies
+(`product.GetImagesByProductID`). *Cost:* three patterns instead of one, and
+the cache-aside site is twenty lines where `Take` would have been three.
+`product/adapter/redis` holds two of the three so the difference is readable
+in one file. `GetImagesByProductID` is reached through two call paths and
+only one is barriered: the public `GetBySlug` and the admin-only `GetByID`
+(`product/service.go:226`, behind `GET /api/admin/products/{id}`) both call
+it, and `GetByID` has no barriered read in front of it. Harmless today —
+admin-only, low request volume — but a reader should not assume every call
+into it is barriered.
+`dashboard` is not cached at all. All four repository methods already read
+through `database.ReplicaDB`
+(`dashboard/adapter/postgres/repository.go:26,44,63,88`), so these aggregates
+never compete with the transactional path once a replica is configured. A
+decorator here would pay to protect a query that, on that topology, never
+reaches the primary in the first place, and it would cost more than it
+returns: a staleness window on admin analytics, and a silent failure mode
+where a wrong report key yields a zero-valued struct with a nil error,
+indistinguishable from "no results in this period" to the caller. All three dashboard routes
+also sit behind `RequireRole("admin")`, so there was never meaningful read
+pressure to protect against either. *Caveat:* `REPLICA_DATABASE_URL` defaults
+to `""` (`internal/config/config.go:93`) and `ReplicaDB` falls back to
+`Primary` when no replica is configured, so in a single-database deployment
+these aggregates do hit the primary — but the fix for that is a replica or
+an index, not a five-minute cache, which only helps a repeated identical
+date range and does nothing for an admin sweeping different ranges.
+
+**23. The unread counter is one atomic Lua `EVAL`, not `INCR`/`DECR`.**
+`notification/adapter/redis/repository.go`'s `adjustScript` runs `EXISTS`
+then `INCRBY` then, if the result went negative, a floor to zero — all in one
+round trip. Two round trips would race: `INCRBY` on a missing key
+auto-vivifies it and sets no TTL, so a check-then-increment whose key expires
+between the `EXISTS` and the `INCRBY` leaves a counter stuck at the delta
+forever — `GET` keeps succeeding, never returns `redis.Nil`, and the recount
+that was meant to bound the drift never runs. The script's protective
+property is that it never creates the key on a miss; `adjust()` calls
+`.Eval(...).Err()` and discards the result, so nothing on the Go side
+consumes the value the script returns. The reload instead comes from
+`CountUnread`'s own independent `GET` plus its `redis.Nil` check — the
+script does return `-1` on the absent path today, but no caller reads it.
+*Cost:* the script is a string literal with no compiler behind it, and it is
+the one place in the tree that names Lua.
+
+**24. Never serve a cached read inside a transaction.** `database.InTx`,
+applied at one call site — `promotion.GetByCode`, because `Reserve` prices an
+order from the row it reads. *Cost:* the rule is enforced by review, not by a
+linter, and the guard is absent from the other three decorators because no
+transaction reaches them today. The tripwire is
+`product.GetByIDsIncludingDeleted`: `order.Place` reaches it through
+`cart.Snapshot` inside its own transaction, so caching it without the guard
+would write a stale price into a placed order.
+
+**25. `user.GetProfile` is not cached.** `auth.Authenticate` reads it on
+every authenticated request, which makes it the highest-fan-in read in the
+tree — and the freshness of that read is what makes `token_version` mean
+anything. Caching it substitutes a TTL for a revocation mechanism. gitea has
+the identical structure (`services/auth/session.go:43` reads the user row
+uncached on every request even when sessions live in Redis, and it has no
+logout-everywhere); hydra ships a stateless JWT introspector and refuses to
+wire it for the same reason; zitadel's cache `Purpose` enum contains no user,
+session or token entry. *Cost:* one `SELECT` per authenticated request,
+permanently.
+
+**26. `readthrough.go` falls through to Postgres on a Redis read error**,
+where go-zero fails fast (`core/stores/cache/cachenode.go` at commit
+`84c92d7`, "we don't allow the disaster pass to the dbs"). This repository
+protects availability; go-zero protects the database. *Cost:* a Redis outage
+sends full read traffic at Postgres.
+
+**27. Exactly one `//nolint:musttag` exists in the tree**, at
+`product/adapter/redis/repository.go:101`, and `nolintlint` runs with
+`allow-unused: false` so a clean lint proves it is still consumed. It is
+needed only where `json.Unmarshal` targets a concrete domain type —
+`[]domain.Image`, there. Every call inside `cache.ReadThrough.fill[T any]`
+needs no suppression, because `musttag` cannot resolve an unmarshal target
+through a type parameter. That is an accident of the analysis, not a
+safety property earned by the generic path — the rule this leaves is that
+domain types carry no `json` tags (decision 9), so a json-tagged mirror
+struct in `adapter/redis` would violate that harder rule *and* silently drop
+any field added to the domain type later without one. A scoped suppression
+with a same-line justification is therefore the right tool exactly where a
+concrete type meets `json.Unmarshal`, and nowhere else. *Cost:* the reasoning
+is invisible to a reader who does not already know `musttag` cannot see
+through a type parameter, so the next concrete-type unmarshal in a new
+adapter will need this comment written again from scratch rather than found
+by example.
+
 ## Foreign keys across module boundaries
 
 22 foreign keys exist and 16 cross a module boundary. All 16 stay. The 6 that
@@ -233,6 +337,7 @@ proposing a feature that crosses a module boundary.
 - **`RescueStuckJobsAfter` is client-wide**, so a per-queue rescue window is not expressible — only a per-worker `Timeout()` is.
 - **The read replica is wired up with no protection against reading your own write.** `ReplicaDB` is a per-method choice, and nothing checks whether that method follows a write.
 - **A repository write can leak outside its own transaction with no test failing** — the transaction travels in `ctx`, so a method handed the wrong context still runs.
+- **`cmd/worker` is a fourth bypass of the cache decorator.** Direct SQL — `make seed`, a goose migration, a manual `psql` session — already writes rows no decorator ever sees, since none of them call a `Service`. `internal/worker/worker.go:70` passes `nil` for the cache to `app.New`, which is the same bypass from a running Go binary: it disables invalidation for the whole process, not just caching. No job writes a cached row today — traced across all three workers, `notification.SendWorker`, `payment.RefundWorker`, `order.ExpireStaleWorker` — so there is no live bug. But `order.Place` already calls `notifications.Create` from inside a request; the day a *job* creates a notification instead, `notification.CountUnread`'s cached count silently undercounts until the TTL expires — a wrong number, not staleness, and the `GET` keeps succeeding, so nothing surfaces it. A job that writes a cached row needs the cache wired into `cmd/worker`, or its module's invalidation moved to where that write actually happens.
 
 ### Tests and wiring
 
