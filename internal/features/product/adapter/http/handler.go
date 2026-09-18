@@ -9,9 +9,12 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/product"
 	"github.com/residwi/go-api-project-template/internal/features/product/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/paging"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
+
+const maxSlugLen = 255 // products.slug column width; a longer slug cannot exist
 
 type ProductReader interface {
 	ListPublished(ctx context.Context, params product.PublishedListParams) ([]domain.Product, string, bool, error)
@@ -78,6 +81,10 @@ func (h *Handler) GetBySlug(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	if slug == "" {
 		response.BadRequest(w, "slug is required")
+		return
+	}
+	if len(slug) > maxSlugLen {
+		response.HandleErr(w, errs.ErrNotFound)
 		return
 	}
 

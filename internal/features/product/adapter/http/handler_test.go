@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -259,6 +260,25 @@ func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
 	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 	assert.False(t, resp.Success)
 	assert.Equal(t, "slug is required", resp.Error.Message)
+}
+
+func TestHandler_GetBySlug_OverLengthSlug(t *testing.T) {
+	t.Parallel()
+
+	mux, service := setupMux(t)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/api/v1/products/"+strings.Repeat("a", maxSlugLen+1), nil)
+
+	mux.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+
+	var resp response.Response
+	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	assert.False(t, resp.Success)
+
+	service.AssertNotCalled(t, "GetBySlug", mock.Anything, mock.Anything)
 }
 
 func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
