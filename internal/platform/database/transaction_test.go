@@ -170,6 +170,38 @@ func TestTxRunner_Run(t *testing.T) {
 	})
 }
 
+func TestInTx(t *testing.T) {
+	t.Run("reports false outside a transaction", func(t *testing.T) {
+		assert.False(t, InTx(context.Background()))
+	})
+
+	t.Run("reports true inside a transaction", func(t *testing.T) {
+		var inside bool
+
+		err := WithTx(context.Background(), testPool, func(ctx context.Context) error {
+			inside = InTx(ctx)
+			return nil
+		})
+
+		require.NoError(t, err)
+		assert.True(t, inside)
+	})
+
+	t.Run("reports true inside a nested transaction", func(t *testing.T) {
+		var inside bool
+
+		err := WithTx(context.Background(), testPool, func(outer context.Context) error {
+			return WithTx(outer, testPool, func(inner context.Context) error {
+				inside = InTx(inner)
+				return nil
+			})
+		})
+
+		require.NoError(t, err)
+		assert.True(t, inside)
+	})
+}
+
 type noopDBTX struct{}
 
 func (noopDBTX) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {

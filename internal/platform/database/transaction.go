@@ -57,6 +57,11 @@ func ReplicaDB(ctx context.Context, db DB) DBTX {
 	return db.Primary
 }
 
+func InTx(ctx context.Context) bool {
+	_, ok := ctx.Value(txCtxKey{}).(DBTX)
+	return ok
+}
+
 type TxRunner interface {
 	Run(ctx context.Context, fn func(ctx context.Context) error) error
 }
