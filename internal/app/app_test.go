@@ -70,6 +70,7 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 			},
 		},
 		database.DB{Primary: testPool},
+		nil,
 		testutil.DiscardLogger(),
 	)
 	require.NoError(t, err)
@@ -125,4 +126,27 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 	// instead. Reaching the closed-port dial failure proves both legs wired.
 	require.Error(t, err)
 	require.NotErrorIs(t, err, errs.ErrNotFound)
+}
+
+func TestNewWithoutCacheBuildsEveryService(t *testing.T) {
+	testutil.ResetDB(t, testPool)
+
+	deps, err := app.New(
+		app.Config{
+			Payment: payment.Config{
+				GatewayURL:     "http://127.0.0.1:1",
+				GatewayTimeout: time.Second,
+			},
+		},
+		database.DB{Primary: testPool},
+		nil,
+		testutil.DiscardLogger(),
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, deps.Categories)
+	require.NotNil(t, deps.Products)
+	require.NotNil(t, deps.Promotions)
+	require.NotNil(t, deps.Notifications)
+	require.NotNil(t, deps.Dashboard)
 }

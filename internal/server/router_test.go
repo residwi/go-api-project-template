@@ -135,6 +135,36 @@ func TestPublicEndpoints(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 
+	t.Run("GET /api/products/{slug} populates the product redis cache", func(t *testing.T) {
+		ctx := context.Background()
+
+		catID := uuid.New()
+		_, err := testPool.Exec(ctx,
+			`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Cache Cat', $2, true)`,
+			catID, "cache-cat-"+catID.String()[:8])
+		require.NoError(t, err)
+		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
+
+		prodID := uuid.New()
+		slug := "cache-prod-" + prodID.String()[:8]
+		_, err = testPool.Exec(ctx,
+			`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
+			 VALUES ($1, 'Cache Product', $2, 'desc', 1000, 'USD', 'published', $3)`,
+			prodID, slug, catID)
+		require.NoError(t, err)
+		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID) })
+
+		req := httptest.NewRequest(http.MethodGet, "/api/products/"+slug, nil)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		exists, err := testRedis.Exists(ctx, "product:slug:"+slug).Result()
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), exists,
+			"app.New must wrap product.Repository with productredis.New when a cache is configured")
+	})
+
 	t.Run("GET /api/categories/{slug} returns 404 for nonexistent slug", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/categories/nonexistent-slug", nil)
 		w := httptest.NewRecorder()
@@ -925,6 +955,7 @@ func newTestApp(paymentCfg payment.Config) *app.Services {
 	deps, err := app.New(
 		withPayment(paymentCfg),
 		database.DB{Primary: testPool},
+		testRedis,
 		testutil.DiscardLogger(),
 	)
 	if err != nil {

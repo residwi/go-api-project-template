@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/residwi/go-api-project-template/internal/features/auth"
 	authjwt "github.com/residwi/go-api-project-template/internal/features/auth/adapter/jwt"
 	"github.com/residwi/go-api-project-template/internal/features/cart"
 	cartpg "github.com/residwi/go-api-project-template/internal/features/cart/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/features/category"
 	categorypg "github.com/residwi/go-api-project-template/internal/features/category/adapter/postgres"
+	categoryredis "github.com/residwi/go-api-project-template/internal/features/category/adapter/redis"
 	"github.com/residwi/go-api-project-template/internal/features/checkout"
 	"github.com/residwi/go-api-project-template/internal/features/dashboard"
 	dashboardpg "github.com/residwi/go-api-project-template/internal/features/dashboard/adapter/postgres"
@@ -19,6 +22,7 @@ import (
 	channellog "github.com/residwi/go-api-project-template/internal/features/notification/adapter/channel/log"
 	notificationjobs "github.com/residwi/go-api-project-template/internal/features/notification/adapter/jobs"
 	notificationpg "github.com/residwi/go-api-project-template/internal/features/notification/adapter/postgres"
+	notificationredis "github.com/residwi/go-api-project-template/internal/features/notification/adapter/redis"
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	orderpg "github.com/residwi/go-api-project-template/internal/features/order/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
@@ -29,8 +33,10 @@ import (
 	paymentpg "github.com/residwi/go-api-project-template/internal/features/payment/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/features/product"
 	productpg "github.com/residwi/go-api-project-template/internal/features/product/adapter/postgres"
+	productredis "github.com/residwi/go-api-project-template/internal/features/product/adapter/redis"
 	"github.com/residwi/go-api-project-template/internal/features/promotion"
 	promotionpg "github.com/residwi/go-api-project-template/internal/features/promotion/adapter/postgres"
+	promotionredis "github.com/residwi/go-api-project-template/internal/features/promotion/adapter/redis"
 	"github.com/residwi/go-api-project-template/internal/features/review"
 	reviewpg "github.com/residwi/go-api-project-template/internal/features/review/adapter/postgres"
 	"github.com/residwi/go-api-project-template/internal/features/shipping"
@@ -64,6 +70,7 @@ type Services struct {
 func New(
 	cfg Config,
 	db database.DB,
+	cache *redis.Client,
 	logger *slog.Logger,
 ) (*Services, error) {
 	txRunner := database.NewTxRunner(db.Primary)
@@ -73,12 +80,24 @@ func New(
 		return nil, fmt.Errorf("building job insert client: %w", err)
 	}
 
+	var categoryRepo category.Repository = categorypg.New(db)
+	var productRepo product.Repository = productpg.New(db)
+	var promotionRepo promotion.Repository = promotionpg.New(db)
+	var notificationRepo notification.Repository = notificationpg.New(db)
+
+	if cache != nil {
+		categoryRepo = categoryredis.New(categoryRepo, cache, logger)
+		productRepo = productredis.New(productRepo, cache, logger)
+		promotionRepo = promotionredis.New(promotionRepo, cache, logger)
+		notificationRepo = notificationredis.New(notificationRepo, cache, logger)
+	}
+
 	inv := inventory.New(inventorypg.New(db))
-	prod := product.New(productpg.New(db), inv)
-	categoryMod := category.New(categorypg.New(db), prod)
-	promotionMod := promotion.New(promotionpg.New(db), txRunner)
+	prod := product.New(productRepo, inv)
+	categoryMod := category.New(categoryRepo, prod)
+	promotionMod := promotion.New(promotionRepo, txRunner)
 	notificationMod := notification.New(
-		notificationpg.New(db),
+		notificationRepo,
 		txRunner,
 		notificationjobs.NewJobQueue(insertClient, db),
 		channellog.New(logger),
