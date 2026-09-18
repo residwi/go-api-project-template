@@ -24,8 +24,3 @@ type Review struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
-
-type Stats struct {
-	AverageRating float64
-	TotalReviews  int
-}

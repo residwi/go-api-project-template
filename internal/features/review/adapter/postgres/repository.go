@@ -92,19 +92,6 @@ func (r *Repository) ListByProduct(
 	return reviews, nil
 }
 
-func (r *Repository) GetStats(ctx context.Context, productID uuid.UUID) (domain.Stats, error) {
-	db := database.PrimaryDB(ctx, r.db)
-	var stats domain.Stats
-	err := db.QueryRow(ctx,
-		`SELECT COALESCE(AVG(rating), 0), COUNT(*)
-		FROM reviews WHERE product_id = $1 AND status = 'published'`, productID,
-	).Scan(&stats.AverageRating, &stats.TotalReviews)
-	if err != nil {
-		return stats, fmt.Errorf("getting review stats: %w", err)
-	}
-	return stats, nil
-}
-
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx, `DELETE FROM reviews WHERE id = $1`, id)

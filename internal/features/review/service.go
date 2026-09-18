@@ -86,14 +86,6 @@ func (s *Service) ListByProduct(
 	return s.repo.ListByProduct(ctx, productID, cursor)
 }
 
-func (s *Service) GetStats(ctx context.Context, productID uuid.UUID) (_ domain.Stats, err error) {
-	ctx, span := s.tracer.Start(ctx, "review.GetStats")
-	defer span.End()
-	defer func() { tracing.Record(span, err) }()
-
-	return s.repo.GetStats(ctx, productID)
-}
-
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) (err error) {
 	ctx, span := s.tracer.Start(ctx, "review.Delete")
 	defer span.End()

@@ -212,44 +212,6 @@ func TestService_ListByProduct(t *testing.T) {
 	})
 }
 
-func TestService_GetStats(t *testing.T) {
-	t.Parallel()
-
-	t.Run("success", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		var purchase PurchaseVerifier
-		svc := New(repo, purchase)
-
-		productID := uuid.New()
-		expected := domain.Stats{AverageRating: 4.5, TotalReviews: 10}
-
-		repo.EXPECT().GetStats(mock.Anything, productID).Return(expected, nil)
-
-		result, err := svc.GetStats(t.Context(), productID)
-		require.NoError(t, err)
-		assert.Equal(t, expected, result)
-	})
-
-	t.Run("error propagates", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		var purchase PurchaseVerifier
-		svc := New(repo, purchase)
-
-		productID := uuid.New()
-		dbErr := errors.New("stats query failed")
-
-		repo.EXPECT().GetStats(mock.Anything, productID).Return(domain.Stats{}, dbErr)
-
-		result, err := svc.GetStats(t.Context(), productID)
-		assert.Equal(t, domain.Stats{}, result)
-		assert.ErrorIs(t, err, dbErr)
-	})
-}
-
 func TestService_Delete(t *testing.T) {
 	t.Parallel()
 

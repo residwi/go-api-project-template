@@ -178,32 +178,6 @@ func TestPostgresRepository_ListByProduct_InvalidCursor(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_GetStats(t *testing.T) {
-	t.Run("returns zero stats when no reviews", func(t *testing.T) {
-		productID := seedProduct(t)
-		repo := New(database.DB{Primary: testPool})
-
-		stats, err := repo.GetStats(context.Background(), productID)
-		require.NoError(t, err)
-		assert.InDelta(t, float64(0), stats.AverageRating, 0.001)
-		assert.Equal(t, 0, stats.TotalReviews)
-	})
-
-	t.Run("returns stats for published reviews", func(t *testing.T) {
-		userID := seedUser(t)
-		productID := seedProduct(t)
-		orderID := seedOrder(t, userID)
-		repo := New(database.DB{Primary: testPool})
-
-		seedReview(t, userID, productID, orderID, "published")
-
-		stats, err := repo.GetStats(context.Background(), productID)
-		require.NoError(t, err)
-		assert.InDelta(t, float64(5), stats.AverageRating, 0.001)
-		assert.Equal(t, 1, stats.TotalReviews)
-	})
-}
-
 func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("deletes review", func(t *testing.T) {
 		userID := seedUser(t)
@@ -252,11 +226,6 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("ListByProduct", func(t *testing.T) {
 		_, err := repo.ListByProduct(cancelledCtx, uuid.New(), paging.CursorPage{Limit: 10})
-		assert.Error(t, err)
-	})
-
-	t.Run("GetStats", func(t *testing.T) {
-		_, err := repo.GetStats(cancelledCtx, uuid.New())
 		assert.Error(t, err)
 	})
 
