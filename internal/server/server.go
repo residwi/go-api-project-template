@@ -83,17 +83,38 @@ func RunContext( //nolint:funlen // one linear boot sequence: config, tracing, d
 		ReadTimeout:  appCfg.Redis.ReadTimeout,
 		WriteTimeout: appCfg.Redis.WriteTimeout,
 		PoolTimeout:  appCfg.Redis.PoolTimeout,
-	})
+		// One attempt per command. Retrying is wasted work when the fallback is a
+		// Postgres read, and against a server that accepts but never answers the
+		// default of 3 multiplies every socket timeout by four.
+		MaxRetries: -1,
+		Limiter:    cache.NewCircuitBreaker(),
+	}, appLog)
 	if err != nil {
-		appLog.WarnContext(
-			ctx,
-			"failed to connect to redis, continuing without cache/rate-limiting",
-			slog.String("error", err.Error()),
-		)
+		appLog.ErrorContext(ctx, "building redis cache client failed", slog.String("error", err.Error()))
+		return fmt.Errorf("building redis cache client: %w", err)
 	}
-	if rdb != nil {
-		defer rdb.Close()
+	defer rdb.Close()
+
+	// Deliberately the same options minus the breaker. The cache's breaker trips on
+	// latency, and one shared fuse would let a slow Redis switch off login and
+	// checkout throttling process-wide, since RateLimit fails open.
+	limiterRDB, err := cache.NewRedis(ctx, &redis.Options{
+		Addr:         appCfg.Redis.Addr(),
+		Password:     appCfg.Redis.Password,
+		DB:           appCfg.Redis.DB,
+		PoolSize:     appCfg.Redis.PoolSize,
+		MinIdleConns: appCfg.Redis.MinIdleConns,
+		DialTimeout:  appCfg.Redis.DialTimeout,
+		ReadTimeout:  appCfg.Redis.ReadTimeout,
+		WriteTimeout: appCfg.Redis.WriteTimeout,
+		PoolTimeout:  appCfg.Redis.PoolTimeout,
+		MaxRetries:   -1,
+	}, appLog)
+	if err != nil {
+		appLog.ErrorContext(ctx, "building redis rate-limit client failed", slog.String("error", err.Error()))
+		return fmt.Errorf("building redis rate-limit client: %w", err)
 	}
+	defer limiterRDB.Close()
 
 	db := database.DB{Primary: primaryDB, Replica: replicaDB}
 
@@ -103,7 +124,7 @@ func RunContext( //nolint:funlen // one linear boot sequence: config, tracing, d
 		return fmt.Errorf("wiring services: %w", err)
 	}
 
-	handler := NewRouter(appCfg, modCfg, rdb, appLog, deps)
+	handler := NewRouter(appCfg, modCfg, limiterRDB, appLog, deps)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", appCfg.App.Port),

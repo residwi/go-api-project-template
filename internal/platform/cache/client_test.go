@@ -30,7 +30,7 @@ func TestNewRedis(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		addr := testRedisClient.Options().Addr
 
-		client, err := NewRedis(context.Background(), &redis.Options{Addr: addr})
+		client, err := NewRedis(context.Background(), &redis.Options{Addr: addr}, testutil.DiscardLogger())
 		require.NoError(t, err)
 		require.NotNil(t, client)
 		defer client.Close()
@@ -38,13 +38,17 @@ func TestNewRedis(t *testing.T) {
 		assert.NoError(t, client.Ping(context.Background()).Err())
 	})
 
-	t.Run("connection refused", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-		defer cancel()
-		client, err := NewRedis(ctx, &redis.Options{Addr: "localhost:1"})
-		require.Error(t, err)
-		assert.Nil(t, client)
-		assert.Contains(t, err.Error(), "connecting to redis")
+	t.Run("an unreachable server still yields a client, so the process boots and recovers later", func(t *testing.T) {
+		client, err := NewRedis(context.Background(), &redis.Options{
+			Addr:        "localhost:1",
+			MaxRetries:  -1,
+			DialTimeout: 200 * time.Millisecond,
+		}, testutil.DiscardLogger())
+		require.NoError(t, err)
+		require.NotNil(t, client, "a nil client would disable the rate limiter for the process lifetime")
+		t.Cleanup(func() { _ = client.Close() })
+
+		assert.Error(t, client.Ping(context.Background()).Err())
 	})
 }
 
@@ -55,7 +59,7 @@ func TestRedisEmitsCommandSpans(t *testing.T) {
 	otel.SetTracerProvider(provider)
 	t.Cleanup(func() { otel.SetTracerProvider(noop.NewTracerProvider()) })
 
-	client, err := NewRedis(t.Context(), &redis.Options{Addr: testRedisClient.Options().Addr})
+	client, err := NewRedis(t.Context(), &redis.Options{Addr: testRedisClient.Options().Addr}, testutil.DiscardLogger())
 	require.NoError(t, err)
 	t.Cleanup(func() { assert.NoError(t, client.Close()) })
 
