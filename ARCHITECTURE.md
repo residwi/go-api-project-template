@@ -251,6 +251,41 @@ through a type parameter, so the next concrete-type unmarshal in a new
 adapter will need this comment written again from scratch rather than found
 by example.
 
+**28. A circuit breaker fuses the cache client; the rate limiter gets its own.**
+`cache.CircuitBreaker` implements `redis.Limiter`, which go-redis consults
+before it dials or waits for a pool slot, so an open breaker costs no I/O. Five
+consecutive failures open it for five seconds, and the cooldown releases one
+probe rather than the herd behind it. Any reply the server authored —
+`redis.Nil`, `MISCONF`, a Lua error — counts as a success, since reachability is
+all this measures. `server.go` builds a second client without the `Limiter` for
+`middleware.RateLimit`, which fails open: one shared fuse would let a slow cache
+switch off login and checkout throttling. *Cost:* a second pool, and an
+invalidation fired while the breaker is open never lands, so a value written
+before the outage survives its own TTL once it closes — five minutes for
+`category.List` and the `notification` counter.
+
+**29. Redis is bounded by the socket timeouts, not by a context per command.**
+Dial, read, write and pool are all 1s and `MaxRetries` is `-1`. go-redis hands
+`context.Background()` to every reply read unless `ContextTimeoutEnabled` is
+set, so a caller's deadline does not bound the part that hangs, and it runs
+background checks with no context at all, so the socket timeouts have to be set
+regardless. Per-command deadlines would pay only where a call site wants a
+different budget, and none does — the one `context.WithTimeout` left in
+`readthrough.go` bounds Postgres, not Redis. `MaxRetries: -1` is the
+load-bearing half: at the default of 3 every command makes four attempts, which
+cost 1.73s per request against a dead Redis and 3.02s against a frozen one.
+*Cost:* the breaker needs about five seconds of failures to open, and each
+request in that window pays one. Lower timeouts shorten it but fire on ordinary
+latency spikes, and the breaker counts a deadline as a failure — so a spike
+would switch the cache off on a Redis that was never broken.
+
+**30. `NewRedis` pings only to warn.** Returning a nil client on a failed ping
+left the process with no client and no reconnect path, so one started during an
+outage stayed degraded for life — no cache, no rate limiting — even after Redis
+came back. The client is built unconditionally and go-redis reconnects on its
+own. *Cost:* boot still does not fail on a bad address or password, as it never
+did, so that one warning line is the only place a typo is named.
+
 ## Foreign keys across module boundaries
 
 22 foreign keys exist and 16 cross a module boundary. All 16 stay. The 6 that
