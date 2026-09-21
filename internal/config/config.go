@@ -108,10 +108,10 @@ type Redis struct {
 	DB           int           `envconfig:"REDIS_DB"             default:"0"`
 	PoolSize     int           `envconfig:"REDIS_POOL_SIZE"      default:"10"`
 	MinIdleConns int           `envconfig:"REDIS_MIN_IDLE_CONNS" default:"2"`
-	DialTimeout  time.Duration `envconfig:"REDIS_DIAL_TIMEOUT"   default:"5s"`
-	ReadTimeout  time.Duration `envconfig:"REDIS_READ_TIMEOUT"   default:"3s"`
-	WriteTimeout time.Duration `envconfig:"REDIS_WRITE_TIMEOUT"  default:"3s"`
-	PoolTimeout  time.Duration `envconfig:"REDIS_POOL_TIMEOUT"   default:"4s"`
+	DialTimeout  time.Duration `envconfig:"REDIS_DIAL_TIMEOUT"   default:"1s"`
+	ReadTimeout  time.Duration `envconfig:"REDIS_READ_TIMEOUT"   default:"1s"`
+	WriteTimeout time.Duration `envconfig:"REDIS_WRITE_TIMEOUT"  default:"1s"`
+	PoolTimeout  time.Duration `envconfig:"REDIS_POOL_TIMEOUT"   default:"1s"`
 }
 
 func (r Redis) Addr() string {

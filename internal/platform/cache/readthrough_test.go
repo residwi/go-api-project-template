@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"errors"
+	"net"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -289,6 +290,43 @@ func TestJitter(t *testing.T) {
 		assert.True(t, sawBelow, "jitter must be able to shorten the TTL")
 		assert.True(t, sawAbove, "jitter must be able to lengthen the TTL")
 	})
+}
+
+func TestTakeFallsBackWhenRedisAcceptsButNeverAnswers(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = listener.Close() })
+
+	done := make(chan struct{})
+	t.Cleanup(func() { close(done) })
+
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+		<-done
+		_ = conn.Close()
+	}()
+
+	silent := redis.NewClient(&redis.Options{
+		Addr:        listener.Addr().String(),
+		MaxRetries:  -1,
+		ReadTimeout: 200 * time.Millisecond,
+	})
+	t.Cleanup(func() { _ = silent.Close() })
+
+	start := time.Now()
+	got, takeErr := NewReadThrough(silent, testutil.DiscardLogger()).
+		Take(context.Background(), testKey(t), testTTL, func(context.Context) (int, error) {
+			return 9, nil
+		})
+	elapsed := time.Since(start)
+
+	require.NoError(t, takeErr)
+	assert.Equal(t, 9, got)
+	assert.Less(t, elapsed, 2*time.Second,
+		"go-redis ignores the command context while it handshakes, so REDIS_READ_TIMEOUT is the only bound here")
 }
 
 func testKey(t *testing.T) string {

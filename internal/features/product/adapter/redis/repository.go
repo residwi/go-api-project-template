@@ -16,9 +16,8 @@ import (
 )
 
 const (
-	slugTTL      = 60 * time.Second
-	imagesTTL    = 60 * time.Second
-	writeTimeout = time.Second
+	slugTTL   = 60 * time.Second
+	imagesTTL = 60 * time.Second
 )
 
 type Repository struct {
@@ -157,8 +156,7 @@ func (r *Repository) put(ctx context.Context, key string, value any, ttl time.Du
 		return
 	}
 
-	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
-	defer cancel()
+	writeCtx := context.WithoutCancel(ctx)
 
 	if err := r.rdb.Set(writeCtx, key, data, ttl).Err(); err != nil {
 		r.logger.WarnContext(writeCtx, "cache write failed",
@@ -167,8 +165,7 @@ func (r *Repository) put(ctx context.Context, key string, value any, ttl time.Du
 }
 
 func (r *Repository) invalidate(ctx context.Context, keys ...string) {
-	delCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
-	defer cancel()
+	delCtx := context.WithoutCancel(ctx)
 
 	if err := r.rdb.Del(delCtx, keys...).Err(); err != nil {
 		r.logger.WarnContext(delCtx, "failed to invalidate product cache",

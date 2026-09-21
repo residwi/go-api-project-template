@@ -56,10 +56,9 @@ func (r *ReadThrough) Take[T any](
 
 const (
 	absentPlaceholder = "\x00absent"
-	writeTimeout      = 500 * time.Millisecond
 	deviation         = 0.1
 	absentTTL         = 5 * time.Second
-	loadTimeout       = time.Second
+	loadTimeout       = 5 * time.Second
 )
 
 func (r *ReadThrough) fill[T any](
@@ -135,27 +134,21 @@ func (r *ReadThrough) fill[T any](
 }
 
 func (r *ReadThrough) write(ctx context.Context, key string, data any, ttl time.Duration, absent bool) {
-	writeCtx, cancel := context.WithTimeout(ctx, writeTimeout)
-	defer cancel()
-
 	var err error
 	if absent {
-		err = r.rdb.SetNX(writeCtx, key, data, ttl).Err()
+		err = r.rdb.SetNX(ctx, key, data, ttl).Err()
 	} else {
-		err = r.rdb.Set(writeCtx, key, data, ttl).Err()
+		err = r.rdb.Set(ctx, key, data, ttl).Err()
 	}
 
 	if err != nil {
-		r.logger.WarnContext(writeCtx, "cache write failed", slog.String("key", key), slog.String("error", err.Error()))
+		r.logger.WarnContext(ctx, "cache write failed", slog.String("key", key), slog.String("error", err.Error()))
 	}
 }
 
 func (r *ReadThrough) del(ctx context.Context, key string) {
-	delCtx, cancel := context.WithTimeout(ctx, writeTimeout)
-	defer cancel()
-
-	if err := r.rdb.Del(delCtx, key).Err(); err != nil {
-		r.logger.WarnContext(delCtx, "cache delete failed", slog.String("key", key), slog.String("error", err.Error()))
+	if err := r.rdb.Del(ctx, key).Err(); err != nil {
+		r.logger.WarnContext(ctx, "cache delete failed", slog.String("key", key), slog.String("error", err.Error()))
 	}
 }
 

@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	unreadTTL    = 5 * time.Minute
-	writeTimeout = time.Second
+	unreadTTL = 5 * time.Minute
 
 	adjustScript = `
 if redis.call('EXISTS', KEYS[1]) == 0 then return -1 end
@@ -111,8 +110,7 @@ func (r *Repository) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
 }
 
 func (r *Repository) adjust(ctx context.Context, key string, delta int64) {
-	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
-	defer cancel()
+	writeCtx := context.WithoutCancel(ctx)
 
 	if err := r.rdb.Eval(writeCtx, adjustScript, []string{key}, delta).Err(); err != nil {
 		r.logger.WarnContext(writeCtx, "unread counter update failed",
@@ -121,8 +119,7 @@ func (r *Repository) adjust(ctx context.Context, key string, delta int64) {
 }
 
 func (r *Repository) store(ctx context.Context, key string, count int) {
-	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
-	defer cancel()
+	writeCtx := context.WithoutCancel(ctx)
 
 	if err := r.rdb.Set(writeCtx, key, count, unreadTTL).Err(); err != nil {
 		r.logger.WarnContext(writeCtx, "unread counter write failed",

@@ -14,9 +14,8 @@ import (
 )
 
 const (
-	listTTL      = 5 * time.Minute
-	writeTimeout = time.Second
-	listKey      = "category:list"
+	listTTL = 5 * time.Minute
+	listKey = "category:list"
 )
 
 type Repository struct {
@@ -91,8 +90,7 @@ func (r *Repository) Update(ctx context.Context, cat *domain.Category) error {
 }
 
 func (r *Repository) invalidate(ctx context.Context, keys ...string) {
-	delCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
-	defer cancel()
+	delCtx := context.WithoutCancel(ctx)
 
 	if err := r.rdb.Del(delCtx, keys...).Err(); err != nil {
 		r.logger.WarnContext(delCtx, "failed to invalidate category cache",

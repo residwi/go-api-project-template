@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	codeTTL      = 30 * time.Second
-	writeTimeout = time.Second
+	codeTTL = 30 * time.Second
 )
 
 type Repository struct {
@@ -113,8 +112,7 @@ func (r *Repository) Update(ctx context.Context, promo *domain.Promotion) error 
 }
 
 func (r *Repository) invalidate(ctx context.Context, keys ...string) {
-	delCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), writeTimeout)
-	defer cancel()
+	delCtx := context.WithoutCancel(ctx)
 
 	if err := r.rdb.Del(delCtx, keys...).Err(); err != nil {
 		r.logger.WarnContext(delCtx, "failed to invalidate promotion cache",
