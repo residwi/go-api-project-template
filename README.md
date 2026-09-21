@@ -4,11 +4,11 @@ A production-ready Go API template: a modular monolith of hexagonal feature modu
 
 ## Features
 
-- **Go 1.26+** with the new `ServeMux` routing
+- **Go 1.27** with the stdlib `ServeMux` routing
 - **Modular monolith** — feature modules, each a hexagon with its own domain, ports and adapters; layer rules enforced by go-arch-lint
 - **Two binaries**: API server (`cmd/api`) and job worker (`cmd/worker`)
 - **PostgreSQL 16+** with `pgx/v5` driver (requires `gen_random_uuid()`)
-- **Redis** caching with `go-redis/v9`
+- **Redis** read-through caching with `go-redis/v9` — a `Repository` decorator per cached module, behind a circuit breaker, degrading to Postgres when Redis is down
 - **JWT Authentication** with RBAC (Role-Based Access Control)
 - **Database Migrations** with `goose`
 - **Structured Logging** with `log/slog`
@@ -52,7 +52,8 @@ A production-ready Go API template: a modular monolith of hexagonal feature modu
 │   │       └── adapter/             # only the subpackages the module needs:
 │   │           ├── postgres/        #   SQL adapter
 │   │           ├── http/            #   handlers + their wire types
-│   │           ├── redis/           #   user only: the caching Repository decorator
+│   │           ├── redis/           #   the caching Repository decorator (category,
+│   │           │                    #   product, promotion, notification)
 │   │           ├── jwt/             #   auth only: the Tokens port
 │   │           ├── gateway/         #   payment only: stripe/ midtrans/ mock/
 │   │           ├── channel/         #   notification only: the log channel
@@ -72,7 +73,7 @@ A production-ready Go API template: a modular monolith of hexagonal feature modu
 │   │                           # working client, its queue map, its periodic job
 │   ├── /platform               # Infrastructure, no feature knowledge:
 │   │   ├── /database           #   pools, transactions, TxRunner, keyset helpers
-│   │   ├── /cache              #   Redis client
+│   │   ├── /cache              #   Redis client, ReadThrough, CircuitBreaker
 │   │   ├── /jobqueue           #   NewInsertClient + a transaction-aware Insert
 │   │   ├── /errs               #   the five status-carrying error kinds
 │   │   ├── /identity           #   Identity (UserID, Role) and its context plumbing
@@ -104,7 +105,7 @@ shape costs are all in **[ARCHITECTURE.md](ARCHITECTURE.md)**;
 
 ### Prerequisites
 
-- Go 1.26 or later
+- Go 1.27 or later
 - PostgreSQL 16+
 - Redis
 - Docker & Docker Compose
@@ -533,7 +534,13 @@ without `build`.
 `.env.example` is the exhaustive list. The table below covers everything except
 the Redis connection-pool group (`REDIS_POOL_SIZE`, `REDIS_MIN_IDLE_CONNS`,
 `REDIS_DIAL_TIMEOUT`, `REDIS_READ_TIMEOUT`, `REDIS_WRITE_TIMEOUT`,
-`REDIS_POOL_TIMEOUT`), which is tuning rather than configuration.
+`REDIS_POOL_TIMEOUT`).
+
+The four timeouts all default to `1s` and are not merely tuning: go-redis reads
+a reply on `context.Background()` unless `ContextTimeoutEnabled` is set, so
+these are the only thing bounding a Redis that accepts a connection and never
+answers. Raising them lengthens every request that waits on a hung cache;
+lowering them makes the circuit breaker trip on ordinary latency spikes.
 
 Key variables:
 
@@ -594,6 +601,42 @@ Key variables:
 | `PAYMENT_GATEWAY_TIMEOUT`       | Payment gateway timeout                                                                                                                                                           | `10s`                                                     |
 | `PAYMENT_GATEWAY_API_KEY`       | Payment gateway API key                                                                                                                                                           | —                                                         |
 | `PAYMENT_WEBHOOK_SECRET`        | Payment webhook secret                                                                                                                                                            | —                                                         |
+
+## Caching
+
+Four modules cache, and each does it in an `adapter/redis` `Repository`
+decorator that `internal/app` wraps around the Postgres one. The `Service`
+never learns a cache exists:
+
+| Read | Key | TTL | Mechanism |
+| --- | --- | --- | --- |
+| `category.List` | `category:list` | 5m | `ReadThrough` |
+| `product.GetBySlug` | `product:slug:<slug>` | 60s | `ReadThrough` |
+| `product.GetImagesByProductID` | `product:images:<id>` | 60s | plain cache-aside |
+| `promotion.GetByCode` | `promotion:code:<code>` | 30s | `ReadThrough`, skipped inside a transaction |
+| `notification.CountUnread` | `notification:unread:<user>` | 5m | counter maintained by an atomic Lua `EVAL` |
+
+`platform/cache.ReadThrough` owns the policy: a singleflight barrier so one
+miss loads once, ±10% TTL jitter, a short-lived placeholder for a not-found
+row, and a drop-and-reload on a corrupt entry. A write invalidates its keys
+with `Del` after it commits; it never writes the new value back.
+
+**Degradation.** `cache.CircuitBreaker` is wired as the client's
+`redis.Limiter`, so five consecutive failures fuse it for five seconds and an
+open breaker costs no I/O at all; the cooldown releases one probe rather than
+the whole herd. Every cached read falls through to Postgres on a Redis error,
+so an outage costs latency and full read traffic at the database, not errors.
+`internal/server` builds a second Redis client **without** the breaker for
+rate limiting — `RateLimit` fails open, and one shared fuse would let a slow
+cache switch off login and checkout throttling.
+
+Two things that follow from this and are easy to miss: an invalidation fired
+while the breaker is open never lands, so a pre-outage value can survive its
+own TTL; and `cmd/worker` passes `nil` for the cache, which disables
+invalidation for that whole process. No job writes a cached row today, but one
+that did would silently serve a wrong count until the TTL expired.
+`ARCHITECTURE.md` decisions 21–30 record why each of these was chosen and what
+it costs.
 
 ## Tracing
 
