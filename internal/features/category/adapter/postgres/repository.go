@@ -68,9 +68,10 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Categor
 func (r *Repository) GetBySlug(ctx context.Context, slug string) (*domain.Category, error) {
 	db := database.PrimaryDB(ctx, r.db)
 	var c domain.Category
+	// Public read: inactive categories stay hidden from anonymous callers (CWE-862); admin GetByID is unfiltered.
 	err := db.QueryRow(ctx,
 		`SELECT id, name, slug, description, parent_id, sort_order, active, created_at, updated_at
-		FROM categories WHERE slug = $1`, slug,
+		FROM categories WHERE slug = $1 AND active = true`, slug,
 	).Scan(&c.ID, &c.Name, &c.Slug, &c.Description, &c.ParentID,
 		&c.SortOrder, &c.Active, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
@@ -84,9 +85,10 @@ func (r *Repository) GetBySlug(ctx context.Context, slug string) (*domain.Catego
 
 func (r *Repository) List(ctx context.Context) ([]domain.Category, error) {
 	db := database.PrimaryDB(ctx, r.db)
+	// Public read: inactive categories stay hidden from anonymous callers (CWE-862); admin GetByID is unfiltered.
 	rows, err := db.Query(ctx,
 		`SELECT id, name, slug, description, parent_id, sort_order, active, created_at, updated_at
-		FROM categories ORDER BY sort_order, name`,
+		FROM categories WHERE active = true ORDER BY sort_order, name`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("listing categories: %w", err)

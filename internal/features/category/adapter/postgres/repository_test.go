@@ -79,6 +79,16 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		_, err := repo.GetByID(context.Background(), uuid.New())
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
+
+	t.Run("returns inactive category for admin lookup", func(t *testing.T) {
+		inactive := seedInactiveCategory(t)
+		repo := New(database.DB{Primary: testPool})
+
+		got, err := repo.GetByID(context.Background(), inactive.ID)
+		require.NoError(t, err)
+		assert.Equal(t, inactive.ID, got.ID)
+		assert.False(t, got.Active)
+	})
 }
 
 func TestPostgresRepository_GetBySlug(t *testing.T) {
@@ -98,6 +108,14 @@ func TestPostgresRepository_GetBySlug(t *testing.T) {
 		_, err := repo.GetBySlug(context.Background(), "nonexistent-slug")
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
+
+	t.Run("returns not found for inactive category", func(t *testing.T) {
+		inactive := seedInactiveCategory(t)
+		repo := New(database.DB{Primary: testPool})
+
+		_, err := repo.GetBySlug(context.Background(), inactive.Slug)
+		assert.ErrorIs(t, err, errs.ErrNotFound)
+	})
 }
 
 func TestPostgresRepository_List(t *testing.T) {
@@ -109,6 +127,22 @@ func TestPostgresRepository_List(t *testing.T) {
 		categories, err := repo.List(context.Background())
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(categories), 2)
+	})
+
+	t.Run("excludes inactive categories", func(t *testing.T) {
+		active := seedCategory(t, nil)
+		inactive := seedInactiveCategory(t)
+		repo := New(database.DB{Primary: testPool})
+
+		categories, err := repo.List(context.Background())
+		require.NoError(t, err)
+
+		ids := make(map[uuid.UUID]bool, len(categories))
+		for _, c := range categories {
+			ids[c.ID] = true
+		}
+		assert.True(t, ids[active.ID], "active category should be listed")
+		assert.False(t, ids[inactive.ID], "inactive category must not be listed")
 	})
 }
 
@@ -286,6 +320,30 @@ func seedCategory(t *testing.T, parentID *uuid.UUID) *domain.Category {
 		ParentID:    parentID,
 		SortOrder:   0,
 		Active:      true,
+	}
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO categories (id, name, slug, description, parent_id, sort_order, active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		cat.ID, cat.Name, cat.Slug, cat.Description, cat.ParentID, cat.SortOrder, cat.Active,
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		testPool.Exec(context.Background(), `DELETE FROM categories WHERE id = $1`, cat.ID)
+	})
+	return cat
+}
+
+func seedInactiveCategory(t *testing.T) *domain.Category {
+	t.Helper()
+	id := uuid.New()
+	desc := "Hidden description"
+	cat := &domain.Category{
+		ID:          id,
+		Name:        "Hidden-" + id.String()[:8],
+		Slug:        "hidden-" + id.String(),
+		Description: &desc,
+		SortOrder:   0,
+		Active:      false,
 	}
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO categories (id, name, slug, description, parent_id, sort_order, active)
