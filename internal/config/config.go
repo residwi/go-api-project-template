@@ -130,7 +130,7 @@ type Log struct {
 }
 
 type CORS struct {
-	AllowedOrigins []string `envconfig:"CORS_ALLOWED_ORIGINS" default:"*"`
+	AllowedOrigins []string `envconfig:"CORS_ALLOWED_ORIGINS"`
 	AllowedMethods []string `envconfig:"CORS_ALLOWED_METHODS" default:"GET,POST,PUT,DELETE,OPTIONS"`
 	AllowedHeaders []string `envconfig:"CORS_ALLOWED_HEADERS" default:"Content-Type,Authorization,X-Request-ID,Idempotency-Key"`
 	MaxAge         int      `envconfig:"CORS_MAX_AGE"         default:"86400"`

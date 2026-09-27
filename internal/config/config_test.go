@@ -2,6 +2,7 @@ package config
 
 import (
 	"net/netip"
+	"os"
 	"testing"
 	"time"
 
@@ -83,6 +84,16 @@ func TestLoad(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "API_RATE_WINDOW must be at least 1s")
+	})
+
+	t.Run("allows no cross-origin browser access unless origins are configured", func(t *testing.T) {
+		t.Setenv("CORS_ALLOWED_ORIGINS", "unset-below")
+		require.NoError(t, os.Unsetenv("CORS_ALLOWED_ORIGINS"))
+
+		appConfig, err := Load()
+
+		require.NoError(t, err)
+		assert.Empty(t, appConfig.CORS.AllowedOrigins)
 	})
 }
 
