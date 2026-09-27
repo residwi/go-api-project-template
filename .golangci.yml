@@ -571,5 +571,5 @@ linters:
       # whose package holds no other test file. It is listed for the same
       # whole-file reason the exclusion above states: naming only the files that
       # currently report is what made that list wrong the first time.
-      - path: ^internal/((config/config_test|platform/logger/logger_test)|features/(payment|order|auth|notification)/config_test)\.go
+      - path: ^internal/((config/config_test|platform/logger/logger_test)|features/(payment|order|auth|notification|promotion)/config_test)\.go
         linters: [paralleltest]

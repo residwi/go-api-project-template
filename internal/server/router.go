@@ -152,7 +152,16 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	admin.HandleFunc("DELETE /reviews/{id}", reviewhttp.NewAdminHandler(deps.Reviews).Delete)
 
 	promotionHandler := promotionhttp.NewHandler(deps.Promotions)
-	authed.HandleFunc("POST /promotions/apply", promotionHandler.Apply)
+	const promotionLimiterBurst = 3
+	promotionLimiter := middleware.RateLimit(
+		logger,
+		cache,
+		"promotion",
+		modCfg.Promotion.RateLimit,
+		promotionLimiterBurst,
+		modCfg.Promotion.RateWindow,
+	)
+	authed.Group("", promotionLimiter).HandleFunc("POST /promotions/apply", promotionHandler.Apply)
 
 	promotionAdminHandler := promotionhttp.NewAdminHandler(deps.Promotions)
 	admin.HandleFunc("POST /promotions", promotionAdminHandler.Create)

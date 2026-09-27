@@ -9,6 +9,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/notification"
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
+	"github.com/residwi/go-api-project-template/internal/features/promotion"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 )
 
@@ -18,6 +19,7 @@ type Config struct {
 	Notification notification.Config
 	Order        order.Config
 	Payment      payment.Config
+	Promotion    promotion.Config
 }
 
 func PoolOptions(cfg config.Database) database.PostgresOptions {
@@ -65,6 +67,11 @@ func LoadConfig() (Config, error) {
 		return cfg, fmt.Errorf("loading payment config: %w", err)
 	}
 
+	promotionCfg, err := promotion.LoadConfig()
+	if err != nil {
+		return cfg, fmt.Errorf("loading promotion config: %w", err)
+	}
+
 	// A charge is retried up to three times inside one job, so the whole attempt
 	// must finish before order sweeps the order as stale -- otherwise a retry
 	// races a sweep that has already released the stock. Neither module owns
@@ -83,5 +90,6 @@ func LoadConfig() (Config, error) {
 		Notification: notificationCfg,
 		Order:        orderCfg,
 		Payment:      paymentCfg,
+		Promotion:    promotionCfg,
 	}, nil
 }
