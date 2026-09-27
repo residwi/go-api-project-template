@@ -247,7 +247,7 @@ func TestService_UpdateProfile(t *testing.T) {
 			Active:    true,
 		}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
+		repo.EXPECT().UpdateProfile(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
 
 		phone := "555-9999"
 		result, err := s.UpdateProfile(context.Background(), id, "Alicia", "", &phone)
@@ -279,7 +279,7 @@ func TestService_UpdateProfile(t *testing.T) {
 			Active:    true,
 		}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
+		repo.EXPECT().UpdateProfile(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
 
 		result, err := s.UpdateProfile(context.Background(), id, "", "Jones", nil)
 		require.NoError(t, err)
@@ -318,7 +318,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
 
 		updateErr := errors.New("database write failed")
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(updateErr)
+		repo.EXPECT().UpdateProfile(mock.Anything, mock.AnythingOfType("*domain.User")).Return(updateErr)
 
 		_, err := s.UpdateProfile(context.Background(), id, "Alicia", "", nil)
 		assert.ErrorIs(t, err, updateErr)
@@ -344,7 +344,7 @@ func TestService_AdminUpdate(t *testing.T) {
 			Active:    true,
 		}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
+		repo.EXPECT().UpdateGuarded(mock.Anything, mock.AnythingOfType("*domain.User")).Return(true, nil)
 
 		active := false
 		result, err := s.AdminUpdate(context.Background(), id, "", "", nil, &active)
@@ -390,7 +390,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
 
 		updateErr := errors.New("database write failed")
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(updateErr)
+		repo.EXPECT().UpdateGuarded(mock.Anything, mock.AnythingOfType("*domain.User")).Return(false, updateErr)
 
 		_, err := s.AdminUpdate(context.Background(), id, "Bob", "", nil, nil)
 		assert.ErrorIs(t, err, updateErr)
@@ -413,7 +413,7 @@ func TestService_AdminUpdate(t *testing.T) {
 			Active:    true,
 		}
 		repo.EXPECT().GetByID(mock.Anything, id).Return(existing, nil)
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
+		repo.EXPECT().UpdateGuarded(mock.Anything, mock.AnythingOfType("*domain.User")).Return(true, nil)
 
 		phone := "555-9999"
 		active := false
@@ -445,7 +445,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
+		repo.EXPECT().UpdateGuarded(mock.Anything, mock.AnythingOfType("*domain.User")).Return(true, nil)
 		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(nil)
 
 		err := s.UpdateRole(context.Background(), requesterID, targetID, "admin")
@@ -474,30 +474,11 @@ func TestService_UpdateRole(t *testing.T) {
 		targetID := uuid.New()
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
-			Return(&domain.User{ID: targetID, Role: "admin"}, nil)
-		repo.EXPECT().CountAdmins(mock.Anything).Return(1, nil)
+			Return(&domain.User{ID: targetID, Role: "admin", Active: true}, nil)
+		repo.EXPECT().UpdateGuarded(mock.Anything, mock.AnythingOfType("*domain.User")).Return(false, nil)
 
 		err := s.UpdateRole(context.Background(), requesterID, targetID, "user")
 		assert.ErrorIs(t, err, errs.ErrBadRequest)
-	})
-
-	t.Run("CountAdmins error propagates", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		s := New(repo)
-
-		requesterID := uuid.New()
-		targetID := uuid.New()
-
-		repo.EXPECT().GetByID(mock.Anything, targetID).
-			Return(&domain.User{ID: targetID, Role: "admin"}, nil)
-
-		countErr := errors.New("count query failed")
-		repo.EXPECT().CountAdmins(mock.Anything).Return(0, countErr)
-
-		err := s.UpdateRole(context.Background(), requesterID, targetID, "user")
-		assert.ErrorIs(t, err, countErr)
 	})
 
 	t.Run("multiple admins allows demotion", func(t *testing.T) {
@@ -511,8 +492,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "admin"}, nil)
-		repo.EXPECT().CountAdmins(mock.Anything).Return(3, nil)
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
+		repo.EXPECT().UpdateGuarded(mock.Anything, mock.AnythingOfType("*domain.User")).Return(true, nil)
 		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(nil)
 
 		err := s.UpdateRole(context.Background(), requesterID, targetID, "user")
@@ -545,7 +525,7 @@ func TestService_UpdateRole(t *testing.T) {
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)
 
 		updateErr := errors.New("database write failed")
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(updateErr)
+		repo.EXPECT().UpdateGuarded(mock.Anything, mock.AnythingOfType("*domain.User")).Return(false, updateErr)
 
 		err := s.UpdateRole(context.Background(), requesterID, targetID, "admin")
 		assert.ErrorIs(t, err, updateErr)
@@ -562,7 +542,7 @@ func TestService_UpdateRole(t *testing.T) {
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)
-		repo.EXPECT().Update(mock.Anything, mock.AnythingOfType("*domain.User")).Return(nil)
+		repo.EXPECT().UpdateGuarded(mock.Anything, mock.AnythingOfType("*domain.User")).Return(true, nil)
 
 		incrErr := errors.New("token bump failed")
 		repo.EXPECT().IncrementTokenVersion(mock.Anything, targetID).Return(incrErr)
@@ -586,7 +566,7 @@ func TestService_Delete(t *testing.T) {
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)
-		repo.EXPECT().Delete(mock.Anything, targetID).Return(nil)
+		repo.EXPECT().Delete(mock.Anything, targetID).Return(true, nil)
 
 		err := s.Delete(context.Background(), requesterID, targetID)
 		require.NoError(t, err)
@@ -614,8 +594,8 @@ func TestService_Delete(t *testing.T) {
 		targetID := uuid.New()
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
-			Return(&domain.User{ID: targetID, Role: "admin"}, nil)
-		repo.EXPECT().CountAdmins(mock.Anything).Return(1, nil)
+			Return(&domain.User{ID: targetID, Role: "admin", Active: true}, nil)
+		repo.EXPECT().Delete(mock.Anything, targetID).Return(false, nil)
 
 		err := s.Delete(context.Background(), requesterID, targetID)
 		assert.ErrorIs(t, err, errs.ErrBadRequest)
@@ -634,25 +614,6 @@ func TestService_Delete(t *testing.T) {
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
-	t.Run("CountAdmins error propagates", func(t *testing.T) {
-		t.Parallel()
-
-		repo := NewMockRepository(t)
-		s := New(repo)
-
-		requesterID := uuid.New()
-		targetID := uuid.New()
-
-		repo.EXPECT().GetByID(mock.Anything, targetID).
-			Return(&domain.User{ID: targetID, Role: "admin"}, nil)
-
-		countErr := errors.New("count query failed")
-		repo.EXPECT().CountAdmins(mock.Anything).Return(0, countErr)
-
-		err := s.Delete(context.Background(), requesterID, targetID)
-		assert.ErrorIs(t, err, countErr)
-	})
-
 	t.Run("multiple admins allows delete", func(t *testing.T) {
 		t.Parallel()
 
@@ -664,8 +625,7 @@ func TestService_Delete(t *testing.T) {
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "admin"}, nil)
-		repo.EXPECT().CountAdmins(mock.Anything).Return(3, nil)
-		repo.EXPECT().Delete(mock.Anything, targetID).Return(nil)
+		repo.EXPECT().Delete(mock.Anything, targetID).Return(true, nil)
 
 		err := s.Delete(context.Background(), requesterID, targetID)
 		require.NoError(t, err)
@@ -684,7 +644,7 @@ func TestService_Delete(t *testing.T) {
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)
 
 		deleteErr := errors.New("database delete failed")
-		repo.EXPECT().Delete(mock.Anything, targetID).Return(deleteErr)
+		repo.EXPECT().Delete(mock.Anything, targetID).Return(false, deleteErr)
 
 		err := s.Delete(context.Background(), requesterID, targetID)
 		assert.ErrorIs(t, err, deleteErr)

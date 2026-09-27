@@ -113,7 +113,7 @@ func (s *Service) UpdateProfile(
 		u.Phone = *phone
 	}
 
-	if err := s.repo.Update(ctx, u); err != nil {
+	if err := s.repo.UpdateProfile(ctx, u); err != nil {
 		return nil, err
 	}
 
@@ -136,6 +136,8 @@ func (s *Service) AdminUpdate(
 		return nil, err
 	}
 
+	wasActiveAdmin := u.Role == domain.RoleAdmin && u.Active
+
 	if firstName != "" {
 		u.FirstName = firstName
 	}
@@ -149,8 +151,15 @@ func (s *Service) AdminUpdate(
 		u.Active = *active
 	}
 
-	if err := s.repo.Update(ctx, u); err != nil {
+	applied, err := s.repo.UpdateGuarded(ctx, u)
+	if err != nil {
 		return nil, err
+	}
+	if !applied {
+		if wasActiveAdmin {
+			return nil, fmt.Errorf("%w: cannot deactivate or demote last admin", errs.ErrBadRequest)
+		}
+		return nil, errs.ErrNotFound
 	}
 
 	return u, nil
@@ -170,19 +179,18 @@ func (s *Service) UpdateRole(ctx context.Context, requesterID, targetID uuid.UUI
 		return err
 	}
 
-	if u.Role == domain.RoleAdmin && role == domain.RoleUser {
-		count, err := s.repo.CountAdmins(ctx)
-		if err != nil {
-			return err
-		}
-		if count <= 1 {
-			return fmt.Errorf("%w: cannot remove last admin", errs.ErrBadRequest)
-		}
-	}
+	wasActiveAdmin := u.Role == domain.RoleAdmin && u.Active
 
 	u.Role = role
-	if err := s.repo.Update(ctx, u); err != nil {
+	applied, err := s.repo.UpdateGuarded(ctx, u)
+	if err != nil {
 		return err
+	}
+	if !applied {
+		if wasActiveAdmin {
+			return fmt.Errorf("%w: cannot remove last admin", errs.ErrBadRequest)
+		}
+		return errs.ErrNotFound
 	}
 
 	if err := s.repo.IncrementTokenVersion(ctx, targetID); err != nil {
@@ -206,18 +214,15 @@ func (s *Service) Delete(ctx context.Context, requesterID, targetID uuid.UUID) (
 		return err
 	}
 
-	if u.Role == domain.RoleAdmin {
-		count, err := s.repo.CountAdmins(ctx)
-		if err != nil {
-			return err
-		}
-		if count <= 1 {
+	applied, err := s.repo.Delete(ctx, targetID)
+	if err != nil {
+		return err
+	}
+	if !applied {
+		if u.Role == domain.RoleAdmin && u.Active {
 			return fmt.Errorf("%w: cannot delete last admin", errs.ErrBadRequest)
 		}
-	}
-
-	if err := s.repo.Delete(ctx, targetID); err != nil {
-		return err
+		return errs.ErrNotFound
 	}
 
 	return nil

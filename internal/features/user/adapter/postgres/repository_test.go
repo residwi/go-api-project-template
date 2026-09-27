@@ -2,10 +2,14 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"os"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -199,22 +203,36 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 	})
 }
 
-func TestPostgresRepository_Update(t *testing.T) {
-	t.Run("updates user fields", func(t *testing.T) {
+func TestPostgresRepository_UpdateProfile(t *testing.T) {
+	t.Run("updates profile fields", func(t *testing.T) {
 		u := seedUser(t)
 		repo := New(database.DB{Primary: testPool})
 
 		u.FirstName = "Updated"
 		u.LastName = "Name"
-		u.Active = false
-		err := repo.Update(context.Background(), u)
+		err := repo.UpdateProfile(context.Background(), u)
 		require.NoError(t, err)
 
 		got, err := repo.GetByID(context.Background(), u.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "Updated", got.FirstName)
 		assert.Equal(t, "Name", got.LastName)
-		assert.False(t, got.Active)
+	})
+
+	t.Run("never writes role or active", func(t *testing.T) {
+		u := seedUser(t)
+		repo := New(database.DB{Primary: testPool})
+		before, err := repo.GetByID(context.Background(), u.ID)
+		require.NoError(t, err)
+
+		u.Role = "admin"
+		u.Active = !before.Active
+		require.NoError(t, repo.UpdateProfile(context.Background(), u))
+
+		got, err := repo.GetByID(context.Background(), u.ID)
+		require.NoError(t, err)
+		assert.Equal(t, before.Role, got.Role)
+		assert.Equal(t, before.Active, got.Active)
 	})
 
 	t.Run("returns not found", func(t *testing.T) {
@@ -227,7 +245,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 			Role:      "user",
 			Active:    true,
 		}
-		err := repo.Update(context.Background(), u)
+		err := repo.UpdateProfile(context.Background(), u)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -237,8 +255,9 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		id := testutil.SeedUser(t, testPool)
 		repo := New(database.DB{Primary: testPool})
 
-		err := repo.Delete(context.Background(), id)
+		applied, err := repo.Delete(context.Background(), id)
 		require.NoError(t, err)
+		require.True(t, applied)
 	})
 
 	t.Run("GetByID returns not found after delete", func(t *testing.T) {
@@ -246,16 +265,157 @@ func TestPostgresRepository_Delete(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
-		require.NoError(t, repo.Delete(ctx, id))
+		applied, err := repo.Delete(ctx, id)
+		require.NoError(t, err)
+		require.True(t, applied)
 
-		_, err := repo.GetByID(ctx, id)
+		_, err = repo.GetByID(ctx, id)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
-	t.Run("returns not found for nonexistent user", func(t *testing.T) {
+	t.Run("reports not applied for nonexistent user", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		err := repo.Delete(context.Background(), uuid.New())
-		assert.ErrorIs(t, err, errs.ErrNotFound)
+		applied, err := repo.Delete(context.Background(), uuid.New())
+		require.NoError(t, err)
+		assert.False(t, applied)
+	})
+}
+
+func TestPostgresRepository_LastAdminGuard(t *testing.T) {
+	t.Run("delete blocked for the last active admin", func(t *testing.T) {
+		withAdminFixture(t, func(ctx context.Context, repo *Repository) {
+			admin := seedAdmin(ctx, t, true)
+
+			applied, err := repo.Delete(ctx, admin)
+			require.NoError(t, err)
+			assert.False(t, applied)
+		})
+	})
+
+	t.Run("delete allowed while another active admin remains", func(t *testing.T) {
+		withAdminFixture(t, func(ctx context.Context, repo *Repository) {
+			admin := seedAdmin(ctx, t, true)
+			seedAdmin(ctx, t, true)
+
+			applied, err := repo.Delete(ctx, admin)
+			require.NoError(t, err)
+			assert.True(t, applied)
+		})
+	})
+
+	t.Run("delete allowed for an inactive admin even when no active admin remains", func(t *testing.T) {
+		withAdminFixture(t, func(ctx context.Context, repo *Repository) {
+			inactive := seedAdmin(ctx, t, false)
+
+			applied, err := repo.Delete(ctx, inactive)
+			require.NoError(t, err)
+			assert.True(t, applied)
+		})
+	})
+
+	t.Run("delete still blocked for the last active admin beside an inactive one", func(t *testing.T) {
+		withAdminFixture(t, func(ctx context.Context, repo *Repository) {
+			active := seedAdmin(ctx, t, true)
+			seedAdmin(ctx, t, false)
+
+			applied, err := repo.Delete(ctx, active)
+			require.NoError(t, err)
+			assert.False(t, applied)
+		})
+	})
+
+	t.Run("deactivating the last active admin is blocked", func(t *testing.T) {
+		withAdminFixture(t, func(ctx context.Context, repo *Repository) {
+			admin := seedAdmin(ctx, t, true)
+
+			applied, err := repo.UpdateGuarded(ctx, &domain.User{
+				ID: admin, FirstName: "A", LastName: "B", Role: "admin", Active: false,
+			})
+			require.NoError(t, err)
+			assert.False(t, applied)
+		})
+	})
+
+	t.Run("demoting the last active admin is blocked", func(t *testing.T) {
+		withAdminFixture(t, func(ctx context.Context, repo *Repository) {
+			admin := seedAdmin(ctx, t, true)
+
+			applied, err := repo.UpdateGuarded(ctx, &domain.User{
+				ID: admin, FirstName: "A", LastName: "B", Role: "user", Active: true,
+			})
+			require.NoError(t, err)
+			assert.False(t, applied)
+		})
+	})
+
+	t.Run("editing an admin that stays an active admin is allowed", func(t *testing.T) {
+		withAdminFixture(t, func(ctx context.Context, repo *Repository) {
+			admin := seedAdmin(ctx, t, true)
+
+			applied, err := repo.UpdateGuarded(ctx, &domain.User{
+				ID: admin, FirstName: "Renamed", LastName: "B", Role: "admin", Active: true,
+			})
+			require.NoError(t, err)
+			assert.True(t, applied)
+		})
+	})
+
+	t.Run("renaming an inactive admin is allowed while one active admin remains", func(t *testing.T) {
+		withAdminFixture(t, func(ctx context.Context, repo *Repository) {
+			seedAdmin(ctx, t, true)
+			inactive := seedAdmin(ctx, t, false)
+
+			applied, err := repo.UpdateGuarded(ctx, &domain.User{
+				ID: inactive, FirstName: "Renamed", LastName: "B", Role: "admin", Active: false,
+			})
+			require.NoError(t, err)
+			assert.True(t, applied)
+		})
+	})
+}
+
+func TestPostgresRepository_LastAdminGuardConcurrency(t *testing.T) {
+	t.Run("concurrent demotions of the last two active admins let exactly one through", func(t *testing.T) {
+		ctx := context.Background()
+		isolateActiveAdmins(t)
+		a := seedAdmin(ctx, t, true)
+		b := seedAdmin(ctx, t, true)
+		t.Cleanup(func() {
+			_, err := testPool.Exec(context.Background(), `DELETE FROM users WHERE id = ANY($1)`, []uuid.UUID{a, b})
+			require.NoError(t, err)
+		})
+
+		blocker, err := testPool.Begin(ctx)
+		require.NoError(t, err)
+		_, err = blocker.Exec(ctx, `SELECT id FROM users WHERE id = ANY($1) FOR UPDATE`, []uuid.UUID{a, b})
+		require.NoError(t, err)
+
+		repo := New(database.DB{Primary: testPool})
+		applied := make([]bool, 2)
+		errsOut := make([]error, 2)
+		var wg sync.WaitGroup
+		for i, id := range []uuid.UUID{a, b} {
+			wg.Go(func() {
+				applied[i], errsOut[i] = repo.UpdateGuarded(ctx, &domain.User{
+					ID: id, FirstName: "A", LastName: "B", Role: "user", Active: true,
+				})
+			})
+		}
+
+		waitForLockWaiters(t, 2)
+		require.NoError(t, blocker.Commit(ctx))
+		wg.Wait()
+
+		require.NoError(t, errsOut[0])
+		require.NoError(t, errsOut[1])
+		assert.NotEqual(t, applied[0], applied[1], "exactly one demotion must apply")
+
+		var remaining int
+		require.NoError(t, testPool.QueryRow(ctx,
+			`SELECT count(*) FROM users WHERE id = ANY($1) AND role = 'admin' AND active`,
+			[]uuid.UUID{a, b},
+		).Scan(&remaining))
+		assert.Equal(t, 1, remaining)
 	})
 }
 
@@ -358,13 +518,13 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 			Role:      "user",
 			Active:    true,
 		}
-		err := repo.Update(ctx, u)
+		err := repo.UpdateProfile(ctx, u)
 		require.Error(t, err)
 		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("Delete returns error on cancelled context", func(t *testing.T) {
-		err := repo.Delete(ctx, uuid.New())
+		_, err := repo.Delete(ctx, uuid.New())
 		require.Error(t, err)
 		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
@@ -412,4 +572,74 @@ func seedUserWithEmailToken(t *testing.T, token string) *domain.User {
 	u, err := repo.GetByID(context.Background(), id)
 	require.NoError(t, err)
 	return u
+}
+
+// withAdminFixture runs fn inside a transaction that first deactivates every
+// existing active admin, so the guarded statements see only the admins the
+// subtest seeds. The transaction always rolls back, so the shared database is
+// unchanged for sibling subtests.
+func withAdminFixture(t *testing.T, fn func(ctx context.Context, repo *Repository)) {
+	t.Helper()
+
+	rollback := errors.New("rollback fixture")
+	db := database.DB{Primary: testPool}
+
+	err := database.NewTxRunner(testPool).Run(context.Background(), func(ctx context.Context) error {
+		_, execErr := database.PrimaryDB(ctx, db).Exec(ctx,
+			`UPDATE users SET active = false WHERE role = 'admin' AND active AND deleted_at IS NULL`)
+		require.NoError(t, execErr)
+
+		fn(ctx, New(db))
+
+		return rollback
+	})
+	require.ErrorIs(t, err, rollback)
+}
+
+func seedAdmin(ctx context.Context, t *testing.T, active bool) uuid.UUID {
+	t.Helper()
+
+	id := uuid.New()
+	_, err := database.PrimaryDB(ctx, database.DB{Primary: testPool}).Exec(ctx,
+		`INSERT INTO users (id, email, password_hash, first_name, last_name, role, active)
+		 VALUES ($1, $2, 'x', 'Admin', 'User', 'admin', $3)`,
+		id, "admin-"+id.String()+"@example.test", active,
+	)
+	require.NoError(t, err)
+
+	return id
+}
+
+// isolateActiveAdmins deactivates every active admin the subtest did not seed,
+// committed, so a test that needs real concurrent transactions sees only its own
+// admins. Cleanup reactivates exactly the rows it deactivated.
+func isolateActiveAdmins(t *testing.T) {
+	t.Helper()
+
+	rows, err := testPool.Query(context.Background(),
+		`UPDATE users SET active = false
+		 WHERE role = 'admin' AND active AND deleted_at IS NULL
+		 RETURNING id`)
+	require.NoError(t, err)
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_, err := testPool.Exec(context.Background(),
+			`UPDATE users SET active = true WHERE id = ANY($1)`, ids)
+		require.NoError(t, err)
+	})
+}
+
+func waitForLockWaiters(t *testing.T, want int) {
+	t.Helper()
+
+	require.Eventually(t, func() bool {
+		var n int
+		err := testPool.QueryRow(context.Background(),
+			`SELECT count(*) FROM pg_stat_activity
+			 WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+		).Scan(&n)
+		return err == nil && n >= want
+	}, 5*time.Second, 10*time.Millisecond)
 }

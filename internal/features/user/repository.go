@@ -14,8 +14,9 @@ type Repository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	ListAdmin(ctx context.Context, params AdminListParams) ([]domain.User, int, error)
-	Update(ctx context.Context, user *domain.User) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	UpdateProfile(ctx context.Context, user *domain.User) error
+	UpdateGuarded(ctx context.Context, user *domain.User) (bool, error)
+	Delete(ctx context.Context, id uuid.UUID) (bool, error)
 	CountAdmins(ctx context.Context) (int, error)
 	IncrementTokenVersion(ctx context.Context, id uuid.UUID) error
 }

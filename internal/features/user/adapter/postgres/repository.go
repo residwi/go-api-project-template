@@ -134,12 +134,12 @@ func (r *Repository) ListAdmin(ctx context.Context, params user.AdminListParams)
 	return users, total, nil
 }
 
-func (r *Repository) Update(ctx context.Context, u *domain.User) error {
+func (r *Repository) UpdateProfile(ctx context.Context, u *domain.User) error {
 	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
-		`UPDATE users SET first_name=$1, last_name=$2, phone=$3, role=$4, active=$5
-		WHERE id = $6 AND deleted_at IS NULL`,
-		u.FirstName, u.LastName, u.Phone, u.Role, u.Active, u.ID,
+		`UPDATE users SET first_name=$1, last_name=$2, phone=$3
+		WHERE id = $4 AND deleted_at IS NULL`,
+		u.FirstName, u.LastName, u.Phone, u.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("updating user: %w", err)
@@ -150,18 +150,45 @@ func (r *Repository) Update(ctx context.Context, u *domain.User) error {
 	return nil
 }
 
-func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
+const activeAdminsCTE = `WITH active_admins AS (
+		SELECT id FROM users
+		WHERE role = 'admin' AND active AND deleted_at IS NULL
+		ORDER BY id
+		FOR UPDATE
+	)`
+
+func (r *Repository) UpdateGuarded(ctx context.Context, u *domain.User) (bool, error) {
 	db := database.PrimaryDB(ctx, r.db)
 	tag, err := db.Exec(ctx,
-		`UPDATE users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`, id,
+		activeAdminsCTE+`
+		UPDATE users SET first_name=$1, last_name=$2, phone=$3, role=$4, active=$5
+		WHERE id = $6 AND deleted_at IS NULL
+		  AND (role <> 'admin'
+		       OR ($4 = 'admin' AND $5)
+		       OR (SELECT count(*) FROM active_admins) > 1
+		       OR NOT (role = 'admin' AND active))`,
+		u.FirstName, u.LastName, u.Phone, u.Role, u.Active, u.ID,
 	)
 	if err != nil {
-		return fmt.Errorf("deleting user: %w", err)
+		return false, fmt.Errorf("updating user: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
-		return errs.ErrNotFound
+	return tag.RowsAffected() > 0, nil
+}
+
+func (r *Repository) Delete(ctx context.Context, id uuid.UUID) (bool, error) {
+	db := database.PrimaryDB(ctx, r.db)
+	tag, err := db.Exec(ctx,
+		activeAdminsCTE+`
+		UPDATE users SET deleted_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
+		  AND (role <> 'admin'
+		       OR (SELECT count(*) FROM active_admins) > 1
+		       OR NOT (role = 'admin' AND active))`, id,
+	)
+	if err != nil {
+		return false, fmt.Errorf("deleting user: %w", err)
 	}
-	return nil
+	return tag.RowsAffected() > 0, nil
 }
 
 func (r *Repository) CountAdmins(ctx context.Context) (int, error) {

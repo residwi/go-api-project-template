@@ -166,20 +166,29 @@ func (_c *MockRepository_Create_Call) RunAndReturn(run func(ctx context.Context,
 }
 
 // Delete provides a mock function for the type MockRepository
-func (_mock *MockRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (_mock *MockRepository) Delete(ctx context.Context, id uuid.UUID) (bool, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(bool)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockRepository_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
@@ -212,12 +221,12 @@ func (_c *MockRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.
 	return _c
 }
 
-func (_c *MockRepository_Delete_Call) Return(err error) *MockRepository_Delete_Call {
-	_c.Call.Return(err)
+func (_c *MockRepository_Delete_Call) Return(b bool, err error) *MockRepository_Delete_Call {
+	_c.Call.Return(b, err)
 	return _c
 }
 
-func (_c *MockRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockRepository_Delete_Call {
+func (_c *MockRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (bool, error)) *MockRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -489,36 +498,45 @@ func (_c *MockRepository_ListAdmin_Call) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
-// Update provides a mock function for the type MockRepository
-func (_mock *MockRepository) Update(ctx context.Context, user *domain.User) error {
+// UpdateGuarded provides a mock function for the type MockRepository
+func (_mock *MockRepository) UpdateGuarded(ctx context.Context, user *domain.User) (bool, error) {
 	ret := _mock.Called(ctx, user)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Update")
+		panic("no return value specified for UpdateGuarded")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *domain.User) error); ok {
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *domain.User) (bool, error)); ok {
+		return returnFunc(ctx, user)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *domain.User) bool); ok {
 		r0 = returnFunc(ctx, user)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(bool)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *domain.User) error); ok {
+		r1 = returnFunc(ctx, user)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// MockRepository_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
-type MockRepository_Update_Call struct {
+// MockRepository_UpdateGuarded_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateGuarded'
+type MockRepository_UpdateGuarded_Call struct {
 	*mock.Call
 }
 
-// Update is a helper method to define mock.On call
+// UpdateGuarded is a helper method to define mock.On call
 //   - ctx context.Context
 //   - user *domain.User
-func (_e *MockRepository_Expecter) Update(ctx any, user any) *MockRepository_Update_Call {
-	return &MockRepository_Update_Call{Call: _e.mock.On("Update", ctx, user)}
+func (_e *MockRepository_Expecter) UpdateGuarded(ctx any, user any) *MockRepository_UpdateGuarded_Call {
+	return &MockRepository_UpdateGuarded_Call{Call: _e.mock.On("UpdateGuarded", ctx, user)}
 }
 
-func (_c *MockRepository_Update_Call) Run(run func(ctx context.Context, user *domain.User)) *MockRepository_Update_Call {
+func (_c *MockRepository_UpdateGuarded_Call) Run(run func(ctx context.Context, user *domain.User)) *MockRepository_UpdateGuarded_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -536,12 +554,69 @@ func (_c *MockRepository_Update_Call) Run(run func(ctx context.Context, user *do
 	return _c
 }
 
-func (_c *MockRepository_Update_Call) Return(err error) *MockRepository_Update_Call {
+func (_c *MockRepository_UpdateGuarded_Call) Return(b bool, err error) *MockRepository_UpdateGuarded_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockRepository_UpdateGuarded_Call) RunAndReturn(run func(ctx context.Context, user *domain.User) (bool, error)) *MockRepository_UpdateGuarded_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateProfile provides a mock function for the type MockRepository
+func (_mock *MockRepository) UpdateProfile(ctx context.Context, user *domain.User) error {
+	ret := _mock.Called(ctx, user)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateProfile")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *domain.User) error); ok {
+		r0 = returnFunc(ctx, user)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockRepository_UpdateProfile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateProfile'
+type MockRepository_UpdateProfile_Call struct {
+	*mock.Call
+}
+
+// UpdateProfile is a helper method to define mock.On call
+//   - ctx context.Context
+//   - user *domain.User
+func (_e *MockRepository_Expecter) UpdateProfile(ctx any, user any) *MockRepository_UpdateProfile_Call {
+	return &MockRepository_UpdateProfile_Call{Call: _e.mock.On("UpdateProfile", ctx, user)}
+}
+
+func (_c *MockRepository_UpdateProfile_Call) Run(run func(ctx context.Context, user *domain.User)) *MockRepository_UpdateProfile_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *domain.User
+		if args[1] != nil {
+			arg1 = args[1].(*domain.User)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_UpdateProfile_Call) Return(err error) *MockRepository_UpdateProfile_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockRepository_Update_Call) RunAndReturn(run func(ctx context.Context, user *domain.User) error) *MockRepository_Update_Call {
+func (_c *MockRepository_UpdateProfile_Call) RunAndReturn(run func(ctx context.Context, user *domain.User) error) *MockRepository_UpdateProfile_Call {
 	_c.Call.Return(run)
 	return _c
 }
