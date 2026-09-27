@@ -53,6 +53,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	authLimiter := middleware.RateLimit(
 		logger,
 		cache,
+		"auth",
 		modCfg.Auth.RateLimit,
 		authLimiterBurst,
 		modCfg.Auth.RateWindow,
@@ -120,6 +121,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	orderLimiter := middleware.RateLimit(
 		logger,
 		cache,
+		"order",
 		modCfg.Order.RateLimit,
 		orderLimiterBurst,
 		modCfg.Order.RateWindow,
