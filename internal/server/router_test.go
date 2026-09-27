@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -507,6 +508,28 @@ func TestClientIPWiring(t *testing.T) {
 		require.NoError(t, json.Unmarshal(buf.Bytes(), &record))
 		assert.Equal(t, "198.51.100.9", record["client_ip"])
 	})
+}
+
+func TestAPIRateLimitRunsBeforeAuthentication(t *testing.T) {
+	setup(t)
+
+	cfg := *testAppCfg
+	cfg.App.APIRateLimit = 2
+	cfg.App.APIRateWindow = time.Minute
+	handler := NewRouter(&cfg, testModCfg, testRedis, testutil.DiscardLogger(), testApp)
+	remote := fmt.Sprintf("[2001:db8:%x:%x::1]:4000", rand.Uint32()>>16, rand.Uint32()>>16)
+
+	codes := make([]int, 3)
+	for i := range codes {
+		req := httptest.NewRequest(http.MethodGet, "/api/cart", nil)
+		req.RemoteAddr = remote
+		req.Header.Set("Authorization", "Bearer not-a-real-token")
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+		codes[i] = w.Code
+	}
+
+	assert.Equal(t, []int{http.StatusUnauthorized, http.StatusUnauthorized, http.StatusTooManyRequests}, codes)
 }
 
 func TestCORSHeaders(t *testing.T) {

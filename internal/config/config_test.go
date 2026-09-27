@@ -75,6 +75,15 @@ func TestLoad(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "APP_SHUTDOWN_TIMEOUT")
 	})
+
+	t.Run("rejects an API_RATE_WINDOW below 1s", func(t *testing.T) {
+		t.Setenv("API_RATE_WINDOW", "500ms")
+
+		_, err := Load()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "API_RATE_WINDOW must be at least 1s")
+	})
 }
 
 func TestTrustedProxiesDecode(t *testing.T) {

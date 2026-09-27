@@ -41,6 +41,10 @@ func (s *Settings) validate() error {
 		)
 	}
 
+	if s.App.APIRateWindow < time.Second {
+		return errors.New("API_RATE_WINDOW must be at least 1s (a deliberate minimum window)")
+	}
+
 	return nil
 }
 
@@ -77,6 +81,8 @@ type App struct {
 	IdleTimeout     time.Duration  `envconfig:"APP_IDLE_TIMEOUT"     default:"60s"`
 	ShutdownTimeout time.Duration  `envconfig:"APP_SHUTDOWN_TIMEOUT" default:"30s"`
 	TrustedProxies  TrustedProxies `envconfig:"TRUSTED_PROXIES"`
+	APIRateLimit    int            `envconfig:"API_RATE_LIMIT"       default:"600"`
+	APIRateWindow   time.Duration  `envconfig:"API_RATE_WINDOW"      default:"1m"`
 }
 
 type Database struct {

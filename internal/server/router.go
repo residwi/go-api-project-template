@@ -45,8 +45,17 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	authMW := middleware.Auth(logger, deps.Auth)
 	adminMW := middleware.RequireRole(logger, "admin")
 
+	apiLimiter := middleware.RateLimit(
+		logger,
+		cache,
+		"api",
+		appCfg.App.APIRateLimit,
+		appCfg.App.APIRateLimit,
+		appCfg.App.APIRateWindow,
+	)
+
 	api := router.Group("/api")
-	authed := router.Group("/api", authMW)
+	authed := router.Group("/api", apiLimiter, authMW)
 	admin := authed.Group("/admin", adminMW)
 
 	const authLimiterBurst = 3
