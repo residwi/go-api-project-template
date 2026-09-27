@@ -23,7 +23,7 @@ func TestAuth(t *testing.T) {
 	t.Run("missing auth header", func(t *testing.T) {
 		authenticator := NewMockAuthenticator(t)
 
-		handler := Auth(authenticator)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		handler := Auth(testLogger(), authenticator)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
 		}))
 
@@ -36,7 +36,7 @@ func TestAuth(t *testing.T) {
 	t.Run("invalid format", func(t *testing.T) {
 		authenticator := NewMockAuthenticator(t)
 
-		handler := Auth(authenticator)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		handler := Auth(testLogger(), authenticator)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
 		}))
 
@@ -54,7 +54,7 @@ func TestAuth(t *testing.T) {
 			Return(identity.Identity{UserID: uuid.New()}, nil)
 
 		called := false
-		handler := Auth(authenticator)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		handler := Auth(testLogger(), authenticator)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			called = true
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -75,7 +75,7 @@ func TestAuth(t *testing.T) {
 		authenticator.EXPECT().Authenticate(mock.Anything, "tok").
 			Return(identity.Identity{}, fmt.Errorf("%w: token has been revoked", errs.ErrUnauthorized))
 
-		handler := Auth(authenticator)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		handler := Auth(testLogger(), authenticator)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
 		}))
 
@@ -92,7 +92,7 @@ func TestAuth(t *testing.T) {
 		authenticator.EXPECT().Authenticate(mock.Anything, "tok").
 			Return(identity.Identity{}, assert.AnError)
 
-		handler := Auth(authenticator)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		handler := Auth(testLogger(), authenticator)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			t.Fatal("handler should not be called")
 		}))
 
@@ -111,7 +111,7 @@ func TestAuth(t *testing.T) {
 		authenticator.EXPECT().Authenticate(mock.Anything, "valid-token").Return(want, nil)
 
 		called := false
-		handler := Auth(authenticator)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler := Auth(testLogger(), authenticator)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			called = true
 			got, ok := identity.FromContext(r.Context())
 			if !assert.True(t, ok) {
@@ -139,7 +139,7 @@ func TestAuth(t *testing.T) {
 		authenticator.EXPECT().Authenticate(mock.Anything, "good-token").
 			Return(identity.Identity{UserID: userID, Role: "user"}, nil)
 
-		handler := Auth(authenticator)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler := Auth(testLogger(), authenticator)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			log.InfoContext(r.Context(), "downstream")
 			w.WriteHeader(http.StatusOK)
 		}))

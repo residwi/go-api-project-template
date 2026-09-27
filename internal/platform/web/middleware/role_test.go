@@ -21,7 +21,7 @@ func TestRequireRole(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		r = r.WithContext(identity.NewContext(r.Context(), identity.Identity{UserID: uuid.New(), Role: "admin"}))
 
-		RequireRole("admin")(next).ServeHTTP(w, r)
+		RequireRole(testLogger(), "admin")(next).ServeHTTP(w, r)
 
 		assert.Equal(t, http.StatusTeapot, w.Code)
 	})
@@ -31,7 +31,7 @@ func TestRequireRole(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		r = r.WithContext(identity.NewContext(r.Context(), identity.Identity{UserID: uuid.New(), Role: "user"}))
 
-		RequireRole("admin")(next).ServeHTTP(w, r)
+		RequireRole(testLogger(), "admin")(next).ServeHTTP(w, r)
 
 		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
@@ -39,7 +39,7 @@ func TestRequireRole(t *testing.T) {
 	t.Run("rejects an anonymous caller with 401", func(t *testing.T) {
 		w := httptest.NewRecorder()
 
-		RequireRole("admin")(next).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+		RequireRole(testLogger(), "admin")(next).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
@@ -49,7 +49,7 @@ func TestRequireRole(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		r = r.WithContext(identity.NewContext(r.Context(), identity.Identity{UserID: uuid.New(), Role: "auditor"}))
 
-		RequireRole("auditor")(next).ServeHTTP(w, r)
+		RequireRole(testLogger(), "auditor")(next).ServeHTTP(w, r)
 
 		assert.Equal(t, http.StatusTeapot, w.Code)
 	})
