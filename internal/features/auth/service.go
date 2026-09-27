@@ -169,11 +169,12 @@ func (s *Service) Authenticate(ctx context.Context, token string) (_ identity.Id
 		return identity.Identity{}, ErrInvalidToken
 	}
 
-	if _, err := s.activeProfile(ctx, claims); err != nil {
+	profile, err := s.activeProfile(ctx, claims)
+	if err != nil {
 		return identity.Identity{}, err
 	}
 
-	return identity.Identity{UserID: claims.UserID, Role: claims.Role}, nil
+	return identity.Identity{UserID: claims.UserID, Role: profile.Role}, nil
 }
 
 func (s *Service) activeProfile(ctx context.Context, claims domain.Claims) (user.Profile, error) {

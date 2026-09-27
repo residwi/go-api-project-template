@@ -500,12 +500,31 @@ func TestService_Authenticate(t *testing.T) {
 		require.NoError(t, err)
 
 		users.EXPECT().GetProfile(mock.Anything, profile.ID).
-			Return(user.Profile{ID: profile.ID, Active: true, TokenVersion: 4}, nil)
+			Return(user.Profile{ID: profile.ID, Role: "admin", Active: true, TokenVersion: 4}, nil)
 
 		id, err := svc.Authenticate(context.Background(), pair.AccessToken)
 
 		require.NoError(t, err)
 		assert.Equal(t, identity.Identity{UserID: profile.ID, Role: profile.Role}, id)
+	})
+
+	t.Run("takes the role from the account, not the token", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		svc := newTestService(users)
+
+		minted := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "admin", TokenVersion: 4}
+		pair, err := svc.BuildTokenPair(minted)
+		require.NoError(t, err)
+
+		users.EXPECT().GetProfile(mock.Anything, minted.ID).
+			Return(user.Profile{ID: minted.ID, Role: "user", Active: true, TokenVersion: 4}, nil)
+
+		id, err := svc.Authenticate(context.Background(), pair.AccessToken)
+
+		require.NoError(t, err)
+		assert.Equal(t, identity.Identity{UserID: minted.ID, Role: "user"}, id)
 	})
 }
 
