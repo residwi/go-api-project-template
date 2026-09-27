@@ -183,7 +183,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	}
 
 	return web.Chain(
-		middleware.ClientIP(appCfg.App.TrustedProxies),
+		middleware.ClientIP(logger, appCfg.App.TrustedProxies),
 		middleware.RequestID,
 		// otelhttp reads r.Pattern off the request object it passed down, and
 		// ServeMux sets Pattern in place when it routes. Any middleware between
