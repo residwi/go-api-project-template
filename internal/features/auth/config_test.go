@@ -32,4 +32,32 @@ func TestLoadConfig(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "BCRYPT_COST must be between")
 	})
+
+	t.Run("rejects a JWT secret shorter than the strength floor", func(t *testing.T) {
+		t.Setenv("JWT_SECRET", "too-short-secret")
+
+		_, err := LoadConfig()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "JWT_SECRET must be at least")
+	})
+
+	t.Run("rejects the .env.example placeholder secret", func(t *testing.T) {
+		t.Setenv("JWT_SECRET", placeholderSecret)
+
+		_, err := LoadConfig()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "JWT_SECRET must not be the .env.example placeholder")
+	})
+
+	t.Run("loads a strong non-placeholder secret", func(t *testing.T) {
+		secret := "a-sufficiently-long-and-unique-jwt-secret"
+		t.Setenv("JWT_SECRET", secret)
+
+		cfg, err := LoadConfig()
+
+		require.NoError(t, err)
+		assert.Equal(t, secret, cfg.Secret)
+	})
 }

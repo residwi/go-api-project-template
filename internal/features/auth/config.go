@@ -19,10 +19,27 @@ type Config struct {
 	BcryptCost      int           `envconfig:"BCRYPT_COST"                      default:"10"`
 }
 
+// minSecretBytes floors the HS256 key at 256 bits, matching the HMAC-SHA256 output width.
+const minSecretBytes = 32
+
+const placeholderSecret = "your-secret-key-change-in-production"
+
 func LoadConfig() (Config, error) {
 	var cfg Config
 	if err := envconfig.Process("", &cfg); err != nil {
 		return Config{}, fmt.Errorf("loading auth config: %w", err)
+	}
+
+	if cfg.Secret == placeholderSecret {
+		return Config{}, errors.New(
+			"JWT_SECRET must not be the .env.example placeholder value; set a unique secret",
+		)
+	}
+
+	if len(cfg.Secret) < minSecretBytes {
+		return Config{}, fmt.Errorf(
+			"JWT_SECRET must be at least %d bytes", minSecretBytes,
+		)
 	}
 
 	if cfg.RateWindow < time.Second {

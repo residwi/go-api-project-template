@@ -21,7 +21,7 @@ func TestLoadConfigRejectsAGatewayTimeoutThatOutlivesTheStaleSweep(t *testing.T)
 		// (3x6m=18m) so this isolates the threshold check instead of tripping both
 		// at once. The lease error's text also contains "PAYMENT_GATEWAY_TIMEOUT",
 		// so only the threshold wording proves which check fired.
-		t.Setenv("JWT_SECRET", "test-secret")
+		t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
 		t.Setenv("PAYMENT_GATEWAY_TIMEOUT", "6m")
 		t.Setenv("PAYMENT_JOB_TIMEOUT", "20m")
 
@@ -32,7 +32,7 @@ func TestLoadConfigRejectsAGatewayTimeoutThatOutlivesTheStaleSweep(t *testing.T)
 	})
 
 	t.Run("accepts a timeout that leaves the sweep room", func(t *testing.T) {
-		t.Setenv("JWT_SECRET", "test-secret")
+		t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
 		t.Setenv("PAYMENT_GATEWAY_TIMEOUT", "10s")
 
 		cfg, err := app.LoadConfig()
