@@ -45,7 +45,7 @@ func RunContext( //nolint:funlen // one linear boot sequence: config, tracing, d
 	}
 	defer shutdownTracing()
 
-	modCfg, err := app.LoadConfig(appCfg)
+	modCfg, err := app.LoadConfig()
 	if err != nil {
 		appLog.ErrorContext(ctx, "loading module config failed", slog.String("error", err.Error()))
 		return err

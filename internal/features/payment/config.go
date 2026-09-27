@@ -13,7 +13,7 @@ type Config struct {
 	GatewayURL     string        `envconfig:"PAYMENT_GATEWAY_URL"     default:"http://localhost:8080/mock/payment"`
 	GatewayTimeout time.Duration `envconfig:"PAYMENT_GATEWAY_TIMEOUT" default:"10s"`
 	GatewayAPIKey  string        `envconfig:"PAYMENT_GATEWAY_API_KEY" default:""`
-	WebhookSecret  string        `envconfig:"PAYMENT_WEBHOOK_SECRET"  default:"webhook-secret"`
+	WebhookSecret  string        `envconfig:"PAYMENT_WEBHOOK_SECRET"`
 
 	JobInterval    time.Duration `envconfig:"PAYMENT_JOB_INTERVAL"    default:"10s"`
 	JobConcurrency int           `envconfig:"PAYMENT_JOB_CONCURRENCY" default:"5"`
@@ -28,9 +28,12 @@ const (
 
 const defaultWebhookSecret = "webhook-secret"
 
+// minWebhookSecretBytes floors the HMAC-SHA256 key at 256 bits, the digest width.
+const minWebhookSecretBytes = 32
+
 const minJobInterval = 5 * time.Second
 
-func LoadConfig(appEnv string) (Config, error) {
+func LoadConfig() (Config, error) {
 	var cfg Config
 	if err := envconfig.Process("", &cfg); err != nil {
 		return Config{}, fmt.Errorf("loading payment config: %w", err)
@@ -42,8 +45,12 @@ func LoadConfig(appEnv string) (Config, error) {
 		)
 	}
 
-	if appEnv != "development" && cfg.WebhookSecret == defaultWebhookSecret {
-		return Config{}, errors.New("PAYMENT_WEBHOOK_SECRET must be set in non-development environments")
+	if cfg.WebhookSecret == "" || cfg.WebhookSecret == defaultWebhookSecret {
+		return Config{}, errors.New("PAYMENT_WEBHOOK_SECRET must be set to a non-default value")
+	}
+
+	if len(cfg.WebhookSecret) < minWebhookSecretBytes {
+		return Config{}, fmt.Errorf("PAYMENT_WEBHOOK_SECRET must be at least %d bytes", minWebhookSecretBytes)
 	}
 
 	if cfg.JobInterval < minJobInterval {

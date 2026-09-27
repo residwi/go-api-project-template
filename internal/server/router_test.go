@@ -779,6 +779,7 @@ func TestServerRunListenError(t *testing.T) {
 func TestServerRunConfigError(t *testing.T) {
 	setup(t)
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
+	t.Setenv("PAYMENT_WEBHOOK_SECRET", "test-webhook-secret-at-least-32-bytes")
 	// JWT_ACCESS_TTL is auth's own tag now (task 8), so a bad value fails inside
 	// auth.LoadConfig rather than a central config.Load.
 	t.Setenv("JWT_ACCESS_TTL", "not-a-duration")
@@ -791,6 +792,7 @@ func TestServerRunConfigError(t *testing.T) {
 func TestServerRunDatabaseError(t *testing.T) {
 	setup(t)
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
+	t.Setenv("PAYMENT_WEBHOOK_SECRET", "test-webhook-secret-at-least-32-bytes")
 	t.Setenv("DB_HOST", "127.0.0.1")
 	t.Setenv("DB_PORT", "1")
 	t.Setenv("DB_USER", "invalid")
@@ -906,6 +908,7 @@ func serverRunEnv(t *testing.T, port int) {
 	// and flushes, racing this package's own index 3.
 	t.Setenv("REDIS_DB", "3")
 	t.Setenv("JWT_SECRET", "test-secret-key-at-least-32-chars-long")
+	t.Setenv("PAYMENT_WEBHOOK_SECRET", "test-webhook-secret-at-least-32-bytes")
 }
 
 // Cancels a context rather than signalling the test process's own PID: a SIGINT
@@ -946,6 +949,9 @@ func startAndStopServer(t *testing.T, healthAddr string) error {
 // withPayment returns the shared module config with only Payment replaced --
 // the one field any call site varies.
 func withPayment(paymentCfg payment.Config) app.Config {
+	if paymentCfg.WebhookSecret == "" {
+		paymentCfg.WebhookSecret = testWebhookSecret
+	}
 	cfg := testModCfg
 	cfg.Payment = paymentCfg
 	return cfg

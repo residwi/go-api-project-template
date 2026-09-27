@@ -202,6 +202,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	)
 	whReq := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", strings.NewReader(webhookBody))
 	whReq.Header.Set("Content-Type", "application/json")
+	whReq.Header.Set("X-Webhook-Signature", signWebhook(webhookBody))
 	whW := httptest.NewRecorder()
 	handler.ServeHTTP(whW, whReq)
 	require.Equal(t, http.StatusOK, whW.Code)

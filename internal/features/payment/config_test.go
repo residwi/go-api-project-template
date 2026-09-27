@@ -11,6 +11,8 @@ import (
 // ancestor) has called t.Parallel. This file is on the paralleltest exclusion
 // list in .golangci.yml for that reason.
 func TestLoadConfig(t *testing.T) {
+	t.Setenv("PAYMENT_WEBHOOK_SECRET", "test-webhook-secret-at-least-32-bytes")
+
 	t.Run("rejects an unrecognised gateway", func(t *testing.T) {
 		// A typo, a stray capital or trailing space must abort boot: newPaymentGateway
 		// (module.go) falls back to the mock for anything it does not
@@ -18,7 +20,7 @@ func TestLoadConfig(t *testing.T) {
 		// localhost silently.
 		t.Setenv("PAYMENT_GATEWAY", "Stripe")
 
-		_, err := LoadConfig("development")
+		_, err := LoadConfig()
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "PAYMENT_GATEWAY must be")
@@ -28,25 +30,43 @@ func TestLoadConfig(t *testing.T) {
 		for _, name := range []string{GatewayMock, GatewayStripe, GatewayMidtrans} {
 			t.Setenv("PAYMENT_GATEWAY", name)
 
-			_, err := LoadConfig("development")
+			_, err := LoadConfig()
 
 			require.NoError(t, err, "gateway %q must be accepted", name)
 		}
 	})
 
-	t.Run("requires a real webhook secret outside development", func(t *testing.T) {
+	t.Run("rejects the default webhook secret in every environment", func(t *testing.T) {
 		t.Setenv("PAYMENT_WEBHOOK_SECRET", defaultWebhookSecret)
 
-		_, err := LoadConfig("production")
+		_, err := LoadConfig()
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "PAYMENT_WEBHOOK_SECRET must be set")
 	})
 
-	t.Run("allows the placeholder secret in development", func(t *testing.T) {
-		t.Setenv("PAYMENT_WEBHOOK_SECRET", defaultWebhookSecret)
+	t.Run("rejects an empty webhook secret", func(t *testing.T) {
+		t.Setenv("PAYMENT_WEBHOOK_SECRET", "")
 
-		_, err := LoadConfig("development")
+		_, err := LoadConfig()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "PAYMENT_WEBHOOK_SECRET must be set")
+	})
+
+	t.Run("rejects a webhook secret shorter than 32 bytes", func(t *testing.T) {
+		t.Setenv("PAYMENT_WEBHOOK_SECRET", "short-but-not-the-default")
+
+		_, err := LoadConfig()
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "at least 32 bytes")
+	})
+
+	t.Run("accepts a unique webhook secret", func(t *testing.T) {
+		t.Setenv("PAYMENT_WEBHOOK_SECRET", "a-unique-webhook-secret-at-least-32-bytes")
+
+		_, err := LoadConfig()
 
 		require.NoError(t, err)
 	})
@@ -54,7 +74,7 @@ func TestLoadConfig(t *testing.T) {
 	t.Run("rejects a job interval that would hammer the database", func(t *testing.T) {
 		t.Setenv("PAYMENT_JOB_INTERVAL", "1s")
 
-		_, err := LoadConfig("development")
+		_, err := LoadConfig()
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "PAYMENT_JOB_INTERVAL must be at least 5s")
@@ -63,7 +83,7 @@ func TestLoadConfig(t *testing.T) {
 	t.Run("rejects a zero job concurrency that would deadlock the runner", func(t *testing.T) {
 		t.Setenv("PAYMENT_JOB_CONCURRENCY", "0")
 
-		_, err := LoadConfig("development")
+		_, err := LoadConfig()
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "PAYMENT_JOB_CONCURRENCY must be at least 1")
@@ -72,7 +92,7 @@ func TestLoadConfig(t *testing.T) {
 	t.Run("rejects a lease shorter than three gateway timeouts, which would double-charge", func(t *testing.T) {
 		t.Setenv("PAYMENT_GATEWAY_TIMEOUT", "1m")
 
-		_, err := LoadConfig("development")
+		_, err := LoadConfig()
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "PAYMENT_JOB_TIMEOUT must be at least 3")

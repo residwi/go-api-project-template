@@ -1,6 +1,9 @@
 package server
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +17,8 @@ import (
 )
 
 const probeSlug = "route-probe"
+
+const testWebhookSecret = "test-webhook-secret"
 
 var allRoutes = []string{
 	"GET\t/health",
@@ -148,6 +153,11 @@ func probe(handler http.Handler, method, path, token string) *httptest.ResponseR
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	if path == "/api/payments/webhook" {
+		mac := hmac.New(sha256.New, []byte(testWebhookSecret))
+		mac.Write([]byte("{}"))
+		req.Header.Set("X-Webhook-Signature", hex.EncodeToString(mac.Sum(nil)))
 	}
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)

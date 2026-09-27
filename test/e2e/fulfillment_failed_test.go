@@ -138,6 +138,7 @@ func TestE2ELatePaymentSuccessOnCancelledOrder(t *testing.T) {
 		)
 		req := httptest.NewRequest(http.MethodPost, "/api/payments/webhook", strings.NewReader(webhookBody))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Webhook-Signature", signWebhook(webhookBody))
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Code, "the webhook is acked so the gateway stops retrying")

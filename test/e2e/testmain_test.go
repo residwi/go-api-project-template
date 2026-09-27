@@ -7,6 +7,9 @@ package e2e_test
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"os"
 	"testing"
@@ -102,9 +105,20 @@ func setup(t *testing.T) {
 // withPayment returns the shared module config with only Payment replaced --
 // the one field any call site varies.
 func withPayment(paymentCfg payment.Config) app.Config {
+	if paymentCfg.WebhookSecret == "" {
+		paymentCfg.WebhookSecret = testWebhookSecret
+	}
 	cfg := testModCfg
 	cfg.Payment = paymentCfg
 	return cfg
+}
+
+const testWebhookSecret = "test-webhook-secret"
+
+func signWebhook(body string) string {
+	mac := hmac.New(sha256.New, []byte(testWebhookSecret))
+	mac.Write([]byte(body))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 func newTestApp(paymentCfg payment.Config) *app.Services {

@@ -298,7 +298,7 @@ func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature s
 	defer span.End()
 	defer func() { tracing.Record(span, err) }()
 
-	if s.webhookSecret != "" && !verifySignature(s.webhookSecret, payload, signature) {
+	if s.webhookSecret == "" || !verifySignature(s.webhookSecret, payload, signature) {
 		s.logger.WarnContext(ctx, "webhook: invalid or missing signature")
 		return fmt.Errorf("%w: invalid webhook signature", errs.ErrUnauthorized)
 	}

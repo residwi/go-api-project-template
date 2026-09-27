@@ -24,6 +24,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
+const testWebhookSecret = "whsec_test"
+
 func TestService_Charge(t *testing.T) {
 	t.Parallel()
 
@@ -1363,7 +1365,7 @@ func TestService_HandleWebhook(t *testing.T) {
 			},
 		})
 
-		err := svc.HandleWebhook(ctx, payload, "")
+		err := svc.HandleWebhook(ctx, payload, sign(testWebhookSecret, payload))
 
 		require.NoError(t, err)
 	})
@@ -1407,7 +1409,7 @@ func TestService_HandleWebhook(t *testing.T) {
 			},
 		})
 
-		err := svc.HandleWebhook(ctx, payload, "")
+		err := svc.HandleWebhook(ctx, payload, sign(testWebhookSecret, payload))
 
 		require.NoError(t, err)
 	})
@@ -1451,7 +1453,7 @@ func TestService_HandleWebhook(t *testing.T) {
 			},
 		})
 
-		err := svc.HandleWebhook(ctx, payload, "")
+		err := svc.HandleWebhook(ctx, payload, sign(testWebhookSecret, payload))
 
 		require.NoError(t, err)
 	})
@@ -1473,7 +1475,7 @@ func TestService_HandleWebhook(t *testing.T) {
 			},
 		})
 
-		err := svc.HandleWebhook(ctx, payload, "")
+		err := svc.HandleWebhook(ctx, payload, sign(testWebhookSecret, payload))
 
 		require.NoError(t, err)
 	})
@@ -1498,7 +1500,7 @@ func TestService_HandleWebhook(t *testing.T) {
 			"transaction_id": "txn_fallback",
 		})
 
-		err := svc.HandleWebhook(ctx, payload, "")
+		err := svc.HandleWebhook(ctx, payload, sign(testWebhookSecret, payload))
 
 		require.NoError(t, err)
 	})
@@ -1512,7 +1514,7 @@ func TestService_HandleWebhook(t *testing.T) {
 			"event": "success",
 		})
 
-		err := svc.HandleWebhook(ctx, payload, "")
+		err := svc.HandleWebhook(ctx, payload, sign(testWebhookSecret, payload))
 
 		require.NoError(t, err)
 	})
@@ -1522,7 +1524,8 @@ func TestService_HandleWebhook(t *testing.T) {
 
 		svc, _ := newTestService(t)
 
-		err := svc.HandleWebhook(ctx, []byte("not json"), "")
+		payload := []byte("not json")
+		err := svc.HandleWebhook(ctx, payload, sign(testWebhookSecret, payload))
 
 		require.NoError(t, err)
 	})
@@ -1578,7 +1581,7 @@ func TestService_HandleWebhook(t *testing.T) {
 			},
 		})
 
-		err := svc.HandleWebhook(ctx, payload, "")
+		err := svc.HandleWebhook(ctx, payload, sign(testWebhookSecret, payload))
 
 		require.NoError(t, err)
 	})
@@ -1621,7 +1624,7 @@ func TestService_HandleWebhook(t *testing.T) {
 			},
 		})
 
-		err := svc.HandleWebhook(ctx, payload, "")
+		err := svc.HandleWebhook(ctx, payload, sign(testWebhookSecret, payload))
 
 		require.NoError(t, err)
 	})
@@ -1652,6 +1655,19 @@ func TestService_HandleWebhook_SignatureVerification(t *testing.T) {
 		err := svc.HandleWebhook(context.Background(), body, sign(secret, body))
 
 		require.NoError(t, err)
+	})
+
+	t.Run("signature made with the shipped default secret is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		svc, _ := newTestService(t)
+		svc.webhookSecret = secret
+
+		body := marshal(t, map[string]any{"event": "success"})
+
+		err := svc.HandleWebhook(context.Background(), body, sign(defaultWebhookSecret, body))
+
+		require.ErrorIs(t, err, errs.ErrUnauthorized)
 	})
 
 	t.Run("missing signature is rejected", func(t *testing.T) {
@@ -1704,15 +1720,16 @@ func newTestService(t *testing.T) (*Service, testDeps) {
 	}
 
 	svc := &Service{
-		repo:      d.repo,
-		tx:        testutil.FakeTxRunner{},
-		gateway:   d.gateway,
-		queue:     d.queue,
-		logger:    testutil.DiscardLogger(),
-		tracer:    otel.Tracer("test"),
-		orders:    d.orders,
-		inventory: d.inventory,
-		coupon:    d.coupon,
+		repo:          d.repo,
+		tx:            testutil.FakeTxRunner{},
+		gateway:       d.gateway,
+		queue:         d.queue,
+		logger:        testutil.DiscardLogger(),
+		tracer:        otel.Tracer("test"),
+		orders:        d.orders,
+		inventory:     d.inventory,
+		coupon:        d.coupon,
+		webhookSecret: testWebhookSecret,
 	}
 
 	return svc, d
