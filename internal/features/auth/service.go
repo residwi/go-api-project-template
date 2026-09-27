@@ -2,8 +2,13 @@ package auth
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -24,19 +29,25 @@ type Service struct {
 	tokens     Tokens
 	accessTTL  time.Duration
 	refreshTTL time.Duration
+	logger     *slog.Logger
+	logKey     []byte
 	tracer     trace.Tracer
 }
 
-func New(cfg Config, users UserDirectory, tokens Tokens) *Service {
+func New(cfg Config, users UserDirectory, tokens Tokens, logger *slog.Logger) *Service {
 	s := &Service{
 		users:      users,
 		tokens:     tokens,
+		logger:     logger,
 		bcryptCost: cfg.BcryptCost,
 		accessTTL:  cfg.AccessTokenTTL,
 		refreshTTL: cfg.RefreshTokenTTL,
 		tracer:     otel.Tracer("github.com/residwi/go-api-project-template/internal/features/auth"),
 	}
 	s.dummyHash, _ = bcrypt.GenerateFromPassword([]byte(dummyPassword), cfg.BcryptCost)
+	keyMAC := hmac.New(sha256.New, []byte(cfg.Secret))
+	keyMAC.Write([]byte("auth.login-log-pseudonym"))
+	s.logKey = keyMAC.Sum(nil)
 	return s
 }
 
@@ -48,20 +59,31 @@ func (s *Service) Login(ctx context.Context, email, password string) (_ *TokenPa
 	creds, err := s.users.GetByEmail(ctx, email)
 	if err != nil {
 		_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(password))
+		s.logger.WarnContext(ctx, "login failed",
+			slog.String("email_pseudonym", s.emailPseudonym(email)), slog.String("reason", "unknown_email"))
 		return nil, ErrInvalidCredentials
 	}
 
 	// bcrypt must run before the Active check: skipping it for inactive accounts
 	// leaked account state via a faster, distinct response (CWE-204 enumeration).
 	if bcrypt.CompareHashAndPassword([]byte(creds.PasswordHash), []byte(password)) != nil {
+		s.logger.WarnContext(ctx, "login failed",
+			slog.String("user_id", creds.ID.String()), slog.String("reason", "bad_password"))
 		return nil, ErrInvalidCredentials
 	}
 
 	if !creds.Active {
+		s.logger.WarnContext(ctx, "login rejected",
+			slog.String("user_id", creds.ID.String()), slog.String("reason", "account_deactivated"))
 		return nil, ErrAccountDeactivated
 	}
 
-	return s.BuildTokenPair(creds.Profile)
+	pair, err := s.BuildTokenPair(creds.Profile)
+	if err != nil {
+		return nil, err
+	}
+
+	return pair, nil
 }
 
 func (s *Service) Register(
@@ -172,6 +194,12 @@ func (s *Service) activeProfile(ctx context.Context, claims domain.Claims) (user
 	}
 
 	return u, nil
+}
+
+func (s *Service) emailPseudonym(email string) string {
+	mac := hmac.New(sha256.New, s.logKey)
+	mac.Write([]byte(strings.ToLower(strings.TrimSpace(email))))
+	return hex.EncodeToString(mac.Sum(nil)[:8])
 }
 
 // dummyPassword is hashed once per cost to give the unknown-email login path

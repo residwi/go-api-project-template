@@ -1,8 +1,10 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -360,7 +362,7 @@ func TestService_BuildTokenPair(t *testing.T) {
 		cfg := newTestConfig()
 		tokens := jwt.New(cfg.Secret, cfg.Issuer)
 		var users UserDirectory
-		svc := New(cfg, users, tokens)
+		svc := New(cfg, users, tokens, slog.New(slog.DiscardHandler))
 
 		pair, err := svc.BuildTokenPair(user)
 		require.NoError(t, err)
@@ -507,6 +509,82 @@ func TestService_Authenticate(t *testing.T) {
 	})
 }
 
+func TestService_LoginSecurityEvents(t *testing.T) {
+	t.Parallel()
+
+	newLoggedService := func(users UserDirectory, buf *bytes.Buffer, level slog.Level) *Service {
+		cfg := newTestConfig()
+		return New(cfg, users, jwt.New(cfg.Secret, cfg.Issuer),
+			slog.New(slog.NewJSONHandler(buf, &slog.HandlerOptions{Level: level})))
+	}
+	existing := func(t *testing.T, id uuid.UUID, email string) user.Credentials {
+		t.Helper()
+		hash, err := bcrypt.GenerateFromPassword([]byte("correct-horse"), bcrypt.MinCost)
+		require.NoError(t, err)
+		return user.Credentials{ID: id, Email: email, Active: true, PasswordHash: string(hash)}
+	}
+
+	t.Run("unknown email is recorded by pseudonym, never by address", func(t *testing.T) {
+		t.Parallel()
+
+		var buf bytes.Buffer
+		users := NewMockUserDirectory(t)
+		users.EXPECT().GetByEmail(mock.Anything, "ghost@example.com").
+			Return(user.Credentials{}, errs.ErrNotFound)
+
+		_, err := newLoggedService(users, &buf, slog.LevelWarn).
+			Login(context.Background(), "ghost@example.com", "whatever")
+
+		require.ErrorIs(t, err, ErrInvalidCredentials)
+		assert.Contains(t, buf.String(), `"msg":"login failed"`)
+		assert.Contains(t, buf.String(), `"reason":"unknown_email"`)
+		assert.Contains(t, buf.String(), `"email_pseudonym":"`)
+		assert.NotContains(t, buf.String(), "ghost@example.com")
+	})
+
+	t.Run("wrong password is recorded by user id, never by address", func(t *testing.T) {
+		t.Parallel()
+
+		var buf bytes.Buffer
+		id := uuid.New()
+		users := NewMockUserDirectory(t)
+		users.EXPECT().GetByEmail(mock.Anything, "real@example.com").
+			Return(existing(t, id, "real@example.com"), nil)
+
+		_, err := newLoggedService(users, &buf, slog.LevelWarn).
+			Login(context.Background(), "real@example.com", "wrong")
+
+		require.ErrorIs(t, err, ErrInvalidCredentials)
+		assert.Contains(t, buf.String(), `"reason":"bad_password"`)
+		assert.Contains(t, buf.String(), `"user_id":"`+id.String()+`"`)
+		assert.NotContains(t, buf.String(), "real@example.com")
+	})
+
+	t.Run("the same address maps to the same pseudonym regardless of case", func(t *testing.T) {
+		t.Parallel()
+
+		svc := newTestService(NewMockUserDirectory(t))
+
+		assert.Equal(t, svc.emailPseudonym("ghost@example.com"), svc.emailPseudonym(" Ghost@Example.COM "))
+		assert.NotEqual(t, svc.emailPseudonym("ghost@example.com"), svc.emailPseudonym("other@example.com"))
+	})
+
+	t.Run("a successful login raises no warning", func(t *testing.T) {
+		t.Parallel()
+
+		var buf bytes.Buffer
+		users := NewMockUserDirectory(t)
+		users.EXPECT().GetByEmail(mock.Anything, "real@example.com").
+			Return(existing(t, uuid.New(), "real@example.com"), nil)
+
+		_, err := newLoggedService(users, &buf, slog.LevelWarn).
+			Login(context.Background(), "real@example.com", "correct-horse")
+
+		require.NoError(t, err)
+		assert.Empty(t, buf.String())
+	})
+}
+
 // newTestConfig gives every Service test the same secret, issuer and TTLs
 // token/usecase_test.go used to hard-code per test; subtests that need a
 // different value copy this and override just that field.
@@ -525,5 +603,5 @@ func newTestConfig() Config {
 // does. It sets no mock expectations -- each subtest states its own.
 func newTestService(users UserDirectory) *Service {
 	cfg := newTestConfig()
-	return New(cfg, users, jwt.New(cfg.Secret, cfg.Issuer))
+	return New(cfg, users, jwt.New(cfg.Secret, cfg.Issuer), slog.New(slog.DiscardHandler))
 }

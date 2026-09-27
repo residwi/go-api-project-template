@@ -105,7 +105,7 @@ func New(
 	)
 
 	userMod := user.New(userpg.New(db))
-	authMod := auth.New(cfg.Auth, userMod, authjwt.New(cfg.Auth.Secret, cfg.Auth.Issuer))
+	authMod := auth.New(cfg.Auth, userMod, authjwt.New(cfg.Auth.Secret, cfg.Auth.Issuer), logger)
 
 	cartMod := cart.New(cartpg.New(db), txRunner, prod, cfg.Cart.MaxItems)
 
