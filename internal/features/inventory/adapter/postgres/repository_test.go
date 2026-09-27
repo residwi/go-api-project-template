@@ -19,9 +19,9 @@ import (
 
 // This package owns test_inventory outright now that every inventory slice
 // merged into one adapter -- one TestMain, one MustStartPostgres call. It
-// still never truncates: every row it touches is seeded here with a fresh
-// uuid.New() and cleaned up by name, the same discipline the shared database
-// needed before the merge.
+// still never truncates: every row it touches is seeded here with a fresh id
+// from [uuid.New] and cleaned up by name, the same discipline the shared
+// database needed before the merge.
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
