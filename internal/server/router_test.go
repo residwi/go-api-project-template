@@ -893,7 +893,7 @@ func serverRunEnv(t *testing.T, port int) {
 
 	t.Setenv("APP_PORT", strconv.Itoa(port))
 	t.Setenv("APP_ENV", "development")
-	t.Setenv("APP_SHUTDOWN_TIMEOUT", "2s")
+	t.Setenv("APP_SHUTDOWN_TIMEOUT", "10s")
 	t.Setenv("DB_HOST", pgCfg.Host)
 	t.Setenv("DB_PORT", strconv.FormatUint(uint64(pgCfg.Port), 10))
 	t.Setenv("DB_USER", pgCfg.User)
