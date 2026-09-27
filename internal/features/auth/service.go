@@ -51,12 +51,14 @@ func (s *Service) Login(ctx context.Context, email, password string) (_ *TokenPa
 		return nil, ErrInvalidCredentials
 	}
 
-	if !creds.Active {
-		return nil, errs.ErrUnauthorized
+	// bcrypt must run before the Active check: skipping it for inactive accounts
+	// leaked account state via a faster, distinct response (CWE-204 enumeration).
+	if bcrypt.CompareHashAndPassword([]byte(creds.PasswordHash), []byte(password)) != nil {
+		return nil, ErrInvalidCredentials
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(creds.PasswordHash), []byte(password)); err != nil {
-		return nil, ErrInvalidCredentials
+	if !creds.Active {
+		return nil, ErrAccountDeactivated
 	}
 
 	return s.BuildTokenPair(creds.Profile)

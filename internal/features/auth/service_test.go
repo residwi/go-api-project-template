@@ -60,7 +60,28 @@ func TestService_Login(t *testing.T) {
 		}, resp.User)
 	})
 
-	t.Run("inactive user returns ErrUnauthorized", func(t *testing.T) {
+	t.Run("inactive account with a wrong password is indistinguishable from wrong password", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+
+		hash, _ := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
+		users.EXPECT().GetByEmail(mock.Anything, "inactive@example.com").Return(user.Credentials{
+			ID:           uuid.New(),
+			Email:        "inactive@example.com",
+			PasswordHash: string(hash),
+			Active:       false,
+		}, nil)
+
+		resp, err := newTestService(users).
+			Login(context.Background(), "inactive@example.com", "wrong-password")
+
+		assert.Nil(t, resp)
+		require.ErrorIs(t, err, ErrInvalidCredentials)
+		assert.NotErrorIs(t, err, ErrAccountDeactivated)
+	})
+
+	t.Run("inactive account with the correct password returns ErrAccountDeactivated after bcrypt", func(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
@@ -77,7 +98,7 @@ func TestService_Login(t *testing.T) {
 			Login(context.Background(), "inactive@example.com", "password123")
 
 		assert.Nil(t, resp)
-		assert.ErrorIs(t, err, errs.ErrUnauthorized)
+		assert.ErrorIs(t, err, ErrAccountDeactivated)
 	})
 
 	t.Run("wrong password returns ErrInvalidCredentials", func(t *testing.T) {
