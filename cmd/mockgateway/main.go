@@ -23,6 +23,6 @@ func main() {
 
 func newMux(appLog *slog.Logger) *http.ServeMux {
 	mux := http.NewServeMux()
-	mockserver.RegisterRoutes(mux, appLog)
+	mockserver.RegisterRoutes(mux, appLog, mockserver.WithWebhookSecret(os.Getenv("PAYMENT_WEBHOOK_SECRET")))
 	return mux
 }

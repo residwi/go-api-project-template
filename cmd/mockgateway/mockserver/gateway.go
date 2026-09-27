@@ -9,8 +9,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/netip"
+	"net/url"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -20,6 +25,10 @@ import (
 type Option func(*mockServer)
 
 const statusSuccess = "success"
+
+const webhookTimeout = 10 * time.Second
+
+const mockSecretHeader = "X-Mock-Webhook-Secret" //nolint:gosec // G101: an HTTP header name, not a credential value
 
 type chargeRecord struct {
 	Response gatewaymock.ChargeResponse
@@ -32,6 +41,7 @@ type mockServer struct {
 	refunds       map[string]gatewaymock.RefundResponse
 	webhookSecret string
 	logger        *slog.Logger
+	transport     http.RoundTripper
 }
 
 func WithWebhookSecret(secret string) Option {
@@ -126,6 +136,11 @@ func (s *mockServer) handleRefund(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request) {
+	if s.webhookSecret == "" || !hmac.Equal([]byte(r.Header.Get(mockSecretHeader)), []byte(s.webhookSecret)) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var triggerReq struct {
 		IdempotencyKey string `json:"idempotency_key"`
 		WebhookURL     string `json:"webhook_url"`
@@ -160,17 +175,32 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 	webhookURL := triggerReq.WebhookURL
 	if webhookURL == "" {
 		webhookURL = "http://localhost:8080/api/payments/webhook"
+	} else if err := validateWebhookURL(r.Context(), webhookURL); err != nil {
+		s.logger.WarnContext(
+			r.Context(),
+			"webhook url rejected",
+			slog.String("error", err.Error()),
+			slog.String("webhook_url", webhookURL),
+		)
+		http.Error(w, "invalid webhook url", http.StatusBadRequest)
+		return
 	}
 
+	client := s.webhookClient(triggerReq.WebhookURL != "")
+	reqCtx := context.WithoutCancel(r.Context())
+
 	go func() {
+		ctx, cancel := context.WithTimeout(reqCtx, webhookTimeout)
+		defer cancel()
+
 		req, reqErr := http.NewRequestWithContext(
-			context.Background(),
+			ctx,
 			http.MethodPost,
 			webhookURL,
 			bytes.NewReader(body),
 		)
 		if reqErr != nil {
-			s.logger.ErrorContext(r.Context(), "webhook request creation failed", slog.String("error", reqErr.Error()))
+			s.logger.ErrorContext(reqCtx, "webhook request creation failed", slog.String("error", reqErr.Error()))
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -179,14 +209,14 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 			mac.Write(body)
 			req.Header.Set("X-Webhook-Signature", hex.EncodeToString(mac.Sum(nil)))
 		}
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
-			s.logger.ErrorContext(r.Context(), "webhook trigger failed", slog.String("error", err.Error()))
+			s.logger.ErrorContext(reqCtx, "webhook trigger failed", slog.String("error", err.Error()))
 			return
 		}
 		_ = resp.Body.Close()
 		s.logger.InfoContext(
-			r.Context(),
+			reqCtx,
 			"webhook triggered",
 			slog.Int("status", resp.StatusCode),
 			slog.String("event", event),
@@ -195,6 +225,114 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 
 	w.WriteHeader(http.StatusAccepted)
 	_ = json.NewEncoder(w).Encode(map[string]string{"status": "webhook_triggered"})
+}
+
+func (s *mockServer) webhookClient(external bool) *http.Client {
+	transport := s.transport
+	if transport == nil && external {
+		transport = publicOnlyTransport()
+	}
+
+	return &http.Client{
+		Timeout:   webhookTimeout,
+		Transport: transport,
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			return fmt.Errorf("webhook: refusing redirect to %s", req.URL.Redacted())
+		},
+	}
+}
+
+func withTransport(rt http.RoundTripper) Option {
+	return func(s *mockServer) { s.transport = rt }
+}
+
+func validateWebhookURL(ctx context.Context, rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("parse webhook url: %w", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("webhook url scheme %q not allowed", u.Scheme)
+	}
+	host := u.Hostname()
+	if host == "" {
+		return fmt.Errorf("webhook url has no host")
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		if !isPublicUnicast(ip) {
+			return fmt.Errorf("webhook url points at non-public address %s", ip)
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, webhookTimeout)
+	defer cancel()
+
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return fmt.Errorf("resolve webhook host %q: %w", host, err)
+	}
+	if len(addrs) == 0 {
+		return fmt.Errorf("webhook host %q resolved to no addresses", host)
+	}
+	for _, addr := range addrs {
+		if !isPublicUnicast(addr.IP) {
+			return fmt.Errorf("webhook host %q resolves to non-public address %s", host, addr.IP)
+		}
+	}
+	return nil
+}
+
+func isPublicUnicast(ip net.IP) bool {
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		return false
+	}
+	addr = addr.Unmap()
+	if !addr.IsGlobalUnicast() || addr.IsPrivate() {
+		return false
+	}
+	for _, prefix := range nonPublicPrefixes() {
+		if prefix.Contains(addr) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func nonPublicPrefixes() []netip.Prefix {
+	return []netip.Prefix{
+		netip.MustParsePrefix("0.0.0.0/8"),
+		netip.MustParsePrefix("100.64.0.0/10"),
+		netip.MustParsePrefix("::/96"),
+		netip.MustParsePrefix("64:ff9b::/96"),
+	}
+}
+
+func publicOnlyTransport() *http.Transport {
+	return &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout: webhookTimeout,
+			Control: refuseNonPublicDial,
+		}).DialContext,
+		TLSHandshakeTimeout:   webhookTimeout,
+		ResponseHeaderTimeout: webhookTimeout,
+		DisableKeepAlives:     true,
+	}
+}
+
+func refuseNonPublicDial(_, address string, _ syscall.RawConn) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return fmt.Errorf("webhook: splitting dial address %q: %w", address, err)
+	}
+	if !isPublicUnicast(net.ParseIP(host)) {
+		return fmt.Errorf("webhook: refusing dial to non-public address %s", host)
+	}
+
+	return nil
 }
 
 func writeJSONResponse(w http.ResponseWriter, v any) {
