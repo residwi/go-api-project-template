@@ -118,6 +118,17 @@ func TestVerifyPassword(t *testing.T) {
 		assert.False(t, ok)
 	})
 
+	t.Run("a non-canonical version field is unsupported", func(t *testing.T) {
+		t.Parallel()
+
+		ok, err := verifyPassword(
+			"$argon2id$v=019$m=64,t=1,p=1$mnuknUkrFeb6uQoKD9Aw8w$9DzDY01O1TzZaSjWhIr7EPXXKUj1mSciB4Vkimxkmv8",
+			"correct-horse")
+
+		require.ErrorIs(t, err, errUnsupportedHash)
+		assert.False(t, ok)
+	})
+
 	t.Run("zero iterations is unsupported rather than a panic", func(t *testing.T) {
 		t.Parallel()
 

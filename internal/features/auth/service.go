@@ -39,6 +39,7 @@ type Service struct {
 func New(cfg Config, users UserDirectory, tokens Tokens, logger *slog.Logger) *Service {
 	s := &Service{
 		users:      users,
+		dummyHash:  hashPassword(dummyPassword),
 		tokens:     tokens,
 		logger:     logger,
 		hashSlots:  make(chan struct{}, runtime.GOMAXPROCS(0)),
@@ -46,7 +47,6 @@ func New(cfg Config, users UserDirectory, tokens Tokens, logger *slog.Logger) *S
 		refreshTTL: cfg.RefreshTokenTTL,
 		tracer:     otel.Tracer("github.com/residwi/go-api-project-template/internal/features/auth"),
 	}
-	s.dummyHash = hashPassword(dummyPassword)
 	keyMAC := hmac.New(sha256.New, []byte(cfg.Secret))
 	keyMAC.Write([]byte("auth.login-log-pseudonym"))
 	s.logKey = keyMAC.Sum(nil)
