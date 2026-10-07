@@ -236,12 +236,12 @@ func TestHandler_Register(t *testing.T) {
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
 
-	t.Run("accepts a 128-character password", func(t *testing.T) {
+	t.Run("accepts a 128-character password of multi-byte runes", func(t *testing.T) {
 		t.Parallel()
 
 		mux, service := newTestMux(t)
 
-		password := strings.Repeat("a", 128)
+		password := strings.Repeat("é", 128)
 		service.EXPECT().Register(mock.Anything, "test@example.com", password, "John", "Doe").
 			Return(&auth.TokenPair{
 				AccessToken:  "access-token",
