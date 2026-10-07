@@ -72,11 +72,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (_ *TokenPa
 	// leaked account state via a faster, distinct response (CWE-204 enumeration).
 	var matches bool
 	var hashErr error
-	err = s.withHashSlot(ctx, func() {
-		if matches, hashErr = verifyPassword(creds.PasswordHash, password); hashErr != nil {
-			_, _ = verifyPassword(s.dummyHash, password)
-		}
-	})
+	err = s.withHashSlot(ctx, func() { matches, hashErr = verifyPassword(creds.PasswordHash, password) })
 	if err != nil {
 		return nil, err
 	}
@@ -232,6 +228,6 @@ func (s *Service) emailPseudonym(email string) string {
 	return hex.EncodeToString(mac.Sum(nil)[:8])
 }
 
-// dummyPassword is hashed once in New so the unknown-email and unsupported-hash
-// login paths cost the same as a real Argon2id comparison.
+// dummyPassword is hashed once in New so the unknown-email login path costs the
+// same as a real Argon2id comparison.
 const dummyPassword = "invalid-user-timing-equalizer"
