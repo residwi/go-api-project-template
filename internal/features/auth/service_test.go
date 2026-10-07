@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/residwi/go-api-project-template/internal/features/auth/adapter/jwt"
 	"github.com/residwi/go-api-project-template/internal/features/auth/domain"
@@ -31,11 +30,11 @@ func TestService_Login(t *testing.T) {
 		users := NewMockUserDirectory(t)
 
 		userID := uuid.New()
-		hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
+		hash := hashPassword("password123")
 		creds := user.Credentials{
 			ID:           userID,
 			Email:        "test@example.com",
-			PasswordHash: string(hash),
+			PasswordHash: hash,
 			FirstName:    "John",
 			LastName:     "Doe",
 			Role:         "customer",
@@ -67,11 +66,11 @@ func TestService_Login(t *testing.T) {
 
 		users := NewMockUserDirectory(t)
 
-		hash, _ := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
+		hash := hashPassword("correct-password")
 		users.EXPECT().GetByEmail(mock.Anything, "inactive@example.com").Return(user.Credentials{
 			ID:           uuid.New(),
 			Email:        "inactive@example.com",
-			PasswordHash: string(hash),
+			PasswordHash: hash,
 			Active:       false,
 		}, nil)
 
@@ -83,16 +82,16 @@ func TestService_Login(t *testing.T) {
 		assert.NotErrorIs(t, err, ErrAccountDeactivated)
 	})
 
-	t.Run("inactive account with the correct password returns ErrAccountDeactivated after bcrypt", func(t *testing.T) {
+	t.Run("inactive account with the correct password returns ErrAccountDeactivated after verify", func(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
 
-		hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.MinCost)
+		hash := hashPassword("password123")
 		users.EXPECT().GetByEmail(mock.Anything, "inactive@example.com").Return(user.Credentials{
 			ID:           uuid.New(),
 			Email:        "inactive@example.com",
-			PasswordHash: string(hash),
+			PasswordHash: hash,
 			Active:       false,
 		}, nil)
 
@@ -108,11 +107,11 @@ func TestService_Login(t *testing.T) {
 
 		users := NewMockUserDirectory(t)
 
-		hash, _ := bcrypt.GenerateFromPassword([]byte("correct-password"), bcrypt.MinCost)
+		hash := hashPassword("correct-password")
 		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user.Credentials{
 			ID:           uuid.New(),
 			Email:        "test@example.com",
-			PasswordHash: string(hash),
+			PasswordHash: hash,
 			Active:       true,
 		}, nil)
 
@@ -133,6 +132,25 @@ func TestService_Login(t *testing.T) {
 
 		resp, err := newTestService(users).
 			Login(context.Background(), "notfound@example.com", "password123")
+
+		assert.Nil(t, resp)
+		assert.ErrorIs(t, err, ErrInvalidCredentials)
+	})
+
+	t.Run("a stored bcrypt hash returns ErrInvalidCredentials", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+
+		users.EXPECT().GetByEmail(mock.Anything, "admin@example.com").Return(user.Credentials{
+			ID:           uuid.New(),
+			Email:        "admin@example.com",
+			PasswordHash: "$2a$10$di3MUSPKPZiSdwcCVhRHtu09ZFeGfW29Ag6g6vlO65M7.rxNHOs5a",
+			Active:       true,
+		}, nil)
+
+		resp, err := newTestService(users).
+			Login(t.Context(), "admin@example.com", "admin123456")
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, ErrInvalidCredentials)
@@ -158,10 +176,11 @@ func TestService_Register(t *testing.T) {
 		}
 
 		users.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p user.NewUser) bool {
+			matches, err := verifyPassword(p.PasswordHash, "password123")
 			return p.Email == "test@example.com" &&
 				p.FirstName == "John" &&
 				p.LastName == "Doe" &&
-				bcrypt.CompareHashAndPassword([]byte(p.PasswordHash), []byte("password123")) == nil
+				err == nil && matches
 		})).Return(createdUser, nil)
 
 		resp, err := newTestService(users).
@@ -538,9 +557,7 @@ func TestService_LoginSecurityEvents(t *testing.T) {
 	}
 	existing := func(t *testing.T, id uuid.UUID, email string) user.Credentials {
 		t.Helper()
-		hash, err := bcrypt.GenerateFromPassword([]byte("correct-horse"), bcrypt.MinCost)
-		require.NoError(t, err)
-		return user.Credentials{ID: id, Email: email, Active: true, PasswordHash: string(hash)}
+		return user.Credentials{ID: id, Email: email, Active: true, PasswordHash: hashPassword("correct-horse")}
 	}
 
 	t.Run("unknown email is recorded by pseudonym, never by address", func(t *testing.T) {
@@ -579,6 +596,24 @@ func TestService_LoginSecurityEvents(t *testing.T) {
 		assert.NotContains(t, buf.String(), "real@example.com")
 	})
 
+	t.Run("an unsupported stored hash is recorded by user id, never by address", func(t *testing.T) {
+		t.Parallel()
+
+		var buf bytes.Buffer
+		id := uuid.New()
+		users := NewMockUserDirectory(t)
+		users.EXPECT().GetByEmail(mock.Anything, "legacy@example.com").
+			Return(user.Credentials{ID: id, Email: "legacy@example.com", Active: true, PasswordHash: "x"}, nil)
+
+		_, err := newLoggedService(users, &buf, slog.LevelWarn).
+			Login(t.Context(), "legacy@example.com", "correct-horse")
+
+		require.ErrorIs(t, err, ErrInvalidCredentials)
+		assert.Contains(t, buf.String(), `"reason":"unsupported_hash"`)
+		assert.Contains(t, buf.String(), `"user_id":"`+id.String()+`"`)
+		assert.NotContains(t, buf.String(), "legacy@example.com")
+	})
+
 	t.Run("the same address maps to the same pseudonym regardless of case", func(t *testing.T) {
 		t.Parallel()
 
@@ -613,7 +648,6 @@ func newTestConfig() Config {
 		Issuer:          "test-issuer",
 		AccessTokenTTL:  15 * time.Minute,
 		RefreshTokenTTL: 24 * time.Hour,
-		BcryptCost:      bcrypt.MinCost,
 	}
 }
 
