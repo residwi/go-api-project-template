@@ -669,7 +669,7 @@ section before copying this template.
 
 ## Security
 
-- Passwords are hashed using bcrypt
+- Passwords are hashed using Argon2id at the OWASP minimum parameters
 - JWT tokens with configurable expiration
 - Role-Based Access Control (RBAC)
 - Request ID tracking

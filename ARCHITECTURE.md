@@ -286,6 +286,20 @@ came back. The client is built unconditionally and go-redis reconnects on its
 own. *Cost:* boot still does not fail on a bad address or password, as it never
 did, so that one warning line is the only place a typo is named.
 
+**31. Passwords are Argon2id at fixed OWASP-minimum parameters, hashed behind a
+`GOMAXPROCS` bound.** `m=19456` KiB, `t=2`, `p=1` are constants in
+`auth/password.go`, not configuration: the template ships the recommendation
+rather than a knob around it. Verify reads the parameters from the stored PHC
+string, so changing the constants never breaks an existing hash. Each hash
+holds 19 MiB where bcrypt used a few KiB, and the unknown-email path hashes
+too, so every hash and verify waits for one of `GOMAXPROCS` slots: beyond the
+core count a slot adds memory without adding throughput. *Cost:* the move from
+bcrypt was a hard cutover, so a bcrypt row fails as invalid credentials, logged
+as `unsupported_hash`, and answers faster than a real verify, which reveals
+that the account exists. There is no rehash on login, so raising the constants
+reaches only new registrations. Under a login burst requests queue for a slot
+instead of exhausting memory, and one whose context ends first gets an error.
+
 ## Foreign keys across module boundaries
 
 22 foreign keys exist and 16 cross a module boundary. All 16 stay. The 6 that
