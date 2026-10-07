@@ -22,6 +22,13 @@ const (
 	phcFields     = 3
 )
 
+// A stored hash beyond these bounds is refused: x/crypto allocates m KiB up front
+// and IDKey takes no context, so one bad row could OOM the process or hold a slot forever.
+const (
+	maxStoredMemory     = 256 * 1024
+	maxStoredIterations = 10
+)
+
 var errUnsupportedHash = errors.New("unsupported password hash format")
 
 func hashPassword(password string) string {
@@ -44,7 +51,7 @@ func verifyPassword(encoded, password string) (bool, error) {
 	var memory, iterations uint32
 	var threads uint8
 	_, err := fmt.Sscanf(fields[0], "m=%d,t=%d,p=%d", &memory, &iterations, &threads)
-	if err != nil || iterations < 1 || threads < 1 {
+	if err != nil || iterations < 1 || threads < 1 || iterations > maxStoredIterations || memory > maxStoredMemory {
 		return false, errUnsupportedHash
 	}
 

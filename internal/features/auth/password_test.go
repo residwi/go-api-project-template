@@ -172,4 +172,26 @@ func TestVerifyPassword(t *testing.T) {
 		require.ErrorIs(t, err, errUnsupportedHash)
 		assert.False(t, ok)
 	})
+
+	t.Run("a memory cost above 256 MiB is unsupported rather than an OOM", func(t *testing.T) {
+		t.Parallel()
+
+		ok, err := verifyPassword(
+			"$argon2id$v=19$m=262145,t=1,p=1$mnuknUkrFeb6uQoKD9Aw8w$9DzDY01O1TzZaSjWhIr7EPXXKUj1mSciB4Vkimxkmv8",
+			"correct-horse")
+
+		require.ErrorIs(t, err, errUnsupportedHash)
+		assert.False(t, ok)
+	})
+
+	t.Run("more than 10 iterations is unsupported rather than a stalled slot", func(t *testing.T) {
+		t.Parallel()
+
+		ok, err := verifyPassword(
+			"$argon2id$v=19$m=64,t=11,p=1$mnuknUkrFeb6uQoKD9Aw8w$9DzDY01O1TzZaSjWhIr7EPXXKUj1mSciB4Vkimxkmv8",
+			"correct-horse")
+
+		require.ErrorIs(t, err, errUnsupportedHash)
+		assert.False(t, ok)
+	})
 }
