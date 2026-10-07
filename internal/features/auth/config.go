@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type Config struct {
@@ -16,7 +15,6 @@ type Config struct {
 	RefreshTokenTTL time.Duration `envconfig:"JWT_REFRESH_TTL"                  default:"168h"`
 	RateLimit       int           `envconfig:"AUTH_RATE_LIMIT"                  default:"10"`
 	RateWindow      time.Duration `envconfig:"AUTH_RATE_WINDOW"                 default:"1m"`
-	BcryptCost      int           `envconfig:"BCRYPT_COST"                      default:"10"`
 }
 
 // minSecretBytes floors the HS256 key at 256 bits, matching the HMAC-SHA256 output width.
@@ -45,12 +43,6 @@ func LoadConfig() (Config, error) {
 	if cfg.RateWindow < time.Second {
 		return Config{}, errors.New(
 			"AUTH_RATE_WINDOW must be at least 1s (a deliberate minimum window)",
-		)
-	}
-
-	if cfg.BcryptCost < bcrypt.MinCost || cfg.BcryptCost > bcrypt.MaxCost {
-		return Config{}, fmt.Errorf(
-			"BCRYPT_COST must be between %d and %d", bcrypt.MinCost, bcrypt.MaxCost,
 		)
 	}
 
