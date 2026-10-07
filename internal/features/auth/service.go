@@ -115,10 +115,6 @@ func (s *Service) Register(
 	defer span.End()
 	defer func() { tracing.Record(span, err) }()
 
-	if len(password) > maxPasswordBytes {
-		return nil, fmt.Errorf("%w: password must not exceed %d bytes", errs.ErrBadRequest, maxPasswordBytes)
-	}
-
 	var hash string
 	if err = s.withHashSlot(ctx, func() { hash = hashPassword(password) }); err != nil {
 		return nil, err
@@ -239,7 +235,3 @@ func (s *Service) emailPseudonym(email string) string {
 // dummyPassword is hashed once in New so the unknown-email and unsupported-hash
 // login paths cost the same as a real Argon2id comparison.
 const dummyPassword = "invalid-user-timing-equalizer"
-
-// maxPasswordBytes is bcrypt's hard input limit; inputs longer than this error
-// in GenerateFromPassword. validator's max=72 counts runes, so we re-check bytes.
-const maxPasswordBytes = 72

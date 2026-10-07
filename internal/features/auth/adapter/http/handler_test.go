@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -232,6 +233,61 @@ func TestHandler_Register(t *testing.T) {
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
+		assert.Equal(t, "validation failed", resp.Error.Message)
+	})
+
+	t.Run("accepts a 128-character password", func(t *testing.T) {
+		t.Parallel()
+
+		mux, service := newTestMux(t)
+
+		password := strings.Repeat("a", 128)
+		service.EXPECT().Register(mock.Anything, "test@example.com", password, "John", "Doe").
+			Return(&auth.TokenPair{
+				AccessToken:  "access-token",
+				RefreshToken: "refresh-token",
+				ExpiresIn:    15 * time.Minute,
+				User:         user.Profile{ID: uuid.New(), Email: "test@example.com", Role: "user", Active: true},
+			}, nil)
+
+		body, _ := json.Marshal(map[string]string{
+			"email":      "test@example.com",
+			"password":   password,
+			"first_name": "John",
+			"last_name":  "Doe",
+		})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+	})
+
+	t.Run("rejects a 129-character password", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := newTestMux(t)
+
+		body, _ := json.Marshal(map[string]string{
+			"email":      "test@example.com",
+			"password":   strings.Repeat("a", 129),
+			"first_name": "John",
+			"last_name":  "Doe",
+		})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
 

@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"strings"
 	"testing"
 	"time"
 
@@ -206,20 +205,6 @@ func TestService_Register(t *testing.T) {
 
 		assert.Nil(t, resp)
 		assert.ErrorIs(t, err, errs.ErrConflict)
-	})
-
-	t.Run("password exceeding 72 bytes is a bad request, not a 500", func(t *testing.T) {
-		t.Parallel()
-
-		longPassword := strings.Repeat("a", 73)
-
-		var users UserDirectory
-		resp, err := newTestService(users).
-			Register(context.Background(), "test@example.com", longPassword, "John", "Doe")
-
-		assert.Nil(t, resp)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
 }
 
