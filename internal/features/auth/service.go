@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime"
 	"strings"
 	"time"
 
@@ -30,6 +31,9 @@ type Service struct {
 	logger     *slog.Logger
 	logKey     []byte
 	tracer     trace.Tracer
+	// hashSlots bounds concurrent Argon2id work at GOMAXPROCS: every hash holds 19 MiB,
+	// and a slot beyond the core count adds memory without adding throughput.
+	hashSlots chan struct{}
 }
 
 func New(cfg Config, users UserDirectory, tokens Tokens, logger *slog.Logger) *Service {
@@ -37,6 +41,7 @@ func New(cfg Config, users UserDirectory, tokens Tokens, logger *slog.Logger) *S
 		users:      users,
 		tokens:     tokens,
 		logger:     logger,
+		hashSlots:  make(chan struct{}, runtime.GOMAXPROCS(0)),
 		accessTTL:  cfg.AccessTokenTTL,
 		refreshTTL: cfg.RefreshTokenTTL,
 		tracer:     otel.Tracer("github.com/residwi/go-api-project-template/internal/features/auth"),
@@ -55,7 +60,9 @@ func (s *Service) Login(ctx context.Context, email, password string) (_ *TokenPa
 
 	creds, err := s.users.GetByEmail(ctx, email)
 	if err != nil {
-		_, _ = verifyPassword(s.dummyHash, password)
+		if err = s.withHashSlot(ctx, func() { _, _ = verifyPassword(s.dummyHash, password) }); err != nil {
+			return nil, err
+		}
 		s.logger.WarnContext(ctx, "login failed",
 			slog.String("email_pseudonym", s.emailPseudonym(email)), slog.String("reason", "unknown_email"))
 		return nil, ErrInvalidCredentials
@@ -63,9 +70,18 @@ func (s *Service) Login(ctx context.Context, email, password string) (_ *TokenPa
 
 	// The password check must run before the Active check: skipping it for inactive accounts
 	// leaked account state via a faster, distinct response (CWE-204 enumeration).
-	matches, err := verifyPassword(creds.PasswordHash, password)
+	var matches bool
+	var hashErr error
+	err = s.withHashSlot(ctx, func() {
+		if matches, hashErr = verifyPassword(creds.PasswordHash, password); hashErr != nil {
+			_, _ = verifyPassword(s.dummyHash, password)
+		}
+	})
 	if err != nil {
-		_, _ = verifyPassword(s.dummyHash, password)
+		return nil, err
+	}
+
+	if hashErr != nil {
 		s.logger.WarnContext(ctx, "login failed",
 			slog.String("user_id", creds.ID.String()), slog.String("reason", "unsupported_hash"))
 		return nil, ErrInvalidCredentials
@@ -103,9 +119,14 @@ func (s *Service) Register(
 		return nil, fmt.Errorf("%w: password must not exceed %d bytes", errs.ErrBadRequest, maxPasswordBytes)
 	}
 
+	var hash string
+	if err = s.withHashSlot(ctx, func() { hash = hashPassword(password) }); err != nil {
+		return nil, err
+	}
+
 	user, err := s.users.Create(ctx, user.NewUser{
 		Email:        email,
-		PasswordHash: hashPassword(password),
+		PasswordHash: hash,
 		FirstName:    firstName,
 		LastName:     lastName,
 	})
@@ -195,6 +216,18 @@ func (s *Service) activeProfile(ctx context.Context, claims domain.Claims) (user
 	}
 
 	return u, nil
+}
+
+func (s *Service) withHashSlot(ctx context.Context, fn func()) error {
+	select {
+	case s.hashSlots <- struct{}{}:
+	case <-ctx.Done():
+		return fmt.Errorf("waiting for a hash slot: %w", ctx.Err())
+	}
+	defer func() { <-s.hashSlots }()
+
+	fn()
+	return nil
 }
 
 func (s *Service) emailPseudonym(email string) string {

@@ -639,6 +639,74 @@ func TestService_LoginSecurityEvents(t *testing.T) {
 	})
 }
 
+func TestService_HashSlots(t *testing.T) {
+	t.Parallel()
+
+	t.Run("login waiting on a full slot returns the context error", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user.Credentials{
+			ID:           uuid.New(),
+			Email:        "test@example.com",
+			PasswordHash: hashPassword("password123"),
+			Active:       true,
+		}, nil)
+
+		svc := newTestService(users)
+		svc.hashSlots = make(chan struct{}, 1)
+		svc.hashSlots <- struct{}{}
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		resp, err := svc.Login(ctx, "test@example.com", "password123")
+
+		assert.Nil(t, resp)
+		require.ErrorIs(t, err, context.Canceled)
+		assert.NotErrorIs(t, err, ErrInvalidCredentials)
+	})
+
+	t.Run("register waiting on a full slot returns the context error before any write", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+
+		svc := newTestService(users)
+		svc.hashSlots = make(chan struct{}, 1)
+		svc.hashSlots <- struct{}{}
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		resp, err := svc.Register(ctx, "test@example.com", "password123", "John", "Doe")
+
+		assert.Nil(t, resp)
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("a slot is released after every login", func(t *testing.T) {
+		t.Parallel()
+
+		users := NewMockUserDirectory(t)
+		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user.Credentials{
+			ID:           uuid.New(),
+			Email:        "test@example.com",
+			PasswordHash: hashPassword("password123"),
+			Active:       true,
+		}, nil).Times(2)
+
+		svc := newTestService(users)
+		svc.hashSlots = make(chan struct{}, 1)
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+
+		_, err := svc.Login(ctx, "test@example.com", "password123")
+		require.NoError(t, err)
+
+		_, err = svc.Login(ctx, "test@example.com", "password123")
+		require.NoError(t, err)
+	})
+}
+
 // newTestConfig gives every Service test the same secret, issuer and TTLs
 // token/usecase_test.go used to hard-code per test; subtests that need a
 // different value copy this and override just that field.
