@@ -289,16 +289,21 @@ did, so that one warning line is the only place a typo is named.
 **31. Passwords are Argon2id at fixed OWASP-minimum parameters, hashed behind a
 `GOMAXPROCS` bound.** `m=19456` KiB, `t=2`, `p=1` are constants in
 `auth/password.go`, not configuration: the template ships the recommendation
-rather than a knob around it. Verify reads the parameters from the stored PHC
-string, so changing the constants never breaks an existing hash. Each hash
-holds 19 MiB where bcrypt used a few KiB, and the unknown-email path hashes
-too, so every hash and verify waits for one of `GOMAXPROCS` slots: beyond the
-core count a slot adds memory without adding throughput. *Cost:* the move from
-bcrypt was a hard cutover, so a bcrypt row fails as invalid credentials, logged
-as `unsupported_hash`, and answers faster than a real verify, which reveals
-that the account exists. There is no rehash on login, so raising the constants
-reaches only new registrations. Under a login burst requests queue for a slot
-instead of exhausting memory, and one whose context ends first gets an error.
+rather than a knob around it. Verify reads the cost parameters from the stored
+PHC string, so changing them never breaks an existing hash; the key length stays
+fixed at 32 bytes. It refuses a stored cost above 256 MiB or 10 iterations:
+x/crypto allocates the memory up front and takes no context, so one bad row
+could otherwise crash the process or hold a slot forever. Each hash holds 19 MiB
+where bcrypt used a few KiB, and the unknown-email path hashes too, so every
+hash and verify waits for one of `GOMAXPROCS` slots: beyond the core count a
+slot adds memory without adding throughput. *Cost:* the move from bcrypt was a
+hard cutover, so a bcrypt row fails as invalid credentials, logged as
+`unsupported_hash`, and answers faster than a real verify, which reveals that
+the account exists. There is no rehash on login, so raising the constants
+reaches only new registrations, and rows left at the old parameters no longer
+cost what the dummy hash costs, so the unknown-email path's timing tells those
+accounts apart again. Under a login burst requests queue for a slot instead of
+exhausting memory, and one whose context ends first gets an error.
 
 ## Foreign keys across module boundaries
 
