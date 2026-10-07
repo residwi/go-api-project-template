@@ -106,6 +106,29 @@ func TestHandler_Login(t *testing.T) {
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
 
+	t.Run("rejects a 129-character password before any hashing", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := newTestMux(t)
+
+		body, _ := json.Marshal(map[string]string{
+			"email":    "test@example.com",
+			"password": strings.Repeat("a", 129),
+		})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.Equal(t, "validation failed", resp.Error.Message)
+	})
+
 	t.Run("service error user not found", func(t *testing.T) {
 		t.Parallel()
 
