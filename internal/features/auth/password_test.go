@@ -10,6 +10,7 @@ import (
 const (
 	argon2cffiHash        = "$argon2id$v=19$m=64,t=1,p=4$0zo1s47tKoc0BAfwNIPjcA$kgF0pMCpxtOqI1aNqFdjEqx8zkvpaFpxUk0OH3UzKHw"
 	argon2cffiLongKeyHash = "$argon2id$v=19$m=64,t=1,p=1$NCQWez0p6+3DC3PWcUk+tg$ZzAl9PdBfi0HdMYO1p9wMs1X5cpECnyR1T8j6UsF7ufanzCrGIXrJQba3nTnlZf8YTsDhKhtwG042m+USz9lxA"
+	argon2iHash           = "$argon2i$v=19$m=64,t=1,p=4$0zo1s47tKoc0BAfwNIPjcA$kgF0pMCpxtOqI1aNqFdjEqx8zkvpaFpxUk0OH3UzKHw"
 )
 
 func TestHashPassword(t *testing.T) {
@@ -72,10 +73,10 @@ func TestVerifyPassword(t *testing.T) {
 		assert.False(t, ok)
 	})
 
-	t.Run("a bcrypt hash is unsupported", func(t *testing.T) {
+	t.Run("an argon2i hash is unsupported", func(t *testing.T) {
 		t.Parallel()
 
-		ok, err := verifyPassword("$2a$10$di3MUSPKPZiSdwcCVhRHtu09ZFeGfW29Ag6g6vlO65M7.rxNHOs5a", "admin123456")
+		ok, err := verifyPassword(argon2iHash, "correct-horse")
 
 		require.ErrorIs(t, err, errUnsupportedHash)
 		assert.False(t, ok)

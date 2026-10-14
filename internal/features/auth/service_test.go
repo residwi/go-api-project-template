@@ -136,7 +136,7 @@ func TestService_Login(t *testing.T) {
 		assert.ErrorIs(t, err, ErrInvalidCredentials)
 	})
 
-	t.Run("a stored bcrypt hash returns ErrInvalidCredentials", func(t *testing.T) {
+	t.Run("a stored hash in another format returns ErrInvalidCredentials", func(t *testing.T) {
 		t.Parallel()
 
 		users := NewMockUserDirectory(t)
@@ -144,7 +144,7 @@ func TestService_Login(t *testing.T) {
 		users.EXPECT().GetByEmail(mock.Anything, "admin@example.com").Return(user.Credentials{
 			ID:           uuid.New(),
 			Email:        "admin@example.com",
-			PasswordHash: "$2a$10$di3MUSPKPZiSdwcCVhRHtu09ZFeGfW29Ag6g6vlO65M7.rxNHOs5a",
+			PasswordHash: argon2iHash,
 			Active:       true,
 		}, nil)
 

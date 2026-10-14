@@ -254,7 +254,7 @@ func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 	got := toUserResponse(&domain.User{
 		ID:           userID,
 		Email:        "user@example.com",
-		PasswordHash: "$2a$10$distinguishablebcryptvalue",
+		PasswordHash: "$argon2id$v=19$m=19456,t=2,p=1$c2FsdHNhbHRzYWx0$distinguishablehashvalue",
 		FirstName:    "John",
 		LastName:     "Doe",
 		Phone:        "+15551234567",
@@ -278,7 +278,7 @@ func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 		"the public profile must expose exactly these fields",
 	)
 
-	assert.NotContains(t, string(raw), "distinguishablebcryptvalue",
+	assert.NotContains(t, string(raw), "distinguishablehashvalue",
 		"PasswordHash is credential material and must never be serialised")
 	assert.NotContains(t, string(raw), "424242",
 		"TokenVersion is auth-internal revocation state and must never be serialised")
