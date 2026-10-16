@@ -258,11 +258,12 @@ consecutive failures open it for five seconds, and the cooldown releases one
 probe rather than the herd behind it. Any reply the server authored —
 `redis.Nil`, `MISCONF`, a Lua error — counts as a success, since reachability is
 all this measures. `server.go` builds a second client without the `Limiter` for
-`middleware.RateLimit`, which fails open: one shared fuse would let a slow cache
-switch off login and checkout throttling. *Cost:* a second pool, and an
-invalidation fired while the breaker is open never lands, so a value written
-before the outage survives its own TTL once it closes — five minutes for
-`category.List` and the `notification` counter.
+`middleware.RateLimit`: one shared fuse would let a slow cache push login and
+checkout throttling onto its in-process fallback, a fixed window per replica
+that admits the whole limit at once instead of the GCRA burst. *Cost:* a second
+pool, and an invalidation fired while the breaker is open never lands, so a
+value written before the outage survives its own TTL once it closes — five
+minutes for `category.List` and the `notification` counter.
 
 **29. Redis is bounded by the socket timeouts, not by a context per command.**
 Dial, read, write and pool are all 1s and `MaxRetries` is `-1`. go-redis hands

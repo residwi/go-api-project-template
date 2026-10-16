@@ -96,8 +96,9 @@ func RunContext( //nolint:funlen // one linear boot sequence: config, tracing, d
 	defer rdb.Close()
 
 	// Deliberately the same options minus the breaker. The cache's breaker trips on
-	// latency, and one shared fuse would let a slow Redis switch off login and
-	// checkout throttling process-wide, since RateLimit fails open.
+	// latency, and one shared fuse would let a slow cache push login and checkout
+	// throttling onto RateLimit's in-process fallback: a fixed window per replica
+	// that admits the whole limit at once instead of the GCRA burst.
 	limiterRDB, err := cache.NewRedis(ctx, &redis.Options{
 		Addr:         appCfg.Redis.Addr(),
 		Password:     appCfg.Redis.Password,

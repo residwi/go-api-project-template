@@ -626,8 +626,9 @@ open breaker costs no I/O at all; the cooldown releases one probe rather than
 the whole herd. Every cached read falls through to Postgres on a Redis error,
 so an outage costs latency and full read traffic at the database, not errors.
 `internal/server` builds a second Redis client **without** the breaker for
-rate limiting — `RateLimit` fails open, and one shared fuse would let a slow
-cache switch off login and checkout throttling.
+rate limiting — one shared fuse would let a slow cache push login and checkout
+throttling onto `RateLimit`'s in-process fallback, a fixed window per replica
+that admits the whole limit at once instead of the GCRA burst.
 
 Two things that follow from this and are easy to miss: an invalidation fired
 while the breaker is open never lands, so a pre-outage value can survive its
