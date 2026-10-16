@@ -36,12 +36,17 @@ func TestRequireRole(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
 
-	t.Run("rejects an anonymous caller with 401", func(t *testing.T) {
+	t.Run("rejects an anonymous caller with the 401 RequireUser gives", func(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		RequireRole(testLogger(), "admin")(next).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.JSONEq(
+			t,
+			`{"success":false,"error":{"message":"unauthorized: authentication required"}}`,
+			w.Body.String(),
+		)
 	})
 
 	t.Run("gates on the role it was given, not on admin", func(t *testing.T) {
