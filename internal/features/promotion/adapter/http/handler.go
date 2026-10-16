@@ -20,22 +20,22 @@ func NewHandler(service PromotionApplier) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
-	_, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) error {
+	_, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[applyRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[applyRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	discount, err := h.service.Apply(r.Context(), req.Code, req.Subtotal)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toApplyResponse(req.Code, discount))
+	return nil
 }

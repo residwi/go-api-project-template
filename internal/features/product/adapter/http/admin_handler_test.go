@@ -98,7 +98,7 @@ func TestAdminHandler_Get(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 }
 
@@ -172,7 +172,7 @@ func TestAdminHandler_List(t *testing.T) {
 
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Equal(t, "invalid category_id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid category_id", resp.Error.Message)
 	})
 
 	t.Run("service error", func(t *testing.T) {
@@ -388,7 +388,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
@@ -573,7 +573,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 
 	t.Run("service error not found", func(t *testing.T) {

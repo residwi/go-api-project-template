@@ -27,7 +27,7 @@ func NewAdminHandler(service OrderManager) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) error {
 	page := paging.ParseOffsetPage(r)
 	params := order.AdminListParams{
 		OffsetPage: page,
@@ -36,8 +36,7 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	orders, total, err := h.service.ListAdmin(r.Context(), params)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out := make([]orderResponse, len(orders))
@@ -46,38 +45,39 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, paging.NewOffsetPageResult(out, page, total))
+	return nil
 }
 
-func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) Get(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	o, err := h.service.Get(r.Context(), id)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toOrderResponse(o))
+	return nil
 }
 
-func (h *AdminHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) ChangeStatus(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[updateStatusRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[updateStatusRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.ChangeStatus(r.Context(), id, domain.Status(req.Status)); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }

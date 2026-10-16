@@ -24,37 +24,37 @@ func NewHandler(service ProfileManager) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
 	u, err := h.service.GetByID(r.Context(), uc.UserID)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toUserResponse(u))
+	return nil
 }
 
-func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[updateProfileRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[updateProfileRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	u, err := h.service.UpdateProfile(r.Context(), uc.UserID, req.FirstName, req.LastName, req.Phone)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toUserResponse(u))
+	return nil
 }

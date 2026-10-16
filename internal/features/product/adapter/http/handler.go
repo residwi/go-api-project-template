@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -29,7 +30,7 @@ func NewHandler(service ProductReader) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) ListPublished(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListPublished(w http.ResponseWriter, r *http.Request) error {
 	cursor := paging.ParseCursorPage(r)
 
 	params := product.PublishedListParams{
@@ -41,32 +42,28 @@ func (h *Handler) ListPublished(w http.ResponseWriter, r *http.Request) {
 	if catID := r.URL.Query().Get("category_id"); catID != "" {
 		id, err := uuid.Parse(catID)
 		if err != nil {
-			response.BadRequest(w, "invalid category_id")
-			return
+			return fmt.Errorf("%w: invalid category_id", errs.ErrBadRequest)
 		}
 		params.CategoryID = &id
 	}
 	if minStr := r.URL.Query().Get("min_price"); minStr != "" {
 		v, err := strconv.ParseInt(minStr, 10, 64)
 		if err != nil {
-			response.BadRequest(w, "invalid min_price")
-			return
+			return fmt.Errorf("%w: invalid min_price", errs.ErrBadRequest)
 		}
 		params.MinPrice = &v
 	}
 	if maxStr := r.URL.Query().Get("max_price"); maxStr != "" {
 		v, err := strconv.ParseInt(maxStr, 10, 64)
 		if err != nil {
-			response.BadRequest(w, "invalid max_price")
-			return
+			return fmt.Errorf("%w: invalid max_price", errs.ErrBadRequest)
 		}
 		params.MaxPrice = &v
 	}
 
 	products, nextCursor, hasMore, err := h.service.ListPublished(r.Context(), params)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out := make([]productResponse, len(products))
@@ -75,24 +72,23 @@ func (h *Handler) ListPublished(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, paging.NewCursorPageResult(out, nextCursor, hasMore))
+	return nil
 }
 
-func (h *Handler) GetBySlug(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetBySlug(w http.ResponseWriter, r *http.Request) error {
 	slug := r.PathValue("slug")
 	if slug == "" {
-		response.BadRequest(w, "slug is required")
-		return
+		return fmt.Errorf("%w: slug is required", errs.ErrBadRequest)
 	}
 	if len(slug) > maxSlugLen {
-		response.HandleErr(w, errs.ErrNotFound)
-		return
+		return errs.ErrNotFound
 	}
 
 	p, err := h.service.GetBySlug(r.Context(), slug)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toProductResponse(p))
+	return nil
 }

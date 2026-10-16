@@ -198,7 +198,7 @@ func TestAdminHandler_Update(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
@@ -305,7 +305,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 
 	t.Run("service error", func(t *testing.T) {

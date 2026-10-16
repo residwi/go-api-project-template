@@ -27,7 +27,7 @@ func NewAdminHandler(service PaymentManager) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) error {
 	page := paging.ParseOffsetPage(r)
 	params := payment.AdminListParams{
 		OffsetPage: page,
@@ -37,8 +37,7 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	payments, total, err := h.service.ListAdmin(r.Context(), params)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out := make([]adminPaymentResponse, len(payments))
@@ -47,33 +46,34 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, paging.NewOffsetPageResult(out, page, total))
+	return nil
 }
 
-func (h *AdminHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) GetByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	p, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toAdminPaymentResponse(p))
+	return nil
 }
 
-func (h *AdminHandler) Refund(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) Refund(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.Refund(r.Context(), id); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, refundResponse{Status: "refund_enqueued"})
+	return nil
 }

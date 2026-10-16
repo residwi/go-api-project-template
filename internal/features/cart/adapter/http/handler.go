@@ -27,99 +27,98 @@ func NewHandler(service CartManager) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) Get(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
 	c, err := h.service.Get(r.Context(), uc.UserID)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out, err := toCartResponse(c)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, out)
+	return nil
 }
 
-func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) Add(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[addItemRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[addItemRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.Add(r.Context(), uc.UserID, req.ProductID, req.Quantity); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.Created(w, nil)
+	return nil
 }
 
-func (h *Handler) UpdateQuantity(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) UpdateQuantity(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	productID, ok := request.ParseUUIDParam(w, r, "product_id")
-	if !ok {
-		return
+	productID, err := request.ParseUUIDParam(r, "product_id")
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[updateQuantityRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[updateQuantityRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.UpdateQuantity(r.Context(), uc.UserID, productID, req.Quantity); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }
 
-func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	productID, ok := request.ParseUUIDParam(w, r, "product_id")
-	if !ok {
-		return
+	productID, err := request.ParseUUIDParam(r, "product_id")
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.Remove(r.Context(), uc.UserID, productID); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }
 
-func (h *Handler) Clear(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) Clear(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.Clear(r.Context(), uc.UserID); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }

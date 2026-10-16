@@ -99,22 +99,6 @@ func TestErr(t *testing.T) {
 	}, body.Error)
 }
 
-func TestBadRequest(t *testing.T) {
-	t.Parallel()
-
-	w := httptest.NewRecorder()
-	BadRequest(w, "invalid input")
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestNotFound(t *testing.T) {
-	t.Parallel()
-
-	w := httptest.NewRecorder()
-	NotFound(w, "resource not found")
-	assert.Equal(t, http.StatusNotFound, w.Code)
-}
-
 func TestUnauthorized(t *testing.T) {
 	t.Parallel()
 
@@ -129,14 +113,6 @@ func TestForbidden(t *testing.T) {
 	w := httptest.NewRecorder()
 	Forbidden(w, "admin only")
 	assert.Equal(t, http.StatusForbidden, w.Code)
-}
-
-func TestConflict(t *testing.T) {
-	t.Parallel()
-
-	w := httptest.NewRecorder()
-	Conflict(w, "already exists")
-	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestTooManyRequests(t *testing.T) {

@@ -5,8 +5,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-
-	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
 type WebhookProcessor interface {
@@ -24,18 +22,18 @@ func NewWebhookHandler(service WebhookProcessor, log *slog.Logger) *WebhookHandl
 
 const webhookSignatureHeader = "X-Webhook-Signature"
 
-func (h *WebhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
+func (h *WebhookHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) error {
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 	if err != nil {
 		h.logger.ErrorContext(r.Context(), "webhook: failed to read body", slog.String("error", err.Error()))
 		w.WriteHeader(http.StatusOK)
-		return
+		return nil
 	}
 
 	if err := h.service.HandleWebhook(r.Context(), body, r.Header.Get(webhookSignatureHeader)); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	w.WriteHeader(http.StatusOK)
+	return nil
 }

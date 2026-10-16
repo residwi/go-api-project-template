@@ -31,43 +31,42 @@ func NewHandler(service ReviewManager) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	productID, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+	productID, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[createReviewRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[createReviewRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	rv, err := h.service.Create(r.Context(), uc.UserID, productID, req.OrderID, req.Rating, req.Title, req.Body)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.Created(w, toReviewResponse(*rv))
+	return nil
 }
 
-func (h *Handler) ListByProduct(w http.ResponseWriter, r *http.Request) {
-	productID, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *Handler) ListByProduct(w http.ResponseWriter, r *http.Request) error {
+	productID, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	cursor := paging.ParseCursorPage(r)
 
 	reviews, err := h.service.ListByProduct(r.Context(), productID, cursor)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out := make([]reviewResponse, len(reviews))
@@ -78,4 +77,5 @@ func (h *Handler) ListByProduct(w http.ResponseWriter, r *http.Request) {
 	response.CursorPage(w, out, cursor.Limit, func(rv reviewResponse) (time.Time, uuid.UUID) {
 		return rv.CreatedAt, rv.ID
 	})
+	return nil
 }

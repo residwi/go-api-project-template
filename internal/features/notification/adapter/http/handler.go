@@ -28,18 +28,17 @@ func NewHandler(service NotificationManager) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
 	cursor := paging.ParseCursorPage(r)
 
 	notifications, err := h.service.List(r.Context(), uc.UserID, cursor)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out := make([]notificationResponse, len(notifications))
@@ -50,52 +49,53 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	response.CursorPage(w, out, cursor.Limit, func(n notificationResponse) (time.Time, uuid.UUID) {
 		return n.CreatedAt, n.ID
 	})
+	return nil
 }
 
-func (h *Handler) CountUnread(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) CountUnread(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
 	count, err := h.service.CountUnread(r.Context(), uc.UserID)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, unreadCountResponse{Count: count})
+	return nil
 }
 
-func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.MarkRead(r.Context(), uc.UserID, id); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }
 
-func (h *Handler) MarkAllRead(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) MarkAllRead(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.MarkAllRead(r.Context(), uc.UserID); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }

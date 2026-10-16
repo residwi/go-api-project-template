@@ -176,14 +176,11 @@ func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/categories/", nil)
 
-	h.GetBySlug(w, r)
+	err := h.GetBySlug(w, r)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-
-	var resp response.Response
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-	assert.False(t, resp.Success)
-	assert.Equal(t, "slug is required", resp.Error.Message)
+	require.ErrorIs(t, err, errs.ErrBadRequest)
+	require.EqualError(t, err, "bad request: slug is required")
+	assert.Empty(t, w.Body.String())
 }
 
 func TestToCategoryResponse_OmitsModerationAndAuditFields(t *testing.T) {

@@ -35,24 +35,12 @@ func Err(w http.ResponseWriter, status int, message string, details map[string]a
 	})
 }
 
-func BadRequest(w http.ResponseWriter, message string) {
-	Err(w, http.StatusBadRequest, message, nil)
-}
-
-func NotFound(w http.ResponseWriter, message string) {
-	Err(w, http.StatusNotFound, message, nil)
-}
-
 func Unauthorized(w http.ResponseWriter, message string) {
 	Err(w, http.StatusUnauthorized, message, nil)
 }
 
 func Forbidden(w http.ResponseWriter, message string) {
 	Err(w, http.StatusForbidden, message, nil)
-}
-
-func Conflict(w http.ResponseWriter, message string) {
-	Err(w, http.StatusConflict, message, nil)
 }
 
 func TooManyRequests(w http.ResponseWriter, message string) {

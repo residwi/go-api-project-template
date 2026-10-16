@@ -240,7 +240,7 @@ func TestAdminHandler_GetByID(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 
 	t.Run("service error not found", func(t *testing.T) {
@@ -327,7 +327,7 @@ func TestAdminHandler_Update(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
@@ -459,7 +459,7 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 
 	t.Run("missing auth context", func(t *testing.T) {
@@ -485,7 +485,7 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
-		assert.Equal(t, "authentication required", resp.Error.Message)
+		assert.Equal(t, "unauthorized: authentication required", resp.Error.Message)
 	})
 
 	t.Run("invalid JSON", func(t *testing.T) {
@@ -620,7 +620,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 
 	t.Run("missing auth context", func(t *testing.T) {
@@ -640,7 +640,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
-		assert.Equal(t, "authentication required", resp.Error.Message)
+		assert.Equal(t, "unauthorized: authentication required", resp.Error.Message)
 	})
 
 	t.Run("self-deletion blocked", func(t *testing.T) {

@@ -172,14 +172,10 @@ func TestHandler_List(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/notifications", nil)
 		w := httptest.NewRecorder()
 
-		h.List(w, r)
+		err := h.List(w, r)
 
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		success, ok := resp["success"].(bool)
-		require.True(t, ok)
-		assert.False(t, success)
+		require.ErrorIs(t, err, errs.ErrUnauthorized)
+		assert.Empty(t, w.Body.String())
 	})
 }
 
@@ -194,9 +190,10 @@ func TestHandler_UnreadCount(t *testing.T) {
 		r := httptest.NewRequest(http.MethodGet, "/notifications/unread-count", nil)
 		w := httptest.NewRecorder()
 
-		h.CountUnread(w, r)
+		err := h.CountUnread(w, r)
 
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		require.ErrorIs(t, err, errs.ErrUnauthorized)
+		assert.Empty(t, w.Body.String())
 	})
 }
 
@@ -289,7 +286,7 @@ func TestHandler_MarkRead_InvalidUUID(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 }
 
@@ -304,9 +301,10 @@ func TestHandler_MarkRead(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPut, "/notifications/"+uuid.NewString()+"/read", nil)
 		w := httptest.NewRecorder()
 
-		h.MarkRead(w, r)
+		err := h.MarkRead(w, r)
 
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		require.ErrorIs(t, err, errs.ErrUnauthorized)
+		assert.Empty(t, w.Body.String())
 	})
 
 	t.Run("invalid UUID", func(t *testing.T) {
@@ -318,14 +316,11 @@ func TestHandler_MarkRead(t *testing.T) {
 		r.SetPathValue("id", "bad")
 		w := httptest.NewRecorder()
 
-		h.MarkRead(w, r)
+		err := h.MarkRead(w, r)
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		errBody, ok := resp["error"].(map[string]any)
-		require.True(t, ok)
-		assert.Contains(t, errBody["message"], "invalid id")
+		require.ErrorIs(t, err, errs.ErrBadRequest)
+		require.EqualError(t, err, "bad request: invalid id")
+		assert.Empty(t, w.Body.String())
 	})
 }
 
@@ -380,9 +375,10 @@ func TestHandler_MarkAllRead(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPut, "/notifications/read-all", nil)
 		w := httptest.NewRecorder()
 
-		h.MarkAllRead(w, r)
+		err := h.MarkAllRead(w, r)
 
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		require.ErrorIs(t, err, errs.ErrUnauthorized)
+		assert.Empty(t, w.Body.String())
 	})
 }
 

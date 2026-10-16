@@ -25,57 +25,57 @@ func NewAdminHandler(service ShipmentManager) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	orderID, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) error {
+	orderID, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[createShipmentRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[createShipmentRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	shipment, err := h.service.Create(r.Context(), orderID, req.Carrier, req.TrackingNumber)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.Created(w, toShipmentResponse(shipment))
+	return nil
 }
 
-func (h *AdminHandler) Deliver(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) Deliver(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	shipment, err := h.service.Deliver(r.Context(), id)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toShipmentResponse(shipment))
+	return nil
 }
 
-func (h *AdminHandler) UpdateTracking(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) UpdateTracking(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[updateTrackingRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[updateTrackingRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	shipment, err := h.service.UpdateTracking(r.Context(), id, req.Carrier, req.TrackingNumber)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toShipmentResponse(shipment))
+	return nil
 }

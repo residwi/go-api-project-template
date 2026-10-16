@@ -2,9 +2,11 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/residwi/go-api-project-template/internal/features/category/domain"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
 
@@ -21,11 +23,10 @@ func NewHandler(service CategoryReader) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) error {
 	categories, err := h.service.List(r.Context())
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out := make([]categoryResponse, len(categories))
@@ -34,20 +35,20 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, out)
+	return nil
 }
 
-func (h *Handler) GetBySlug(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetBySlug(w http.ResponseWriter, r *http.Request) error {
 	slug := r.PathValue("slug")
 	if slug == "" {
-		response.BadRequest(w, "slug is required")
-		return
+		return fmt.Errorf("%w: slug is required", errs.ErrBadRequest)
 	}
 
 	cat, err := h.service.GetBySlug(r.Context(), slug)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toCategoryResponse(cat))
+	return nil
 }

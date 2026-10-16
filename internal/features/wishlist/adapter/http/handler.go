@@ -27,37 +27,36 @@ func NewHandler(service WishlistManager) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Add(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) Add(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[addItemRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[addItemRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.Add(r.Context(), uc.UserID, req.ProductID); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.Created(w, nil)
+	return nil
 }
 
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
 	cursor := paging.ParseCursorPage(r)
 
 	items, err := h.service.List(r.Context(), uc.UserID, cursor)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out := make([]itemResponse, len(items))
@@ -68,23 +67,24 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	response.CursorPage(w, out, cursor.Limit, func(it itemResponse) (time.Time, uuid.UUID) {
 		return it.CreatedAt, it.ID
 	})
+	return nil
 }
 
-func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) Remove(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	productID, ok := request.ParseUUIDParam(w, r, "product_id")
-	if !ok {
-		return
+	productID, err := request.ParseUUIDParam(r, "product_id")
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.Remove(r.Context(), uc.UserID, productID); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }

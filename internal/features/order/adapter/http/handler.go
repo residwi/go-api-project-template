@@ -26,18 +26,17 @@ func NewHandler(service OrderReader) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) ListByUser(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) ListByUser(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
 	cursor := paging.ParseCursorPage(r)
 
 	orders, err := h.service.ListByUser(r.Context(), uc.UserID, cursor)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out := make([]orderResponse, len(orders))
@@ -48,24 +47,25 @@ func (h *Handler) ListByUser(w http.ResponseWriter, r *http.Request) {
 	response.CursorPage(w, out, cursor.Limit, func(o orderResponse) (time.Time, uuid.UUID) {
 		return o.CreatedAt, o.ID
 	})
+	return nil
 }
 
-func (h *Handler) GetForUser(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) GetForUser(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	o, err := h.service.GetForUser(r.Context(), uc.UserID, id)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toOrderResponse(o))
+	return nil
 }

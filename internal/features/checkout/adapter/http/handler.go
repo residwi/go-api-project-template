@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -9,6 +10,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/checkout"
 	"github.com/residwi/go-api-project-template/internal/features/order"
 	"github.com/residwi/go-api-project-template/internal/features/payment"
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/web/request"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
 )
@@ -33,21 +35,20 @@ func NewHandler(service CheckoutManager) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) PlaceOrder(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
 	idempotencyKey := r.Header.Get("Idempotency-Key")
 	if idempotencyKey == "" {
-		response.BadRequest(w, "Idempotency-Key header is required")
-		return
+		return fmt.Errorf("%w: Idempotency-Key header is required", errs.ErrBadRequest)
 	}
 
-	req, ok := request.Bind[placeOrderRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[placeOrderRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	in := checkout.PlaceOrderInput{
@@ -58,53 +59,53 @@ func (h *Handler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
 
 	placed, err := h.service.PlaceOrder(r.Context(), uc.UserID, in)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.Created(w, toPlaceOrderResponse(placed))
+	return nil
 }
 
-func (h *Handler) RetryPayment(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) RetryPayment(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[payRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[payRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	result, err := h.service.RetryPayment(r.Context(), uc.UserID, id, req.PaymentMethodID)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toPayResultResponse(result))
+	return nil
 }
 
-func (h *Handler) CancelOrder(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) CancelOrder(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.CancelOrder(r.Context(), uc.UserID, id); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }

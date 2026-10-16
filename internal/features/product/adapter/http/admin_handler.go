@@ -51,7 +51,7 @@ func NewAdminHandler(service ProductManager) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) error {
 	page := paging.ParseOffsetPage(r)
 
 	params := product.AdminListParams{
@@ -63,16 +63,14 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	if catID := r.URL.Query().Get("category_id"); catID != "" {
 		id, err := uuid.Parse(catID)
 		if err != nil {
-			response.BadRequest(w, "invalid category_id")
-			return
+			return fmt.Errorf("%w: invalid category_id", errs.ErrBadRequest)
 		}
 		params.CategoryID = &id
 	}
 
 	products, total, err := h.service.ListAdmin(r.Context(), params)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out := make([]adminProductResponse, len(products))
@@ -81,27 +79,28 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, paging.NewOffsetPageResult(out, page, total))
+	return nil
 }
 
-func (h *AdminHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) GetByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	p, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toAdminProductResponse(p))
+	return nil
 }
 
-func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := request.Bind[createProductRequest](w, r)
-	if !ok {
-		return
+func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) error {
+	req, err := request.Bind[createProductRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	price := money.New(req.Price, req.Currency)
@@ -115,32 +114,31 @@ func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 		r.Context(), req.CategoryID, req.Name, req.Description, price, compareAtPrice, req.SKU, req.Status,
 	)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.Created(w, toAdminProductResponse(p))
+	return nil
 }
 
-func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[updateProductRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[updateProductRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	var price, compareAtPrice *money.Money
 	switch {
 	case req.Price == nil && req.Currency == nil && req.CompareAtPrice == nil:
 	case req.Price == nil || req.Currency == nil:
-		response.HandleErr(w, fmt.Errorf(
+		return fmt.Errorf(
 			"%w: price and currency must be supplied together, and compare_at_price requires both",
-			errs.ErrBadRequest))
-		return
+			errs.ErrBadRequest)
 	default:
 		pr := money.New(*req.Price, *req.Currency)
 		price = &pr
@@ -154,23 +152,23 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		r.Context(), id, req.CategoryID, req.Name, req.Description, price, compareAtPrice, req.SKU, req.Status,
 	)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toAdminProductResponse(p))
+	return nil
 }
 
-func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.Delete(r.Context(), id); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }

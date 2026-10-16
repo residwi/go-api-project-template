@@ -18,35 +18,31 @@ import (
 //nolint:gochecknoglobals // one shared validator: go-playground caches struct metadata per type, so a per-call instance would re-reflect every request
 var validate = validator.New()
 
-func Bind[T any](w http.ResponseWriter, r *http.Request) (T, bool) {
+func Bind[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 	var req T
 	if err := decodeJSON(w, r, &req); err != nil {
-		response.HandleErr(w, err)
-		return req, false
+		return req, err
 	}
 	if details := validationDetails(req); len(details) > 0 {
-		response.ValidationErr(w, details)
-		return req, false
+		return req, &response.ValidationError{Details: details}
 	}
-	return req, true
+	return req, nil
 }
 
-func RequireUser(w http.ResponseWriter, r *http.Request) (identity.Identity, bool) {
+func RequireUser(r *http.Request) (identity.Identity, error) {
 	id, ok := identity.FromContext(r.Context())
 	if !ok {
-		response.Unauthorized(w, "authentication required")
-		return identity.Identity{}, false
+		return identity.Identity{}, fmt.Errorf("%w: authentication required", errs.ErrUnauthorized)
 	}
-	return id, true
+	return id, nil
 }
 
-func ParseUUIDParam(w http.ResponseWriter, r *http.Request, name string) (uuid.UUID, bool) {
+func ParseUUIDParam(r *http.Request, name string) (uuid.UUID, error) {
 	id, err := uuid.Parse(r.PathValue(name))
 	if err != nil {
-		response.BadRequest(w, "invalid "+name)
-		return uuid.Nil, false
+		return uuid.Nil, fmt.Errorf("%w: invalid %s", errs.ErrBadRequest, name)
 	}
-	return id, true
+	return id, nil
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {

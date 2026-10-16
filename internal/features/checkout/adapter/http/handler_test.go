@@ -238,7 +238,7 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 
 	t.Run("invalid JSON body", func(t *testing.T) {
@@ -352,7 +352,7 @@ func TestCancelHandler_CancelOrder(t *testing.T) {
 
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Equal(t, "invalid id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 
 	t.Run("success", func(t *testing.T) {

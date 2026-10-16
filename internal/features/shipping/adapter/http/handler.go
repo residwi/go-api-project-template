@@ -23,22 +23,22 @@ func NewHandler(service ShipmentReader) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) GetForUser(w http.ResponseWriter, r *http.Request) {
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+func (h *Handler) GetForUser(w http.ResponseWriter, r *http.Request) error {
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	orderID, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+	orderID, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	shipment, err := h.service.GetForUser(r.Context(), uc.UserID, orderID)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toShipmentResponse(shipment))
+	return nil
 }

@@ -31,7 +31,7 @@ func NewAdminHandler(service UserManager) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) error {
 	page := paging.ParseOffsetPage(r)
 	params := user.AdminListParams{
 		OffsetPage: page,
@@ -46,8 +46,7 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	users, total, err := h.service.ListAdmin(r.Context(), params)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out := make([]adminUserResponse, len(users))
@@ -56,82 +55,83 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, paging.NewOffsetPageResult(out, page, total))
+	return nil
 }
 
-func (h *AdminHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) GetByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	u, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toAdminUserResponse(u))
+	return nil
 }
 
-func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[adminUpdateUserRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[adminUpdateUserRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	u, err := h.service.AdminUpdate(r.Context(), id, req.FirstName, req.LastName, req.Phone, req.Active)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toAdminUserResponse(u))
+	return nil
 }
 
-func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) UpdateRole(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[updateRoleRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[updateRoleRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.UpdateRole(r.Context(), uc.UserID, id, req.Role); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }
 
-func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
-	uc, ok := request.RequireUser(w, r)
-	if !ok {
-		return
+	uc, err := request.RequireUser(r)
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.Delete(r.Context(), uc.UserID, id); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }

@@ -111,7 +111,7 @@ func TestHandler_List(t *testing.T) {
 
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Equal(t, "invalid category_id", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid category_id", resp.Error.Message)
 	})
 
 	t.Run("invalid min_price", func(t *testing.T) {
@@ -128,7 +128,7 @@ func TestHandler_List(t *testing.T) {
 
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Equal(t, "invalid min_price", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid min_price", resp.Error.Message)
 	})
 
 	t.Run("invalid max_price", func(t *testing.T) {
@@ -145,7 +145,7 @@ func TestHandler_List(t *testing.T) {
 
 		var resp response.Response
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Equal(t, "invalid max_price", resp.Error.Message)
+		assert.Equal(t, "bad request: invalid max_price", resp.Error.Message)
 	})
 
 	t.Run("with valid filters", func(t *testing.T) {
@@ -253,14 +253,11 @@ func TestHandler_GetBySlug_EmptySlug(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest(http.MethodGet, "/products/", nil)
 
-	h.GetBySlug(w, r)
+	err := h.GetBySlug(w, r)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-
-	var resp response.Response
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-	assert.False(t, resp.Success)
-	assert.Equal(t, "slug is required", resp.Error.Message)
+	require.ErrorIs(t, err, errs.ErrBadRequest)
+	require.EqualError(t, err, "bad request: slug is required")
+	assert.Empty(t, w.Body.String())
 }
 
 func TestHandler_GetBySlug_OverLengthSlug(t *testing.T) {

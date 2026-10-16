@@ -25,57 +25,57 @@ func NewHandler(service InventoryManager) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) GetStock(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "product_id")
-	if !ok {
-		return
+func (h *Handler) GetStock(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "product_id")
+	if err != nil {
+		return err
 	}
 
 	stock, err := h.service.GetStock(r.Context(), id)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toStockResponse(stock))
+	return nil
 }
 
-func (h *Handler) Restock(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "product_id")
-	if !ok {
-		return
+func (h *Handler) Restock(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "product_id")
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[restockRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[restockRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	stock, err := h.service.Restock(r.Context(), id, req.Quantity)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toStockResponse(stock))
+	return nil
 }
 
-func (h *Handler) Adjust(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "product_id")
-	if !ok {
-		return
+func (h *Handler) Adjust(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "product_id")
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[adjustRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[adjustRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	stock, err := h.service.Adjust(r.Context(), id, req.Quantity)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toStockResponse(stock))
+	return nil
 }

@@ -52,10 +52,10 @@ func NewAdminHandler(service PromotionManager) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := request.Bind[createPromotionRequest](w, r)
-	if !ok {
-		return
+func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) error {
+	req, err := request.Bind[createPromotionRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	promo, err := h.service.Create(
@@ -63,21 +63,20 @@ func (h *AdminHandler) Create(w http.ResponseWriter, r *http.Request) {
 		req.MaxDiscount, req.MaxUses, req.StartsAt, req.ExpiresAt, req.Active,
 	)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.Created(w, toAdminPromotionResponse(promo))
+	return nil
 }
 
-func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
+func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) error {
 	page := paging.ParseOffsetPage(r)
 	params := promotion.AdminListParams{OffsetPage: page}
 
 	promotions, total, err := h.service.ListAdmin(r.Context(), params)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	out := make([]adminPromotionResponse, len(promotions))
@@ -86,17 +85,18 @@ func (h *AdminHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.OK(w, paging.NewOffsetPageResult(out, page, total))
+	return nil
 }
 
-func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
-	req, ok := request.Bind[updatePromotionRequest](w, r)
-	if !ok {
-		return
+	req, err := request.Bind[updatePromotionRequest](w, r)
+	if err != nil {
+		return err
 	}
 
 	promo, err := h.service.Update(
@@ -104,23 +104,23 @@ func (h *AdminHandler) Update(w http.ResponseWriter, r *http.Request) {
 		req.MaxDiscount, req.MaxUses, req.StartsAt, req.ExpiresAt, req.Active,
 	)
 	if err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.OK(w, toAdminPromotionResponse(promo))
+	return nil
 }
 
-func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	id, ok := request.ParseUUIDParam(w, r, "id")
-	if !ok {
-		return
+func (h *AdminHandler) Delete(w http.ResponseWriter, r *http.Request) error {
+	id, err := request.ParseUUIDParam(r, "id")
+	if err != nil {
+		return err
 	}
 
 	if err := h.service.Delete(r.Context(), id); err != nil {
-		response.HandleErr(w, err)
-		return
+		return err
 	}
 
 	response.NoContent(w)
+	return nil
 }
