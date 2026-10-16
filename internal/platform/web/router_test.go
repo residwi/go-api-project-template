@@ -188,6 +188,28 @@ func TestRouterHandleFunc(t *testing.T) {
 		}}, decodeRecords(t, &logs))
 	})
 
+	t.Run("a body written without WriteHeader still counts as the response", func(t *testing.T) {
+		t.Parallel()
+
+		var logs bytes.Buffer
+		mux := http.NewServeMux()
+		NewRouter(mux, captureLogger(&logs)).HandleFunc("GET /x", func(w http.ResponseWriter, _ *http.Request) error {
+			_, _ = w.Write([]byte("partial"))
+			return errors.New("stream broke")
+		})
+
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/x", nil))
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "partial", rec.Body.String())
+		assert.Equal(t, []map[string]any{{
+			"level": "ERROR",
+			"msg":   "error after response was written",
+			"error": "stream broke",
+		}}, decodeRecords(t, &logs))
+	})
+
 	t.Run("a kind error after the response was written is logged too", func(t *testing.T) {
 		t.Parallel()
 
