@@ -94,7 +94,7 @@ func TestHandler_Summary(t *testing.T) {
 		assert.False(t, success)
 		errBody, ok := resp["error"].(map[string]any)
 		require.True(t, ok)
-		assert.Contains(t, errBody["message"], "from and to query parameters are required")
+		assert.Equal(t, "bad request: from and to query parameters are required", errBody["message"])
 	})
 
 	t.Run("missing only from param", func(t *testing.T) {
@@ -110,7 +110,11 @@ func TestHandler_Summary(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Contains(t, resp["error"].(map[string]any)["message"], "from and to query parameters are required")
+		assert.Equal(
+			t,
+			"bad request: from and to query parameters are required",
+			resp["error"].(map[string]any)["message"],
+		)
 	})
 
 	t.Run("missing only to param", func(t *testing.T) {
@@ -126,7 +130,11 @@ func TestHandler_Summary(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Contains(t, resp["error"].(map[string]any)["message"], "from and to query parameters are required")
+		assert.Equal(
+			t,
+			"bad request: from and to query parameters are required",
+			resp["error"].(map[string]any)["message"],
+		)
 	})
 
 	t.Run("invalid from date format", func(t *testing.T) {
@@ -142,7 +150,11 @@ func TestHandler_Summary(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Contains(t, resp["error"].(map[string]any)["message"], "invalid from date format")
+		assert.Equal(
+			t,
+			"bad request: invalid from date format, expected YYYY-MM-DD",
+			resp["error"].(map[string]any)["message"],
+		)
 	})
 
 	t.Run("invalid to date format", func(t *testing.T) {
@@ -158,7 +170,11 @@ func TestHandler_Summary(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Contains(t, resp["error"].(map[string]any)["message"], "invalid to date format")
+		assert.Equal(
+			t,
+			"bad request: invalid to date format, expected YYYY-MM-DD",
+			resp["error"].(map[string]any)["message"],
+		)
 	})
 
 	t.Run("service error", func(t *testing.T) {
@@ -249,7 +265,11 @@ func TestHandler_Revenue(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Contains(t, resp["error"].(map[string]any)["message"], "invalid from date format")
+		assert.Equal(
+			t,
+			"bad request: invalid from date format, expected YYYY-MM-DD",
+			resp["error"].(map[string]any)["message"],
+		)
 	})
 
 	t.Run("invalid to date", func(t *testing.T) {
@@ -265,7 +285,11 @@ func TestHandler_Revenue(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
-		assert.Contains(t, resp["error"].(map[string]any)["message"], "invalid to date format")
+		assert.Equal(
+			t,
+			"bad request: invalid to date format, expected YYYY-MM-DD",
+			resp["error"].(map[string]any)["message"],
+		)
 	})
 
 	t.Run("service error", func(t *testing.T) {
@@ -476,7 +500,7 @@ func TestHandler_TopProducts(t *testing.T) {
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		errBody, ok := resp["error"].(map[string]any)
 		require.True(t, ok)
-		assert.Contains(t, errBody["message"], "invalid to date format")
+		assert.Equal(t, "bad request: invalid to date format, expected YYYY-MM-DD", errBody["message"])
 	})
 
 	t.Run("service error", func(t *testing.T) {

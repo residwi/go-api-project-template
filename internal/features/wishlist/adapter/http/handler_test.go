@@ -234,7 +234,7 @@ func TestHandler_Remove(t *testing.T) {
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		errBody, ok := resp["error"].(map[string]any)
 		require.True(t, ok)
-		assert.Contains(t, errBody["message"], "invalid product_id")
+		assert.Equal(t, "bad request: invalid product_id", errBody["message"])
 	})
 
 	t.Run("success", func(t *testing.T) {
