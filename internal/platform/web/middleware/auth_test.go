@@ -72,21 +72,35 @@ func TestAuth(t *testing.T) {
 
 	// Which rules reject a caller belongs to whichever Authenticator is wired in;
 	// this layer only has to refuse the request and keep the error's status.
-	t.Run("an unauthorized rejection is a 401 and never reaches the handler", func(t *testing.T) {
+	t.Run("an unauthorized rejection is a 401, never reaches the handler and warns", func(t *testing.T) {
+		var buf bytes.Buffer
 		authenticator := NewMockAuthenticator(t)
 		authenticator.EXPECT().Authenticate(mock.Anything, "tok").
 			Return(identity.Identity{}, fmt.Errorf("%w: token has been revoked", errs.ErrUnauthorized))
 
-		handler := Auth(testLogger(), authenticator)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
-			t.Fatal("handler should not be called")
-		}))
+		handler := Auth(
+			recordingLogger(&buf),
+			authenticator,
+		)(
+			http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+				t.Fatal("handler should not be called")
+			}),
+		)
 
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/cart", nil)
 		req.Header.Set("Authorization", "Bearer tok")
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+		assert.Equal(t, map[string]any{
+			"level":  "WARN",
+			"msg":    "authentication failed",
+			"reason": "invalid_token",
+			"path":   "/api/cart",
+		}, entry)
 	})
 
 	t.Run("a failure that is not an auth rejection is not downgraded to 401", func(t *testing.T) {
