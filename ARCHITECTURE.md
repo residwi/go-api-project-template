@@ -393,7 +393,7 @@ proposing a feature that crosses a module boundary.
 - **The public and admin response mappers are one wrong import away from each other.** They live in separate files in the same package, and a handler can call either and compile.
 - **Nothing tests the middleware chain `NewRouter` builds, or either rate limiter.** `TestRouteAccess` proves auth class per route, not order or behaviour of the chain around it.
 - **`TestRouteAccess` only probes what `allRoutes` lists.** `web.Router` records nothing, so a mounted route missing from that hand-written table is never probed at all.
-- **A sentinel's HTTP status is fixed where the sentinel is declared.** `response.HandleErr` matches only the five `errs` kinds, so a sentinel wrapping the wrong kind is the wrong status everywhere at once.
+- **A sentinel's HTTP status is fixed where the sentinel is declared.** `response.HandleErr` derives a status only from the five `errs` kinds (a `*response.ValidationError` answers 422, and still unwraps to `errs.ErrBadRequest`), so a sentinel wrapping the wrong kind is the wrong status everywhere at once.
 
 ### Domain
 
