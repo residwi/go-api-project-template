@@ -20,6 +20,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestHandler_GetByID(t *testing.T) {
@@ -313,7 +314,7 @@ func setupHandlerMux(t *testing.T) (*http.ServeMux, *MockProfileManager) {
 	usecase := NewMockProfileManager(t)
 
 	mux := http.NewServeMux()
-	authed := web.NewRouter(mux).Group("/api/v1")
+	authed := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api/v1")
 
 	h := NewHandler(usecase)
 	authed.HandleFunc("GET /users/me", h.GetByID)

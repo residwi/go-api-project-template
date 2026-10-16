@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestHandler_List_Success(t *testing.T) {
@@ -389,7 +390,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockNotificationManager, identity.
 	service := NewMockNotificationManager(t)
 
 	mux := http.NewServeMux()
-	authed := web.NewRouter(mux).Group("/api/v1")
+	authed := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api/v1")
 
 	h := NewHandler(service)
 	authed.HandleFunc("GET /notifications", h.List)

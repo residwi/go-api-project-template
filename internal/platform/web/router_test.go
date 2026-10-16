@@ -1,6 +1,7 @@
 package web
 
 import (
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,7 +16,7 @@ func TestRouterGroup(t *testing.T) {
 		t.Parallel()
 
 		mux := http.NewServeMux()
-		router := NewRouter(mux)
+		router := NewRouter(mux, slog.New(slog.DiscardHandler))
 		admin := router.Group("/api").Group("/admin")
 		admin.HandleFunc("GET /users", func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusTeapot)
@@ -41,7 +42,7 @@ func TestRouterGroup(t *testing.T) {
 		}
 
 		mux := http.NewServeMux()
-		parent := NewRouter(mux).Group("/api", mark("parent"))
+		parent := NewRouter(mux, slog.New(slog.DiscardHandler)).Group("/api", mark("parent"))
 		child := parent.Group("/admin", mark("child"))
 		child.HandleFunc("GET /x", func(_ http.ResponseWriter, _ *http.Request) {
 			order = append(order, "handler")
@@ -66,7 +67,7 @@ func TestRouterGroup(t *testing.T) {
 		}
 
 		mux := http.NewServeMux()
-		router := NewRouter(mux)
+		router := NewRouter(mux, slog.New(slog.DiscardHandler))
 		left := router.Group("/left", mark("left"))
 		right := router.Group("/right", mark("right"))
 		left.HandleFunc("GET /x", func(http.ResponseWriter, *http.Request) {})
@@ -81,7 +82,7 @@ func TestRouterGroup(t *testing.T) {
 		t.Parallel()
 
 		mux := http.NewServeMux()
-		router := NewRouter(mux)
+		router := NewRouter(mux, slog.New(slog.DiscardHandler))
 		router.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 		})

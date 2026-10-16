@@ -21,6 +21,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestHandler_Add(t *testing.T) {
@@ -300,7 +301,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockWishlistManager, identity.Iden
 	service := NewMockWishlistManager(t)
 
 	mux := http.NewServeMux()
-	authed := web.NewRouter(mux).Group("/api/v1")
+	authed := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api/v1")
 
 	h := NewHandler(service)
 	authed.HandleFunc("GET /wishlist", h.List)

@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestHandler_List(t *testing.T) {
@@ -225,7 +226,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCategoryReader) {
 	service := NewMockCategoryReader(t)
 
 	mux := http.NewServeMux()
-	api := web.NewRouter(mux).Group("/api/v1")
+	api := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api/v1")
 	h := NewHandler(service)
 	api.HandleFunc("GET /categories", h.List)
 	api.HandleFunc("GET /categories/{slug}", h.GetBySlug)

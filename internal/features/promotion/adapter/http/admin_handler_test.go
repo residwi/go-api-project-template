@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestAdminHandler_Create(t *testing.T) {
@@ -344,7 +345,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockPromotionManager) {
 	service := NewMockPromotionManager(t)
 
 	mux := http.NewServeMux()
-	admin := web.NewRouter(mux).Group("/api/v1/admin")
+	admin := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api/v1/admin")
 
 	ah := NewAdminHandler(service)
 	admin.HandleFunc("GET /promotions", ah.List)

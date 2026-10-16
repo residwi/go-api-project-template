@@ -21,6 +21,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestHandler_Create(t *testing.T) {
@@ -412,7 +413,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockReviewManager) {
 	service := NewMockReviewManager(t)
 
 	mux := http.NewServeMux()
-	group := web.NewRouter(mux).Group("/api/v1")
+	group := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api/v1")
 	h := NewHandler(service)
 	group.HandleFunc("GET /products/{id}/reviews", h.ListByProduct)
 	group.HandleFunc("POST /products/{id}/reviews", h.Create)

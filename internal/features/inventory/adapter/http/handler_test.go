@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestHandler_GetStock(t *testing.T) {
@@ -439,7 +440,7 @@ func setupMux(t *testing.T, service InventoryManager) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
-	admin := web.NewRouter(mux).Group("/api/admin")
+	admin := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api/admin")
 	h := NewHandler(service)
 	admin.HandleFunc("GET /inventory/{product_id}", h.GetStock)
 	admin.HandleFunc("PUT /inventory/{product_id}/restock", h.Restock)

@@ -19,6 +19,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestHandler_Get(t *testing.T) {
@@ -249,7 +250,7 @@ func setupMux(t *testing.T, service ShipmentReader) *http.ServeMux {
 	t.Helper()
 
 	mux := http.NewServeMux()
-	authed := web.NewRouter(mux).Group("/api/v1")
+	authed := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api/v1")
 	authed.HandleFunc("GET /orders/{id}/shipping", NewHandler(service).GetForUser)
 
 	return mux

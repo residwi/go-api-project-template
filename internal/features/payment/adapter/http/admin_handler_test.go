@@ -22,6 +22,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestAdminHandler_List(t *testing.T) {
@@ -309,7 +310,7 @@ func setupAdminMux(t *testing.T) (*http.ServeMux, *MockPaymentManager) {
 	service := NewMockPaymentManager(t)
 
 	mux := http.NewServeMux()
-	admin := web.NewRouter(mux).Group("/api/admin")
+	admin := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api/admin")
 	h := NewAdminHandler(service)
 	admin.HandleFunc("GET /payments", h.List)
 	admin.HandleFunc("GET /payments/{id}", h.GetByID)

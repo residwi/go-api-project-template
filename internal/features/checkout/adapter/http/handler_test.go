@@ -23,6 +23,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestHandler_PlaceOrder(t *testing.T) {
@@ -378,7 +379,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCheckoutManager) {
 	h := NewHandler(service)
 
 	mux := http.NewServeMux()
-	authed := web.NewRouter(mux).Group("/api/v1")
+	authed := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api/v1")
 
 	authed.HandleFunc("POST /checkout", h.PlaceOrder)
 	authed.HandleFunc("POST /orders/{id}/pay", h.RetryPayment)

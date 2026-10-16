@@ -21,6 +21,7 @@ import (
 	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestHandler_Login(t *testing.T) {
@@ -499,7 +500,7 @@ func newTestMux(t *testing.T) (http.Handler, *MockAuthManager) {
 	service := NewMockAuthManager(t)
 
 	mux := http.NewServeMux()
-	api := web.NewRouter(mux).Group("/api")
+	api := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api")
 	h := NewHandler(service)
 	api.HandleFunc("POST /auth/login", h.Login)
 	api.HandleFunc("POST /auth/register", h.Register)

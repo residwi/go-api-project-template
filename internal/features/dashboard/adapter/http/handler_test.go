@@ -17,6 +17,7 @@ import (
 
 	"github.com/residwi/go-api-project-template/internal/features/dashboard/domain"
 	"github.com/residwi/go-api-project-template/internal/platform/web"
+	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestHandler_Summary(t *testing.T) {
@@ -527,7 +528,7 @@ func TestToSummaryResponse_ExposesExactFieldSet(t *testing.T) {
 func setupMux(t *testing.T) (*http.ServeMux, *MockReporter) {
 	service := NewMockReporter(t)
 	mux := http.NewServeMux()
-	admin := web.NewRouter(mux).Group("/api/admin")
+	admin := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api/admin")
 
 	h := NewHandler(service)
 	admin.HandleFunc("GET /dashboard/summary", h.GetSummary)

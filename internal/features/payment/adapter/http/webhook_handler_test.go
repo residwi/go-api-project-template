@@ -70,7 +70,7 @@ func setupWebhookMux(t *testing.T) (*http.ServeMux, *MockWebhookProcessor) {
 	service := NewMockWebhookProcessor(t)
 
 	mux := http.NewServeMux()
-	api := web.NewRouter(mux).Group("/api")
+	api := web.NewRouter(mux, testutil.DiscardLogger()).Group("/api")
 	api.HandleFunc("POST /payments/webhook", NewWebhookHandler(service, testutil.DiscardLogger()).HandleWebhook)
 
 	return mux, service

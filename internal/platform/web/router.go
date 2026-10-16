@@ -1,23 +1,26 @@
 package web
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 )
 
 type Router struct {
 	mux    *http.ServeMux
+	log    *slog.Logger
 	prefix string
 	mws    []Middleware
 }
 
-func NewRouter(mux *http.ServeMux) *Router {
-	return &Router{mux: mux}
+func NewRouter(mux *http.ServeMux, log *slog.Logger) *Router {
+	return &Router{mux: mux, log: log}
 }
 
 func (r *Router) Group(prefix string, mws ...Middleware) *Router {
 	return &Router{
 		mux:    r.mux,
+		log:    r.log,
 		prefix: r.prefix + prefix,
 		mws:    join(r.mws, mws),
 	}

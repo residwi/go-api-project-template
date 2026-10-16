@@ -39,7 +39,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 ) http.Handler {
 	mux := http.NewServeMux()
 
-	router := web.NewRouter(mux)
+	router := web.NewRouter(mux, logger)
 	router.HandleFunc("GET /health", healthHandler())
 
 	authMW := middleware.Auth(logger, deps.Auth)
