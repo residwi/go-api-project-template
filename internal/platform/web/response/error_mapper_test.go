@@ -101,4 +101,38 @@ func TestHandleErr(t *testing.T) {
 			Error:   &Error{Message: "internal server error"},
 		}, body)
 	})
+
+	t.Run("validation error is 422 with its details", func(t *testing.T) {
+		t.Parallel()
+
+		rec := httptest.NewRecorder()
+		HandleErr(rec, &ValidationError{Details: map[string]any{"email": "must be a valid email"}})
+
+		require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+
+		var body Response
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, Response{
+			Success: false,
+			Error: &Error{
+				Message: "validation failed",
+				Details: map[string]any{"email": "must be a valid email"},
+			},
+		}, body)
+	})
+
+	t.Run("wrapped validation error still maps to 422", func(t *testing.T) {
+		t.Parallel()
+
+		rec := httptest.NewRecorder()
+		HandleErr(rec, fmt.Errorf("binding: %w", &ValidationError{Details: map[string]any{"name": "is required"}}))
+
+		assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+	})
+
+	t.Run("validation error carries the bad request kind", func(t *testing.T) {
+		t.Parallel()
+
+		assert.ErrorIs(t, errs.Kind(&ValidationError{}), errs.ErrBadRequest)
+	})
 }
