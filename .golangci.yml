@@ -285,6 +285,10 @@ linters:
         - pattern: ^slog\.Any$
           msg: Log attributes are typed. Use slog.String/Int/Int64/Duration; for an error use slog.String("error", err.Error()).
         - pattern: ^(fmt\.Print(|f|ln)|print|println)$
+        # Scoped to internal/features/ by an exclusion rule below: middleware
+        # still writes its own error responses.
+        - pattern: ^response\.(HandleErr|Err|Unauthorized|Forbidden|TooManyRequests|InternalError|ValidationErr)$
+          msg: A feature handler returns its error and writes nothing; web.Router turns the error into the response.
 
     funcorder:
       # Checks that exported functions are placed before unexported functions.
@@ -524,6 +528,9 @@ linters:
         text: "exitAfterDefer"
         linters:
           - gocritic
+      - path-except: '^internal/features/'
+        text: "web.Router turns the error into the response"
+        linters: [forbidigo]
       # Skips nothing today: no non-test file under cmd/ or internal/testutil/
       # declares a package-level var, only consts, which gochecknoglobals does
       # not flag. Kept as policy, not as a live suppression -- a binary's entry
