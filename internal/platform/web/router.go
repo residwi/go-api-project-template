@@ -1,6 +1,8 @@
 package web
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -48,14 +50,17 @@ func (r *Router) HandleFunc(pattern string, handler HandlerFunc) {
 		}
 
 		ctx := req.Context()
-		if tw.wrote {
+		switch {
+		case errors.Is(err, context.Canceled) && ctx.Err() != nil:
+			r.log.DebugContext(ctx, "request cancelled", slog.String("error", err.Error()))
+		case tw.wrote:
 			r.log.ErrorContext(ctx, "error after response was written", slog.String("error", err.Error()))
-			return
-		}
-		if errs.Kind(err) == nil {
+		case errs.Kind(err) == nil:
 			r.log.ErrorContext(ctx, "unexpected error", slog.String("error", err.Error()))
 		}
-		response.HandleErr(w, err)
+		if !tw.wrote {
+			response.HandleErr(w, err)
+		}
 	}))
 }
 

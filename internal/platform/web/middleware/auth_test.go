@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -107,22 +108,18 @@ func TestAuth(t *testing.T) {
 
 	t.Run("an unexpected failure logs its cause at error, not as an invalid token", func(t *testing.T) {
 		var buf bytes.Buffer
-		log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{
-			Level: slog.LevelDebug,
-			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-				if len(groups) == 0 && a.Key == slog.TimeKey {
-					return slog.Attr{}
-				}
-				return a
-			},
-		}))
 		authenticator := NewMockAuthenticator(t)
 		authenticator.EXPECT().Authenticate(mock.Anything, "tok").
 			Return(identity.Identity{}, errors.New("dial tcp 10.0.0.5:5432: connection refused"))
 
-		handler := Auth(log, authenticator)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
-			t.Fatal("handler should not be called")
-		}))
+		handler := Auth(
+			recordingLogger(&buf),
+			authenticator,
+		)(
+			http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+				t.Fatal("handler should not be called")
+			}),
+		)
 
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.Header.Set("Authorization", "Bearer tok")
@@ -136,6 +133,38 @@ func TestAuth(t *testing.T) {
 			"level": "ERROR",
 			"msg":   "unexpected error",
 			"error": "dial tcp 10.0.0.5:5432: connection refused",
+		}, entry)
+	})
+
+	t.Run("a request the client cancelled while authenticating is logged at debug", func(t *testing.T) {
+		var buf bytes.Buffer
+		authenticator := NewMockAuthenticator(t)
+		authenticator.EXPECT().Authenticate(mock.Anything, "tok").
+			Return(identity.Identity{}, fmt.Errorf("loading profile: %w", context.Canceled))
+
+		handler := Auth(
+			recordingLogger(&buf),
+			authenticator,
+		)(
+			http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+				t.Fatal("handler should not be called")
+			}),
+		)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
+		req.Header.Set("Authorization", "Bearer tok")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+		assert.Equal(t, map[string]any{
+			"level": "DEBUG",
+			"msg":   "request cancelled",
+			"error": "loading profile: context canceled",
 		}, entry)
 	})
 
@@ -190,4 +219,16 @@ func TestAuth(t *testing.T) {
 		require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
 		assert.Equal(t, userID.String(), entry["user_id"])
 	})
+}
+
+func recordingLogger(buf *bytes.Buffer) *slog.Logger {
+	return slog.New(slog.NewJSONHandler(buf, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if len(groups) == 0 && a.Key == slog.TimeKey {
+				return slog.Attr{}
+			}
+			return a
+		},
+	}))
 }

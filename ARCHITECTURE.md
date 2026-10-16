@@ -311,8 +311,11 @@ exhausting memory, and one whose context ends first gets an error.
 an error and writes nothing. `web.Router.HandleFunc` holds the logger
 `NewRouter` was given, turns the error into the response through
 `response.HandleErr`, and logs one that carries no `errs` kind at Error with its
-cause, so a database outage is not a bare `status=500` when tracing is off. An
-error returned after a write is logged and the first response stands. This is
+cause, so a database outage is not a bare `status=500` when tracing is off. A
+request the client cancelled logs at Debug instead: its context error carries no
+kind either, and how often it happens is the client's choice, the same reason
+4xx is not logged. An error returned after a write is logged and the first
+response stands. This is
 the shape go-kit, Kratos, Echo and connect-go share: one point receives the
 returned error and holds an injected logger, while the context carries only
 fields. *Rejected:* a logger read from the context, which turns a dependency

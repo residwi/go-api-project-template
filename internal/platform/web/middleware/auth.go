@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -37,9 +38,12 @@ func Auth(log *slog.Logger, authenticator Authenticator) func(http.Handler) http
 
 			id, err := authenticator.Authenticate(r.Context(), parts[1])
 			if err != nil {
-				if errs.Kind(err) == nil {
+				switch {
+				case errors.Is(err, context.Canceled) && r.Context().Err() != nil:
+					log.DebugContext(r.Context(), "request cancelled", slog.String("error", err.Error()))
+				case errs.Kind(err) == nil:
 					log.ErrorContext(r.Context(), "unexpected error", slog.String("error", err.Error()))
-				} else {
+				default:
 					log.WarnContext(r.Context(), "authentication failed",
 						slog.String("reason", "invalid_token"), slog.String("path", r.URL.Path))
 				}
