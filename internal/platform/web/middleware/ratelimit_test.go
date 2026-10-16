@@ -188,6 +188,18 @@ func TestRateLimit(t *testing.T) {
 		assert.Equal(t, http.StatusTooManyRequests, doRateLimitedDown(handler, "10.2.0.1:1111").Code,
 			"the in-process fallback must brute-force-throttle when the redis limiter errors")
 	})
+
+	t.Run("sets Retry-After on a fallback rejection", func(t *testing.T) {
+		handler := RateLimit(testLogger(), testRedis, "test", 2, 2, time.Minute)(okHandler)
+		require.Equal(t, http.StatusOK, doRateLimitedDown(handler, "10.2.0.2:1111").Code)
+		require.Equal(t, http.StatusOK, doRateLimitedDown(handler, "10.2.0.2:1111").Code)
+
+		w := doRateLimitedDown(handler, "10.2.0.2:1111")
+
+		require.Equal(t, http.StatusTooManyRequests, w.Code)
+		assert.Equal(t, "60", w.Header().Get("Retry-After"))
+		assert.Empty(t, w.Header().Get("X-Ratelimit-Remaining"))
+	})
 }
 
 func TestFallbackLimiter(t *testing.T) {
@@ -203,8 +215,8 @@ func TestFallbackLimiter(t *testing.T) {
 		fill(fb, now)
 		require.Len(t, fb.keys, fallbackMaxKeys)
 
-		first, firstSaturated := fb.allow("newcomer-1", now)
-		second, secondSaturated := fb.allow("newcomer-2", now)
+		first, firstSaturated, _ := fb.allow("newcomer-1", now)
+		second, secondSaturated, _ := fb.allow("newcomer-2", now)
 
 		assert.True(t, first)
 		assert.True(t, firstSaturated, "the first overflow of a window reports saturation")
@@ -219,10 +231,10 @@ func TestFallbackLimiter(t *testing.T) {
 		fill(fb, now)
 
 		for i := range fallbackMaxKeys {
-			allowed, _ := fb.allow(fmt.Sprintf("flood-%d", i), now)
+			allowed, _, _ := fb.allow(fmt.Sprintf("flood-%d", i), now)
 			require.True(t, allowed)
 		}
-		allowed, _ := fb.allow("one-too-many", now)
+		allowed, _, _ := fb.allow("one-too-many", now)
 
 		assert.False(t, allowed)
 	})
@@ -233,7 +245,7 @@ func TestFallbackLimiter(t *testing.T) {
 		fill(fb, now)
 		fb.keys["client-0"].resetAt = now.Add(-time.Second)
 
-		allowed, saturated := fb.allow("newcomer", now)
+		allowed, saturated, _ := fb.allow("newcomer", now)
 
 		assert.True(t, allowed)
 		assert.False(t, saturated)
@@ -260,13 +272,40 @@ func TestFallbackLimiter(t *testing.T) {
 		fb := newFallbackLimiter(1, time.Minute)
 		now := time.Now()
 
-		allowed, _ := fb.allow("client", now)
+		allowed, _, _ := fb.allow("client", now)
 		require.True(t, allowed)
-		denied, _ := fb.allow("client", now)
+		denied, _, _ := fb.allow("client", now)
 		require.False(t, denied)
 
-		recovered, _ := fb.allow("client", now.Add(2*time.Minute))
+		recovered, _, _ := fb.allow("client", now.Add(2*time.Minute))
 		assert.True(t, recovered)
+	})
+
+	t.Run("reports the time to its own window reset on a denial", func(t *testing.T) {
+		fb := newFallbackLimiter(1, time.Minute)
+		now := time.Now()
+		allowed, _, _ := fb.allow("client", now)
+		require.True(t, allowed)
+
+		denied, _, retryAfter := fb.allow("client", now.Add(10*time.Second))
+
+		require.False(t, denied)
+		assert.Equal(t, 50*time.Second, retryAfter)
+	})
+
+	t.Run("reports the time to the overflow reset on an overflow denial", func(t *testing.T) {
+		fb := newFallbackLimiter(1, time.Minute)
+		now := time.Now()
+		fill(fb, now)
+		for i := range fallbackMaxKeys {
+			allowed, _, _ := fb.allow(fmt.Sprintf("flood-%d", i), now)
+			require.True(t, allowed)
+		}
+
+		denied, _, retryAfter := fb.allow("one-too-many", now.Add(10*time.Second))
+
+		require.False(t, denied)
+		assert.Equal(t, 50*time.Second, retryAfter)
 	})
 }
 

@@ -68,7 +68,7 @@ func RateLimit( //nolint:gocognit // resolves the caller identifier (context IP,
 				Period: window,
 			})
 			if err != nil {
-				allowed, saturated := fallback.allow(key, time.Now())
+				allowed, saturated, retryAfter := fallback.allow(key, time.Now())
 				if saturated {
 					log.WarnContext(
 						r.Context(),
@@ -77,6 +77,10 @@ func RateLimit( //nolint:gocognit // resolves the caller identifier (context IP,
 					)
 				}
 				if !allowed {
+					w.Header().Set(
+						"Retry-After",
+						strconv.Itoa(int(math.Ceil(retryAfter.Seconds()))),
+					)
 					response.TooManyRequests(w, "rate limit exceeded")
 
 					return
@@ -137,7 +141,7 @@ func newFallbackLimiter(limit int, window time.Duration) *fallbackLimiter {
 // is exactly the shape of a distributed flood, so it must degrade to a coarse limit,
 // not to none. saturated is true only for the first overflow request of each window,
 // so the caller can log saturation once instead of once per request.
-func (l *fallbackLimiter) allow(key string, now time.Time) (allowed, saturated bool) {
+func (l *fallbackLimiter) allow(key string, now time.Time) (allowed, saturated bool, retryAfter time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -147,11 +151,11 @@ func (l *fallbackLimiter) allow(key string, now time.Time) (allowed, saturated b
 			w.resetAt = now.Add(l.window)
 		}
 		if w.count >= l.limit {
-			return false, false
+			return false, false, w.resetAt.Sub(now)
 		}
 		w.count++
 
-		return true, false
+		return true, false, 0
 	}
 
 	if len(l.keys) >= fallbackMaxKeys && now.Sub(l.lastReclaim) >= l.window {
@@ -165,20 +169,20 @@ func (l *fallbackLimiter) allow(key string, now time.Time) (allowed, saturated b
 
 	l.keys[key] = &fallbackWindow{count: 1, resetAt: now.Add(l.window)}
 
-	return true, false
+	return true, false, 0
 }
 
-func (l *fallbackLimiter) allowOverflow(now time.Time) (allowed, saturated bool) {
+func (l *fallbackLimiter) allowOverflow(now time.Time) (allowed, saturated bool, retryAfter time.Duration) {
 	if now.After(l.overflow.resetAt) {
 		l.overflow = fallbackWindow{resetAt: now.Add(l.window)}
 	}
 	saturated = l.overflow.count == 0
 	if l.overflow.count >= l.limit*fallbackMaxKeys {
-		return false, saturated
+		return false, saturated, l.overflow.resetAt.Sub(now)
 	}
 	l.overflow.count++
 
-	return true, saturated
+	return true, saturated, 0
 }
 
 func (l *fallbackLimiter) reclaimExpired(now time.Time) {
