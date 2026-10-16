@@ -547,6 +547,63 @@ func TestCORSHeaders(t *testing.T) {
 	})
 }
 
+func TestUnexpectedErrorLogging(t *testing.T) {
+	setup(t)
+
+	t.Run("a database failure answers the generic 500 and logs its cause under the request id", func(t *testing.T) {
+		closed, err := pgxpool.New(t.Context(), testPool.Config().ConnString())
+		require.NoError(t, err)
+		closed.Close()
+
+		deps, err := app.New(testModCfg, database.DB{Primary: closed}, testRedis, testutil.DiscardLogger())
+		require.NoError(t, err)
+
+		var buf bytes.Buffer
+		captureLogger := slog.New(logger.ContextHandler{Handler: slog.NewJSONHandler(&buf, &slog.HandlerOptions{
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if len(groups) == 0 && (a.Key == slog.TimeKey || a.Key == "duration") {
+					return slog.Attr{}
+				}
+				return a
+			},
+		})})
+		handler := NewRouter(testAppCfg, testModCfg, testRedis, captureLogger, deps)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/products", nil)
+		req.Header.Set("X-Request-ID", "req-db-down")
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusInternalServerError, w.Code)
+		assert.JSONEq(t, `{"success":false,"error":{"message":"internal server error"}}`, w.Body.String())
+
+		var records []map[string]any
+		for line := range bytes.Lines(buf.Bytes()) {
+			var record map[string]any
+			require.NoError(t, json.Unmarshal(line, &record))
+			records = append(records, record)
+		}
+		assert.Equal(t, []map[string]any{
+			{
+				"level":      "ERROR",
+				"msg":        "unexpected error",
+				"error":      "listing published products: closed pool",
+				"client_ip":  "192.0.2.1",
+				"request_id": "req-db-down",
+			},
+			{
+				"level":      "INFO",
+				"msg":        "request completed",
+				"method":     "GET",
+				"path":       "/api/products",
+				"status":     float64(http.StatusInternalServerError),
+				"client_ip":  "192.0.2.1",
+				"request_id": "req-db-down",
+			},
+		}, records)
+	})
+}
+
 func TestAdapterErrorPaths(t *testing.T) {
 	setup(t)
 	handler := newTestRouter(testPaymentCfg)
