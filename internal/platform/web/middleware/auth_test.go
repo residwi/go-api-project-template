@@ -3,6 +3,7 @@ package middleware
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -102,6 +103,40 @@ func TestAuth(t *testing.T) {
 		handler.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+
+	t.Run("an unexpected failure logs its cause at error, not as an invalid token", func(t *testing.T) {
+		var buf bytes.Buffer
+		log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if len(groups) == 0 && a.Key == slog.TimeKey {
+					return slog.Attr{}
+				}
+				return a
+			},
+		}))
+		authenticator := NewMockAuthenticator(t)
+		authenticator.EXPECT().Authenticate(mock.Anything, "tok").
+			Return(identity.Identity{}, errors.New("dial tcp 10.0.0.5:5432: connection refused"))
+
+		handler := Auth(log, authenticator)(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+			t.Fatal("handler should not be called")
+		}))
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Authorization", "Bearer tok")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		var entry map[string]any
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+		assert.Equal(t, map[string]any{
+			"level": "ERROR",
+			"msg":   "unexpected error",
+			"error": "dial tcp 10.0.0.5:5432: connection refused",
+		}, entry)
 	})
 
 	t.Run("success puts the identity in the request context", func(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/residwi/go-api-project-template/internal/platform/errs"
 	"github.com/residwi/go-api-project-template/internal/platform/identity"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
 	"github.com/residwi/go-api-project-template/internal/platform/web/response"
@@ -36,8 +37,12 @@ func Auth(log *slog.Logger, authenticator Authenticator) func(http.Handler) http
 
 			id, err := authenticator.Authenticate(r.Context(), parts[1])
 			if err != nil {
-				log.WarnContext(r.Context(), "authentication failed",
-					slog.String("reason", "invalid_token"), slog.String("path", r.URL.Path))
+				if errs.Kind(err) == nil {
+					log.ErrorContext(r.Context(), "unexpected error", slog.String("error", err.Error()))
+				} else {
+					log.WarnContext(r.Context(), "authentication failed",
+						slog.String("reason", "invalid_token"), slog.String("path", r.URL.Path))
+				}
 				response.HandleErr(w, err)
 				return
 			}
