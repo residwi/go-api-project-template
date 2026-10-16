@@ -286,9 +286,15 @@ linters:
           msg: Log attributes are typed. Use slog.String/Int/Int64/Duration; for an error use slog.String("error", err.Error()).
         - pattern: ^(fmt\.Print(|f|ln)|print|println)$
         # Scoped to internal/features/ by an exclusion rule below: middleware
-        # still writes its own error responses.
+        # still writes its own error responses. Matched by package, so an
+        # aliased import of response is caught too.
         - pattern: ^response\.(HandleErr|Err|Unauthorized|Forbidden|TooManyRequests|InternalError|ValidationErr)$
+          pkg: ^github\.com/residwi/go-api-project-template/internal/platform/web/response$
           msg: A feature handler returns its error and writes nothing; web.Router turns the error into the response.
+        - pattern: ^http\.Error$
+          pkg: ^net/http$
+          msg: A feature handler returns its error and writes nothing; web.Router turns the error into the response.
+      analyze-types: true
 
     funcorder:
       # Checks that exported functions are placed before unexported functions.
