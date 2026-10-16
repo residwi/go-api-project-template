@@ -83,7 +83,8 @@ A production-ready Go API template: a modular monolith of hexagonal feature modu
 │   │   └── /web                #   Middleware, Chain, Router -- a tree of its own:
 │   │       ├── /request        #     Bind (validator included), RequireUser,
 │   │       │                   #     ParseUUIDParam
-│   │       ├── /response       #     the envelope, HandleErr, CursorPage
+│   │       ├── /response       #     the envelope, HandleErr, ValidationError,
+│   │       │                   #     CursorPage
 │   │       └── /middleware     #     CORS, Logging, Recovery, RequestID, ClientIP,
 │   │                           #     Auth, Require/RequireRole, RateLimit
 │   └── /testutil               # Shared container plumbing for tests

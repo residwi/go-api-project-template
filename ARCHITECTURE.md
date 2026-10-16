@@ -306,6 +306,24 @@ cost what the dummy hash costs, so the unknown-email path's timing tells those
 accounts apart again. Under a login burst requests queue for a slot instead of
 exhausting memory, and one whose context ends first gets an error.
 
+**32. Handlers return errors; the router answers and logs them.** A handler is a
+`web.HandlerFunc`: it writes its success response and returns `nil`, or returns
+an error and writes nothing. `web.Router.HandleFunc` holds the logger
+`NewRouter` was given, turns the error into the response through
+`response.HandleErr`, and logs one that carries no `errs` kind at Error with its
+cause, so a database outage is not a bare `status=500` when tracing is off. An
+error returned after a write is logged and the first response stands. This is
+the shape go-kit, Kratos, Echo and connect-go share: one point receives the
+returned error and holds an injected logger, while the context carries only
+fields. *Rejected:* a logger read from the context, which turns a dependency
+into a runtime lookup that degrades silently to a logger without `request_id`
+when the middleware is missing; and an error slot the request logger reads,
+which keeps one line per request but loses the cause silently when the slot is
+never installed. *Cost:* a 500 is two lines, `request completed` at Info and
+`unexpected error` at Error, joined by `request_id`. The request helpers'
+messages carry their kind prefix. `middleware.Auth` is not a route, so it makes
+the same expected-or-unexpected split itself.
+
 ## Foreign keys across module boundaries
 
 22 foreign keys exist and 16 cross a module boundary. All 16 stay. The 6 that
