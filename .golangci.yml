@@ -288,7 +288,7 @@ linters:
         # Scoped to internal/features/ by an exclusion rule below: middleware
         # still writes its own error responses. Matched by package, so an
         # aliased import of response is caught too.
-        - pattern: ^response\.(HandleErr|Err|Unauthorized|Forbidden|TooManyRequests|InternalError|ValidationErr)$
+        - pattern: ^response\.(HandleErr|Err|Unauthorized|Forbidden|TooManyRequests|InternalError)$
           pkg: ^github\.com/residwi/go-api-project-template/internal/platform/web/response$
           msg: A feature handler returns its error and writes nothing; web.Router turns the error into the response.
         - pattern: ^http\.Error$

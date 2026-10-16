@@ -21,7 +21,7 @@ func (e *ValidationError) Unwrap() error {
 
 func HandleErr(w http.ResponseWriter, err error) {
 	if ve, ok := errors.AsType[*ValidationError](err); ok {
-		ValidationErr(w, ve.Details)
+		Err(w, http.StatusUnprocessableEntity, ve.Error(), ve.Details)
 		return
 	}
 

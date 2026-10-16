@@ -51,10 +51,6 @@ func InternalError(w http.ResponseWriter) {
 	Err(w, http.StatusInternalServerError, "internal server error", nil)
 }
 
-func ValidationErr(w http.ResponseWriter, details map[string]any) {
-	Err(w, http.StatusUnprocessableEntity, "validation failed", details)
-}
-
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	body, err := json.Marshal(v)
 	if err != nil {

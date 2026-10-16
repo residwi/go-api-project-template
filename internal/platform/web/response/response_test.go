@@ -130,18 +130,3 @@ func TestInternalError(t *testing.T) {
 	InternalError(w)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
-
-func TestValidationErr(t *testing.T) {
-	t.Parallel()
-
-	w := httptest.NewRecorder()
-	ValidationErr(w, map[string]any{"email": "required"})
-	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
-
-	var body Response
-	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-	assert.Equal(t, &Error{
-		Message: "validation failed",
-		Details: map[string]any{"email": "required"},
-	}, body.Error)
-}
