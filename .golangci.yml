@@ -1,7 +1,7 @@
 # This file is licensed under the terms of the MIT license https://opensource.org/license/mit
 # Copyright (c) 2021-2025 Marat Reimers
 
-## Golden config for golangci-lint v2.12.2
+## Golden config for golangci-lint v2.15.0
 #
 # This is the best config for golangci-lint based on my experience and opinion.
 # It is very strict, but not extremely strict.
@@ -131,7 +131,7 @@ linters:
     ## you may want to enable
     #- arangolint # opinionated best practices for arangodb client
     #- decorder # checks declaration order and count of types, constants, variables and functions
-    #- exhaustruct # [highly recommend to enable] checks if all structure fields are initialized
+    #- exhaustruct_v5 # [highly recommend to enable] checks if all structure fields are initialized
     #- ginkgolinter # [if you use ginkgo/gomega] enforces standards of using ginkgo and gomega
     #- godox # detects usage of FIXME, TODO and other keywords inside comments
     #- goheader # checks is file header matches to pattern
@@ -152,6 +152,7 @@ linters:
     #- dupword # [useless without config] checks for duplicate words in the source code
     #- err113 # [too strict] checks the errors handling expressions
     #- errchkjson # [don't see profit + I'm against of omitting errors like in the first example https://github.com/breml/errchkjson] checks types passed to the json encoding functions. Reports unsupported types and optionally reports occasions, where the check for the returned error can be omitted
+    #- exhaustruct # [use exhaustruct_v5 instead] checks if all structure fields are initialized
     #- forcetypeassert # [replaced by errcheck] finds forced type assertions
     #- gomodguard_v2: [use more powerful depguard] allow and blocklist linter for direct Go module dependencies
     #- gosmopolitan # reports certain i18n/l10n anti-patterns in your Go codebase
@@ -240,17 +241,17 @@ linters:
       # Default: [ switch ]
       check:
         - switch
-        - map
+        - mapliteral
 
-    exhaustruct:
-      # List of regular expressions to match type names that should be excluded from processing.
+    exhaustruct_v5:
+      # List of regular expressions to match type names that should be skipped from checking.
       # Anonymous structs can be matched by '<anonymous>' alias.
       # Has precedence over `include`.
       # Each regular expression must match the full type name, including package path.
       # For example, to match type `net/http.Cookie` regular expression should be `.*/http\.Cookie`,
       # but not `http\.Cookie`.
       # Default: []
-      exclude:
+      ignore-patterns:
         # std libs
         - ^net/http.Client$
         - ^net/http.Cookie$
@@ -277,6 +278,9 @@ linters:
       # Allows empty structures in return statements.
       # Default: false
       allow-empty-returns: true
+      # Allow empty literals the blank identifier receives.
+      # Default: false
+      allow-empty-blank-assignments: true
 
     forbidigo:
       # A custom list replaces the defaults, so the default patterns are restated
@@ -534,7 +538,7 @@ linters:
         text: "exitAfterDefer"
         linters:
           - gocritic
-      - path-except: '^internal/features/'
+      - path-except: "^internal/features/"
         text: "web.Router turns the error into the response"
         linters: [forbidigo]
       # Skips nothing today: no non-test file under cmd/ or internal/testutil/
