@@ -322,6 +322,30 @@ func TestAdminHandler_Create(t *testing.T) {
 		assert.False(t, resp.Success)
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
+
+	t.Run("validation error lowercase currency", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupAdminMux(t)
+
+		body, _ := json.Marshal(map[string]any{
+			"name":     "Widget",
+			"price":    1000,
+			"currency": "usd",
+		})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/products", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.Equal(t, map[string]any{"currency": "failed on uppercase validation"}, resp.Error.Details)
+	})
 }
 
 func TestAdminHandler_Update(t *testing.T) {
@@ -434,6 +458,30 @@ func TestAdminHandler_Update(t *testing.T) {
 		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "validation failed", resp.Error.Message)
+	})
+
+	t.Run("validation error non-letter currency", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupAdminMux(t)
+
+		prodID := uuid.New()
+		body, _ := json.Marshal(map[string]any{
+			"price":    2000,
+			"currency": "U1D",
+		})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/products/"+prodID.String(), bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.Equal(t, map[string]any{"currency": "failed on alpha validation"}, resp.Error.Details)
 	})
 
 	// The three monetary keys move as a group, because an amount and its currency

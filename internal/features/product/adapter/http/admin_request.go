@@ -10,7 +10,7 @@ type createProductRequest struct {
 	Description    *string    `json:"description"      validate:"omitempty"`
 	Price          int64      `json:"price"            validate:"required,min=0"`
 	CompareAtPrice *int64     `json:"compare_at_price" validate:"omitempty,min=0"`
-	Currency       string     `json:"currency"         validate:"omitempty,len=3"`
+	Currency       string     `json:"currency"         validate:"omitempty,len=3,uppercase,alpha"`
 	SKU            *string    `json:"sku"              validate:"omitempty,max=100"`
 	Status         string     `json:"status"           validate:"omitempty,oneof=draft published archived"`
 }
@@ -21,7 +21,7 @@ type updateProductRequest struct {
 	Description    *string    `json:"description"      validate:"omitempty"`
 	Price          *int64     `json:"price"            validate:"omitempty,min=0"`
 	CompareAtPrice *int64     `json:"compare_at_price" validate:"omitempty,min=0"`
-	Currency       *string    `json:"currency"         validate:"omitempty,len=3"`
+	Currency       *string    `json:"currency"         validate:"omitempty,len=3,uppercase,alpha"`
 	SKU            *string    `json:"sku"              validate:"omitempty,max=100"`
 	Status         *string    `json:"status"           validate:"omitempty,oneof=draft published archived"`
 }
