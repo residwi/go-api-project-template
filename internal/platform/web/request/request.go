@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -16,7 +17,7 @@ import (
 )
 
 //nolint:gochecknoglobals // one shared validator: go-playground caches struct metadata per type, so a per-call instance would re-reflect every request
-var validate = validator.New()
+var validate = newValidator()
 
 func Bind[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 	var req T
@@ -45,6 +46,15 @@ func ParseUUIDParam(r *http.Request, name string) (uuid.UUID, error) {
 	return id, nil
 }
 
+func newValidator() *validator.Validate {
+	v := validator.New()
+	v.RegisterTagNameFunc(func(f reflect.StructField) string {
+		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		return name
+	})
+	return v
+}
+
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	decoder := json.NewDecoder(r.Body)
@@ -71,8 +81,7 @@ func validationDetails(s any) map[string]any {
 
 	details := make(map[string]any, len(fieldErrors))
 	for _, e := range fieldErrors {
-		field := strings.ToLower(e.Field()[:1]) + e.Field()[1:]
-		details[field] = formatError(e)
+		details[e.Field()] = formatError(e)
 	}
 
 	return details

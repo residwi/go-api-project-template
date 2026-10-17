@@ -199,11 +199,19 @@ func TestValidationDetails(t *testing.T) {
 		})
 
 		assert.Equal(t, map[string]any{
-			"iD":      "must be a valid UUID",
+			"id":      "must be a valid UUID",
 			"website": "must be a valid URL",
 			"age":     "must be greater than or equal to 18",
 			"score":   "must be less than or equal to 100",
 		}, got)
+	})
+
+	t.Run("keys a field by its json name, not its Go name", func(t *testing.T) {
+		t.Parallel()
+
+		got := validationDetails(snakeCaseStruct{MinOrderAmount: -1})
+
+		assert.Equal(t, map[string]any{"min_order_amount": "must be greater than or equal to 0"}, got)
 	})
 
 	t.Run("falls back to the tag name for an unmapped tag", func(t *testing.T) {
@@ -224,18 +232,22 @@ func TestValidationDetails(t *testing.T) {
 }
 
 type tagStruct struct {
-	Name  string `validate:"required,min=2,max=50"`
-	Email string `validate:"required,email"`
-	Role  string `validate:"required,oneof=admin user"`
+	Name  string `json:"name"  validate:"required,min=2,max=50"`
+	Email string `json:"email" validate:"required,email"`
+	Role  string `json:"role"  validate:"required,oneof=admin user"`
 }
 
 type boundedStruct struct {
-	ID      string `validate:"required,uuid"`
-	Website string `validate:"required,url"`
-	Age     int    `validate:"required,gte=18"`
-	Score   int    `validate:"required,lte=100"`
+	ID      string `json:"id"      validate:"required,uuid"`
+	Website string `json:"website" validate:"required,url"`
+	Age     int    `json:"age"     validate:"required,gte=18"`
+	Score   int    `json:"score"   validate:"required,lte=100"`
 }
 
 type alphanumStruct struct {
-	Value string `validate:"required,alphanum"`
+	Value string `json:"value" validate:"required,alphanum"`
+}
+
+type snakeCaseStruct struct {
+	MinOrderAmount int `json:"min_order_amount,omitempty" validate:"gte=0"`
 }
