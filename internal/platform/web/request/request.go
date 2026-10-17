@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"reflect"
 	"strings"
@@ -60,12 +61,30 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dst); err != nil {
-		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
-			return fmt.Errorf("%w: request body too large", errs.ErrBadRequest)
-		}
-		return fmt.Errorf("%w: %s", errs.ErrBadRequest, err.Error())
+		return decodeError(err)
 	}
-	return nil
+
+	switch err := decoder.Decode(new(json.RawMessage)); {
+	case errors.Is(err, io.EOF):
+		return nil
+	case err == nil:
+		return fmt.Errorf("%w: malformed JSON", errs.ErrBadRequest)
+	default:
+		return decodeError(err)
+	}
+}
+
+func decodeError(err error) error {
+	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+		return fmt.Errorf("%w: request body too large", errs.ErrBadRequest)
+	}
+	if ute, ok := errors.AsType[*json.UnmarshalTypeError](err); ok && ute.Field != "" {
+		return fmt.Errorf("%w: invalid type for %q", errs.ErrBadRequest, ute.Field)
+	}
+	if key, ok := strings.CutPrefix(err.Error(), "json: unknown field "); ok {
+		return fmt.Errorf("%w: unknown field %s", errs.ErrBadRequest, key)
+	}
+	return fmt.Errorf("%w: malformed JSON", errs.ErrBadRequest)
 }
 
 func validationDetails(s any) map[string]any {

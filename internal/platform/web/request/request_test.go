@@ -20,6 +20,12 @@ type payload struct {
 	Name string `json:"name" validate:"required"`
 }
 
+type nestedPayload struct {
+	Address struct {
+		ZipCode string `json:"zip_code"`
+	} `json:"address"`
+}
+
 func TestBind(t *testing.T) {
 	t.Parallel()
 
@@ -36,7 +42,7 @@ func TestBind(t *testing.T) {
 		assert.Empty(t, w.Body.String())
 	})
 
-	t.Run("returns a bad request error for malformed JSON and writes nothing", func(t *testing.T) {
+	t.Run("returns malformed JSON for broken syntax and writes nothing", func(t *testing.T) {
 		t.Parallel()
 
 		w := httptest.NewRecorder()
@@ -45,7 +51,75 @@ func TestBind(t *testing.T) {
 		_, err := Bind[payload](w, r)
 
 		require.ErrorIs(t, err, errs.ErrBadRequest)
+		require.EqualError(t, err, "bad request: malformed JSON")
 		assert.Empty(t, w.Body.String())
+	})
+
+	t.Run("returns malformed JSON for an empty body", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(``))
+
+		_, err := Bind[payload](w, r)
+
+		assert.EqualError(t, err, "bad request: malformed JSON")
+	})
+
+	t.Run("returns malformed JSON for a top-level array without naming the Go type", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`[]`))
+
+		_, err := Bind[payload](w, r)
+
+		assert.EqualError(t, err, "bad request: malformed JSON")
+	})
+
+	t.Run("returns malformed JSON for a top-level string", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`"x"`))
+
+		_, err := Bind[payload](w, r)
+
+		assert.EqualError(t, err, "bad request: malformed JSON")
+	})
+
+	t.Run("returns malformed JSON for a second value after the body", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"ada"} {"nope":1}`))
+
+		_, err := Bind[payload](w, r)
+
+		assert.EqualError(t, err, "bad request: malformed JSON")
+	})
+
+	t.Run("returns malformed JSON for trailing garbage after the body", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"ada"} x`))
+
+		_, err := Bind[payload](w, r)
+
+		assert.EqualError(t, err, "bad request: malformed JSON")
+	})
+
+	t.Run("accepts trailing whitespace after the body", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{\"name\":\"ada\"}  \n"))
+
+		got, err := Bind[payload](w, r)
+
+		require.NoError(t, err)
+		assert.Equal(t, payload{Name: "ada"}, got)
 	})
 
 	t.Run("returns a bad request error naming an unknown field", func(t *testing.T) {
@@ -57,7 +131,55 @@ func TestBind(t *testing.T) {
 		_, err := Bind[payload](w, r)
 
 		require.ErrorIs(t, err, errs.ErrBadRequest)
-		assert.EqualError(t, err, `bad request: json: unknown field "nope"`)
+		assert.EqualError(t, err, `bad request: unknown field "nope"`)
+	})
+
+	t.Run("names a wrong-type field by its json name without Go type names", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":1}`))
+
+		_, err := Bind[payload](w, r)
+
+		require.ErrorIs(t, err, errs.ErrBadRequest)
+		assert.EqualError(t, err, `bad request: invalid type for "name"`)
+	})
+
+	t.Run("names a nested wrong-type field by its json path", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"address":{"zip_code":5}}`))
+
+		_, err := Bind[nestedPayload](w, r)
+
+		assert.EqualError(t, err, `bad request: invalid type for "address.zip_code"`)
+	})
+
+	t.Run("returns too large when trailing data crosses the 1MiB cap", func(t *testing.T) {
+		t.Parallel()
+
+		body := `{"name":"ada"} "` + strings.Repeat("a", (1<<20)+1024) + `"`
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+
+		_, err := Bind[payload](w, r)
+
+		assert.EqualError(t, err, "bad request: request body too large")
+	})
+
+	t.Run("runs the tags against the zero value for a null body", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`null`))
+
+		_, err := Bind[payload](w, r)
+
+		ve, ok := errors.AsType[*response.ValidationError](err)
+		require.True(t, ok)
+		assert.Equal(t, &response.ValidationError{Details: map[string]any{"name": "this field is required"}}, ve)
 	})
 
 	t.Run("returns a bad request error for a body over 1MiB", func(t *testing.T) {
