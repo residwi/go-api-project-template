@@ -382,6 +382,18 @@ func TestValidationDetails(t *testing.T) {
 		}, got)
 	})
 
+	t.Run("reports min and max on a number as a value, not as characters", func(t *testing.T) {
+		t.Parallel()
+
+		tooMany := int64(11)
+		got := validationDetails(numberBoundsStruct{Amount: -1, Limit: &tooMany})
+
+		assert.Equal(t, map[string]any{
+			"amount": "must be greater than or equal to 0",
+			"limit":  "must be less than or equal to 10",
+		}, got)
+	})
+
 	t.Run("keys a field by its json name, not its Go name", func(t *testing.T) {
 		t.Parallel()
 
@@ -422,6 +434,11 @@ type boundedStruct struct {
 
 type alphanumStruct struct {
 	Value string `json:"value" validate:"required,alphanum"`
+}
+
+type numberBoundsStruct struct {
+	Amount int    `json:"amount" validate:"min=0"`
+	Limit  *int64 `json:"limit"  validate:"omitempty,max=10"`
 }
 
 type snakeCaseStruct struct {

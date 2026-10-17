@@ -131,8 +131,14 @@ func formatError(e validator.FieldError) string {
 	case "email":
 		return "must be a valid email address"
 	case "min":
+		if e.Kind() != reflect.String {
+			return fmt.Sprintf("must be greater than or equal to %s", e.Param())
+		}
 		return fmt.Sprintf("must be at least %s characters", e.Param())
 	case "max":
+		if e.Kind() != reflect.String {
+			return fmt.Sprintf("must be less than or equal to %s", e.Param())
+		}
 		return fmt.Sprintf("must be at most %s characters", e.Param())
 	case "oneof":
 		return fmt.Sprintf("must be one of: %s", e.Param())
