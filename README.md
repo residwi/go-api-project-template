@@ -370,7 +370,7 @@ endpoints are cursor-paginated, admin endpoints offset-paginated:
 }
 ```
 
-**Validation error** (422) — `details` maps each field to one message:
+**Validation error** (422) — `details` maps each field, by the JSON name the client sent, to one message:
 
 ```json
 {
@@ -384,6 +384,25 @@ endpoints are cursor-paginated, admin endpoints offset-paginated:
   }
 }
 ```
+
+A request type can add its own rules with a `Validate() map[string]string`
+method. `Bind` merges what it returns into the same `details`, and when a tag
+and the method name the same field, the tag's message wins. `promotion`'s admin
+requests check the code format this way.
+
+**Unreadable body** (400) — the message never names a Go type:
+
+```json
+{
+  "success": false,
+  "error": { "message": "bad request: invalid type for \"value\"" }
+}
+```
+
+The other messages are `bad request: unknown field "<key>"`,
+`bad request: request body too large` (over 1 MiB), and `bad request: malformed JSON`.
+The last one covers broken syntax, an empty body, a body that is not an object,
+and anything after the JSON object.
 
 ### Query Parameters
 
