@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"reflect"
 	"strings"
@@ -25,7 +26,11 @@ func Bind[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 	if err := decodeJSON(w, r, &req); err != nil {
 		return req, err
 	}
-	if details := validationDetails(req); len(details) > 0 {
+	details := validationDetails(req)
+	if v, ok := any(&req).(validatable); ok {
+		details = withRules(details, v.Validate())
+	}
+	if len(details) > 0 {
 		return req, &response.ValidationError{Details: details}
 	}
 	return req, nil
@@ -45,6 +50,19 @@ func ParseUUIDParam(r *http.Request, name string) (uuid.UUID, error) {
 		return uuid.Nil, fmt.Errorf("%w: invalid %s", errs.ErrBadRequest, name)
 	}
 	return id, nil
+}
+
+type validatable interface {
+	Validate() map[string]string
+}
+
+func withRules(details map[string]any, rules map[string]string) map[string]any {
+	merged := make(map[string]any, len(details)+len(rules))
+	for field, msg := range rules {
+		merged[field] = msg
+	}
+	maps.Copy(merged, details)
+	return merged
 }
 
 func newValidator() *validator.Validate {

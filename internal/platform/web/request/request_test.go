@@ -169,6 +169,60 @@ func TestBind(t *testing.T) {
 		assert.EqualError(t, err, "bad request: request body too large")
 	})
 
+	t.Run("merges a request type's own rules into the details", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"ada","code":"bad"}`))
+
+		_, err := Bind[ruledPayload](w, r)
+
+		ve, ok := errors.AsType[*response.ValidationError](err)
+		require.True(t, ok)
+		assert.Equal(t, &response.ValidationError{Details: map[string]any{"code": "must be OK"}}, ve)
+	})
+
+	t.Run("runs a request type's own rules even when a tag failed", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"code":"bad"}`))
+
+		_, err := Bind[ruledPayload](w, r)
+
+		ve, ok := errors.AsType[*response.ValidationError](err)
+		require.True(t, ok)
+		assert.Equal(t, &response.ValidationError{Details: map[string]any{
+			"name": "this field is required",
+			"code": "must be OK",
+		}}, ve)
+	})
+
+	t.Run("keeps the tag message when a rule reports the same field", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"code":"OK"}`))
+
+		_, err := Bind[ruledPayload](w, r)
+
+		ve, ok := errors.AsType[*response.ValidationError](err)
+		require.True(t, ok)
+		assert.Equal(t, &response.ValidationError{Details: map[string]any{"name": "this field is required"}}, ve)
+	})
+
+	t.Run("returns the request when tags and rules both pass", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"ada","code":"OK"}`))
+
+		got, err := Bind[ruledPayload](w, r)
+
+		require.NoError(t, err)
+		assert.Equal(t, ruledPayload{Name: "ada", Code: "OK"}, got)
+	})
+
 	t.Run("runs the tags against the zero value for a null body", func(t *testing.T) {
 		t.Parallel()
 
@@ -372,4 +426,20 @@ type alphanumStruct struct {
 
 type snakeCaseStruct struct {
 	MinOrderAmount int `json:"min_order_amount,omitempty" validate:"gte=0"`
+}
+
+type ruledPayload struct {
+	Name string `json:"name" validate:"required"`
+	Code string `json:"code"`
+}
+
+func (p *ruledPayload) Validate() map[string]string {
+	problems := map[string]string{}
+	if p.Code != "OK" {
+		problems["code"] = "must be OK"
+	}
+	if p.Name == "" {
+		problems["name"] = "rule says name is empty"
+	}
+	return problems
 }
