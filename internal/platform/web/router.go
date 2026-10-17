@@ -33,16 +33,8 @@ func (r *Router) Group(prefix string, mws ...Middleware) *Router {
 	}
 }
 
-func (r *Router) Handle(pattern string, handler http.Handler) {
-	method, path, _ := strings.Cut(pattern, " ")
-	if len(r.mws) > 0 {
-		handler = Chain(r.mws...)(handler)
-	}
-	r.mux.Handle(method+" "+r.prefix+path, handler)
-}
-
 func (r *Router) HandleFunc(pattern string, handler HandlerFunc) {
-	r.Handle(pattern, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	r.handle(pattern, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		tw := &trackingWriter{ResponseWriter: w}
 		err := handler(tw, req)
 		if err == nil {
@@ -62,6 +54,14 @@ func (r *Router) HandleFunc(pattern string, handler HandlerFunc) {
 			response.HandleErr(w, err)
 		}
 	}))
+}
+
+func (r *Router) handle(pattern string, handler http.Handler) {
+	method, path, _ := strings.Cut(pattern, " ")
+	if len(r.mws) > 0 {
+		handler = Chain(r.mws...)(handler)
+	}
+	r.mux.Handle(method+" "+r.prefix+path, handler)
 }
 
 type trackingWriter struct {

@@ -28,7 +28,7 @@ func TestRouterGroup(t *testing.T) {
 		mux := http.NewServeMux()
 		router := NewRouter(mux, slog.New(slog.DiscardHandler))
 		admin := router.Group("/api").Group("/admin")
-		admin.Handle("GET /users", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		admin.handle("GET /users", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusTeapot)
 		}))
 
@@ -54,7 +54,7 @@ func TestRouterGroup(t *testing.T) {
 		mux := http.NewServeMux()
 		parent := NewRouter(mux, slog.New(slog.DiscardHandler)).Group("/api", mark("parent"))
 		child := parent.Group("/admin", mark("child"))
-		child.Handle("GET /x", http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		child.handle("GET /x", http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 			order = append(order, "handler")
 		}))
 
@@ -80,8 +80,8 @@ func TestRouterGroup(t *testing.T) {
 		router := NewRouter(mux, slog.New(slog.DiscardHandler))
 		left := router.Group("/left", mark("left"))
 		right := router.Group("/right", mark("right"))
-		left.Handle("GET /x", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
-		right.Handle("GET /x", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+		left.handle("GET /x", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+		right.handle("GET /x", http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 
 		mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/right/x", nil))
 
@@ -93,7 +93,7 @@ func TestRouterGroup(t *testing.T) {
 
 		mux := http.NewServeMux()
 		router := NewRouter(mux, slog.New(slog.DiscardHandler))
-		router.Handle("GET /health", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		router.handle("GET /health", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 		}))
 

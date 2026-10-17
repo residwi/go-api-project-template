@@ -40,7 +40,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	mux := http.NewServeMux()
 
 	router := web.NewRouter(mux, logger)
-	router.Handle("GET /health", healthHandler())
+	router.HandleFunc("GET /health", healthHandler)
 
 	authMW := middleware.Auth(logger, deps.Auth)
 	adminMW := middleware.RequireRole(logger, "admin")
@@ -224,10 +224,9 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 	)(mux)
 }
 
-func healthHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
-	}
+func healthHandler(w http.ResponseWriter, _ *http.Request) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
+	return nil
 }
