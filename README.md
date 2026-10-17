@@ -73,7 +73,8 @@ A production-ready Go API template: a modular monolith of hexagonal feature modu
 │   │                           # working client, its queue map, its periodic job
 │   ├── /platform               # Infrastructure, no feature knowledge:
 │   │   ├── /database           #   pools, transactions, TxRunner, keyset helpers
-│   │   ├── /cache              #   Redis client, ReadThrough, CircuitBreaker
+│   │   ├── /cache              #   ReadThrough
+│   │   ├── /redis              #   Redis client (New) and CircuitBreaker
 │   │   ├── /jobqueue           #   NewInsertClient + a transaction-aware Insert
 │   │   ├── /errs               #   the five status-carrying error kinds
 │   │   ├── /identity           #   Identity (UserID, Role) and its context plumbing
@@ -640,8 +641,8 @@ miss loads once, ±10% TTL jitter, a short-lived placeholder for a not-found
 row, and a drop-and-reload on a corrupt entry. A write invalidates its keys
 with `Del` after it commits; it never writes the new value back.
 
-**Degradation.** `cache.CircuitBreaker` is wired as the client's
-`redis.Limiter`, so five consecutive failures fuse it for five seconds and an
+**Degradation.** `redis.CircuitBreaker` is wired as the cache client's
+go-redis `Limiter`, so five consecutive failures fuse it for five seconds and an
 open breaker costs no I/O at all; the cooldown releases one probe rather than
 the whole herd. Every cached read falls through to Postgres on a Redis error,
 so an outage costs latency and full read traffic at the database, not errors.

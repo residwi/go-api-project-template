@@ -252,7 +252,7 @@ adapter will need this comment written again from scratch rather than found
 by example.
 
 **28. A circuit breaker fuses the cache client; the rate limiter gets its own.**
-`cache.CircuitBreaker` implements `redis.Limiter`, which go-redis consults
+`redis.CircuitBreaker` implements go-redis's `Limiter`, which go-redis consults
 before it dials or waits for a pool slot, so an open breaker costs no I/O. Five
 consecutive failures open it for five seconds, and the cooldown releases one
 probe rather than the herd behind it. Any reply the server authored —
@@ -260,10 +260,14 @@ probe rather than the herd behind it. Any reply the server authored —
 all this measures. `server.go` builds a second client without the `Limiter` for
 `middleware.RateLimit`: one shared fuse would let a slow cache push login and
 checkout throttling onto its in-process fallback, a fixed window per replica
-that admits the whole limit at once instead of the GCRA burst. *Cost:* a second
-pool, and an invalidation fired while the breaker is open never lands, so a
-value written before the outage survives its own TTL once it closes — five
-minutes for `category.List` and the `notification` counter.
+that admits the whole limit at once instead of the GCRA burst. Both clients come
+from `internal/platform/redis`, not `platform/cache`, because rate limiting is
+not caching; the package is named for the protocol, since Valkey and Dragonfly
+speak RESP and a role name would promise an abstraction over `*redis.Client`
+that does not exist. *Cost:* a second pool, and an invalidation fired while
+the breaker is open never lands, so a value written before the outage survives
+its own TTL once it closes — five minutes for `category.List` and the
+`notification` counter.
 
 **29. Redis is bounded by the socket timeouts, not by a context per command.**
 Dial, read, write and pool are all 1s and `MaxRetries` is `-1`. go-redis hands

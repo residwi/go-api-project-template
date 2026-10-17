@@ -45,6 +45,8 @@ components:
     in: internal/platform/cache
   jobqueue:
     in: internal/platform/jobqueue
+  redis:
+    in: internal/platform/redis
   tracing:
     in: internal/platform/tracing
   storage:

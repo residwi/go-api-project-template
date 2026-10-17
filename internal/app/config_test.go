@@ -4,10 +4,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/residwi/go-api-project-template/internal/app"
+	"github.com/residwi/go-api-project-template/internal/config"
 )
 
 // The gateway-timeout ceiling spans two modules -- payment's retry budget
@@ -39,5 +41,35 @@ func TestLoadConfigRejectsAGatewayTimeoutThatOutlivesTheStaleSweep(t *testing.T)
 
 		require.NoError(t, err)
 		assert.Equal(t, 10*time.Second, cfg.Payment.GatewayTimeout)
+	})
+}
+
+func TestRedisOptions(t *testing.T) {
+	t.Run("maps every setting and allows one attempt per command", func(t *testing.T) {
+		cfg := config.Redis{
+			Host:         "cache.internal",
+			Port:         6380,
+			Password:     "secret",
+			DB:           2,
+			PoolSize:     20,
+			MinIdleConns: 4,
+			DialTimeout:  2 * time.Second,
+			ReadTimeout:  3 * time.Second,
+			WriteTimeout: 4 * time.Second,
+			PoolTimeout:  5 * time.Second,
+		}
+
+		assert.Equal(t, &redis.Options{
+			Addr:         "cache.internal:6380",
+			Password:     "secret",
+			DB:           2,
+			PoolSize:     20,
+			MinIdleConns: 4,
+			DialTimeout:  2 * time.Second,
+			ReadTimeout:  3 * time.Second,
+			WriteTimeout: 4 * time.Second,
+			PoolTimeout:  5 * time.Second,
+			MaxRetries:   -1,
+		}, app.RedisOptions(cfg))
 	})
 }

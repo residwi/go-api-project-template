@@ -3,6 +3,8 @@ package app
 import (
 	"fmt"
 
+	"github.com/redis/go-redis/v9"
+
 	"github.com/residwi/go-api-project-template/internal/config"
 	"github.com/residwi/go-api-project-template/internal/features/auth"
 	"github.com/residwi/go-api-project-template/internal/features/cart"
@@ -37,6 +39,24 @@ func ReplicaPoolOptions(cfg config.Database) database.PostgresOptions {
 	opts.DSN = cfg.ReplicaURL
 
 	return opts
+}
+
+func RedisOptions(cfg config.Redis) *redis.Options {
+	return &redis.Options{
+		Addr:         cfg.Addr(),
+		Password:     cfg.Password,
+		DB:           cfg.DB,
+		PoolSize:     cfg.PoolSize,
+		MinIdleConns: cfg.MinIdleConns,
+		DialTimeout:  cfg.DialTimeout,
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		PoolTimeout:  cfg.PoolTimeout,
+		// One attempt per command. Retrying is wasted work when the fallback is a
+		// Postgres read, and against a server that accepts but never answers the
+		// default of 3 multiplies every socket timeout by four.
+		MaxRetries: -1,
+	}
 }
 
 func LoadConfig() (Config, error) {

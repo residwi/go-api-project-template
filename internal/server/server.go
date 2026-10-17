@@ -10,13 +10,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/redis/go-redis/v9"
-
 	"github.com/residwi/go-api-project-template/internal/app"
 	"github.com/residwi/go-api-project-template/internal/config"
-	"github.com/residwi/go-api-project-template/internal/platform/cache"
 	"github.com/residwi/go-api-project-template/internal/platform/database"
 	"github.com/residwi/go-api-project-template/internal/platform/logger"
+	"github.com/residwi/go-api-project-template/internal/platform/redis"
 	"github.com/residwi/go-api-project-template/internal/platform/tracing"
 )
 
@@ -73,22 +71,10 @@ func RunContext( //nolint:funlen // one linear boot sequence: config, tracing, d
 		defer replicaDB.Close()
 	}
 
-	rdb, err := cache.NewRedis(ctx, &redis.Options{
-		Addr:         appCfg.Redis.Addr(),
-		Password:     appCfg.Redis.Password,
-		DB:           appCfg.Redis.DB,
-		PoolSize:     appCfg.Redis.PoolSize,
-		MinIdleConns: appCfg.Redis.MinIdleConns,
-		DialTimeout:  appCfg.Redis.DialTimeout,
-		ReadTimeout:  appCfg.Redis.ReadTimeout,
-		WriteTimeout: appCfg.Redis.WriteTimeout,
-		PoolTimeout:  appCfg.Redis.PoolTimeout,
-		// One attempt per command. Retrying is wasted work when the fallback is a
-		// Postgres read, and against a server that accepts but never answers the
-		// default of 3 multiplies every socket timeout by four.
-		MaxRetries: -1,
-		Limiter:    cache.NewCircuitBreaker(),
-	}, appLog)
+	cacheOpts := app.RedisOptions(appCfg.Redis)
+	cacheOpts.Limiter = redis.NewCircuitBreaker()
+
+	rdb, err := redis.New(ctx, cacheOpts, appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "building redis cache client failed", slog.String("error", err.Error()))
 		return fmt.Errorf("building redis cache client: %w", err)
@@ -99,18 +85,7 @@ func RunContext( //nolint:funlen // one linear boot sequence: config, tracing, d
 	// latency, and one shared fuse would let a slow cache push login and checkout
 	// throttling onto RateLimit's in-process fallback: a fixed window per replica
 	// that admits the whole limit at once instead of the GCRA burst.
-	limiterRDB, err := cache.NewRedis(ctx, &redis.Options{
-		Addr:         appCfg.Redis.Addr(),
-		Password:     appCfg.Redis.Password,
-		DB:           appCfg.Redis.DB,
-		PoolSize:     appCfg.Redis.PoolSize,
-		MinIdleConns: appCfg.Redis.MinIdleConns,
-		DialTimeout:  appCfg.Redis.DialTimeout,
-		ReadTimeout:  appCfg.Redis.ReadTimeout,
-		WriteTimeout: appCfg.Redis.WriteTimeout,
-		PoolTimeout:  appCfg.Redis.PoolTimeout,
-		MaxRetries:   -1,
-	}, appLog)
+	limiterRDB, err := redis.New(ctx, app.RedisOptions(appCfg.Redis), appLog)
 	if err != nil {
 		appLog.ErrorContext(ctx, "building redis rate-limit client failed", slog.String("error", err.Error()))
 		return fmt.Errorf("building redis rate-limit client: %w", err)

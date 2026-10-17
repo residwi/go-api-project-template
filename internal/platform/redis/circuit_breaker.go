@@ -1,4 +1,4 @@
-package cache
+package redis
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 var ErrCircuitOpen = errors.New("redis circuit breaker open")
@@ -18,7 +18,7 @@ type CircuitBreaker struct {
 	openUntil time.Time
 }
 
-var _ redis.Limiter = (*CircuitBreaker)(nil)
+var _ goredis.Limiter = (*CircuitBreaker)(nil)
 
 func NewCircuitBreaker() *CircuitBreaker {
 	return &CircuitBreaker{}
@@ -52,7 +52,7 @@ func (b *CircuitBreaker) ReportResult(result error) {
 	// Any reply the server authored -- a miss, MISCONF, OOM, READONLY, a Lua error --
 	// proves it is reachable, and reachability is all this breaker measures. Tripping
 	// on a full disk would take reads offline while Redis still serves them fine.
-	var replied redis.Error
+	var replied goredis.Error
 	if result == nil || errors.As(result, &replied) {
 		b.failures = 0
 

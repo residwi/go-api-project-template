@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -19,6 +20,15 @@ import (
 )
 
 const testTTL = time.Minute
+
+var testRedisClient *redis.Client
+
+func TestMain(m *testing.M) {
+	client, cleanup := testutil.MustStartRedis(0)
+	defer cleanup()
+	testRedisClient = client
+	os.Exit(m.Run())
+}
 
 func TestTake(t *testing.T) {
 	t.Run("miss loads and returns the value; a second Take serves it without the loader", func(t *testing.T) {

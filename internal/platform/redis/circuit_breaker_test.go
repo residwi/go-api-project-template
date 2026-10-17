@@ -1,4 +1,4 @@
-package cache
+package redis
 
 import (
 	"context"
@@ -7,11 +7,9 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
 func TestCircuitBreakerAllow(t *testing.T) {
@@ -45,11 +43,11 @@ func TestCircuitBreakerAllow(t *testing.T) {
 		assert.NoError(t, b.Allow(), "the success must have cleared the earlier streak")
 	})
 
-	t.Run("redis.Nil counts as a success, not a failure", func(t *testing.T) {
+	t.Run("goredis.Nil counts as a success, not a failure", func(t *testing.T) {
 		b := NewCircuitBreaker()
 
 		for range circuitThreshold * 2 {
-			b.ReportResult(redis.Nil)
+			b.ReportResult(goredis.Nil)
 		}
 
 		assert.NoError(t, b.Allow())
@@ -163,7 +161,7 @@ func TestCircuitBreakerCooldown(t *testing.T) {
 }
 
 func TestCircuitBreakerShortCircuitsARealClient(t *testing.T) {
-	broken := redis.NewClient(&redis.Options{
+	broken := goredis.NewClient(&goredis.Options{
 		Addr:        "localhost:1",
 		MaxRetries:  -1,
 		DialTimeout: 200 * time.Millisecond,
@@ -181,12 +179,4 @@ func TestCircuitBreakerShortCircuitsARealClient(t *testing.T) {
 
 	require.ErrorIs(t, err, ErrCircuitOpen, "go-redis must consult the Limiter before it dials")
 	assert.Less(t, elapsed, 50*time.Millisecond, "an open breaker must not pay the dial timeout")
-
-	got, takeErr := NewReadThrough(broken, testutil.DiscardLogger()).
-		Take(context.Background(), testKey(t), testTTL, func(context.Context) (int, error) {
-			return 42, nil
-		})
-
-	require.NoError(t, takeErr)
-	assert.Equal(t, 42, got, "an open breaker must still serve the loader")
 }

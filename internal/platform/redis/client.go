@@ -1,4 +1,4 @@
-package cache
+package redis
 
 import (
 	"context"
@@ -6,11 +6,11 @@ import (
 	"log/slog"
 
 	"github.com/redis/go-redis/extra/redisotel/v9"
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
-func NewRedis(ctx context.Context, opts *redis.Options, logger *slog.Logger) (*redis.Client, error) {
-	client := redis.NewClient(opts)
+func New(ctx context.Context, opts *goredis.Options, logger *slog.Logger) (*goredis.Client, error) {
+	client := goredis.NewClient(opts)
 
 	if err := redisotel.InstrumentTracing(client, redisotel.WithDBStatement(false)); err != nil {
 		return nil, fmt.Errorf("instrumenting redis: %w", err)
