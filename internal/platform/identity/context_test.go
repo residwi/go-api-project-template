@@ -16,7 +16,7 @@ func TestFromContext(t *testing.T) {
 	t.Run("returns what NewContext stored", func(t *testing.T) {
 		t.Parallel()
 
-		want := identity.Identity{UserID: uuid.New(), Role: "admin"}
+		want := identity.Identity{UserID: uuid.Must(uuid.NewV7()), Role: "admin"}
 
 		got, ok := identity.FromContext(identity.NewContext(context.Background(), want))
 

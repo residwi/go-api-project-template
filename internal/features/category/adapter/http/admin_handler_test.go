@@ -141,7 +141,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		catID := uuid.New()
+		catID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		service.EXPECT().
 			Update(mock.Anything, catID, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
@@ -206,7 +206,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		catID := uuid.New()
+		catID := uuid.Must(uuid.NewV7())
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
@@ -226,7 +226,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		catID := uuid.New()
+		catID := uuid.Must(uuid.NewV7())
 		tooLong := strings.Repeat("a", 256)
 		body, _ := json.Marshal(map[string]any{
 			"name": tooLong,
@@ -251,7 +251,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		catID := uuid.New()
+		catID := uuid.Must(uuid.NewV7())
 		service.EXPECT().
 			Update(mock.Anything, catID, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(nil, errs.ErrNotFound)
@@ -279,7 +279,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		catID := uuid.New()
+		catID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Delete(mock.Anything, catID).Return(nil)
 
 		w := httptest.NewRecorder()
@@ -313,7 +313,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		catID := uuid.New()
+		catID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Delete(mock.Anything, catID).Return(errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
@@ -334,9 +334,9 @@ func TestToAdminCategoryResponse_KeepsModerationAndAuditFields(t *testing.T) {
 
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	description := "Phones, laptops and audio"
-	parentID := uuid.New()
+	parentID := uuid.Must(uuid.NewV7())
 	got := toAdminCategoryResponse(&domain.Category{
-		ID:          uuid.New(),
+		ID:          uuid.Must(uuid.NewV7()),
 		Name:        "Electronics",
 		Slug:        "electronics",
 		Description: &description,

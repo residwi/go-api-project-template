@@ -23,7 +23,7 @@ func TestService_PlaceOrder(t *testing.T) {
 	t.Run("charges the payment gateway for a payable order", func(t *testing.T) {
 		t.Parallel()
 
-		userID, orderID := uuid.New(), uuid.New()
+		userID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		placed := &order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
@@ -60,7 +60,7 @@ func TestService_PlaceOrder(t *testing.T) {
 	t.Run("returns the order when the gateway fails, leaving it awaiting payment", func(t *testing.T) {
 		t.Parallel()
 
-		userID, orderID := uuid.New(), uuid.New()
+		userID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		placed := &order.Snapshot{
 			ID:     orderID,
 			UserID: userID,
@@ -89,9 +89,9 @@ func TestService_PlaceOrder(t *testing.T) {
 	t.Run("does not charge a zero-total order", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		placed := &order.Snapshot{
-			ID:     uuid.New(),
+			ID:     uuid.Must(uuid.NewV7()),
 			UserID: userID,
 			Total:  money.New(0, "USD"),
 			Status: "paid",
@@ -117,7 +117,7 @@ func TestService_PlaceOrder(t *testing.T) {
 	t.Run("propagates a placement failure without charging", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Place(mock.Anything, userID, order.NewOrder{}, "idem-4").
@@ -139,13 +139,13 @@ func TestService_PlaceOrder(t *testing.T) {
 	t.Run("does not charge again when the idempotency key was a replay", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		// A paid order is what a real replay returns, but the status is not what
 		// the guard reads: created=false is, so the order below is deliberately
 		// still awaiting_payment with a payable total. Status-inference would
 		// charge it a second time.
 		replayed := &order.Snapshot{
-			ID:     uuid.New(),
+			ID:     uuid.Must(uuid.NewV7()),
 			UserID: userID,
 			Total:  money.New(2500, "USD"),
 			Status: "awaiting_payment",
@@ -177,7 +177,7 @@ func TestService_RetryPayment(t *testing.T) {
 	t.Run("charges an order that is awaiting payment", func(t *testing.T) {
 		t.Parallel()
 
-		userID, orderID := uuid.New(), uuid.New()
+		userID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).Return(order.Snapshot{
@@ -206,18 +206,18 @@ func TestService_RetryPayment(t *testing.T) {
 	t.Run("hides another user's order behind not found", func(t *testing.T) {
 		t.Parallel()
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).Return(order.Snapshot{
 			ID:     orderID,
-			UserID: uuid.New(),
+			UserID: uuid.Must(uuid.NewV7()),
 			Status: string("awaiting_payment"),
 		}, nil)
 
 		svc := New(orders, NewMockPayments(t), testutil.DiscardLogger())
 
-		_, err := svc.RetryPayment(t.Context(), uuid.New(), orderID, "pm_retry")
+		_, err := svc.RetryPayment(t.Context(), uuid.Must(uuid.NewV7()), orderID, "pm_retry")
 
 		require.ErrorIs(t, err, errs.ErrNotFound)
 	})
@@ -225,7 +225,7 @@ func TestService_RetryPayment(t *testing.T) {
 	t.Run("refuses an order that is not awaiting payment", func(t *testing.T) {
 		t.Parallel()
 
-		userID, orderID := uuid.New(), uuid.New()
+		userID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).Return(order.Snapshot{
@@ -247,7 +247,7 @@ func TestService_RetryPayment(t *testing.T) {
 	t.Run("does not charge when a concurrent retry already claimed the order", func(t *testing.T) {
 		t.Parallel()
 
-		userID, orderID := uuid.New(), uuid.New()
+		userID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).Return(order.Snapshot{
@@ -268,7 +268,7 @@ func TestService_RetryPayment(t *testing.T) {
 	t.Run("releases the claim when the charge fails", func(t *testing.T) {
 		t.Parallel()
 
-		userID, orderID := uuid.New(), uuid.New()
+		userID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).Return(order.Snapshot{
@@ -301,7 +301,7 @@ func TestService_CancelOrder(t *testing.T) {
 	t.Run("cancels the order then its pending payment jobs", func(t *testing.T) {
 		t.Parallel()
 
-		userID, orderID := uuid.New(), uuid.New()
+		userID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().CancelByUser(mock.Anything, userID, orderID).Return(nil)
@@ -317,7 +317,7 @@ func TestService_CancelOrder(t *testing.T) {
 	t.Run("still succeeds when the job cancel fails", func(t *testing.T) {
 		t.Parallel()
 
-		userID, orderID := uuid.New(), uuid.New()
+		userID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().CancelByUser(mock.Anything, userID, orderID).Return(nil)
@@ -333,7 +333,7 @@ func TestService_CancelOrder(t *testing.T) {
 	t.Run("does not touch payment jobs when the cancel is refused", func(t *testing.T) {
 		t.Parallel()
 
-		userID, orderID := uuid.New(), uuid.New()
+		userID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().CancelByUser(mock.Anything, userID, orderID).Return(apperror.ErrOrderCharging)

@@ -14,7 +14,7 @@ import (
 func TestSendWorkerCallsSend(t *testing.T) {
 	t.Parallel()
 
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	svc := NewMockSender(t)
 	svc.EXPECT().Send(mock.Anything, id).Return(nil)
 

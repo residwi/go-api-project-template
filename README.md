@@ -7,7 +7,7 @@ A production-ready Go API template: a modular monolith of hexagonal feature modu
 - **Go 1.27** with the stdlib `ServeMux` routing
 - **Modular monolith** — feature modules, each a hexagon with its own domain, ports and adapters; layer rules enforced by go-arch-lint
 - **Two binaries**: API server (`cmd/api`) and job worker (`cmd/worker`)
-- **PostgreSQL 16+** with `pgx/v5` driver (requires `gen_random_uuid()`)
+- **PostgreSQL 18+** with `pgx/v5` driver (requires `uuidv7()`)
 - **Redis** read-through caching with `go-redis/v9` — a `Repository` decorator per cached module, behind a circuit breaker, degrading to Postgres when Redis is down
 - **JWT Authentication** with RBAC (Role-Based Access Control)
 - **Database Migrations** with `goose`
@@ -107,7 +107,7 @@ shape costs are all in **[ARCHITECTURE.md](ARCHITECTURE.md)**;
 ### Prerequisites
 
 - Go 1.27 or later
-- PostgreSQL 16+
+- PostgreSQL 18+
 - Redis
 - Docker & Docker Compose
 - Make (optional but recommended)
@@ -530,7 +530,7 @@ Rollback one migration:
 make migrate-down
 ```
 
-> **Note:** Requires PostgreSQL 16+ for `gen_random_uuid()` support.
+> **Note:** Requires PostgreSQL 18+ for `uuidv7()` support.
 
 ## Testing
 

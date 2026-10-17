@@ -29,7 +29,7 @@ func TestService_Create(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Product")).
 			Run(func(_ context.Context, p *domain.Product) {
-				p.ID = uuid.New()
+				p.ID = uuid.Must(uuid.NewV7())
 				p.CreatedAt = time.Now()
 				p.UpdatedAt = time.Now()
 			}).
@@ -60,7 +60,7 @@ func TestService_Create(t *testing.T) {
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(p *domain.Product) bool {
 			return p.Price.Currency == "EUR" && p.Status == domain.StatusPublished
 		})).Run(func(_ context.Context, p *domain.Product) {
-			p.ID = uuid.New()
+			p.ID = uuid.Must(uuid.NewV7())
 			p.CreatedAt = time.Now()
 			p.UpdatedAt = time.Now()
 		}).Return(nil)
@@ -106,7 +106,7 @@ func TestService_Create_RegistersZeroInventoryLevel(t *testing.T) {
 
 	repo.EXPECT().Create(mock.Anything, mock.Anything).RunAndReturn(
 		func(_ context.Context, p *domain.Product) error {
-			p.ID = uuid.New()
+			p.ID = uuid.Must(uuid.NewV7())
 			return nil
 		})
 	inv.EXPECT().EnsureLevel(mock.Anything, mock.Anything).Return(nil)
@@ -129,7 +129,7 @@ func TestService_Update(t *testing.T) {
 		var inv Inventory
 		s := New(repo, inv)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByID(mock.Anything, id).
 			Return(&domain.Product{
 				ID:     id,
@@ -159,8 +159,8 @@ func TestService_Update(t *testing.T) {
 		var inv Inventory
 		s := New(repo, inv)
 
-		id := uuid.New()
-		catID := uuid.New()
+		id := uuid.Must(uuid.NewV7())
+		catID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByID(mock.Anything, id).
 			Return(&domain.Product{
 				ID:     id,
@@ -210,7 +210,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		_, err := s.Update(context.Background(), uuid.New(), nil, nil, nil, nil, nil, nil, nil)
+		_, err := s.Update(context.Background(), uuid.Must(uuid.NewV7()), nil, nil, nil, nil, nil, nil, nil)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -221,7 +221,7 @@ func TestService_Update(t *testing.T) {
 		var inv Inventory
 		s := New(repo, inv)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByID(mock.Anything, id).
 			Return(&domain.Product{
 				ID:     id,
@@ -246,7 +246,7 @@ func TestService_Update_RepricesStoredCompareAtPriceIntoTheNewCurrency(t *testin
 	var inv Inventory
 	s := New(repo, inv)
 
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	storedCompare := money.New(1500, "USD")
 	repo.EXPECT().GetByID(mock.Anything, id).
 		Return(&domain.Product{
@@ -288,7 +288,7 @@ func TestService_Delete(t *testing.T) {
 		var inv Inventory
 		s := New(repo, inv)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().Delete(mock.Anything, id).Return(nil)
 
 		err := s.Delete(context.Background(), id)
@@ -305,7 +305,7 @@ func TestService_Delete(t *testing.T) {
 		repo.EXPECT().Delete(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(errs.ErrNotFound)
 
-		err := s.Delete(context.Background(), uuid.New())
+		err := s.Delete(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -320,12 +320,12 @@ func TestService_AddImage(t *testing.T) {
 		var inv Inventory
 		s := New(repo, inv)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByID(mock.Anything, productID).
 			Return(&domain.Product{ID: productID}, nil)
 		repo.EXPECT().AddImage(mock.Anything, mock.AnythingOfType("*domain.Image")).
 			Run(func(_ context.Context, img *domain.Image) {
-				img.ID = uuid.New()
+				img.ID = uuid.Must(uuid.NewV7())
 				img.CreatedAt = time.Now()
 			}).
 			Return(nil)
@@ -351,7 +351,7 @@ func TestService_AddImage(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		_, err := s.AddImage(context.Background(), uuid.New(), "https://img.example.com/x.jpg", nil, nil)
+		_, err := s.AddImage(context.Background(), uuid.Must(uuid.NewV7()), "https://img.example.com/x.jpg", nil, nil)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -362,7 +362,7 @@ func TestService_AddImage(t *testing.T) {
 		var inv Inventory
 		s := New(repo, inv)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByID(mock.Anything, productID).
 			Return(&domain.Product{ID: productID}, nil)
 		repo.EXPECT().AddImage(mock.Anything, mock.Anything).Return(errors.New("db error"))
@@ -382,8 +382,8 @@ func TestService_DeleteImage(t *testing.T) {
 		var inv Inventory
 		s := New(repo, inv)
 
-		productID := uuid.New()
-		imageID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
+		imageID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByID(mock.Anything, productID).
 			Return(&domain.Product{ID: productID}, nil)
 		repo.EXPECT().DeleteImage(mock.Anything, imageID).Return(nil)
@@ -402,7 +402,7 @@ func TestService_DeleteImage(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		err := s.DeleteImage(context.Background(), uuid.New(), uuid.New())
+		err := s.DeleteImage(context.Background(), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -417,7 +417,7 @@ func TestService_GetBySlug(t *testing.T) {
 		inv := NewMockInventory(t)
 		s := New(repo, inv)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetBySlug(mock.Anything, "cool-widget").
 			Return(&domain.Product{
 				ID:     id,
@@ -427,7 +427,7 @@ func TestService_GetBySlug(t *testing.T) {
 			}, nil)
 		repo.EXPECT().GetImagesByProductID(mock.Anything, id).
 			Return([]domain.Image{
-				{ID: uuid.New(), ProductID: id, URL: "https://img.example.com/1.jpg"},
+				{ID: uuid.Must(uuid.NewV7()), ProductID: id, URL: "https://img.example.com/1.jpg"},
 			}, nil)
 		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{id}).
 			Return(map[uuid.UUID]inventory.Availability{}, nil)
@@ -461,7 +461,7 @@ func TestService_GetBySlug(t *testing.T) {
 
 		repo.EXPECT().GetBySlug(mock.Anything, "draft-item").
 			Return(&domain.Product{
-				ID:     uuid.New(),
+				ID:     uuid.Must(uuid.NewV7()),
 				Slug:   "draft-item",
 				Status: domain.StatusDraft,
 			}, nil)
@@ -477,7 +477,7 @@ func TestService_GetBySlug(t *testing.T) {
 		inv := NewMockInventory(t)
 		s := New(repo, inv)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetBySlug(mock.Anything, "widget").
 			Return(&domain.Product{
 				ID:     id,
@@ -502,7 +502,7 @@ func TestService_GetByID(t *testing.T) {
 		inv := NewMockInventory(t)
 		s := New(repo, inv)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByID(mock.Anything, id).
 			Return(&domain.Product{
 				ID:   id,
@@ -511,8 +511,8 @@ func TestService_GetByID(t *testing.T) {
 			}, nil)
 		repo.EXPECT().GetImagesByProductID(mock.Anything, id).
 			Return([]domain.Image{
-				{ID: uuid.New(), ProductID: id, URL: "https://img.example.com/a.jpg"},
-				{ID: uuid.New(), ProductID: id, URL: "https://img.example.com/b.jpg"},
+				{ID: uuid.Must(uuid.NewV7()), ProductID: id, URL: "https://img.example.com/a.jpg"},
+				{ID: uuid.Must(uuid.NewV7()), ProductID: id, URL: "https://img.example.com/b.jpg"},
 			}, nil)
 		inv.EXPECT().GetAvailability(mock.Anything, []uuid.UUID{id}).
 			Return(map[uuid.UUID]inventory.Availability{}, nil)
@@ -530,7 +530,7 @@ func TestService_GetByID(t *testing.T) {
 		inv := NewMockInventory(t)
 		s := New(repo, inv)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, errs.ErrNotFound)
 
 		p, err := s.GetByID(context.Background(), id)
@@ -545,7 +545,7 @@ func TestService_GetByID(t *testing.T) {
 		inv := NewMockInventory(t)
 		s := New(repo, inv)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByID(mock.Anything, id).
 			Return(&domain.Product{ID: id, Name: "Widget"}, nil)
 		repo.EXPECT().GetImagesByProductID(mock.Anything, id).
@@ -566,7 +566,7 @@ func TestService_ListPublished(t *testing.T) {
 		inv := NewMockInventory(t)
 		s := New(repo, inv)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		params := PublishedListParams{Limit: 10}
 		products := []domain.Product{
 			{ID: id, Name: "A", Status: domain.StatusPublished},
@@ -591,7 +591,7 @@ func TestService_ListPublished_EnrichesWithAvailability(t *testing.T) {
 	inv := NewMockInventory(t)
 	s := New(repo, inv)
 
-	id1, id2 := uuid.New(), uuid.New()
+	id1, id2 := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	repo.EXPECT().ListPublished(mock.Anything, mock.Anything).
 		Return([]domain.Product{{ID: id1}, {ID: id2}}, "", false, nil)
 
@@ -619,7 +619,7 @@ func TestService_ListAdmin(t *testing.T) {
 		inv := NewMockInventory(t)
 		s := New(repo, inv)
 
-		idA, idB := uuid.New(), uuid.New()
+		idA, idB := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		params := AdminListParams{Page: 1, PageSize: 20}
 		products := []domain.Product{
 			{ID: idA, Name: "A"},
@@ -647,7 +647,7 @@ func TestService_getByIDsIncludingDeleted(t *testing.T) {
 		inv := NewMockInventory(t)
 		s := New(repo, inv)
 
-		liveID, archivedID := uuid.New(), uuid.New()
+		liveID, archivedID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		ids := []uuid.UUID{liveID, archivedID}
 		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, ids).
 			Return([]domain.Product{
@@ -677,7 +677,7 @@ func TestService_getByIDsIncludingDeleted(t *testing.T) {
 		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, mock.Anything).
 			Return(nil, errors.New("db error"))
 
-		_, err := s.getByIDsIncludingDeleted(context.Background(), []uuid.UUID{uuid.New()})
+		_, err := s.getByIDsIncludingDeleted(context.Background(), []uuid.UUID{uuid.Must(uuid.NewV7())})
 		require.Error(t, err)
 	})
 }
@@ -692,7 +692,7 @@ func TestService_CountPublished(t *testing.T) {
 		var inv Inventory
 		s := New(repo, inv)
 
-		categoryID := uuid.New()
+		categoryID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().CountPublishedByCategory(mock.Anything, categoryID).Return(3, nil)
 
 		count, err := s.CountPublished(context.Background(), categoryID)
@@ -707,7 +707,7 @@ func TestService_CountPublished(t *testing.T) {
 		var inv Inventory
 		s := New(repo, inv)
 
-		categoryID := uuid.New()
+		categoryID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().CountPublishedByCategory(mock.Anything, categoryID).Return(0, errors.New("db error"))
 
 		_, err := s.CountPublished(context.Background(), categoryID)
@@ -725,7 +725,7 @@ func TestService_GetInfoByIDs(t *testing.T) {
 		inv := NewMockInventory(t)
 		s := New(repo, inv)
 
-		liveID, archivedID := uuid.New(), uuid.New()
+		liveID, archivedID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		ids := []uuid.UUID{liveID, archivedID}
 		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, ids).
 			Return([]domain.Product{
@@ -748,7 +748,7 @@ func TestService_GetInfoByIDs(t *testing.T) {
 	t.Run("reports a withdrawn product as unavailable even though its status is still published", func(t *testing.T) {
 		t.Parallel()
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		deletedAt := time.Now()
 
 		repo := NewMockRepository(t)
@@ -784,7 +784,7 @@ func TestService_GetInfoByIDs(t *testing.T) {
 	t.Run("passes a live product's status through unchanged", func(t *testing.T) {
 		t.Parallel()
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, []uuid.UUID{productID}).
@@ -814,7 +814,7 @@ func TestService_GetInfoByIDs(t *testing.T) {
 		inv := NewMockInventory(t)
 		s := New(repo, inv)
 
-		ids := []uuid.UUID{uuid.New()}
+		ids := []uuid.UUID{uuid.Must(uuid.NewV7())}
 		repo.EXPECT().GetByIDsIncludingDeleted(mock.Anything, ids).Return(nil, errors.New("db error"))
 
 		got, err := s.GetInfoByIDs(context.Background(), ids)

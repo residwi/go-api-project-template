@@ -25,7 +25,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		reviewID := uuid.New()
+		reviewID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Delete(mock.Anything, reviewID).Return(nil)
 
 		w := httptest.NewRecorder()
@@ -59,7 +59,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		reviewID := uuid.New()
+		reviewID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Delete(mock.Anything, reviewID).Return(errs.ErrNotFound)
 
 		w := httptest.NewRecorder()

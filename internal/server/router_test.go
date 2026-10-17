@@ -139,15 +139,15 @@ func TestPublicEndpoints(t *testing.T) {
 	t.Run("GET /api/products/{slug} populates the product redis cache", func(t *testing.T) {
 		ctx := context.Background()
 
-		catID := uuid.New()
+		catID := uuid.Must(uuid.NewV7())
 		_, err := testPool.Exec(ctx,
 			`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Cache Cat', $2, true)`,
-			catID, "cache-cat-"+catID.String()[:8])
+			catID, "cache-cat-"+catID.String()[28:])
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-		prodID := uuid.New()
-		slug := "cache-prod-" + prodID.String()[:8]
+		prodID := uuid.Must(uuid.NewV7())
+		slug := "cache-prod-" + prodID.String()[28:]
 		_, err = testPool.Exec(ctx,
 			`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 			 VALUES ($1, 'Cache Product', $2, 'desc', 1000, 'USD', 'published', $3)`,
@@ -174,7 +174,7 @@ func TestPublicEndpoints(t *testing.T) {
 	})
 
 	t.Run("GET /api/products/{id}/reviews returns list for random product", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/products/"+uuid.New().String()+"/reviews", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/products/"+uuid.Must(uuid.NewV7()).String()+"/reviews", nil)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -337,7 +337,7 @@ func TestAdminEndpointsRequireAuth(t *testing.T) {
 		{http.MethodGet, "/api/admin/promotions"},
 		{http.MethodGet, "/api/admin/dashboard/summary"},
 		{http.MethodPost, "/api/admin/categories"},
-		{http.MethodGet, "/api/admin/inventory/" + uuid.New().String()},
+		{http.MethodGet, "/api/admin/inventory/" + uuid.Must(uuid.NewV7()).String()},
 	}
 
 	for _, ep := range endpoints {
@@ -631,7 +631,7 @@ func TestAdapterErrorPaths(t *testing.T) {
 	})
 
 	t.Run("cart add-item returns error for nonexistent product", func(t *testing.T) {
-		body := `{"product_id":"` + uuid.New().String() + `","quantity":1}`
+		body := `{"product_id":"` + uuid.Must(uuid.NewV7()).String() + `","quantity":1}`
 		req := httptest.NewRequest(http.MethodPost, "/api/cart/items", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -641,7 +641,7 @@ func TestAdapterErrorPaths(t *testing.T) {
 	})
 
 	t.Run("shipping query slice returns error for nonexistent order", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/orders/"+uuid.New().String()+"/shipping", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/orders/"+uuid.Must(uuid.NewV7()).String()+"/shipping", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
@@ -664,18 +664,18 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'ErrAdapt Cat', $2, true)`,
-		catID, "erradapt-cat-"+catID.String()[:8])
+		catID, "erradapt-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'ErrAdapt Product', $2, 'desc', 3000, 'USD', 'published', $3)`,
-		prodID, "erradapt-prod-"+prodID.String()[:8], catID)
+		prodID, "erradapt-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -728,7 +728,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
-	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderReq.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 	orderW := httptest.NewRecorder()
 	handler.ServeHTTP(orderW, orderReq)
 	require.Equal(t, http.StatusCreated, orderW.Code)
@@ -768,8 +768,8 @@ func TestAdapterErrorPaths_OrderGetterViaFinalizePayment(t *testing.T) {
 	setup(t)
 
 	// A missing order drives orderGetterAdapter.GetByID down its error path.
-	paymentID := uuid.New()
-	orderID := uuid.New() // does not exist in DB
+	paymentID := uuid.Must(uuid.NewV7())
+	orderID := uuid.Must(uuid.NewV7()) // does not exist in DB
 
 	// GatewayURL is the placeholder from TestMain (never a real listener):
 	// FinalizeSuccess fails inside orderGetterAdapter.GetByID before it

@@ -51,7 +51,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 		mux, _ := setupMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/checkout", nil)
 		r = setAuthContext(r, userID)
@@ -71,11 +71,11 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 		mux, _ := setupMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/checkout", strings.NewReader("{invalid"))
 		r = setAuthContext(r, userID)
-		r.Header.Set("Idempotency-Key", uuid.NewString())
+		r.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 
 		mux.ServeHTTP(w, r)
 
@@ -87,11 +87,11 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 		mux, _ := setupMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/checkout", strings.NewReader(`{}`))
 		r = setAuthContext(r, userID)
-		r.Header.Set("Idempotency-Key", uuid.NewString())
+		r.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 
 		mux.ServeHTTP(w, r)
 
@@ -108,7 +108,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 		mux, usecase := setupMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		usecase.EXPECT().PlaceOrder(mock.Anything, userID, mock.Anything).
 			Return(nil, errors.New("database connection error"))
 
@@ -116,7 +116,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		body := `{"payment_method_id":"pm_test_123"}`
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/checkout", strings.NewReader(body))
 		r = setAuthContext(r, userID)
-		r.Header.Set("Idempotency-Key", uuid.NewString())
+		r.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 
 		mux.ServeHTTP(w, r)
 
@@ -131,7 +131,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 
 		mux, usecase := setupMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		usecase.EXPECT().PlaceOrder(mock.Anything, userID, mock.Anything).
 			Return(nil, errors.Join(errs.ErrBadRequest, errors.New("cart contains mixed currencies")))
 
@@ -139,7 +139,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		body := `{"payment_method_id":"pm_test_123"}`
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/checkout", strings.NewReader(body))
 		r = setAuthContext(r, userID)
-		r.Header.Set("Idempotency-Key", uuid.NewString())
+		r.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 
 		mux.ServeHTTP(w, r)
 
@@ -155,7 +155,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 func TestToPlaceOrderResponse_CarriesOnlyTheOrdersIdentityAndOutcome(t *testing.T) {
 	t.Parallel()
 
-	orderID, userID := uuid.New(), uuid.New()
+	orderID, userID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 	got := toPlaceOrderResponse(&order.Snapshot{
 		ID:     orderID,
@@ -185,11 +185,11 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		userID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		service.EXPECT().
 			RetryPayment(mock.Anything, userID, orderID, "pm_test_123").
-			Return(payment.ChargeResult{PaymentID: uuid.New()}, nil)
+			Return(payment.ChargeResult{PaymentID: uuid.Must(uuid.NewV7())}, nil)
 
 		w := httptest.NewRecorder()
 		body := `{"payment_method_id":"pm_test_123"}`
@@ -211,7 +211,7 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 		mux, _ := setupMux(t)
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+uuid.NewString()+"/pay", nil)
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+uuid.Must(uuid.NewV7()).String()+"/pay", nil)
 
 		mux.ServeHTTP(w, r)
 
@@ -227,7 +227,7 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 
 		mux, _ := setupMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/bad-uuid/pay", nil)
 		r = setAuthContext(r, userID)
@@ -246,8 +246,8 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 
 		mux, _ := setupMux(t)
 
-		userID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
 			http.MethodPost,
@@ -266,8 +266,8 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 
 		mux, _ := setupMux(t)
 
-		userID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+orderID.String()+"/pay", strings.NewReader(`{}`))
 		r = setAuthContext(r, userID)
@@ -282,8 +282,8 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		userID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		service.EXPECT().RetryPayment(mock.Anything, userID, orderID, mock.Anything).
 			Return(payment.ChargeResult{}, errs.ErrNotFound)
 
@@ -306,8 +306,8 @@ func TestCancelHandler_CancelOrder(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		userID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		service.EXPECT().CancelOrder(mock.Anything, userID, orderID).Return(apperror.ErrOrderCharging)
 
 		w := httptest.NewRecorder()
@@ -325,7 +325,7 @@ func TestCancelHandler_CancelOrder(t *testing.T) {
 		mux, _ := setupMux(t)
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+uuid.NewString()+"/cancel", nil)
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/"+uuid.Must(uuid.NewV7()).String()+"/cancel", nil)
 
 		mux.ServeHTTP(w, r)
 
@@ -341,7 +341,7 @@ func TestCancelHandler_CancelOrder(t *testing.T) {
 
 		mux, _ := setupMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/orders/not-a-uuid/cancel", nil)
 		r = setAuthContext(r, userID)
@@ -360,8 +360,8 @@ func TestCancelHandler_CancelOrder(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		userID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		service.EXPECT().CancelOrder(mock.Anything, userID, orderID).Return(nil)
 
 		w := httptest.NewRecorder()

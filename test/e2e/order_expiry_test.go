@@ -21,11 +21,11 @@ func TestE2EOrderExpiry(t *testing.T) {
 		ctx := context.Background()
 		userID := seedExpiryUser(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		_, err := testPool.Exec(ctx,
 			`INSERT INTO products (id, name, slug, price, currency, status)
 			 VALUES ($1, 'Expiry Product', $2, 1000, 'USD', 'published')`,
-			productID, "expiry-"+productID.String()[:8])
+			productID, "expiry-"+productID.String()[28:])
 		require.NoError(t, err)
 		// inventory reads and writes inventory_levels, not products:
 		// 7 sellable plus a 3-unit hold for the order placed below.
@@ -78,7 +78,7 @@ func seedExpiryUser(t *testing.T) uuid.UUID {
 func seedAwaitingPaymentOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
-	key := uuid.New().String()
+	key := uuid.Must(uuid.NewV7()).String()
 	var orderID uuid.UUID
 	require.NoError(t, testPool.QueryRow(
 		ctx,

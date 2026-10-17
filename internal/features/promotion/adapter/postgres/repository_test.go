@@ -40,7 +40,7 @@ func TestPostgresRepository_GetByCode(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		_, err := repo.GetByCode(context.Background(), "NONEXISTENT-"+uuid.New().String()[:8])
+		_, err := repo.GetByCode(context.Background(), "NONEXISTENT-"+uuid.Must(uuid.NewV7()).String()[28:])
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -58,7 +58,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		_, err := repo.GetByID(context.Background(), uuid.New())
+		_, err := repo.GetByID(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -66,7 +66,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates promotion", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		p := newPromotion("CREATE-" + uuid.New().String()[:8])
+		p := newPromotion("CREATE-" + uuid.Must(uuid.NewV7()).String()[28:])
 
 		err := repo.Create(context.Background(), p)
 		require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 
 	t.Run("returns conflict error on duplicate code", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		existing := newPromotion("CREATE-DUP-" + uuid.New().String()[:8])
+		existing := newPromotion("CREATE-DUP-" + uuid.Must(uuid.NewV7()).String()[28:])
 		require.NoError(t, repo.Create(context.Background(), existing))
 		t.Cleanup(func() {
 			testPool.Exec(context.Background(), `DELETE FROM promotions WHERE id = $1`, existing.ID)
@@ -104,8 +104,8 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		p := newPromotion("NOPE-" + uuid.New().String()[:8])
-		p.ID = uuid.New()
+		p := newPromotion("NOPE-" + uuid.Must(uuid.NewV7()).String()[28:])
+		p.ID = uuid.Must(uuid.NewV7())
 		err := repo.Update(context.Background(), p)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
@@ -147,7 +147,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		err := repo.Delete(context.Background(), uuid.New())
+		err := repo.Delete(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -207,7 +207,7 @@ func TestPostgresRepository_ApplyPromotion(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		maxUses := 1
 		p := &domain.Promotion{
-			Code:      "MAXED-" + uuid.New().String()[:8],
+			Code:      "MAXED-" + uuid.Must(uuid.NewV7()).String()[28:],
 			Type:      domain.TypePercentage,
 			Value:     10,
 			StartsAt:  time.Now().Add(-time.Hour),
@@ -307,7 +307,7 @@ func TestPostgresRepository_DeleteUsageByOrderID(t *testing.T) {
 
 	t.Run("returns ErrNotFound when no usage exists", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		result, err := repo.DeleteUsageByOrderID(context.Background(), uuid.New())
+		result, err := repo.DeleteUsageByOrderID(context.Background(), uuid.Must(uuid.NewV7()))
 		require.ErrorIs(t, err, errs.ErrNotFound)
 		assert.Nil(t, result)
 	})
@@ -330,25 +330,25 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("GetByID", func(t *testing.T) {
-		_, err := repo.GetByID(cancelledCtx, uuid.New())
+		_, err := repo.GetByID(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("Create", func(t *testing.T) {
-		p := newPromotion("CANCEL-" + uuid.New().String()[:8])
+		p := newPromotion("CANCEL-" + uuid.Must(uuid.NewV7()).String()[28:])
 		err := repo.Create(cancelledCtx, p)
 		assert.Error(t, err)
 	})
 
 	t.Run("Update", func(t *testing.T) {
-		p := newPromotion("CANCEL-UPD-" + uuid.New().String()[:8])
-		p.ID = uuid.New()
+		p := newPromotion("CANCEL-UPD-" + uuid.Must(uuid.NewV7()).String()[28:])
+		p.ID = uuid.Must(uuid.NewV7())
 		err := repo.Update(cancelledCtx, p)
 		assert.Error(t, err)
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		err := repo.Delete(cancelledCtx, uuid.New())
+		err := repo.Delete(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
@@ -361,23 +361,28 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("ApplyPromotion", func(t *testing.T) {
-		err := repo.ApplyPromotion(cancelledCtx, uuid.New())
+		err := repo.ApplyPromotion(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("ReleasePromotion", func(t *testing.T) {
-		err := repo.ReleasePromotion(cancelledCtx, uuid.New())
+		err := repo.ReleasePromotion(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("CreateUsage", func(t *testing.T) {
-		usage := &domain.CouponUsage{CouponID: uuid.New(), UserID: uuid.New(), OrderID: uuid.New(), Discount: 100}
+		usage := &domain.CouponUsage{
+			CouponID: uuid.Must(uuid.NewV7()),
+			UserID:   uuid.Must(uuid.NewV7()),
+			OrderID:  uuid.Must(uuid.NewV7()),
+			Discount: 100,
+		}
 		err := repo.CreateUsage(cancelledCtx, usage)
 		assert.Error(t, err)
 	})
 
 	t.Run("DeleteUsageByOrderID", func(t *testing.T) {
-		_, err := repo.DeleteUsageByOrderID(cancelledCtx, uuid.New())
+		_, err := repo.DeleteUsageByOrderID(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 }
@@ -385,7 +390,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
-	orderID := uuid.New()
+	orderID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency)
 		 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD')`,
@@ -429,7 +434,7 @@ func newPromotion(code string) *domain.Promotion {
 
 func seedPromotion(t *testing.T) *domain.Promotion {
 	t.Helper()
-	p := newPromotion("PROMO-" + uuid.New().String()[:8])
+	p := newPromotion("PROMO-" + uuid.Must(uuid.NewV7()).String()[28:])
 	require.NoError(t, insertPromotion(p))
 	t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM promotions WHERE id = $1`, p.ID) })
 	return p

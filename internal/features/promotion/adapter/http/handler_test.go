@@ -180,7 +180,7 @@ func setupApplyMux(t *testing.T) (*http.ServeMux, *MockPromotionApplier) {
 
 func setPromoAuthContext(r *http.Request) *http.Request {
 	ctx := identity.NewContext(r.Context(), identity.Identity{
-		UserID: uuid.New(),
+		UserID: uuid.Must(uuid.NewV7()),
 		Role:   "user",
 	})
 	return r.WithContext(ctx)

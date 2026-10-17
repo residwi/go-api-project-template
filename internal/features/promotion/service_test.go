@@ -30,7 +30,7 @@ func TestService_Apply(t *testing.T) {
 		maxDiscount := int64(500)
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
 			Return(&domain.Promotion{
-				ID:             uuid.New(),
+				ID:             uuid.Must(uuid.NewV7()),
 				Code:           "SAVE20",
 				Type:           domain.TypePercentage,
 				Value:          20,
@@ -56,7 +56,7 @@ func TestService_Apply(t *testing.T) {
 		maxDiscount := int64(500)
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
 			Return(&domain.Promotion{
-				ID:             uuid.New(),
+				ID:             uuid.Must(uuid.NewV7()),
 				Code:           "SAVE20",
 				Type:           domain.TypePercentage,
 				Value:          20,
@@ -81,7 +81,7 @@ func TestService_Apply(t *testing.T) {
 
 		repo.EXPECT().GetByCode(mock.Anything, "FLAT10").
 			Return(&domain.Promotion{
-				ID:             uuid.New(),
+				ID:             uuid.Must(uuid.NewV7()),
 				Code:           "FLAT10",
 				Type:           domain.TypeFixedAmount,
 				Value:          1000,
@@ -105,7 +105,7 @@ func TestService_Apply(t *testing.T) {
 
 		repo.EXPECT().GetByCode(mock.Anything, "INACTIVE").
 			Return(&domain.Promotion{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				Code:      "INACTIVE",
 				Active:    false,
 				StartsAt:  time.Now().Add(-time.Hour),
@@ -125,7 +125,7 @@ func TestService_Apply(t *testing.T) {
 
 		repo.EXPECT().GetByCode(mock.Anything, "EXPIRED").
 			Return(&domain.Promotion{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				Code:      "EXPIRED",
 				Active:    true,
 				StartsAt:  time.Now().Add(-2 * time.Hour),
@@ -145,7 +145,7 @@ func TestService_Apply(t *testing.T) {
 
 		repo.EXPECT().GetByCode(mock.Anything, "FUTURE").
 			Return(&domain.Promotion{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				Code:      "FUTURE",
 				Active:    true,
 				StartsAt:  time.Now().Add(1 * time.Hour),
@@ -166,7 +166,7 @@ func TestService_Apply(t *testing.T) {
 		maxUses := 10
 		repo.EXPECT().GetByCode(mock.Anything, "MAXED").
 			Return(&domain.Promotion{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				Code:      "MAXED",
 				Active:    true,
 				MaxUses:   &maxUses,
@@ -188,7 +188,7 @@ func TestService_Apply(t *testing.T) {
 
 		repo.EXPECT().GetByCode(mock.Anything, "MINORDER").
 			Return(&domain.Promotion{
-				ID:             uuid.New(),
+				ID:             uuid.Must(uuid.NewV7()),
 				Code:           "MINORDER",
 				Type:           domain.TypeFixedAmount,
 				Value:          500,
@@ -224,7 +224,7 @@ func TestService_Apply(t *testing.T) {
 
 		repo.EXPECT().GetByCode(mock.Anything, "BIG").
 			Return(&domain.Promotion{
-				ID:             uuid.New(),
+				ID:             uuid.Must(uuid.NewV7()),
 				Code:           "BIG",
 				Type:           domain.TypeFixedAmount,
 				Value:          10000,
@@ -248,7 +248,7 @@ func TestService_Apply(t *testing.T) {
 
 		repo.EXPECT().GetByCode(mock.Anything, "NOCAP").
 			Return(&domain.Promotion{
-				ID:             uuid.New(),
+				ID:             uuid.Must(uuid.NewV7()),
 				Code:           "NOCAP",
 				Type:           domain.TypePercentage,
 				Value:          50,
@@ -276,7 +276,7 @@ func TestService_Create(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Promotion")).
 			Run(func(_ context.Context, p *domain.Promotion) {
-				p.ID = uuid.New()
+				p.ID = uuid.Must(uuid.NewV7())
 				p.CreatedAt = time.Now()
 				p.UpdatedAt = time.Now()
 			}).
@@ -331,7 +331,7 @@ func TestService_Update(t *testing.T) {
 		var tx database.TxRunner
 		svc := New(repo, tx)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.Promotion{
 			ID:             id,
 			Code:           "OLD",
@@ -370,7 +370,7 @@ func TestService_Update(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		_, err := svc.Update(context.Background(), uuid.New(), "X", "", nil, nil, nil, nil, nil, nil, nil)
+		_, err := svc.Update(context.Background(), uuid.Must(uuid.NewV7()), "X", "", nil, nil, nil, nil, nil, nil, nil)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -381,7 +381,7 @@ func TestService_Update(t *testing.T) {
 		var tx database.TxRunner
 		svc := New(repo, tx)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.Promotion{
 			ID:        id,
 			Code:      "OLD",
@@ -405,7 +405,7 @@ func TestService_Update(t *testing.T) {
 		var tx database.TxRunner
 		svc := New(repo, tx)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.Promotion{
 			ID:             id,
 			Code:           "OLD",
@@ -457,7 +457,7 @@ func TestService_Delete(t *testing.T) {
 		var tx database.TxRunner
 		svc := New(repo, tx)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().Delete(mock.Anything, id).Return(nil)
 
 		err := svc.Delete(context.Background(), id)
@@ -471,7 +471,7 @@ func TestService_Delete(t *testing.T) {
 		var tx database.TxRunner
 		svc := New(repo, tx)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().Delete(mock.Anything, id).Return(errs.ErrNotFound)
 
 		err := svc.Delete(context.Background(), id)
@@ -491,8 +491,8 @@ func TestService_ListAdmin(t *testing.T) {
 
 		params := AdminListParams{Page: 1, PageSize: 10}
 		promos := []domain.Promotion{
-			{ID: uuid.New(), Code: "A"},
-			{ID: uuid.New(), Code: "B"},
+			{ID: uuid.Must(uuid.NewV7()), Code: "A"},
+			{ID: uuid.Must(uuid.NewV7()), Code: "B"},
 		}
 		repo.EXPECT().ListAdmin(mock.Anything, params).Return(promos, 2, nil)
 
@@ -526,9 +526,9 @@ func TestService_Reserve(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := New(repo, testutil.FakeTxRunner{})
 
-		promoID := uuid.New()
-		userID := uuid.New()
-		orderID := uuid.New()
+		promoID := uuid.Must(uuid.NewV7())
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		maxDiscount := int64(500)
 
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
@@ -559,14 +559,20 @@ func TestService_Reserve(t *testing.T) {
 
 		repo.EXPECT().GetByCode(mock.Anything, "INACTIVE").
 			Return(&domain.Promotion{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				Code:      "INACTIVE",
 				Active:    false,
 				StartsAt:  time.Now().Add(-time.Hour),
 				ExpiresAt: time.Now().Add(time.Hour),
 			}, nil)
 
-		discount, err := svc.Reserve(context.Background(), "INACTIVE", uuid.New(), uuid.New(), 5000)
+		discount, err := svc.Reserve(
+			context.Background(),
+			"INACTIVE",
+			uuid.Must(uuid.NewV7()),
+			uuid.Must(uuid.NewV7()),
+			5000,
+		)
 		assert.Equal(t, int64(0), discount)
 		assert.ErrorIs(t, err, errs.ErrBadRequest)
 	})
@@ -579,7 +585,13 @@ func TestService_Reserve(t *testing.T) {
 
 		repo.EXPECT().GetByCode(mock.Anything, "UNKNOWN").Return(nil, errs.ErrNotFound)
 
-		discount, err := svc.Reserve(context.Background(), "UNKNOWN", uuid.New(), uuid.New(), 5000)
+		discount, err := svc.Reserve(
+			context.Background(),
+			"UNKNOWN",
+			uuid.Must(uuid.NewV7()),
+			uuid.Must(uuid.NewV7()),
+			5000,
+		)
 		assert.Equal(t, int64(0), discount)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
@@ -590,7 +602,7 @@ func TestService_Reserve(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := New(repo, testutil.FakeTxRunner{})
 
-		promoID := uuid.New()
+		promoID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
 			Return(&domain.Promotion{
 				ID:             promoID,
@@ -604,7 +616,13 @@ func TestService_Reserve(t *testing.T) {
 			}, nil)
 		repo.EXPECT().ApplyPromotion(mock.Anything, promoID).Return(apperror.ErrCouponExhausted)
 
-		discount, err := svc.Reserve(context.Background(), "SAVE20", uuid.New(), uuid.New(), 2000)
+		discount, err := svc.Reserve(
+			context.Background(),
+			"SAVE20",
+			uuid.Must(uuid.NewV7()),
+			uuid.Must(uuid.NewV7()),
+			2000,
+		)
 		assert.Equal(t, int64(400), discount)
 		assert.ErrorIs(t, err, apperror.ErrCouponExhausted)
 	})
@@ -615,7 +633,7 @@ func TestService_Reserve(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := New(repo, testutil.FakeTxRunner{})
 
-		promoID := uuid.New()
+		promoID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByCode(mock.Anything, "SAVE20").
 			Return(&domain.Promotion{
 				ID:             promoID,
@@ -632,7 +650,13 @@ func TestService_Reserve(t *testing.T) {
 			CreateUsage(mock.Anything, mock.AnythingOfType("*domain.CouponUsage")).
 			Return(errs.ErrConflict)
 
-		discount, err := svc.Reserve(context.Background(), "SAVE20", uuid.New(), uuid.New(), 2000)
+		discount, err := svc.Reserve(
+			context.Background(),
+			"SAVE20",
+			uuid.Must(uuid.NewV7()),
+			uuid.Must(uuid.NewV7()),
+			2000,
+		)
 		assert.Equal(t, int64(400), discount)
 		assert.ErrorIs(t, err, errs.ErrConflict)
 	})
@@ -647,8 +671,8 @@ func TestService_Release(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := New(repo, testutil.FakeTxRunner{})
 
-		orderID := uuid.New()
-		couponID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
+		couponID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).
 			Return(&domain.CouponUsage{CouponID: couponID, Discount: 400}, nil)
 		repo.EXPECT().ReleasePromotion(mock.Anything, couponID).Return(nil)
@@ -663,7 +687,7 @@ func TestService_Release(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := New(repo, testutil.FakeTxRunner{})
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).Return(nil, errs.ErrNotFound)
 
 		err := svc.Release(context.Background(), orderID)
@@ -676,7 +700,7 @@ func TestService_Release(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := New(repo, testutil.FakeTxRunner{})
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).Return(nil, assert.AnError)
 
 		err := svc.Release(context.Background(), orderID)
@@ -689,8 +713,8 @@ func TestService_Release(t *testing.T) {
 		repo := NewMockRepository(t)
 		svc := New(repo, testutil.FakeTxRunner{})
 
-		orderID := uuid.New()
-		couponID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
+		couponID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().DeleteUsageByOrderID(mock.Anything, orderID).
 			Return(&domain.CouponUsage{CouponID: couponID, Discount: 400}, nil)
 		repo.EXPECT().ReleasePromotion(mock.Anything, couponID).Return(assert.AnError)

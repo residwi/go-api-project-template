@@ -183,18 +183,18 @@ func placeAndPayOrder(t *testing.T, env jobQueueEnv) (orderID, paymentID uuid.UU
 	t.Helper()
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'JobQueue Cat', $2, true)`,
-		catID, "jobqueue-cat-"+catID.String()[:8])
+		catID, "jobqueue-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'JobQueue Product', $2, 'desc', 4000, 'USD', 'published', $3)`,
-		prodID, "jobqueue-prod-"+prodID.String()[:8], catID)
+		prodID, "jobqueue-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -202,7 +202,7 @@ func placeAndPayOrder(t *testing.T, env jobQueueEnv) (orderID, paymentID uuid.UU
 	})
 	seedInventoryLevel(t, prodID, 100, 0)
 
-	email := "jobqueue-" + uuid.New().String()[:8] + "@example.com"
+	email := "jobqueue-" + uuid.Must(uuid.NewV7()).String()[28:] + "@example.com"
 	userID, token := registerE2EUser(t, env.handler, email)
 	t.Cleanup(func() { cleanupOrdersOf(userID) })
 
@@ -218,7 +218,7 @@ func placeAndPayOrder(t *testing.T, env jobQueueEnv) (orderID, paymentID uuid.UU
 		strings.NewReader(`{"payment_method_id":"pm_test_jobqueue"}`))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
-	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderReq.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 	orderW := httptest.NewRecorder()
 	env.handler.ServeHTTP(orderW, orderReq)
 	require.Equal(t, http.StatusCreated, orderW.Code)

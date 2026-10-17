@@ -32,11 +32,11 @@ func TestHandler_ListOrders(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		orders := []domain.Order{
 			{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				UserID:    userID,
 				Status:    domain.StatusAwaitingPayment,
 				Subtotal:  money.New(5000, "USD"),
@@ -81,7 +81,7 @@ func TestHandler_ListOrders(t *testing.T) {
 		t.Parallel()
 
 		mux, service := setupMux(t)
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		service.EXPECT().
 			ListByUser(mock.Anything, userID, mock.AnythingOfType("paging.CursorPage")).
 			Return(nil, errors.New("db error"))
@@ -98,12 +98,12 @@ func TestHandler_ListOrders(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		orders := make([]domain.Order, 21)
 		for i := range orders {
 			orders[i] = domain.Order{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				UserID:    userID,
 				Status:    domain.StatusAwaitingPayment,
 				Subtotal:  money.New(5000, "USD"),
@@ -143,8 +143,8 @@ func TestHandler_GetOrder(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		userID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(&domain.Order{
 			ID:        orderID,
@@ -175,7 +175,7 @@ func TestHandler_GetOrder(t *testing.T) {
 		mux, _ := setupMux(t)
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+uuid.NewString(), nil)
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+uuid.Must(uuid.NewV7()).String(), nil)
 
 		mux.ServeHTTP(w, r)
 
@@ -191,7 +191,7 @@ func TestHandler_GetOrder(t *testing.T) {
 
 		mux, _ := setupMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/not-a-uuid", nil)
 		r = setAuthContext(r, userID)
@@ -211,8 +211,8 @@ func TestHandler_GetOrder(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		userID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
@@ -256,12 +256,12 @@ func TestAddressResponse_NilIsNil(t *testing.T) {
 func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 	t.Parallel()
 
-	orderID := uuid.New()
+	orderID := uuid.Must(uuid.NewV7())
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	got := toOrderResponse(&domain.Order{
 		ID:             orderID,
-		UserID:         uuid.New(),
+		UserID:         uuid.Must(uuid.NewV7()),
 		IdempotencyKey: "idem-key-1",
 		RequestHash:    "distinguishable-request-hash",
 		Status:         domain.StatusPaid,
@@ -272,9 +272,9 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 		StockReversed:  true,
 		Items: []domain.Item{
 			{
-				ID:          uuid.New(),
+				ID:          uuid.Must(uuid.NewV7()),
 				OrderID:     orderID,
-				ProductID:   uuid.New(),
+				ProductID:   uuid.Must(uuid.NewV7()),
 				ProductName: "Widget",
 				Price:       money.New(1000, "USD"),
 				Quantity:    1,

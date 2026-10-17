@@ -13,7 +13,7 @@ func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("X-Request-ID")
 		if id == "" {
-			id = uuid.New().String()
+			id = uuid.Must(uuid.NewV7()).String()
 		}
 		w.Header().Set("X-Request-ID", id)
 		ctx := logger.WithAttrs(r.Context(), slog.String("request_id", id))

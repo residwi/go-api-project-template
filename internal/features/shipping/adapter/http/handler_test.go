@@ -28,9 +28,9 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
-		orderID := uuid.New()
-		shipmentID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
+		shipmentID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 
 		service := NewMockShipmentReader(t)
@@ -80,7 +80,7 @@ func TestHandler_Get(t *testing.T) {
 		mux := setupMux(t, NewMockShipmentReader(t))
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+uuid.NewString()+"/shipping", nil)
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/"+uuid.Must(uuid.NewV7()).String()+"/shipping", nil)
 
 		mux.ServeHTTP(w, r)
 
@@ -99,7 +99,7 @@ func TestHandler_Get(t *testing.T) {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/orders/bad/shipping", nil)
 		r = r.WithContext(identity.NewContext(r.Context(), identity.Identity{
-			UserID: uuid.New(),
+			UserID: uuid.Must(uuid.NewV7()),
 			Role:   "user",
 		}))
 
@@ -116,8 +116,8 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		service := NewMockShipmentReader(t)
 		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, errs.ErrNotFound)
@@ -141,8 +141,8 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("not owned by user", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		service := NewMockShipmentReader(t)
 		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, errs.ErrNotFound)
@@ -163,8 +163,8 @@ func TestHandler_Get(t *testing.T) {
 	t.Run("shipment lookup error", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		service := NewMockShipmentReader(t)
 		service.EXPECT().GetForUser(mock.Anything, userID, orderID).Return(nil, errs.ErrNotFound)
@@ -197,8 +197,8 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 
 		now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		got := toShipmentResponse(&domain.Shipment{
-			ID:             uuid.New(),
-			OrderID:        uuid.New(),
+			ID:             uuid.Must(uuid.NewV7()),
+			OrderID:        uuid.Must(uuid.NewV7()),
 			Carrier:        "FedEx",
 			TrackingNumber: "TRACK123",
 			Status:         domain.StatusShipped,
@@ -222,8 +222,8 @@ func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 
 		now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		got := toShipmentResponse(&domain.Shipment{
-			ID:             uuid.New(),
-			OrderID:        uuid.New(),
+			ID:             uuid.Must(uuid.NewV7()),
+			OrderID:        uuid.Must(uuid.NewV7()),
 			Carrier:        "FedEx",
 			TrackingNumber: "TRACK123",
 			Status:         domain.StatusDelivered,

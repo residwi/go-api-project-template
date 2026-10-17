@@ -23,7 +23,7 @@ func TestService_GetByEmail(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByEmail(mock.Anything, "alice@example.com").
 			Return(&domain.User{
 				ID:           id,
@@ -75,7 +75,7 @@ func TestService_Create(t *testing.T) {
 
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.User")).
 			Run(func(_ context.Context, u *domain.User) {
-				u.ID = uuid.New()
+				u.ID = uuid.Must(uuid.NewV7())
 			}).
 			Return(nil)
 
@@ -125,7 +125,7 @@ func TestService_GetProfile(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByID(mock.Anything, id).
 			Return(&domain.User{
 				ID:           id,
@@ -159,7 +159,7 @@ func TestService_GetProfile(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		_, err := s.GetProfile(context.Background(), uuid.New())
+		_, err := s.GetProfile(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -173,7 +173,7 @@ func TestService_GetByID(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		expected := &domain.User{
 			ID:        id,
 			Email:     "alice@example.com",
@@ -199,7 +199,7 @@ func TestService_GetByID(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		_, err := s.GetByID(context.Background(), uuid.New())
+		_, err := s.GetByID(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -215,8 +215,8 @@ func TestService_ListAdmin(t *testing.T) {
 
 		params := AdminListParams{Page: 1, PageSize: 10}
 		users := []domain.User{
-			{ID: uuid.New(), Email: "a@example.com", FirstName: "A", LastName: "User"},
-			{ID: uuid.New(), Email: "b@example.com", FirstName: "B", LastName: "User"},
+			{ID: uuid.Must(uuid.NewV7()), Email: "a@example.com", FirstName: "A", LastName: "User"},
+			{ID: uuid.Must(uuid.NewV7()), Email: "b@example.com", FirstName: "B", LastName: "User"},
 		}
 		repo.EXPECT().ListAdmin(mock.Anything, params).Return(users, 2, nil)
 
@@ -236,7 +236,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.User{
 			ID:        id,
 			Email:     "alice@example.com",
@@ -269,7 +269,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.User{
 			ID:        id,
 			Email:     "alice@example.com",
@@ -296,7 +296,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		_, err := s.UpdateProfile(context.Background(), uuid.New(), "X", "", nil)
+		_, err := s.UpdateProfile(context.Background(), uuid.Must(uuid.NewV7()), "X", "", nil)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -306,7 +306,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.User{
 			ID:        id,
 			Email:     "alice@example.com",
@@ -334,7 +334,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.User{
 			ID:        id,
 			Email:     "alice@example.com",
@@ -368,7 +368,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		_, err := s.AdminUpdate(context.Background(), uuid.New(), "", "", nil, nil)
+		_, err := s.AdminUpdate(context.Background(), uuid.Must(uuid.NewV7()), "", "", nil, nil)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -378,7 +378,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.User{
 			ID:        id,
 			Email:     "alice@example.com",
@@ -402,7 +402,7 @@ func TestService_AdminUpdate(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.User{
 			ID:        id,
 			Email:     "alice@example.com",
@@ -440,8 +440,8 @@ func TestService_UpdateRole(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)
@@ -458,7 +458,7 @@ func TestService_UpdateRole(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		sameID := uuid.New()
+		sameID := uuid.Must(uuid.NewV7())
 
 		err := s.UpdateRole(context.Background(), sameID, sameID, "user")
 		assert.ErrorIs(t, err, errs.ErrForbidden)
@@ -470,8 +470,8 @@ func TestService_UpdateRole(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "admin", Active: true}, nil)
@@ -487,8 +487,8 @@ func TestService_UpdateRole(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "admin"}, nil)
@@ -508,7 +508,7 @@ func TestService_UpdateRole(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		err := s.UpdateRole(context.Background(), uuid.New(), uuid.New(), "admin")
+		err := s.UpdateRole(context.Background(), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), "admin")
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -518,8 +518,8 @@ func TestService_UpdateRole(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)
@@ -537,8 +537,8 @@ func TestService_UpdateRole(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)
@@ -561,8 +561,8 @@ func TestService_Delete(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)
@@ -578,7 +578,7 @@ func TestService_Delete(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		sameID := uuid.New()
+		sameID := uuid.Must(uuid.NewV7())
 
 		err := s.Delete(context.Background(), sameID, sameID)
 		assert.ErrorIs(t, err, errs.ErrForbidden)
@@ -590,8 +590,8 @@ func TestService_Delete(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "admin", Active: true}, nil)
@@ -610,7 +610,7 @@ func TestService_Delete(t *testing.T) {
 		repo.EXPECT().GetByID(mock.Anything, mock.AnythingOfType("uuid.UUID")).
 			Return(nil, errs.ErrNotFound)
 
-		err := s.Delete(context.Background(), uuid.New(), uuid.New())
+		err := s.Delete(context.Background(), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -620,8 +620,8 @@ func TestService_Delete(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "admin"}, nil)
@@ -637,8 +637,8 @@ func TestService_Delete(t *testing.T) {
 		repo := NewMockRepository(t)
 		s := New(repo)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetByID(mock.Anything, targetID).
 			Return(&domain.User{ID: targetID, Role: "user"}, nil)

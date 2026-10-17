@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS job_queue (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id            UUID PRIMARY KEY DEFAULT uuidv7(),
     queue         TEXT NOT NULL,
     kind          TEXT NOT NULL,
     payload       JSONB NOT NULL,

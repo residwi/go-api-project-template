@@ -322,8 +322,8 @@ func TestHandler_TopProducts(t *testing.T) {
 		toEnd := to.Add(24*time.Hour - time.Nanosecond)
 
 		products := []domain.TopProduct{
-			{ProductID: uuid.New(), Name: "Widget", TotalSold: 100, Revenue: 50000},
-			{ProductID: uuid.New(), Name: "Gadget", TotalSold: 80, Revenue: 40000},
+			{ProductID: uuid.Must(uuid.NewV7()), Name: "Widget", TotalSold: 100, Revenue: 50000},
+			{ProductID: uuid.Must(uuid.NewV7()), Name: "Gadget", TotalSold: 80, Revenue: 40000},
 		}
 
 		service.EXPECT().ListTopProducts(mock.Anything, 5, from, toEnd).Return(products, nil)
@@ -366,7 +366,7 @@ func TestHandler_TopProducts(t *testing.T) {
 		mux, service := setupMux(t)
 
 		products := []domain.TopProduct{
-			{ProductID: uuid.New(), Name: "Widget", TotalSold: 100, Revenue: 50000},
+			{ProductID: uuid.Must(uuid.NewV7()), Name: "Widget", TotalSold: 100, Revenue: 50000},
 		}
 
 		service.EXPECT().ListTopProducts(mock.Anything, 10, mock.Anything, mock.Anything).Return(products, nil)

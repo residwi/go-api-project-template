@@ -7,7 +7,7 @@ DROP TABLE IF EXISTS notification_jobs;
 
 -- +goose Down
 CREATE TABLE IF NOT EXISTS notification_jobs (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id           UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id      UUID NOT NULL REFERENCES users(id),
     type         TEXT NOT NULL,
     title        TEXT NOT NULL,
@@ -28,7 +28,7 @@ CREATE INDEX idx_notification_jobs_pending ON notification_jobs(created_at) WHER
 CREATE INDEX idx_notification_jobs_reclaim ON notification_jobs(locked_until) WHERE status = 'processing';
 
 CREATE TABLE IF NOT EXISTS payment_jobs (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id            UUID PRIMARY KEY DEFAULT uuidv7(),
     payment_id    UUID NOT NULL REFERENCES payments(id),
     order_id      UUID NOT NULL REFERENCES orders(id),
     action        TEXT NOT NULL DEFAULT 'charge',

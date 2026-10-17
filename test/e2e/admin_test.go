@@ -112,18 +112,18 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Ship Cat', $2, true)`,
-		catID, "ship-cat-"+catID.String()[:8])
+		catID, "ship-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'Ship Product', $2, 'desc', 4000, 'USD', 'published', $3)`,
-		prodID, "ship-prod-"+prodID.String()[:8], catID)
+		prodID, "ship-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -183,7 +183,7 @@ func TestE2EShippingAndReviewFlow(t *testing.T) {
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
-	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderReq.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 	orderW := httptest.NewRecorder()
 	handler.ServeHTTP(orderW, orderReq)
 	require.Equal(t, http.StatusCreated, orderW.Code)

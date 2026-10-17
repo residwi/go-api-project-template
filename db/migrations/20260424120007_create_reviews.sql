@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS reviews (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id         UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id    UUID NOT NULL REFERENCES users(id),
     product_id UUID NOT NULL REFERENCES products(id),
     order_id   UUID NOT NULL REFERENCES orders(id),

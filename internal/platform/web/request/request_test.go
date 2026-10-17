@@ -270,7 +270,7 @@ func TestParseUUIDParam(t *testing.T) {
 	t.Run("returns the parsed id", func(t *testing.T) {
 		t.Parallel()
 
-		want := uuid.New()
+		want := uuid.Must(uuid.NewV7())
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		r.SetPathValue("id", want.String())
 
@@ -299,7 +299,7 @@ func TestRequireUser(t *testing.T) {
 	t.Run("returns the user when present in context", func(t *testing.T) {
 		t.Parallel()
 
-		want := identity.Identity{UserID: uuid.New(), Role: "user"}
+		want := identity.Identity{UserID: uuid.Must(uuid.NewV7()), Role: "user"}
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		r = r.WithContext(identity.NewContext(r.Context(), want))
 

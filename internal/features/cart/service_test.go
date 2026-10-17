@@ -30,9 +30,9 @@ func TestService_Add(t *testing.T) {
 		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
-		cartID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
+		cartID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
 			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
@@ -55,8 +55,8 @@ func TestService_Add(t *testing.T) {
 		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
 			Return(&product.Info{ID: productID, Name: "Draft Item", Price: money.New(500, "USD"), Status: "draft", Available: 10}, nil)
@@ -74,8 +74,8 @@ func TestService_Add(t *testing.T) {
 		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
 			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 1}, nil)
@@ -94,9 +94,9 @@ func TestService_Add(t *testing.T) {
 		svc := New(repo, testutil.FakeTxRunner{}, products, maxItems)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
-		cartID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
+		cartID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
 			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
@@ -119,9 +119,9 @@ func TestService_Add(t *testing.T) {
 		svc := New(repo, testutil.FakeTxRunner{}, products, maxItems)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
-		cartID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
+		cartID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
 			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
@@ -144,8 +144,8 @@ func TestService_Add(t *testing.T) {
 		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).Return(nil, errs.ErrNotFound)
 
@@ -162,8 +162,8 @@ func TestService_Add(t *testing.T) {
 		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
 			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
@@ -182,9 +182,9 @@ func TestService_Add(t *testing.T) {
 		svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
-		cartID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
+		cartID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
 			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
@@ -205,9 +205,9 @@ func TestService_Add_RunsInsideTxRunner(t *testing.T) {
 	products := NewMockProductLookup(t)
 	svc := New(repo, testutil.FakeTxRunner{}, products, 50)
 
-	userID := uuid.New()
-	productID := uuid.New()
-	cartID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
+	productID := uuid.Must(uuid.NewV7())
+	cartID := uuid.Must(uuid.NewV7())
 
 	products.EXPECT().GetInfo(mock.Anything, productID).Return(&product.Info{
 		ID:        productID,
@@ -236,9 +236,9 @@ func TestService_Remove(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
-		cartID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
+		cartID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
 		repo.EXPECT().RemoveItem(mock.Anything, cartID, productID).Return(nil)
@@ -256,9 +256,9 @@ func TestService_Remove(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
-		cartID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
+		cartID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(cartID, nil)
 		repo.EXPECT().RemoveItem(mock.Anything, cartID, productID).Return(errs.ErrNotFound)
@@ -277,8 +277,8 @@ func TestService_Remove(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, errors.New("db error"))
 
@@ -299,9 +299,9 @@ func TestService_UpdateQuantity(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
-		cartID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
+		cartID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
 			Return(&product.Info{ID: productID, Name: "Widget", Price: money.New(1000, "USD"), Status: "published", Available: 10}, nil)
@@ -321,8 +321,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
 			Return(&product.Info{ID: productID, Status: "published", Available: 2}, nil)
@@ -340,8 +340,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
 			Return(&product.Info{ID: productID, Status: "draft", Available: 100}, nil)
@@ -359,8 +359,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).Return(nil, errors.New("db error"))
 
@@ -377,8 +377,8 @@ func TestService_UpdateQuantity(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		products.EXPECT().GetInfo(mock.Anything, productID).
 			Return(&product.Info{ID: productID, Status: "published", Available: 10}, nil)
@@ -401,9 +401,9 @@ func TestService_Get(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		expected := &domain.Cart{
-			ID:     uuid.New(),
+			ID:     uuid.Must(uuid.NewV7()),
 			UserID: userID,
 			Items:  []domain.Item{},
 		}
@@ -424,7 +424,7 @@ func TestService_Get(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().GetCart(mock.Anything, userID).Return(nil, errs.ErrNotFound)
 
@@ -442,8 +442,8 @@ func TestService_Get_FlagsUnavailableLines(t *testing.T) {
 	var tx database.TxRunner
 	svc := New(repo, tx, products, 0)
 
-	userID := uuid.New()
-	liveID, goneID := uuid.New(), uuid.New()
+	userID := uuid.Must(uuid.NewV7())
+	liveID, goneID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 	repo.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
 		UserID: userID,
@@ -476,8 +476,8 @@ func TestService_Get_MissingProductBecomesUnavailable(t *testing.T) {
 	var tx database.TxRunner
 	svc := New(repo, tx, products, 0)
 
-	userID := uuid.New()
-	missingID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
+	missingID := uuid.Must(uuid.NewV7())
 
 	repo.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
 		UserID: userID,
@@ -504,9 +504,9 @@ func TestService_Snapshot(t *testing.T) {
 	t.Run("flattens each line's product into the snapshot item", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
-		cartID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		cartID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
@@ -545,8 +545,8 @@ func TestService_Snapshot(t *testing.T) {
 	t.Run("a product Get could not resolve flattens to its unavailable status", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetCart(mock.Anything, userID).Return(&domain.Cart{
@@ -579,7 +579,7 @@ func TestService_Clear(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().Clear(mock.Anything, userID).Return(nil)
 
@@ -596,7 +596,7 @@ func TestService_Clear(t *testing.T) {
 		svc := New(repo, tx, products, 0)
 
 		ctx := context.Background()
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().Clear(mock.Anything, userID).Return(errors.New("db error"))
 
@@ -620,8 +620,8 @@ func TestService_Lock(t *testing.T) {
 		var products ProductLookup
 		svc := New(repo, tx, products, 0)
 
-		userID := uuid.New()
-		repo.EXPECT().GetCartForLock(mock.Anything, userID).Return(uuid.New(), nil)
+		userID := uuid.Must(uuid.NewV7())
+		repo.EXPECT().GetCartForLock(mock.Anything, userID).Return(uuid.Must(uuid.NewV7()), nil)
 
 		err := svc.Lock(context.Background(), userID)
 		require.NoError(t, err)
@@ -635,7 +635,7 @@ func TestService_Lock(t *testing.T) {
 		var products ProductLookup
 		svc := New(repo, tx, products, 0)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetCartForLock(mock.Anything, userID).Return(uuid.Nil, errs.ErrNotFound)
 
 		err := svc.Lock(context.Background(), userID)

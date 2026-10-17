@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS orders (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id               UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id          UUID NOT NULL REFERENCES users(id),
     idempotency_key  TEXT,
     request_hash     TEXT,
@@ -35,7 +35,7 @@ CREATE INDEX idx_orders_awaiting_updated ON orders(updated_at) WHERE status = 'a
 CREATE INDEX idx_orders_processing_updated ON orders(updated_at) WHERE status = 'payment_processing';
 
 CREATE TABLE IF NOT EXISTS order_items (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id           UUID PRIMARY KEY DEFAULT uuidv7(),
     order_id     UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     product_id   UUID NOT NULL REFERENCES products(id),
     product_name TEXT NOT NULL,

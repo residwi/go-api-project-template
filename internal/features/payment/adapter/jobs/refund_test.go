@@ -17,7 +17,7 @@ import (
 func TestRefundWorkerCallsSettleRefund(t *testing.T) {
 	t.Parallel()
 
-	paymentID, orderID := uuid.New(), uuid.New()
+	paymentID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	svc := NewMockRefunder(t)
 	svc.EXPECT().SettleRefund(mock.Anything, paymentID, orderID).Return(nil)
 
@@ -33,7 +33,7 @@ func TestRefundWorkerCallsSettleRefund(t *testing.T) {
 func TestRefundWorkerCancelsWhenPaymentNotRefundable(t *testing.T) {
 	t.Parallel()
 
-	paymentID, orderID := uuid.New(), uuid.New()
+	paymentID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	svc := NewMockRefunder(t)
 	svc.EXPECT().SettleRefund(mock.Anything, paymentID, orderID).Return(payment.ErrNotRefundable)
 

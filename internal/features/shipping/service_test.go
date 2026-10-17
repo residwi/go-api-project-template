@@ -22,11 +22,11 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("creates the shipment and flips the order in one transaction", func(t *testing.T) {
 		t.Parallel()
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
+			Return(order.Snapshot{ID: orderID, UserID: uuid.Must(uuid.NewV7()), Status: "paid"}, nil)
 		orders.EXPECT().MarkShipped(mock.Anything, orderID).Return(nil)
 
 		repo := NewMockRepository(t)
@@ -46,7 +46,7 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("refuses an order that is not paid or processing", func(t *testing.T) {
 		t.Parallel()
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
@@ -61,7 +61,7 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("propagates the order lookup failure unchanged", func(t *testing.T) {
 		t.Parallel()
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
@@ -75,11 +75,11 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("repository failure prevents the order flip", func(t *testing.T) {
 		t.Parallel()
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
+			Return(order.Snapshot{ID: orderID, UserID: uuid.Must(uuid.NewV7()), Status: "paid"}, nil)
 
 		dbErr := errors.New("insert failed")
 		repo := NewMockRepository(t)
@@ -94,12 +94,12 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("rolls back the shipment when the order flip fails", func(t *testing.T) {
 		t.Parallel()
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		flipErr := errors.New("order is no longer shippable")
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "paid"}, nil)
+			Return(order.Snapshot{ID: orderID, UserID: uuid.Must(uuid.NewV7()), Status: "paid"}, nil)
 		orders.EXPECT().MarkShipped(mock.Anything, orderID).Return(flipErr)
 
 		repo := NewMockRepository(t)
@@ -123,7 +123,7 @@ func TestService_Deliver(t *testing.T) {
 	t.Run("marks the shipment and the order delivered in one transaction", func(t *testing.T) {
 		t.Parallel()
 
-		shipmentID, orderID := uuid.New(), uuid.New()
+		shipmentID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		deliveredAt := time.Now()
 
 		repo := NewMockRepository(t)
@@ -149,7 +149,7 @@ func TestService_Deliver(t *testing.T) {
 	t.Run("propagates a missing shipment before opening a transaction", func(t *testing.T) {
 		t.Parallel()
 
-		shipmentID := uuid.New()
+		shipmentID := uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, errs.ErrNotFound)
@@ -163,7 +163,7 @@ func TestService_Deliver(t *testing.T) {
 	t.Run("never flips the order when marking the shipment delivered fails", func(t *testing.T) {
 		t.Parallel()
 
-		shipmentID, orderID := uuid.New(), uuid.New()
+		shipmentID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		markErr := errors.New("update failed")
 
 		repo := NewMockRepository(t)
@@ -183,7 +183,7 @@ func TestService_Deliver(t *testing.T) {
 	t.Run("rolls back when the order flip fails", func(t *testing.T) {
 		t.Parallel()
 
-		shipmentID, orderID := uuid.New(), uuid.New()
+		shipmentID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		flipErr := errors.New("order not shipped")
 
 		repo := NewMockRepository(t)
@@ -208,7 +208,7 @@ func TestService_UpdateTracking(t *testing.T) {
 	t.Run("replaces both fields when both are given", func(t *testing.T) {
 		t.Parallel()
 
-		shipmentID := uuid.New()
+		shipmentID := uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).
@@ -231,7 +231,7 @@ func TestService_UpdateTracking(t *testing.T) {
 	t.Run("leaves a field untouched when its value is empty", func(t *testing.T) {
 		t.Parallel()
 
-		shipmentID := uuid.New()
+		shipmentID := uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).
@@ -255,7 +255,7 @@ func TestService_UpdateTracking(t *testing.T) {
 	t.Run("propagates a missing shipment", func(t *testing.T) {
 		t.Parallel()
 
-		shipmentID := uuid.New()
+		shipmentID := uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetByID(mock.Anything, shipmentID).Return(nil, errs.ErrNotFound)
@@ -274,7 +274,7 @@ func TestService_GetForUser(t *testing.T) {
 
 	t.Run("returns the shipment when the order belongs to the caller", func(t *testing.T) {
 		t.Parallel()
-		userID, orderID, shipmentID := uuid.New(), uuid.New(), uuid.New()
+		userID, orderID, shipmentID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
@@ -294,11 +294,11 @@ func TestService_GetForUser(t *testing.T) {
 
 	t.Run("reports not found when the order belongs to someone else", func(t *testing.T) {
 		t.Parallel()
-		userID, orderID := uuid.New(), uuid.New()
+		userID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
-			Return(order.Snapshot{ID: orderID, UserID: uuid.New(), Status: "shipped"}, nil)
+			Return(order.Snapshot{ID: orderID, UserID: uuid.Must(uuid.NewV7()), Status: "shipped"}, nil)
 
 		// Not ErrForbidden: a 403 would confirm the order exists to someone who
 		// does not own it.
@@ -311,7 +311,7 @@ func TestService_GetForUser(t *testing.T) {
 
 	t.Run("propagates the order lookup failure unchanged", func(t *testing.T) {
 		t.Parallel()
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 
 		orders := NewMockOrders(t)
 		orders.EXPECT().Snapshot(mock.Anything, orderID).
@@ -319,14 +319,14 @@ func TestService_GetForUser(t *testing.T) {
 
 		var tx database.TxRunner
 		svc := New(NewMockRepository(t), tx, orders)
-		_, err := svc.GetForUser(t.Context(), uuid.New(), orderID)
+		_, err := svc.GetForUser(t.Context(), uuid.Must(uuid.NewV7()), orderID)
 
 		require.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
 	t.Run("propagates the shipment lookup failure unchanged when ownership checks out", func(t *testing.T) {
 		t.Parallel()
-		userID, orderID := uuid.New(), uuid.New()
+		userID, orderID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		repoErr := errors.New("connection reset")
 
 		orders := NewMockOrders(t)

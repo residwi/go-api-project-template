@@ -45,7 +45,7 @@ func TestHandler_Get(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		cartID := uuid.New()
+		cartID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Get(mock.Anything, uc.UserID).Return(&domain.Cart{
 			ID:     cartID,
 			UserID: uc.UserID,
@@ -71,7 +71,7 @@ func TestHandler_Get(t *testing.T) {
 		mux, service, uc := setupMux(t)
 
 		service.EXPECT().Get(mock.Anything, uc.UserID).Return(&domain.Cart{
-			ID:     uuid.New(),
+			ID:     uuid.Must(uuid.NewV7()),
 			UserID: uc.UserID,
 			Items:  []domain.Item{},
 		}, nil)
@@ -100,15 +100,15 @@ func TestHandler_Get(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		usdID, eurID := uuid.New(), uuid.New()
+		usdID, eurID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		service.EXPECT().Get(mock.Anything, uc.UserID).Return(&domain.Cart{
-			ID:     uuid.New(),
+			ID:     uuid.Must(uuid.NewV7()),
 			UserID: uc.UserID,
 			Items: []domain.Item{
-				{ID: uuid.New(), ProductID: usdID, Quantity: 1, Product: &domain.Product{
+				{ID: uuid.Must(uuid.NewV7()), ProductID: usdID, Quantity: 1, Product: &domain.Product{
 					Name: "Dollar Widget", Price: money.New(1000, "USD"), Stock: 5, Status: "published",
 				}},
-				{ID: uuid.New(), ProductID: eurID, Quantity: 1, Product: &domain.Product{
+				{ID: uuid.Must(uuid.NewV7()), ProductID: eurID, Quantity: 1, Product: &domain.Product{
 					Name: "Euro Widget", Price: money.New(1000, "EUR"), Stock: 5, Status: "published",
 				}},
 			},
@@ -134,15 +134,15 @@ func TestHandler_Get(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		liveID, goneID := uuid.New(), uuid.New()
+		liveID, goneID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		service.EXPECT().Get(mock.Anything, uc.UserID).Return(&domain.Cart{
-			ID:     uuid.New(),
+			ID:     uuid.Must(uuid.NewV7()),
 			UserID: uc.UserID,
 			Items: []domain.Item{
-				{ID: uuid.New(), ProductID: liveID, Quantity: 2, Product: &domain.Product{
+				{ID: uuid.Must(uuid.NewV7()), ProductID: liveID, Quantity: 2, Product: &domain.Product{
 					Name: "Widget", Price: money.New(1000, "USD"), Stock: 5, Status: "published",
 				}},
-				{ID: uuid.New(), ProductID: goneID, Quantity: 3, Product: &domain.Product{
+				{ID: uuid.Must(uuid.NewV7()), ProductID: goneID, Quantity: 3, Product: &domain.Product{
 					Name: "Archived", Price: money.New(900, "EUR"), Stock: 0, Status: "archived",
 				}},
 			},
@@ -236,7 +236,7 @@ func TestHandler_Add(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Add(mock.Anything, uc.UserID, productID, 2).Return(nil)
 
 		body := `{"product_id":"` + productID.String() + `","quantity":2}`
@@ -253,7 +253,7 @@ func TestHandler_Add(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Add(mock.Anything, uc.UserID, productID, 1).Return(errs.ErrNotFound)
 
 		body := `{"product_id":"` + productID.String() + `","quantity":1}`
@@ -274,7 +274,7 @@ func TestHandler_Update(t *testing.T) {
 
 		mux, _, _ := setupMux(t)
 
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/cart/items/"+uuid.NewString(), nil)
+		r := httptest.NewRequest(http.MethodPut, "/api/v1/cart/items/"+uuid.Must(uuid.NewV7()).String(), nil)
 		w := httptest.NewRecorder()
 
 		mux.ServeHTTP(w, r)
@@ -305,7 +305,7 @@ func TestHandler_Update(t *testing.T) {
 
 		mux, _, uc := setupMux(t)
 
-		productID := uuid.NewString()
+		productID := uuid.Must(uuid.NewV7()).String()
 		r := withAuth(httptest.NewRequest(http.MethodPut, "/api/v1/cart/items/"+productID, strings.NewReader(`{}`)), uc)
 		w := httptest.NewRecorder()
 
@@ -319,7 +319,7 @@ func TestHandler_Update(t *testing.T) {
 
 		mux, _, uc := setupMux(t)
 
-		productID := uuid.NewString()
+		productID := uuid.Must(uuid.NewV7()).String()
 		r := withAuth(
 			httptest.NewRequest(http.MethodPut, "/api/v1/cart/items/"+productID, strings.NewReader("{bad")),
 			uc,
@@ -336,7 +336,7 @@ func TestHandler_Update(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().UpdateQuantity(mock.Anything, uc.UserID, productID, 5).Return(nil)
 
 		r := withAuth(httptest.NewRequest(
@@ -356,7 +356,7 @@ func TestHandler_Update(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().UpdateQuantity(mock.Anything, uc.UserID, productID, 3).Return(errs.ErrNotFound)
 
 		r := withAuth(httptest.NewRequest(
@@ -380,7 +380,7 @@ func TestHandler_Remove(t *testing.T) {
 
 		mux, _, _ := setupMux(t)
 
-		r := httptest.NewRequest(http.MethodDelete, "/api/v1/cart/items/"+uuid.NewString(), nil)
+		r := httptest.NewRequest(http.MethodDelete, "/api/v1/cart/items/"+uuid.Must(uuid.NewV7()).String(), nil)
 		w := httptest.NewRecorder()
 
 		mux.ServeHTTP(w, r)
@@ -406,7 +406,7 @@ func TestHandler_Remove(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Remove(mock.Anything, uc.UserID, productID).Return(nil)
 
 		r := withAuth(httptest.NewRequest(http.MethodDelete, "/api/v1/cart/items/"+productID.String(), nil), uc)
@@ -422,7 +422,7 @@ func TestHandler_Remove(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Remove(mock.Anything, uc.UserID, productID).Return(errs.ErrNotFound)
 
 		r := withAuth(httptest.NewRequest(http.MethodDelete, "/api/v1/cart/items/"+productID.String(), nil), uc)
@@ -484,13 +484,13 @@ func TestHandler_Clear(t *testing.T) {
 func TestToCartResponse_FlagsUnsellableLineAndExcludesItFromTotal(t *testing.T) {
 	t.Parallel()
 
-	sellableID, unsellableID := uuid.New(), uuid.New()
+	sellableID, unsellableID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 	c := &domain.Cart{
-		ID: uuid.New(),
+		ID: uuid.Must(uuid.NewV7()),
 		Items: []domain.Item{
 			{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				ProductID: sellableID,
 				Quantity:  2,
 				Product: &domain.Product{
@@ -501,7 +501,7 @@ func TestToCartResponse_FlagsUnsellableLineAndExcludesItFromTotal(t *testing.T) 
 				},
 			},
 			{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				ProductID: unsellableID,
 				Quantity:  3,
 				Product:   &domain.Product{Name: "Gone", Price: money.New(900, "USD"), Stock: 0, Status: "archived"},
@@ -523,11 +523,11 @@ func TestToCartResponse_MissingProductIsUnsellable(t *testing.T) {
 	t.Parallel()
 
 	c := &domain.Cart{
-		ID: uuid.New(),
+		ID: uuid.Must(uuid.NewV7()),
 		Items: []domain.Item{
 			{
-				ID:        uuid.New(),
-				ProductID: uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
+				ProductID: uuid.Must(uuid.NewV7()),
 				Quantity:  1,
 				Product:   &domain.Product{Status: "unavailable"},
 			},
@@ -549,11 +549,11 @@ func TestToCartResponse_MixedCurrenciesRefusesToTotal(t *testing.T) {
 	t.Parallel()
 
 	c := &domain.Cart{
-		ID: uuid.New(),
+		ID: uuid.Must(uuid.NewV7()),
 		Items: []domain.Item{
 			{
-				ID:        uuid.New(),
-				ProductID: uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
+				ProductID: uuid.Must(uuid.NewV7()),
 				Quantity:  1,
 				Product: &domain.Product{
 					Name:   "Dollar Widget",
@@ -563,8 +563,8 @@ func TestToCartResponse_MixedCurrenciesRefusesToTotal(t *testing.T) {
 				},
 			},
 			{
-				ID:        uuid.New(),
-				ProductID: uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
+				ProductID: uuid.Must(uuid.NewV7()),
 				Quantity:  1,
 				Product: &domain.Product{
 					Name:   "Euro Widget",
@@ -590,10 +590,10 @@ func TestToCartResponse_MixedCurrenciesRefusesToTotal(t *testing.T) {
 func TestToCartResponse_OmitsUserID(t *testing.T) {
 	t.Parallel()
 
-	userID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
 
 	c := &domain.Cart{
-		ID:     uuid.New(),
+		ID:     uuid.Must(uuid.NewV7()),
 		UserID: userID,
 		Items:  []domain.Item{},
 	}
@@ -626,7 +626,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockCartManager, identity.Identity
 	authed.HandleFunc("DELETE /cart/items/{product_id}", h.Remove)
 
 	uc := identity.Identity{
-		UserID: uuid.New(),
+		UserID: uuid.Must(uuid.NewV7()),
 		Role:   "user",
 	}
 

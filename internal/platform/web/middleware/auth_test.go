@@ -53,7 +53,7 @@ func TestAuth(t *testing.T) {
 	t.Run("bearer prefix is matched case-insensitively", func(t *testing.T) {
 		authenticator := NewMockAuthenticator(t)
 		authenticator.EXPECT().Authenticate(mock.Anything, "tok").
-			Return(identity.Identity{UserID: uuid.New()}, nil)
+			Return(identity.Identity{UserID: uuid.Must(uuid.NewV7())}, nil)
 
 		called := false
 		handler := Auth(testLogger(), authenticator)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -185,7 +185,7 @@ func TestAuth(t *testing.T) {
 	t.Run("success puts the identity in the request context", func(t *testing.T) {
 		authenticator := NewMockAuthenticator(t)
 
-		want := identity.Identity{UserID: uuid.New(), Role: "admin"}
+		want := identity.Identity{UserID: uuid.Must(uuid.NewV7()), Role: "admin"}
 		authenticator.EXPECT().Authenticate(mock.Anything, "valid-token").Return(want, nil)
 
 		called := false
@@ -212,7 +212,7 @@ func TestAuth(t *testing.T) {
 		var buf bytes.Buffer
 		log := slog.New(logger.ContextHandler{Handler: slog.NewJSONHandler(&buf, nil)})
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		authenticator := NewMockAuthenticator(t)
 		authenticator.EXPECT().Authenticate(mock.Anything, "good-token").
 			Return(identity.Identity{UserID: userID, Role: "user"}, nil)

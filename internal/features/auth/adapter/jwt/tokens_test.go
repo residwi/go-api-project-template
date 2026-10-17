@@ -21,7 +21,7 @@ func TestTokens_Verify(t *testing.T) {
 	t.Parallel()
 
 	claims := domain.Claims{
-		UserID:       uuid.New(),
+		UserID:       uuid.Must(uuid.NewV7()),
 		Role:         "customer",
 		TokenVersion: 1,
 	}
@@ -134,7 +134,7 @@ func TestTokens_Verify(t *testing.T) {
 		t.Parallel()
 
 		tok := jwt.NewWithClaims(jwt.SigningMethodNone, jwt.MapClaims{
-			"user_id": uuid.New().String(),
+			"user_id": uuid.Must(uuid.NewV7()).String(),
 			"email":   "user@example.com",
 			"role":    "customer",
 			"kind":    "access",

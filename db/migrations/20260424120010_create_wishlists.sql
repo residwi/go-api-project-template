@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS wishlists (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id         UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS wishlists (
 );
 
 CREATE TABLE IF NOT EXISTS wishlist_items (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id          UUID PRIMARY KEY DEFAULT uuidv7(),
     wishlist_id UUID NOT NULL REFERENCES wishlists(id) ON DELETE CASCADE,
     product_id  UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),

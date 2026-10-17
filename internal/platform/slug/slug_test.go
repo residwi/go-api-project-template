@@ -3,6 +3,7 @@ package slug
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -73,5 +74,17 @@ func TestMake(t *testing.T) {
 		t.Parallel()
 
 		assert.Equal(t, "hello-world", Make("hello---world"))
+	})
+}
+
+func TestSeed(t *testing.T) {
+	t.Parallel()
+
+	t.Run("differs for two v7 ids made back to back", func(t *testing.T) {
+		t.Parallel()
+
+		first, second := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+
+		assert.NotEqual(t, Seed(first), Seed(second))
 	})
 }

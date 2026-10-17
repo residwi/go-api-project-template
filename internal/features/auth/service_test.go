@@ -28,7 +28,7 @@ func TestService_Login(t *testing.T) {
 
 		users := NewMockUserDirectory(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		hash := hashPassword("password123")
 		creds := user.Credentials{
 			ID:           userID,
@@ -67,7 +67,7 @@ func TestService_Login(t *testing.T) {
 
 		hash := hashPassword("correct-password")
 		users.EXPECT().GetByEmail(mock.Anything, "inactive@example.com").Return(user.Credentials{
-			ID:           uuid.New(),
+			ID:           uuid.Must(uuid.NewV7()),
 			Email:        "inactive@example.com",
 			PasswordHash: hash,
 			Active:       false,
@@ -88,7 +88,7 @@ func TestService_Login(t *testing.T) {
 
 		hash := hashPassword("password123")
 		users.EXPECT().GetByEmail(mock.Anything, "inactive@example.com").Return(user.Credentials{
-			ID:           uuid.New(),
+			ID:           uuid.Must(uuid.NewV7()),
 			Email:        "inactive@example.com",
 			PasswordHash: hash,
 			Active:       false,
@@ -108,7 +108,7 @@ func TestService_Login(t *testing.T) {
 
 		hash := hashPassword("correct-password")
 		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user.Credentials{
-			ID:           uuid.New(),
+			ID:           uuid.Must(uuid.NewV7()),
 			Email:        "test@example.com",
 			PasswordHash: hash,
 			Active:       true,
@@ -142,7 +142,7 @@ func TestService_Login(t *testing.T) {
 		users := NewMockUserDirectory(t)
 
 		users.EXPECT().GetByEmail(mock.Anything, "admin@example.com").Return(user.Credentials{
-			ID:           uuid.New(),
+			ID:           uuid.Must(uuid.NewV7()),
 			Email:        "admin@example.com",
 			PasswordHash: argon2iHash,
 			Active:       true,
@@ -164,7 +164,7 @@ func TestService_Register(t *testing.T) {
 
 		users := NewMockUserDirectory(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		createdUser := user.Profile{
 			ID:        userID,
 			Email:     "test@example.com",
@@ -217,7 +217,7 @@ func TestService_Refresh(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		svc := newTestService(users)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		user := user.Profile{
 			ID:           userID,
 			Email:        "test@example.com",
@@ -263,7 +263,7 @@ func TestService_Refresh(t *testing.T) {
 		svc := newTestService(users)
 
 		pair, err := svc.BuildTokenPair(user.Profile{
-			ID: uuid.New(), Email: "test@example.com", Role: "customer", TokenVersion: 1,
+			ID: uuid.Must(uuid.NewV7()), Email: "test@example.com", Role: "customer", TokenVersion: 1,
 		})
 		require.NoError(t, err)
 
@@ -279,7 +279,7 @@ func TestService_Refresh(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		svc := newTestService(users)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		pair, err := svc.BuildTokenPair(user.Profile{
 			ID: userID, Email: "test@example.com", Role: "customer", TokenVersion: 1,
 		})
@@ -300,7 +300,7 @@ func TestService_Refresh(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		s := newTestService(users)
 
-		profile := user.Profile{ID: uuid.New(), Role: "user", Active: true, TokenVersion: 1}
+		profile := user.Profile{ID: uuid.Must(uuid.NewV7()), Role: "user", Active: true, TokenVersion: 1}
 		pair, err := s.BuildTokenPair(profile)
 		require.NoError(t, err)
 
@@ -318,7 +318,7 @@ func TestService_Refresh(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		s := newTestService(users)
 
-		profile := user.Profile{ID: uuid.New(), Role: "user", Active: true, TokenVersion: 1}
+		profile := user.Profile{ID: uuid.Must(uuid.NewV7()), Role: "user", Active: true, TokenVersion: 1}
 		pair, err := s.BuildTokenPair(profile)
 		require.NoError(t, err)
 
@@ -336,7 +336,7 @@ func TestService_Refresh(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		s := newTestService(users)
 
-		profile := user.Profile{ID: uuid.New(), Role: "user", Active: true, TokenVersion: 1}
+		profile := user.Profile{ID: uuid.Must(uuid.NewV7()), Role: "user", Active: true, TokenVersion: 1}
 		pair, err := s.BuildTokenPair(profile)
 		require.NoError(t, err)
 
@@ -352,7 +352,7 @@ func TestService_Refresh(t *testing.T) {
 func TestService_BuildTokenPair(t *testing.T) {
 	t.Parallel()
 
-	userID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
 	user := user.Profile{
 		ID:           userID,
 		Email:        "user@example.com",
@@ -411,7 +411,7 @@ func TestService_Authenticate(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		svc := newTestService(users)
 
-		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
+		profile := user.Profile{ID: uuid.Must(uuid.NewV7()), Email: "a@example.com", Role: "user", TokenVersion: 1}
 		pair, err := svc.BuildTokenPair(profile)
 		require.NoError(t, err)
 
@@ -426,7 +426,7 @@ func TestService_Authenticate(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		svc := newTestService(users)
 
-		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
+		profile := user.Profile{ID: uuid.Must(uuid.NewV7()), Email: "a@example.com", Role: "user", TokenVersion: 1}
 		pair, err := svc.BuildTokenPair(profile)
 		require.NoError(t, err)
 
@@ -444,7 +444,7 @@ func TestService_Authenticate(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		svc := newTestService(users)
 
-		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
+		profile := user.Profile{ID: uuid.Must(uuid.NewV7()), Email: "a@example.com", Role: "user", TokenVersion: 1}
 		pair, err := svc.BuildTokenPair(profile)
 		require.NoError(t, err)
 
@@ -462,7 +462,7 @@ func TestService_Authenticate(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		svc := newTestService(users)
 
-		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "user", TokenVersion: 1}
+		profile := user.Profile{ID: uuid.Must(uuid.NewV7()), Email: "a@example.com", Role: "user", TokenVersion: 1}
 		pair, err := svc.BuildTokenPair(profile)
 		require.NoError(t, err)
 
@@ -481,7 +481,7 @@ func TestService_Authenticate(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		svc := newTestService(users)
 
-		profile := user.Profile{ID: uuid.New(), Role: "user", Active: true, TokenVersion: 1}
+		profile := user.Profile{ID: uuid.Must(uuid.NewV7()), Role: "user", Active: true, TokenVersion: 1}
 		pair, err := svc.BuildTokenPair(profile)
 		require.NoError(t, err)
 
@@ -499,7 +499,7 @@ func TestService_Authenticate(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		svc := newTestService(users)
 
-		profile := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "admin", TokenVersion: 4}
+		profile := user.Profile{ID: uuid.Must(uuid.NewV7()), Email: "a@example.com", Role: "admin", TokenVersion: 4}
 		pair, err := svc.BuildTokenPair(profile)
 		require.NoError(t, err)
 
@@ -518,7 +518,7 @@ func TestService_Authenticate(t *testing.T) {
 		users := NewMockUserDirectory(t)
 		svc := newTestService(users)
 
-		minted := user.Profile{ID: uuid.New(), Email: "a@example.com", Role: "admin", TokenVersion: 4}
+		minted := user.Profile{ID: uuid.Must(uuid.NewV7()), Email: "a@example.com", Role: "admin", TokenVersion: 4}
 		pair, err := svc.BuildTokenPair(minted)
 		require.NoError(t, err)
 
@@ -567,7 +567,7 @@ func TestService_LoginSecurityEvents(t *testing.T) {
 		t.Parallel()
 
 		var buf bytes.Buffer
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		users := NewMockUserDirectory(t)
 		users.EXPECT().GetByEmail(mock.Anything, "real@example.com").
 			Return(existing(t, id, "real@example.com"), nil)
@@ -585,7 +585,7 @@ func TestService_LoginSecurityEvents(t *testing.T) {
 		t.Parallel()
 
 		var buf bytes.Buffer
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		users := NewMockUserDirectory(t)
 		users.EXPECT().GetByEmail(mock.Anything, "legacy@example.com").
 			Return(user.Credentials{ID: id, Email: "legacy@example.com", Active: true, PasswordHash: "x"}, nil)
@@ -614,7 +614,7 @@ func TestService_LoginSecurityEvents(t *testing.T) {
 		var buf bytes.Buffer
 		users := NewMockUserDirectory(t)
 		users.EXPECT().GetByEmail(mock.Anything, "real@example.com").
-			Return(existing(t, uuid.New(), "real@example.com"), nil)
+			Return(existing(t, uuid.Must(uuid.NewV7()), "real@example.com"), nil)
 
 		_, err := newLoggedService(users, &buf, slog.LevelWarn).
 			Login(context.Background(), "real@example.com", "correct-horse")
@@ -632,7 +632,7 @@ func TestService_HashSlots(t *testing.T) {
 
 		users := NewMockUserDirectory(t)
 		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user.Credentials{
-			ID:           uuid.New(),
+			ID:           uuid.Must(uuid.NewV7()),
 			Email:        "test@example.com",
 			PasswordHash: hashPassword("password123"),
 			Active:       true,
@@ -673,7 +673,7 @@ func TestService_HashSlots(t *testing.T) {
 
 		users := NewMockUserDirectory(t)
 		users.EXPECT().GetByEmail(mock.Anything, "test@example.com").Return(user.Credentials{
-			ID:           uuid.New(),
+			ID:           uuid.Must(uuid.NewV7()),
 			Email:        "test@example.com",
 			PasswordHash: hashPassword("password123"),
 			Active:       true,

@@ -97,7 +97,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		_, err := repo.GetByID(context.Background(), uuid.New())
+		_, err := repo.GetByID(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -193,7 +193,7 @@ func TestPostgresRepository_UpdateGateway(t *testing.T) {
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
-		txnID := "gw-txn-charge-" + uuid.New().String()
+		txnID := "gw-txn-charge-" + uuid.Must(uuid.NewV7()).String()
 		response := payment.GatewayChargeResponse{
 			TransactionID: txnID,
 			Status:        "success",
@@ -256,7 +256,7 @@ func TestPostgresRepository_GetByGatewayTxnID(t *testing.T) {
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
-		txnID := "txn-" + uuid.New().String()
+		txnID := "txn-" + uuid.Must(uuid.NewV7()).String()
 		_, err := testPool.Exec(ctx, `UPDATE payments SET gateway_txn_id = $1 WHERE id = $2`, txnID, p.ID)
 		require.NoError(t, err)
 
@@ -284,7 +284,7 @@ func TestPostgresRepository_GetByGatewayTxnID_WithNullableFields(t *testing.T) {
 		p := seedPayment(t, repo, orderID)
 		ctx := context.Background()
 
-		txnID := "txn-nullable-" + uuid.New().String()
+		txnID := "txn-nullable-" + uuid.Must(uuid.NewV7()).String()
 		_, err := testPool.Exec(ctx,
 			`UPDATE payments SET gateway_txn_id = $1, payment_url = $2, payment_method_id = $3 WHERE id = $4`,
 			txnID, "https://pay.example.com/nullable", "pm_nullable_test", p.ID)
@@ -411,18 +411,22 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	repo := New(database.DB{Primary: testPool})
 
 	t.Run("Create", func(t *testing.T) {
-		p := &domain.Payment{OrderID: uuid.New(), Amount: money.New(1000, "USD"), Status: domain.StatusPending}
+		p := &domain.Payment{
+			OrderID: uuid.Must(uuid.NewV7()),
+			Amount:  money.New(1000, "USD"),
+			Status:  domain.StatusPending,
+		}
 		err := repo.Create(cancelledCtx, p)
 		assert.Error(t, err)
 	})
 
 	t.Run("GetByID", func(t *testing.T) {
-		_, err := repo.GetByID(cancelledCtx, uuid.New())
+		_, err := repo.GetByID(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("GetActiveByOrderID", func(t *testing.T) {
-		_, err := repo.GetActiveByOrderID(cancelledCtx, uuid.New())
+		_, err := repo.GetActiveByOrderID(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
@@ -432,29 +436,29 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("UpdateGateway", func(t *testing.T) {
-		err := repo.UpdateGateway(cancelledCtx, uuid.New(), "txn", payment.GatewayChargeResponse{})
+		err := repo.UpdateGateway(cancelledCtx, uuid.Must(uuid.NewV7()), "txn", payment.GatewayChargeResponse{})
 		assert.Error(t, err)
 	})
 
 	t.Run("UpdatePaymentURL", func(t *testing.T) {
-		err := repo.UpdatePaymentURL(cancelledCtx, uuid.New(), "https://pay.example.com")
+		err := repo.UpdatePaymentURL(cancelledCtx, uuid.Must(uuid.NewV7()), "https://pay.example.com")
 		assert.Error(t, err)
 	})
 
 	t.Run("ClearPaymentURL", func(t *testing.T) {
-		err := repo.ClearPaymentURL(cancelledCtx, uuid.New())
+		err := repo.ClearPaymentURL(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("MarkPaid", func(t *testing.T) {
-		err := repo.MarkPaid(cancelledCtx, uuid.New(), []domain.Status{domain.StatusPending})
+		err := repo.MarkPaid(cancelledCtx, uuid.Must(uuid.NewV7()), []domain.Status{domain.StatusPending})
 		assert.Error(t, err)
 	})
 
 	t.Run("UpdateStatus", func(t *testing.T) {
 		err := repo.UpdateStatus(
 			cancelledCtx,
-			uuid.New(),
+			uuid.Must(uuid.NewV7()),
 			domain.StatusRequiresReview,
 			[]domain.Status{domain.StatusPending},
 		)
@@ -477,7 +481,7 @@ func seedUser(t *testing.T) uuid.UUID {
 
 func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency)
 		 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD')`,

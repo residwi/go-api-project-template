@@ -33,7 +33,7 @@ func TestHandler_List_Success(t *testing.T) {
 		now := time.Now()
 		notifications := []domain.Notification{
 			{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				UserID:    uc.UserID,
 				Title:     "Order Placed",
 				CreatedAt: now,
@@ -133,7 +133,7 @@ func TestHandler_List_Pagination(t *testing.T) {
 		notifications := make([]domain.Notification, 21)
 		for i := range notifications {
 			notifications[i] = domain.Notification{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				UserID:    uc.UserID,
 				Title:     "Order",
 				CreatedAt: now.Add(-time.Duration(i) * time.Minute),
@@ -200,11 +200,11 @@ func TestHandler_UnreadCount(t *testing.T) {
 func TestToNotificationResponse_OmitsUserID(t *testing.T) {
 	t.Parallel()
 
-	userID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	got := toNotificationResponse(domain.Notification{
-		ID:        uuid.New(),
+		ID:        uuid.Must(uuid.NewV7()),
 		UserID:    userID,
 		Title:     "Order Placed",
 		Body:      "Your order has been placed.",
@@ -235,7 +235,7 @@ func TestHandler_MarkRead_Success(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		service.EXPECT().MarkRead(mock.Anything, uc.UserID, id).Return(nil)
 
 		w := httptest.NewRecorder()
@@ -256,7 +256,7 @@ func TestHandler_MarkRead_CommandError(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		service.EXPECT().MarkRead(mock.Anything, uc.UserID, id).Return(errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
@@ -298,7 +298,7 @@ func TestHandler_MarkRead(t *testing.T) {
 	t.Run("missing auth", func(t *testing.T) {
 		t.Parallel()
 
-		r := httptest.NewRequest(http.MethodPut, "/notifications/"+uuid.NewString()+"/read", nil)
+		r := httptest.NewRequest(http.MethodPut, "/notifications/"+uuid.Must(uuid.NewV7()).String()+"/read", nil)
 		w := httptest.NewRecorder()
 
 		err := h.MarkRead(w, r)
@@ -311,7 +311,7 @@ func TestHandler_MarkRead(t *testing.T) {
 		t.Parallel()
 
 		r := httptest.NewRequest(http.MethodPut, "/notifications/bad/read", nil)
-		ctx := identity.NewContext(r.Context(), identity.Identity{UserID: uuid.New(), Role: "user"})
+		ctx := identity.NewContext(r.Context(), identity.Identity{UserID: uuid.Must(uuid.NewV7()), Role: "user"})
 		r = r.WithContext(ctx)
 		r.SetPathValue("id", "bad")
 		w := httptest.NewRecorder()
@@ -395,7 +395,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockNotificationManager, identity.
 	authed.HandleFunc("PUT /notifications/read-all", h.MarkAllRead)
 
 	uc := identity.Identity{
-		UserID: uuid.New(),
+		UserID: uuid.Must(uuid.NewV7()),
 		Role:   "user",
 	}
 

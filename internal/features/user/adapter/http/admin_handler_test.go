@@ -36,7 +36,7 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 		now := time.Now()
 		usecase.EXPECT().ListAdmin(mock.Anything, mock.Anything).Return([]domain.User{
 			{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				Email:     "alice@example.com",
 				FirstName: "Alice",
 				LastName:  "Smith",
@@ -110,7 +110,7 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 			return p.Active != nil && *p.Active == true
 		})).Return([]domain.User{
 			{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				Email:     "active@example.com",
 				FirstName: "Active",
 				LastName:  "User",
@@ -149,7 +149,7 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 			return p.Role == "admin"
 		})).Return([]domain.User{
 			{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				Email:     "admin@example.com",
 				FirstName: "Admin",
 				LastName:  "User",
@@ -190,7 +190,7 @@ func TestAdminHandler_GetByID(t *testing.T) {
 
 		mux, usecase := setupAdminHandlerMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		usecase.EXPECT().GetByID(mock.Anything, userID).Return(&domain.User{
 			ID:        userID,
@@ -247,7 +247,7 @@ func TestAdminHandler_GetByID(t *testing.T) {
 		t.Parallel()
 
 		mux, usecase := setupAdminHandlerMux(t)
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		usecase.EXPECT().GetByID(mock.Anything, userID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
@@ -265,7 +265,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, usecase := setupAdminHandlerMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		usecase.EXPECT().AdminUpdate(mock.Anything, userID, "Updated", "Name", (*string)(nil), (*bool)(nil)).
 			Return(&domain.User{
@@ -335,7 +335,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, _ := setupAdminHandlerMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
@@ -359,7 +359,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, usecase := setupAdminHandlerMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		usecase.EXPECT().AdminUpdate(mock.Anything, userID, "Test", "", (*string)(nil), (*bool)(nil)).
 			Return(nil, errs.ErrNotFound)
 
@@ -383,7 +383,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, _ := setupAdminHandlerMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		longName := make([]byte, 101)
 		for i := range longName {
 			longName[i] = 'a'
@@ -416,8 +416,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 
 		mux, usecase := setupAdminHandlerMux(t)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		usecase.EXPECT().UpdateRole(mock.Anything, requesterID, targetID, "admin").Return(nil)
 
@@ -467,7 +467,7 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 
 		mux, _ := setupAdminHandlerMux(t)
 
-		targetID := uuid.New()
+		targetID := uuid.Must(uuid.NewV7())
 		body, _ := json.Marshal(map[string]any{"role": "admin"})
 
 		w := httptest.NewRecorder()
@@ -493,8 +493,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 
 		mux, _ := setupAdminHandlerMux(t)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
@@ -523,7 +523,7 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 
 		mux, usecase := setupAdminHandlerMux(t)
 
-		sameID := uuid.New()
+		sameID := uuid.Must(uuid.NewV7())
 		usecase.EXPECT().UpdateRole(mock.Anything, sameID, sameID, "user").
 			Return(errs.ErrForbidden)
 		body, _ := json.Marshal(map[string]any{"role": "user"})
@@ -551,8 +551,8 @@ func TestAdminHandler_UpdateRole(t *testing.T) {
 
 		mux, _ := setupAdminHandlerMux(t)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 		body, _ := json.Marshal(map[string]any{"role": "superadmin"})
 
 		w := httptest.NewRecorder()
@@ -587,8 +587,8 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		mux, usecase := setupAdminHandlerMux(t)
 
-		requesterID := uuid.New()
-		targetID := uuid.New()
+		requesterID := uuid.Must(uuid.NewV7())
+		targetID := uuid.Must(uuid.NewV7())
 
 		usecase.EXPECT().Delete(mock.Anything, requesterID, targetID).Return(nil)
 
@@ -628,7 +628,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		mux, _ := setupAdminHandlerMux(t)
 
-		targetID := uuid.New()
+		targetID := uuid.Must(uuid.NewV7())
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/users/"+targetID.String(), nil)
@@ -648,7 +648,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		mux, usecase := setupAdminHandlerMux(t)
 
-		sameID := uuid.New()
+		sameID := uuid.Must(uuid.NewV7())
 		usecase.EXPECT().Delete(mock.Anything, sameID, sameID).Return(errs.ErrForbidden)
 
 		w := httptest.NewRecorder()
@@ -672,7 +672,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 func TestToAdminUserResponse_ExposesOperatorFieldsButNotCredentials(t *testing.T) {
 	t.Parallel()
 
-	userID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	deletedAt := now.Add(time.Hour)
 

@@ -77,7 +77,7 @@ func (s *mockServer) handleCharge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	txnID := uuid.New().String()
+	txnID := uuid.Must(uuid.NewV7()).String()
 	var resp gatewaymock.ChargeResponse
 
 	if req.PaymentMethodID != "" {
@@ -126,7 +126,7 @@ func (s *mockServer) handleRefund(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := gatewaymock.RefundResponse{
-		RefundID: uuid.New().String(),
+		RefundID: uuid.Must(uuid.NewV7()).String(),
 		Status:   statusSuccess,
 	}
 	if req.IdempotencyKey != "" {

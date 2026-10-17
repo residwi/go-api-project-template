@@ -28,18 +28,18 @@ func TestE2EFullyDiscountedOrder(t *testing.T) {
 	handler := newTestRouter(testPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Free Cat', $2, true)`,
-		catID, "free-cat-"+catID.String()[:8])
+		catID, "free-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'Free Product', $2, 'desc', 1500, 'USD', 'published', $3)`,
-		prodID, "free-prod-"+prodID.String()[:8], catID)
+		prodID, "free-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -47,8 +47,8 @@ func TestE2EFullyDiscountedOrder(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 10, 0)
 
-	couponID := uuid.New()
-	couponCode := "FREE" + couponID.String()[:8]
+	couponID := uuid.Must(uuid.NewV7())
+	couponCode := "FREE" + couponID.String()[28:]
 	_, err = testPool.Exec(
 		ctx,
 		`INSERT INTO promotions (id, code, type, value, min_order_amount, max_uses, used_count, starts_at, expires_at, active)
@@ -79,7 +79,7 @@ func TestE2EFullyDiscountedOrder(t *testing.T) {
 		strings.NewReader(fmt.Sprintf(`{"payment_method_id":"pm_test_free","coupon_code":"%s"}`, couponCode)))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
-	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderReq.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 	orderW := httptest.NewRecorder()
 	handler.ServeHTTP(orderW, orderReq)
 	require.Equal(t, http.StatusCreated, orderW.Code)

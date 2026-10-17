@@ -33,7 +33,7 @@ func TestHandler_List(t *testing.T) {
 		now := time.Now()
 		service.EXPECT().List(mock.Anything).Return([]domain.Category{
 			{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				Name:      "Electronics",
 				Slug:      "electronics",
 				Active:    true,
@@ -91,7 +91,7 @@ func TestHandler_GetBySlug(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		catID := uuid.New()
+		catID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		service.EXPECT().GetBySlug(mock.Anything, "electronics").Return(&domain.Category{
 			ID:        catID,
@@ -188,9 +188,9 @@ func TestToCategoryResponse_OmitsModerationAndAuditFields(t *testing.T) {
 
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	description := "Phones, laptops and audio"
-	parentID := uuid.New()
+	parentID := uuid.Must(uuid.NewV7())
 	got := toCategoryResponse(&domain.Category{
-		ID:          uuid.New(),
+		ID:          uuid.Must(uuid.NewV7()),
 		Name:        "Electronics",
 		Slug:        "electronics",
 		Description: &description,

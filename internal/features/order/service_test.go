@@ -25,8 +25,8 @@ func TestService_Place(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	userID := uuid.New()
-	orderID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
+	orderID := uuid.Must(uuid.NewV7())
 
 	t.Run("returns existing order when idempotency key matches", func(t *testing.T) {
 		t.Parallel()
@@ -43,7 +43,7 @@ func TestService_Place(t *testing.T) {
 		}
 		items := []domain.Item{
 			{
-				ID:          uuid.New(),
+				ID:          uuid.Must(uuid.NewV7()),
 				OrderID:     orderID,
 				ProductName: "Widget",
 				Price:       money.New(5000, "USD"),
@@ -90,7 +90,7 @@ func TestService_Place(t *testing.T) {
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID:    uuid.New(),
+			ID:    uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{},
 		}, nil)
 
@@ -111,10 +111,10 @@ func TestService_Place(t *testing.T) {
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID: uuid.New(),
+			ID: uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{
 				{
-					ProductID: uuid.New(),
+					ProductID: uuid.Must(uuid.NewV7()),
 					Quantity:  1,
 					Name:      "Draft Widget",
 					Price:     money.New(1000, "USD"),
@@ -154,15 +154,15 @@ func TestService_Place(t *testing.T) {
 		s, d := newTestService(t)
 		idempotencyKey := "idem-happy"
 
-		productA := uuid.New()
-		productB := uuid.New()
+		productA := uuid.Must(uuid.NewV7())
+		productB := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID: uuid.New(),
+			ID: uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{
 				{
 					ProductID: productA,
@@ -210,7 +210,7 @@ func TestService_Place(t *testing.T) {
 		s, d := newTestService(t)
 		idempotencyKey := "idem-coupon"
 
-		productA := uuid.New()
+		productA := uuid.Must(uuid.NewV7())
 		couponCode := "SAVE20"
 
 		d.repo.EXPECT().
@@ -218,7 +218,7 @@ func TestService_Place(t *testing.T) {
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID: uuid.New(),
+			ID: uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{
 				{
 					ProductID: productA,
@@ -263,17 +263,17 @@ func TestService_Place(t *testing.T) {
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID: uuid.New(),
+			ID: uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{
 				{
-					ProductID: uuid.New(),
+					ProductID: uuid.Must(uuid.NewV7()),
 					Quantity:  1,
 					Name:      "USD item",
 					Price:     money.New(5000, "USD"),
 					Status:    "published",
 				},
 				{
-					ProductID: uuid.New(),
+					ProductID: uuid.Must(uuid.NewV7()),
 					Quantity:  1,
 					Name:      "EUR item",
 					Price:     money.New(5000, "EUR"),
@@ -321,14 +321,14 @@ func TestService_Place(t *testing.T) {
 		idempotencyKey := "idem-coupon-err"
 		couponCode := "BADCOUPON"
 
-		productA := uuid.New()
+		productA := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID: uuid.New(),
+			ID: uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{
 				{
 					ProductID: productA,
@@ -361,14 +361,14 @@ func TestService_Place(t *testing.T) {
 		s, d := newTestService(t)
 		idempotencyKey := "idem-notif-err"
 
-		productA := uuid.New()
+		productA := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID: uuid.New(),
+			ID: uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{
 				{
 					ProductID: productA,
@@ -404,14 +404,14 @@ func TestService_Place(t *testing.T) {
 		s, d := newTestService(t)
 		idempotencyKey := "idem-create-err"
 
-		productA := uuid.New()
+		productA := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID: uuid.New(),
+			ID: uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{
 				{
 					ProductID: productA,
@@ -437,14 +437,14 @@ func TestService_Place(t *testing.T) {
 		s, d := newTestService(t)
 		idempotencyKey := "idem-reserve-err"
 
-		productA := uuid.New()
+		productA := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID: uuid.New(),
+			ID: uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{
 				{
 					ProductID: productA,
@@ -473,14 +473,14 @@ func TestService_Place(t *testing.T) {
 		s, d := newTestService(t)
 		idempotencyKey := "idem-items-err"
 
-		productA := uuid.New()
+		productA := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID: uuid.New(),
+			ID: uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{
 				{
 					ProductID: productA,
@@ -510,14 +510,14 @@ func TestService_Place(t *testing.T) {
 		s, d := newTestService(t)
 		idempotencyKey := "idem-clear-err"
 
-		productA := uuid.New()
+		productA := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID: uuid.New(),
+			ID: uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{
 				{
 					ProductID: productA,
@@ -549,14 +549,14 @@ func TestService_Place(t *testing.T) {
 		idempotencyKey := "idem-zero-total"
 		couponCode := "FREE100"
 
-		productA := uuid.New()
+		productA := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().
 			GetByUserIDAndIdempotencyKey(mock.Anything, userID, idempotencyKey).
 			Return(nil, errs.ErrNotFound)
 		d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 		d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-			ID: uuid.New(),
+			ID: uuid.Must(uuid.NewV7()),
 			Items: []cart.Item{
 				{
 					ProductID: productA,
@@ -607,8 +607,8 @@ func TestService_Place_RejectsWithdrawnProduct(t *testing.T) {
 
 	s, d := newTestService(t)
 
-	userID := uuid.New()
-	productID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
+	productID := uuid.Must(uuid.NewV7())
 	idempotencyKey := "idem-withdrawn-1"
 
 	d.repo.EXPECT().
@@ -616,7 +616,7 @@ func TestService_Place_RejectsWithdrawnProduct(t *testing.T) {
 		Return(nil, errs.ErrNotFound)
 	d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 	d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-		ID: uuid.New(),
+		ID: uuid.Must(uuid.NewV7()),
 		Items: []cart.Item{
 			{
 				ProductID: productID, Quantity: 1, Name: "Withdrawn Widget",
@@ -640,7 +640,7 @@ func TestService_Place_RejectsUnavailableProduct(t *testing.T) {
 
 	s, d := newTestService(t)
 
-	userID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
 	idempotencyKey := "idem-unavailable-1"
 
 	d.repo.EXPECT().
@@ -648,10 +648,16 @@ func TestService_Place_RejectsUnavailableProduct(t *testing.T) {
 		Return(nil, errs.ErrNotFound)
 	d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 	d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-		ID: uuid.New(),
+		ID: uuid.Must(uuid.NewV7()),
 		Items: []cart.Item{
 			{
-				ProductID: uuid.New(), Quantity: 1, Name: "", Price: money.New(0, "USD"), Status: "unavailable",
+				ProductID: uuid.Must(
+					uuid.NewV7(),
+				),
+				Quantity: 1,
+				Name:     "",
+				Price:    money.New(0, "USD"),
+				Status:   "unavailable",
 			},
 		},
 	}, nil)
@@ -674,16 +680,28 @@ func TestService_Place_RejectsMixedCurrencyCart(t *testing.T) {
 
 	s, d := newTestService(t)
 
-	userID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
 
 	d.repo.EXPECT().GetByUserIDAndIdempotencyKey(mock.Anything, userID, "idem-mixed-1").
 		Return(nil, errs.ErrNotFound)
 	d.cart.EXPECT().Lock(mock.Anything, userID).Return(nil)
 	d.cart.EXPECT().Snapshot(mock.Anything, userID).Return(&cart.Snapshot{
-		ID: uuid.New(),
+		ID: uuid.Must(uuid.NewV7()),
 		Items: []cart.Item{
-			{ProductID: uuid.New(), Quantity: 1, Name: "A", Price: money.New(1000, "USD"), Status: "published"},
-			{ProductID: uuid.New(), Quantity: 1, Name: "B", Price: money.New(1000, "IDR"), Status: "published"},
+			{
+				ProductID: uuid.Must(uuid.NewV7()),
+				Quantity:  1,
+				Name:      "A",
+				Price:     money.New(1000, "USD"),
+				Status:    "published",
+			},
+			{
+				ProductID: uuid.Must(uuid.NewV7()),
+				Quantity:  1,
+				Name:      "B",
+				Price:     money.New(1000, "IDR"),
+				Status:    "published",
+			},
 		},
 	}, nil)
 
@@ -697,7 +715,7 @@ func TestService_ListByUser(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	userID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
 
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
@@ -706,8 +724,8 @@ func TestService_ListByUser(t *testing.T) {
 
 		cursor := paging.CursorPage{Limit: 10}
 		expected := []domain.Order{
-			{ID: uuid.New(), UserID: userID, Status: domain.StatusPaid},
-			{ID: uuid.New(), UserID: userID, Status: domain.StatusDelivered},
+			{ID: uuid.Must(uuid.NewV7()), UserID: userID, Status: domain.StatusPaid},
+			{ID: uuid.Must(uuid.NewV7()), UserID: userID, Status: domain.StatusDelivered},
 		}
 
 		d.repo.EXPECT().ListByUser(mock.Anything, userID, cursor).Return(expected, nil)
@@ -737,8 +755,8 @@ func TestService_GetForUser(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	userID := uuid.New()
-	orderID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
+	orderID := uuid.Must(uuid.NewV7())
 
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
@@ -753,7 +771,7 @@ func TestService_GetForUser(t *testing.T) {
 		}
 		items := []domain.Item{
 			{
-				ID:          uuid.New(),
+				ID:          uuid.Must(uuid.NewV7()),
 				OrderID:     orderID,
 				ProductName: "Widget",
 				Price:       money.New(5000, "USD"),
@@ -790,7 +808,7 @@ func TestService_GetForUser(t *testing.T) {
 
 		s, d := newTestService(t)
 
-		otherUserID := uuid.New()
+		otherUserID := uuid.Must(uuid.NewV7())
 		existingOrder := &domain.Order{
 			ID:     orderID,
 			UserID: otherUserID,
@@ -834,7 +852,7 @@ func TestService_ListAdmin(t *testing.T) {
 		s, d := newTestService(t)
 
 		params := AdminListParams{Page: 1, PageSize: 20, Status: "paid"}
-		expected := []domain.Order{{ID: uuid.New(), Status: domain.StatusPaid}}
+		expected := []domain.Order{{ID: uuid.Must(uuid.NewV7()), Status: domain.StatusPaid}}
 
 		d.repo.EXPECT().ListAdmin(mock.Anything, params).Return(expected, 1, nil)
 
@@ -867,7 +885,7 @@ func TestService_Get(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	orderID := uuid.New()
+	orderID := uuid.Must(uuid.NewV7())
 
 	t.Run("success with items", func(t *testing.T) {
 		t.Parallel()
@@ -876,13 +894,13 @@ func TestService_Get(t *testing.T) {
 
 		existingOrder := &domain.Order{
 			ID:     orderID,
-			UserID: uuid.New(),
+			UserID: uuid.Must(uuid.NewV7()),
 			Status: domain.StatusShipped,
 			Total:  money.New(15000, "USD"),
 		}
 		items := []domain.Item{
 			{
-				ID:          uuid.New(),
+				ID:          uuid.Must(uuid.NewV7()),
 				OrderID:     orderID,
 				ProductName: "Gadget A",
 				Price:       money.New(7500, "USD"),
@@ -890,7 +908,7 @@ func TestService_Get(t *testing.T) {
 				Subtotal:    money.New(7500, "USD"),
 			},
 			{
-				ID:          uuid.New(),
+				ID:          uuid.Must(uuid.NewV7()),
 				OrderID:     orderID,
 				ProductName: "Gadget B",
 				Price:       money.New(7500, "USD"),
@@ -927,7 +945,7 @@ func TestService_Get(t *testing.T) {
 
 		s, d := newTestService(t)
 
-		existingOrder := &domain.Order{ID: orderID, UserID: uuid.New(), Status: domain.StatusPaid}
+		existingOrder := &domain.Order{ID: orderID, UserID: uuid.Must(uuid.NewV7()), Status: domain.StatusPaid}
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
 		dbErr := errors.New("items query failed")
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return(nil, dbErr)
@@ -945,8 +963,8 @@ func TestService_Snapshot(t *testing.T) {
 	t.Run("reports a shipped order as dispatched and flattens a nil coupon to empty", func(t *testing.T) {
 		t.Parallel()
 
-		orderID := uuid.New()
-		userID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
+		userID := uuid.Must(uuid.NewV7())
 		s, d := newTestService(t)
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(&domain.Order{
@@ -980,8 +998,8 @@ func TestService_Snapshot(t *testing.T) {
 	t.Run("projects identity and status for a row with no coupon or totals", func(t *testing.T) {
 		t.Parallel()
 
-		orderID := uuid.New()
-		userID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
+		userID := uuid.Must(uuid.NewV7())
 		s, d := newTestService(t)
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(&domain.Order{
@@ -999,7 +1017,7 @@ func TestService_Snapshot(t *testing.T) {
 	t.Run("read error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		s, d := newTestService(t)
 
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(nil, errs.ErrNotFound)
@@ -1014,9 +1032,9 @@ func TestService_Snapshot(t *testing.T) {
 func TestService_ListItemQuantities(t *testing.T) {
 	t.Parallel()
 
-	orderID := uuid.New()
-	productA := uuid.New()
-	productB := uuid.New()
+	orderID := uuid.Must(uuid.NewV7())
+	productA := uuid.Must(uuid.NewV7())
+	productB := uuid.Must(uuid.NewV7())
 
 	s, d := newTestService(t)
 	d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{
@@ -1033,7 +1051,7 @@ func TestService_ListItemQuantities(t *testing.T) {
 func TestService_HasDeliveredOrder(t *testing.T) {
 	t.Parallel()
 
-	userID, orderID, productID := uuid.New(), uuid.New(), uuid.New()
+	userID, orderID, productID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 	s, d := newTestService(t)
 	d.repo.EXPECT().HasDeliveredOrder(mock.Anything, DeliveredPurchaseParams{
@@ -1052,8 +1070,8 @@ func TestService_CancelByUser(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	userID := uuid.New()
-	orderID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
+	orderID := uuid.Must(uuid.NewV7())
 
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
@@ -1072,7 +1090,7 @@ func TestService_CancelByUser(t *testing.T) {
 
 		s, d := newTestServiceWithoutCoupons(t)
 
-		otherUserID := uuid.New()
+		otherUserID := uuid.Must(uuid.NewV7())
 		existingOrder := &domain.Order{
 			ID:     orderID,
 			UserID: otherUserID,
@@ -1166,8 +1184,8 @@ func TestService_CancelByUser(t *testing.T) {
 
 		s, d := newTestServiceWithoutCoupons(t)
 
-		productA := uuid.New()
-		productB := uuid.New()
+		productA := uuid.Must(uuid.NewV7())
+		productB := uuid.Must(uuid.NewV7())
 		existingOrder := &domain.Order{
 			ID:     orderID,
 			UserID: userID,
@@ -1178,7 +1196,7 @@ func TestService_CancelByUser(t *testing.T) {
 		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{
 			{
-				ID:          uuid.New(),
+				ID:          uuid.Must(uuid.NewV7()),
 				OrderID:     orderID,
 				ProductID:   productA,
 				ProductName: "Widget A",
@@ -1187,7 +1205,7 @@ func TestService_CancelByUser(t *testing.T) {
 				Subtotal:    money.New(6000, "USD"),
 			},
 			{
-				ID:          uuid.New(),
+				ID:          uuid.Must(uuid.NewV7()),
 				OrderID:     orderID,
 				ProductID:   productB,
 				ProductName: "Widget B",
@@ -1223,9 +1241,9 @@ func TestService_CancelByUser(t *testing.T) {
 		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{
 			{
-				ID:          uuid.New(),
+				ID:          uuid.Must(uuid.NewV7()),
 				OrderID:     orderID,
-				ProductID:   uuid.New(),
+				ProductID:   uuid.Must(uuid.NewV7()),
 				ProductName: "Widget",
 				Price:       money.New(5000, "USD"),
 				Quantity:    1,
@@ -1245,7 +1263,7 @@ func TestService_CancelByUser(t *testing.T) {
 
 		s, d := newTestServiceWithoutCoupons(t)
 
-		productA := uuid.New()
+		productA := uuid.Must(uuid.NewV7())
 		existingOrder := &domain.Order{
 			ID:     orderID,
 			UserID: userID,
@@ -1256,7 +1274,7 @@ func TestService_CancelByUser(t *testing.T) {
 		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{
 			{
-				ID:          uuid.New(),
+				ID:          uuid.Must(uuid.NewV7()),
 				OrderID:     orderID,
 				ProductID:   productA,
 				ProductName: "Widget",
@@ -1292,9 +1310,9 @@ func TestService_CancelByUser(t *testing.T) {
 		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(nil)
 		d.repo.EXPECT().ListItemsByOrderID(mock.Anything, orderID).Return([]domain.Item{
 			{
-				ID:          uuid.New(),
+				ID:          uuid.Must(uuid.NewV7()),
 				OrderID:     orderID,
-				ProductID:   uuid.New(),
+				ProductID:   uuid.Must(uuid.NewV7()),
 				ProductName: "Widget",
 				Price:       money.New(5000, "USD"),
 				Quantity:    1,
@@ -1356,7 +1374,7 @@ func TestService_CancelUnpaid(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	orderID := uuid.New()
+	orderID := uuid.Must(uuid.NewV7())
 
 	t.Run("success, no ownership check", func(t *testing.T) {
 		t.Parallel()
@@ -1365,7 +1383,7 @@ func TestService_CancelUnpaid(t *testing.T) {
 
 		existingOrder := &domain.Order{
 			ID:     orderID,
-			UserID: uuid.New(),
+			UserID: uuid.Must(uuid.NewV7()),
 			Status: domain.StatusAwaitingPayment,
 		}
 
@@ -1384,7 +1402,7 @@ func TestService_CancelUnpaid(t *testing.T) {
 
 		s, d := newTestServiceWithoutCoupons(t)
 
-		existingOrder := &domain.Order{ID: orderID, UserID: uuid.New(), Status: domain.StatusPaid}
+		existingOrder := &domain.Order{ID: orderID, UserID: uuid.Must(uuid.NewV7()), Status: domain.StatusPaid}
 		d.repo.EXPECT().GetByID(mock.Anything, orderID).Return(existingOrder, nil)
 		d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToCancelled).Return(errs.ErrConflict)
 
@@ -1398,7 +1416,7 @@ func TestService_ChangeStatus(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	orderID := uuid.New()
+	orderID := uuid.Must(uuid.NewV7())
 
 	t.Run("success valid transition paid to processing", func(t *testing.T) {
 		t.Parallel()
@@ -1505,8 +1523,8 @@ func TestService_ExpireStale(t *testing.T) {
 		s, d := newTestService(t)
 
 		coupon := "SAVE10"
-		expired := domain.Order{ID: uuid.New(), CouponCode: &coupon}
-		productID := uuid.New()
+		expired := domain.Order{ID: uuid.Must(uuid.NewV7()), CouponCode: &coupon}
+		productID := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return([]domain.Order{expired}, nil)
 		d.repo.EXPECT().Apply(mock.Anything, expired.ID, domain.ToExpired).Return(nil)
@@ -1526,7 +1544,7 @@ func TestService_ExpireStale(t *testing.T) {
 
 		s, d := newTestServiceWithoutCoupons(t)
 
-		expired := domain.Order{ID: uuid.New()}
+		expired := domain.Order{ID: uuid.Must(uuid.NewV7())}
 		d.repo.EXPECT().GetExpiredOrders(mock.Anything, mock.Anything).Return([]domain.Order{expired}, nil)
 		d.repo.EXPECT().Apply(mock.Anything, expired.ID, domain.ToExpired).Return(errs.ErrConflict)
 
@@ -1557,7 +1575,7 @@ func TestService_RecoverStale(t *testing.T) {
 
 		s, d := newTestService(t)
 
-		stale := domain.Order{ID: uuid.New()}
+		stale := domain.Order{ID: uuid.Must(uuid.NewV7())}
 		d.repo.EXPECT().
 			GetStaleProcessingOrders(mock.Anything, StaleProcessingThreshold, mock.Anything).
 			Return([]domain.Order{stale}, nil)
@@ -1571,7 +1589,7 @@ func TestService_RecoverStale(t *testing.T) {
 
 		s, d := newTestService(t)
 
-		stale := domain.Order{ID: uuid.New()}
+		stale := domain.Order{ID: uuid.Must(uuid.NewV7())}
 		d.repo.EXPECT().
 			GetStaleProcessingOrders(mock.Anything, StaleProcessingThreshold, mock.Anything).
 			Return([]domain.Order{stale}, nil)
@@ -1601,7 +1619,7 @@ func TestService_Apply(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	orderID := uuid.New()
+	orderID := uuid.Must(uuid.NewV7())
 
 	t.Run("forwards the transition's to/from to the compare-and-set primitive", func(t *testing.T) {
 		t.Parallel()
@@ -1633,7 +1651,7 @@ func TestService_Apply(t *testing.T) {
 func TestService_MarkPaid(t *testing.T) {
 	t.Parallel()
 
-	orderID := uuid.New()
+	orderID := uuid.Must(uuid.NewV7())
 
 	s, d := newTestService(t)
 	d.repo.EXPECT().Apply(mock.Anything, orderID, domain.ToPaid).Return(nil)

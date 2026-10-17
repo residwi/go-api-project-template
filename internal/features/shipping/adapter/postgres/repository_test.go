@@ -75,7 +75,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 
 		repo := New(database.DB{Primary: testPool})
 		s := &domain.Shipment{
-			OrderID: uuid.New(),
+			OrderID: uuid.Must(uuid.NewV7()),
 			Carrier: "FedEx",
 			Status:  domain.StatusPending,
 		}
@@ -130,7 +130,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		_, err := repo.GetByID(context.Background(), uuid.New())
+		_, err := repo.GetByID(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -139,7 +139,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		cancel()
 
 		repo := New(database.DB{Primary: testPool})
-		_, err := repo.GetByID(cancelledCtx, uuid.New())
+		_, err := repo.GetByID(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 }
@@ -161,7 +161,7 @@ func TestPostgresRepository_GetByOrderID(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		_, err := repo.GetByOrderID(context.Background(), uuid.New())
+		_, err := repo.GetByOrderID(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -170,7 +170,7 @@ func TestPostgresRepository_GetByOrderID(t *testing.T) {
 		cancel()
 
 		repo := New(database.DB{Primary: testPool})
-		_, err := repo.GetByOrderID(cancelledCtx, uuid.New())
+		_, err := repo.GetByOrderID(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 }
@@ -191,7 +191,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		_, err := repo.MarkDelivered(context.Background(), uuid.New())
+		_, err := repo.MarkDelivered(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -200,7 +200,7 @@ func TestPostgresRepository_MarkDelivered(t *testing.T) {
 		cancel()
 
 		repo := New(database.DB{Primary: testPool})
-		_, err := repo.MarkDelivered(cancelledCtx, uuid.New())
+		_, err := repo.MarkDelivered(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 }
@@ -232,7 +232,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		s := &domain.Shipment{
-			ID:      uuid.New(),
+			ID:      uuid.Must(uuid.NewV7()),
 			Carrier: "Ghost",
 			Status:  domain.StatusPending,
 		}
@@ -245,7 +245,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 		cancel()
 
 		repo := New(database.DB{Primary: testPool})
-		s := &domain.Shipment{ID: uuid.New(), Carrier: "UPS", Status: domain.StatusPending}
+		s := &domain.Shipment{ID: uuid.Must(uuid.NewV7()), Carrier: "UPS", Status: domain.StatusPending}
 		err := repo.Update(cancelledCtx, s)
 		assert.Error(t, err)
 	})
@@ -253,7 +253,7 @@ func TestPostgresRepository_Update(t *testing.T) {
 
 func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency)
 		 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD')`,
@@ -270,7 +270,7 @@ func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
 // control.
 func seedShipment(t *testing.T, orderID uuid.UUID, carrier string, status domain.ShipmentStatus) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		// tracking_number is nullable in the schema but a plain string on
 		// domain.Shipment, so it must be inserted as "" rather than left NULL.

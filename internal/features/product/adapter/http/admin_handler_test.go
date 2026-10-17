@@ -33,7 +33,7 @@ func TestAdminHandler_Get(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		prodID := uuid.New()
+		prodID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		service.EXPECT().GetByID(mock.Anything, prodID).Return(&domain.Product{
 			ID:        prodID,
@@ -72,7 +72,7 @@ func TestAdminHandler_Get(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		prodID := uuid.New()
+		prodID := uuid.Must(uuid.NewV7())
 		service.EXPECT().GetByID(mock.Anything, prodID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
@@ -113,7 +113,7 @@ func TestAdminHandler_List(t *testing.T) {
 		now := time.Now()
 		service.EXPECT().ListAdmin(mock.Anything, mock.Anything).Return([]domain.Product{
 			{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				Name:      "Widget",
 				Slug:      "widget",
 				Price:     money.New(1999, "USD"),
@@ -195,7 +195,7 @@ func TestAdminHandler_List(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		catID := uuid.New()
+		catID := uuid.Must(uuid.NewV7())
 		service.EXPECT().ListAdmin(mock.Anything, mock.MatchedBy(func(p product.AdminListParams) bool {
 			return p.CategoryID != nil && *p.CategoryID == catID
 		})).Return([]domain.Product{}, 0, nil)
@@ -356,7 +356,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		prodID := uuid.New()
+		prodID := uuid.Must(uuid.NewV7())
 		sku := "SKU-999"
 		service.EXPECT().
 			Update(mock.Anything, prodID, mock.Anything, mock.Anything, mock.Anything, mock.Anything,
@@ -420,7 +420,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		prodID := uuid.New()
+		prodID := uuid.Must(uuid.NewV7())
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
@@ -440,7 +440,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		prodID := uuid.New()
+		prodID := uuid.Must(uuid.NewV7())
 		badStatus := "invalid_status"
 		body, _ := json.Marshal(map[string]any{
 			"status": badStatus,
@@ -465,7 +465,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		prodID := uuid.New()
+		prodID := uuid.Must(uuid.NewV7())
 		body, _ := json.Marshal(map[string]any{
 			"price":    2000,
 			"currency": "U1D",
@@ -505,7 +505,7 @@ func TestAdminHandler_Update(t *testing.T) {
 			// service instead of being rejected first.
 			mux, _ := setupAdminMux(t)
 
-			prodID := uuid.New()
+			prodID := uuid.Must(uuid.NewV7())
 			body, _ := json.Marshal(tc.body)
 
 			w := httptest.NewRecorder()
@@ -530,7 +530,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		prodID := uuid.New()
+		prodID := uuid.Must(uuid.NewV7())
 		service.EXPECT().
 			Update(mock.Anything, prodID, mock.Anything, mock.Anything, mock.Anything,
 				mock.MatchedBy(func(p *money.Money) bool { return p != nil && *p == money.New(2000, "EUR") }),
@@ -566,7 +566,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		prodID := uuid.New()
+		prodID := uuid.Must(uuid.NewV7())
 		service.EXPECT().
 			Update(mock.Anything, prodID, mock.Anything, mock.Anything, mock.Anything, mock.Anything,
 				mock.Anything, mock.Anything, mock.Anything).
@@ -595,7 +595,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		prodID := uuid.New()
+		prodID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Delete(mock.Anything, prodID).Return(nil)
 
 		w := httptest.NewRecorder()
@@ -629,7 +629,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		prodID := uuid.New()
+		prodID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Delete(mock.Anything, prodID).Return(errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
@@ -649,11 +649,11 @@ func TestToAdminProductResponse_KeepsSKUAndStatus(t *testing.T) {
 
 	sku := "SKU-123"
 	description := "A widget"
-	categoryID := uuid.New()
+	categoryID := uuid.Must(uuid.NewV7())
 	compareAtPrice := money.New(2999, "USD")
 
 	got := toAdminProductResponse(&domain.Product{
-		ID:             uuid.New(),
+		ID:             uuid.Must(uuid.NewV7()),
 		Name:           "Widget",
 		Slug:           "widget",
 		Description:    &description,

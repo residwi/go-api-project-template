@@ -37,7 +37,7 @@ func TestHandler_List(t *testing.T) {
 		sku := "SKU-123"
 		service.EXPECT().ListPublished(mock.Anything, mock.Anything).Return([]domain.Product{
 			{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				Name:      "Widget",
 				Slug:      "widget",
 				Price:     money.New(1999, "USD"),
@@ -153,7 +153,7 @@ func TestHandler_List(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		catID := uuid.New()
+		catID := uuid.Must(uuid.NewV7())
 		service.EXPECT().ListPublished(mock.Anything, mock.MatchedBy(func(p product.PublishedListParams) bool {
 			return p.CategoryID != nil && *p.CategoryID == catID &&
 				p.MinPrice != nil && *p.MinPrice == 100 &&
@@ -184,7 +184,7 @@ func TestHandler_GetBySlug(t *testing.T) {
 		now := time.Now()
 		sku := "SKU-123"
 		service.EXPECT().GetBySlug(mock.Anything, "widget").Return(&domain.Product{
-			ID:        uuid.New(),
+			ID:        uuid.Must(uuid.NewV7()),
 			Name:      "Widget",
 			Slug:      "widget",
 			Price:     money.New(1999, "USD"),
@@ -286,7 +286,7 @@ func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
 	sku := "SKU-DISTINGUISHABLE-424242"
 
 	got := toProductResponse(&domain.Product{
-		ID:        uuid.New(),
+		ID:        uuid.Must(uuid.NewV7()),
 		Name:      "Widget",
 		Slug:      "widget",
 		Price:     money.New(1999, "USD"),

@@ -28,7 +28,7 @@ func TestService_Create(t *testing.T) {
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *domain.Category) bool {
 			return c.Name == "Electronics" && c.Slug == "electronics" && c.Active
 		})).Run(func(_ context.Context, c *domain.Category) {
-			c.ID = uuid.New()
+			c.ID = uuid.Must(uuid.NewV7())
 			c.CreatedAt = time.Now()
 			c.UpdatedAt = time.Now()
 		}).Return(nil)
@@ -74,7 +74,7 @@ func TestService_Create(t *testing.T) {
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *domain.Category) bool {
 			return c.Name == "Books" && c.SortOrder == 5 && !c.Active
 		})).Run(func(_ context.Context, c *domain.Category) {
-			c.ID = uuid.New()
+			c.ID = uuid.Must(uuid.NewV7())
 			c.CreatedAt = time.Now()
 			c.UpdatedAt = time.Now()
 		}).Return(nil)
@@ -102,7 +102,7 @@ func TestService_Create_ValidatesParent(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		parentID := uuid.New()
+		parentID := uuid.Must(uuid.NewV7())
 		// A non-existent parentID matches zero rows, so the CTE reports depth 0 rather
 		// than ErrNotFound, and validateParent never calls GetByID.
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
@@ -120,7 +120,7 @@ func TestService_Create_ValidatesParent(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		parentID := uuid.New()
+		parentID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(5, false, nil)
 		var products ProductCounter
@@ -136,7 +136,7 @@ func TestService_Create_ValidatesParent(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		parentID := uuid.New()
+		parentID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(0, false, errors.New("connection refused"))
 		var products ProductCounter
@@ -151,7 +151,7 @@ func TestService_Create_ValidatesParent(t *testing.T) {
 		t.Parallel()
 
 		repo := NewMockRepository(t)
-		parentID := uuid.New()
+		parentID := uuid.Must(uuid.NewV7())
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, mock.Anything, 5).
 			Return(1, false, nil)
 		repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(c *domain.Category) bool {
@@ -177,7 +177,7 @@ func TestService_Update(t *testing.T) {
 		var products ProductCounter
 		svc := New(repo, products)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.Category{
 			ID:     id,
 			Name:   "Electronics",
@@ -210,7 +210,7 @@ func TestService_Update(t *testing.T) {
 		var products ProductCounter
 		svc := New(repo, products)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		repo.EXPECT().GetByID(mock.Anything, id).Return(nil, errs.ErrNotFound)
 
 		newName := "Gadgets"
@@ -227,7 +227,7 @@ func TestService_Update(t *testing.T) {
 		var products ProductCounter
 		svc := New(repo, products)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.Category{
 			ID:     id,
 			Name:   "Electronics",
@@ -251,7 +251,7 @@ func TestService_Update(t *testing.T) {
 		var products ProductCounter
 		svc := New(repo, products)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		existing := &domain.Category{
 			ID:     id,
 			Name:   "Old",
@@ -291,7 +291,7 @@ func TestService_Update_ValidatesParent(t *testing.T) {
 		var products ProductCounter
 		svc := New(repo, products)
 
-		selfID, parentID := uuid.New(), uuid.New()
+		selfID, parentID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		// Update loads the category being moved via GetByID(id) before it ever
 		// validates the new parent; validateParent itself never calls GetByID.
 		repo.EXPECT().GetByID(mock.Anything, selfID).
@@ -312,7 +312,7 @@ func TestService_Update_ValidatesParent(t *testing.T) {
 		var products ProductCounter
 		svc := New(repo, products)
 
-		selfID := uuid.New()
+		selfID := uuid.Must(uuid.NewV7())
 		// Update calls GetByID(id) first, unconditionally, whatever the check below does.
 		repo.EXPECT().GetByID(mock.Anything, selfID).
 			Return(&domain.Category{ID: selfID, Name: "A"}, nil)
@@ -330,7 +330,7 @@ func TestService_Update_ValidatesParent(t *testing.T) {
 		var products ProductCounter
 		svc := New(repo, products)
 
-		selfID, parentID := uuid.New(), uuid.New()
+		selfID, parentID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 		existing := &domain.Category{ID: selfID, Name: "Child", Slug: "child"}
 		repo.EXPECT().GetByID(mock.Anything, selfID).Return(existing, nil)
 		repo.EXPECT().AncestorDepthAndCycle(mock.Anything, parentID, selfID, mock.Anything).
@@ -356,7 +356,7 @@ func TestService_Delete(t *testing.T) {
 		counter := NewMockProductCounter(t)
 		svc := New(repo, counter)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
 		repo.EXPECT().Delete(mock.Anything, id).Return(nil)
 
@@ -372,7 +372,7 @@ func TestService_Delete(t *testing.T) {
 		counter := NewMockProductCounter(t)
 		svc := New(repo, counter)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
 		repo.EXPECT().Delete(mock.Anything, id).Return(errs.ErrNotFound)
 
@@ -388,7 +388,7 @@ func TestService_Delete(t *testing.T) {
 		counter := NewMockProductCounter(t)
 		svc := New(repo, counter)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(3, nil)
 
 		err := svc.Delete(t.Context(), id)
@@ -403,7 +403,7 @@ func TestService_Delete(t *testing.T) {
 		counter := NewMockProductCounter(t)
 		svc := New(repo, counter)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, errors.New("db error"))
 
 		err := svc.Delete(t.Context(), id)
@@ -418,7 +418,7 @@ func TestService_Delete(t *testing.T) {
 		counter := NewMockProductCounter(t)
 		svc := New(repo, counter)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		counter.EXPECT().CountPublished(mock.Anything, id).Return(0, nil)
 
 		deleteErr := errors.New("database delete failed")
@@ -440,7 +440,7 @@ func TestService_Delete_RefusesCategoryWithPublishedProducts(t *testing.T) {
 	counter := NewMockProductCounter(t)
 	svc := New(repo, counter)
 
-	categoryID := uuid.New()
+	categoryID := uuid.Must(uuid.NewV7())
 	counter.EXPECT().CountPublished(mock.Anything, categoryID).Return(3, nil)
 
 	err := svc.Delete(t.Context(), categoryID)
@@ -458,8 +458,8 @@ func TestService_List(t *testing.T) {
 		svc := New(repo, products)
 
 		expected := []domain.Category{
-			{ID: uuid.New(), Name: "Electronics", Slug: "electronics"},
-			{ID: uuid.New(), Name: "Books", Slug: "books"},
+			{ID: uuid.Must(uuid.NewV7()), Name: "Electronics", Slug: "electronics"},
+			{ID: uuid.Must(uuid.NewV7()), Name: "Books", Slug: "books"},
 		}
 		repo.EXPECT().List(mock.Anything).Return(expected, nil)
 
@@ -495,7 +495,7 @@ func TestService_GetBySlug(t *testing.T) {
 		svc := New(repo, products)
 
 		expected := &domain.Category{
-			ID:   uuid.New(),
+			ID:   uuid.Must(uuid.NewV7()),
 			Name: "Electronics",
 			Slug: "electronics",
 		}

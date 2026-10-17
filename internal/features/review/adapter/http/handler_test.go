@@ -32,13 +32,13 @@ func TestHandler_Create(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		userID := uuid.New()
-		productID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		service.EXPECT().Create(mock.Anything, userID, productID, orderID, 5, "Great", "Love it").
 			Return(&domain.Review{
-				ID:        uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
 				UserID:    userID,
 				ProductID: productID,
 				OrderID:   orderID,
@@ -95,7 +95,7 @@ func TestHandler_Create(t *testing.T) {
 		mux, _ := setupMux(t)
 
 		body, _ := json.Marshal(map[string]any{
-			"order_id": uuid.New(),
+			"order_id": uuid.Must(uuid.NewV7()),
 			"rating":   5,
 			"title":    "Great",
 			"body":     "Love it",
@@ -105,7 +105,7 @@ func TestHandler_Create(t *testing.T) {
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/products/bad/reviews", bytes.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
 		ctx := identity.NewContext(r.Context(), identity.Identity{
-			UserID: uuid.New(),
+			UserID: uuid.Must(uuid.NewV7()),
 			Role:   "user",
 		})
 		r = r.WithContext(ctx)
@@ -124,7 +124,7 @@ func TestHandler_Create(t *testing.T) {
 
 		mux, _ := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPost, "/api/v1/products/"+productID.String()+"/reviews", nil)
@@ -143,7 +143,7 @@ func TestHandler_Create(t *testing.T) {
 
 		mux, _ := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
@@ -153,7 +153,7 @@ func TestHandler_Create(t *testing.T) {
 		)
 		r.Header.Set("Content-Type", "application/json")
 		ctx := identity.NewContext(r.Context(), identity.Identity{
-			UserID: uuid.New(),
+			UserID: uuid.Must(uuid.NewV7()),
 			Role:   "user",
 		})
 		r = r.WithContext(ctx)
@@ -168,7 +168,7 @@ func TestHandler_Create(t *testing.T) {
 
 		mux, _ := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		body, _ := json.Marshal(map[string]string{})
 
 		w := httptest.NewRecorder()
@@ -179,7 +179,7 @@ func TestHandler_Create(t *testing.T) {
 		)
 		r.Header.Set("Content-Type", "application/json")
 		ctx := identity.NewContext(r.Context(), identity.Identity{
-			UserID: uuid.New(),
+			UserID: uuid.Must(uuid.NewV7()),
 			Role:   "user",
 		})
 		r = r.WithContext(ctx)
@@ -199,9 +199,9 @@ func TestHandler_Create(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		userID := uuid.New()
-		productID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		service.EXPECT().Create(mock.Anything, userID, productID, orderID, 5, "Great", "Love it").
 			Return(nil, errs.ErrBadRequest)
@@ -240,15 +240,15 @@ func TestHandler_ListByProduct(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 
 		service.EXPECT().ListByProduct(mock.Anything, productID, mock.Anything).Return([]domain.Review{
 			{
-				ID:        uuid.New(),
-				UserID:    uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
+				UserID:    uuid.Must(uuid.NewV7()),
 				ProductID: productID,
-				OrderID:   uuid.New(),
+				OrderID:   uuid.Must(uuid.NewV7()),
 				Rating:    5,
 				Title:     "Great product",
 				Body:      "Love it",
@@ -315,7 +315,7 @@ func TestHandler_ListByProduct(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().ListByProduct(mock.Anything, productID, mock.Anything).Return(nil, errors.New("db error"))
 
 		w := httptest.NewRecorder()
@@ -331,15 +331,15 @@ func TestHandler_ListByProduct(t *testing.T) {
 
 		mux, service := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		reviews := make([]domain.Review, 21)
 		for i := range reviews {
 			reviews[i] = domain.Review{
-				ID:        uuid.New(),
-				UserID:    uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
+				UserID:    uuid.Must(uuid.NewV7()),
 				ProductID: productID,
-				OrderID:   uuid.New(),
+				OrderID:   uuid.Must(uuid.NewV7()),
 				Rating:    5,
 				Title:     "Great",
 				Status:    "published",
@@ -372,14 +372,14 @@ func TestHandler_ListByProduct(t *testing.T) {
 func TestToReviewResponse_OmitsReviewerAndInternalFields(t *testing.T) {
 	t.Parallel()
 
-	userID := uuid.New()
-	orderID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
+	orderID := uuid.Must(uuid.NewV7())
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	got := toReviewResponse(domain.Review{
-		ID:        uuid.New(),
+		ID:        uuid.Must(uuid.NewV7()),
 		UserID:    userID,
-		ProductID: uuid.New(),
+		ProductID: uuid.Must(uuid.NewV7()),
 		OrderID:   orderID,
 		Rating:    5,
 		Title:     "Great",

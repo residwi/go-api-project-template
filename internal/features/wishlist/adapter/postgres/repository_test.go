@@ -91,7 +91,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 
 	t.Run("returns not found when item does not exist", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		err := repo.RemoveItem(context.Background(), uuid.New(), uuid.New())
+		err := repo.RemoveItem(context.Background(), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -164,22 +164,22 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	repo := New(database.DB{Primary: testPool})
 
 	t.Run("GetOrCreate", func(t *testing.T) {
-		_, err := repo.GetOrCreate(cancelledCtx, uuid.New())
+		_, err := repo.GetOrCreate(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("AddItem", func(t *testing.T) {
-		err := repo.AddItem(cancelledCtx, uuid.New(), uuid.New())
+		err := repo.AddItem(cancelledCtx, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("RemoveItem", func(t *testing.T) {
-		err := repo.RemoveItem(cancelledCtx, uuid.New(), uuid.New())
+		err := repo.RemoveItem(cancelledCtx, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("ListItemsForUser", func(t *testing.T) {
-		_, err := repo.ListItemsForUser(cancelledCtx, uuid.New(), paging.CursorPage{Limit: 10})
+		_, err := repo.ListItemsForUser(cancelledCtx, uuid.Must(uuid.NewV7()), paging.CursorPage{Limit: 10})
 		assert.Error(t, err)
 	})
 }
@@ -191,7 +191,7 @@ func seedUser(t *testing.T) uuid.UUID {
 
 func seedWishlist(t *testing.T, userID uuid.UUID) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO wishlists (id, user_id) VALUES ($1, $2)`, id, userID)
 	require.NoError(t, err)
@@ -207,7 +207,7 @@ func seedItem(t *testing.T, wishlistID, productID uuid.UUID) {
 
 func seedProduct(t *testing.T) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO products (id, name, slug, description, price, currency)
 		 VALUES ($1, 'Test Product', $2, 'desc', 1000, 'USD')`,

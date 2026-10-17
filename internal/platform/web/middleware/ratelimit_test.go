@@ -131,7 +131,7 @@ func TestRateLimit(t *testing.T) {
 		t.Cleanup(func() { testRedis.FlushDB(context.Background()) })
 
 		handler := RateLimit(testLogger(), testRedis, "test", 10, 1, time.Second)(okHandler)
-		caller := identity.Identity{UserID: uuid.New(), Role: "user"}
+		caller := identity.Identity{UserID: uuid.Must(uuid.NewV7()), Role: "user"}
 
 		require.Equal(t, http.StatusOK, doRateLimitedAs(handler, "10.1.0.9:1111", caller).Code)
 

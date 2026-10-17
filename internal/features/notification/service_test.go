@@ -22,8 +22,8 @@ func TestCreate(t *testing.T) {
 	t.Run("writes the row then enqueues a send job keyed on its id", func(t *testing.T) {
 		t.Parallel()
 
-		id := uuid.New()
-		userID := uuid.New()
+		id := uuid.Must(uuid.NewV7())
+		userID := uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().Create(mock.Anything, mock.Anything).RunAndReturn(
@@ -54,7 +54,7 @@ func TestCreate(t *testing.T) {
 
 		svc := New(repo, testutil.FakeTxRunner{}, NewMockJobQueue(t), NewMockChannel(t), testutil.DiscardLogger())
 
-		err := svc.Create(context.Background(), NewNotification{UserID: uuid.New(), Title: "t"})
+		err := svc.Create(context.Background(), NewNotification{UserID: uuid.Must(uuid.NewV7()), Title: "t"})
 
 		require.Error(t, err)
 	})
@@ -66,8 +66,8 @@ func TestSend(t *testing.T) {
 	t.Run("reads the row and hands it to the channel", func(t *testing.T) {
 		t.Parallel()
 
-		id := uuid.New()
-		n := domain.Notification{ID: id, UserID: uuid.New(), Title: "Order Placed"}
+		id := uuid.Must(uuid.NewV7())
+		n := domain.Notification{ID: id, UserID: uuid.Must(uuid.NewV7()), Title: "Order Placed"}
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().Get(mock.Anything, id).Return(n, nil)
@@ -91,11 +91,11 @@ func TestService_List(t *testing.T) {
 
 		repo := NewMockRepository(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		cursor := paging.CursorPage{Limit: 20}
 		expected := []domain.Notification{
-			{ID: uuid.New(), UserID: userID, Title: "Order Placed"},
-			{ID: uuid.New(), UserID: userID, Title: "Order Shipped"},
+			{ID: uuid.Must(uuid.NewV7()), UserID: userID, Title: "Order Placed"},
+			{ID: uuid.Must(uuid.NewV7()), UserID: userID, Title: "Order Shipped"},
 		}
 
 		repo.EXPECT().ListByUser(mock.Anything, userID, cursor).Return(expected, nil)
@@ -111,7 +111,7 @@ func TestService_List(t *testing.T) {
 
 		repo := NewMockRepository(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		cursor := paging.CursorPage{Limit: 20}
 
 		repo.EXPECT().ListByUser(mock.Anything, userID, cursor).Return(nil, assert.AnError)
@@ -130,7 +130,7 @@ func TestService_CountUnread(t *testing.T) {
 
 		repo := NewMockRepository(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().CountUnread(mock.Anything, userID).Return(5, nil)
 
@@ -145,7 +145,7 @@ func TestService_CountUnread(t *testing.T) {
 
 		repo := NewMockRepository(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().CountUnread(mock.Anything, userID).Return(0, assert.AnError)
 
@@ -163,7 +163,7 @@ func TestService_MarkRead(t *testing.T) {
 
 		repo := NewMockRepository(t)
 
-		userID, id := uuid.New(), uuid.New()
+		userID, id := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(nil)
 
@@ -177,7 +177,7 @@ func TestService_MarkRead(t *testing.T) {
 
 		repo := NewMockRepository(t)
 
-		userID, id := uuid.New(), uuid.New()
+		userID, id := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().MarkRead(mock.Anything, userID, id).Return(errs.ErrNotFound)
 
@@ -195,7 +195,7 @@ func TestService_MarkAllRead(t *testing.T) {
 
 		repo := NewMockRepository(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().MarkAllRead(mock.Anything, userID).Return(nil)
 
@@ -209,7 +209,7 @@ func TestService_MarkAllRead(t *testing.T) {
 
 		repo := NewMockRepository(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().MarkAllRead(mock.Anything, userID).Return(assert.AnError)
 

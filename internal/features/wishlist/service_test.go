@@ -19,7 +19,7 @@ func TestService_Add(t *testing.T) {
 	t.Run("creates the wishlist on first add", func(t *testing.T) {
 		t.Parallel()
 
-		userID, productID, wishlistID := uuid.New(), uuid.New(), uuid.New()
+		userID, productID, wishlistID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(wishlistID, nil)
@@ -31,7 +31,7 @@ func TestService_Add(t *testing.T) {
 	t.Run("get or create fails", func(t *testing.T) {
 		t.Parallel()
 
-		userID, productID := uuid.New(), uuid.New()
+		userID, productID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(uuid.Nil, assert.AnError)
@@ -44,7 +44,7 @@ func TestService_Add(t *testing.T) {
 	t.Run("add item repo error", func(t *testing.T) {
 		t.Parallel()
 
-		userID, productID, wishlistID := uuid.New(), uuid.New(), uuid.New()
+		userID, productID, wishlistID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().GetOrCreate(mock.Anything, userID).Return(wishlistID, nil)
@@ -62,7 +62,7 @@ func TestService_Remove(t *testing.T) {
 	t.Run("removes the item", func(t *testing.T) {
 		t.Parallel()
 
-		userID, productID := uuid.New(), uuid.New()
+		userID, productID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().RemoveItem(mock.Anything, userID, productID).Return(nil)
@@ -73,7 +73,7 @@ func TestService_Remove(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		t.Parallel()
 
-		userID, productID := uuid.New(), uuid.New()
+		userID, productID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().RemoveItem(mock.Anything, userID, productID).Return(errs.ErrNotFound)
@@ -86,7 +86,7 @@ func TestService_Remove(t *testing.T) {
 	t.Run("repo error propagates", func(t *testing.T) {
 		t.Parallel()
 
-		userID, productID := uuid.New(), uuid.New()
+		userID, productID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().RemoveItem(mock.Anything, userID, productID).Return(assert.AnError)
@@ -103,9 +103,9 @@ func TestService_List(t *testing.T) {
 	t.Run("returns the user's items", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		cursor := paging.CursorPage{Limit: 20}
-		items := []domain.Item{{ID: uuid.New(), ProductID: uuid.New()}}
+		items := []domain.Item{{ID: uuid.Must(uuid.NewV7()), ProductID: uuid.Must(uuid.NewV7())}}
 
 		repo := NewMockRepository(t)
 		repo.EXPECT().ListItemsForUser(mock.Anything, userID, cursor).Return(items, nil)
@@ -119,7 +119,7 @@ func TestService_List(t *testing.T) {
 	t.Run("empty wishlist", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		cursor := paging.CursorPage{Limit: 20}
 
 		repo := NewMockRepository(t)
@@ -133,7 +133,7 @@ func TestService_List(t *testing.T) {
 	t.Run("repo error", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		cursor := paging.CursorPage{Limit: 20}
 
 		repo := NewMockRepository(t)

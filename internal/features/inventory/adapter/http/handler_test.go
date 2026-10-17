@@ -30,7 +30,7 @@ func TestHandler_GetStock(t *testing.T) {
 
 		service := NewMockInventoryManager(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		expected := &domain.Stock{ProductID: productID, Quantity: 100, Reserved: 10, Available: 90}
 		service.EXPECT().GetStock(mock.Anything, productID).Return(expected, nil)
 
@@ -87,7 +87,7 @@ func TestHandler_GetStock(t *testing.T) {
 
 		service := NewMockInventoryManager(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().GetStock(mock.Anything, productID).Return(nil, errs.ErrNotFound)
 
 		mux := setupMux(t, service)
@@ -114,7 +114,7 @@ func TestHandler_Restock(t *testing.T) {
 
 		service := NewMockInventoryManager(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		expected := &domain.Stock{ProductID: productID, Quantity: 150, Reserved: 5, Available: 145}
 		service.EXPECT().Restock(mock.Anything, productID, 50).Return(expected, nil)
 
@@ -181,7 +181,7 @@ func TestHandler_Restock(t *testing.T) {
 
 		mux := setupMux(t, NewMockInventoryManager(t))
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
@@ -206,7 +206,7 @@ func TestHandler_Restock(t *testing.T) {
 
 		mux := setupMux(t, NewMockInventoryManager(t))
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		body, _ := json.Marshal(map[string]any{"quantity": 0})
 
 		w := httptest.NewRecorder()
@@ -232,7 +232,7 @@ func TestHandler_Restock(t *testing.T) {
 
 		service := NewMockInventoryManager(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().
 			Restock(mock.Anything, productID, 50).
 			Return(nil, fmt.Errorf("%w: product not found", errs.ErrNotFound))
@@ -268,7 +268,7 @@ func TestHandler_Adjust(t *testing.T) {
 
 		service := NewMockInventoryManager(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		expected := &domain.Stock{ProductID: productID, Quantity: 200, Reserved: 10, Available: 190}
 		service.EXPECT().Adjust(mock.Anything, productID, 200).Return(expected, nil)
 
@@ -335,7 +335,7 @@ func TestHandler_Adjust(t *testing.T) {
 
 		mux := setupMux(t, NewMockInventoryManager(t))
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
@@ -360,7 +360,7 @@ func TestHandler_Adjust(t *testing.T) {
 
 		mux := setupMux(t, NewMockInventoryManager(t))
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		body, _ := json.Marshal(map[string]int{"quantity": -1})
 
 		w := httptest.NewRecorder()
@@ -386,7 +386,7 @@ func TestHandler_Adjust(t *testing.T) {
 
 		service := NewMockInventoryManager(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().
 			Adjust(mock.Anything, productID, 200).
 			Return(nil, fmt.Errorf("%w: cannot set stock below reserved quantity", errs.ErrBadRequest))
@@ -418,7 +418,7 @@ func TestToStockResponse_ExposesExactFieldSet(t *testing.T) {
 	t.Parallel()
 
 	got := toStockResponse(&domain.Stock{
-		ProductID: uuid.New(),
+		ProductID: uuid.Must(uuid.NewV7()),
 		Quantity:  100,
 		Reserved:  30,
 		Available: 70,

@@ -133,8 +133,8 @@ func TestService_ListTopProducts(t *testing.T) {
 		to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
 
 		expected := []domain.TopProduct{
-			{ProductID: uuid.New(), Name: "Widget A", TotalSold: 500, Revenue: 2500000},
-			{ProductID: uuid.New(), Name: "Widget B", TotalSold: 300, Revenue: 1500000},
+			{ProductID: uuid.Must(uuid.NewV7()), Name: "Widget A", TotalSold: 500, Revenue: 2500000},
+			{ProductID: uuid.Must(uuid.NewV7()), Name: "Widget B", TotalSold: 300, Revenue: 1500000},
 		}
 		repo.EXPECT().ListTopProducts(mock.Anything, 10, from, to).Return(expected, nil)
 

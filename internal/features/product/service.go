@@ -60,7 +60,7 @@ func (s *Service) Create(
 	prod := &domain.Product{
 		CategoryID:     categoryID,
 		Name:           name,
-		Slug:           slug.MakeOrFallback(name, "product-"+uuid.New().String()[:8]),
+		Slug:           slug.MakeOrFallback(name, "product-"+slug.Seed(uuid.Must(uuid.NewV7()))),
 		Description:    description,
 		Price:          price,
 		CompareAtPrice: denominateLike(compareAtPrice, price),
@@ -109,7 +109,7 @@ func (s *Service) Update(
 	}
 	if name != nil {
 		prod.Name = *name
-		prod.Slug = slug.MakeOrFallback(prod.Name, "product-"+prod.ID.String()[:8])
+		prod.Slug = slug.MakeOrFallback(prod.Name, "product-"+slug.Seed(prod.ID))
 	}
 	if description != nil {
 		prod.Description = description

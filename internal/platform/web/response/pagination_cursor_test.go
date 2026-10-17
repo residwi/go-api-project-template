@@ -27,8 +27,8 @@ func TestCursorPage(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		rows := []pageRow{
-			{ID: uuid.New(), CreatedAt: time.Now()},
-			{ID: uuid.New(), CreatedAt: time.Now()},
+			{ID: uuid.Must(uuid.NewV7()), CreatedAt: time.Now()},
+			{ID: uuid.Must(uuid.NewV7()), CreatedAt: time.Now()},
 		}
 
 		CursorPage(w, rows, 20, pageRowKey)
@@ -46,9 +46,9 @@ func TestCursorPage(t *testing.T) {
 		t.Parallel()
 
 		w := httptest.NewRecorder()
-		first := pageRow{ID: uuid.New(), CreatedAt: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
-		second := pageRow{ID: uuid.New(), CreatedAt: time.Date(2026, 1, 2, 12, 0, 0, 0, time.UTC)}
-		overflow := pageRow{ID: uuid.New(), CreatedAt: time.Date(2026, 1, 3, 12, 0, 0, 0, time.UTC)}
+		first := pageRow{ID: uuid.Must(uuid.NewV7()), CreatedAt: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
+		second := pageRow{ID: uuid.Must(uuid.NewV7()), CreatedAt: time.Date(2026, 1, 2, 12, 0, 0, 0, time.UTC)}
+		overflow := pageRow{ID: uuid.Must(uuid.NewV7()), CreatedAt: time.Date(2026, 1, 3, 12, 0, 0, 0, time.UTC)}
 
 		CursorPage(w, []pageRow{first, second, overflow}, 2, pageRowKey)
 
@@ -67,8 +67,8 @@ func TestCursorPage(t *testing.T) {
 
 		w := httptest.NewRecorder()
 		rows := []pageRow{
-			{ID: uuid.New(), CreatedAt: time.Now()},
-			{ID: uuid.New(), CreatedAt: time.Now()},
+			{ID: uuid.Must(uuid.NewV7()), CreatedAt: time.Now()},
+			{ID: uuid.Must(uuid.NewV7()), CreatedAt: time.Now()},
 		}
 
 		CursorPage(w, rows, 2, pageRowKey)

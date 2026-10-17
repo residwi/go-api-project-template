@@ -161,8 +161,8 @@ func TestAdminHandler_List(t *testing.T) {
 		mux, service := setupAdminMux(t)
 
 		promos := []domain.Promotion{
-			{ID: uuid.New(), Code: "A"},
-			{ID: uuid.New(), Code: "B"},
+			{ID: uuid.Must(uuid.NewV7()), Code: "A"},
+			{ID: uuid.Must(uuid.NewV7()), Code: "B"},
 		}
 		service.EXPECT().
 			ListAdmin(mock.Anything, promotion.AdminListParams{Page: 1, PageSize: 20}).
@@ -205,7 +205,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		service.EXPECT().
 			Update(mock.Anything, id, "UPDATED", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
 				mock.Anything, mock.Anything, mock.Anything, mock.Anything).
@@ -238,7 +238,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		service.EXPECT().
 			Update(mock.Anything, id, "UPDATED", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
 				mock.Anything, mock.Anything, mock.Anything, mock.Anything).
@@ -263,7 +263,11 @@ func TestAdminHandler_Update(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{"code": "lower"})
 
 		w := httptest.NewRecorder()
-		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/promotions/"+uuid.NewString(), bytes.NewReader(body))
+		r := httptest.NewRequest(
+			http.MethodPut,
+			"/api/v1/admin/promotions/"+uuid.Must(uuid.NewV7()).String(),
+			bytes.NewReader(body),
+		)
 		r.Header.Set("Content-Type", "application/json")
 
 		mux.ServeHTTP(w, r)
@@ -279,7 +283,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		service.EXPECT().
 			Update(mock.Anything, id, "", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
 				mock.Anything, mock.Anything, mock.Anything, mock.Anything).
@@ -301,7 +305,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		id := uuid.NewString()
+		id := uuid.Must(uuid.NewV7()).String()
 		body, _ := json.Marshal(map[string]string{"type": "invalid_type"})
 
 		w := httptest.NewRecorder()
@@ -323,7 +327,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		id := uuid.NewString()
+		id := uuid.Must(uuid.NewV7()).String()
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/promotions/"+id, strings.NewReader("{bad"))
@@ -362,7 +366,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		service.EXPECT().Delete(mock.Anything, id).Return(nil)
 
 		w := httptest.NewRecorder()
@@ -378,7 +382,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		service.EXPECT().Delete(mock.Anything, id).Return(errs.ErrNotFound)
 
 		w := httptest.NewRecorder()

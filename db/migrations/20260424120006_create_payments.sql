@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS payments (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                UUID PRIMARY KEY DEFAULT uuidv7(),
     order_id          UUID NOT NULL REFERENCES orders(id),
     amount            BIGINT NOT NULL,
     currency          TEXT NOT NULL DEFAULT 'USD',
@@ -27,7 +27,7 @@ CREATE INDEX idx_payments_status ON payments(status);
 CREATE INDEX idx_payments_gateway_txn ON payments(gateway_txn_id) WHERE gateway_txn_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS payment_jobs (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id            UUID PRIMARY KEY DEFAULT uuidv7(),
     payment_id    UUID NOT NULL REFERENCES payments(id),
     order_id      UUID NOT NULL REFERENCES orders(id),
     action        TEXT NOT NULL DEFAULT 'charge',

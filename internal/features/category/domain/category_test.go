@@ -16,7 +16,7 @@ func TestValidateParentSelf(t *testing.T) {
 	t.Run("rejects a category set as its own parent", func(t *testing.T) {
 		t.Parallel()
 
-		selfID := uuid.New()
+		selfID := uuid.Must(uuid.NewV7())
 
 		err := ValidateParentSelf(selfID, selfID)
 
@@ -29,7 +29,7 @@ func TestValidateParentSelf(t *testing.T) {
 
 		// selfID is uuid.Nil for a category that doesn't exist yet (create's
 		// case), so parentID == selfID must not fire the self-parent guard.
-		parentID := uuid.New()
+		parentID := uuid.Must(uuid.NewV7())
 
 		err := ValidateParentSelf(parentID, uuid.Nil)
 
@@ -39,7 +39,7 @@ func TestValidateParentSelf(t *testing.T) {
 	t.Run("accepts distinct parent and self", func(t *testing.T) {
 		t.Parallel()
 
-		err := ValidateParentSelf(uuid.New(), uuid.New())
+		err := ValidateParentSelf(uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 
 		require.NoError(t, err)
 	})

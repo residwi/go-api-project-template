@@ -27,8 +27,8 @@ func TestAdminHandler_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		orderID := uuid.New()
-		shipmentID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
+		shipmentID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 
 		mux, service := setupAdminMux(t)
@@ -99,7 +99,7 @@ func TestAdminHandler_Create(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
@@ -119,7 +119,7 @@ func TestAdminHandler_Create(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		body, _ := json.Marshal(map[string]string{})
 
 		w := httptest.NewRecorder()
@@ -143,7 +143,7 @@ func TestAdminHandler_Create(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 
 		mux, service := setupAdminMux(t)
 		service.EXPECT().
@@ -175,8 +175,8 @@ func TestAdminHandler_Deliver(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		shipmentID := uuid.New()
-		orderID := uuid.New()
+		shipmentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 
 		mux, service := setupAdminMux(t)
@@ -234,7 +234,7 @@ func TestAdminHandler_Deliver(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		shipmentID := uuid.New()
+		shipmentID := uuid.Must(uuid.NewV7())
 
 		mux, service := setupAdminMux(t)
 		service.EXPECT().Deliver(mock.Anything, shipmentID).Return(nil, errors.New("db error"))
@@ -254,8 +254,8 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		t.Parallel()
 
-		shipmentID := uuid.New()
-		orderID := uuid.New()
+		shipmentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 
 		mux, service := setupAdminMux(t)
@@ -328,7 +328,7 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		shipmentID := uuid.New()
+		shipmentID := uuid.Must(uuid.NewV7())
 
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
@@ -348,7 +348,7 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		shipmentID := uuid.New()
+		shipmentID := uuid.Must(uuid.NewV7())
 		body, _ := json.Marshal(map[string]string{})
 
 		w := httptest.NewRecorder()
@@ -372,7 +372,7 @@ func TestAdminHandler_UpdateTracking(t *testing.T) {
 	t.Run("service error", func(t *testing.T) {
 		t.Parallel()
 
-		shipmentID := uuid.New()
+		shipmentID := uuid.Must(uuid.NewV7())
 
 		mux, service := setupAdminMux(t)
 		service.EXPECT().

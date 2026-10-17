@@ -35,18 +35,18 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Webhook Cat', $2, true)`,
-		catID, "webhook-cat-"+catID.String()[:8])
+		catID, "webhook-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'Webhook Product', $2, 'desc', 5000, 'USD', 'published', $3)`,
-		prodID, "webhook-prod-"+prodID.String()[:8], catID)
+		prodID, "webhook-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -106,7 +106,7 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
-	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderReq.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 	orderW := httptest.NewRecorder()
 	handler.ServeHTTP(orderW, orderReq)
 	require.Equal(t, http.StatusCreated, orderW.Code)
@@ -159,18 +159,18 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Fail Cat', $2, true)`,
-		catID, "fail-cat-"+catID.String()[:8])
+		catID, "fail-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'Fail Product', $2, 'desc', 2000, 'USD', 'published', $3)`,
-		prodID, "fail-prod-"+prodID.String()[:8], catID)
+		prodID, "fail-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -181,11 +181,11 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	// 2000*2 + 99 = 4099, and 99 mod 100 makes the mock gateway decline: the order
 	// stays awaiting_payment with stock only reserved, never deducted. prodID's
 	// quantity stays 2 for the reserved_stock assertion below.
-	prod2ID := uuid.New()
+	prod2ID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'Fail Product 2', $2, 'desc', 99, 'USD', 'published', $3)`,
-		prod2ID, "fail-prod2-"+prod2ID.String()[:8], catID)
+		prod2ID, "fail-prod2-"+prod2ID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prod2ID)
@@ -255,7 +255,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
-	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderReq.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 	orderW := httptest.NewRecorder()
 	handler.ServeHTTP(orderW, orderReq)
 	require.Equal(t, http.StatusCreated, orderW.Code)

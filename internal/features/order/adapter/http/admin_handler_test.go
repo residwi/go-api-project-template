@@ -33,8 +33,8 @@ func TestAdminHandler_List(t *testing.T) {
 		now := time.Now()
 		orders := []domain.Order{
 			{
-				ID:        uuid.New(),
-				UserID:    uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
+				UserID:    uuid.Must(uuid.NewV7()),
 				Status:    domain.StatusPaid,
 				Subtotal:  money.New(10000, "USD"),
 				Total:     money.New(10000, "USD"),
@@ -79,11 +79,11 @@ func TestAdminHandler_Get(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		service.EXPECT().Get(mock.Anything, orderID).Return(&domain.Order{
 			ID:        orderID,
-			UserID:    uuid.New(),
+			UserID:    uuid.Must(uuid.NewV7()),
 			Status:    domain.StatusPaid,
 			Subtotal:  money.New(5000, "USD"),
 			Total:     money.New(5000, "USD"),
@@ -124,7 +124,7 @@ func TestAdminHandler_Get(t *testing.T) {
 		t.Parallel()
 
 		mux, service := setupAdminMux(t)
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Get(mock.Anything, orderID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
@@ -142,7 +142,7 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		service.EXPECT().ChangeStatus(mock.Anything, orderID, domain.Status("processing")).Return(nil)
 
 		w := httptest.NewRecorder()
@@ -176,7 +176,7 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
 			http.MethodPut,
@@ -194,7 +194,7 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 
 		mux, _ := setupAdminMux(t)
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(
 			http.MethodPut,
@@ -217,7 +217,7 @@ func TestAdminHandler_UpdateStatus(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		service.EXPECT().ChangeStatus(mock.Anything, orderID, mock.Anything).Return(errs.ErrNotFound)
 
 		w := httptest.NewRecorder()

@@ -187,7 +187,7 @@ func seedUser(t *testing.T) uuid.UUID {
 
 func seedPaidOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency)
 		 VALUES ($1, $2, 'paid', 1000, 0, 1000, 'USD')`,
@@ -200,7 +200,7 @@ func seedPaidOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
 
 func seedProduct(t *testing.T) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO products (id, name, slug, description, price, currency)
 		 VALUES ($1, 'Widget', $2, 'desc', 1000, 'USD')`,
@@ -213,7 +213,7 @@ func seedProduct(t *testing.T) uuid.UUID {
 
 func seedOrderItem(t *testing.T, orderID, productID uuid.UUID) {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO order_items (id, order_id, product_id, product_name, price, quantity, subtotal)
 		 VALUES ($1, $2, $3, 'Widget', 1000, 2, 2000)`,

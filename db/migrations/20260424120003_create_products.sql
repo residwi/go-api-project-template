@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS products (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                UUID PRIMARY KEY DEFAULT uuidv7(),
     name              TEXT NOT NULL,
     slug              TEXT NOT NULL UNIQUE,
     description       TEXT,
@@ -32,7 +32,7 @@ CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TABLE IF NOT EXISTS product_images (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id         UUID PRIMARY KEY DEFAULT uuidv7(),
     product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     url        TEXT NOT NULL,
     alt_text   TEXT,

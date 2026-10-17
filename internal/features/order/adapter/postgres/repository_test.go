@@ -114,7 +114,7 @@ func TestPostgresRepository_GetByUserIDAndIdempotencyKey(t *testing.T) {
 		userID := seedUser(t)
 		ctx := context.Background()
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		key := "key-" + orderID.String()
 		_, err := testPool.Exec(
 			ctx,
@@ -158,7 +158,7 @@ func TestPostgresRepository_UpdateTotals(t *testing.T) {
 	t.Run("returns not found for a missing order", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		err := repo.UpdateTotals(context.Background(), uuid.New(), 0, 0)
+		err := repo.UpdateTotals(context.Background(), uuid.Must(uuid.NewV7()), 0, 0)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -199,14 +199,14 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		userID := seedUser(t)
 		ctx := context.Background()
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		_, err := testPool.Exec(
 			ctx,
 			`INSERT INTO orders (id, user_id, idempotency_key, status, subtotal_amount, discount_amount, total_amount, currency)
 			 VALUES ($1, $2, $3, 'awaiting_payment', 9500, 1500, 8000, 'IDR')`,
 			orderID,
 			userID,
-			uuid.New().String(),
+			uuid.Must(uuid.NewV7()).String(),
 		)
 		require.NoError(t, err)
 		t.Cleanup(func() { testPool.Exec(context.Background(), `DELETE FROM orders WHERE id = $1`, orderID) })
@@ -222,7 +222,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		_, err := repo.GetByID(context.Background(), uuid.New())
+		_, err := repo.GetByID(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -233,7 +233,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 		userID := seedUser(t)
 		ctx := context.Background()
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		_, err := testPool.Exec(
 			ctx,
 			`INSERT INTO orders (id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency, notes)
@@ -304,7 +304,7 @@ func TestPostgresRepository_ListByUser(t *testing.T) {
 		userID := seedUser(t)
 		ctx := context.Background()
 
-		orderID := uuid.New()
+		orderID := uuid.Must(uuid.NewV7())
 		_, err := testPool.Exec(
 			ctx,
 			`INSERT INTO orders (id, user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency, notes)
@@ -433,7 +433,7 @@ func TestPostgresRepository_HasDeliveredOrder(t *testing.T) {
 
 		ok, err := repo.HasDeliveredOrder(ctx, order.DeliveredPurchaseParams{
 			UserID:    userID,
-			OrderID:   uuid.New(),
+			OrderID:   uuid.Must(uuid.NewV7()),
 			ProductID: productID,
 		})
 
@@ -464,7 +464,7 @@ func TestPostgresRepository_HasDeliveredOrder(t *testing.T) {
 
 		ok, err := repo.HasDeliveredOrder(ctx, order.DeliveredPurchaseParams{
 			UserID:    userID,
-			OrderID:   uuid.New(),
+			OrderID:   uuid.Must(uuid.NewV7()),
 			ProductID: productID,
 		})
 
@@ -479,7 +479,7 @@ func TestPostgresRepository_GetExpiredOrders(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
-		oldOrderID := uuid.New()
+		oldOrderID := uuid.Must(uuid.NewV7())
 		// GetExpiredOrders sorts oldest-first with a LIMIT, and test_order is a
 		// shared database that is never truncated (see the registry comment in
 		// internal/testutil/testutil.go), so accumulated rows from earlier
@@ -529,7 +529,7 @@ func TestPostgresRepository_GetStaleProcessingOrders(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		ctx := context.Background()
 
-		staleID := uuid.New()
+		staleID := uuid.Must(uuid.NewV7())
 		// GetStaleProcessingOrders sorts oldest-first with a LIMIT, and
 		// test_order is a shared database that is never truncated (see the
 		// registry comment in internal/testutil/testutil.go), so
@@ -634,22 +634,26 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("GetByUserIDAndIdempotencyKey", func(t *testing.T) {
-		_, err := New(database.DB{Primary: testPool}).GetByUserIDAndIdempotencyKey(cancelled(), uuid.New(), "key")
+		_, err := New(
+			database.DB{Primary: testPool},
+		).GetByUserIDAndIdempotencyKey(cancelled(), uuid.Must(uuid.NewV7()), "key")
 		assert.Error(t, err)
 	})
 
 	t.Run("UpdateTotals", func(t *testing.T) {
-		err := New(database.DB{Primary: testPool}).UpdateTotals(cancelled(), uuid.New(), 0, 0)
+		err := New(database.DB{Primary: testPool}).UpdateTotals(cancelled(), uuid.Must(uuid.NewV7()), 0, 0)
 		assert.Error(t, err)
 	})
 
 	t.Run("GetByID", func(t *testing.T) {
-		_, err := New(database.DB{Primary: testPool}).GetByID(cancelled(), uuid.New())
+		_, err := New(database.DB{Primary: testPool}).GetByID(cancelled(), uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("ListByUser", func(t *testing.T) {
-		_, err := New(database.DB{Primary: testPool}).ListByUser(cancelled(), uuid.New(), paging.CursorPage{Limit: 10})
+		_, err := New(
+			database.DB{Primary: testPool},
+		).ListByUser(cancelled(), uuid.Must(uuid.NewV7()), paging.CursorPage{Limit: 10})
 		assert.Error(t, err)
 	})
 
@@ -661,15 +665,15 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("ListItemsByOrderID", func(t *testing.T) {
-		_, err := New(database.DB{Primary: testPool}).ListItemsByOrderID(cancelled(), uuid.New())
+		_, err := New(database.DB{Primary: testPool}).ListItemsByOrderID(cancelled(), uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("HasDeliveredOrder", func(t *testing.T) {
 		_, err := New(database.DB{Primary: testPool}).HasDeliveredOrder(cancelled(), order.DeliveredPurchaseParams{
-			UserID:    uuid.New(),
-			OrderID:   uuid.New(),
-			ProductID: uuid.New(),
+			UserID:    uuid.Must(uuid.NewV7()),
+			OrderID:   uuid.Must(uuid.NewV7()),
+			ProductID: uuid.Must(uuid.NewV7()),
 		})
 		assert.Error(t, err)
 	})
@@ -685,7 +689,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("Apply", func(t *testing.T) {
-		err := New(database.DB{Primary: testPool}).Apply(cancelled(), uuid.New(), domain.ToPaid)
+		err := New(database.DB{Primary: testPool}).Apply(cancelled(), uuid.Must(uuid.NewV7()), domain.ToPaid)
 		assert.Error(t, err)
 	})
 }
@@ -697,7 +701,7 @@ func seedUser(t *testing.T) uuid.UUID {
 
 func seedProduct(t *testing.T) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO products (id, name, slug, description, price, currency)
 		 VALUES ($1, 'Product', $2, 'desc', 1000, 'USD')`,
@@ -709,7 +713,7 @@ func seedProduct(t *testing.T) uuid.UUID {
 }
 
 func newOrder(userID uuid.UUID) *domain.Order {
-	key := uuid.New().String()
+	key := uuid.Must(uuid.NewV7()).String()
 	return &domain.Order{
 		UserID:         userID,
 		IdempotencyKey: key,

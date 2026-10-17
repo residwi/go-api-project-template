@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS promotions (
-    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id               UUID PRIMARY KEY DEFAULT uuidv7(),
     code             TEXT NOT NULL UNIQUE,
     type             TEXT NOT NULL,
     value            BIGINT NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS promotions (
 CREATE INDEX idx_promotions_code ON promotions(code) WHERE active = true;
 
 CREATE TABLE IF NOT EXISTS coupon_usages (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id         UUID PRIMARY KEY DEFAULT uuidv7(),
     coupon_id  UUID NOT NULL REFERENCES promotions(id),
     user_id    UUID NOT NULL REFERENCES users(id),
     order_id   UUID NOT NULL REFERENCES orders(id),

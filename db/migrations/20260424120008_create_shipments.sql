@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS shipments (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id              UUID PRIMARY KEY DEFAULT uuidv7(),
     order_id        UUID NOT NULL REFERENCES orders(id),
     carrier         TEXT,
     tracking_number TEXT,

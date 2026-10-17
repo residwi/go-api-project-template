@@ -24,8 +24,8 @@ type Category struct {
 	UpdatedAt   time.Time
 }
 
-func Slugify(name, fallbackSeed string) string {
-	return slug.MakeOrFallback(name, "category-"+fallbackSeed)
+func Slugify(name string, id uuid.UUID) string {
+	return slug.MakeOrFallback(name, "category-"+slug.Seed(id))
 }
 
 func ValidateParentSelf(parentID, selfID uuid.UUID) error {

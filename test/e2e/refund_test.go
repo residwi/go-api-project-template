@@ -35,18 +35,18 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Refund Cat', $2, true)`,
-		catID, "refund-cat-"+catID.String()[:8])
+		catID, "refund-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'Refund Product', $2, 'desc', 3000, 'USD', 'published', $3)`,
-		prodID, "refund-prod-"+prodID.String()[:8], catID)
+		prodID, "refund-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -105,7 +105,7 @@ func TestE2EAdminRefundEndpoint(t *testing.T) {
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
-	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderReq.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 	orderW := httptest.NewRecorder()
 	handler.ServeHTTP(orderW, orderReq)
 	require.Equal(t, http.StatusCreated, orderW.Code)
@@ -201,18 +201,18 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'RelCoupon Cat', $2, true)`,
-		catID, "relcoupon-cat-"+catID.String()[:8])
+		catID, "relcoupon-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'RelCoupon Product', $2, 'desc', 8000, 'USD', 'published', $3)`,
-		prodID, "relcoupon-prod-"+prodID.String()[:8], catID)
+		prodID, "relcoupon-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -220,8 +220,8 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 100, 0)
 
-	couponID := uuid.New()
-	couponCode := "RELCOUPON" + couponID.String()[:8]
+	couponID := uuid.Must(uuid.NewV7())
+	couponCode := "RELCOUPON" + couponID.String()[28:]
 	_, err = testPool.Exec(
 		ctx,
 		`INSERT INTO promotions (id, code, type, value, min_order_amount, max_uses, used_count, starts_at, expires_at, active)
@@ -288,7 +288,7 @@ func TestE2ERefundWithCouponAndRelease(t *testing.T) {
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
-	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderReq.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 	orderW := httptest.NewRecorder()
 	handler.ServeHTTP(orderW, orderReq)
 	require.Equal(t, http.StatusCreated, orderW.Code)

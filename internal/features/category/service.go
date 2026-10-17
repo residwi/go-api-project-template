@@ -41,7 +41,7 @@ func (s *Service) Create(
 
 	cat := &domain.Category{
 		Name:        name,
-		Slug:        domain.Slugify(name, uuid.New().String()[:8]),
+		Slug:        domain.Slugify(name, uuid.Must(uuid.NewV7())),
 		Description: description,
 		ParentID:    parentID,
 		Active:      true,
@@ -95,7 +95,7 @@ func (s *Service) Update(
 
 	if name != nil {
 		cat.Name = *name
-		cat.Slug = domain.Slugify(cat.Name, cat.ID.String()[:8])
+		cat.Slug = domain.Slugify(cat.Name, cat.ID)
 	}
 	if description != nil {
 		cat.Description = description

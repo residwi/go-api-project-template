@@ -36,8 +36,8 @@ func TestAdminHandler_List(t *testing.T) {
 		now := time.Now()
 		payments := []domain.Payment{
 			{
-				ID:        uuid.New(),
-				OrderID:   uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
+				OrderID:   uuid.Must(uuid.NewV7()),
 				Amount:    money.New(5000, "USD"),
 				Status:    domain.StatusSuccess,
 				CreatedAt: now,
@@ -114,11 +114,11 @@ func TestAdminHandler_Get(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		paymentID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		p := &domain.Payment{
 			ID:        paymentID,
-			OrderID:   uuid.New(),
+			OrderID:   uuid.Must(uuid.NewV7()),
 			Amount:    money.New(10000, "USD"),
 			Status:    domain.StatusSuccess,
 			CreatedAt: now,
@@ -173,7 +173,7 @@ func TestAdminHandler_Get(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		paymentID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
 		service.EXPECT().GetByID(mock.Anything, paymentID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
@@ -197,7 +197,7 @@ func TestAdminHandler_Refund(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		paymentID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
 
 		service.EXPECT().Refund(mock.Anything, paymentID).Return(nil)
 
@@ -246,7 +246,7 @@ func TestAdminHandler_Refund(t *testing.T) {
 
 		mux, service := setupAdminMux(t)
 
-		paymentID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
 
 		service.EXPECT().Refund(mock.Anything, paymentID).
 			Return(errs.ErrBadRequest)
@@ -271,8 +271,8 @@ func TestToAdminPaymentResponse_OmitsGatewayResponse(t *testing.T) {
 	gatewayResponse := []byte(`{"card_number":"4242424242424242","cvv":"123"}`)
 
 	got := toAdminPaymentResponse(&domain.Payment{
-		ID:              uuid.New(),
-		OrderID:         uuid.New(),
+		ID:              uuid.Must(uuid.NewV7()),
+		OrderID:         uuid.Must(uuid.NewV7()),
 		Amount:          money.New(5000, "USD"),
 		Status:          domain.StatusSuccess,
 		Method:          "card",

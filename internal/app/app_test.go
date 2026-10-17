@@ -83,8 +83,8 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 			`INSERT INTO orders (user_id, idempotency_key, request_hash, status, subtotal_amount, discount_amount, total_amount, currency)
 			 VALUES ($1, $2, $3, 'awaiting_payment', 1000, 0, 1000, 'USD') RETURNING id`,
 			userID,
-			uuid.New().String(),
-			"hash-"+uuid.New().String(),
+			uuid.Must(uuid.NewV7()).String(),
+			"hash-"+uuid.Must(uuid.NewV7()).String(),
 		).Scan(&orderID))
 		return orderID
 	}

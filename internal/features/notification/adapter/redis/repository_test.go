@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 func TestRepository_CountUnread(t *testing.T) {
 	t.Run("counts from the wrapped repository on a miss", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{unread: 3}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 
@@ -41,7 +41,7 @@ func TestRepository_CountUnread(t *testing.T) {
 
 	t.Run("serves the second call from Redis", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{unread: 3}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 
@@ -56,7 +56,7 @@ func TestRepository_CountUnread(t *testing.T) {
 
 	t.Run("Create increments without recounting", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{unread: 3}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 
@@ -72,13 +72,13 @@ func TestRepository_CountUnread(t *testing.T) {
 
 	t.Run("MarkRead decrements", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{unread: 3}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 
 		_, err := repo.CountUnread(context.Background(), userID)
 		require.NoError(t, err)
-		require.NoError(t, repo.MarkRead(context.Background(), userID, uuid.New()))
+		require.NoError(t, repo.MarkRead(context.Background(), userID, uuid.Must(uuid.NewV7())))
 		got, err := repo.CountUnread(context.Background(), userID)
 
 		require.NoError(t, err)
@@ -87,7 +87,7 @@ func TestRepository_CountUnread(t *testing.T) {
 
 	t.Run("MarkAllRead zeroes the counter", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{unread: 3}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 
@@ -102,7 +102,7 @@ func TestRepository_CountUnread(t *testing.T) {
 
 	t.Run("a failed write leaves the counter alone", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{unread: 3, createErr: assert.AnError}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 
@@ -117,14 +117,14 @@ func TestRepository_CountUnread(t *testing.T) {
 
 	t.Run("MarkRead below zero floors the counter instead of going negative", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{unread: 1}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 
 		_, err := repo.CountUnread(context.Background(), userID)
 		require.NoError(t, err)
-		require.NoError(t, repo.MarkRead(context.Background(), userID, uuid.New()))
-		require.NoError(t, repo.MarkRead(context.Background(), userID, uuid.New()))
+		require.NoError(t, repo.MarkRead(context.Background(), userID, uuid.Must(uuid.NewV7())))
+		require.NoError(t, repo.MarkRead(context.Background(), userID, uuid.Must(uuid.NewV7())))
 		got, err := repo.CountUnread(context.Background(), userID)
 
 		require.NoError(t, err)
@@ -134,7 +134,7 @@ func TestRepository_CountUnread(t *testing.T) {
 
 	t.Run("recounts after the key expires", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{unread: 3}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 

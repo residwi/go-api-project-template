@@ -332,5 +332,5 @@ func TestTakeFallsBackWhenRedisAcceptsButNeverAnswers(t *testing.T) {
 func testKey(t *testing.T) string {
 	t.Helper()
 
-	return "test:cache:" + uuid.NewString()
+	return "test:cache:" + uuid.Must(uuid.NewV7()).String()
 }

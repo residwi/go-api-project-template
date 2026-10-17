@@ -46,20 +46,20 @@ func TestE2EOrderIdempotencyReplay(t *testing.T) {
 	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Replay Cat', $2, true)`,
-		catID, "replay-cat-"+catID.String()[:8])
+		catID, "replay-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
 	// 2500 does not end in 99, so the mock gateway settles the charge
 	// synchronously and the first POST leaves the order paid.
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'Replay Product', $2, 'desc', 2500, 'USD', 'published', $3)`,
-		prodID, "replay-prod-"+prodID.String()[:8], catID)
+		prodID, "replay-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -78,7 +78,7 @@ func TestE2EOrderIdempotencyReplay(t *testing.T) {
 	handler.ServeHTTP(cartW, cartReq)
 	require.Equal(t, http.StatusCreated, cartW.Code)
 
-	idempotencyKey := uuid.New().String()
+	idempotencyKey := uuid.Must(uuid.NewV7()).String()
 	placeOrder := func(t *testing.T) map[string]any {
 		t.Helper()
 		req := httptest.NewRequest(http.MethodPost, "/api/checkout",

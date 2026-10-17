@@ -196,7 +196,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		err := repo.Delete(context.Background(), uuid.New())
+		err := repo.Delete(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -209,9 +209,9 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Create", func(t *testing.T) {
 		rv := &domain.Review{
-			UserID:    uuid.New(),
-			ProductID: uuid.New(),
-			OrderID:   uuid.New(),
+			UserID:    uuid.Must(uuid.NewV7()),
+			ProductID: uuid.Must(uuid.NewV7()),
+			OrderID:   uuid.Must(uuid.NewV7()),
 			Rating:    5,
 			Status:    "published",
 		}
@@ -220,17 +220,17 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("HasUserReviewed", func(t *testing.T) {
-		_, err := repo.HasUserReviewed(cancelledCtx, uuid.New(), uuid.New())
+		_, err := repo.HasUserReviewed(cancelledCtx, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("ListByProduct", func(t *testing.T) {
-		_, err := repo.ListByProduct(cancelledCtx, uuid.New(), paging.CursorPage{Limit: 10})
+		_, err := repo.ListByProduct(cancelledCtx, uuid.Must(uuid.NewV7()), paging.CursorPage{Limit: 10})
 		assert.Error(t, err)
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		err := repo.Delete(cancelledCtx, uuid.New())
+		err := repo.Delete(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 }
@@ -242,7 +242,7 @@ func seedUser(t *testing.T) uuid.UUID {
 
 func seedProduct(t *testing.T) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO products (id, name, slug, description, price, currency)
 		 VALUES ($1, 'Test Product', $2, 'desc', 1000, 'USD')`,
@@ -255,7 +255,7 @@ func seedProduct(t *testing.T) uuid.UUID {
 
 func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO orders (id, user_id, status, subtotal_amount, discount_amount, total_amount, currency)
 		 VALUES ($1, $2, 'awaiting_payment', 1000, 0, 1000, 'USD')`,
@@ -268,7 +268,7 @@ func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
 
 func seedReview(t *testing.T, userID, productID, orderID uuid.UUID, status string) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO reviews (id, user_id, product_id, order_id, rating, title, body, status)
 		 VALUES ($1, $2, $3, $4, 5, 'Review', 'Body', $5)`,

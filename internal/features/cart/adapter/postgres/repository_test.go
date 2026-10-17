@@ -129,7 +129,7 @@ func TestPostgresRepository_RemoveItem(t *testing.T) {
 
 	t.Run("returns not found when item does not exist", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		err := repo.RemoveItem(context.Background(), uuid.New(), uuid.New())
+		err := repo.RemoveItem(context.Background(), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -156,7 +156,7 @@ func TestPostgresRepository_UpdateItemQuantity(t *testing.T) {
 
 	t.Run("returns not found when item does not exist", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		err := repo.UpdateItemQuantity(context.Background(), uuid.New(), uuid.New(), 5)
+		err := repo.UpdateItemQuantity(context.Background(), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), 5)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -263,42 +263,42 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	repo := New(database.DB{Primary: testPool})
 
 	t.Run("GetOrCreate", func(t *testing.T) {
-		_, err := repo.GetOrCreate(cancelledCtx, uuid.New())
+		_, err := repo.GetOrCreate(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("AddItem", func(t *testing.T) {
-		err := repo.AddItem(cancelledCtx, uuid.New(), uuid.New(), 1)
+		err := repo.AddItem(cancelledCtx, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), 1)
 		assert.Error(t, err)
 	})
 
 	t.Run("CountAndHasItem", func(t *testing.T) {
-		_, _, err := repo.CountAndHasItem(cancelledCtx, uuid.New(), uuid.New())
+		_, _, err := repo.CountAndHasItem(cancelledCtx, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("RemoveItem", func(t *testing.T) {
-		err := repo.RemoveItem(cancelledCtx, uuid.New(), uuid.New())
+		err := repo.RemoveItem(cancelledCtx, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("UpdateItemQuantity", func(t *testing.T) {
-		err := repo.UpdateItemQuantity(cancelledCtx, uuid.New(), uuid.New(), 1)
+		err := repo.UpdateItemQuantity(cancelledCtx, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), 1)
 		assert.Error(t, err)
 	})
 
 	t.Run("GetCart", func(t *testing.T) {
-		_, err := repo.GetCart(cancelledCtx, uuid.New())
+		_, err := repo.GetCart(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("Clear", func(t *testing.T) {
-		err := repo.Clear(cancelledCtx, uuid.New())
+		err := repo.Clear(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 
 	t.Run("GetCartForLock", func(t *testing.T) {
-		_, err := repo.GetCartForLock(cancelledCtx, uuid.New())
+		_, err := repo.GetCartForLock(cancelledCtx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 }
@@ -368,7 +368,7 @@ func seedUser(t *testing.T) uuid.UUID {
 
 func seedProduct(t *testing.T) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO products (id, name, slug, description, price, currency)
 		 VALUES ($1, 'Test Product', $2, 'desc', 1000, 'USD')`,

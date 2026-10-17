@@ -31,7 +31,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 		desc := "A description"
 		cat := &domain.Category{
 			Name:        "New Category",
-			Slug:        "new-category-" + uuid.New().String(),
+			Slug:        "new-category-" + uuid.Must(uuid.NewV7()).String(),
 			Description: &desc,
 			SortOrder:   1,
 			Active:      true,
@@ -76,7 +76,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		_, err := repo.GetByID(context.Background(), uuid.New())
+		_, err := repo.GetByID(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -166,9 +166,9 @@ func TestPostgresRepository_Update(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		cat := &domain.Category{
-			ID:        uuid.New(),
+			ID:        uuid.Must(uuid.NewV7()),
 			Name:      "Ghost",
-			Slug:      "ghost-slug-" + uuid.New().String(),
+			Slug:      "ghost-slug-" + uuid.Must(uuid.NewV7()).String(),
 			SortOrder: 0,
 			Active:    true,
 		}
@@ -205,7 +205,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		err := repo.Delete(context.Background(), uuid.New())
+		err := repo.Delete(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -217,7 +217,7 @@ func TestPostgresRepository_AncestorDepthAndCycle(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		root := seedCategory(t, nil)
 
-		depth, formsCycle, err := repo.AncestorDepthAndCycle(ctx, root.ID, uuid.New(), 5)
+		depth, formsCycle, err := repo.AncestorDepthAndCycle(ctx, root.ID, uuid.Must(uuid.NewV7()), 5)
 
 		require.NoError(t, err)
 		assert.Equal(t, 1, depth)
@@ -232,7 +232,7 @@ func TestPostgresRepository_AncestorDepthAndCycle(t *testing.T) {
 		l4 := seedCategory(t, &l3.ID)
 		l5 := seedCategory(t, &l4.ID)
 
-		depth, formsCycle, err := repo.AncestorDepthAndCycle(ctx, l5.ID, uuid.New(), 10)
+		depth, formsCycle, err := repo.AncestorDepthAndCycle(ctx, l5.ID, uuid.Must(uuid.NewV7()), 10)
 
 		require.NoError(t, err)
 		assert.Equal(t, 5, depth)
@@ -261,7 +261,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	t.Run("Create returns error on cancelled context", func(t *testing.T) {
 		cat := &domain.Category{
 			Name:      "Cancelled",
-			Slug:      "cancelled-" + uuid.New().String(),
+			Slug:      "cancelled-" + uuid.Must(uuid.NewV7()).String(),
 			SortOrder: 0,
 			Active:    true,
 		}
@@ -271,7 +271,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("GetByID returns error on cancelled context", func(t *testing.T) {
-		_, err := repo.GetByID(ctx, uuid.New())
+		_, err := repo.GetByID(ctx, uuid.Must(uuid.NewV7()))
 		require.Error(t, err)
 		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
@@ -289,9 +289,9 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Update returns error on cancelled context", func(t *testing.T) {
 		cat := &domain.Category{
-			ID:        uuid.New(),
+			ID:        uuid.Must(uuid.NewV7()),
 			Name:      "Test",
-			Slug:      "test-" + uuid.New().String(),
+			Slug:      "test-" + uuid.Must(uuid.NewV7()).String(),
 			SortOrder: 0,
 			Active:    true,
 		}
@@ -302,7 +302,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("Delete returns error on cancelled context", func(t *testing.T) {
-		err := repo.Delete(ctx, uuid.New())
+		err := repo.Delete(ctx, uuid.Must(uuid.NewV7()))
 		require.Error(t, err)
 		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
@@ -310,11 +310,11 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 func seedCategory(t *testing.T, parentID *uuid.UUID) *domain.Category {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	desc := "Test description"
 	cat := &domain.Category{
 		ID:          id,
-		Name:        "Category-" + id.String()[:8],
+		Name:        "Category-" + id.String()[28:],
 		Slug:        "slug-" + id.String(),
 		Description: &desc,
 		ParentID:    parentID,
@@ -335,11 +335,11 @@ func seedCategory(t *testing.T, parentID *uuid.UUID) *domain.Category {
 
 func seedInactiveCategory(t *testing.T) *domain.Category {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	desc := "Hidden description"
 	cat := &domain.Category{
 		ID:          id,
-		Name:        "Hidden-" + id.String()[:8],
+		Name:        "Hidden-" + id.String()[28:],
 		Slug:        "hidden-" + id.String(),
 		Description: &desc,
 		SortOrder:   0,

@@ -24,7 +24,7 @@ func SeedUserWith(t testing.TB, pool *pgxpool.Pool, opts SeedUserOpts) uuid.UUID
 	t.Helper()
 	ctx := context.Background()
 
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	firstName := opts.FirstName
 	if firstName == "" {
 		firstName = "A"

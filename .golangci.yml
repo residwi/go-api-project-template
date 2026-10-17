@@ -298,6 +298,9 @@ linters:
         - pattern: ^http\.Error$
           pkg: ^net/http$
           msg: A feature handler returns its error and writes nothing; web.Router turns the error into the response.
+        - pattern: ^uuid\.(New|NewString|NewRandom)$
+          pkg: ^github\.com/google/uuid$
+          msg: Every UUID is v7, matching the uuidv7() column defaults. Use uuid.Must(uuid.NewV7()).
       analyze-types: true
 
     funcorder:

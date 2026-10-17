@@ -55,7 +55,7 @@ func TestPostgresRepository_Get(t *testing.T) {
 	t.Run("returns not found for a missing id", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		_, err := repo.Get(context.Background(), uuid.New())
+		_, err := repo.Get(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -122,7 +122,7 @@ func TestPostgresRepository_ListByUser_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.ListByUser(ctx, uuid.New(), paging.CursorPage{Limit: 10})
+		_, err := repo.ListByUser(ctx, uuid.Must(uuid.NewV7()), paging.CursorPage{Limit: 10})
 		assert.Error(t, err)
 	})
 }
@@ -156,7 +156,7 @@ func TestPostgresRepository_CountUnread_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.CountUnread(ctx, uuid.New())
+		_, err := repo.CountUnread(ctx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 }
@@ -186,7 +186,7 @@ func TestPostgresRepository_MarkRead(t *testing.T) {
 		userID := seedUser(t)
 		repo := New(database.DB{Primary: testPool})
 
-		err := repo.MarkRead(context.Background(), userID, uuid.New())
+		err := repo.MarkRead(context.Background(), userID, uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 
@@ -211,7 +211,7 @@ func TestPostgresRepository_MarkRead_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		err := repo.MarkRead(ctx, uuid.New(), uuid.New())
+		err := repo.MarkRead(ctx, uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 }
@@ -237,7 +237,7 @@ func TestPostgresRepository_MarkAllRead_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		err := repo.MarkAllRead(ctx, uuid.New())
+		err := repo.MarkAllRead(ctx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 }
@@ -249,7 +249,7 @@ func seedUser(t *testing.T) uuid.UUID {
 
 func seedNotification(t *testing.T, userID uuid.UUID) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO notifications (id, user_id, title, body, is_read)
 		VALUES ($1, $2, 'T', 'm', false)`,

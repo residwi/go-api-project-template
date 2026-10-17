@@ -165,7 +165,7 @@ func TestHandler_Register(t *testing.T) {
 
 		mux, service := newTestMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Register(mock.Anything, "test@example.com", "password123", "John", "Doe").
 			Return(&auth.TokenPair{
 				AccessToken:  "access-token",
@@ -271,7 +271,12 @@ func TestHandler_Register(t *testing.T) {
 				AccessToken:  "access-token",
 				RefreshToken: "refresh-token",
 				ExpiresIn:    15 * time.Minute,
-				User:         user.Profile{ID: uuid.New(), Email: "test@example.com", Role: "user", Active: true},
+				User: user.Profile{
+					ID:     uuid.Must(uuid.NewV7()),
+					Email:  "test@example.com",
+					Role:   "user",
+					Active: true,
+				},
 			}, nil)
 
 		body, _ := json.Marshal(map[string]string{
@@ -451,7 +456,7 @@ func TestHandler_Refresh(t *testing.T) {
 func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 	t.Parallel()
 
-	userID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
 	tp := &auth.TokenPair{
 		AccessToken:  "access-token-value",
 		RefreshToken: "refresh-token-value",

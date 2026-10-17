@@ -31,7 +31,7 @@ func TestHandler_GetByID(t *testing.T) {
 
 		mux, usecase := setupHandlerMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		usecase.EXPECT().GetByID(mock.Anything, userID).Return(&domain.User{
 			ID:        userID,
 			Email:     "test@example.com",
@@ -97,7 +97,7 @@ func TestHandler_GetByID(t *testing.T) {
 		t.Parallel()
 
 		mux, usecase := setupHandlerMux(t)
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		usecase.EXPECT().GetByID(mock.Anything, userID).Return(nil, errs.ErrNotFound)
 
 		w := httptest.NewRecorder()
@@ -119,7 +119,7 @@ func TestHandler_Update(t *testing.T) {
 
 		mux, usecase := setupHandlerMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		now := time.Now()
 		usecase.EXPECT().UpdateProfile(mock.Anything, userID, "Jane", "", (*string)(nil)).Return(&domain.User{
 			ID:        userID,
@@ -170,7 +170,7 @@ func TestHandler_Update(t *testing.T) {
 
 		mux, _ := setupHandlerMux(t)
 
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		longName := make([]byte, 101)
 		for i := range longName {
 			longName[i] = 'a'
@@ -213,7 +213,7 @@ func TestHandler_Update(t *testing.T) {
 		t.Parallel()
 
 		mux, _ := setupHandlerMux(t)
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest(http.MethodPut, "/api/v1/users/me", bytes.NewReader([]byte("{bad")))
 		r.Header.Set("Content-Type", "application/json")
@@ -229,7 +229,7 @@ func TestHandler_Update(t *testing.T) {
 		t.Parallel()
 
 		mux, usecase := setupHandlerMux(t)
-		userID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
 		usecase.EXPECT().UpdateProfile(mock.Anything, userID, "Jane", "", (*string)(nil)).
 			Return(nil, errs.ErrNotFound)
 
@@ -249,7 +249,7 @@ func TestHandler_Update(t *testing.T) {
 func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 	t.Parallel()
 
-	userID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
 	deletedAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	got := toUserResponse(&domain.User{

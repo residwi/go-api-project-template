@@ -191,14 +191,14 @@ func registerProbeUser(t *testing.T, handler http.Handler) string {
 func seedProbeSlug(t *testing.T) {
 	t.Helper()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(t.Context(),
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Route Probe Category', $2, true)`,
 		catID, probeSlug)
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(t.Context(), `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(t.Context(),
 		`INSERT INTO products (id, name, slug, description, price, currency, status)
 		 VALUES ($1, 'Route Probe Product', $2, 'seeded for route access probe', 1000, 'USD', 'published')`,

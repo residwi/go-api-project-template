@@ -34,7 +34,7 @@ func TestWebhookHandler_HandleWebhook(t *testing.T) {
 
 		body, err := json.Marshal(map[string]any{
 			"event":    "success",
-			"metadata": map[string]any{"payment_id": uuid.New().String()},
+			"metadata": map[string]any{"payment_id": uuid.Must(uuid.NewV7()).String()},
 		})
 		require.NoError(t, err)
 

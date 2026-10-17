@@ -58,7 +58,7 @@ func TestRepository_GetBySlug(t *testing.T) {
 func TestRepository_GetImagesByProductID(t *testing.T) {
 	t.Run("serves the second call from the cache", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{images: []domain.Image{{ProductID: id, URL: "a.png"}}}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 
@@ -73,7 +73,7 @@ func TestRepository_GetImagesByProductID(t *testing.T) {
 
 	t.Run("drops a corrupt entry and reloads", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{images: []domain.Image{{ProductID: id, URL: "a.png"}}}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 		require.NoError(t, testRedisClient.Set(
@@ -90,7 +90,7 @@ func TestRepository_GetImagesByProductID(t *testing.T) {
 func TestRepository_Invalidation(t *testing.T) {
 	t.Run("Delete drops the key held under the product's slug", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{product: &domain.Product{ID: id, Slug: "mug", Name: "Mug"}}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 
@@ -105,7 +105,7 @@ func TestRepository_Invalidation(t *testing.T) {
 
 	t.Run("Update drops both the old and the new slug", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{product: &domain.Product{ID: id, Slug: "mug", Name: "Mug"}}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 

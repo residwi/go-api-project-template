@@ -24,7 +24,7 @@ import (
 // This package shares test_user with every other user postgres access in
 // the module; see the registry comment in internal/testutil. It never
 // resets or truncates -- every row it touches is seeded here with a fresh
-// uuid.New() and cleaned up by name.
+// uuid.Must(uuid.NewV7()) and cleaned up by name.
 
 var testPool *pgxpool.Pool
 
@@ -39,7 +39,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 	t.Run("creates user", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 		u := &domain.User{
-			Email:        uuid.New().String() + "@example.com",
+			Email:        uuid.Must(uuid.NewV7()).String() + "@example.com",
 			PasswordHash: "hashed",
 			FirstName:    "John",
 			LastName:     "Doe",
@@ -87,7 +87,7 @@ func TestPostgresRepository_GetByID(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		_, err := repo.GetByID(context.Background(), uuid.New())
+		_, err := repo.GetByID(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -106,14 +106,14 @@ func TestPostgresRepository_GetByEmail(t *testing.T) {
 	t.Run("returns not found", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		_, err := repo.GetByEmail(context.Background(), "nobody-"+uuid.New().String()+"@nowhere.example")
+		_, err := repo.GetByEmail(context.Background(), "nobody-"+uuid.Must(uuid.NewV7()).String()+"@nowhere.example")
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
 
 func TestPostgresRepository_ListAdmin(t *testing.T) {
 	t.Run("returns the users this subtest seeded", func(t *testing.T) {
-		token := "listadmin-" + uuid.New().String()[:8]
+		token := "listadmin-" + uuid.Must(uuid.NewV7()).String()[28:]
 		u1 := seedUserWithEmailToken(t, token)
 		u2 := seedUserWithEmailToken(t, token)
 		repo := New(database.DB{Primary: testPool})
@@ -138,7 +138,7 @@ func TestPostgresRepository_ListAdmin(t *testing.T) {
 	// raw page number (or dropped the -1) would return the wrong row while
 	// still returning one row and the right total.
 	t.Run("page 2 skips the first page's rows", func(t *testing.T) {
-		token := "page2-" + uuid.New().String()[:8]
+		token := "page2-" + uuid.Must(uuid.NewV7()).String()[28:]
 		seedUserWithEmailToken(t, token)
 		seedUserWithEmailToken(t, token)
 		seedUserWithEmailToken(t, token)
@@ -239,7 +239,7 @@ func TestPostgresRepository_UpdateProfile(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		u := &domain.User{
-			ID:        uuid.New(),
+			ID:        uuid.Must(uuid.NewV7()),
 			FirstName: "Ghost",
 			LastName:  "User",
 			Role:      "user",
@@ -275,7 +275,7 @@ func TestPostgresRepository_Delete(t *testing.T) {
 
 	t.Run("reports not applied for nonexistent user", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
-		applied, err := repo.Delete(context.Background(), uuid.New())
+		applied, err := repo.Delete(context.Background(), uuid.Must(uuid.NewV7()))
 		require.NoError(t, err)
 		assert.False(t, applied)
 	})
@@ -469,7 +469,7 @@ func TestPostgresRepository_IncrementTokenVersion(t *testing.T) {
 	t.Run("returns not found for missing user", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		err := repo.IncrementTokenVersion(context.Background(), uuid.New())
+		err := repo.IncrementTokenVersion(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -481,7 +481,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Create returns error on cancelled context", func(t *testing.T) {
 		u := &domain.User{
-			Email:        uuid.New().String() + "@example.com",
+			Email:        uuid.Must(uuid.NewV7()).String() + "@example.com",
 			PasswordHash: "hashed",
 			FirstName:    "Test",
 			LastName:     "User",
@@ -494,7 +494,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("GetByID returns error on cancelled context", func(t *testing.T) {
-		_, err := repo.GetByID(ctx, uuid.New())
+		_, err := repo.GetByID(ctx, uuid.Must(uuid.NewV7()))
 		require.Error(t, err)
 		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
@@ -512,7 +512,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 
 	t.Run("Update returns error on cancelled context", func(t *testing.T) {
 		u := &domain.User{
-			ID:        uuid.New(),
+			ID:        uuid.Must(uuid.NewV7()),
 			FirstName: "Test",
 			LastName:  "User",
 			Role:      "user",
@@ -524,7 +524,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("Delete returns error on cancelled context", func(t *testing.T) {
-		_, err := repo.Delete(ctx, uuid.New())
+		_, err := repo.Delete(ctx, uuid.Must(uuid.NewV7()))
 		require.Error(t, err)
 		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
@@ -535,7 +535,7 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 
 	t.Run("IncrementTokenVersion returns error on cancelled context", func(t *testing.T) {
-		err := repo.IncrementTokenVersion(ctx, uuid.New())
+		err := repo.IncrementTokenVersion(ctx, uuid.Must(uuid.NewV7()))
 		require.Error(t, err)
 		assert.NotErrorIs(t, err, errs.ErrNotFound)
 	})
@@ -556,7 +556,7 @@ func seedUser(t *testing.T) *domain.User {
 // itself, regardless of what else test_user holds.
 func seedUserWithEmailToken(t *testing.T, token string) *domain.User {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	email := token + "-" + id.String() + "@test.com"
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO users (id, email, password_hash, first_name, last_name, role)
@@ -599,7 +599,7 @@ func withAdminFixture(t *testing.T, fn func(ctx context.Context, repo *Repositor
 func seedAdmin(ctx context.Context, t *testing.T, active bool) uuid.UUID {
 	t.Helper()
 
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := database.PrimaryDB(ctx, database.DB{Primary: testPool}).Exec(ctx,
 		`INSERT INTO users (id, email, password_hash, first_name, last_name, role, active)
 		 VALUES ($1, $2, 'x', 'Admin', 'User', 'admin', $3)`,

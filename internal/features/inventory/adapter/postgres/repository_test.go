@@ -59,7 +59,7 @@ func TestPostgresRepository_AdjustStock(t *testing.T) {
 	// upsert is the only way to recover a product whose EnsureLevel never ran.
 	t.Run("succeeds against a product with no level row", func(t *testing.T) {
 		ctx := context.Background()
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		_, err := testPool.Exec(ctx,
 			`INSERT INTO products (id, name, slug, description, price, currency)
 			 VALUES ($1, 'Levelless', $2, 'desc', 1000, 'USD')`,
@@ -83,7 +83,7 @@ func TestPostgresRepository_AdjustStock_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.AdjustStock(ctx, uuid.New(), 10)
+		_, err := repo.AdjustStock(ctx, uuid.Must(uuid.NewV7()), 10)
 		assert.Error(t, err)
 	})
 }
@@ -104,7 +104,7 @@ func TestPostgresRepository_Restock(t *testing.T) {
 	t.Run("returns not found for unknown product", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		_, err := repo.Restock(context.Background(), uuid.New(), 5)
+		_, err := repo.Restock(context.Background(), uuid.Must(uuid.NewV7()), 5)
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -115,7 +115,7 @@ func TestPostgresRepository_Restock_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.Restock(ctx, uuid.New(), 1)
+		_, err := repo.Restock(ctx, uuid.Must(uuid.NewV7()), 1)
 		assert.Error(t, err)
 	})
 }
@@ -125,7 +125,7 @@ func TestPostgresRepository_EnsureLevel(t *testing.T) {
 		ctx := context.Background()
 		repo := New(database.DB{Primary: testPool})
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		_, err := testPool.Exec(ctx,
 			`INSERT INTO products (id, name, slug, description, price, currency)
 			 VALUES ($1, 'Product', $2, 'desc', 1000, 'USD')`,
@@ -163,7 +163,7 @@ func TestPostgresRepository_EnsureLevel_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		err := repo.EnsureLevel(ctx, uuid.New())
+		err := repo.EnsureLevel(ctx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 }
@@ -184,7 +184,7 @@ func TestPostgresRepository_GetStock(t *testing.T) {
 	t.Run("returns not found for unknown product", func(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
-		_, err := repo.GetStock(context.Background(), uuid.New())
+		_, err := repo.GetStock(context.Background(), uuid.Must(uuid.NewV7()))
 		assert.ErrorIs(t, err, errs.ErrNotFound)
 	})
 }
@@ -195,7 +195,7 @@ func TestPostgresRepository_GetStock_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.GetStock(ctx, uuid.New())
+		_, err := repo.GetStock(ctx, uuid.Must(uuid.NewV7()))
 		assert.Error(t, err)
 	})
 }
@@ -219,7 +219,7 @@ func TestPostgresRepository_GetLevels(t *testing.T) {
 		repo := New(database.DB{Primary: testPool})
 
 		id := seedProduct(t)
-		missing := uuid.New()
+		missing := uuid.Must(uuid.NewV7())
 
 		levels, err := repo.GetLevels(context.Background(), []uuid.UUID{id, missing})
 		require.NoError(t, err)
@@ -243,7 +243,7 @@ func TestPostgresRepository_GetLevels_CancelledContext(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		_, err := repo.GetLevels(ctx, []uuid.UUID{uuid.New()})
+		_, err := repo.GetLevels(ctx, []uuid.UUID{uuid.Must(uuid.NewV7())})
 		assert.Error(t, err)
 	})
 }
@@ -386,7 +386,7 @@ func arrangeReservation(t *testing.T, productID uuid.UUID, qty int) {
 // slices sharing this database used before they merged into one package.
 func seedProduct(t *testing.T) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
+	id := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO products (id, name, slug, description, price, currency)
 		 VALUES ($1, 'Product', $2, 'desc', 1000, 'USD')`,

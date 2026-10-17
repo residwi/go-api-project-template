@@ -25,18 +25,18 @@ func TestE2EOrderFlow(t *testing.T) {
 	handler := newTestRouter(testPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'E2E Cat', $2, true)`,
-		catID, "e2e-cat-"+catID.String()[:8])
+		catID, "e2e-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'E2E Product', $2, 'desc', 5000, 'USD', 'published', $3)`,
-		prodID, "e2e-prod-"+prodID.String()[:8], catID)
+		prodID, "e2e-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -108,7 +108,7 @@ func TestE2EOrderFlow(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
-		req.Header.Set("Idempotency-Key", uuid.New().String())
+		req.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusCreated, w.Code)
@@ -128,18 +128,18 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 	handler := newTestRouter(testPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Cancel Cat', $2, true)`,
-		catID, "cancel-cat-"+catID.String()[:8])
+		catID, "cancel-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'Cancel Product', $2, 'desc', 3000, 'USD', 'published', $3)`,
-		prodID, "cancel-prod-"+prodID.String()[:8], catID)
+		prodID, "cancel-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -192,7 +192,7 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
-	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderReq.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 	orderW := httptest.NewRecorder()
 	handler.ServeHTTP(orderW, orderReq)
 	require.Equal(t, http.StatusCreated, orderW.Code)
@@ -226,20 +226,20 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Coupon Cat', $2, true)`,
-		catID, "coupon-cat-"+catID.String()[:8])
+		catID, "coupon-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	// 1110 less 10% is 999, and 99 mod 100 makes the mock gateway decline: the order
 	// stays awaiting_payment, which is the only state it can be cancelled from.
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'Coupon Product', $2, 'desc', 1110, 'USD', 'published', $3)`,
-		prodID, "coupon-prod-"+prodID.String()[:8], catID)
+		prodID, "coupon-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -247,8 +247,8 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	})
 	seedInventoryLevel(t, prodID, 50, 0)
 
-	couponID := uuid.New()
-	couponCode := "TESTCOUPON" + couponID.String()[:8]
+	couponID := uuid.Must(uuid.NewV7())
+	couponCode := "TESTCOUPON" + couponID.String()[28:]
 	maxUses := 100
 	_, err = testPool.Exec(
 		ctx,
@@ -317,7 +317,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	orderReq := httptest.NewRequest(http.MethodPost, "/api/checkout", strings.NewReader(orderBody))
 	orderReq.Header.Set("Content-Type", "application/json")
 	orderReq.Header.Set("Authorization", "Bearer "+token)
-	orderReq.Header.Set("Idempotency-Key", uuid.New().String())
+	orderReq.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 	orderW := httptest.NewRecorder()
 	handler.ServeHTTP(orderW, orderReq)
 	require.Equal(t, http.StatusCreated, orderW.Code)

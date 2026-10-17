@@ -30,7 +30,7 @@ func TestService_Charge(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	orderID := uuid.New()
+	orderID := uuid.Must(uuid.NewV7())
 	req := ChargeRequest{
 		OrderID:         orderID,
 		Amount:          money.New(10000, "USD"),
@@ -50,7 +50,7 @@ func TestService_Charge(t *testing.T) {
 		var capturedPayment *domain.Payment
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
 			Run(func(_ context.Context, p *domain.Payment) {
-				p.ID = uuid.New()
+				p.ID = uuid.Must(uuid.NewV7())
 				capturedPayment = p
 			}).
 			Return(nil)
@@ -87,7 +87,7 @@ func TestService_Charge(t *testing.T) {
 			Return(nil)
 		d.orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 2}, nil)
 		d.inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
@@ -111,7 +111,7 @@ func TestService_Charge(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		existingID := uuid.New()
+		existingID := uuid.Must(uuid.NewV7())
 		existing := &domain.Payment{
 			ID:              existingID,
 			OrderID:         orderID,
@@ -150,7 +150,7 @@ func TestService_Charge(t *testing.T) {
 			Return(nil)
 		d.orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 		d.inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
@@ -174,7 +174,7 @@ func TestService_Charge(t *testing.T) {
 		var createdID uuid.UUID
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
 			Run(func(_ context.Context, p *domain.Payment) {
-				p.ID = uuid.New()
+				p.ID = uuid.Must(uuid.NewV7())
 				createdID = p.ID
 			}).
 			Return(nil)
@@ -211,7 +211,7 @@ func TestService_Charge(t *testing.T) {
 
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
 			Run(func(_ context.Context, p *domain.Payment) {
-				p.ID = uuid.New()
+				p.ID = uuid.Must(uuid.NewV7())
 			}).
 			Return(nil)
 
@@ -242,7 +242,7 @@ func TestService_Charge(t *testing.T) {
 		var createdID uuid.UUID
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
 			Run(func(_ context.Context, p *domain.Payment) {
-				p.ID = uuid.New()
+				p.ID = uuid.Must(uuid.NewV7())
 				createdID = p.ID
 			}).
 			Return(nil)
@@ -294,7 +294,7 @@ func TestService_Charge_UpdateGatewayError(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	orderID := uuid.New()
+	orderID := uuid.Must(uuid.NewV7())
 	req := ChargeRequest{
 		OrderID:         orderID,
 		Amount:          money.New(10000, "USD"),
@@ -312,7 +312,7 @@ func TestService_Charge_UpdateGatewayError(t *testing.T) {
 		var capturedPayment *domain.Payment
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
 			Run(func(_ context.Context, p *domain.Payment) {
-				p.ID = uuid.New()
+				p.ID = uuid.Must(uuid.NewV7())
 				capturedPayment = p
 			}).
 			Return(nil)
@@ -345,7 +345,7 @@ func TestService_Charge_UpdateGatewayError(t *testing.T) {
 			Return(nil)
 		d.orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 		d.inventory.EXPECT().Deduct(mock.Anything, mock.Anything).
@@ -367,7 +367,7 @@ func TestService_Charge_UpdateGatewayError(t *testing.T) {
 
 		d.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Payment")).
 			Run(func(_ context.Context, p *domain.Payment) {
-				p.ID = uuid.New()
+				p.ID = uuid.Must(uuid.NewV7())
 			}).
 			Return(nil)
 
@@ -402,8 +402,8 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:      paymentID,
@@ -432,7 +432,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		d.orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 3}, nil)
 
@@ -449,8 +449,8 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -476,8 +476,8 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -503,8 +503,8 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -541,8 +541,8 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -589,8 +589,8 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -618,7 +618,7 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		d.orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
@@ -636,8 +636,8 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{}, errors.New("db down"))
@@ -653,8 +653,8 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		d.orders.EXPECT().Snapshot(mock.Anything, orderID).
 			Return(order.Snapshot{
@@ -675,8 +675,8 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -723,8 +723,8 @@ func TestService_FinalizeSuccess(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -770,8 +770,8 @@ func TestService_FinalizeSuccess_MultipleItems(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -799,8 +799,8 @@ func TestService_FinalizeSuccess_MultipleItems(t *testing.T) {
 		d.orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
 
-		productID1 := uuid.New()
-		productID2 := uuid.New()
+		productID1 := uuid.Must(uuid.NewV7())
+		productID2 := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID2: 1, productID1: 2}, nil)
 
@@ -822,8 +822,8 @@ func TestService_Refund(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:      paymentID,
@@ -846,8 +846,8 @@ func TestService_Refund(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:      paymentID,
@@ -870,7 +870,7 @@ func TestService_Refund(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -891,7 +891,7 @@ func TestService_Refund(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -912,7 +912,7 @@ func TestService_Refund(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).
 			Return(nil, errs.ErrNotFound)
@@ -933,8 +933,8 @@ func TestService_SettleRefund(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:           paymentID,
@@ -961,7 +961,7 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().MarkRefunded(mock.Anything, orderID).
 			Return(nil)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 2}, nil)
 
@@ -984,8 +984,8 @@ func TestService_SettleRefund(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:           paymentID,
@@ -1012,7 +1012,7 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().MarkRefunded(mock.Anything, orderID).
 			Return(nil)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 5}, nil)
 
@@ -1031,8 +1031,8 @@ func TestService_SettleRefund(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -1051,8 +1051,8 @@ func TestService_SettleRefund(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -1071,8 +1071,8 @@ func TestService_SettleRefund(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().GetByID(mock.Anything, paymentID).
 			Return(nil, errors.New("not found"))
@@ -1086,8 +1086,8 @@ func TestService_SettleRefund(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:           paymentID,
@@ -1113,8 +1113,8 @@ func TestService_SettleRefund(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:           paymentID,
@@ -1153,8 +1153,8 @@ func TestService_SettleRefund(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:           paymentID,
@@ -1177,8 +1177,8 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().MarkRefunded(mock.Anything, orderID).
 			Return(nil)
 
-		productID1 := uuid.New()
-		productID2 := uuid.New()
+		productID1 := uuid.Must(uuid.NewV7())
+		productID2 := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID2: 1, productID1: 2}, nil)
 
@@ -1198,8 +1198,8 @@ func TestService_SettleRefund(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:           paymentID,
@@ -1222,7 +1222,7 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().MarkRefunded(mock.Anything, orderID).
 			Return(nil)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
@@ -1242,8 +1242,8 @@ func TestService_SettleRefund(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:           paymentID,
@@ -1266,7 +1266,7 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().MarkRefunded(mock.Anything, orderID).
 			Return(nil)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
@@ -1286,8 +1286,8 @@ func TestService_SettleRefund(t *testing.T) {
 		ctx := context.Background()
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:           paymentID,
@@ -1310,7 +1310,7 @@ func TestService_SettleRefund(t *testing.T) {
 		d.orders.EXPECT().MarkRefunded(mock.Anything, orderID).
 			Return(nil)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
@@ -1345,8 +1345,8 @@ func TestService_HandleWebhook(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:      paymentID,
@@ -1375,8 +1375,8 @@ func TestService_HandleWebhook(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:      paymentID,
@@ -1419,8 +1419,8 @@ func TestService_HandleWebhook(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:      paymentID,
@@ -1463,7 +1463,7 @@ func TestService_HandleWebhook(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		unknownID := uuid.New()
+		unknownID := uuid.Must(uuid.NewV7())
 
 		d.repo.EXPECT().GetByID(mock.Anything, unknownID).
 			Return(nil, errs.ErrNotFound)
@@ -1485,7 +1485,7 @@ func TestService_HandleWebhook(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:     paymentID,
@@ -1535,8 +1535,8 @@ func TestService_HandleWebhook(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 		amount := money.New(10000, "USD")
 
 		p := &domain.Payment{
@@ -1566,7 +1566,7 @@ func TestService_HandleWebhook(t *testing.T) {
 		d.orders.EXPECT().MarkPaid(mock.Anything, orderID).
 			Return(nil)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		d.orders.EXPECT().ListItemQuantities(mock.Anything, orderID).
 			Return(map[uuid.UUID]int{productID: 1}, nil)
 
@@ -1591,8 +1591,8 @@ func TestService_HandleWebhook(t *testing.T) {
 
 		svc, d := newTestService(t)
 
-		paymentID := uuid.New()
-		orderID := uuid.New()
+		paymentID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		p := &domain.Payment{
 			ID:      paymentID,
@@ -1644,7 +1644,7 @@ func TestService_HandleWebhook_SignatureVerification(t *testing.T) {
 		// Unknown payment id: HandleWebhook no-ops and returns nil, which is
 		// enough to prove the signature check passed and the body reached the
 		// rest of the method.
-		unknownID := uuid.New()
+		unknownID := uuid.Must(uuid.NewV7())
 		d.repo.EXPECT().GetByID(mock.Anything, unknownID).Return(nil, errs.ErrNotFound)
 
 		body := marshal(t, map[string]any{

@@ -49,20 +49,20 @@ func TestE2ERetryPaymentRace(t *testing.T) {
 	handler := newTestRouter(customPaymentCfg)
 	ctx := context.Background()
 
-	catID := uuid.New()
+	catID := uuid.Must(uuid.NewV7())
 	_, err := testPool.Exec(ctx,
 		`INSERT INTO categories (id, name, slug, active) VALUES ($1, 'Race Cat', $2, true)`,
-		catID, "race-cat-"+catID.String()[:8])
+		catID, "race-cat-"+catID.String()[28:])
 	require.NoError(t, err)
 	t.Cleanup(func() { testPool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, catID) })
 
 	// 1099 ends in 99, so the mock gateway rejects every charge and the order is
 	// left awaiting_payment -- retryable, which is the state this race needs.
-	prodID := uuid.New()
+	prodID := uuid.Must(uuid.NewV7())
 	_, err = testPool.Exec(ctx,
 		`INSERT INTO products (id, name, slug, description, price, currency, status, category_id)
 		 VALUES ($1, 'Race Product', $2, 'desc', 1099, 'USD', 'published', $3)`,
-		prodID, "race-prod-"+prodID.String()[:8], catID)
+		prodID, "race-prod-"+prodID.String()[28:], catID)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		testPool.Exec(ctx, `DELETE FROM inventory_levels WHERE product_id = $1`, prodID)
@@ -85,7 +85,7 @@ func TestE2ERetryPaymentRace(t *testing.T) {
 		strings.NewReader(`{"payment_method_id":"pm_test_race"}`))
 	placeReq.Header.Set("Content-Type", "application/json")
 	placeReq.Header.Set("Authorization", "Bearer "+token)
-	placeReq.Header.Set("Idempotency-Key", uuid.New().String())
+	placeReq.Header.Set("Idempotency-Key", uuid.Must(uuid.NewV7()).String())
 	placeW := httptest.NewRecorder()
 	handler.ServeHTTP(placeW, placeReq)
 	require.Equal(t, http.StatusCreated, placeW.Code)

@@ -1,6 +1,6 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS notifications (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id         UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type       TEXT NOT NULL,
     title      TEXT NOT NULL,
@@ -14,7 +14,7 @@ CREATE INDEX idx_notifications_user_feed ON notifications(user_id, created_at DE
 CREATE INDEX idx_notifications_unread ON notifications(user_id) WHERE is_read = false;
 
 CREATE TABLE IF NOT EXISTS notification_jobs (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id           UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type         TEXT NOT NULL,
     title        TEXT NOT NULL,

@@ -87,7 +87,7 @@ func TestRepository_GetByCode(t *testing.T) {
 func TestRepository_Invalidation(t *testing.T) {
 	t.Run("Delete drops the key held under the promotion's code", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{promo: &domain.Promotion{ID: id, Code: "SAVE10", Value: 10}}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 
@@ -102,7 +102,7 @@ func TestRepository_Invalidation(t *testing.T) {
 
 	t.Run("Update drops both the old and the new code", func(t *testing.T) {
 		require.NoError(t, testRedisClient.FlushDB(context.Background()).Err())
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 		stub := &stubRepo{promo: &domain.Promotion{ID: id, Code: "SAVE10", Value: 10}}
 		repo := New(stub, testRedisClient, testutil.DiscardLogger())
 

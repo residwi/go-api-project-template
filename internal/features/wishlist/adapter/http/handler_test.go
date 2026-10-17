@@ -77,7 +77,7 @@ func TestHandler_Add(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Add(mock.Anything, uc.UserID, productID).Return(nil)
 
 		body, _ := json.Marshal(map[string]any{"product_id": productID})
@@ -95,7 +95,7 @@ func TestHandler_Add(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Add(mock.Anything, uc.UserID, productID).Return(assert.AnError)
 
 		body, _ := json.Marshal(map[string]any{"product_id": productID})
@@ -135,7 +135,7 @@ func TestHandler_List(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		items := []domain.Item{{ID: uuid.New(), ProductID: uuid.New()}}
+		items := []domain.Item{{ID: uuid.Must(uuid.NewV7()), ProductID: uuid.Must(uuid.NewV7())}}
 		service.EXPECT().List(mock.Anything, uc.UserID, mock.Anything).Return(items, nil)
 
 		r := httptest.NewRequest(http.MethodGet, "/api/v1/wishlist", nil)
@@ -159,8 +159,8 @@ func TestHandler_List(t *testing.T) {
 		items := make([]domain.Item, 21)
 		for i := range items {
 			items[i] = domain.Item{
-				ID:        uuid.New(),
-				ProductID: uuid.New(),
+				ID:        uuid.Must(uuid.NewV7()),
+				ProductID: uuid.Must(uuid.NewV7()),
 				CreatedAt: now.Add(-time.Duration(i) * time.Minute),
 			}
 		}
@@ -210,7 +210,7 @@ func TestHandler_Remove(t *testing.T) {
 
 		mux, _, _ := setupMux(t)
 
-		r := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlist/items/"+uuid.NewString(), nil)
+		r := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlist/items/"+uuid.Must(uuid.NewV7()).String(), nil)
 		w := httptest.NewRecorder()
 
 		mux.ServeHTTP(w, r)
@@ -242,7 +242,7 @@ func TestHandler_Remove(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Remove(mock.Anything, uc.UserID, productID).Return(nil)
 
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlist/items/"+productID.String(), nil)
@@ -259,7 +259,7 @@ func TestHandler_Remove(t *testing.T) {
 
 		mux, service, uc := setupMux(t)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		service.EXPECT().Remove(mock.Anything, uc.UserID, productID).Return(errs.ErrNotFound)
 
 		r := httptest.NewRequest(http.MethodDelete, "/api/v1/wishlist/items/"+productID.String(), nil)
@@ -275,7 +275,7 @@ func TestHandler_Remove(t *testing.T) {
 func TestToItemResponse_OmitsInternalFields(t *testing.T) {
 	t.Parallel()
 
-	itemID, productID, listID := uuid.New(), uuid.New(), uuid.New()
+	itemID, productID, listID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	created := time.Date(2026, 7, 25, 12, 0, 0, 0, time.UTC)
 
 	got := toItemResponse(domain.Item{
@@ -309,7 +309,7 @@ func setupMux(t *testing.T) (*http.ServeMux, *MockWishlistManager, identity.Iden
 	authed.HandleFunc("DELETE /wishlist/items/{product_id}", h.Remove)
 
 	uc := identity.Identity{
-		UserID: uuid.New(),
+		UserID: uuid.Must(uuid.NewV7()),
 		Role:   "user",
 	}
 

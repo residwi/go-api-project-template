@@ -107,7 +107,7 @@ func TestTxRunner_Run(t *testing.T) {
 
 	t.Run("commits when fn returns nil", func(t *testing.T) {
 		ctx := context.Background()
-		email := "txrunner-commit-" + uuid.NewString() + "@example.com"
+		email := "txrunner-commit-" + uuid.Must(uuid.NewV7()).String() + "@example.com"
 
 		err := runner.Run(ctx, func(txCtx context.Context) error {
 			_, err := PrimaryDB(txCtx, DB{Primary: pool}).Exec(txCtx,
@@ -125,7 +125,7 @@ func TestTxRunner_Run(t *testing.T) {
 
 	t.Run("rolls back when fn returns an error", func(t *testing.T) {
 		ctx := context.Background()
-		email := "txrunner-rollback-" + uuid.NewString() + "@example.com"
+		email := "txrunner-rollback-" + uuid.Must(uuid.NewV7()).String() + "@example.com"
 		sentinel := errors.New("boom")
 
 		err := runner.Run(ctx, func(txCtx context.Context) error {
@@ -146,7 +146,7 @@ func TestTxRunner_Run(t *testing.T) {
 
 	t.Run("nested Run reuses the outer transaction", func(t *testing.T) {
 		ctx := context.Background()
-		email := "txrunner-nested-" + uuid.NewString() + "@example.com"
+		email := "txrunner-nested-" + uuid.Must(uuid.NewV7()).String() + "@example.com"
 		sentinel := errors.New("outer fails")
 
 		err := runner.Run(ctx, func(outerCtx context.Context) error {

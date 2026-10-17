@@ -24,9 +24,9 @@ func TestService_Create(t *testing.T) {
 		purchase := NewMockPurchaseVerifier(t)
 		svc := New(repo, purchase)
 
-		userID := uuid.New()
-		productID := uuid.New()
-		orderID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
+		orderID := uuid.Must(uuid.NewV7())
 
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, orderID, productID).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, nil)
@@ -60,12 +60,12 @@ func TestService_Create(t *testing.T) {
 		purchase := NewMockPurchaseVerifier(t)
 		svc := New(repo, purchase)
 
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(false, nil)
 
-		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 4, "Good", "")
+		result, err := svc.Create(t.Context(), userID, productID, uuid.Must(uuid.NewV7()), 4, "Good", "")
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, errs.ErrBadRequest)
@@ -78,13 +78,13 @@ func TestService_Create(t *testing.T) {
 		purchase := NewMockPurchaseVerifier(t)
 		svc := New(repo, purchase)
 
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		verifyErr := errors.New("purchase check failed")
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(false, verifyErr)
 
-		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 5, "Great", "")
+		result, err := svc.Create(t.Context(), userID, productID, uuid.Must(uuid.NewV7()), 5, "Great", "")
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, verifyErr)
 	})
@@ -96,14 +96,14 @@ func TestService_Create(t *testing.T) {
 		purchase := NewMockPurchaseVerifier(t)
 		svc := New(repo, purchase)
 
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
 		dbErr := errors.New("database error")
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, dbErr)
 
-		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 4, "Good", "")
+		result, err := svc.Create(t.Context(), userID, productID, uuid.Must(uuid.NewV7()), 4, "Good", "")
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, dbErr)
 	})
@@ -115,15 +115,15 @@ func TestService_Create(t *testing.T) {
 		purchase := NewMockPurchaseVerifier(t)
 		svc := New(repo, purchase)
 
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(false, nil)
 		createErr := errors.New("insert failed")
 		repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("*domain.Review")).Return(createErr)
 
-		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 3, "OK", "")
+		result, err := svc.Create(t.Context(), userID, productID, uuid.Must(uuid.NewV7()), 3, "OK", "")
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, createErr)
 	})
@@ -135,13 +135,13 @@ func TestService_Create(t *testing.T) {
 		purchase := NewMockPurchaseVerifier(t)
 		svc := New(repo, purchase)
 
-		userID := uuid.New()
-		productID := uuid.New()
+		userID := uuid.Must(uuid.NewV7())
+		productID := uuid.Must(uuid.NewV7())
 
 		purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, mock.Anything, productID).Return(true, nil)
 		repo.EXPECT().HasUserReviewed(mock.Anything, userID, productID).Return(true, nil)
 
-		result, err := svc.Create(t.Context(), userID, productID, uuid.New(), 3, "OK", "")
+		result, err := svc.Create(t.Context(), userID, productID, uuid.Must(uuid.NewV7()), 3, "OK", "")
 		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.ErrorIs(t, err, errs.ErrConflict)
@@ -159,9 +159,9 @@ func TestService_Create_PassesArgumentsInOrder(t *testing.T) {
 	purchase := NewMockPurchaseVerifier(t)
 	svc := New(repo, purchase)
 
-	userID := uuid.New()
-	productID := uuid.New()
-	orderID := uuid.New()
+	userID := uuid.Must(uuid.NewV7())
+	productID := uuid.Must(uuid.NewV7())
+	orderID := uuid.Must(uuid.NewV7())
 
 	purchase.EXPECT().HasDeliveredOrder(mock.Anything, userID, orderID, productID).Return(false, nil)
 
@@ -179,11 +179,11 @@ func TestService_ListByProduct(t *testing.T) {
 		var purchase PurchaseVerifier
 		svc := New(repo, purchase)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		cursor := paging.CursorPage{Limit: 20}
 		expected := []domain.Review{
-			{ID: uuid.New(), ProductID: productID, Rating: 5, Title: "Great"},
-			{ID: uuid.New(), ProductID: productID, Rating: 4, Title: "Good"},
+			{ID: uuid.Must(uuid.NewV7()), ProductID: productID, Rating: 5, Title: "Great"},
+			{ID: uuid.Must(uuid.NewV7()), ProductID: productID, Rating: 4, Title: "Good"},
 		}
 
 		repo.EXPECT().ListByProduct(mock.Anything, productID, cursor).Return(expected, nil)
@@ -200,7 +200,7 @@ func TestService_ListByProduct(t *testing.T) {
 		var purchase PurchaseVerifier
 		svc := New(repo, purchase)
 
-		productID := uuid.New()
+		productID := uuid.Must(uuid.NewV7())
 		cursor := paging.CursorPage{Limit: 20}
 		dbErr := errors.New("query failed")
 
@@ -222,7 +222,7 @@ func TestService_Delete(t *testing.T) {
 		var purchase PurchaseVerifier
 		svc := New(repo, purchase)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().Delete(mock.Anything, id).Return(nil)
 
@@ -237,7 +237,7 @@ func TestService_Delete(t *testing.T) {
 		var purchase PurchaseVerifier
 		svc := New(repo, purchase)
 
-		id := uuid.New()
+		id := uuid.Must(uuid.NewV7())
 
 		repo.EXPECT().Delete(mock.Anything, id).Return(errs.ErrNotFound)
 
