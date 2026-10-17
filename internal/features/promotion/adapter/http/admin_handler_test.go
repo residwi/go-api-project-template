@@ -104,6 +104,33 @@ func TestAdminHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
+	t.Run("rejects a code with characters outside A-Z, 0-9, _ and -", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupAdminMux(t)
+
+		startsAt := time.Now().Truncate(time.Second)
+		expiresAt := time.Now().Add(24 * time.Hour).Truncate(time.Second)
+		body, _ := json.Marshal(map[string]any{
+			"code":       "summer sale",
+			"type":       domain.TypePercentage,
+			"value":      10,
+			"starts_at":  startsAt,
+			"expires_at": expiresAt,
+		})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/admin/promotions", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.Equal(t, map[string]any{"code": "must contain only A-Z, 0-9, _ and -"}, resp.Error.Details)
+	})
+
 	t.Run("validation error missing fields", func(t *testing.T) {
 		t.Parallel()
 
@@ -226,6 +253,47 @@ func TestAdminHandler_Update(t *testing.T) {
 		mux.ServeHTTP(w, r)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("rejects a lower-case code", func(t *testing.T) {
+		t.Parallel()
+
+		mux, _ := setupAdminMux(t)
+
+		body, _ := json.Marshal(map[string]string{"code": "lower"})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/promotions/"+uuid.NewString(), bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		var resp response.Response
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		assert.Equal(t, map[string]any{"code": "must contain only A-Z, 0-9, _ and -"}, resp.Error.Details)
+	})
+
+	t.Run("accepts an update that leaves the code out", func(t *testing.T) {
+		t.Parallel()
+
+		mux, service := setupAdminMux(t)
+
+		id := uuid.New()
+		service.EXPECT().
+			Update(mock.Anything, id, "", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
+				mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(&domain.Promotion{ID: id, Code: "KEPT"}, nil)
+
+		body, _ := json.Marshal(map[string]bool{"active": false})
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPut, "/api/v1/admin/promotions/"+id.String(), bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+
+		mux.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("validation error invalid type value", func(t *testing.T) {

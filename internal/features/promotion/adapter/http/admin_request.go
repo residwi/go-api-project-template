@@ -6,6 +6,8 @@ import (
 	"github.com/residwi/go-api-project-template/internal/features/promotion/domain"
 )
 
+const invalidCodeMessage = "must contain only A-Z, 0-9, _ and -"
+
 type createPromotionRequest struct {
 	Code           string      `json:"code"             validate:"required,min=1,max=50"`
 	Type           domain.Type `json:"type"             validate:"required,oneof=percentage fixed_amount"`
@@ -18,6 +20,13 @@ type createPromotionRequest struct {
 	Active         bool        `json:"active"`
 }
 
+func (r *createPromotionRequest) Validate() map[string]string {
+	if !domain.IsValidCode(r.Code) {
+		return map[string]string{"code": invalidCodeMessage}
+	}
+	return nil
+}
+
 type updatePromotionRequest struct {
 	Code           string      `json:"code"             validate:"omitempty,min=1,max=50"`
 	Type           domain.Type `json:"type"             validate:"omitempty,oneof=percentage fixed_amount"`
@@ -28,4 +37,11 @@ type updatePromotionRequest struct {
 	StartsAt       *time.Time  `json:"starts_at"`
 	ExpiresAt      *time.Time  `json:"expires_at"`
 	Active         *bool       `json:"active"`
+}
+
+func (r *updatePromotionRequest) Validate() map[string]string {
+	if r.Code != "" && !domain.IsValidCode(r.Code) {
+		return map[string]string{"code": invalidCodeMessage}
+	}
+	return nil
 }

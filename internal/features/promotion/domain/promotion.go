@@ -43,6 +43,20 @@ type CouponUsage struct {
 	CreatedAt time.Time
 }
 
+func IsValidCode(code string) bool {
+	if code == "" {
+		return false
+	}
+	for _, c := range code {
+		switch {
+		case c >= 'A' && c <= 'Z', c >= '0' && c <= '9', c == '_', c == '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func ValidatePercentageValue(promoType Type, value int64) error {
 	if promoType == TypePercentage && value > 100 {
 		return fmt.Errorf("%w: percentage discount value cannot exceed 100", errs.ErrBadRequest)
