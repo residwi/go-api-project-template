@@ -1,8 +1,8 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS categories (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name        VARCHAR(255) NOT NULL,
-    slug        VARCHAR(255) NOT NULL UNIQUE,
+    name        TEXT NOT NULL,
+    slug        TEXT NOT NULL UNIQUE,
     description TEXT,
     parent_id   UUID REFERENCES categories(id),
     sort_order  INT NOT NULL DEFAULT 0,

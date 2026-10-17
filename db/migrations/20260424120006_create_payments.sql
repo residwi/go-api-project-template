@@ -3,12 +3,12 @@ CREATE TABLE IF NOT EXISTS payments (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id          UUID NOT NULL REFERENCES orders(id),
     amount            BIGINT NOT NULL,
-    currency          VARCHAR(3) NOT NULL DEFAULT 'USD',
-    status            VARCHAR(50) NOT NULL DEFAULT 'pending',
-    method            VARCHAR(50),
-    payment_method_id VARCHAR(255),
+    currency          TEXT NOT NULL DEFAULT 'USD',
+    status            TEXT NOT NULL DEFAULT 'pending',
+    method            TEXT,
+    payment_method_id TEXT,
     payment_url       TEXT,
-    gateway_txn_id    VARCHAR(255),
+    gateway_txn_id    TEXT,
     gateway_response  JSONB,
     paid_at           TIMESTAMPTZ,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS payments (
     CONSTRAINT payments_status_check CHECK (status IN (
         'pending', 'processing', 'success', 'failed', 'cancelled', 'requires_review', 'refunded'
     )),
+    CONSTRAINT payments_currency_check CHECK (currency ~ '^[A-Z]{3}$'),
     CONSTRAINT payments_amount_check CHECK (amount >= 0)
 );
 
@@ -29,8 +30,8 @@ CREATE TABLE IF NOT EXISTS payment_jobs (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     payment_id    UUID NOT NULL REFERENCES payments(id),
     order_id      UUID NOT NULL REFERENCES orders(id),
-    action        VARCHAR(50) NOT NULL DEFAULT 'charge',
-    status        VARCHAR(50) NOT NULL DEFAULT 'pending',
+    action        TEXT NOT NULL DEFAULT 'charge',
+    status        TEXT NOT NULL DEFAULT 'pending',
     attempts      INT NOT NULL DEFAULT 0,
     max_attempts  INT NOT NULL DEFAULT 3,
     last_error    TEXT,
@@ -39,7 +40,7 @@ CREATE TABLE IF NOT EXISTS payment_jobs (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    inventory_action VARCHAR(50),
+    inventory_action TEXT,
 
     CONSTRAINT payment_jobs_action_check CHECK (action IN ('charge', 'refund')),
     CONSTRAINT payment_jobs_inventory_action_check CHECK (inventory_action IS NULL OR inventory_action IN ('release', 'restock')),

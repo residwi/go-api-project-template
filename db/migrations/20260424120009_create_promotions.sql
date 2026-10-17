@@ -1,8 +1,8 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS promotions (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    code             VARCHAR(50) NOT NULL UNIQUE,
-    type             VARCHAR(50) NOT NULL,
+    code             TEXT NOT NULL UNIQUE,
+    type             TEXT NOT NULL,
     value            BIGINT NOT NULL,
     min_order_amount BIGINT DEFAULT 0,
     max_discount     BIGINT,

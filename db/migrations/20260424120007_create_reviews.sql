@@ -5,9 +5,9 @@ CREATE TABLE IF NOT EXISTS reviews (
     product_id UUID NOT NULL REFERENCES products(id),
     order_id   UUID NOT NULL REFERENCES orders(id),
     rating     INT NOT NULL,
-    title      VARCHAR(255),
+    title      TEXT,
     body       TEXT,
-    status     VARCHAR(50) NOT NULL DEFAULT 'published',
+    status     TEXT NOT NULL DEFAULT 'published',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 

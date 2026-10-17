@@ -1,15 +1,15 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS products (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name              VARCHAR(255) NOT NULL,
-    slug              VARCHAR(255) NOT NULL UNIQUE,
+    name              TEXT NOT NULL,
+    slug              TEXT NOT NULL UNIQUE,
     description       TEXT,
     price             BIGINT NOT NULL,
     compare_at_price  BIGINT,
-    currency          VARCHAR(3) NOT NULL DEFAULT 'USD',
-    sku               VARCHAR(100) UNIQUE,
+    currency          TEXT NOT NULL DEFAULT 'USD',
+    sku               TEXT UNIQUE,
     category_id       UUID REFERENCES categories(id),
-    status            VARCHAR(50) NOT NULL DEFAULT 'draft',
+    status            TEXT NOT NULL DEFAULT 'draft',
     stock_quantity    INT NOT NULL DEFAULT 0,
     reserved_quantity INT NOT NULL DEFAULT 0,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS products (
 
     CONSTRAINT products_status_check CHECK (status IN ('draft', 'published', 'archived')),
     CONSTRAINT products_price_check CHECK (price >= 0),
+    CONSTRAINT products_currency_check CHECK (currency ~ '^[A-Z]{3}$'),
     CONSTRAINT products_stock_check CHECK (stock_quantity >= 0),
     CONSTRAINT products_reserved_check CHECK (reserved_quantity >= 0 AND reserved_quantity <= stock_quantity)
 );
@@ -34,7 +35,7 @@ CREATE TABLE IF NOT EXISTS product_images (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     url        TEXT NOT NULL,
-    alt_text   VARCHAR(255),
+    alt_text   TEXT,
     sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -1,12 +1,12 @@
 -- +goose Up
 CREATE TABLE IF NOT EXISTS job_queue (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    queue         VARCHAR(50) NOT NULL,
-    kind          VARCHAR(100) NOT NULL,
+    queue         TEXT NOT NULL,
+    kind          TEXT NOT NULL,
     payload       JSONB NOT NULL,
     dedup_key     TEXT,
     group_key     TEXT,
-    status        VARCHAR(50) NOT NULL DEFAULT 'pending',
+    status        TEXT NOT NULL DEFAULT 'pending',
     attempts      INT NOT NULL DEFAULT 0,
     max_attempts  INT NOT NULL DEFAULT 3,
     last_error    TEXT,

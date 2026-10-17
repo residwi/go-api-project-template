@@ -2,9 +2,9 @@
 CREATE TABLE IF NOT EXISTS shipments (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id        UUID NOT NULL REFERENCES orders(id),
-    carrier         VARCHAR(100),
-    tracking_number VARCHAR(255),
-    status          VARCHAR(50) NOT NULL DEFAULT 'pending',
+    carrier         TEXT,
+    tracking_number TEXT,
+    status          TEXT NOT NULL DEFAULT 'pending',
     shipped_at      TIMESTAMPTZ,
     delivered_at    TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
