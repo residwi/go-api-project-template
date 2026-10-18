@@ -10,12 +10,14 @@ type CORSOptions struct {
 	AllowedOrigins []string
 	AllowedMethods []string
 	AllowedHeaders []string
+	ExposedHeaders []string
 	MaxAge         int
 }
 
 func CORS(opts CORSOptions) func(http.Handler) http.Handler {
 	allowMethods := strings.Join(opts.AllowedMethods, ",")
 	allowHeaders := strings.Join(opts.AllowedHeaders, ",")
+	exposeHeaders := strings.Join(opts.ExposedHeaders, ",")
 	maxAge := strconv.Itoa(opts.MaxAge)
 
 	allowAll := false
@@ -41,6 +43,7 @@ func CORS(opts CORSOptions) func(http.Handler) http.Handler {
 			}
 			w.Header().Set("Access-Control-Allow-Methods", allowMethods)
 			w.Header().Set("Access-Control-Allow-Headers", allowHeaders)
+			w.Header().Set("Access-Control-Expose-Headers", exposeHeaders)
 			w.Header().Set("Access-Control-Max-Age", maxAge)
 
 			if r.Method == http.MethodOptions {

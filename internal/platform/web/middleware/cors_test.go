@@ -13,6 +13,7 @@ func TestCORS_SetsHeadersFromConfig(t *testing.T) {
 		AllowedOrigins: []string{"https://example.com"},
 		AllowedMethods: []string{"GET", "POST"},
 		AllowedHeaders: []string{"Content-Type", "Authorization"},
+		ExposedHeaders: []string{"X-Request-ID", "Retry-After"},
 		MaxAge:         3600,
 	}
 
@@ -27,6 +28,7 @@ func TestCORS_SetsHeadersFromConfig(t *testing.T) {
 	assert.Equal(t, "https://example.com", rec.Header().Get("Access-Control-Allow-Origin"))
 	assert.Equal(t, "GET,POST", rec.Header().Get("Access-Control-Allow-Methods"))
 	assert.Equal(t, "Content-Type,Authorization", rec.Header().Get("Access-Control-Allow-Headers"))
+	assert.Equal(t, "X-Request-ID,Retry-After", rec.Header().Get("Access-Control-Expose-Headers"))
 	assert.Equal(t, "3600", rec.Header().Get("Access-Control-Max-Age"))
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
