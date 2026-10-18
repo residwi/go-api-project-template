@@ -52,6 +52,7 @@ var (
 			AllowedOrigins: []string{"*"},
 			AllowedMethods: []string{"GET", "POST", "PUT", "DELETE"},
 			AllowedHeaders: []string{"Content-Type", "Authorization"},
+			ExposedHeaders: []string{"X-Request-ID", "Retry-After"},
 			MaxAge:         86400,
 		},
 	}
@@ -544,6 +545,15 @@ func TestCORSHeaders(t *testing.T) {
 		handler.ServeHTTP(w, req)
 
 		assert.NotEmpty(t, w.Header().Get("Access-Control-Allow-Origin"))
+	})
+
+	t.Run("a response exposes the configured headers to cross-origin scripts", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/health", nil)
+		req.Header.Set("Origin", "http://example.com")
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, req)
+
+		assert.Equal(t, "X-Request-ID,Retry-After", w.Header().Get("Access-Control-Expose-Headers"))
 	})
 }
 

@@ -219,6 +219,7 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 			AllowedOrigins: appCfg.CORS.AllowedOrigins,
 			AllowedMethods: appCfg.CORS.AllowedMethods,
 			AllowedHeaders: appCfg.CORS.AllowedHeaders,
+			ExposedHeaders: appCfg.CORS.ExposedHeaders,
 			MaxAge:         appCfg.CORS.MaxAge,
 		}),
 	)(mux)

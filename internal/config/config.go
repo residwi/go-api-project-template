@@ -133,6 +133,7 @@ type CORS struct {
 	AllowedOrigins []string `envconfig:"CORS_ALLOWED_ORIGINS"`
 	AllowedMethods []string `envconfig:"CORS_ALLOWED_METHODS" default:"GET,POST,PUT,DELETE,OPTIONS"`
 	AllowedHeaders []string `envconfig:"CORS_ALLOWED_HEADERS" default:"Content-Type,Authorization,X-Request-ID,Idempotency-Key"`
+	ExposedHeaders []string `envconfig:"CORS_EXPOSED_HEADERS" default:"X-Request-ID,X-Ratelimit-Limit,X-Ratelimit-Remaining,X-Ratelimit-Reset,Retry-After"`
 	MaxAge         int      `envconfig:"CORS_MAX_AGE"         default:"86400"`
 }
 

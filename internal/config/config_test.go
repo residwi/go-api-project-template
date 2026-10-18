@@ -95,6 +95,22 @@ func TestLoad(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, appConfig.CORS.AllowedOrigins)
 	})
+
+	t.Run("exposes every non-safelisted header the middleware sets by default", func(t *testing.T) {
+		t.Setenv("CORS_EXPOSED_HEADERS", "unset-below")
+		require.NoError(t, os.Unsetenv("CORS_EXPOSED_HEADERS"))
+
+		appConfig, err := Load()
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{
+			"X-Request-ID",
+			"X-Ratelimit-Limit",
+			"X-Ratelimit-Remaining",
+			"X-Ratelimit-Reset",
+			"Retry-After",
+		}, appConfig.CORS.ExposedHeaders)
+	})
 }
 
 func TestTrustedProxiesDecode(t *testing.T) {
