@@ -136,7 +136,7 @@ make docker-up  docker-dev  docker-down  docker-logs  docker-build  docker-clean
 
 ## Code Style & Conventions
 
-- **Language and libraries.** Go 1.27. stdlib `net/http` `ServeMux` — do not add a third-party router. `encoding/json` for JSON, `log/slog` for logging, `go-playground/validator/v10` for validation, `godotenv` + `kelseyhightower/envconfig` for config.
+- **Language and libraries.** Go 1.27. stdlib `net/http` `ServeMux` — do not add a third-party router. `encoding/json/v2` for JSON (`encoding/json/jsontext` for a raw value; `depguard` denies `encoding/json`), `log/slog` for logging, `go-playground/validator/v10` for validation, `godotenv` + `kelseyhightower/envconfig` for config.
 - **Formatting.** `gofmt -s`, enforced by `make fmt` and golangci-lint. Import groups: stdlib, blank line, third-party, blank line, local (`github.com/residwi/go-api-project-template/...`).
 - **Packages** are short singular nouns (`user`, `product`, `cart`).
 - **Errors.** Five generic kinds in `internal/platform/errs` (`ErrNotFound`, `ErrConflict`, `ErrBadRequest`, `ErrUnauthorized`, `ErrForbidden`); cross-module business sentinels in `internal/apperror`. Add context with `fmt.Errorf("%w: ...", errs.ErrBadRequest)`.

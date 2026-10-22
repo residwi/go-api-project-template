@@ -224,6 +224,8 @@ linters:
           deny:
             - pkg: log$
               desc: Use log/slog instead, see https://go.dev/blog/slog
+            - pkg: encoding/json$
+              desc: Use encoding/json/v2 (and encoding/json/jsontext) instead, see https://go.dev/doc/go1.27
 
     embeddedstructfieldcheck:
       # Checks that sync.Mutex and sync.RWMutex are not used as embedded fields.
