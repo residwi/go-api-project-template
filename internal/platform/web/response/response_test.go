@@ -1,9 +1,11 @@
 package response
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,6 +24,58 @@ func TestOK(t *testing.T) {
 	var body Response
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
 	assert.True(t, body.Success)
+}
+
+func TestOK_Envelope(t *testing.T) {
+	t.Parallel()
+
+	t.Run("keeps data for an empty list", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		OK(w, []int{})
+
+		assert.JSONEq(t, `{"success":true,"data":[]}`, w.Body.String())
+	})
+
+	t.Run("encodes a nil list as an empty array", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		OK(w, []int(nil))
+
+		assert.JSONEq(t, `{"success":true,"data":[]}`, w.Body.String())
+	})
+
+	t.Run("omits data when there is none", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		OK(w, nil)
+
+		assert.JSONEq(t, `{"success":true}`, w.Body.String())
+	})
+
+	t.Run("writes map keys in sorted order so equal data gives equal bytes", func(t *testing.T) {
+		t.Parallel()
+
+		data := map[string]int{}
+		var want strings.Builder
+		want.WriteString(`{"success":true,"data":{`)
+		for i, key := range strings.Split("abcdefghijklmnopqrstuvwxyz", "") {
+			data[key] = i
+			if i > 0 {
+				want.WriteString(",")
+			}
+			fmt.Fprintf(&want, "%q:%d", key, i)
+		}
+		want.WriteString("}}")
+
+		w := httptest.NewRecorder()
+		OK(w, data)
+
+		assert.Equal(t, want.String(), w.Body.String())
+	})
 }
 
 func TestOK_UnencodableValueBecomesA500(t *testing.T) {

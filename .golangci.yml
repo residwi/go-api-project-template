@@ -406,6 +406,28 @@ linters:
         - strings.SplitN
         - http.MaxBytesReader
 
+    musttag:
+      # musttag knows only encoding/json v1; without these it checks no JSON call at all.
+      functions:
+        - name: encoding/json/v2.Marshal
+          tag: json
+          arg-pos: 0
+        - name: encoding/json/v2.MarshalWrite
+          tag: json
+          arg-pos: 1
+        - name: encoding/json/v2.MarshalEncode
+          tag: json
+          arg-pos: 1
+        - name: encoding/json/v2.Unmarshal
+          tag: json
+          arg-pos: 1
+        - name: encoding/json/v2.UnmarshalRead
+          tag: json
+          arg-pos: 1
+        - name: encoding/json/v2.UnmarshalDecode
+          tag: json
+          arg-pos: 1
+
     nakedret:
       # Make an issue if func has more lines of code than this setting, and it has naked returns.
       # Default: 30

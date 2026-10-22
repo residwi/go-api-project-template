@@ -37,7 +37,8 @@ func TestRepository_GetBySlug(t *testing.T) {
 		got, err := repo.GetBySlug(context.Background(), "mug")
 
 		require.NoError(t, err)
-		assert.Equal(t, &domain.Product{Slug: "mug", Name: "Mug"}, got)
+		assert.Equal(t, &domain.Product{Slug: "mug", Name: "Mug", Images: []domain.Image{}}, got,
+			"encoding/json/v2 writes a nil slice as [], so the cached copy holds an empty one")
 		assert.Equal(t, 1, stub.slugCalls)
 	})
 

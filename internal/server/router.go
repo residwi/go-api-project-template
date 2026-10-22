@@ -1,7 +1,7 @@
 package server
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"log/slog"
 	"net/http"
 
@@ -228,6 +228,6 @@ func NewRouter( //nolint:funlen // one flat wiring list: the middleware chain, t
 func healthHandler(w http.ResponseWriter, _ *http.Request) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
+	_ = json.MarshalWrite(w, map[string]string{"status": "healthy"})
 	return nil
 }

@@ -2,7 +2,7 @@ package mock
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -35,13 +35,13 @@ func TestGateway_Charge(t *testing.T) {
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 			var req ChargeRequest
-			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req)) {
+			if !assert.NoError(t, json.UnmarshalRead(r.Body, &req)) {
 				return
 			}
 			assert.Equal(t, "order_1", req.OrderID)
 
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(wireOf(want))
+			json.MarshalWrite(w, wireOf(want))
 		}))
 		defer ts.Close()
 
@@ -130,7 +130,7 @@ func TestGateway_ChargeSendsTraceparent(t *testing.T) {
 		got = r.Header.Get("Traceparent")
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(wireOf(payment.GatewayChargeResponse{
+		json.MarshalWrite(w, wireOf(payment.GatewayChargeResponse{
 			TransactionID: "txn_123",
 			Status:        "success",
 			PaymentURL:    "https://example.com/pay",
@@ -173,13 +173,13 @@ func TestGateway_Refund(t *testing.T) {
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 			var req RefundRequest
-			if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req)) {
+			if !assert.NoError(t, json.UnmarshalRead(r.Body, &req)) {
 				return
 			}
 			assert.Equal(t, "txn_123", req.TransactionID)
 
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(refundWireOf(want))
+			json.MarshalWrite(w, refundWireOf(want))
 		}))
 		defer ts.Close()
 

@@ -3,7 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"log/slog"
 	"math/rand/v2"
@@ -107,7 +107,7 @@ func TestHealthHandler(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var body map[string]string
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&body))
+		require.NoError(t, json.UnmarshalRead(w.Body, &body))
 		assert.Equal(t, map[string]string{"status": "healthy"}, body)
 	})
 }
@@ -197,7 +197,7 @@ func TestAuthEndpoints(t *testing.T) {
 		assert.Equal(t, http.StatusCreated, w.Code)
 
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		data, ok := resp["data"].(map[string]any)
 		require.True(t, ok)
 		assert.NotEmpty(t, data["access_token"])
@@ -239,7 +239,7 @@ func TestAuthEndpoints(t *testing.T) {
 		assert.Equal(t, http.StatusOK, loginW.Code)
 
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(loginW.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(loginW.Body, &resp))
 		data, ok := resp["data"].(map[string]any)
 		require.True(t, ok)
 		assert.NotEmpty(t, data["access_token"])
@@ -282,7 +282,7 @@ func TestAuthEndpoints(t *testing.T) {
 		require.Equal(t, http.StatusCreated, regW.Code)
 
 		var regResp map[string]any
-		require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+		require.NoError(t, json.UnmarshalRead(regW.Body, &regResp))
 		data := regResp["data"].(map[string]any)
 		refreshToken := data["refresh_token"].(string)
 
@@ -364,7 +364,7 @@ func TestAuthenticatedEndpoints(t *testing.T) {
 	require.Equal(t, http.StatusCreated, regW.Code)
 
 	var regResp map[string]any
-	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+	require.NoError(t, json.UnmarshalRead(regW.Body, &regResp))
 	data := regResp["data"].(map[string]any)
 	accessToken := data["access_token"].(string)
 
@@ -434,7 +434,7 @@ func TestAdminEndpointsRequireAdminRole(t *testing.T) {
 	require.Equal(t, http.StatusCreated, regW.Code)
 
 	var regResp map[string]any
-	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+	require.NoError(t, json.UnmarshalRead(regW.Body, &regResp))
 	data := regResp["data"].(map[string]any)
 	accessToken := data["access_token"].(string)
 
@@ -628,7 +628,7 @@ func TestAdapterErrorPaths(t *testing.T) {
 	require.Equal(t, http.StatusCreated, regW.Code)
 
 	var regResp map[string]any
-	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+	require.NoError(t, json.UnmarshalRead(regW.Body, &regResp))
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 	t.Cleanup(func() {
 		testPool.Exec(
@@ -702,7 +702,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	require.Equal(t, http.StatusCreated, regW.Code)
 
 	var regResp map[string]any
-	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+	require.NoError(t, json.UnmarshalRead(regW.Body, &regResp))
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 	t.Cleanup(func() {
 		testPool.Exec(
@@ -744,7 +744,7 @@ func TestAdapterErrorPaths_PaymentJobWithDeletedOrder(t *testing.T) {
 	require.Equal(t, http.StatusCreated, orderW.Code)
 
 	var orderResp map[string]any
-	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
+	require.NoError(t, json.UnmarshalRead(orderW.Body, &orderResp))
 	orderID := orderResp["data"].(map[string]any)["order"].(map[string]any)["id"].(string)
 
 	var paymentID uuid.UUID
@@ -928,7 +928,7 @@ func TestServerRun(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 		var body map[string]any
-		require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+		require.NoError(t, json.UnmarshalRead(resp.Body, &body))
 		assert.Equal(t, "healthy", body["status"])
 	})
 

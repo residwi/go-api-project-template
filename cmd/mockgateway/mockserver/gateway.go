@@ -6,7 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"log/slog"
 	"net"
@@ -64,7 +64,7 @@ func RegisterRoutes(mux *http.ServeMux, log *slog.Logger, opts ...Option) {
 
 func (s *mockServer) handleCharge(w http.ResponseWriter, r *http.Request) {
 	var req gatewaymock.ChargeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.UnmarshalRead(r.Body, &req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -110,7 +110,7 @@ func (s *mockServer) handleCharge(w http.ResponseWriter, r *http.Request) {
 
 func (s *mockServer) handleRefund(w http.ResponseWriter, r *http.Request) {
 	var req gatewaymock.RefundRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.UnmarshalRead(r.Body, &req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -146,7 +146,7 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 		WebhookURL     string `json:"webhook_url"`
 		Event          string `json:"event"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&triggerReq); err != nil {
+	if err := json.UnmarshalRead(r.Body, &triggerReq); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -224,7 +224,7 @@ func (s *mockServer) handleWebhookTrigger(w http.ResponseWriter, r *http.Request
 	}()
 
 	w.WriteHeader(http.StatusAccepted)
-	_ = json.NewEncoder(w).Encode(map[string]string{"status": "webhook_triggered"})
+	_ = json.MarshalWrite(w, map[string]string{"status": "webhook_triggered"})
 }
 
 func (s *mockServer) webhookClient(external bool) *http.Client {
@@ -337,5 +337,5 @@ func refuseNonPublicDial(_, address string, _ syscall.RawConn) error {
 
 func writeJSONResponse(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(v)
+	_ = json.MarshalWrite(w, v)
 }

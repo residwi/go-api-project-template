@@ -1,13 +1,14 @@
 package request
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
-	"io"
 	"maps"
 	"net/http"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -76,31 +77,25 @@ func newValidator() *validator.Validate {
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(dst); err != nil {
+	if err := json.UnmarshalRead(r.Body, dst, json.RejectUnknownMembers(true)); err != nil {
 		return decodeError(err)
 	}
-
-	switch err := decoder.Decode(new(json.RawMessage)); {
-	case errors.Is(err, io.EOF):
-		return nil
-	case err == nil:
-		return fmt.Errorf("%w: malformed JSON", errs.ErrBadRequest)
-	default:
-		return decodeError(err)
-	}
+	return nil
 }
 
 func decodeError(err error) error {
 	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 		return fmt.Errorf("%w: request body too large", errs.ErrBadRequest)
 	}
-	if ute, ok := errors.AsType[*json.UnmarshalTypeError](err); ok && ute.Field != "" {
-		return fmt.Errorf("%w: invalid type for %q", errs.ErrBadRequest, ute.Field)
+	if se, ok := errors.AsType[*jsontext.SyntacticError](err); ok && errors.Is(err, jsontext.ErrDuplicateName) {
+		return fmt.Errorf("%w: duplicate field %q", errs.ErrBadRequest, se.JSONPointer.LastToken())
 	}
-	if key, ok := strings.CutPrefix(err.Error(), "json: unknown field "); ok {
-		return fmt.Errorf("%w: unknown field %s", errs.ErrBadRequest, key)
+	if se, ok := errors.AsType[*json.SemanticError](err); ok && se.JSONPointer != "" {
+		if errors.Is(err, json.ErrUnknownName) {
+			return fmt.Errorf("%w: unknown field %q", errs.ErrBadRequest, se.JSONPointer.LastToken())
+		}
+		path := strings.Join(slices.Collect(se.JSONPointer.Tokens()), ".")
+		return fmt.Errorf("%w: invalid type for %q", errs.ErrBadRequest, path)
 	}
 	return fmt.Errorf("%w: malformed JSON", errs.ErrBadRequest)
 }

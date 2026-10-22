@@ -26,6 +26,10 @@ type nestedPayload struct {
 	} `json:"address"`
 }
 
+type idPayload struct {
+	ID uuid.UUID `json:"id"`
+}
+
 func TestBind(t *testing.T) {
 	t.Parallel()
 
@@ -157,7 +161,55 @@ func TestBind(t *testing.T) {
 		assert.EqualError(t, err, `bad request: invalid type for "address.zip_code"`)
 	})
 
-	t.Run("returns too large when trailing data crosses the 1MiB cap", func(t *testing.T) {
+	t.Run("rejects a key whose case differs from the json name", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"Name":"ada"}`))
+
+		_, err := Bind[payload](w, r)
+
+		require.ErrorIs(t, err, errs.ErrBadRequest)
+		assert.EqualError(t, err, `bad request: unknown field "Name"`)
+	})
+
+	t.Run("rejects a duplicate key", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"ada","name":"bob"}`))
+
+		_, err := Bind[payload](w, r)
+
+		require.ErrorIs(t, err, errs.ErrBadRequest)
+		assert.EqualError(t, err, `bad request: duplicate field "name"`)
+	})
+
+	t.Run("returns malformed JSON for invalid UTF-8", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{\"name\":\"\xff\"}"))
+
+		_, err := Bind[payload](w, r)
+
+		require.ErrorIs(t, err, errs.ErrBadRequest)
+		assert.EqualError(t, err, "bad request: malformed JSON")
+	})
+
+	t.Run("names a field whose text does not parse as its type", func(t *testing.T) {
+		t.Parallel()
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"id":"not-a-uuid"}`))
+
+		_, err := Bind[idPayload](w, r)
+
+		require.ErrorIs(t, err, errs.ErrBadRequest)
+		assert.EqualError(t, err, `bad request: invalid type for "id"`)
+	})
+
+	t.Run("returns malformed JSON for trailing data past the 1MiB cap without reading it", func(t *testing.T) {
 		t.Parallel()
 
 		body := `{"name":"ada"} "` + strings.Repeat("a", (1<<20)+1024) + `"`
@@ -166,7 +218,7 @@ func TestBind(t *testing.T) {
 
 		_, err := Bind[payload](w, r)
 
-		assert.EqualError(t, err, "bad request: request body too large")
+		assert.EqualError(t, err, "bad request: malformed JSON")
 	})
 
 	t.Run("merges a request type's own rules into the details", func(t *testing.T) {

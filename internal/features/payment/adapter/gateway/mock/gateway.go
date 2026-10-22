@@ -3,7 +3,7 @@ package mock
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"net/http"
 	"time"
@@ -51,7 +51,7 @@ func (g *Gateway) Charge(ctx context.Context, req payment.GatewayChargeRequest) 
 	}
 
 	var result ChargeResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.UnmarshalRead(resp.Body, &result); err != nil {
 		return payment.GatewayChargeResponse{}, fmt.Errorf("decoding charge response: %w", err)
 	}
 
@@ -81,7 +81,7 @@ func (g *Gateway) Refund(ctx context.Context, req payment.GatewayRefundRequest) 
 	}
 
 	var result RefundResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.UnmarshalRead(resp.Body, &result); err != nil {
 		return payment.GatewayRefundResponse{}, fmt.Errorf("decoding refund response: %w", err)
 	}
 

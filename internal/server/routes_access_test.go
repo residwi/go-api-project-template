@@ -4,7 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -180,7 +180,7 @@ func registerProbeUser(t *testing.T, handler http.Handler) string {
 	})
 
 	var resp map[string]any
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 	data, ok := resp["data"].(map[string]any)
 	require.True(t, ok)
 	token, ok := data["access_token"].(string)

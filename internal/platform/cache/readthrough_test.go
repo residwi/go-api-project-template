@@ -183,6 +183,26 @@ func TestTake(t *testing.T) {
 		assert.Equal(t, absentPlaceholder, raw, "the corrupt entry must be deleted before the placeholder is written")
 	})
 
+	t.Run("an entry written by encoding/json v1 is served without the loader", func(t *testing.T) {
+		rt := NewReadThrough(testRedisClient, testutil.DiscardLogger())
+		key := testKey(t)
+		id := uuid.MustParse("019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b")
+		v1Entry := `{"ID":"019a0b1c-2d3e-7f40-8a5b-6c7d8e9f0a1b","Name":"Shoes",` +
+			`"Tags":null,"CreatedAt":"2026-10-22T07:00:00.123456789Z"}`
+		require.NoError(t, testRedisClient.Set(context.Background(), key, v1Entry, time.Minute).Err())
+
+		got, err := rt.Take(context.Background(), key, testTTL, func(context.Context) (untaggedRow, error) {
+			return untaggedRow{}, errors.New("an entry from before the v2 deploy must not reach the loader")
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, untaggedRow{
+			ID:        id,
+			Name:      "Shoes",
+			CreatedAt: time.Date(2026, 10, 22, 7, 0, 0, 123456789, time.UTC),
+		}, got)
+	})
+
 	t.Run("a Redis error falls through to the loader", func(t *testing.T) {
 		broken := redis.NewClient(&redis.Options{
 			Addr:        "localhost:1",
@@ -337,6 +357,13 @@ func TestTakeFallsBackWhenRedisAcceptsButNeverAnswers(t *testing.T) {
 	assert.Equal(t, 9, got)
 	assert.Less(t, elapsed, 2*time.Second,
 		"go-redis ignores the command context while it handshakes, so REDIS_READ_TIMEOUT is the only bound here")
+}
+
+type untaggedRow struct {
+	ID        uuid.UUID
+	Name      string
+	Tags      []string
+	CreatedAt time.Time
 }
 
 func testKey(t *testing.T) string {

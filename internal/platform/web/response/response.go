@@ -1,13 +1,13 @@
 package response
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 )
 
 type Response struct {
 	Success bool   `json:"success"`
-	Data    any    `json:"data,omitempty"`
+	Data    any    `json:"data,omitzero"`
 	Error   *Error `json:"error,omitempty"`
 }
 
@@ -52,7 +52,7 @@ func InternalError(w http.ResponseWriter) {
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
-	body, err := json.Marshal(v)
+	body, err := json.Marshal(v, json.Deterministic(true))
 	if err != nil {
 		InternalError(w)
 		return

@@ -5,7 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"testing"
 
@@ -1525,6 +1525,19 @@ func TestService_HandleWebhook(t *testing.T) {
 		svc, _ := newTestService(t)
 
 		payload := []byte("not json")
+		err := svc.HandleWebhook(ctx, payload, sign(testWebhookSecret, payload))
+
+		require.NoError(t, err)
+	})
+
+	t.Run("payload with a duplicate key is ignored before any payment lookup", func(t *testing.T) {
+		t.Parallel()
+
+		svc, _ := newTestService(t)
+
+		paymentID := uuid.Must(uuid.NewV7())
+		payload := []byte(`{"event":"payment.success","event":"payment.failed","metadata":{"payment_id":"` +
+			paymentID.String() + `"},"transaction_id":"txn-1"}`)
 		err := svc.HandleWebhook(ctx, payload, sign(testWebhookSecret, payload))
 
 		require.NoError(t, err)
