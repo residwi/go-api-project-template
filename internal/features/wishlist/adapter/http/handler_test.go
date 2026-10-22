@@ -2,7 +2,8 @@ package http
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -67,7 +68,7 @@ func TestHandler_Add(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
@@ -124,7 +125,7 @@ func TestHandler_List(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		success, ok := resp["success"].(bool)
 		require.True(t, ok)
 		assert.False(t, success)
@@ -146,7 +147,7 @@ func TestHandler_List(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 	})
 
@@ -174,7 +175,7 @@ func TestHandler_List(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		data, ok := resp.Data.(map[string]any)
@@ -231,7 +232,7 @@ func TestHandler_Remove(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		errBody, ok := resp["error"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "bad request: invalid product_id", errBody["message"])
@@ -288,7 +289,7 @@ func TestToItemResponse_OmitsInternalFields(t *testing.T) {
 	raw, err := json.Marshal(got)
 	require.NoError(t, err)
 
-	var fields map[string]json.RawMessage
+	var fields map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(raw, &fields))
 
 	assert.ElementsMatch(t, []string{"id", "product_id", "created_at"}, slices.Collect(maps.Keys(fields)),

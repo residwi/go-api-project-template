@@ -2,7 +2,7 @@ package http
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -56,7 +56,7 @@ func TestAdminHandler_Create(t *testing.T) {
 
 		assert.Equal(t, http.StatusCreated, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 	})
 
@@ -127,7 +127,7 @@ func TestAdminHandler_Create(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(t, map[string]any{"code": "must contain only A-Z, 0-9, _ and -"}, resp.Error.Details)
 	})
 
@@ -146,7 +146,7 @@ func TestAdminHandler_Create(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
@@ -175,7 +175,7 @@ func TestAdminHandler_List(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 	})
 
@@ -229,7 +229,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 	})
 
@@ -274,7 +274,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(t, map[string]any{"code": "must contain only A-Z, 0-9, _ and -"}, resp.Error.Details)
 	})
 
@@ -317,7 +317,7 @@ func TestAdminHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
@@ -353,7 +353,7 @@ func TestAdminHandler_Update(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 }
@@ -405,7 +405,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})

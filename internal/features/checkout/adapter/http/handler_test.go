@@ -1,7 +1,8 @@
 package http
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"maps"
 	"net/http"
@@ -42,7 +43,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 	})
 
@@ -61,7 +62,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Contains(t, resp.Error.Message, "Idempotency-Key")
 	})
@@ -98,7 +99,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
@@ -146,7 +147,7 @@ func TestHandler_PlaceOrder(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Contains(t, resp.Error.Message, "mixed currencies")
 	})
@@ -168,7 +169,7 @@ func TestToPlaceOrderResponse_CarriesOnlyTheOrdersIdentityAndOutcome(t *testing.
 	require.NoError(t, err)
 
 	var body struct {
-		Order map[string]json.RawMessage `json:"order"`
+		Order map[string]jsontext.Value `json:"order"`
 	}
 	require.NoError(t, json.Unmarshal(raw, &body))
 	assert.ElementsMatch(t,
@@ -201,7 +202,7 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 	})
 
@@ -218,7 +219,7 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 	})
 
@@ -237,7 +238,7 @@ func TestRetryHandler_RetryPayment(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 
@@ -332,7 +333,7 @@ func TestCancelHandler_CancelOrder(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 	})
 
@@ -351,7 +352,7 @@ func TestCancelHandler_CancelOrder(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 

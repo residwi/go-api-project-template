@@ -2,7 +2,8 @@ package http
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -50,7 +51,7 @@ func TestAdminHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusCreated, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		dataJSON, err := json.Marshal(resp.Data)
@@ -93,7 +94,7 @@ func TestAdminHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusConflict, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 	})
 
@@ -127,7 +128,7 @@ func TestAdminHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
@@ -168,7 +169,7 @@ func TestAdminHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		// The admin endpoint keeps the fuller adminCategoryResponse shape.
@@ -196,7 +197,7 @@ func TestAdminHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
@@ -241,7 +242,7 @@ func TestAdminHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
@@ -303,7 +304,7 @@ func TestAdminHandler_Delete(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
@@ -350,7 +351,7 @@ func TestToAdminCategoryResponse_KeepsModerationAndAuditFields(t *testing.T) {
 	raw, err := json.Marshal(got)
 	require.NoError(t, err)
 
-	var fields map[string]json.RawMessage
+	var fields map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(raw, &fields))
 	assert.ElementsMatch(t,
 		[]string{

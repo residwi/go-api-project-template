@@ -1,7 +1,8 @@
 package http
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -49,7 +50,7 @@ func TestHandler_List_Success(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 	})
 }
@@ -92,7 +93,7 @@ func TestHandler_UnreadCount_Success(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		data, ok := resp.Data.(map[string]any)
@@ -149,7 +150,7 @@ func TestHandler_List_Pagination(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		data, ok := resp.Data.(map[string]any)
@@ -215,7 +216,7 @@ func TestToNotificationResponse_OmitsUserID(t *testing.T) {
 	raw, err := json.Marshal(got)
 	require.NoError(t, err)
 
-	var fields map[string]json.RawMessage
+	var fields map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(raw, &fields))
 	assert.ElementsMatch(
 		t,
@@ -285,7 +286,7 @@ func TestHandler_MarkRead_InvalidUUID(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
 }

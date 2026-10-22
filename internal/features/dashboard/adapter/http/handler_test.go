@@ -1,7 +1,8 @@
 package http
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"maps"
 	"net/http"
@@ -45,7 +46,7 @@ func TestHandler_Summary(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		success, ok := resp["success"].(bool)
 		require.True(t, ok)
 		assert.True(t, success)
@@ -88,7 +89,7 @@ func TestHandler_Summary(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		success, ok := resp["success"].(bool)
 		require.True(t, ok)
 		assert.False(t, success)
@@ -109,7 +110,7 @@ func TestHandler_Summary(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(
 			t,
 			"bad request: from and to query parameters are required",
@@ -129,7 +130,7 @@ func TestHandler_Summary(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(
 			t,
 			"bad request: from and to query parameters are required",
@@ -149,7 +150,7 @@ func TestHandler_Summary(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(
 			t,
 			"bad request: invalid from date format, expected YYYY-MM-DD",
@@ -169,7 +170,7 @@ func TestHandler_Summary(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(
 			t,
 			"bad request: invalid to date format, expected YYYY-MM-DD",
@@ -221,7 +222,7 @@ func TestHandler_Revenue(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		success, ok := resp["success"].(bool)
 		require.True(t, ok)
 		assert.True(t, success)
@@ -264,7 +265,7 @@ func TestHandler_Revenue(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(
 			t,
 			"bad request: invalid from date format, expected YYYY-MM-DD",
@@ -284,7 +285,7 @@ func TestHandler_Revenue(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(
 			t,
 			"bad request: invalid to date format, expected YYYY-MM-DD",
@@ -340,7 +341,7 @@ func TestHandler_TopProducts(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		success, ok := resp["success"].(bool)
 		require.True(t, ok)
 		assert.True(t, success)
@@ -497,7 +498,7 @@ func TestHandler_TopProducts(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		errBody, ok := resp["error"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "bad request: invalid to date format, expected YYYY-MM-DD", errBody["message"])
@@ -531,11 +532,11 @@ func TestToSummaryResponse_ExposesExactFieldSet(t *testing.T) {
 	raw, err := json.Marshal(got)
 	require.NoError(t, err)
 
-	var fields map[string]json.RawMessage
+	var fields map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(raw, &fields))
 	assert.ElementsMatch(t, []string{"sales", "status_breakdown"}, slices.Collect(maps.Keys(fields)))
 
-	var sales map[string]json.RawMessage
+	var sales map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(fields["sales"], &sales))
 	assert.ElementsMatch(
 		t,
@@ -543,7 +544,7 @@ func TestToSummaryResponse_ExposesExactFieldSet(t *testing.T) {
 		slices.Collect(maps.Keys(sales)),
 	)
 
-	var breakdown []map[string]json.RawMessage
+	var breakdown []map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(fields["status_breakdown"], &breakdown))
 	require.Len(t, breakdown, 1)
 	assert.ElementsMatch(t, []string{"status", "count"}, slices.Collect(maps.Keys(breakdown[0])))

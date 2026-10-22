@@ -1,7 +1,8 @@
 package http
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"maps"
 	"net/http"
@@ -59,7 +60,7 @@ func TestHandler_Get(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 	})
 
@@ -83,7 +84,7 @@ func TestHandler_Get(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		data, ok := resp.Data.(map[string]any)
 		require.True(t, ok)
 		assert.InDelta(t, float64(0), data["total"], 0.0001)
@@ -122,7 +123,7 @@ func TestHandler_Get(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, w.Code,
 			"a cart whose lines cannot be summed must not answer 200 with a meaningless number")
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Contains(t, resp.Error.Message, "mixed currencies")
 	})
@@ -155,7 +156,7 @@ func TestHandler_Get(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		data, ok := resp.Data.(map[string]any)
 		require.True(t, ok)
 		assert.InDelta(t, float64(2000), data["total"], 0.0001,
@@ -176,7 +177,7 @@ func TestHandler_Get(t *testing.T) {
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 	})
 }
@@ -222,7 +223,7 @@ func TestHandler_Add(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		success, ok := resp["success"].(bool)
 		require.True(t, ok)
 		assert.False(t, success)
@@ -294,7 +295,7 @@ func TestHandler_Update(t *testing.T) {
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 		var resp map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		errBody, ok := resp["error"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "bad request: invalid product_id", errBody["message"])
@@ -604,7 +605,7 @@ func TestToCartResponse_OmitsUserID(t *testing.T) {
 	raw, err := json.Marshal(out)
 	require.NoError(t, err)
 
-	var fields map[string]json.RawMessage
+	var fields map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(raw, &fields))
 	assert.ElementsMatch(t, []string{"id", "items", "total"}, slices.Collect(maps.Keys(fields)),
 		"the response must expose exactly these fields")

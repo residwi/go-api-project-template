@@ -2,7 +2,8 @@ package http
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -57,7 +58,7 @@ func TestHandler_GetByID(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		dataJSON, err := json.Marshal(resp.Data)
@@ -88,7 +89,7 @@ func TestHandler_GetByID(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
 	})
@@ -149,7 +150,7 @@ func TestHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		dataJSON, err := json.Marshal(resp.Data)
@@ -194,7 +195,7 @@ func TestHandler_Update(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
@@ -270,7 +271,7 @@ func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 	raw, err := json.Marshal(got)
 	require.NoError(t, err)
 
-	var fields map[string]json.RawMessage
+	var fields map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(raw, &fields))
 	assert.ElementsMatch(
 		t,
@@ -300,7 +301,7 @@ func TestToUserResponse_OmitsCredentialAndAuthInternalFields(t *testing.T) {
 func assertPublicProfileKeys(t *testing.T, dataJSON []byte) {
 	t.Helper()
 
-	var fields map[string]json.RawMessage
+	var fields map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(dataJSON, &fields))
 	assert.ElementsMatch(
 		t,

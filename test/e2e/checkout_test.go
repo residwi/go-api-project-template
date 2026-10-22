@@ -2,7 +2,7 @@ package e2e_test
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -55,7 +55,7 @@ func TestE2EOrderFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, regW.Code)
 
 	var regResp map[string]any
-	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+	require.NoError(t, json.UnmarshalRead(regW.Body, &regResp))
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 	t.Cleanup(func() {
 		testPool.Exec(
@@ -156,7 +156,7 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, regW.Code)
 
 	var regResp map[string]any
-	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+	require.NoError(t, json.UnmarshalRead(regW.Body, &regResp))
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 	t.Cleanup(func() {
 		testPool.Exec(
@@ -198,7 +198,7 @@ func TestE2ECancelOrderFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, orderW.Code)
 
 	var orderResp map[string]any
-	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
+	require.NoError(t, json.UnmarshalRead(orderW.Body, &orderResp))
 	data := orderResp["data"].(map[string]any)
 	orderID := data["order"].(map[string]any)["id"].(string)
 
@@ -275,7 +275,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, regW.Code)
 
 	var regResp map[string]any
-	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+	require.NoError(t, json.UnmarshalRead(regW.Body, &regResp))
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 	t.Cleanup(func() {
 		testPool.Exec(
@@ -323,7 +323,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, orderW.Code)
 
 	var orderResp map[string]any
-	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
+	require.NoError(t, json.UnmarshalRead(orderW.Body, &orderResp))
 	data := orderResp["data"].(map[string]any)
 	orderData := data["order"].(map[string]any)
 	orderID := orderData["id"].(string)
@@ -339,7 +339,7 @@ func TestE2ECouponOrderFlow(t *testing.T) {
 		require.Equal(t, http.StatusOK, w.Code)
 
 		var got map[string]any
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&got))
+		require.NoError(t, json.UnmarshalRead(w.Body, &got))
 		full := got["data"].(map[string]any)
 		assert.Equal(t, couponCode, full["coupon_code"])
 		assert.InDelta(t, float64(1110), full["subtotal_amount"], 0.0001)
@@ -436,7 +436,7 @@ func registerE2EUser(t *testing.T, handler http.Handler, email string) (uuid.UUI
 	require.Equal(t, http.StatusCreated, w.Code)
 
 	var resp map[string]any
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 	data := resp["data"].(map[string]any)
 	user := data["user"].(map[string]any)
 

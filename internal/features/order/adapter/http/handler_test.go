@@ -1,7 +1,8 @@
 package http
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"maps"
 	"net/http"
@@ -56,7 +57,7 @@ func TestHandler_ListOrders(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 	})
 
@@ -73,7 +74,7 @@ func TestHandler_ListOrders(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 	})
 
@@ -123,7 +124,7 @@ func TestHandler_ListOrders(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		data, ok := resp.Data.(map[string]any)
@@ -165,7 +166,7 @@ func TestHandler_GetOrder(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 	})
 
@@ -182,7 +183,7 @@ func TestHandler_GetOrder(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 	})
 
@@ -201,7 +202,7 @@ func TestHandler_GetOrder(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.Equal(t, "bad request: invalid id", resp.Error.Message)
 	})
@@ -289,7 +290,7 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 	raw, err := json.Marshal(got)
 	require.NoError(t, err)
 
-	var fields map[string]json.RawMessage
+	var fields map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(raw, &fields))
 	assert.ElementsMatch(t,
 		[]string{
@@ -311,7 +312,7 @@ func TestToOrderResponse_OmitsSagaAndIdempotencyInternals(t *testing.T) {
 	assert.NotContains(t, string(raw), "stock_reversed",
 		"StockReversed is saga state and must not be serialised")
 
-	var itemFields []map[string]json.RawMessage
+	var itemFields []map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(fields["items"], &itemFields))
 	require.Len(t, itemFields, 1)
 	assert.ElementsMatch(t,

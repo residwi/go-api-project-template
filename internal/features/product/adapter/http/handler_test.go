@@ -1,7 +1,8 @@
 package http
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"maps"
 	"net/http"
@@ -56,7 +57,7 @@ func TestHandler_List(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		data, ok := resp.Data.(map[string]any)
@@ -110,7 +111,7 @@ func TestHandler_List(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(t, "bad request: invalid category_id", resp.Error.Message)
 	})
 
@@ -127,7 +128,7 @@ func TestHandler_List(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(t, "bad request: invalid min_price", resp.Error.Message)
 	})
 
@@ -144,7 +145,7 @@ func TestHandler_List(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(t, "bad request: invalid max_price", resp.Error.Message)
 	})
 
@@ -202,7 +203,7 @@ func TestHandler_GetBySlug(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		dataJSON, err := json.Marshal(resp.Data)
@@ -240,7 +241,7 @@ func TestHandler_GetBySlug(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 	})
 }
@@ -273,7 +274,7 @@ func TestHandler_GetBySlug_OverLengthSlug(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	var resp response.Response
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+	require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 	assert.False(t, resp.Success)
 
 	service.AssertNotCalled(t, "GetBySlug", mock.Anything, mock.Anything)
@@ -302,7 +303,7 @@ func TestToProductResponse_OmitsReservationAndSoftDeleteState(t *testing.T) {
 	raw, err := json.Marshal(got)
 	require.NoError(t, err)
 
-	var fields map[string]json.RawMessage
+	var fields map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(raw, &fields))
 	assert.ElementsMatch(t,
 		[]string{"id", "name", "slug", "price", "currency", "stock_quantity", "created_at", "updated_at"},

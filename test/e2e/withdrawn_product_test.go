@@ -2,7 +2,7 @@ package e2e_test
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -46,7 +46,7 @@ func TestE2ECheckoutRejectsWithdrawnProduct(t *testing.T) {
 	require.Equal(t, http.StatusCreated, regW.Code)
 
 	var regResp map[string]any
-	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+	require.NoError(t, json.UnmarshalRead(regW.Body, &regResp))
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 	t.Cleanup(func() {
 		testPool.Exec(

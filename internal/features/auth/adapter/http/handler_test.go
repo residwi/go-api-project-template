@@ -2,7 +2,8 @@ package http
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -53,7 +54,7 @@ func TestHandler_Login(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		data, ok := resp.Data.(map[string]any)
@@ -78,7 +79,7 @@ func TestHandler_Login(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
 	})
@@ -101,7 +102,7 @@ func TestHandler_Login(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
 		assert.Equal(t, "validation failed", resp.Error.Message)
@@ -126,7 +127,7 @@ func TestHandler_Login(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
 
@@ -152,7 +153,7 @@ func TestHandler_Login(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 	})
 }
@@ -197,7 +198,7 @@ func TestHandler_Register(t *testing.T) {
 		assert.Equal(t, http.StatusCreated, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		dataJSON, err := json.Marshal(resp.Data)
@@ -229,7 +230,7 @@ func TestHandler_Register(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
 	})
@@ -254,7 +255,7 @@ func TestHandler_Register(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
 		assert.Equal(t, "validation failed", resp.Error.Message)
@@ -316,7 +317,7 @@ func TestHandler_Register(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.Equal(t, "validation failed", resp.Error.Message)
 	})
 
@@ -344,7 +345,7 @@ func TestHandler_Register(t *testing.T) {
 		assert.Equal(t, http.StatusConflict, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
 	})
@@ -376,7 +377,7 @@ func TestHandler_Refresh(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.True(t, resp.Success)
 
 		data, ok := resp.Data.(map[string]any)
@@ -399,7 +400,7 @@ func TestHandler_Refresh(t *testing.T) {
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
 	})
@@ -420,7 +421,7 @@ func TestHandler_Refresh(t *testing.T) {
 		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
 		assert.Equal(t, "validation failed", resp.Error.Message)
@@ -444,7 +445,7 @@ func TestHandler_Refresh(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
 		var resp response.Response
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&resp))
+		require.NoError(t, json.UnmarshalRead(w.Body, &resp))
 		assert.False(t, resp.Success)
 		assert.NotNil(t, resp.Error)
 	})
@@ -477,7 +478,7 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 	raw, err := json.Marshal(got)
 	require.NoError(t, err)
 
-	var fields map[string]json.RawMessage
+	var fields map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(raw, &fields))
 	assert.ElementsMatch(
 		t,
@@ -486,7 +487,7 @@ func TestToTokenResponse_OmitsUserInternalFields(t *testing.T) {
 		"the token response must expose exactly these fields",
 	)
 
-	var userFields map[string]json.RawMessage
+	var userFields map[string]jsontext.Value
 	require.NoError(t, json.Unmarshal(fields["user"], &userFields))
 	assert.ElementsMatch(
 		t,

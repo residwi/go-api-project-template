@@ -2,7 +2,7 @@ package e2e_test
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -224,7 +224,7 @@ func placeAndPayOrder(t *testing.T, env jobQueueEnv) (orderID, paymentID uuid.UU
 	require.Equal(t, http.StatusCreated, orderW.Code)
 
 	var orderResp map[string]any
-	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
+	require.NoError(t, json.UnmarshalRead(orderW.Body, &orderResp))
 	orderID = uuid.MustParse(orderResp["data"].(map[string]any)["order"].(map[string]any)["id"].(string))
 
 	require.NoError(t, testPool.QueryRow(ctx,

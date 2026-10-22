@@ -2,7 +2,7 @@ package e2e_test
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -63,7 +63,7 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, regW.Code)
 
 	var regResp map[string]any
-	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+	require.NoError(t, json.UnmarshalRead(regW.Body, &regResp))
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 
 	t.Cleanup(func() {
@@ -112,7 +112,7 @@ func TestE2EPaymentWebhookFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, orderW.Code)
 
 	var orderResp map[string]any
-	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
+	require.NoError(t, json.UnmarshalRead(orderW.Body, &orderResp))
 	data := orderResp["data"].(map[string]any)
 	orderID := data["order"].(map[string]any)["id"].(string)
 
@@ -202,7 +202,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, regW.Code)
 
 	var regResp map[string]any
-	require.NoError(t, json.NewDecoder(regW.Body).Decode(&regResp))
+	require.NoError(t, json.UnmarshalRead(regW.Body, &regResp))
 	token := regResp["data"].(map[string]any)["access_token"].(string)
 
 	t.Cleanup(func() {
@@ -261,7 +261,7 @@ func TestE2EPaymentFailedWebhookFlow(t *testing.T) {
 	require.Equal(t, http.StatusCreated, orderW.Code)
 
 	var orderResp map[string]any
-	require.NoError(t, json.NewDecoder(orderW.Body).Decode(&orderResp))
+	require.NoError(t, json.UnmarshalRead(orderW.Body, &orderResp))
 	orderID := orderResp["data"].(map[string]any)["order"].(map[string]any)["id"].(string)
 
 	var paymentID uuid.UUID
