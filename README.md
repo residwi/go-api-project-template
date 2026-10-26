@@ -494,9 +494,9 @@ make migrate-down-all # Rollback all migrations
 make migrate-create name=xxx  # Create new migration
 make migrate-status   # Show migration status
 make migrate-version  # Show current migration version
-make db-create        # Create the database
-make db-drop          # Drop the database
-make seed             # Apply db/seeds/data.sql
+make db-create        # Create the database in the compose postgres
+make db-drop          # Drop the database in the compose postgres
+make seed             # Apply db/seeds/data.sql to the compose postgres
 make migrate-install  # Install the goose and river CLIs
 make setup            # Setup development environment
 make deps             # Download dependencies

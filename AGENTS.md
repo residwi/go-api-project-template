@@ -124,7 +124,7 @@ make ci                 # deps -> fmt -> vet -> check-arch -> lint -> test
 
 One thing about those pipelines: `make test` runs `./...` while `make test-coverage` globs `./internal/... ./test/...`, so a new top-level test directory is picked up by the first and silently skipped by the second.
 
-Database commands need the goose and river CLIs (`make migrate-install` installs both at the versions `go.mod` pins, so a dependency bump moves the CLI with it; the Makefile expects them in `$(go env GOBIN)`, falling back to `$(go env GOPATH)/bin` when `GOBIN` is unset, which is where `go install` puts them). They build `DATABASE_URL` from `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSLMODE`, all overridable:
+Database commands need the goose and river CLIs (`make migrate-install` installs both at the versions `go.mod` pins, so a dependency bump moves the CLI with it; the Makefile expects them in `$(go env GOBIN)`, falling back to `$(go env GOPATH)/bin` when `GOBIN` is unset, which is where `go install` puts them). They build `DATABASE_URL` from `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSLMODE`, all overridable. `db-create`, `db-drop` and `seed` instead run `createdb`, `dropdb` and `psql` inside the compose `postgres` service, so they need `make docker-up` and no Postgres client on the host:
 
 ```bash
 make migrate-up  migrate-down  migrate-down-all  migrate-status  migrate-version

@@ -130,14 +130,14 @@ clean: ## Clean build artifacts
 
 # Database commands
 .PHONY: db-create
-db-create: ## Create the database
+db-create: ## Create the database in the compose postgres
 	@echo "Creating database..."
-	PGPASSWORD=$(DB_PASSWORD) createdb -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER) $(DB_NAME) || true
+	docker compose exec -T postgres createdb -U $(DB_USER) $(DB_NAME) || true
 
 .PHONY: db-drop
-db-drop: ## Drop the database
+db-drop: ## Drop the database in the compose postgres, closing open connections
 	@echo "Dropping database..."
-	PGPASSWORD=$(DB_PASSWORD) dropdb -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER) $(DB_NAME) || true
+	docker compose exec -T postgres dropdb -U $(DB_USER) --if-exists --force $(DB_NAME)
 
 .PHONY: migrate-install
 migrate-install: ## Install the goose and river CLIs at the versions go.mod pins
@@ -242,7 +242,6 @@ test-clean: ## Remove shared test containers (postgres + redis)
 	@docker rm -f go-api-test-postgres go-api-test-redis 2>/dev/null || true
 
 .PHONY: seed
-seed: ## Apply seed data to the database (override DATABASE_URL or DB_* vars)
-	@if [ -z "$(DATABASE_URL)" ]; then echo "DATABASE_URL is not set"; exit 1; fi
+seed: ## Apply seed data to the compose postgres
 	@echo "Applying seed data..."
-	psql "$(DATABASE_URL)" -f db/seeds/data.sql
+	docker compose exec -T postgres psql -U $(DB_USER) -d $(DB_NAME) -v ON_ERROR_STOP=1 < db/seeds/data.sql
