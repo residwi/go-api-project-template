@@ -87,7 +87,8 @@ Inside `adapter/http`, files split by handler role: unqualified `handler.go` is 
 All verified against the `Makefile`; `make help` lists them with descriptions.
 
 ```bash
-# Install deps + air, golangci-lint, goose, river; copy .env.example
+# Install deps + air, goose, river; copy .env.example. golangci-lint is not
+# installed by make: use Homebrew or the release binary, as its docs advise
 make setup
 
 # Build binaries
@@ -112,7 +113,7 @@ make mocks              # regenerate every mocks_test.go from .mockery.yml
 make check-arch         # the layer rules; prints "OK - No warnings found"
 make lint               # golangci-lint run ./...
 make vet
-make fmt                # go fmt ./... && gofmt -s -w .
+make fmt                # golangci-lint fmt ./...
 make vuln               # govulncheck
 make tidy
 make clean

@@ -112,6 +112,7 @@ shape costs are all in **[ARCHITECTURE.md](ARCHITECTURE.md)**;
 - Redis
 - Docker & Docker Compose
 - Make (optional but recommended)
+- [golangci-lint v2](https://golangci-lint.run/docs/welcome/install/local/) for `make lint` and `make fmt`, e.g. `brew install golangci-lint`
 
 ### Quick Start
 

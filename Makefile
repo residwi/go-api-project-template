@@ -81,13 +81,7 @@ test-coverage: ## Run tests with coverage report (requires Docker)
 
 .PHONY: lint
 lint: ## Run linter
-	@if command -v golangci-lint > /dev/null; then \
-		golangci-lint run ./...; \
-	else \
-		echo "Installing golangci-lint..."; \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
-		golangci-lint run ./...; \
-	fi
+	golangci-lint run ./...
 
 .PHONY: check-arch
 check-arch: ## Check layer dependencies (domain -> core -> adapter) via go-arch-lint
@@ -214,9 +208,9 @@ setup: ## Setup development environment
 	@echo "Setting up development environment..."
 	go mod download
 	go install github.com/air-verse/air@latest
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	$(MAKE) migrate-install
 	cp -n .env.example .env || true
+	@command -v golangci-lint > /dev/null || echo "golangci-lint not found: brew install golangci-lint (https://golangci-lint.run/docs/welcome/install/local/)"
 	@echo "Setup complete!"
 
 .PHONY: deps
