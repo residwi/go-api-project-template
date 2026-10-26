@@ -108,9 +108,7 @@ shape costs are all in **[ARCHITECTURE.md](ARCHITECTURE.md)**;
 ### Prerequisites
 
 - Go 1.27 or later
-- PostgreSQL 18+
-- Redis
-- Docker & Docker Compose
+- Docker & Docker Compose (runs PostgreSQL 18 and Redis; neither is needed on the host)
 - Make (optional but recommended)
 - [golangci-lint v2](https://golangci-lint.run/docs/welcome/install/local/) for `make lint` and `make fmt`, e.g. `brew install golangci-lint`
 
@@ -134,6 +132,7 @@ shape costs are all in **[ARCHITECTURE.md](ARCHITECTURE.md)**;
    ```bash
    make docker-up       # Start postgres and redis
    make migrate-up      # Run migrations
+   make migrate-jobs    # Run River's migrations (the worker needs them)
    make dev             # Run API with hot reload (Air)
    make run-worker      # Run worker in another terminal
    ```
@@ -142,6 +141,8 @@ shape costs are all in **[ARCHITECTURE.md](ARCHITECTURE.md)**;
 
    ```bash
    make docker-dev      # Start all services (postgres, redis, api, worker)
+   make migrate-up      # In another terminal, on first run
+   make migrate-jobs    # Then restart the worker: docker compose restart worker
    ```
 
 ## API Endpoints
