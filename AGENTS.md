@@ -107,7 +107,7 @@ make test               # go test -v -race -count=1 -timeout 5m -cover ./...
 make test-one NAME=X    # go test -run X across ./... with .env loaded
 make test-coverage      # ./internal/... ./test/... -> coverage.out + coverage.html
 make test-clean         # remove the shared postgres + redis test containers
-make mocks              # regenerate every mocks_test.go from .mockery.yml
+make mocks              # regenerate every mocks_test.go from .mockery.yml, in the vektra/mockery:3 image
 
 # Check
 make check-arch         # the layer rules; prints "OK - No warnings found"

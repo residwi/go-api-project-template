@@ -220,9 +220,11 @@ deps: ## Download dependencies
 	go mod verify
 
 .PHONY: mocks
-mocks: ## Generate mocks
+mocks: ## Generate mocks with the vektra/mockery:3 image
 	@echo "Generating mocks..."
-	mockery
+	docker run --rm -q --pull always -v "$(CURDIR)":/src -w /src \
+		-v go-api-mockery-mod:/go/pkg/mod -v go-api-mockery-build:/tmp/.cache \
+		vektra/mockery:3
 
 .PHONY: all
 all: fmt vet check-arch lint test build ## Run all checks and build
