@@ -502,7 +502,6 @@ make migrate-install  # Install the goose and river CLIs
 make setup            # Setup development environment
 make deps             # Download dependencies
 make all              # Run all checks and build
-make ci               # Run CI pipeline
 ```
 
 ## Database Migrations
@@ -548,8 +547,7 @@ make test-coverage     # ./internal/... ./test/... -> coverage.out + coverage.ht
 ```
 
 `make all` is the gate before calling a change complete: it runs `fmt`, `vet`,
-`check-arch`, `lint`, `test` and `build`. `make ci` runs the same checks
-without `build`.
+`check-arch`, `lint`, `test` and `build`.
 
 ## Environment Variables
 

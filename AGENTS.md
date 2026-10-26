@@ -120,10 +120,9 @@ make clean
 
 # Pipelines
 make all                # fmt -> vet -> check-arch -> lint -> test -> build
-make ci                 # deps -> fmt -> vet -> check-arch -> lint -> test
 ```
 
-One thing about those pipelines: `make test` runs `./...` while `make test-coverage` globs `./internal/... ./test/...`, so a new top-level test directory is picked up by the first and silently skipped by the second.
+GitHub CI does not call make for lint or test: `.github/workflows/ci.yml` runs `make check-arch`, then `golangci-lint-action` and `go test` directly. One thing about the pipelines: `make test` runs `./...` while `make test-coverage` globs `./internal/... ./test/...`, so a new top-level test directory is picked up by the first and silently skipped by the second.
 
 Database commands need the goose and river CLIs (`make migrate-install` installs both at the versions `go.mod` pins, so a dependency bump moves the CLI with it; the Makefile expects them in `$(go env GOBIN)`, falling back to `$(go env GOPATH)/bin` when `GOBIN` is unset, which is where `go install` puts them). They build `DATABASE_URL` from `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSLMODE`. The Makefile reads them from `.env` when it exists and falls back to the `.env.example` defaults; a command-line `make migrate-up DB_NAME=x` overrides `.env`, but a shell `DB_NAME=x make migrate-up` does not, which is the reverse of the app's own `godotenv` precedence. `db-create`, `db-drop` and `seed` instead run `createdb`, `dropdb` and `psql` inside the compose `postgres` service, so they need `make docker-up` and no Postgres client on the host:
 

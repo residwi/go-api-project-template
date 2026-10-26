@@ -231,9 +231,6 @@ mocks: ## Generate mocks with the vektra/mockery:3 image
 .PHONY: all
 all: fmt vet check-arch lint test build ## Run all checks and build
 
-.PHONY: ci
-ci: deps fmt vet check-arch lint test ## Run CI pipeline
-
 .PHONY: test-clean
 test-clean: ## Remove shared test containers (postgres + redis)
 	@echo "Removing test containers..."
