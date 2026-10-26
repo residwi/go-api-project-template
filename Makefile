@@ -6,6 +6,8 @@ BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 GOBIN := $(or $(shell go env GOBIN),$(shell go env GOPATH)/bin)
 GOOSE := $(GOBIN)/goose
 RIVER := $(GOBIN)/river
+GOOSE_VERSION = $(shell go list -m -f '{{.Version}}' github.com/pressly/goose/v3)
+RIVER_VERSION = $(shell go list -m -f '{{.Version}}' github.com/riverqueue/river)
 
 DB_HOST ?= localhost
 DB_PORT ?= 5432
@@ -138,11 +140,11 @@ db-drop: ## Drop the database
 	PGPASSWORD=$(DB_PASSWORD) dropdb -h $(DB_HOST) -p $(DB_PORT) -U $(DB_USER) $(DB_NAME) || true
 
 .PHONY: migrate-install
-migrate-install: ## Install goose CLI
+migrate-install: ## Install the goose and river CLIs at the versions go.mod pins
 	@echo "Installing goose..."
-	go install github.com/pressly/goose/v3/cmd/goose@latest
+	go install github.com/pressly/goose/v3/cmd/goose@$(GOOSE_VERSION)
 	@echo "Installing river..."
-	go install github.com/riverqueue/river/cmd/river@v0.45.0
+	go install github.com/riverqueue/river/cmd/river@$(RIVER_VERSION)
 
 .PHONY: migrate-up
 migrate-up: ## Run all pending migrations
@@ -213,7 +215,7 @@ setup: ## Setup development environment
 	go mod download
 	go install github.com/air-verse/air@latest
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	go install github.com/pressly/goose/v3/cmd/goose@latest
+	$(MAKE) migrate-install
 	cp -n .env.example .env || true
 	@echo "Setup complete!"
 
