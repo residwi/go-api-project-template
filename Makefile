@@ -4,7 +4,6 @@
 
 APP_NAME ?= ecommerce-api
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 GOBIN := $(or $(shell go env GOBIN),$(shell go env GOPATH)/bin)
 GOOSE := $(GOBIN)/goose
 RIVER := $(GOBIN)/river
@@ -123,6 +122,7 @@ clean: ## Clean build artifacts
 	@echo "Cleaning..."
 	rm -rf bin/
 	rm -f coverage.out coverage.html
+	rm -rf tmp/
 
 # Database commands
 .PHONY: db-create
