@@ -3,9 +3,9 @@
 APP_NAME := ecommerce-api
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-GOPATH := $(shell go env GOPATH)
-GOOSE := $(GOPATH)/bin/goose
-RIVER := $(GOPATH)/bin/river
+GOBIN := $(or $(shell go env GOBIN),$(shell go env GOPATH)/bin)
+GOOSE := $(GOBIN)/goose
+RIVER := $(GOBIN)/river
 
 DB_HOST ?= localhost
 DB_PORT ?= 5432
