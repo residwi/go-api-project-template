@@ -492,8 +492,6 @@ func seedOrder(t *testing.T, userID uuid.UUID) uuid.UUID {
 	return id
 }
 
-// seedPayment goes through charge's own Create, since charge is the one slice
-// that owns writing a brand new payment row.
 func seedPayment(t *testing.T, repo *Repository, orderID uuid.UUID) *domain.Payment {
 	t.Helper()
 	p := &domain.Payment{

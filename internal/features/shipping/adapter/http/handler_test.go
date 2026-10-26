@@ -184,12 +184,6 @@ func TestHandler_Get(t *testing.T) {
 	})
 }
 
-// toShipmentResponse is shared by handler.go and admin_handler.go. The old
-// create, deliver, query and updatetracking handlers each carried their own
-// copy of this exact test; three of the four (create, query, updatetracking)
-// were byte-for-byte identical, and deliver's differed only in exercising
-// delivered_at instead of leaving both pointer fields nil. Both scenarios
-// survive here as subtests so neither's coverage is lost in the merge.
 func TestToShipmentResponse_ExposesExactFieldSet(t *testing.T) {
 	t.Parallel()
 

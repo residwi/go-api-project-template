@@ -31,20 +31,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// TestNewWiresOrderAndPaymentToEachOther pins the order/payment wiring across
-// the module boundary. RetryPayment and Deps.Payment are gone -- checkout now
-// owns the retry flow, rebuilding what it needs from order's Snapshot
-// projection and payment's own Charge port -- and the payment-job-cancel edge
-// that used to live on order.Deps.PaymentJobs has moved the same way:
-// order.Service.CancelByUser now only reverses stock and releases the coupon,
-// checkout.Payments.CancelPendingByOrderID feeds checkout.Service.CancelOrder
-// instead.
-// Order still feeds payment three ports, but order has no payment-shaped
-// dependency left, so New builds order.Service first and hands payment.New
-// that one value for all three -- the same instance order's own writes use,
-// not the pair of standalone builds this test used to have to trust were
-// equivalent. Checkout is built last, on top of both.
-//
 // checkout.Service.CancelOrder's payment-job leg is best-effort and swallows
 // its own error, so proof has to come from the database a real job row
 // landed in, not from CancelOrder's return value.
@@ -111,12 +97,7 @@ func TestNewWiresOrderAndPaymentToEachOther(t *testing.T) {
 	assert.Equal(t, "cancelled", jobState,
 		"checkout.Service.CancelOrder must be wired to both order.Service and payment.Service by New")
 
-	// checkout.Service.Snapshots is new in this refactor: order.Service.Snapshot
-	// carries ID and UserID (it didn't when this test was first
-	// written -- see task-3-report.md for that incident), so a real caller's
-	// ownership check correctly passes here and RetryPayment reaches
-	// payment.Charge. A separate, untouched order is used rather than
-	// cancelOrderID above, so this assertion is not tangled up with Cancel's
+	// A separate, untouched order is used rather than cancelOrderID above, so this assertion is not tangled up with Cancel's
 	// own status transition.
 	retryOrderID := seedOrder()
 	_, err = deps.Checkout.RetryPayment(ctx, userID, retryOrderID, "card")

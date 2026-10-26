@@ -17,13 +17,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
-// Signature verification and the business dispatch it guards used to need a
-// REAL webhook.UseCase in this package, because that check lived inside a
-// private-mocked slice's Execute. Now that HandleWebhook is a payment.Service
-// method, TestService_HandleWebhook_SignatureVerification proves the check
-// directly with no HTTP involved, so this file goes back to the standard
-// mocked-port shape every other slice's handler test already uses.
-
 func TestWebhookHandler_HandleWebhook(t *testing.T) {
 	t.Parallel()
 

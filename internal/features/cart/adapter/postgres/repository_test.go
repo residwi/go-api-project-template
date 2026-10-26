@@ -62,8 +62,6 @@ func TestPostgresRepository_AddItem(t *testing.T) {
 		require.NoError(t, repo.AddItem(ctx, cartID, productID, 2))
 		require.NoError(t, repo.AddItem(ctx, cartID, productID, 3))
 
-		// Same predicate CountItems used before it was dropped as dead code: no
-		// production caller ever read the count it returned.
 		var count int
 		require.NoError(t, testPool.QueryRow(ctx,
 			`SELECT COUNT(*) FROM cart_items WHERE cart_id = $1`, cartID).Scan(&count))
@@ -303,8 +301,8 @@ func TestPostgresRepository_CancelledContext(t *testing.T) {
 	})
 }
 
-// The application only soft-deletes users, so the old ON DELETE CASCADE was
-// unreachable configuration implying a cart cleanup nothing performed.
+// The application only soft-deletes users, so ON DELETE CASCADE would be
+// unreachable configuration implying a cart cleanup nothing performs.
 func TestUserHardDeleteIsRestricted(t *testing.T) {
 	ctx := context.Background()
 
@@ -325,9 +323,8 @@ func TestUserHardDeleteIsRestricted(t *testing.T) {
 	assert.Equal(t, 1, count, "cart must survive the refused delete")
 }
 
-// The five cross-module cascades were unreachable (users and products are
-// soft-deleted); the four within-module ones are aggregate-internal and
-// correct. Needs no seeded row: it reads the constraint catalog directly.
+// Users and products are only soft-deleted, so a cross-module cascade could
+// never fire; the within-module cascades are aggregate-internal and stay.
 func TestCrossModuleCascadesDropped(t *testing.T) {
 	noAction := []string{
 		"carts_user_id_fkey",

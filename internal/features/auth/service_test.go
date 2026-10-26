@@ -228,10 +228,8 @@ func TestService_Refresh(t *testing.T) {
 			TokenVersion: 1,
 		}
 
-		// Mint a real refresh token the way Login/Register would, so this
-		// exercises Refresh's own ValidateToken rather than a mock -- once
-		// token folded into Service there is no longer a separate
-		// TokenValidator to inject one behind.
+		// Mint a real refresh token the way Login/Register would, so Refresh
+		// verifies a real token rather than a mock's answer.
 		pair, err := svc.BuildTokenPair(user)
 		require.NoError(t, err)
 
@@ -692,9 +690,6 @@ func TestService_HashSlots(t *testing.T) {
 	})
 }
 
-// newTestConfig gives every Service test the same secret, issuer and TTLs
-// token/usecase_test.go used to hard-code per test; subtests that need a
-// different value copy this and override just that field.
 func newTestConfig() Config {
 	return Config{
 		Secret:          "test-secret-key",

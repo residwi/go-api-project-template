@@ -51,7 +51,7 @@ func TestMustStartPostgresIsRepeatableWithoutDroppingData(t *testing.T) {
 // invariant under test only engages on the create path, so this test needs
 // its name to genuinely not exist yet on every run, which the
 // "shared, never dropped" contract can't provide. Drop defensively before and
-// after, exactly the WITH (FORCE) pattern the rest of the suite retired --
+// after, exactly the WITH (FORCE) pattern the rest of the suite avoids --
 // safe here specifically because this name has exactly one owner.
 //
 // Two goroutines then race MustStartPostgres on that name. Each checks its OWN

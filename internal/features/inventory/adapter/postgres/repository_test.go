@@ -17,11 +17,6 @@ import (
 	"github.com/residwi/go-api-project-template/internal/testutil"
 )
 
-// This package owns test_inventory outright now that every inventory slice
-// merged into one adapter -- one TestMain, one MustStartPostgres call. It
-// still never truncates: every row it touches is seeded here with a fresh id
-// from [uuid.New] and cleaned up by name, the same discipline the shared
-// database needed before the merge.
 var testPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
@@ -292,10 +287,6 @@ func TestPostgresRepository_Reserve_RejectsOverReservation(t *testing.T) {
 	assert.Equal(t, 2, available, "a rejected batch must reserve nothing")
 }
 
-// Deduct had no postgres-level test before this flatten -- deduct's own
-// repository_test.go covered only the now-deleted singular Deduct. Added
-// here, mirroring Reserve's pair, now that Deduct is the sole surviving
-// deduction path.
 func TestPostgresRepository_Deduct_UsesInventoryLevels(t *testing.T) {
 	ctx := context.Background()
 	repo := New(database.DB{Primary: testPool})
@@ -380,10 +371,6 @@ func arrangeReservation(t *testing.T, productID uuid.UUID, qty int) {
 	require.NoError(t, err)
 }
 
-// seedProduct inserts a product and its inventory_levels row (10 available, 0
-// reserved) with a fresh id, and cleans up both on test completion -- every
-// row is still scoped by id rather than truncated, the discipline the seven
-// slices sharing this database used before they merged into one package.
 func seedProduct(t *testing.T) uuid.UUID {
 	t.Helper()
 	id := uuid.Must(uuid.NewV7())

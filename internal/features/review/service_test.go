@@ -149,8 +149,7 @@ func TestService_Create(t *testing.T) {
 }
 
 // The argument order is userID, orderID, productID -- this pins it, since
-// there is no longer a named struct to catch a positional swap at compile
-// time. All three ids are distinct: reusing one would let a swapped call
+// nothing catches a positional swap at compile time. All three ids are distinct: reusing one would let a swapped call
 // still pass by accident.
 func TestService_Create_PassesArgumentsInOrder(t *testing.T) {
 	t.Parallel()

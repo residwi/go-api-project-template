@@ -582,9 +582,6 @@ func TestService_Place(t *testing.T) {
 		// Finalized directly instead of left to expire, and no payment is
 		// initiated: checkout's payment leg only ever sees an order with a
 		// nonzero total, since this branch and that one are mutually exclusive.
-		// The named transition is asserted on Repository.Apply, which is where
-		// the old TransitionApplier port's expectation moved when that port
-		// folded into this Service.
 		d.repo.EXPECT().Apply(mock.Anything, mock.Anything, domain.ToPaid).Return(nil)
 		d.inventory.EXPECT().
 			Deduct(mock.Anything, map[uuid.UUID]int{productA: 1}).
@@ -990,10 +987,8 @@ func TestService_Snapshot(t *testing.T) {
 		}, got)
 	})
 
-	// The deleted GetInfo filled only these three fields off the same read, and
-	// shipping -- its only caller -- reads exactly Status and UserID. This is
-	// that assertion, moved onto the surviving method: a bare row must still
-	// project its identity, with every other field at its zero value rather
+	// Shipping reads exactly Status and UserID off this projection, so a bare
+	// row must still project its identity, with every other field at its zero value rather
 	// than at something invented.
 	t.Run("projects identity and status for a row with no coupon or totals", func(t *testing.T) {
 		t.Parallel()

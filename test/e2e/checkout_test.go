@@ -43,8 +43,6 @@ func TestE2EOrderFlow(t *testing.T) {
 		testPool.Exec(ctx, `DELETE FROM products WHERE id = $1`, prodID)
 	})
 
-	// Ensure product has stock: inventory reserves against inventory_levels, the
-	// products table no longer carries a stock column at all.
 	seedInventoryLevel(t, prodID, 100, 0)
 
 	regBody := `{"email":"e2e-flow@example.com","password":"Password123!","first_name":"E2E","last_name":"User"}`

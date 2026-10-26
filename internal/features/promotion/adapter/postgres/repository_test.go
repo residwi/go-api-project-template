@@ -313,11 +313,6 @@ func TestPostgresRepository_DeleteUsageByOrderID(t *testing.T) {
 	})
 }
 
-// TestPostgresRepository_CancelledContext covers every repository method's
-// error path once each -- the pre-flatten tree had this scattered across all
-// six slices' own postgres packages (with GetByCode's subtest duplicated
-// verbatim between apply and reserve), so one subtest per method here is a
-// straight dedup, not a coverage cut.
 func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelledCtx, cancel := context.WithCancel(context.Background())
 	cancel()

@@ -326,10 +326,6 @@ func TestAdminHandler_Delete(t *testing.T) {
 	})
 }
 
-// TestToAdminCategoryResponse_KeepsModerationAndAuditFields pins the fuller
-// admin shape: create's and update's pre-flatten handlers each carried an
-// identical copy of this test (byte-for-byte, testing the same toXResponse
-// mapper), so only one survives the merge.
 func TestToAdminCategoryResponse_KeepsModerationAndAuditFields(t *testing.T) {
 	t.Parallel()
 

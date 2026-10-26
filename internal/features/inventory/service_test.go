@@ -200,10 +200,6 @@ func TestService_Reserve(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// Deduct had no service-level test before this flatten -- only its sibling
-// Reserve did (deduct/usecase_test.go covered only the now-deleted singular
-// Deduct method). Added here for parity now that Deduct is the sole
-// surviving deduction path.
 func TestService_Deduct(t *testing.T) {
 	t.Parallel()
 

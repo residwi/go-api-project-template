@@ -1328,13 +1328,6 @@ func TestService_SettleRefund(t *testing.T) {
 	})
 }
 
-// TestService_HandleWebhook ports every subtest that used to live on
-// webhook.UseCase, plus (see "success event finalizes payment" and "finalize
-// failure runs compensating refund") the coverage that used to require
-// webhook/http's real-usecase test harness -- once FinalizeSuccess and
-// CompensateRefund are Service methods instead of a mocked PaymentFinalizer
-// port, the finalize-on-webhook path is provable here directly, with no HTTP
-// involved at all.
 func TestService_HandleWebhook(t *testing.T) {
 	t.Parallel()
 

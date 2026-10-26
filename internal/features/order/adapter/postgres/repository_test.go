@@ -137,9 +137,6 @@ func TestPostgresRepository_GetByUserIDAndIdempotencyKey(t *testing.T) {
 	})
 }
 
-// UpdateTotals had no repository-level test before the slices were introduced --
-// only a mocked service-level one -- even though it finalizes the coupon
-// discount on a real row.
 func TestPostgresRepository_UpdateTotals(t *testing.T) {
 	t.Run("updates discount and total on the order row", func(t *testing.T) {
 		userID := seedUser(t)
@@ -598,10 +595,6 @@ func TestPostgresRepository_Apply(t *testing.T) {
 	})
 }
 
-// TestPostgresRepository_CancelledContext is one function per the seven slices'
-// worth of identical one-subtest cancelled-context functions this merge
-// collapsed. Every method that talks to the pool gets a subtest; the scenario
-// per method is distinct, the body shape is not.
 func TestPostgresRepository_CancelledContext(t *testing.T) {
 	cancelled := func() context.Context {
 		ctx, cancel := context.WithCancel(context.Background())
