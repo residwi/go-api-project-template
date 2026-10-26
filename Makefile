@@ -224,7 +224,7 @@ deps: ## Download dependencies
 .PHONY: mocks
 mocks: ## Generate mocks with the vektra/mockery:3 image
 	@echo "Generating mocks..."
-	docker run --rm -q --pull always -v "$(CURDIR)":/src -w /src \
+	docker run --rm -q --pull always -e GOTOOLCHAIN=auto -v "$(CURDIR)":/src -w /src \
 		-v go-api-mockery-mod:/go/pkg/mod -v go-api-mockery-build:/tmp/.cache \
 		vektra/mockery:3
 

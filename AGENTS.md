@@ -293,6 +293,7 @@ A component whose glob matches no directory is a hard config error, so the confi
 - Never commit `.env`, secrets or API keys.
 - Run `make check-arch`, `make vet` and `make test` before calling a change complete. `make all` does all three plus lint and build.
 - Do not add a third-party router.
+- Raise the `go` line in `go.mod` to a new minor version only once `vektra/mockery:3` and golangci-lint ship builds with that Go. Each type-checks with the Go it was compiled with and fails on a newer minor, and `GOTOOLCHAIN=auto` in `make mocks` covers only a newer patch. A Dependabot bump that raises the minor waits too.
 - Do not suppress a lint or vet finding with `//nolint` without a justification comment on the same line. The expected form is `//nolint:gocognit,funlen // one order write: idempotency, cart lock+validate, reserve, items, coupon, and clear in one transaction`.
 - Do not make the adapter subpackage tree uniform, and do not add a pass-through adapter package to fill a slot.
 - Backward compatibility is explicitly **not** a goal. API shapes may change where a better design demands it — but say so when they do.
