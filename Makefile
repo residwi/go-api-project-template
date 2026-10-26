@@ -16,7 +16,7 @@ DB_USER ?= postgres
 DB_PASSWORD ?= postgres
 DB_NAME ?= ecommerce
 DB_SSLMODE ?= disable
-DATABASE_URL ?= postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
+DATABASE_URL = postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
 
 .PHONY: help
 help: ## Display this help
