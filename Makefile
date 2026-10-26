@@ -1,6 +1,8 @@
 # Makefile
 
-APP_NAME := ecommerce-api
+-include .env
+
+APP_NAME ?= ecommerce-api
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 GOBIN := $(or $(shell go env GOBIN),$(shell go env GOPATH)/bin)
