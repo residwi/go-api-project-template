@@ -53,3 +53,44 @@ jobs:
       - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  security:
+    uses: ./.github/workflows/security.yml
+
+  dependabot_auto_merge:
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.base_ref == 'main' &&
+      !github.event.pull_request.draft
+    needs: [lint, test, security]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v3
+
+      - name: Squash merge minor or patch updates
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base_go=$(gh api "repos/$GITHUB_REPOSITORY/contents/go.mod?ref=$BASE_SHA" -H 'Accept: application/vnd.github.raw+json' | awk '$1 == "go" { split($2, v, "."); print v[1] "." v[2] }')
+          head_go=$(gh api "repos/$GITHUB_REPOSITORY/contents/go.mod?ref=$HEAD_SHA" -H 'Accept: application/vnd.github.raw+json' | awk '$1 == "go" { split($2, v, "."); print v[1] "." v[2] }')
+          if [ -z "$base_go" ] || [ "$base_go" != "$head_go" ]; then
+            echo "The Go major or minor version changed; leaving the pull request for review."
+            exit 1
+          fi
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')" != "$BASE_SHA" ]; then
+            echo "The base branch changed; leaving the pull request open."
+            exit 1
+          fi
+          gh pr merge "$PR_URL" --squash --match-head-commit "$HEAD_SHA"
